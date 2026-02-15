@@ -38,6 +38,10 @@
 ## Notes
 - Current baseline remains releasable under gate policy.
 - Low/Informational findings are tracked under T24 remediation register for hardening follow-up.
+- Code-level mitigation added in Session 12:
+  - `Cross-Origin-Resource-Policy: same-origin`
+  - `Cache-Control: no-store`, `Pragma: no-cache`, `Expires: 0`
+  - Verified by contract test updates in `backend/tests/test_api/test_contract.py`
 
 ## Residual Risk
 - Low/Informational findings still require hardening triage and SLA tracking under T24.

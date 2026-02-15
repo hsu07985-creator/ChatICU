@@ -90,6 +90,10 @@ async def test_security_headers_present(client):
     assert response.headers["X-XSS-Protection"] == "1; mode=block"
     assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
     assert "camera=()" in response.headers["Permissions-Policy"]
+    assert response.headers["Cross-Origin-Resource-Policy"] == "same-origin"
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["Pragma"] == "no-cache"
+    assert response.headers["Expires"] == "0"
 
 
 @pytest.mark.asyncio

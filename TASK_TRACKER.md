@@ -2,7 +2,7 @@
 
 **Project:** ChatICU 2026 ISMS-Compliant Production Deployment
 **Created:** 2026-02-15
-**Last Updated:** 2026-02-15 (Session 11 — T22/T23/T24/T27 Evidence Continuation)
+**Last Updated:** 2026-02-15 (Session 12 — T23/T26 Header Hardening + Tests)
 **Total Tasks:** 32 | **Completed:** 13 | **In Progress:** 10 (T04, T14, T15, T20, T21, T22, T23, T24, T26, T27) | **Blocked:** 0
 
 ---
@@ -60,7 +60,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 | T20 | `[~]` | 完成 dev/stg/prod 三環境分離（含獨立 DB/權限），補環境矩陣文件 | DevOps | 2026-03-10 |
 | T21 | `[~]` | 依 CR 模板完成一筆正式變更單，並附一次回滾演練紀錄 | PM / Release | 2026-02-24 |
 | T22 | `[~]` | 於「另一台乾淨主機/容器」再跑一次 runbook，補完整 shell transcript | DevOps | 2026-02-24 |
-| T23 | `[~]` | 將 DAST 低風險項（CORP/cacheable）轉成修補任務並回填 SLA 期限 | Security Eng | 2026-02-24 |
+| T23 | `[~]` | 觸發下一次 DAST 驗證 CORP/cache header 修補效果，回填新報告結果 | Security Eng | 2026-02-24 |
 | T24 | `[~]` | 每週更新 vulnerability register（新增 owner/截止日/retest 狀態欄位維護） | Security Eng | 2026-02-25 |
 | T25 | `[ ]` | 建立入侵/異常監控告警（4xx/5xx/來源異常）與通報 SOP，完成一次演練 | SOC | 2026-03-07 |
 | T26 | `[~]` | 補齊 XSS/上傳驗證測試案例並新增 CI 測項；FIM 需求拆為 infra 子任務 | Security Eng | 2026-02-25 |
@@ -948,8 +948,9 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 首次掃描報告產出（Run `22029666045`，artifact: `bandit-report`）
 - [x] 安全掃描摘要文件（`docs/security/evidence/t23-security-scan-summary-2026-02-15.md`）
 - [x] 最新 run artifact 已下載驗證（Run `22033478586`，含 `dast-gate-summary.md`）
+- [x] CORP/cache 風險程式碼修補（`SecurityHeadersMiddleware` + contract test）
 
-**實作內容（Session 6 + Session 9 + Session 10 + Session 11）：**
+**實作內容（Session 6 + Session 9 + Session 10 + Session 11 + Session 12）：**
 - `backend/pyproject.toml`: Bandit SAST 配置:
   - `exclude_dirs`: tests, seeds, alembic
   - `skips`: B101 (assert_used — 測試中常用)
@@ -962,6 +963,12 @@ Overall:        [===========] 13/32 completed + 10 partial
   - 產出 `zap-report.json/html/warnings` artifact
   - Gate 規則：若 High 風險數量 > 0，pipeline fail
   - 產出 `dast-gate-summary.md`（直接摘要 Gate 結果）
+- `backend/app/main.py`: `SecurityHeadersMiddleware` 新增
+  - `Cross-Origin-Resource-Policy: same-origin`
+  - `Cache-Control: no-store`
+  - `Pragma: no-cache`
+  - `Expires: 0`
+- `backend/tests/test_api/test_contract.py`: 安全 header 契約測試補強（含 CORP/cache headers）
 
 **驗證方式：**
 - [x] pyproject.toml Bandit 配置有效
@@ -974,6 +981,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 掃描摘要文件（`docs/security/evidence/t23-security-scan-summary-2026-02-15.md`）
 - [x] 最新 SAST/DAST gate 綠燈（Run `22033478586`）
 - [x] 最新 artifact 指標核對（Run `22033478586`: High=0, Medium=0, Gate=PASS）
+- [x] Header hardening 測試通過（`pytest tests/test_api/test_contract.py`）
 
 ---
 
@@ -1076,11 +1084,14 @@ Overall:        [===========] 13/32 completed + 10 partial
   - All request models: `patient_id` (1-50), `scenario/question` (max 2000), `message` (1-10000)
   - CKDStageRequest: `egfr` (0-200), `age` (0-150)
   - RAGQueryRequest: `question` (1-2000), `top_k` (1-20)
+- `main.py` / `test_contract.py`:
+  - 新增 CORP/cache-control 安全 header 與契約測試（DAST low finding 對應防護）
 
 **驗證方式：**
 - [x] Pydantic schema validation 全面增強 (email regex, username pattern, field length limits)
 - [x] 60/60 backend tests pass（無回歸）
 - [x] Schema hardening tests 補齊（`backend/tests/test_schemas/test_validation_hardening.py`）
+- [x] 安全 header 契約測試補強（`backend/tests/test_api/test_contract.py`）
 - [ ] FIM 報告（需 infra）
 - [ ] 滲測驗證紀錄
 
@@ -1395,6 +1406,8 @@ T29 (P1) ── depends on T01 only
 | 2026-02-15 | T23 續作 | 下載並核對 Run `22033478586` DAST artifact：High=0, Medium=0, Gate=PASS | Verified |
 | 2026-02-15 | T22 續作 | 本地重建演練（versions/hash/npm ci+build/PostgreSQL migration+seed）報告落地 | Verified |
 | 2026-02-15 | T24 續作 | 漏洞台帳實例 `docs/security/vulnerability-register-2026-02.md` 建立（2 cases） | Done |
+| 2026-02-15 | T23 續作 | 修補 DAST low 風險 header：CORP + Cache-Control/Pragma/Expires | Done |
+| 2026-02-15 | T26 續作 | 補強安全 header 契約測試，`test_contract + schema` 共 14 passed | Verified |
 
 ---
 
