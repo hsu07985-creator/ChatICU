@@ -936,7 +936,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031345836` critical journey green)** |
 | **Owner** | Security Eng |
 | **協作** | Backend, DevOps |
 | **估工** | 0.8 人天 |
