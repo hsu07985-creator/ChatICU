@@ -48,7 +48,19 @@ test.describe("T27 Critical Journey", () => {
 
     expect(assistantContent.length).toBeGreaterThan(0);
 
-    await page.getByRole("button", { name: "登出" }).click();
+    const logoutButton = page.getByRole("button", { name: "登出" });
+    const logoutVisible = await logoutButton.isVisible().catch(() => false);
+    if (!logoutVisible) {
+      const sidebarToggle = page.getByRole("button", {
+        name: /展開側邊欄|收起側邊欄|Toggle Sidebar/,
+      });
+      if (await sidebarToggle.isVisible().catch(() => false)) {
+        await sidebarToggle.click();
+      }
+    }
+
+    await expect(logoutButton).toBeVisible({ timeout: 15000 });
+    await logoutButton.click();
     await expect(page).toHaveURL(/\/login$/);
 
     fs.mkdirSync(path.resolve("output/playwright"), { recursive: true });
