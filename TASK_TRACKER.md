@@ -2,7 +2,7 @@
 
 **Project:** ChatICU 2026 ISMS-Compliant Production Deployment
 **Created:** 2026-02-15
-**Last Updated:** 2026-02-15 (Session 16 — T04 Runtime Crash Fix + CI Green Run)
+**Last Updated:** 2026-02-15 (Session 17 — T04 UAT Draft + T27 Lab Trend Regression Case)
 **Total Tasks:** 32 | **Completed:** 13 | **In Progress:** 10 (T04, T14, T15, T20, T21, T22, T23, T24, T26, T27) | **Blocked:** 0
 
 ---
@@ -49,7 +49,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Task | 狀態 | 下一個可執行動作（Next Action） | Owner | 截止日 |
 |------|------|----------------------------------|-------|--------|
-| T04 | `[~]` | 依 `docs/qa/t04-uat-test-script.md` 執行 UAT，補 1 份已簽核報告至 `docs/qa/` | Backend Lead | 2026-02-20 |
+| T04 | `[~]` | 完成 UAT-T04-003/006/007 手動驗證並補簽核（草案：`docs/qa/t04-uat-report-2026-02-15-draft.md`） | Backend Lead | 2026-02-20 |
 | T12 | `[ ]` | 設定日誌保存/封存策略（6 個月）與防竄改機制（WORM/不可變儲存）並留存設定截圖 | SRE / Platform | 2026-02-27 |
 | T13 | `[ ]` | 建立每週日誌審查排程與告警規則（異常登入/權限變更），產出首份審查紀錄 | SOC / 資安維運 | 2026-02-27 |
 | T14 | `[~]` | 於主機/容器層啟用 NTP 校時與 offset 監測，補監控面板與告警證據 | SRE / Platform | 2026-03-06 |
@@ -470,6 +470,8 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [ ] UAT 簽核（每個核心流程）
 - [x] E2E 測試報告（Run `22031771983`，Playwright artifacts）
 - [x] UAT 腳本與報告模板（`docs/qa/t04-uat-test-script.md`、`docs/qa/t04-uat-report-template.md`）
+- [x] UAT 草案報告（`docs/qa/t04-uat-report-2026-02-15-draft.md`）
+- [ ] UAT-T04-003/006/007 手動驗證與簽核補件
 
 **實作內容（re-audit 4 — 趨勢圖對接）：**
 - `src/pages/patient-detail.tsx`: 移除空 `trendData: []` + TODO 註解 → 新增 `useEffect` 呼叫 `labDataApi.getLabTrends()` API
@@ -496,6 +498,9 @@ Overall:        [===========] 13/32 completed + 10 partial
   - `UpdateErrorReportData`: `{status, actionTaken, resolvedBy}` → `{status, resolution}` 對齊後端 schema
   - `createErrorReport` return: `{message, report}` → `ErrorReport`
   - `updateErrorReport` return: `{message, report}` → `ErrorReport`
+- `docs/qa/t04-uat-report-2026-02-15-draft.md`:
+  - 8 個 UAT cases 先以 CI evidence 回填 5 項 Pass
+  - 餘 3 項（留言板、lab trend 手動證據、pharmacy records）標記 Pending，待 PM/QA 簽核
 
 **實作內容（W1 — advice-records 端點建立）：**
 - `backend/app/models/pharmacy_advice.py`: 新建 `PharmacyAdvice` model（13 欄位: id, patient_id, patient_name, bed_number, pharmacist_id, pharmacist_name, advice_code, advice_label, category, content, linked_medications(JSONB), timestamp, created_at）
@@ -874,7 +879,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22033862853` full pipeline green)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22033938836` full pipeline green)** |
 | **Owner** | DevOps |
 | **協作** | Frontend, Backend |
 | **估工** | 1.0 人天 |
@@ -892,7 +897,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 新環境重現報告機制已納入 CI（`reproducibility-report` artifact job）
 - [x] CI 連續 3 次綠燈驗證（`22031759710`、`22031766156`、`22031771983`）
 - [x] 最新手動全綠驗證（workflow_dispatch: `22033478586`，含 `e2e-extended-journeys`）
-- [x] 最新 push 全綠驗證（Run `22033862853`，含 critical E2E/DAST/docker-build）
+- [x] 最新 push 全綠驗證（Run `22033938836`，含 critical E2E/DAST/docker-build）
 - [x] 新環境重建 Runbook（`docs/operations/environment-rebuild-runbook.md`）
 - [x] 本地重建演練報告（`docs/operations/reproducibility-reports/2026-02-15-local-rebuild-drill.md`）
 
@@ -931,7 +936,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 新環境重現測試報告（Run `22031771983` + `docs/operations/reproducibility-reports/2026-02-15-run-22031771983.md`）
 - [x] 新環境重建步驟文件（`docs/operations/environment-rebuild-runbook.md`）
 - [x] 最新全綠 run（`22033478586`）：含 critical + extended E2E、DAST、docker-build 全數通過
-- [x] 最新全綠 run（`22033862853`）：push pipeline 全 job 綠燈（extended journeys 為非 blocking，該次 skipped）
+- [x] 最新全綠 run（`22033938836`）：push pipeline 全 job 綠燈（extended journeys 為非 blocking，該次 skipped）
 - [x] 本地重建演練（versions + lock hashes + `npm ci/build` + PostgreSQL migration/seed）— `docs/operations/reproducibility-reports/2026-02-15-local-rebuild-drill.md`
 
 ---
@@ -942,7 +947,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22033862853` SAST/DAST gate green)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22033938836` SAST/DAST gate green)** |
 | **Owner** | Security Eng |
 | **協作** | DevOps, QA |
 | **估工** | 1.0 人天 |
@@ -960,7 +965,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 最新 run artifact 已下載驗證（Run `22033478586`，含 `dast-gate-summary.md`）
 - [x] CORP/cache 風險程式碼修補（`SecurityHeadersMiddleware` + contract test）
 - [x] 修補後 DAST 回歸驗證（Run `22033663309`: High=0, Medium=0, Low=0）
-- [x] 最新 push DAST gate 綠燈（Run `22033862853`）
+- [x] 最新 push DAST gate 綠燈（Run `22033938836`）
 
 **實作內容（Session 6 + Session 9 + Session 10 + Session 11 + Session 12）：**
 - `backend/pyproject.toml`: Bandit SAST 配置:
@@ -995,7 +1000,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 最新 artifact 指標核對（Run `22033478586`: High=0, Medium=0, Gate=PASS）
 - [x] Header hardening 測試通過（`pytest tests/test_api/test_contract.py`）
 - [x] 修補效果確認（Run `22033663309`: Low `1 -> 0`, 僅剩 Informational）
-- [x] 最新 push gate 驗證（Run `22033862853`: `security-scan` + `dast-scan` 均為 success）
+- [x] 最新 push gate 驗證（Run `22033938836`: `security-scan` + `dast-scan` 均為 success）
 
 ---
 
@@ -1120,7 +1125,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22033478586` critical + extended journeys green；Run `22033862853` critical gate green)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22033478586` critical + extended journeys green；Run `22033938836` critical gate green)** |
 | **Owner** | QA Lead |
 | **協作** | Frontend, Backend |
 | **估工** | 1.2 人天 |
@@ -1146,6 +1151,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - `e2e/t27-extended-journeys.spec.js`:
   - 擴充 journey: login → team chat → logout
   - 擴充 journey: login → patients → detail tab switch
+  - 新增回歸案例: login → patient lab → click trendable card → trend dialog opens（防止 `Objects are not valid as a React child` 類型崩潰）
 - `.github/workflows/ci.yml`:
   - 新增 `e2e-critical-journey` job（PostgreSQL + Redis + migration + seed + frontend/backend 啟動 + Playwright）
   - 產出 `e2e-playwright-artifacts`（report/video/logs）
@@ -1161,8 +1167,9 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 首次 CI E2E 綠燈 run `22031345836`，artifact: `output/playwright` video + html report
 - [x] CI E2E 最新綠燈 run `22031771983`（critical journey）
 - [x] Extended journeys CI 首次綠燈 run `22033478586`（workflow_dispatch with `run_extended_e2e=true`）
-- [x] 最新 push critical gate 綠燈 run `22033862853`（required gate）
+- [x] 最新 push critical gate 綠燈 run `22033938836`（required gate）
 - [x] Gate policy 文件（`docs/qa/t27-release-gate-policy.md`）
+- [x] Extended journey 新增 lab trend runtime regression case（`e2e/t27-extended-journeys.spec.js`）
 
 ---
 
@@ -1432,6 +1439,8 @@ T29 (P1) ── depends on T01 only
 | 2026-02-15 | T21 續作 | 建立並推送 release tag `v1.0.0`（對應 commit `7d0aeee`） | Done |
 | 2026-02-15 | T04 續作 | 修正 `lab-data-display.tsx` 物件值容錯渲染（避免 React child object crash），`npm run build` 通過 | Done |
 | 2026-02-15 | CI 驗證 | Push Run `22033862853` 全綠（critical E2E + DAST + docker-build success） | Verified |
+| 2026-02-15 | T04/T27 續作 | 新增 T04 UAT 草案報告 + T27 lab trend runtime regression E2E 測項（`playwright --list` 驗證） | Done |
+| 2026-02-15 | CI 驗證 | Push Run `22033938836` 全綠（critical E2E + DAST + docker-build success） | Verified |
 
 ---
 
