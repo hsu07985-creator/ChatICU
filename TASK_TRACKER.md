@@ -60,7 +60,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 | T20 | `[~]` | 完成 dev/stg/prod 三環境分離（含獨立 DB/權限），補環境矩陣文件 | DevOps | 2026-03-10 |
 | T21 | `[~]` | 依 CR 模板完成一筆正式變更單，並附一次回滾演練紀錄 | PM / Release | 2026-02-24 |
 | T22 | `[~]` | 於「另一台乾淨主機/容器」再跑一次 runbook，補完整 shell transcript | DevOps | 2026-02-24 |
-| T23 | `[~]` | 觸發下一次 DAST 驗證 CORP/cache header 修補效果，回填新報告結果 | Security Eng | 2026-02-24 |
+| T23 | `[~]` | 連續追蹤 3 次 DAST（確認維持 High/Medium/Low = 0）並更新趨勢 | Security Eng | 2026-02-24 |
 | T24 | `[~]` | 每週更新 vulnerability register（新增 owner/截止日/retest 狀態欄位維護） | Security Eng | 2026-02-25 |
 | T25 | `[ ]` | 建立入侵/異常監控告警（4xx/5xx/來源異常）與通報 SOP，完成一次演練 | SOC | 2026-03-07 |
 | T26 | `[~]` | 補齊 XSS/上傳驗證測試案例並新增 CI 測項；FIM 需求拆為 infra 子任務 | Security Eng | 2026-02-25 |
@@ -932,7 +932,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22033478586` SAST/DAST gate green)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22033663309` SAST/DAST gate green)** |
 | **Owner** | Security Eng |
 | **協作** | DevOps, QA |
 | **估工** | 1.0 人天 |
@@ -949,6 +949,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 安全掃描摘要文件（`docs/security/evidence/t23-security-scan-summary-2026-02-15.md`）
 - [x] 最新 run artifact 已下載驗證（Run `22033478586`，含 `dast-gate-summary.md`）
 - [x] CORP/cache 風險程式碼修補（`SecurityHeadersMiddleware` + contract test）
+- [x] 修補後 DAST 回歸驗證（Run `22033663309`: High=0, Medium=0, Low=0）
 
 **實作內容（Session 6 + Session 9 + Session 10 + Session 11 + Session 12）：**
 - `backend/pyproject.toml`: Bandit SAST 配置:
@@ -982,6 +983,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 最新 SAST/DAST gate 綠燈（Run `22033478586`）
 - [x] 最新 artifact 指標核對（Run `22033478586`: High=0, Medium=0, Gate=PASS）
 - [x] Header hardening 測試通過（`pytest tests/test_api/test_contract.py`）
+- [x] 修補效果確認（Run `22033663309`: Low `1 -> 0`, 僅剩 Informational）
 
 ---
 
@@ -1408,6 +1410,7 @@ T29 (P1) ── depends on T01 only
 | 2026-02-15 | T24 續作 | 漏洞台帳實例 `docs/security/vulnerability-register-2026-02.md` 建立（2 cases） | Done |
 | 2026-02-15 | T23 續作 | 修補 DAST low 風險 header：CORP + Cache-Control/Pragma/Expires | Done |
 | 2026-02-15 | T26 續作 | 補強安全 header 契約測試，`test_contract + schema` 共 14 passed | Verified |
+| 2026-02-15 | T23 驗證 | 修補後 CI Run `22033663309`：DAST `High=0, Medium=0, Low=0`，僅 Informational | Verified |
 
 ---
 

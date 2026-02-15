@@ -22,6 +22,13 @@
      - `dast-gate-summary.md`
      - `zap-warnings.md`
      - `zap-report.json` / `zap-report.html`
+4. Run `22033663309` (push after header hardening)
+   - SAST: pass
+   - DAST: pass
+   - Gate: pass (`High == 0`)
+   - DAST result delta:
+     - `Low`: `1 -> 0`
+     - `Total alerts`: `4 -> 3` (informational only)
 
 ## Gate Decision
 - Current gate status: PASS
@@ -33,6 +40,14 @@
 - Medium: `0`
 - Low: `1`
 - Informational: `1` (3 instances for cacheable content)
+- Gate summary: `PASS (policy: High > 0 blocks)`
+
+## DAST Artifact Metrics (Run `22033663309`)
+- Total alerts: `3`
+- High: `0`
+- Medium: `0`
+- Low: `0`
+- Informational: `3` (`Non-Storable Content`)
 - Gate summary: `PASS (policy: High > 0 blocks)`
 
 ## Notes
