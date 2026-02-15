@@ -32,15 +32,27 @@ test.describe("T27 Critical Journey", () => {
 
     await page.getByRole("tab", { name: "對話助手" }).click();
     const chatInputBox = page.getByPlaceholder("例如：這位病患的鎮靜深度是否適當？");
+    const aiResponsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes("/ai/chat") &&
+        response.request().method() === "POST" &&
+        response.status() === 200,
+    );
+
     await chatInputBox.fill(chatPrompt);
     await chatInputBox.press("Enter");
 
+    const aiResponse = await aiResponsePromise;
+    const aiResponseBody = await aiResponse.json();
+    const assistantContent = String(aiResponseBody?.data?.message?.content || "");
+
     await expect(page.getByText(chatPrompt)).toBeVisible();
-    await expect
-      .poll(async () => await page.locator("p.whitespace-pre-wrap").count(), {
-        timeout: 60000,
-      })
-      .toBeGreaterThan(1);
+    expect(assistantContent.length).toBeGreaterThan(0);
+
+    const assistantSnippet = assistantContent.replace(/\s+/g, " ").trim().slice(0, 20);
+    if (assistantSnippet) {
+      await expect(page.getByText(assistantSnippet, { exact: false })).toBeVisible({ timeout: 60000 });
+    }
 
     await page.getByRole("button", { name: "登出" }).click();
     await expect(page).toHaveURL(/\/login$/);
