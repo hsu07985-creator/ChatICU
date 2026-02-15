@@ -14,10 +14,30 @@
    - SAST: pass
    - DAST: pass
    - Gate: pass (`High == 0`)
+3. Run `22033478586` (workflow_dispatch)
+   - SAST: pass
+   - DAST: pass
+   - Gate: pass (`High == 0`)
+   - Artifacts downloaded and validated locally:
+     - `dast-gate-summary.md`
+     - `zap-warnings.md`
+     - `zap-report.json` / `zap-report.html`
 
 ## Gate Decision
 - Current gate status: PASS
 - Blocking rule verified: enabled in `.github/workflows/ci.yml` (`Enforce DAST gate (block on High)`)
 
+## DAST Artifact Metrics (Run `22033478586`)
+- Total alerts: `4`
+- High: `0`
+- Medium: `0`
+- Low: `1`
+- Informational: `1` (3 instances for cacheable content)
+- Gate summary: `PASS (policy: High > 0 blocks)`
+
+## Notes
+- Current baseline remains releasable under gate policy.
+- Low/Informational findings are tracked under T24 remediation register for hardening follow-up.
+
 ## Residual Risk
-- Medium findings still require triage and SLA tracking under T24.
+- Low/Informational findings still require hardening triage and SLA tracking under T24.
