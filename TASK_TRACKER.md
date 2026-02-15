@@ -1039,7 +1039,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031345836` critical journey green)** |
 | **Owner** | QA Lead |
 | **協作** | Frontend, Backend |
 | **估工** | 1.2 人天 |
