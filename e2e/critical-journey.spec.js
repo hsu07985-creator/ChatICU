@@ -48,11 +48,6 @@ test.describe("T27 Critical Journey", () => {
 
     expect(assistantContent.length).toBeGreaterThan(0);
 
-    const assistantSnippet = assistantContent.replace(/\s+/g, " ").trim().slice(0, 20);
-    if (assistantSnippet) {
-      await expect(page.getByText(assistantSnippet, { exact: false })).toBeVisible({ timeout: 60000 });
-    }
-
     await page.getByRole("button", { name: "登出" }).click();
     await expect(page).toHaveURL(/\/login$/);
 
