@@ -102,6 +102,20 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: chaticu_migration
+          POSTGRES_USER: chaticu
+          POSTGRES_PASSWORD: chaticu_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chaticu -d chaticu_migration"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
 
     steps:
       - uses: actions/checkout@v4
@@ -118,7 +132,7 @@ jobs:
 
       - name: Verify Alembic migrations apply cleanly
         env:
-          DATABASE_URL: "sqlite+aiosqlite:///./migration_test.db"
+          DATABASE_URL: "postgresql+asyncpg://chaticu:chaticu_password@localhost:5432/chaticu_migration"
           JWT_SECRET: "ci-test-secret"
           SEED_DEFAULT_PASSWORD: "CITestPassword123!"
         run: python -m alembic upgrade head
