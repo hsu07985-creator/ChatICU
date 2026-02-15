@@ -66,6 +66,28 @@ const defaultLabData: LabData = {
   inflammatory: {}
 };
 
+// 檢驗項目中文名稱對照
+const LAB_CHINESE_NAMES_MAP: Record<string, string> = {
+  RespiratoryRate: '呼吸速率', Temperature: '體溫', BloodPressure: '血壓',
+  HeartRate: '心率', SpO2: '血氧飽和度', EtCO2: '呼氣末二氧化碳',
+  CVP: '中心靜脈壓', ICP: '顱內壓', FiO2: '吸入氧濃度',
+  PEEP: '呼氣末正壓', TidalVolume: '潮氣量', VentRR: '呼吸器設定呼吸速率',
+  PIP: '尖峰吸氣壓', Plateau: '平台壓', Compliance: '肺順應性',
+  Na: '鈉', K: '鉀', Cl: '氯', BUN: '血中尿素氮', Scr: '肌酐酸',
+  WBC: '白血球', Hb: '血紅素', PLT: '血小板', CRP: 'C反應蛋白',
+  pH: '酸鹼值', PCO2: '二氧化碳分壓', PO2: '氧分壓', Lactate: '乳酸'
+};
+
+// 檢驗項目所屬分類對照
+const LAB_CATEGORY_MAP: Record<string, string> = {
+  Na: 'biochemistry', K: 'biochemistry', Cl: 'biochemistry',
+  BUN: 'biochemistry', Scr: 'biochemistry', eGFR: 'biochemistry',
+  Alb: 'biochemistry', Ca: 'biochemistry', Mg: 'biochemistry',
+  WBC: 'hematology', Hb: 'hematology', PLT: 'hematology',
+  pH: 'bloodGas', PCO2: 'bloodGas', PO2: 'bloodGas', Lactate: 'bloodGas',
+  CRP: 'inflammatory',
+};
+
 // 擴展 Patient 類型以包含前端需要的額外欄位
 interface PatientWithFrontendFields extends Patient {
   sedation?: string[];
@@ -221,6 +243,48 @@ export function PatientDetailPage() {
     };
     fetchData();
   }, [id]);
+
+  // 選取生命徵象/檢驗項目時，從後端 API 載入趨勢資料
+  useEffect(() => {
+    if (!selectedVitalSign || !id) {
+      setTrendChartData([]);
+      setTrendReferenceRange('');
+      return;
+    }
+
+    const fetchTrend = async () => {
+      try {
+        const response = await labDataApi.getLabTrends(id, { days: 7 });
+        const labName = selectedVitalSign.name;
+        const category = LAB_CATEGORY_MAP[labName];
+        const points: LabTrendData[] = [];
+        let refRange = '';
+
+        if (category) {
+          for (const record of response.trends || []) {
+            const catData = (record as Record<string, unknown>)[category] as Record<string, { value: number; referenceRange?: string }> | undefined;
+            if (catData && catData[labName]) {
+              points.push({
+                date: record.timestamp?.split('T')[0] || '',
+                value: catData[labName].value,
+              });
+              if (!refRange && catData[labName].referenceRange) {
+                refRange = catData[labName].referenceRange!;
+              }
+            }
+          }
+        }
+
+        setTrendChartData(points);
+        setTrendReferenceRange(refRange);
+      } catch {
+        setTrendChartData([]);
+        setTrendReferenceRange('');
+      }
+    };
+
+    fetchTrend();
+  }, [selectedVitalSign, id]);
 
   // 發送留言板留言
   const handleSendBoardMessage = async () => {
@@ -432,78 +496,14 @@ Given renal function (eGFR ${labData?.biochemistry.eGFR || '60'} mL/min), consid
     (new Date().getTime() - new Date(patient.admissionDate).getTime()) / (1000 * 60 * 60 * 24)
   );
 
-  // 檢驗項目中文名稱對照
-  const labChineseNamesMap: Record<string, string> = {
-    RespiratoryRate: '呼吸速率', Temperature: '體溫', BloodPressure: '血壓',
-    HeartRate: '心率', SpO2: '血氧飽和度', EtCO2: '呼氣末二氧化碳',
-    CVP: '中心靜脈壓', ICP: '顱內壓', FiO2: '吸入氧濃度',
-    PEEP: '呼氣末正壓', TidalVolume: '潮氣量', VentRR: '呼吸器設定呼吸速率',
-    PIP: '尖峰吸氣壓', Plateau: '平台壓', Compliance: '肺順應性',
-    Na: '鈉', K: '鉀', Cl: '氯', BUN: '血中尿素氮', Scr: '肌酐酸',
-    WBC: '白血球', Hb: '血紅素', PLT: '血小板', CRP: 'C反應蛋白',
-    pH: '酸鹼值', PCO2: '二氧化碳分壓', PO2: '氧分壓', Lactate: '乳酸'
-  };
-
-  // 檢驗項目所屬分類對照
-  const labCategoryMap: Record<string, string> = {
-    Na: 'biochemistry', K: 'biochemistry', Cl: 'biochemistry',
-    BUN: 'biochemistry', Scr: 'biochemistry', eGFR: 'biochemistry',
-    Alb: 'biochemistry', Ca: 'biochemistry', Mg: 'biochemistry',
-    WBC: 'hematology', Hb: 'hematology', PLT: 'hematology',
-    pH: 'bloodGas', PCO2: 'bloodGas', PO2: 'bloodGas', Lactate: 'bloodGas',
-    CRP: 'inflammatory',
-  };
-
   const handleVitalSignClick = (labName: string, value: number, unit: string) => {
     setSelectedVitalSign({
       name: labName,
-      nameChinese: labChineseNamesMap[labName] || labName,
+      nameChinese: LAB_CHINESE_NAMES_MAP[labName] || labName,
       unit,
       value
     });
   };
-
-  // 選取生命徵象/檢驗項目時，從後端 API 載入趨勢資料
-  useEffect(() => {
-    if (!selectedVitalSign || !id) {
-      setTrendChartData([]);
-      setTrendReferenceRange('');
-      return;
-    }
-
-    const fetchTrend = async () => {
-      try {
-        const response = await labDataApi.getLabTrends(id, { days: 7 });
-        const labName = selectedVitalSign.name;
-        const category = labCategoryMap[labName];
-        const points: LabTrendData[] = [];
-        let refRange = '';
-
-        if (category) {
-          for (const record of response.trends || []) {
-            const catData = (record as Record<string, unknown>)[category] as Record<string, { value: number; referenceRange?: string }> | undefined;
-            if (catData && catData[labName]) {
-              points.push({
-                date: record.timestamp?.split('T')[0] || '',
-                value: catData[labName].value,
-              });
-              if (!refRange && catData[labName].referenceRange) {
-                refRange = catData[labName].referenceRange!;
-              }
-            }
-          }
-        }
-
-        setTrendChartData(points);
-        setTrendReferenceRange(refRange);
-      } catch {
-        setTrendChartData([]);
-        setTrendReferenceRange('');
-      }
-    };
-
-    fetchTrend();
-  }, [selectedVitalSign, id]);
 
   return (
     <div className="p-6 space-y-6">
