@@ -384,7 +384,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (run `22031345836` full pipeline + e2e/DAST green)** |
 | **Owner** | Backend Lead |
 | **協作** | Frontend, QA |
 | **估工** | 2.0 人天 |
@@ -591,7 +591,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031345836` includes DAST + E2E artifacts)** |
 | **Owner** | SRE / Platform |
 | **協作** | DevOps |
 | **估工** | 0.3 人天 |
@@ -625,7 +625,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031345836` critical journey green)** |
 | **Owner** | Security Eng |
 | **協作** | DevOps, Backend |
 | **估工** | 1.0 人天 |
@@ -767,7 +767,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031345836` includes DAST + E2E artifacts)** |
 | **Owner** | DevOps |
 | **協作** | Backend, QA |
 | **估工** | 0.8 人天 |
@@ -799,7 +799,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031345836` critical journey green)** |
 | **Owner** | PM / Release |
 | **協作** | DevOps, QA |
 | **估工** | 0.5 人天 |
@@ -848,7 +848,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 鎖定 Python 版本 — Dockerfile 使用 `python:3.12-slim`，CI 使用 `python-version: "3.12"`
 - [x] 鎖定依賴版本 — `pip-compile --generate-hashes` → `requirements.lock`（1686 行，含 SHA256 hash）
 - [x] Dockerfile 多階段建置 — Builder(gcc+pip install) → Runtime(slim, non-root user, HEALTHCHECK)
-- [x] 已有一次完整 CI 全綠證據（Run `22029666045`，6/6 jobs 綠燈）
+- [x] 已有一次完整 CI 全綠證據（Run `22029666045` + Run `22031345836`，後者含 e2e/DAST/reproducibility/docker）
 - [x] 新環境重現報告機制已納入 CI（`reproducibility-report` artifact job）
 - [ ] CI 連續 3 次綠燈驗證（需 git repo + push 觸發）
 
@@ -881,7 +881,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] Dockerfile multi-stage 建立完成（non-root, HEALTHCHECK）
 - [x] CI 改用 requirements.lock 安裝
 - [x] CI 首次完整綠燈紀錄：Run `22029666045`（all jobs passed）
-- [ ] Session 9（含 E2E+DAST+reproducibility）首次全綠 run id
+- [x] Session 9（含 E2E+DAST+reproducibility）首次全綠 run `22031345836`
 - [ ] CI 紀錄（連續 3 次綠燈）— 需 git repo + push
 - [ ] 新環境重現測試報告（等待 `reproducibility-report` 首次 artifact）
 
@@ -928,7 +928,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 掃描報告（Run `22029666045`，`bandit-report` artifact）
 - [x] 已有一次完整 CI 全綠證據（Run `22029666045`，security-scan job in green run）
 - [x] Gate 紀錄（Run `22029584324` 曾因 security-scan fail 阻擋）
-- [ ] DAST 首次掃描 artifact（等待新增 CI 執行後產出）
+- [x] DAST 首次掃描 artifact（Run `22031345836` 產出 `zap-report` artifact）
 
 ---
 
@@ -1067,7 +1067,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 **驗證方式：**
 - [x] 覆蓋清單（critical journey 1 條）
 - [x] 測試報告機制（Playwright html/json report）
-- [ ] 首次 CI E2E 綠燈 run id 與錄影 artifact 證據
+- [x] 首次 CI E2E 綠燈 run `22031345836`，artifact: `output/playwright` video + html report
 
 ---
 
