@@ -19,9 +19,10 @@ test.describe("T27 Critical Journey", () => {
 
     await page.getByRole("link", { name: "病人清單" }).click();
     await expect(page).toHaveURL(/\/patients$/);
+    await expect(page.getByRole("heading", { name: "病人清單" })).toBeVisible();
 
     await expect
-      .poll(async () => await page.locator("table tbody tr").count(), {
+      .poll(async () => await page.getByRole("button", { name: "檢視" }).count(), {
         timeout: 30000,
       })
       .toBeGreaterThan(0);

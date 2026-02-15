@@ -275,7 +275,7 @@ jobs:
       - name: Run critical E2E journey
         env:
           E2E_BASE_URL: "http://127.0.0.1:4173"
-          E2E_USERNAME: "nurse"
+          E2E_USERNAME: "admin"
           E2E_PASSWORD: "CITestPassword123!"
         run: npm run test:e2e -- --project=chromium --grep "@critical"
 
