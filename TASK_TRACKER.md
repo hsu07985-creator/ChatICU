@@ -893,7 +893,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031345836` includes DAST + E2E artifacts)** |
 | **Owner** | Security Eng |
 | **協作** | DevOps, QA |
 | **估工** | 1.0 人天 |
