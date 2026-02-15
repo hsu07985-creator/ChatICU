@@ -2,7 +2,7 @@
 
 **Project:** ChatICU 2026 ISMS-Compliant Production Deployment
 **Created:** 2026-02-15
-**Last Updated:** 2026-02-15 (Session 17 — T04 UAT Draft + T27 Lab Trend Regression Case)
+**Last Updated:** 2026-02-15 (Session 18 — T27 Branch Protection Checklist + T04 UAT Draft)
 **Total Tasks:** 32 | **Completed:** 13 | **In Progress:** 10 (T04, T14, T15, T20, T21, T22, T23, T24, T26, T27) | **Blocked:** 0
 
 ---
@@ -64,7 +64,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 | T24 | `[~]` | 每週更新 vulnerability register（新增 owner/截止日/retest 狀態欄位維護） | Security Eng | 2026-02-25 |
 | T25 | `[ ]` | 建立入侵/異常監控告警（4xx/5xx/來源異常）與通報 SOP，完成一次演練 | SOC | 2026-03-07 |
 | T26 | `[~]` | 補齊 XSS 防護驗證測試案例並新增 CI 測項；FIM 需求拆為 infra 子任務 | Security Eng | 2026-02-25 |
-| T27 | `[~]` | 與 PM/QA 確認是否把 extended journeys 升級為 required gate（branch protection） | QA Lead | 2026-02-22 |
+| T27 | `[~]` | 套用 `docs/qa/t27-branch-protection-checklist.md` 並補 3 張 branch protection/PR 證據截圖 | QA Lead | 2026-02-22 |
 | T29 | `[ ]` | 盤點委外供應商清單，補安全條款與保密/資安責任對照表 | PM / 法務 | 2026-03-12 |
 | T31 | `[ ]` | 制定滲測範圍與驗收基準，安排首輪測試與修補追蹤模板 | Security Eng | 2026-03-24 |
 | T32 | `[ ]` | 盤點靜態資料加密範圍，完成 at-rest encryption 設計與遷移計畫 | Security Eng | 2026-03-24 |
@@ -879,7 +879,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22033938836` full pipeline green)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22034008508` full pipeline green)** |
 | **Owner** | DevOps |
 | **協作** | Frontend, Backend |
 | **估工** | 1.0 人天 |
@@ -897,7 +897,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 新環境重現報告機制已納入 CI（`reproducibility-report` artifact job）
 - [x] CI 連續 3 次綠燈驗證（`22031759710`、`22031766156`、`22031771983`）
 - [x] 最新手動全綠驗證（workflow_dispatch: `22033478586`，含 `e2e-extended-journeys`）
-- [x] 最新 push 全綠驗證（Run `22033938836`，含 critical E2E/DAST/docker-build）
+- [x] 最新 push 全綠驗證（Run `22034008508`，含 critical E2E/DAST/docker-build）
 - [x] 新環境重建 Runbook（`docs/operations/environment-rebuild-runbook.md`）
 - [x] 本地重建演練報告（`docs/operations/reproducibility-reports/2026-02-15-local-rebuild-drill.md`）
 
@@ -936,7 +936,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 新環境重現測試報告（Run `22031771983` + `docs/operations/reproducibility-reports/2026-02-15-run-22031771983.md`）
 - [x] 新環境重建步驟文件（`docs/operations/environment-rebuild-runbook.md`）
 - [x] 最新全綠 run（`22033478586`）：含 critical + extended E2E、DAST、docker-build 全數通過
-- [x] 最新全綠 run（`22033938836`）：push pipeline 全 job 綠燈（extended journeys 為非 blocking，該次 skipped）
+- [x] 最新全綠 run（`22034008508`）：push pipeline 全 job 綠燈（extended journeys 為非 blocking，該次 skipped）
 - [x] 本地重建演練（versions + lock hashes + `npm ci/build` + PostgreSQL migration/seed）— `docs/operations/reproducibility-reports/2026-02-15-local-rebuild-drill.md`
 
 ---
@@ -947,7 +947,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22033938836` SAST/DAST gate green)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22034008508` SAST/DAST gate green)** |
 | **Owner** | Security Eng |
 | **協作** | DevOps, QA |
 | **估工** | 1.0 人天 |
@@ -965,7 +965,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 最新 run artifact 已下載驗證（Run `22033478586`，含 `dast-gate-summary.md`）
 - [x] CORP/cache 風險程式碼修補（`SecurityHeadersMiddleware` + contract test）
 - [x] 修補後 DAST 回歸驗證（Run `22033663309`: High=0, Medium=0, Low=0）
-- [x] 最新 push DAST gate 綠燈（Run `22033938836`）
+- [x] 最新 push DAST gate 綠燈（Run `22034008508`）
 
 **實作內容（Session 6 + Session 9 + Session 10 + Session 11 + Session 12）：**
 - `backend/pyproject.toml`: Bandit SAST 配置:
@@ -1000,7 +1000,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 最新 artifact 指標核對（Run `22033478586`: High=0, Medium=0, Gate=PASS）
 - [x] Header hardening 測試通過（`pytest tests/test_api/test_contract.py`）
 - [x] 修補效果確認（Run `22033663309`: Low `1 -> 0`, 僅剩 Informational）
-- [x] 最新 push gate 驗證（Run `22033938836`: `security-scan` + `dast-scan` 均為 success）
+- [x] 最新 push gate 驗證（Run `22034008508`: `security-scan` + `dast-scan` 均為 success）
 
 ---
 
@@ -1125,7 +1125,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22033478586` critical + extended journeys green；Run `22033938836` critical gate green)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22033478586` critical + extended journeys green；Run `22034008508` critical gate green)** |
 | **Owner** | QA Lead |
 | **協作** | Frontend, Backend |
 | **估工** | 1.2 人天 |
@@ -1140,6 +1140,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 測試錄影保留（Playwright video artifact）
 - [x] Extended journeys 納入固定排程（schedule + workflow_dispatch 可選執行）
 - [x] Release gate policy 文件（required vs optional）已定義
+- [x] Branch protection 套用清單（`docs/qa/t27-branch-protection-checklist.md`）
 
 **實作內容（Session 9 + Session 10 + Session 11）：**
 - `playwright.config.js`:
@@ -1167,9 +1168,10 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 首次 CI E2E 綠燈 run `22031345836`，artifact: `output/playwright` video + html report
 - [x] CI E2E 最新綠燈 run `22031771983`（critical journey）
 - [x] Extended journeys CI 首次綠燈 run `22033478586`（workflow_dispatch with `run_extended_e2e=true`）
-- [x] 最新 push critical gate 綠燈 run `22033938836`（required gate）
+- [x] 最新 push critical gate 綠燈 run `22034008508`（required gate）
 - [x] Gate policy 文件（`docs/qa/t27-release-gate-policy.md`）
 - [x] Extended journey 新增 lab trend runtime regression case（`e2e/t27-extended-journeys.spec.js`）
+- [ ] Branch protection 套用與 PR 截圖證據（待 repo 設定實施）
 
 ---
 
@@ -1441,6 +1443,8 @@ T29 (P1) ── depends on T01 only
 | 2026-02-15 | CI 驗證 | Push Run `22033862853` 全綠（critical E2E + DAST + docker-build success） | Verified |
 | 2026-02-15 | T04/T27 續作 | 新增 T04 UAT 草案報告 + T27 lab trend runtime regression E2E 測項（`playwright --list` 驗證） | Done |
 | 2026-02-15 | CI 驗證 | Push Run `22033938836` 全綠（critical E2E + DAST + docker-build success） | Verified |
+| 2026-02-15 | T27 續作 | 新增 branch protection 套用清單（required/optional checks + 證據清單） | Done |
+| 2026-02-15 | CI 驗證 | Push Run `22034008508` 全綠（critical E2E + DAST + docker-build success） | Verified |
 
 ---
 

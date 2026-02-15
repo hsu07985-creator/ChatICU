@@ -39,6 +39,11 @@
    - DAST: pass
    - Gate: pass (`High == 0`)
    - Full CI context: backend/frontend/lint/migration/e2e-critical/dast/reproducibility/docker 全綠
+7. Run `22034008508` (push after T27 branch-protection checklist + UAT draft updates)
+   - SAST: pass
+   - DAST: pass
+   - Gate: pass (`High == 0`)
+   - Full CI context: backend/frontend/lint/migration/e2e-critical/dast/reproducibility/docker 全綠
 
 ## Gate Decision
 - Current gate status: PASS
