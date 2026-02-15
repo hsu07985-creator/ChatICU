@@ -122,6 +122,38 @@ interface ChatMessage {
   references?: string[];
 }
 
+function extractLabNumericValue(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  if (value && typeof value === 'object' && 'value' in value) {
+    const nestedValue = (value as { value?: unknown }).value;
+    if (typeof nestedValue === 'number' && Number.isFinite(nestedValue)) {
+      return nestedValue;
+    }
+    if (typeof nestedValue === 'string' && nestedValue.trim() !== '') {
+      const parsedNested = Number(nestedValue);
+      if (Number.isFinite(parsedNested)) {
+        return parsedNested;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function formatSnapshotValue(value: number | undefined): string {
+  return value !== undefined ? String(value) : 'N/A';
+}
+
 
 export function PatientDetailPage() {
   const { id } = useParams();
@@ -425,12 +457,12 @@ export function PatientDetailPage() {
         })),
         lastUpdated: new Date().toLocaleString('zh-TW'),
         labDataSnapshot: {
-          K: labData.biochemistry.K,
-          Na: labData.biochemistry.Na,
-          Scr: labData.biochemistry.Scr,
-          eGFR: labData.biochemistry.eGFR,
-          CRP: labData.inflammatory.CRP,
-          WBC: labData.hematology.WBC
+          K: extractLabNumericValue(labData.biochemistry?.K),
+          Na: extractLabNumericValue(labData.biochemistry?.Na),
+          Scr: extractLabNumericValue(labData.biochemistry?.Scr),
+          eGFR: extractLabNumericValue(labData.biochemistry?.eGFR),
+          CRP: extractLabNumericValue(labData.inflammatory?.CRP),
+          WBC: extractLabNumericValue(labData.hematology?.WBC)
         }
       };
       setChatSessions(chatSessions.map(s => s.id === selectedSession.id ? updatedSession : s));
@@ -448,12 +480,12 @@ export function PatientDetailPage() {
         })),
         lastUpdated: new Date().toLocaleString('zh-TW'),
         labDataSnapshot: {
-          K: labData.biochemistry.K,
-          Na: labData.biochemistry.Na,
-          Scr: labData.biochemistry.Scr,
-          eGFR: labData.biochemistry.eGFR,
-          CRP: labData.inflammatory.CRP,
-          WBC: labData.hematology.WBC
+          K: extractLabNumericValue(labData.biochemistry?.K),
+          Na: extractLabNumericValue(labData.biochemistry?.Na),
+          Scr: extractLabNumericValue(labData.biochemistry?.Scr),
+          eGFR: extractLabNumericValue(labData.biochemistry?.eGFR),
+          CRP: extractLabNumericValue(labData.inflammatory?.CRP),
+          WBC: extractLabNumericValue(labData.hematology?.WBC)
         }
       };
       setChatSessions([newSession, ...chatSessions]);
@@ -464,10 +496,15 @@ export function PatientDetailPage() {
   const handlePolishProgressNote = () => {
     if (!progressNoteInput.trim()) return;
     
+    const potassium = extractLabNumericValue(labData?.biochemistry?.K) ?? 3.5;
+    const creatinine = extractLabNumericValue(labData?.biochemistry?.Scr) ?? 1.0;
+    const egfr = extractLabNumericValue(labData?.biochemistry?.eGFR) ?? 60;
+    const crp = extractLabNumericValue(labData?.inflammatory?.CRP) ?? 5;
+
     const polished = `Assessment:
 Patient remains intubated on day ${Math.floor((new Date().getTime() - new Date(patient.icuAdmissionDate).getTime()) / (1000 * 60 * 60 * 24))} of ICU stay. Currently receiving mechanical ventilation. Hemodynamics stable on current support.
 
-Laboratory findings show potassium ${labData?.biochemistry.K || '3.5'} mEq/L, creatinine ${labData?.biochemistry.Scr || '1.0'} mg/dL, with eGFR ${labData?.biochemistry.eGFR || '60'} mL/min. Inflammatory markers: CRP ${labData?.inflammatory.CRP || '5'} mg/L.
+Laboratory findings show potassium ${potassium} mEq/L, creatinine ${creatinine} mg/dL, with eGFR ${egfr} mL/min. Inflammatory markers: CRP ${crp} mg/L.
 
 Plan:
 - Continue current ventilator settings
@@ -481,13 +518,16 @@ Plan:
   const handlePolishMedAdvice = () => {
     if (!medAdviceInput.trim()) return;
     
+    const potassium = extractLabNumericValue(labData?.biochemistry?.K) ?? 3.5;
+    const egfr = extractLabNumericValue(labData?.biochemistry?.eGFR) ?? 60;
+
     const polished = `Medication Recommendation:
 
-The patient's current potassium level (${labData?.biochemistry.K || '3.5'} mEq/L) is below normal range. Recommend supplementation with potassium chloride 20-40 mEq, with close monitoring every 4-6 hours until normalized.
+The patient's current potassium level (${potassium} mEq/L) is below normal range. Recommend supplementation with potassium chloride 20-40 mEq, with close monitoring every 4-6 hours until normalized.
 
 Concurrent use of Morphine and Dormicum requires careful monitoring for respiratory depression. Suggest daily RASS assessment, targeting RASS -2 to -1 for optimal sedation.
 
-Given renal function (eGFR ${labData?.biochemistry.eGFR || '60'} mL/min), consider dose adjustment for renally cleared medications.`;
+Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally cleared medications.`;
     
     setPolishedAdvice(polished);
   };
@@ -644,7 +684,7 @@ Given renal function (eGFR ${labData?.biochemistry.eGFR || '60'} mL/min), consid
                                   </div>
                                   {session.labDataSnapshot && (
                                     <div className="mt-1 text-xs text-muted-foreground">
-                                      K: {session.labDataSnapshot.K} • eGFR: {session.labDataSnapshot.eGFR}
+                                      K: {formatSnapshotValue(session.labDataSnapshot.K)} • eGFR: {formatSnapshotValue(session.labDataSnapshot.eGFR)}
                                     </div>
                                   )}
                                 </div>
