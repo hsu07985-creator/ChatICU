@@ -29,6 +29,11 @@
    - DAST result delta:
      - `Low`: `1 -> 0`
      - `Total alerts`: `4 -> 3` (informational only)
+5. Run `22033862853` (push after LabDataDisplay crash fix)
+   - SAST: pass
+   - DAST: pass
+   - Gate: pass (`High == 0`)
+   - Full CI context: backend/frontend/lint/migration/e2e-critical/dast/reproducibility/docker 全綠
 
 ## Gate Decision
 - Current gate status: PASS
