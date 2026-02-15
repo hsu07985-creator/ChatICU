@@ -1,4 +1,4 @@
-import { type LabData, type LabItem } from '../lib/api';
+import { type LabData } from '../lib/api';
 import { useState } from 'react';
 import { LabTrendChart, type LabTrendData } from './lab-trend-chart';
 import { TrendingUp, Loader2 } from 'lucide-react';
@@ -31,7 +31,7 @@ interface LabDataDisplayProps {
 interface LabItemProps {
   labName: string;
   label: string;
-  value: number | string | undefined;
+  value: unknown;
   unit: string;
   isAbnormal?: boolean;
   onClick?: () => void;
@@ -39,9 +39,83 @@ interface LabItemProps {
   isOptional?: boolean; // 選擇性追蹤項目使用粉紅色背景
 }
 
+function toFiniteNumber(input: unknown): number | undefined {
+  if (typeof input === 'number' && Number.isFinite(input)) {
+    return input;
+  }
+
+  if (typeof input === 'string' && input.trim() !== '') {
+    const parsed = Number(input);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  if (input && typeof input === 'object' && 'value' in input) {
+    return toFiniteNumber((input as { value?: unknown }).value);
+  }
+
+  return undefined;
+}
+
+function toDisplayText(input: unknown): string {
+  if (input === null || input === undefined) {
+    return '-';
+  }
+
+  if (typeof input === 'number') {
+    return Number.isFinite(input) ? String(input) : '-';
+  }
+
+  if (typeof input === 'string') {
+    const trimmed = input.trim();
+    return trimmed === '' ? '-' : trimmed;
+  }
+
+  if (input && typeof input === 'object' && 'value' in input) {
+    return toDisplayText((input as { value?: unknown }).value);
+  }
+
+  return '-';
+}
+
+function getUnitFromItem(input: unknown): string | undefined {
+  if (!input || typeof input !== 'object') {
+    return undefined;
+  }
+
+  const record = input as Record<string, unknown>;
+  if (typeof record.unit === 'string' && record.unit.trim() !== '') {
+    return record.unit;
+  }
+
+  if ('value' in record) {
+    return getUnitFromItem(record.value);
+  }
+
+  return undefined;
+}
+
+function getAbnormalFlag(input: unknown): boolean {
+  if (!input || typeof input !== 'object') {
+    return false;
+  }
+
+  const record = input as Record<string, unknown>;
+  if (typeof record.isAbnormal === 'boolean') {
+    return record.isAbnormal;
+  }
+
+  if ('value' in record) {
+    return getAbnormalFlag(record.value);
+  }
+
+  return false;
+}
+
 function LabItem({ labName, label, value, unit, isAbnormal, onClick, hasHistory, isOptional }: LabItemProps) {
-  const displayValue = value !== undefined ? value : '-';
-  const hasValue = value !== '-' && value !== undefined;
+  const displayValue = toDisplayText(value);
+  const hasValue = displayValue !== '-';
   const canOpenTrend = hasValue && !!hasHistory && !!onClick;
 
   return (
@@ -78,29 +152,29 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
   const [trendLoading, setTrendLoading] = useState(false);
 
   // 輔助函數：從類別和項目名稱取得 LabItem
-  const getItem = (category: keyof LabData | undefined, itemName: string): LabItem | undefined => {
+  const getItem = (category: keyof LabData | undefined, itemName: string): unknown => {
     if (!labData || !category) return undefined;
     const cat = labData[category];
     if (!cat || typeof cat !== 'object') return undefined;
-    return (cat as Record<string, LabItem>)[itemName];
+    return (cat as Record<string, unknown>)[itemName];
   };
 
   // 輔助函數：取得數值
   const getValue = (category: keyof LabData, itemName: string): number | undefined => {
     const item = getItem(category, itemName);
-    return item?.value;
+    return toFiniteNumber(item);
   };
 
   // 輔助函數：取得單位
   const getUnit = (category: keyof LabData, itemName: string, defaultUnit: string): string => {
     const item = getItem(category, itemName);
-    return item?.unit || defaultUnit;
+    return getUnitFromItem(item) || defaultUnit;
   };
 
   // 輔助函數：檢查是否異常
   const isAbnormal = (category: keyof LabData, itemName: string): boolean => {
     const item = getItem(category, itemName);
-    return item?.isAbnormal ?? false;
+    return getAbnormalFlag(item);
   };
 
   const handleLabClick = async (labName: string, category: string, value: number | undefined, unit: string) => {
@@ -112,11 +186,15 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
       const trendData: LabTrendData[] = [];
       const snapshots = response.trends || [];
       for (const snapshot of snapshots) {
-        const catData = (snapshot as Record<string, unknown>)[category] as Record<string, { value: number }> | undefined;
-        if (catData && catData[labName] && catData[labName].value !== undefined) {
+        const categoryData = (snapshot as Record<string, unknown>)[category];
+        const labItem = categoryData && typeof categoryData === 'object'
+          ? (categoryData as Record<string, unknown>)[labName]
+          : undefined;
+        const trendValue = toFiniteNumber(labItem);
+        if (trendValue !== undefined) {
           trendData.push({
             date: snapshot.timestamp,
-            value: catData[labName].value,
+            value: trendValue,
           });
         }
       }

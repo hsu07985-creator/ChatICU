@@ -427,6 +427,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] RAG 查詢 → 真實文獻檢索
 - [x] 藥局工作站 → 藥物交互作用 + IV 相容性 API 已建 + 前端已對接（re-audit 3）
 - [x] 檢驗趨勢圖 → patient-detail.tsx 改用 `labDataApi.getLabTrends()` 後端 API（re-audit 4）
+- [x] 檢驗卡片渲染防呆 → `lab-data-display.tsx` 新增容錯取值（避免 object 直接渲染造成 runtime crash）
 - [x] 留言 / 團隊聊天 → chat.tsx 使用 teamChatApi, patient-detail.tsx 使用 messagesApi（已驗證無 mock）
 - [ ] E2E 全流程人工驗證
 
@@ -457,6 +458,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 前後端 API 契約 6 處修正完成（re-audit 3）
 - [x] 檢驗趨勢圖改用後端 API（re-audit 4）
 - [x] LabDataDisplay 元件趨勢圖改用後端 API（re-audit 5）
+- [x] LabDataDisplay 容錯渲染修正（`Objects are not valid as a React child`）+ frontend build pass
 - [x] Admin API 契約修正: createUser/updateUser return type 對齊（re-audit 5）
 - [x] Pharmacy API 契約修正: ErrorReportsResponse/UpdateErrorReportData 對齊（re-audit 5）
 - [x] Lab trend response type 修正: LabTrendsResponse 對齊後端（re-audit 5）
@@ -1423,6 +1425,7 @@ T29 (P1) ── depends on T01 only
 | 2026-02-15 | T26 續作 | 新增無上傳端點守門測試 `test_no_multipart_upload_endpoints_present`，共 15 passed | Verified |
 | 2026-02-15 | T21 續作 | 新增 CR 與 rollback drill 紀錄（`CR-2026-02-15-001`, `RB-2026-02-15-001`）並回填追蹤欄位 | Verified |
 | 2026-02-15 | T21 續作 | 建立並推送 release tag `v1.0.0`（對應 commit `7d0aeee`） | Done |
+| 2026-02-15 | T04 續作 | 修正 `lab-data-display.tsx` 物件值容錯渲染（避免 React child object crash），`npm run build` 通過 | Done |
 
 ---
 
