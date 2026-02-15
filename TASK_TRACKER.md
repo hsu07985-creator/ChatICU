@@ -2,7 +2,7 @@
 
 **Project:** ChatICU 2026 ISMS-Compliant Production Deployment
 **Created:** 2026-02-15
-**Last Updated:** 2026-02-15 (Session 14 — T21 CR/Rollback Evidence Sync)
+**Last Updated:** 2026-02-15 (Session 15 — T21 Release Tag Published)
 **Total Tasks:** 32 | **Completed:** 13 | **In Progress:** 10 (T04, T14, T15, T20, T21, T22, T23, T24, T26, T27) | **Blocked:** 0
 
 ---
@@ -58,7 +58,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 | T18 | `[ ]` | 建立自動備份 + 還原演練流程，定義 RPO 並產出第一次 restore 證據 | DBA / SRE | 2026-03-13 |
 | T19 | `[ ]` | 建立備援切換 Runbook，完成一次 RTO 計時演練並留存報告 | SRE | 2026-03-20 |
 | T20 | `[~]` | 完成 dev/stg/prod 三環境分離（含獨立 DB/權限），補環境矩陣文件 | DevOps | 2026-03-10 |
-| T21 | `[~]` | 建立並推送首個 release tag（語意化版本），並完成一次 staging live rollback 演練紀錄 | PM / Release | 2026-02-24 |
+| T21 | `[~]` | 於 staging 完成一次 live rollback 演練（非 tabletop）並附 CI/驗證紀錄 | PM / Release | 2026-02-24 |
 | T22 | `[~]` | 於「另一台乾淨主機/容器」再跑一次 runbook，補完整 shell transcript | DevOps | 2026-02-24 |
 | T23 | `[~]` | 連續追蹤 3 次 DAST（確認維持 High/Medium/Low = 0）並更新趨勢 | Security Eng | 2026-02-24 |
 | T24 | `[~]` | 每週更新 vulnerability register（新增 owner/截止日/retest 狀態欄位維護） | Security Eng | 2026-02-25 |
@@ -839,7 +839,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 **採取措施：**
 - [x] CHANGELOG.md 建立 — v1.0.0 完整記錄（Keep a Changelog 格式）
 - [x] Semantic versioning: APP_VERSION = "1.0.0" in config.py
-- [ ] Git tag + semantic versioning（待建立並推送 release tag）
+- [x] Git tag + semantic versioning（`v1.0.0` 已建立並推送）
 - [x] 變更單（CR）模板（`docs/release/change-request-template.md`）
 - [x] 發版審批 checklist（`docs/release/release-approval-checklist.md`）
 - [x] 回滾 SOP（`docs/release/rollback-sop.md`）
@@ -863,7 +863,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 回滾 SOP 文件（`docs/release/rollback-sop.md`）
 - [x] 變更單實際紀錄（`docs/release/records/cr-2026-02-15-session13.md`）
 - [x] 回滾演練紀錄（`docs/release/records/rollback-drill-2026-02-15.md`）
-- [ ] release tag 已建立並推送（待執行）
+- [x] release tag 已建立並推送（`v1.0.0`）
 - [ ] staging live rollback drill（待執行；目前為 tabletop）
 
 ---
@@ -1422,6 +1422,7 @@ T29 (P1) ── depends on T01 only
 | 2026-02-15 | T23 驗證 | 修補後 CI Run `22033663309`：DAST `High=0, Medium=0, Low=0`，僅 Informational | Verified |
 | 2026-02-15 | T26 續作 | 新增無上傳端點守門測試 `test_no_multipart_upload_endpoints_present`，共 15 passed | Verified |
 | 2026-02-15 | T21 續作 | 新增 CR 與 rollback drill 紀錄（`CR-2026-02-15-001`, `RB-2026-02-15-001`）並回填追蹤欄位 | Verified |
+| 2026-02-15 | T21 續作 | 建立並推送 release tag `v1.0.0`（對應 commit `7d0aeee`） | Done |
 
 ---
 
