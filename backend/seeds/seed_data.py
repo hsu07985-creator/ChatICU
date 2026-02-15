@@ -35,6 +35,21 @@ def load_json(filename: str) -> Union[list, dict]:
         return json.load(f)
 
 
+def unwrap_list(raw: Union[list, dict], key: str) -> list:
+    """Return list payload from either raw list or wrapped dict {key: [...]}."""
+    if isinstance(raw, list):
+        return raw
+    if isinstance(raw, dict):
+        value = raw.get(key)
+        if isinstance(value, list):
+            return value
+        # Fallback: return the first list-like value in dict if key is absent.
+        for v in raw.values():
+            if isinstance(v, list):
+                return v
+    return []
+
+
 def parse_datetime(dt_str: Optional[str]) -> Optional[datetime]:
     if not dt_str:
         return None
@@ -65,9 +80,7 @@ if not SEED_DEFAULT_PASSWORD:
 
 async def seed_users(session: AsyncSession):
     print("Seeding users...")
-    raw = load_json("users.json")
-    # users.json wraps the array: {"users": [...]}
-    users_data = raw.get("users", raw) if isinstance(raw, dict) else raw
+    users_data = unwrap_list(load_json("users.json"), "users")
     if not users_data:
         return
 
@@ -93,7 +106,7 @@ async def seed_users(session: AsyncSession):
 
 async def seed_patients(session: AsyncSession):
     print("Seeding patients...")
-    patients_data = load_json("patients.json")
+    patients_data = unwrap_list(load_json("patients.json"), "patients")
     if not patients_data:
         return
 
@@ -136,7 +149,7 @@ async def seed_patients(session: AsyncSession):
 
 async def seed_medications(session: AsyncSession):
     print("Seeding medications...")
-    meds_data = load_json("medications.json")
+    meds_data = unwrap_list(load_json("medications.json"), "medications")
     if not meds_data:
         return
 
@@ -167,7 +180,7 @@ async def seed_medications(session: AsyncSession):
 
 async def seed_lab_data(session: AsyncSession):
     print("Seeding lab data...")
-    lab_data = load_json("labData.json")
+    lab_data = unwrap_list(load_json("labData.json"), "labData")
     if not lab_data:
         return
 
@@ -189,18 +202,23 @@ async def seed_lab_data(session: AsyncSession):
 
 async def seed_messages(session: AsyncSession):
     print("Seeding messages...")
-    messages_data = load_json("messages.json")
-    if not messages_data:
-        return
-
+    raw = load_json("messages.json")
     patient_messages = []
     team_messages = []
 
-    for m in messages_data:
-        if m["id"].startswith("pmsg"):
-            patient_messages.append(m)
-        elif m["id"].startswith("tchat"):
-            team_messages.append(m)
+    if isinstance(raw, dict):
+        patient_messages = unwrap_list(raw, "patientMessages")
+        team_messages = unwrap_list(raw, "teamChatMessages")
+    else:
+        messages_data = raw if isinstance(raw, list) else []
+        for m in messages_data:
+            if m["id"].startswith("pmsg"):
+                patient_messages.append(m)
+            elif m["id"].startswith("tchat"):
+                team_messages.append(m)
+
+    if not patient_messages and not team_messages:
+        return
 
     for m in patient_messages:
         msg = PatientMessage(
@@ -239,12 +257,23 @@ async def seed_messages(session: AsyncSession):
 
 async def seed_drug_interactions(session: AsyncSession):
     print("Seeding drug interactions...")
-    data = load_json("drugInteractions.json")
-    if not data:
+    raw = load_json("drugInteractions.json")
+    if not raw:
         return
 
-    interactions = data if isinstance(data, list) else data.get("interactions", [])
-    compatibilities = [] if isinstance(data, list) else data.get("compatibilities", [])
+    if isinstance(raw, list):
+        interactions = raw
+        compatibilities = []
+    else:
+        # Supports both legacy keys and current datamock keys.
+        interactions = (
+            unwrap_list(raw, "drugInteractions")
+            or unwrap_list(raw, "interactions")
+        )
+        compatibilities = (
+            unwrap_list(raw, "ivCompatibility")
+            or unwrap_list(raw, "compatibilities")
+        )
 
     for d in interactions:
         interaction = DrugInteraction(

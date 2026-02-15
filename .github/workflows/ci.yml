@@ -283,6 +283,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: e2e-playwright-artifacts
+          if-no-files-found: ignore
           path: |
             output/playwright
             /tmp/chaticu-backend.log
@@ -371,6 +372,7 @@ jobs:
       - name: Run OWASP ZAP baseline scan
         run: |
           mkdir -p output/dast
+          chmod 777 output/dast
           docker run --rm --network host -v "${PWD}/output/dast:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
             -t http://127.0.0.1:8000 \
