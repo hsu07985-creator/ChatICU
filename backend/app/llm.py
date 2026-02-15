@@ -112,7 +112,8 @@ def _embed_tfidf(texts: list[str]) -> list[list[float]]:
             vectors.append(vec)
             continue
         for word in words:
-            h = int(hashlib.md5(word.encode()).hexdigest(), 16)
+            # SHA-256 avoids weak-hash findings while keeping deterministic hashing.
+            h = int(hashlib.sha256(word.encode("utf-8")).hexdigest(), 16)
             idx = h % dim
             sign = 1.0 if (h // dim) % 2 == 0 else -1.0
             vec[idx] += sign
