@@ -59,12 +59,12 @@ Overall:        [===========] 13/32 completed + 10 partial
 | T19 | `[ ]` | 建立備援切換 Runbook，完成一次 RTO 計時演練並留存報告 | SRE | 2026-03-20 |
 | T20 | `[~]` | 完成 dev/stg/prod 三環境分離（含獨立 DB/權限），補環境矩陣文件 | DevOps | 2026-03-10 |
 | T21 | `[~]` | 依 CR 模板完成一筆正式變更單，並附一次回滾演練紀錄 | PM / Release | 2026-02-24 |
-| T22 | `[~]` | 依 `docs/operations/environment-rebuild-runbook.md` 在乾淨環境重建一次並附執行紀錄 | DevOps | 2026-02-24 |
-| T23 | `[~]` | 將本週掃描摘要回寫 `docs/security/evidence/` 並附最新 run id | Security Eng | 2026-02-24 |
+| T22 | `[~]` | 以 `docs/operations/environment-rebuild-runbook.md` 完成一次乾淨環境重建演練並附命令輸出 | DevOps | 2026-02-24 |
+| T23 | `[~]` | 下載 `22033478586` 的 `dast-zap-report` artifact，補 gate 摘要截圖到證據檔 | Security Eng | 2026-02-24 |
 | T24 | `[~]` | 依台帳模板補正式 vulnerability register（含 Case 1/Case 2） | Security Eng | 2026-02-25 |
 | T25 | `[ ]` | 建立入侵/異常監控告警（4xx/5xx/來源異常）與通報 SOP，完成一次演練 | SOC | 2026-03-07 |
 | T26 | `[~]` | 補齊 XSS/上傳驗證測試案例並新增 CI 測項；FIM 需求拆為 infra 子任務 | Security Eng | 2026-02-25 |
-| T27 | `[~]` | 觸發一次 `workflow_dispatch(run_extended_e2e=true)` 並記錄 extended run 證據 | QA Lead | 2026-02-21 |
+| T27 | `[~]` | 將 `e2e-extended-journeys` 納入 release gate 策略（定義 required/optional）並更新說明 | QA Lead | 2026-02-22 |
 | T29 | `[ ]` | 盤點委外供應商清單，補安全條款與保密/資安責任對照表 | PM / 法務 | 2026-03-12 |
 | T31 | `[ ]` | 制定滲測範圍與驗收基準，安排首輪測試與修補追蹤模板 | Security Eng | 2026-03-24 |
 | T32 | `[ ]` | 盤點靜態資料加密範圍，完成 at-rest encryption 設計與遷移計畫 | Security Eng | 2026-03-24 |
@@ -866,7 +866,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031771983` full pipeline green)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22033478586` full pipeline green)** |
 | **Owner** | DevOps |
 | **協作** | Frontend, Backend |
 | **估工** | 1.0 人天 |
@@ -883,6 +883,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 已有一次完整 CI 全綠證據（Run `22029666045` + Run `22031345836`，後者含 e2e/DAST/reproducibility/docker）
 - [x] 新環境重現報告機制已納入 CI（`reproducibility-report` artifact job）
 - [x] CI 連續 3 次綠燈驗證（`22031759710`、`22031766156`、`22031771983`）
+- [x] 最新手動全綠驗證（workflow_dispatch: `22033478586`，含 `e2e-extended-journeys`）
 - [x] 新環境重建 Runbook（`docs/operations/environment-rebuild-runbook.md`）
 
 **實作內容（Session 6 + Session 8 + Session 9 + Session 10）：**
@@ -919,6 +920,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] CI 紀錄（連續 3 次綠燈）：`22031759710` → `22031766156` → `22031771983`
 - [x] 新環境重現測試報告（Run `22031771983` + `docs/operations/reproducibility-reports/2026-02-15-run-22031771983.md`）
 - [x] 新環境重建步驟文件（`docs/operations/environment-rebuild-runbook.md`）
+- [x] 最新全綠 run（`22033478586`）：含 critical + extended E2E、DAST、docker-build 全數通過
 
 ---
 
@@ -928,7 +930,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031771983` SAST/DAST gate green)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22033478586` SAST/DAST gate green)** |
 | **Owner** | Security Eng |
 | **協作** | DevOps, QA |
 | **估工** | 1.0 人天 |
@@ -967,6 +969,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] Gate 紀錄（Run `22029584324` 曾因 security-scan fail 阻擋）
 - [x] DAST 首次掃描 artifact（Run `22031345836` 產出 `zap-report` artifact）
 - [x] 掃描摘要文件（`docs/security/evidence/t23-security-scan-summary-2026-02-15.md`）
+- [x] 最新 SAST/DAST gate 綠燈（Run `22033478586`）
 
 ---
 
@@ -1081,7 +1084,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031771983` critical journey green)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22033478586` critical + extended journeys green)** |
 | **Owner** | QA Lead |
 | **協作** | Frontend, Backend |
 | **估工** | 1.2 人天 |
@@ -1116,7 +1119,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 測試報告機制（Playwright html/json report）
 - [x] 首次 CI E2E 綠燈 run `22031345836`，artifact: `output/playwright` video + html report
 - [x] CI E2E 最新綠燈 run `22031771983`（critical journey）
-- [ ] Extended journeys CI 首次綠燈 run id（待觸發 `workflow_dispatch(run_extended_e2e=true)` 或下一次 schedule）
+- [x] Extended journeys CI 首次綠燈 run `22033478586`（workflow_dispatch with `run_extended_e2e=true`）
 
 ---
 
