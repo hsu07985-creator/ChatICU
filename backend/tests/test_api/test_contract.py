@@ -119,3 +119,21 @@ async def test_all_success_endpoints_return_envelope(client):
         assert "success" in data, f"{method} {path} missing 'success' field"
         if resp.status_code < 400:
             assert data["success"] is True, f"{method} {path} should have success=True"
+
+
+@pytest.mark.asyncio
+async def test_no_multipart_upload_endpoints_present(client):
+    """Current backend exposes no multipart upload API; guard this assumption (T26)."""
+    response = await client.get("/openapi.json")
+    assert response.status_code == 200
+    spec = response.json()
+
+    multipart_ops = []
+    for path, methods in spec.get("paths", {}).items():
+        for method, op in methods.items():
+            request_body = op.get("requestBody", {})
+            content = request_body.get("content", {})
+            if "multipart/form-data" in content:
+                multipart_ops.append(f"{method.upper()} {path}")
+
+    assert multipart_ops == [], f"Unexpected multipart upload endpoints: {multipart_ops}"

@@ -2,7 +2,7 @@
 
 **Project:** ChatICU 2026 ISMS-Compliant Production Deployment
 **Created:** 2026-02-15
-**Last Updated:** 2026-02-15 (Session 12 — T23/T26 Header Hardening + Tests)
+**Last Updated:** 2026-02-15 (Session 13 — T23 Regression Scan + T26 Upload Guard)
 **Total Tasks:** 32 | **Completed:** 13 | **In Progress:** 10 (T04, T14, T15, T20, T21, T22, T23, T24, T26, T27) | **Blocked:** 0
 
 ---
@@ -63,7 +63,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 | T23 | `[~]` | 連續追蹤 3 次 DAST（確認維持 High/Medium/Low = 0）並更新趨勢 | Security Eng | 2026-02-24 |
 | T24 | `[~]` | 每週更新 vulnerability register（新增 owner/截止日/retest 狀態欄位維護） | Security Eng | 2026-02-25 |
 | T25 | `[ ]` | 建立入侵/異常監控告警（4xx/5xx/來源異常）與通報 SOP，完成一次演練 | SOC | 2026-03-07 |
-| T26 | `[~]` | 補齊 XSS/上傳驗證測試案例並新增 CI 測項；FIM 需求拆為 infra 子任務 | Security Eng | 2026-02-25 |
+| T26 | `[~]` | 補齊 XSS 防護驗證測試案例並新增 CI 測項；FIM 需求拆為 infra 子任務 | Security Eng | 2026-02-25 |
 | T27 | `[~]` | 與 PM/QA 確認是否把 extended journeys 升級為 required gate（branch protection） | QA Lead | 2026-02-22 |
 | T29 | `[ ]` | 盤點委外供應商清單，補安全條款與保密/資安責任對照表 | PM / 法務 | 2026-03-12 |
 | T31 | `[ ]` | 制定滲測範圍與驗收基準，安排首輪測試與修補追蹤模板 | Security Eng | 2026-03-24 |
@@ -1070,7 +1070,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 伺服器端輸入驗證 — Pydantic schema 全面強化
 - [x] SQL Injection 防護（SQLAlchemy ORM 已涵蓋）
 - [ ] XSS 防護（API 輸出 encoding）— JSON API 已自動 escape
-- [ ] 檔案上傳驗證（如適用）
+- [x] 檔案上傳驗證（如適用）— 目前無 multipart 上傳端點，已加契約守門測試
 
 **實作內容（Session 6 — Pydantic schema 強化）：**
 - `schemas/admin.py`:
@@ -1088,12 +1088,15 @@ Overall:        [===========] 13/32 completed + 10 partial
   - RAGQueryRequest: `question` (1-2000), `top_k` (1-20)
 - `main.py` / `test_contract.py`:
   - 新增 CORP/cache-control 安全 header 與契約測試（DAST low finding 對應防護）
+- `test_contract.py`:
+  - 新增 `test_no_multipart_upload_endpoints_present`（確保 OpenAPI 無 `multipart/form-data` 上傳端點）
 
 **驗證方式：**
 - [x] Pydantic schema validation 全面增強 (email regex, username pattern, field length limits)
 - [x] 60/60 backend tests pass（無回歸）
 - [x] Schema hardening tests 補齊（`backend/tests/test_schemas/test_validation_hardening.py`）
 - [x] 安全 header 契約測試補強（`backend/tests/test_api/test_contract.py`）
+- [x] 上傳端點防回歸測試（`test_no_multipart_upload_endpoints_present`）
 - [ ] FIM 報告（需 infra）
 - [ ] 滲測驗證紀錄
 
@@ -1411,6 +1414,7 @@ T29 (P1) ── depends on T01 only
 | 2026-02-15 | T23 續作 | 修補 DAST low 風險 header：CORP + Cache-Control/Pragma/Expires | Done |
 | 2026-02-15 | T26 續作 | 補強安全 header 契約測試，`test_contract + schema` 共 14 passed | Verified |
 | 2026-02-15 | T23 驗證 | 修補後 CI Run `22033663309`：DAST `High=0, Medium=0, Low=0`，僅 Informational | Verified |
+| 2026-02-15 | T26 續作 | 新增無上傳端點守門測試 `test_no_multipart_upload_endpoints_present`，共 15 passed | Verified |
 
 ---
 
