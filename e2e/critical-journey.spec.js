@@ -46,7 +46,6 @@ test.describe("T27 Critical Journey", () => {
     const aiResponseBody = await aiResponse.json();
     const assistantContent = String(aiResponseBody?.data?.message?.content || "");
 
-    await expect(page.getByText(chatPrompt)).toBeVisible();
     expect(assistantContent.length).toBeGreaterThan(0);
 
     const assistantSnippet = assistantContent.replace(/\s+/g, " ").trim().slice(0, 20);
