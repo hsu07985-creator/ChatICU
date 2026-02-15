@@ -2,18 +2,18 @@
 
 **Project:** ChatICU 2026 ISMS-Compliant Production Deployment
 **Created:** 2026-02-15
-**Last Updated:** 2026-02-15 (Session 7 — W1 Execution)
-**Total Tasks:** 32 | **Completed:** 13 | **In Progress:** 8 (T04, T14, T15, T20, T21, T22, T23, T26) | **Blocked:** 0
+**Last Updated:** 2026-02-15 (Session 9 — T27/T23/T22/T24 Implementation)
+**Total Tasks:** 32 | **Completed:** 13 | **In Progress:** 10 (T04, T14, T15, T20, T21, T22, T23, T24, T26, T27) | **Blocked:** 0
 
 ---
 
 ## Progress Dashboard
 
 ```
-P0 (Critical):  [===========] 11/26 completed + T04/T14/T15/T20/T21/T22/T23/T26 partial
-P1 (Important): [=====] 2/4   completed (T28, T30)
+P0 (Critical):  [===========] 11/26 completed + T04/T14/T15/T20/T21/T22/T23/T24/T26 partial
+P1 (Important): [=====] 2/4   completed (T28, T30) + T27 partial
 P2 (Deferred):  [  ] 0/2  completed
-Overall:        [===========] 13/32 completed + 7 partial
+Overall:        [===========] 13/32 completed + 10 partial
 ```
 
 ### Phase Completion
@@ -26,9 +26,9 @@ Overall:        [===========] 13/32 completed + 7 partial
 | D — Logging & Monitoring (T11-T14) | 1.5/4 | **T11 Complete**, **T14 Partial** (UTC code compliance verified, NTP infra pending) |
 | E — Infra & Crypto (T15-T16) | 0.5/2 | **T15 Partial** (HSTS + CORS done, TLS/Redis SSL pending) |
 | F — DB & Continuity (T17-T19) | 1/3 | **T17 Complete** |
-| G — CI/CD & Env (T20-T22) | 1.5/3 | **T20 Partial**, **T21 Partial** (CHANGELOG created), **T22 Partial** (CI workflow created) |
-| H — Security Testing (T23-T26) | 1/4 | **T23 Partial** (Bandit config), **T26 Partial** (Pydantic validation enhanced) |
-| I — QA & Compliance (T27-T32) | 2/6 | **T28 Complete, T30 Complete** |
+| G — CI/CD & Env (T20-T22) | 1.5/3 | **T20 Partial**, **T21 Partial** (CHANGELOG created), **T22 Partial** (9-job CI + gate) |
+| H — Security Testing (T23-T26) | 1.5/4 | **T23 Partial** (SAST+DAST CI), **T24 Partial** (SLA+Dependabot), **T26 Partial** (Pydantic validation enhanced) |
+| I — QA & Compliance (T27-T32) | 2.5/6 | **T27 Partial** (Playwright critical journey + CI gate), **T28 Complete, T30 Complete** |
 
 ---
 
@@ -693,8 +693,9 @@ Overall:        [===========] 13/32 completed + 7 partial
 - [x] Alembic migration 正式化 → 2 version files
 - [x] `001_initial_schema.py`: 15 tables, all FK/indexes, upgrade + downgrade
 - [x] `002_password_history.py`: password_history table + users.password_changed_at
-- [ ] 空庫 → `alembic upgrade head` → seed → 驗證（需 PostgreSQL 連線）
-- [ ] Migration 版本納入 CI pipeline
+- [x] 空庫（CI PostgreSQL service）→ `alembic upgrade head` 驗證（GitHub Actions Run `22029666045`）
+- [ ] seed + 資料驗證（待補）
+- [x] Migration 版本納入 CI pipeline（`migration-check` job）
 
 **實作內容：**
 - `alembic/versions/001_initial_schema.py`: 15 tables covering all models
@@ -706,8 +707,9 @@ Overall:        [===========] 13/32 completed + 7 partial
 
 **驗證方式：**
 - [x] Migration files syntax valid (Python imports + SA ops)
-- [ ] migration 演練（空庫 → 最新版）— 需 PostgreSQL
-- [ ] 版本紀錄
+- [x] migration 演練（空庫 → 最新版）— GitHub Actions Run `22029666045`
+- [x] 已有一次完整 CI 全綠證據（Run `22029666045`，含 `migration-check`）
+- [x] 版本紀錄（Execution Log 已附 run id）
 
 ---
 
@@ -842,19 +844,26 @@ Overall:        [===========] 13/32 completed + 7 partial
 
 **採取措施：**
 - [x] CI pipeline — GitHub Actions workflow 建立 (`.github/workflows/ci.yml`)
-- [x] CI 跑 lint + test + security scan（4 jobs）
+- [x] CI 跑 lint + test + security scan + migration + frontend build + e2e + dast + reproducibility + docker build（9 jobs）
 - [x] 鎖定 Python 版本 — Dockerfile 使用 `python:3.12-slim`，CI 使用 `python-version: "3.12"`
 - [x] 鎖定依賴版本 — `pip-compile --generate-hashes` → `requirements.lock`（1686 行，含 SHA256 hash）
 - [x] Dockerfile 多階段建置 — Builder(gcc+pip install) → Runtime(slim, non-root user, HEALTHCHECK)
+- [x] 已有一次完整 CI 全綠證據（Run `22029666045`，6/6 jobs 綠燈）
+- [x] 新環境重現報告機制已納入 CI（`reproducibility-report` artifact job）
 - [ ] CI 連續 3 次綠燈驗證（需 git repo + push 觸發）
 
-**實作內容（Session 6）：**
-- `.github/workflows/ci.yml`: 4-job CI pipeline:
-  1. `backend-test`: Python 3.12 + Redis service + pytest (SQLite for CI)
-  2. `backend-lint`: flake8 (fatal errors E9/F63/F7/F82 + style warnings W/E)
+**實作內容（Session 6 + Session 8 + Session 9）：**
+- `.github/workflows/ci.yml`: 9-job CI pipeline:
+  1. `backend-test`: Python 3.12 + Redis service + pytest (SQLite for tests)
+  2. `backend-lint`: flake8（依賴鎖版後單獨安裝 flake8）
   3. `security-scan`: bandit with pyproject.toml config, uploads JSON report artifact
-  4. `docker-build`: builds Docker image + verifies container starts (health check)
-- Triggers: push/PR to main/develop branches
+  4. `migration-check`: PostgreSQL 16 service + `alembic upgrade head`
+  5. `frontend-build`: npm ci +（條件式）tsc + vite build
+  6. `e2e-critical-journey`: Playwright critical journey + video/report artifacts
+  7. `dast-scan`: OWASP ZAP baseline + High-risk gate
+  8. `reproducibility-report`: CI run metadata + lockfile hash report artifact
+  9. `docker-build`: builds Docker image + verifies container starts (health check)
+- Triggers: push/PR + weekly schedule + workflow_dispatch
 - Environment: `TESTING=true`, `DATABASE_URL=sqlite+aiosqlite:///./test.db`
 
 **實作內容（W1 — 鎖版 + 多階段 Docker）：**
@@ -867,12 +876,14 @@ Overall:        [===========] 13/32 completed + 7 partial
 - Docker image 尺寸顯著減小（無 gcc/build artifacts）
 
 **驗證方式：**
-- [x] CI workflow YAML valid (4 jobs, proper triggers, Redis service)
+- [x] CI workflow YAML valid (9 jobs, proper triggers, Redis/PostgreSQL services)
 - [x] requirements.lock 生成完成（含 hash 完整性）
 - [x] Dockerfile multi-stage 建立完成（non-root, HEALTHCHECK）
 - [x] CI 改用 requirements.lock 安裝
+- [x] CI 首次完整綠燈紀錄：Run `22029666045`（all jobs passed）
+- [ ] Session 9（含 E2E+DAST+reproducibility）首次全綠 run id
 - [ ] CI 紀錄（連續 3 次綠燈）— 需 git repo + push
-- [ ] 新環境重現測試報告
+- [ ] 新環境重現測試報告（等待 `reproducibility-report` 首次 artifact）
 
 ---
 
@@ -893,11 +904,11 @@ Overall:        [===========] 13/32 completed + 7 partial
 **採取措施：**
 - [x] SAST 工具導入 — Bandit 配置完成 (`backend/pyproject.toml`)
 - [x] CI gate — `security-scan` job 在 CI pipeline 中（T22 ci.yml）
-- [ ] DAST 工具導入（OWASP ZAP）— 需部署後配置
-- [ ] 定期掃描排程（每週 or 每次 MR）— CI 已設 push/PR trigger
-- [ ] 首次掃描報告產出（需 git repo + CI run）
+- [x] DAST 工具導入（OWASP ZAP baseline）— `dast-scan` job 已納入 CI
+- [x] 定期掃描排程（每週 + 每次 MR）— CI 已設 push/PR + schedule trigger
+- [x] 首次掃描報告產出（Run `22029666045`，artifact: `bandit-report`）
 
-**實作內容（Session 6）：**
+**實作內容（Session 6 + Session 9）：**
 - `backend/pyproject.toml`: Bandit SAST 配置:
   - `exclude_dirs`: tests, seeds, alembic
   - `skips`: B101 (assert_used — 測試中常用)
@@ -905,12 +916,19 @@ Overall:        [===========] 13/32 completed + 7 partial
 - 同檔案包含 flake8 + pytest 配置:
   - flake8: max-line-length=120, exclude venv/__pycache__/alembic
   - pytest: asyncio_mode=auto, testpaths=tests
+- `.github/workflows/ci.yml`: 新增 `dast-scan` job
+  - 啟動 backend 測試服務後執行 `OWASP ZAP baseline`
+  - 產出 `zap-report.json/html/warnings` artifact
+  - Gate 規則：若 High 風險數量 > 0，pipeline fail
 
 **驗證方式：**
 - [x] pyproject.toml Bandit 配置有效
 - [x] CI workflow 包含 security-scan job
-- [ ] 掃描報告（需 CI run）
-- [ ] Gate 紀錄（有阻擋案例）
+- [x] CI workflow 包含 dast-scan job（ZAP baseline + High-risk gate）
+- [x] 掃描報告（Run `22029666045`，`bandit-report` artifact）
+- [x] 已有一次完整 CI 全綠證據（Run `22029666045`，security-scan job in green run）
+- [x] Gate 紀錄（Run `22029584324` 曾因 security-scan fail 阻擋）
+- [ ] DAST 首次掃描 artifact（等待新增 CI 執行後產出）
 
 ---
 
@@ -918,7 +936,7 @@ Overall:        [===========] 13/32 completed + 7 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[ ]` Not Started |
+| **Status** | `[~]` **Partially Complete 2026-02-15** |
 | **Owner** | Security Eng |
 | **協作** | Backend, DevOps |
 | **估工** | 0.8 人天 |
@@ -927,13 +945,25 @@ Overall:        [===========] 13/32 completed + 7 partial
 | **完成定義 (DoD)** | 漏洞修補閉環 |
 
 **採取措施：**
-- [ ] 漏洞修補 SLA（Critical: 24h, High: 7d, Medium: 30d）
-- [ ] 修補驗證流程（修 → retest → close）
-- [ ] 依賴更新政策（Dependabot / Renovate）
+- [x] 漏洞修補 SLA（Critical: 24h, High: 7d, Medium: 30d）→ `docs/security/vulnerability-sla.md`
+- [x] 修補驗證流程（修 → retest → close）→ `docs/security/vulnerability-sla.md`
+- [x] 依賴更新政策（Dependabot）→ `.github/dependabot.yml`
+
+**實作內容（Session 9）：**
+- `docs/security/vulnerability-sla.md`:
+  - 定義 Critical/High/Medium/Low SLA
+  - 閉環流程（detect → triage → mitigate → retest → close）
+  - 每筆漏洞 required evidence 欄位
+  - 逾期 escalation 規則
+- `docs/security/vulnerability-register-template.md`:
+  - 漏洞台帳範本（finding id/source/severity/owner/SLA due/fix reference/retest evidence）
+- `.github/dependabot.yml`:
+  - npm/pip/github-actions 每週自動更新 PR（含 security labels）
 
 **驗證方式：**
-- [ ] 修補台帳
-- [ ] 驗證紀錄
+- [x] 修補台帳模板建立
+- [ ] 首筆修補閉環紀錄（需實際漏洞案例）
+- [ ] 驗證紀錄（需 CI run + PR evidence）
 
 ---
 
@@ -1009,7 +1039,7 @@ Overall:        [===========] 13/32 completed + 7 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[ ]` Not Started |
+| **Status** | `[~]` **Partially Complete 2026-02-15** |
 | **Owner** | QA Lead |
 | **協作** | Frontend, Backend |
 | **估工** | 1.2 人天 |
@@ -1018,14 +1048,26 @@ Overall:        [===========] 13/32 completed + 7 partial
 | **完成定義 (DoD)** | 關鍵旅程自動化 |
 
 **採取措施：**
-- [ ] E2E 框架選定（Playwright / Cypress）
-- [ ] 核心旅程覆蓋：登入 → 病患列表 → 詳情 → AI Chat → 登出
-- [ ] CI 整合（E2E 作為 deployment gate）
-- [ ] 測試錄影保留
+- [x] E2E 框架選定（Playwright）
+- [x] 核心旅程覆蓋：登入 → 病患列表 → 詳情 → AI Chat → 登出
+- [x] CI 整合（E2E 作為 deployment gate）
+- [x] 測試錄影保留（Playwright video artifact）
+
+**實作內容（Session 9）：**
+- `playwright.config.js`:
+  - reporter: list + html + json（輸出到 `output/playwright/`）
+  - trace/screenshot/video 設定（CI 下保留錄影）
+- `e2e/critical-journey.spec.js`:
+  - critical flow: login → patients → patient detail → AI chat → logout
+  - 使用真實 UI 操作與路由斷言
+- `.github/workflows/ci.yml`:
+  - 新增 `e2e-critical-journey` job（PostgreSQL + Redis + migration + seed + frontend/backend 啟動 + Playwright）
+  - 產出 `e2e-playwright-artifacts`（report/video/logs）
 
 **驗證方式：**
-- [ ] 測試報告
-- [ ] 覆蓋清單
+- [x] 覆蓋清單（critical journey 1 條）
+- [x] 測試報告機制（Playwright html/json report）
+- [ ] 首次 CI E2E 綠燈 run id 與錄影 artifact 證據
 
 ---
 
@@ -1279,6 +1321,10 @@ T29 (P1) ── depends on T01 only
 | 2026-02-15 | T22 W1 | CI workflow 改用 requirements.lock + image size 驗證步驟 | Done |
 | 2026-02-15 | conftest | override_get_db 加入 commit (修復跨 request 資料可見性) | Done |
 | 2026-02-15 | Tests | W1 全部修正後 68/68 tests pass，無回歸 | 68/68 pass |
+| 2026-02-15 | T27 部分 | Playwright config + critical journey spec + CI e2e job + report/video artifacts | Partial |
+| 2026-02-15 | T23 部分 | CI 新增 DAST (OWASP ZAP baseline) + High-risk gate + artifact upload | Partial |
+| 2026-02-15 | T22 部分 | CI 擴充為 9 jobs + reproducibility-report artifact job + weekly schedule/workflow_dispatch | Partial |
+| 2026-02-15 | T24 部分 | 建立 vulnerability SLA、register template、Dependabot policy (npm/pip/actions) | Partial |
 
 ---
 

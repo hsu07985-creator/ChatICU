@@ -20,6 +20,8 @@ backend/.env
 # Tooling caches
 .pre-commit-cache/
 .pytest_cache/
+output/
+playwright-report/
 
 # Non-code assets / local tooling
 .claude/
