@@ -231,6 +231,7 @@ jobs:
           REDIS_URL: "redis://localhost:6379/0"
           JWT_SECRET: "ci-test-secret"
           SEED_DEFAULT_PASSWORD: "CITestPassword123!"
+          CORS_ORIGINS: '["http://127.0.0.1:4173","http://localhost:4173","http://127.0.0.1:5173","http://localhost:5173","http://127.0.0.1:3000","http://localhost:3000"]'
         run: |
           cd backend
           nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/chaticu-backend.log 2>&1 &
@@ -378,17 +379,30 @@ jobs:
             -t http://127.0.0.1:8000 \
             -m 3 \
             -I \
-            -J /zap/wrk/zap-report.json \
-            -r /zap/wrk/zap-report.html \
-            -w /zap/wrk/zap-warnings.md
+            -J zap-report.json \
+            -r zap-report.html \
+            -w zap-warnings.md
+          ls -lah output/dast
 
       - name: Enforce DAST gate (block on High)
         run: |
           python - <<'PY'
           import json
           import sys
+          from pathlib import Path
 
-          with open("output/dast/zap-report.json", "r", encoding="utf-8") as f:
+          candidates = [
+              Path("output/dast/zap-report.json"),
+              Path("output/dast/report_json.json"),
+          ]
+          report_path = next((p for p in candidates if p.exists()), None)
+          if report_path is None:
+              print("DAST report not found under output/dast.")
+              for p in sorted(Path("output/dast").glob("*")):
+                  print(f" - {p}")
+              sys.exit(1)
+
+          with report_path.open("r", encoding="utf-8") as f:
               data = json.load(f)
 
           high_count = 0
@@ -402,6 +416,7 @@ jobs:
                   if risk >= 3:
                       high_count += count
 
+          print(f"DAST report file: {report_path}")
           print(f"DAST summary: high={high_count}, medium_or_higher={medium_or_higher}")
           if high_count > 0:
               print("High-risk DAST findings detected. Blocking pipeline.")
