@@ -2,7 +2,7 @@
 
 **Project:** ChatICU 2026 ISMS-Compliant Production Deployment
 **Created:** 2026-02-15
-**Last Updated:** 2026-02-15 (Session 9 — T27/T23/T22/T24 Implementation)
+**Last Updated:** 2026-02-15 (Session 10 — Sprint Board (Open Tasks) Refinement)
 **Total Tasks:** 32 | **Completed:** 13 | **In Progress:** 10 (T04, T14, T15, T20, T21, T22, T23, T24, T26, T27) | **Blocked:** 0
 
 ---
@@ -40,6 +40,34 @@ Overall:        [===========] 13/32 completed + 10 partial
 | `[~]` | In Progress |
 | `[x]` | Completed |
 | `[!]` | Blocked |
+
+---
+
+## Sprint Board（僅未完成項）
+
+> 用途：只追「未完成 / 部分完成」任務。每次執行後，先更新「下一個動作」與「截止日」，完成即回原任務區塊打勾。
+
+| Task | 狀態 | 下一個可執行動作（Next Action） | Owner | 截止日 |
+|------|------|----------------------------------|-------|--------|
+| T04 | `[~]` | 依 `docs/qa/t04-uat-test-script.md` 執行 UAT，補 1 份已簽核報告至 `docs/qa/` | Backend Lead | 2026-02-20 |
+| T12 | `[ ]` | 設定日誌保存/封存策略（6 個月）與防竄改機制（WORM/不可變儲存）並留存設定截圖 | SRE / Platform | 2026-02-27 |
+| T13 | `[ ]` | 建立每週日誌審查排程與告警規則（異常登入/權限變更），產出首份審查紀錄 | SOC / 資安維運 | 2026-02-27 |
+| T14 | `[~]` | 於主機/容器層啟用 NTP 校時與 offset 監測，補監控面板與告警證據 | SRE / Platform | 2026-03-06 |
+| T15 | `[~]` | 在反向代理強制 TLS 1.2+，並完成 Redis/DB 連線加密設定與驗證 | Security Eng | 2026-03-06 |
+| T16 | `[ ]` | 建立金鑰輪替 SOP（JWT/DB/Redis/API keys）與季度輪替演練紀錄模板 | DevOps | 2026-03-10 |
+| T18 | `[ ]` | 建立自動備份 + 還原演練流程，定義 RPO 並產出第一次 restore 證據 | DBA / SRE | 2026-03-13 |
+| T19 | `[ ]` | 建立備援切換 Runbook，完成一次 RTO 計時演練並留存報告 | SRE | 2026-03-20 |
+| T20 | `[~]` | 完成 dev/stg/prod 三環境分離（含獨立 DB/權限），補環境矩陣文件 | DevOps | 2026-03-10 |
+| T21 | `[~]` | 依 CR 模板完成一筆正式變更單，並附一次回滾演練紀錄 | PM / Release | 2026-02-24 |
+| T22 | `[~]` | 依 `docs/operations/environment-rebuild-runbook.md` 在乾淨環境重建一次並附執行紀錄 | DevOps | 2026-02-24 |
+| T23 | `[~]` | 將本週掃描摘要回寫 `docs/security/evidence/` 並附最新 run id | Security Eng | 2026-02-24 |
+| T24 | `[~]` | 依台帳模板補正式 vulnerability register（含 Case 1/Case 2） | Security Eng | 2026-02-25 |
+| T25 | `[ ]` | 建立入侵/異常監控告警（4xx/5xx/來源異常）與通報 SOP，完成一次演練 | SOC | 2026-03-07 |
+| T26 | `[~]` | 補齊 XSS/上傳驗證測試案例並新增 CI 測項；FIM 需求拆為 infra 子任務 | Security Eng | 2026-02-25 |
+| T27 | `[~]` | 觸發一次 `workflow_dispatch(run_extended_e2e=true)` 並記錄 extended run 證據 | QA Lead | 2026-02-21 |
+| T29 | `[ ]` | 盤點委外供應商清單，補安全條款與保密/資安責任對照表 | PM / 法務 | 2026-03-12 |
+| T31 | `[ ]` | 制定滲測範圍與驗收基準，安排首輪測試與修補追蹤模板 | Security Eng | 2026-03-24 |
+| T32 | `[ ]` | 盤點靜態資料加密範圍，完成 at-rest encryption 設計與遷移計畫 | Security Eng | 2026-03-24 |
 
 ---
 
@@ -384,7 +412,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (run `22031345836` full pipeline + e2e/DAST green)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15** |
 | **Owner** | Backend Lead |
 | **協作** | Frontend, QA |
 | **估工** | 2.0 人天 |
@@ -438,7 +466,8 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 後端已建: `GET /POST /pharmacy/advice-records` endpoint + PharmacyAdvice model + migration 003（W1）
 - [x] 前後端契約 100% 對齊: 11/11 欄位一致（W1 驗證）
 - [ ] UAT 簽核（每個核心流程）
-- [ ] E2E 測試報告
+- [x] E2E 測試報告（Run `22031771983`，Playwright artifacts）
+- [x] UAT 腳本與報告模板（`docs/qa/t04-uat-test-script.md`、`docs/qa/t04-uat-report-template.md`）
 
 **實作內容（re-audit 4 — 趨勢圖對接）：**
 - `src/pages/patient-detail.tsx`: 移除空 `trendData: []` + TODO 註解 → 新增 `useEffect` 呼叫 `labDataApi.getLabTrends()` API
@@ -591,7 +620,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031345836` includes DAST + E2E artifacts)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15** |
 | **Owner** | SRE / Platform |
 | **協作** | DevOps |
 | **估工** | 0.3 人天 |
@@ -625,7 +654,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031345836` critical journey green)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15** |
 | **Owner** | Security Eng |
 | **協作** | DevOps, Backend |
 | **估工** | 1.0 人天 |
@@ -767,7 +796,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031345836` includes DAST + E2E artifacts)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15** |
 | **Owner** | DevOps |
 | **協作** | Backend, QA |
 | **估工** | 0.8 人天 |
@@ -799,7 +828,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031345836` critical journey green)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15** |
 | **Owner** | PM / Release |
 | **協作** | DevOps, QA |
 | **估工** | 0.5 人天 |
@@ -811,9 +840,9 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] CHANGELOG.md 建立 — v1.0.0 完整記錄（Keep a Changelog 格式）
 - [x] Semantic versioning: APP_VERSION = "1.0.0" in config.py
 - [ ] Git tag + semantic versioning（需 git repo 初始化後操作）
-- [ ] 變更單（CR）流程（需人工流程建立）
-- [ ] 發版審批（至少 1 人 review）（需團隊流程）
-- [ ] 回滾 SOP（Docker image rollback）（需 DevOps）
+- [x] 變更單（CR）模板（`docs/release/change-request-template.md`）
+- [x] 發版審批 checklist（`docs/release/release-approval-checklist.md`）
+- [x] 回滾 SOP（`docs/release/rollback-sop.md`）
 
 **實作內容（Session 6）：**
 - `CHANGELOG.md` (root): v1.0.0 entry covering:
@@ -825,8 +854,11 @@ Overall:        [===========] 13/32 completed + 10 partial
 **驗證方式：**
 - [x] CHANGELOG.md 存在且符合 Keep a Changelog 格式
 - [x] APP_VERSION in config.py
-- [ ] 變更單紀錄（需人工流程）
-- [ ] 回滾演練紀錄（需 DevOps）
+- [x] CR 模板文件（`docs/release/change-request-template.md`）
+- [x] 發版審批 checklist（`docs/release/release-approval-checklist.md`）
+- [x] 回滾 SOP 文件（`docs/release/rollback-sop.md`）
+- [ ] 變更單實際紀錄（需人工流程）
+- [ ] 回滾演練實際紀錄（需 DevOps）
 
 ---
 
@@ -834,7 +866,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031345836` includes DAST + E2E artifacts)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031771983` full pipeline green)** |
 | **Owner** | DevOps |
 | **協作** | Frontend, Backend |
 | **估工** | 1.0 人天 |
@@ -850,10 +882,11 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] Dockerfile 多階段建置 — Builder(gcc+pip install) → Runtime(slim, non-root user, HEALTHCHECK)
 - [x] 已有一次完整 CI 全綠證據（Run `22029666045` + Run `22031345836`，後者含 e2e/DAST/reproducibility/docker）
 - [x] 新環境重現報告機制已納入 CI（`reproducibility-report` artifact job）
-- [ ] CI 連續 3 次綠燈驗證（需 git repo + push 觸發）
+- [x] CI 連續 3 次綠燈驗證（`22031759710`、`22031766156`、`22031771983`）
+- [x] 新環境重建 Runbook（`docs/operations/environment-rebuild-runbook.md`）
 
-**實作內容（Session 6 + Session 8 + Session 9）：**
-- `.github/workflows/ci.yml`: 9-job CI pipeline:
+**實作內容（Session 6 + Session 8 + Session 9 + Session 10）：**
+- `.github/workflows/ci.yml`: 10-job CI pipeline:
   1. `backend-test`: Python 3.12 + Redis service + pytest (SQLite for tests)
   2. `backend-lint`: flake8（依賴鎖版後單獨安裝 flake8）
   3. `security-scan`: bandit with pyproject.toml config, uploads JSON report artifact
@@ -863,6 +896,7 @@ Overall:        [===========] 13/32 completed + 10 partial
   7. `dast-scan`: OWASP ZAP baseline + High-risk gate
   8. `reproducibility-report`: CI run metadata + lockfile hash report artifact
   9. `docker-build`: builds Docker image + verifies container starts (health check)
+  10. `e2e-extended-journeys`: Playwright extended journeys（schedule / workflow_dispatch 可選啟用）
 - Triggers: push/PR + weekly schedule + workflow_dispatch
 - Environment: `TESTING=true`, `DATABASE_URL=sqlite+aiosqlite:///./test.db`
 
@@ -882,8 +916,9 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] CI 改用 requirements.lock 安裝
 - [x] CI 首次完整綠燈紀錄：Run `22029666045`（all jobs passed）
 - [x] Session 9（含 E2E+DAST+reproducibility）首次全綠 run `22031345836`
-- [ ] CI 紀錄（連續 3 次綠燈）— 需 git repo + push
-- [ ] 新環境重現測試報告（等待 `reproducibility-report` 首次 artifact）
+- [x] CI 紀錄（連續 3 次綠燈）：`22031759710` → `22031766156` → `22031771983`
+- [x] 新環境重現測試報告（Run `22031771983` + `docs/operations/reproducibility-reports/2026-02-15-run-22031771983.md`）
+- [x] 新環境重建步驟文件（`docs/operations/environment-rebuild-runbook.md`）
 
 ---
 
@@ -893,7 +928,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031345836` includes DAST + E2E artifacts)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031771983` SAST/DAST gate green)** |
 | **Owner** | Security Eng |
 | **協作** | DevOps, QA |
 | **估工** | 1.0 人天 |
@@ -907,8 +942,9 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] DAST 工具導入（OWASP ZAP baseline）— `dast-scan` job 已納入 CI
 - [x] 定期掃描排程（每週 + 每次 MR）— CI 已設 push/PR + schedule trigger
 - [x] 首次掃描報告產出（Run `22029666045`，artifact: `bandit-report`）
+- [x] 安全掃描摘要文件（`docs/security/evidence/t23-security-scan-summary-2026-02-15.md`）
 
-**實作內容（Session 6 + Session 9）：**
+**實作內容（Session 6 + Session 9 + Session 10）：**
 - `backend/pyproject.toml`: Bandit SAST 配置:
   - `exclude_dirs`: tests, seeds, alembic
   - `skips`: B101 (assert_used — 測試中常用)
@@ -920,6 +956,7 @@ Overall:        [===========] 13/32 completed + 10 partial
   - 啟動 backend 測試服務後執行 `OWASP ZAP baseline`
   - 產出 `zap-report.json/html/warnings` artifact
   - Gate 規則：若 High 風險數量 > 0，pipeline fail
+  - 產出 `dast-gate-summary.md`（直接摘要 Gate 結果）
 
 **驗證方式：**
 - [x] pyproject.toml Bandit 配置有效
@@ -929,6 +966,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 已有一次完整 CI 全綠證據（Run `22029666045`，security-scan job in green run）
 - [x] Gate 紀錄（Run `22029584324` 曾因 security-scan fail 阻擋）
 - [x] DAST 首次掃描 artifact（Run `22031345836` 產出 `zap-report` artifact）
+- [x] 掃描摘要文件（`docs/security/evidence/t23-security-scan-summary-2026-02-15.md`）
 
 ---
 
@@ -936,7 +974,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031345836` critical journey green)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15** |
 | **Owner** | Security Eng |
 | **協作** | Backend, DevOps |
 | **估工** | 0.8 人天 |
@@ -949,7 +987,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 修補驗證流程（修 → retest → close）→ `docs/security/vulnerability-sla.md`
 - [x] 依賴更新政策（Dependabot）→ `.github/dependabot.yml`
 
-**實作內容（Session 9）：**
+**實作內容（Session 9 + Session 10）：**
 - `docs/security/vulnerability-sla.md`:
   - 定義 Critical/High/Medium/Low SLA
   - 閉環流程（detect → triage → mitigate → retest → close）
@@ -959,11 +997,14 @@ Overall:        [===========] 13/32 completed + 10 partial
   - 漏洞台帳範本（finding id/source/severity/owner/SLA due/fix reference/retest evidence）
 - `.github/dependabot.yml`:
   - npm/pip/github-actions 每週自動更新 PR（含 security labels）
+- `docs/security/evidence/t24-remediation-drill-2026-02-15-case2.md`:
+  - 第二筆閉環演練案例（含 SLA 判定、修補與 retest 證據）
 
 **驗證方式：**
 - [x] 修補台帳模板建立
-- [ ] 首筆修補閉環紀錄（需實際漏洞案例）
-- [ ] 驗證紀錄（需 CI run + PR evidence）
+- [x] 首筆修補閉環演練紀錄（`docs/security/evidence/t24-remediation-drill-2026-02-15.md`）
+- [x] 第二筆修補閉環演練紀錄（`docs/security/evidence/t24-remediation-drill-2026-02-15-case2.md`）
+- [x] 驗證紀錄（Run `22031771983` SAST/DAST/E2E job evidence）
 
 ---
 
@@ -1028,6 +1069,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 **驗證方式：**
 - [x] Pydantic schema validation 全面增強 (email regex, username pattern, field length limits)
 - [x] 60/60 backend tests pass（無回歸）
+- [x] Schema hardening tests 補齊（`backend/tests/test_schemas/test_validation_hardening.py`）
 - [ ] FIM 報告（需 infra）
 - [ ] 滲測驗證紀錄
 
@@ -1039,7 +1081,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 | Field | Value |
 |-------|-------|
-| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031345836` critical journey green)** |
+| **Status** | `[~]` **Partially Complete 2026-02-15 (Run `22031771983` critical journey green)** |
 | **Owner** | QA Lead |
 | **協作** | Frontend, Backend |
 | **估工** | 1.2 人天 |
@@ -1052,22 +1094,29 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 核心旅程覆蓋：登入 → 病患列表 → 詳情 → AI Chat → 登出
 - [x] CI 整合（E2E 作為 deployment gate）
 - [x] 測試錄影保留（Playwright video artifact）
+- [x] Extended journeys 納入固定排程（schedule + workflow_dispatch 可選執行）
 
-**實作內容（Session 9）：**
+**實作內容（Session 9 + Session 10）：**
 - `playwright.config.js`:
   - reporter: list + html + json（輸出到 `output/playwright/`）
   - trace/screenshot/video 設定（CI 下保留錄影）
 - `e2e/critical-journey.spec.js`:
   - critical flow: login → patients → patient detail → AI chat → logout
   - 使用真實 UI 操作與路由斷言
+- `e2e/t27-extended-journeys.spec.js`:
+  - 擴充 journey: login → team chat → logout
+  - 擴充 journey: login → patients → detail tab switch
 - `.github/workflows/ci.yml`:
   - 新增 `e2e-critical-journey` job（PostgreSQL + Redis + migration + seed + frontend/backend 啟動 + Playwright）
   - 產出 `e2e-playwright-artifacts`（report/video/logs）
+  - 新增 `e2e-extended-journeys` job（schedule 例行 + workflow_dispatch 手動開關）
 
 **驗證方式：**
-- [x] 覆蓋清單（critical journey 1 條）
+- [x] 覆蓋清單（critical 1 條 + extended 2 條）
 - [x] 測試報告機制（Playwright html/json report）
 - [x] 首次 CI E2E 綠燈 run `22031345836`，artifact: `output/playwright` video + html report
+- [x] CI E2E 最新綠燈 run `22031771983`（critical journey）
+- [ ] Extended journeys CI 首次綠燈 run id（待觸發 `workflow_dispatch(run_extended_e2e=true)` 或下一次 schedule）
 
 ---
 
