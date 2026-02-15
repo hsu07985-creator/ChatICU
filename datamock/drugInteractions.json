@@ -1,0 +1,87 @@
+{
+  "drugInteractions": [
+    {
+      "id": "int_001",
+      "drug1": "Morphine",
+      "drug2": "Midazolam",
+      "severity": "moderate",
+      "mechanism": "加成性中樞神經抑制效果",
+      "clinicalEffect": "呼吸抑制、過度鎮靜、低血壓",
+      "management": "密切監測呼吸狀態、鎮靜深度（RASS評分）與血壓，必要時調整劑量",
+      "references": "MICROMEDEX"
+    },
+    {
+      "id": "int_002",
+      "drug1": "Propofol",
+      "drug2": "Fentanyl",
+      "severity": "moderate",
+      "mechanism": "加成性中樞神經抑制效果",
+      "clinicalEffect": "呼吸抑制、過度鎮靜、低血壓",
+      "management": "適當調整劑量，密切監測血壓與呼吸狀態",
+      "references": "MICROMEDEX"
+    },
+    {
+      "id": "int_003",
+      "drug1": "Vancomycin",
+      "drug2": "Cisatracurium",
+      "severity": "minor",
+      "mechanism": "可能增強神經肌肉阻斷效果",
+      "clinicalEffect": "延長神經肌肉阻斷作用",
+      "management": "監測 TOF，必要時調整劑量",
+      "references": "MICROMEDEX"
+    },
+    {
+      "id": "int_004",
+      "drug1": "Norepinephrine",
+      "drug2": "Propofol",
+      "severity": "moderate",
+      "mechanism": "Propofol 可能加重低血壓",
+      "clinicalEffect": "可能需增加升壓劑劑量",
+      "management": "監測血壓，適當調整 Norepinephrine 劑量",
+      "references": "UpToDate"
+    }
+  ],
+  "ivCompatibility": [
+    {
+      "id": "comp_001",
+      "drug1": "Morphine",
+      "drug2": "Midazolam",
+      "solution": "NS",
+      "compatible": true,
+      "timeStability": "24 hours",
+      "notes": "常用於 ICU 鎮靜",
+      "references": "Trissel's Handbook"
+    },
+    {
+      "id": "comp_002",
+      "drug1": "Propofol",
+      "drug2": "Fentanyl",
+      "solution": "N/A",
+      "compatible": false,
+      "timeStability": null,
+      "notes": "不建議 Y-site 混合，需使用不同管路",
+      "references": "Trissel's Handbook"
+    },
+    {
+      "id": "comp_003",
+      "drug1": "Vancomycin",
+      "drug2": "NS",
+      "solution": "NS",
+      "compatible": true,
+      "timeStability": "24 hours",
+      "notes": "標準稀釋方式",
+      "references": "Trissel's Handbook"
+    },
+    {
+      "id": "comp_004",
+      "drug1": "Norepinephrine",
+      "drug2": "NS",
+      "solution": "NS",
+      "compatible": true,
+      "timeStability": "24 hours",
+      "notes": "標準稀釋方式，建議使用中央靜脈導管",
+      "references": "Trissel's Handbook"
+    }
+  ]
+}
+

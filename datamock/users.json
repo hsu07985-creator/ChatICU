@@ -1,0 +1,48 @@
+{
+  "users": [
+    {
+      "id": "usr_001",
+      "name": "王小華",
+      "username": "nurse",
+      "email": "nurse@hospital.com",
+      "role": "nurse",
+      "unit": "加護病房一",
+      "active": true,
+      "lastLogin": "2025-01-10T09:00:00Z",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "usr_002",
+      "name": "李穎灝",
+      "username": "doctor",
+      "email": "doctor@hospital.com",
+      "role": "doctor",
+      "unit": "加護病房一",
+      "active": true,
+      "lastLogin": "2025-01-10T08:30:00Z",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "usr_003",
+      "name": "張管理者",
+      "username": "admin",
+      "email": "admin@hospital.com",
+      "role": "admin",
+      "unit": "系統管理",
+      "active": true,
+      "lastLogin": "2025-01-10T07:00:00Z",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "usr_004",
+      "name": "林藥師",
+      "username": "pharmacist",
+      "email": "pharmacist@hospital.com",
+      "role": "pharmacist",
+      "unit": "藥劑科",
+      "active": true,
+      "lastLogin": "2025-01-10T08:00:00Z",
+      "createdAt": "2024-01-01T00:00:00Z"
+    }
+  ]
+}

@@ -1,0 +1,670 @@
+import { type LabData, type LabItem } from '../lib/api';
+import { useState } from 'react';
+import { LabTrendChart, type LabTrendData } from './lab-trend-chart';
+import { TrendingUp, Loader2 } from 'lucide-react';
+import { getLabTrends } from '../lib/api/lab-data';
+
+const labReferenceRanges: Record<string, string> = {
+  Na: '136-145 mEq/L', K: '3.5-5.1 mEq/L', Ca: '8.6-10.2 mg/dL',
+  Mg: '1.8-2.4 mg/dL', WBC: '4.0-10.0 10\u00B3/\u03BCL', Hb: '12.0-16.0 g/dL',
+  PLT: '150-400 10\u00B3/\u03BCL', Alb: '3.5-5.0 g/dL', CRP: '< 5.0 mg/L',
+  BUN: '7-20 mg/dL', Scr: '0.6-1.2 mg/dL', eGFR: '> 90 mL/min',
+  Lactate: '0.5-2.0 mmol/L',
+};
+
+const labChineseNames: Record<string, string> = {
+  Na: '\u9209', K: '\u9240', Ca: '\u9223', freeCa: '\u6E38\u96E2\u9223', Mg: '\u93C2',
+  WBC: '\u767D\u8840\u7403', RBC: '\u7D05\u8840\u7403', Hb: '\u8840\u7D05\u7D20', PLT: '\u8840\u5C0F\u677F',
+  Alb: '\u767D\u86CB\u767D', CRP: 'C\u53CD\u61C9\u86CB\u767D', PCT: '\u964D\u9223\u7D20\u539F',
+  DDimer: 'D-\u4E8C\u805A\u9AD4', pH: '\u9178\u9E7C\u503C', PCO2: '\u4E8C\u6C27\u5316\u78B3\u5206\u58D3',
+  PO2: '\u6C27\u5206\u58D3', HCO3: '\u78B3\u9178\u6C2B\u6839', Lactate: '\u4E73\u9178',
+  AST: '\u5929\u9580\u51AC\u80FA\u9178\u8F49\u80FA\u9176', ALT: '\u4E19\u80FA\u9178\u8F49\u80FA\u9176', TBil: '\u7E3D\u81BD\u7D05\u7D20',
+  INR: '\u570B\u969B\u6A19\u6E96\u5316\u6BD4\u503C', BUN: '\u8840\u6DB2\u5C3F\u7D20\u6C2E', Scr: '\u808C\u9178\u9150',
+  eGFR: '\u814E\u7D72\u7403\u904E\u6FFE\u7387', Clcr: '\u808C\u9178\u9150\u6E05\u9664\u7387',
+};
+
+interface LabDataDisplayProps {
+  labData: LabData | undefined;
+  patientId?: string;
+}
+
+interface LabItemProps {
+  labName: string;
+  label: string;
+  value: number | string | undefined;
+  unit: string;
+  isAbnormal?: boolean;
+  onClick?: () => void;
+  hasHistory?: boolean;
+  isOptional?: boolean; // 選擇性追蹤項目使用粉紅色背景
+}
+
+function LabItem({ labName, label, value, unit, isAbnormal, onClick, hasHistory, isOptional }: LabItemProps) {
+  const displayValue = value !== undefined ? value : '-';
+  const hasValue = value !== '-' && value !== undefined;
+  const canOpenTrend = hasValue && !!hasHistory && !!onClick;
+
+  return (
+    <div
+      className={`${
+        isOptional ? 'bg-[rgba(255,237,241,0.75)]' : 'bg-[rgba(237,241,255,0.75)]'
+      } p-3 rounded-[20px] ${
+        isAbnormal ? 'border-2 border-orange-300' : ''
+      } ${canOpenTrend ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+      onClick={canOpenTrend ? onClick : undefined}
+    >
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        {canOpenTrend && <TrendingUp className="h-3.5 w-3.5 text-[#7f265b] opacity-60" />}
+      </div>
+      <div className="flex items-baseline gap-2 mt-1">
+        <span className={`text-xl font-medium ${isAbnormal ? 'text-orange-600' : ''}`}>
+          {displayValue}
+        </span>
+        {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
+      </div>
+    </div>
+  );
+}
+
+export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
+  const [selectedLab, setSelectedLab] = useState<{
+    name: string;
+    nameChinese: string;
+    unit: string;
+    value: number;
+    trendData: LabTrendData[];
+  } | null>(null);
+  const [trendLoading, setTrendLoading] = useState(false);
+
+  // 輔助函數：從類別和項目名稱取得 LabItem
+  const getItem = (category: keyof LabData | undefined, itemName: string): LabItem | undefined => {
+    if (!labData || !category) return undefined;
+    const cat = labData[category];
+    if (!cat || typeof cat !== 'object') return undefined;
+    return (cat as Record<string, LabItem>)[itemName];
+  };
+
+  // 輔助函數：取得數值
+  const getValue = (category: keyof LabData, itemName: string): number | undefined => {
+    const item = getItem(category, itemName);
+    return item?.value;
+  };
+
+  // 輔助函數：取得單位
+  const getUnit = (category: keyof LabData, itemName: string, defaultUnit: string): string => {
+    const item = getItem(category, itemName);
+    return item?.unit || defaultUnit;
+  };
+
+  // 輔助函數：檢查是否異常
+  const isAbnormal = (category: keyof LabData, itemName: string): boolean => {
+    const item = getItem(category, itemName);
+    return item?.isAbnormal ?? false;
+  };
+
+  const handleLabClick = async (labName: string, category: string, value: number | undefined, unit: string) => {
+    if (value === undefined || !patientId) return;
+
+    setTrendLoading(true);
+    try {
+      const response = await getLabTrends(patientId, { days: 7 });
+      const trendData: LabTrendData[] = [];
+      const snapshots = response.trends || [];
+      for (const snapshot of snapshots) {
+        const catData = (snapshot as Record<string, unknown>)[category] as Record<string, { value: number }> | undefined;
+        if (catData && catData[labName] && catData[labName].value !== undefined) {
+          trendData.push({
+            date: snapshot.timestamp,
+            value: catData[labName].value,
+          });
+        }
+      }
+
+      setSelectedLab({
+        name: labName,
+        nameChinese: labChineseNames[labName] || labName,
+        unit,
+        value,
+        trendData,
+      });
+    } catch (err) {
+      console.error('Failed to load trend data:', err);
+      setSelectedLab({
+        name: labName,
+        nameChinese: labChineseNames[labName] || labName,
+        unit,
+        value,
+        trendData: [],
+      });
+    } finally {
+      setTrendLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="space-y-6">
+        {/* 固定追蹤項目 - 電解質 */}
+        <div className="space-y-2">
+          <h3 className="font-semibold text-[#7f265b]">電解質與礦物質</h3>
+          <div className="grid gap-3 md:grid-cols-4">
+            <LabItem
+              labName="Na"
+              label="Na"
+              value={getValue('biochemistry', 'Na')}
+              unit={getUnit('biochemistry', 'Na', 'mEq/L')}
+              isAbnormal={isAbnormal('biochemistry', 'Na')}
+              hasHistory={!!patientId}
+              onClick={() => handleLabClick('Na', 'biochemistry', getValue('biochemistry', 'Na'), getUnit('biochemistry', 'Na', 'mEq/L'))}
+            />
+            <LabItem
+              labName="K"
+              label="K"
+              value={getValue('biochemistry', 'K')}
+              unit={getUnit('biochemistry', 'K', 'mEq/L')}
+              isAbnormal={isAbnormal('biochemistry', 'K')}
+              hasHistory={!!patientId}
+              onClick={() => handleLabClick('K', 'biochemistry', getValue('biochemistry', 'K'), getUnit('biochemistry', 'K', 'mEq/L'))}
+            />
+            <LabItem
+              labName="Ca"
+              label="Ca"
+              value={getValue('biochemistry', 'Ca')}
+              unit={getUnit('biochemistry', 'Ca', 'mg/dL')}
+              isAbnormal={isAbnormal('biochemistry', 'Ca')}
+              onClick={() => handleLabClick('Ca', 'biochemistry', getValue('biochemistry', 'Ca'), getUnit('biochemistry', 'Ca', 'mg/dL'))}
+            />
+            <LabItem
+              labName="freeCa"
+              label="free Ca"
+              value={getValue('biochemistry', 'freeCa')}
+              unit={getUnit('biochemistry', 'freeCa', 'mg/dL')}
+              isAbnormal={isAbnormal('biochemistry', 'freeCa')}
+              onClick={() => handleLabClick('freeCa', 'biochemistry', getValue('biochemistry', 'freeCa'), getUnit('biochemistry', 'freeCa', 'mg/dL'))}
+            />
+            <LabItem
+              labName="Mg"
+              label="Mg"
+              value={getValue('biochemistry', 'Mg')}
+              unit={getUnit('biochemistry', 'Mg', 'mg/dL')}
+              isAbnormal={isAbnormal('biochemistry', 'Mg')}
+              onClick={() => handleLabClick('Mg', 'biochemistry', getValue('biochemistry', 'Mg'), getUnit('biochemistry', 'Mg', 'mg/dL'))}
+            />
+          </div>
+        </div>
+
+        {/* 血液學檢查 */}
+        <div className="space-y-2">
+          <h3 className="font-semibold text-[#7f265b]">血液學檢查</h3>
+          <div className="grid gap-3 md:grid-cols-4">
+            <LabItem
+              labName="WBC"
+              label="WBC"
+              value={getValue('hematology', 'WBC')}
+              unit={getUnit('hematology', 'WBC', '10³/μL')}
+              isAbnormal={isAbnormal('hematology', 'WBC')}
+              hasHistory={!!patientId}
+              onClick={() => handleLabClick('WBC', 'hematology', getValue('hematology', 'WBC'), getUnit('hematology', 'WBC', '10³/μL'))}
+            />
+            <LabItem
+              labName="RBC"
+              label="RBC"
+              value={getValue('hematology', 'RBC')}
+              unit={getUnit('hematology', 'RBC', '10⁶/μL')}
+              isAbnormal={isAbnormal('hematology', 'RBC')}
+              onClick={() => handleLabClick('RBC', 'hematology', getValue('hematology', 'RBC'), getUnit('hematology', 'RBC', '10⁶/μL'))}
+            />
+            <LabItem
+              labName="Hb"
+              label="Hb"
+              value={getValue('hematology', 'Hb')}
+              unit={getUnit('hematology', 'Hb', 'g/dL')}
+              isAbnormal={isAbnormal('hematology', 'Hb')}
+              hasHistory={!!patientId}
+              onClick={() => handleLabClick('Hb', 'hematology', getValue('hematology', 'Hb'), getUnit('hematology', 'Hb', 'g/dL'))}
+            />
+            <LabItem
+              labName="PLT"
+              label="PLT"
+              value={getValue('hematology', 'PLT')}
+              unit={getUnit('hematology', 'PLT', '10³/μL')}
+              isAbnormal={isAbnormal('hematology', 'PLT')}
+              hasHistory={!!patientId}
+              onClick={() => handleLabClick('PLT', 'hematology', getValue('hematology', 'PLT'), getUnit('hematology', 'PLT', '10³/μL'))}
+            />
+          </div>
+        </div>
+
+        {/* 生化與炎症指標 */}
+        <div className="space-y-2">
+          <h3 className="font-semibold text-[#7f265b]">生化與炎症指標</h3>
+          <div className="grid gap-3 md:grid-cols-4">
+            <LabItem
+              labName="Alb"
+              label="Alb"
+              value={getValue('biochemistry', 'Alb')}
+              unit={getUnit('biochemistry', 'Alb', 'g/dL')}
+              isAbnormal={isAbnormal('biochemistry', 'Alb')}
+              hasHistory={!!patientId}
+              onClick={() => handleLabClick('Alb', 'biochemistry', getValue('biochemistry', 'Alb'), getUnit('biochemistry', 'Alb', 'g/dL'))}
+            />
+            <LabItem
+              labName="CRP"
+              label="CRP"
+              value={getValue('inflammatory', 'CRP')}
+              unit={getUnit('inflammatory', 'CRP', 'mg/L')}
+              isAbnormal={isAbnormal('inflammatory', 'CRP')}
+              hasHistory={!!patientId}
+              onClick={() => handleLabClick('CRP', 'inflammatory', getValue('inflammatory', 'CRP'), getUnit('inflammatory', 'CRP', 'mg/L'))}
+            />
+            <LabItem
+              labName="PCT"
+              label="PCT"
+              value={getValue('inflammatory', 'PCT')}
+              unit={getUnit('inflammatory', 'PCT', 'ng/mL')}
+              isAbnormal={isAbnormal('inflammatory', 'PCT')}
+              onClick={() => handleLabClick('PCT', 'inflammatory', getValue('inflammatory', 'PCT'), getUnit('inflammatory', 'PCT', 'ng/mL'))}
+            />
+            <LabItem
+              labName="DDimer"
+              label="D-dimer"
+              value={getValue('coagulation', 'DDimer')}
+              unit={getUnit('coagulation', 'DDimer', 'μg/mL')}
+              isAbnormal={isAbnormal('coagulation', 'DDimer')}
+              onClick={() => handleLabClick('DDimer', 'coagulation', getValue('coagulation', 'DDimer'), getUnit('coagulation', 'DDimer', 'μg/mL'))}
+            />
+          </div>
+        </div>
+
+        {/* 動脈血氣體分析 */}
+        <div className="space-y-2">
+          <h3 className="font-semibold text-[#7f265b]">動脈血氣體分析</h3>
+          <div className="grid gap-3 md:grid-cols-5">
+            <LabItem
+              labName="pH"
+              label="pH"
+              value={getValue('bloodGas', 'pH')}
+              unit={getUnit('bloodGas', 'pH', '')}
+              isAbnormal={isAbnormal('bloodGas', 'pH')}
+              onClick={() => handleLabClick('pH', 'bloodGas', getValue('bloodGas', 'pH'), getUnit('bloodGas', 'pH', ''))}
+            />
+            <LabItem
+              labName="PCO2"
+              label="PCO₂"
+              value={getValue('bloodGas', 'PCO2')}
+              unit={getUnit('bloodGas', 'PCO2', 'mmHg')}
+              isAbnormal={isAbnormal('bloodGas', 'PCO2')}
+              onClick={() => handleLabClick('PCO2', 'bloodGas', getValue('bloodGas', 'PCO2'), getUnit('bloodGas', 'PCO2', 'mmHg'))}
+            />
+            <LabItem
+              labName="PO2"
+              label="PO₂"
+              value={getValue('bloodGas', 'PO2')}
+              unit={getUnit('bloodGas', 'PO2', 'mmHg')}
+              isAbnormal={isAbnormal('bloodGas', 'PO2')}
+              onClick={() => handleLabClick('PO2', 'bloodGas', getValue('bloodGas', 'PO2'), getUnit('bloodGas', 'PO2', 'mmHg'))}
+            />
+            <LabItem
+              labName="HCO3"
+              label="HCO₃"
+              value={getValue('bloodGas', 'HCO3')}
+              unit={getUnit('bloodGas', 'HCO3', 'mEq/L')}
+              isAbnormal={isAbnormal('bloodGas', 'HCO3')}
+              onClick={() => handleLabClick('HCO3', 'bloodGas', getValue('bloodGas', 'HCO3'), getUnit('bloodGas', 'HCO3', 'mEq/L'))}
+            />
+            <LabItem
+              labName="Lactate"
+              label="Lactate"
+              value={getValue('bloodGas', 'Lactate')}
+              unit={getUnit('bloodGas', 'Lactate', 'mmol/L')}
+              isAbnormal={isAbnormal('bloodGas', 'Lactate')}
+              hasHistory={!!patientId}
+              onClick={() => handleLabClick('Lactate', 'bloodGas', getValue('bloodGas', 'Lactate'), getUnit('bloodGas', 'Lactate', 'mmol/L'))}
+            />
+          </div>
+        </div>
+
+        {/* 肝腎功能 */}
+        <div className="space-y-2">
+          <h3 className="font-semibold text-[#7f265b]">肝腎功能</h3>
+          <div className="grid gap-3 md:grid-cols-4">
+            <LabItem
+              labName="AST"
+              label="AST"
+              value={getValue('biochemistry', 'AST')}
+              unit={getUnit('biochemistry', 'AST', 'U/L')}
+              isAbnormal={isAbnormal('biochemistry', 'AST')}
+              onClick={() => handleLabClick('AST', 'biochemistry', getValue('biochemistry', 'AST'), getUnit('biochemistry', 'AST', 'U/L'))}
+            />
+            <LabItem
+              labName="ALT"
+              label="ALT"
+              value={getValue('biochemistry', 'ALT')}
+              unit={getUnit('biochemistry', 'ALT', 'U/L')}
+              isAbnormal={isAbnormal('biochemistry', 'ALT')}
+              onClick={() => handleLabClick('ALT', 'biochemistry', getValue('biochemistry', 'ALT'), getUnit('biochemistry', 'ALT', 'U/L'))}
+            />
+            <LabItem
+              labName="TBil"
+              label="T-bil"
+              value={getValue('biochemistry', 'TBil')}
+              unit={getUnit('biochemistry', 'TBil', 'mg/dL')}
+              isAbnormal={isAbnormal('biochemistry', 'TBil')}
+              onClick={() => handleLabClick('TBil', 'biochemistry', getValue('biochemistry', 'TBil'), getUnit('biochemistry', 'TBil', 'mg/dL'))}
+            />
+            <LabItem
+              labName="INR"
+              label="INR"
+              value={getValue('coagulation', 'INR')}
+              unit={getUnit('coagulation', 'INR', '')}
+              isAbnormal={isAbnormal('coagulation', 'INR')}
+              onClick={() => handleLabClick('INR', 'coagulation', getValue('coagulation', 'INR'), getUnit('coagulation', 'INR', ''))}
+            />
+            <LabItem
+              labName="BUN"
+              label="BUN"
+              value={getValue('biochemistry', 'BUN')}
+              unit={getUnit('biochemistry', 'BUN', 'mg/dL')}
+              isAbnormal={isAbnormal('biochemistry', 'BUN')}
+              hasHistory={!!patientId}
+              onClick={() => handleLabClick('BUN', 'biochemistry', getValue('biochemistry', 'BUN'), getUnit('biochemistry', 'BUN', 'mg/dL'))}
+            />
+            <LabItem
+              labName="Scr"
+              label="Scr"
+              value={getValue('biochemistry', 'Scr')}
+              unit={getUnit('biochemistry', 'Scr', 'mg/dL')}
+              isAbnormal={isAbnormal('biochemistry', 'Scr')}
+              hasHistory={!!patientId}
+              onClick={() => handleLabClick('Scr', 'biochemistry', getValue('biochemistry', 'Scr'), getUnit('biochemistry', 'Scr', 'mg/dL'))}
+            />
+            <LabItem
+              labName="eGFR"
+              label="eGFR"
+              value={getValue('biochemistry', 'eGFR')}
+              unit={getUnit('biochemistry', 'eGFR', 'mL/min')}
+              isAbnormal={isAbnormal('biochemistry', 'eGFR')}
+              hasHistory={!!patientId}
+              onClick={() => handleLabClick('eGFR', 'biochemistry', getValue('biochemistry', 'eGFR'), getUnit('biochemistry', 'eGFR', 'mL/min/1.73m²'))}
+            />
+            <LabItem
+              labName="Clcr"
+              label="Clcr"
+              value={getValue('biochemistry', 'Clcr')}
+              unit={getUnit('biochemistry', 'Clcr', 'mL/min')}
+              isAbnormal={isAbnormal('biochemistry', 'Clcr')}
+              onClick={() => handleLabClick('Clcr', 'biochemistry', getValue('biochemistry', 'Clcr'), getUnit('biochemistry', 'Clcr', 'mL/min'))}
+            />
+          </div>
+        </div>
+
+        {/* 選擇性追蹤項目 - 心臟標記 */}
+        {labData?.cardiac && Object.keys(labData.cardiac).length > 0 && (
+          <div className="space-y-2">
+            <h3 className="font-semibold text-[#f59e0b]">心臟標記（選擇性追蹤）</h3>
+            <div className="grid gap-3 md:grid-cols-4">
+              {getValue('cardiac', 'TnT') !== undefined && (
+                <LabItem
+                  labName="TnT"
+                  label="Tn-T"
+                  value={getValue('cardiac', 'TnT')}
+                  unit={getUnit('cardiac', 'TnT', 'ng/mL')}
+                  isAbnormal={isAbnormal('cardiac', 'TnT')}
+                  onClick={() => handleLabClick('TnT', 'cardiac', getValue('cardiac', 'TnT'), getUnit('cardiac', 'TnT', 'ng/mL'))}
+                  isOptional={true}
+                />
+              )}
+
+              {getValue('cardiac', 'CKMB') !== undefined && (
+                <LabItem
+                  labName="CKMB"
+                  label="CK-MB"
+                  value={getValue('cardiac', 'CKMB')}
+                  unit={getUnit('cardiac', 'CKMB', 'U/L')}
+                  isAbnormal={isAbnormal('cardiac', 'CKMB')}
+                  onClick={() => handleLabClick('CKMB', 'cardiac', getValue('cardiac', 'CKMB'), getUnit('cardiac', 'CKMB', 'U/L'))}
+                  isOptional={true}
+                />
+              )}
+
+              {getValue('cardiac', 'CK') !== undefined && (
+                <LabItem
+                  labName="CK"
+                  label="CK"
+                  value={getValue('cardiac', 'CK')}
+                  unit={getUnit('cardiac', 'CK', 'U/L')}
+                  isAbnormal={isAbnormal('cardiac', 'CK')}
+                  onClick={() => handleLabClick('CK', 'cardiac', getValue('cardiac', 'CK'), getUnit('cardiac', 'CK', 'U/L'))}
+                  isOptional={true}
+                />
+              )}
+
+              {getValue('cardiac', 'NTproBNP') !== undefined && (
+                <LabItem
+                  labName="NTproBNP"
+                  label="NT-proBNP"
+                  value={getValue('cardiac', 'NTproBNP')}
+                  unit={getUnit('cardiac', 'NTproBNP', 'pg/mL')}
+                  isAbnormal={isAbnormal('cardiac', 'NTproBNP')}
+                  onClick={() => handleLabClick('NTproBNP', 'cardiac', getValue('cardiac', 'NTproBNP'), getUnit('cardiac', 'NTproBNP', 'pg/mL'))}
+                  isOptional={true}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 選擇性追蹤項目 - 血脂與代謝 */}
+        {labData?.lipid && Object.keys(labData.lipid).length > 0 && (
+          <div className="space-y-2">
+            <h3 className="font-semibold text-[#f59e0b]">血脂與代謝（選擇性追蹤）</h3>
+            <div className="grid gap-3 md:grid-cols-4">
+              {getValue('lipid', 'TCHO') !== undefined && (
+                <LabItem
+                  labName="TCHO"
+                  label="T-CHO"
+                  value={getValue('lipid', 'TCHO')}
+                  unit={getUnit('lipid', 'TCHO', 'mg/dL')}
+                  isAbnormal={isAbnormal('lipid', 'TCHO')}
+                  onClick={() => handleLabClick('TCHO', 'lipid', getValue('lipid', 'TCHO'), getUnit('lipid', 'TCHO', 'mg/dL'))}
+                  isOptional={true}
+                />
+              )}
+
+              {getValue('lipid', 'TG') !== undefined && (
+                <LabItem
+                  labName="TG"
+                  label="TG"
+                  value={getValue('lipid', 'TG')}
+                  unit={getUnit('lipid', 'TG', 'mg/dL')}
+                  isAbnormal={isAbnormal('lipid', 'TG')}
+                  onClick={() => handleLabClick('TG', 'lipid', getValue('lipid', 'TG'), getUnit('lipid', 'TG', 'mg/dL'))}
+                  isOptional={true}
+                />
+              )}
+
+              {getValue('lipid', 'LDLC') !== undefined && (
+                <LabItem
+                  labName="LDLC"
+                  label="LDL-C"
+                  value={getValue('lipid', 'LDLC')}
+                  unit={getUnit('lipid', 'LDLC', 'mg/dL')}
+                  isAbnormal={isAbnormal('lipid', 'LDLC')}
+                  onClick={() => handleLabClick('LDLC', 'lipid', getValue('lipid', 'LDLC'), getUnit('lipid', 'LDLC', 'mg/dL'))}
+                  isOptional={true}
+                />
+              )}
+
+              {getValue('lipid', 'HDLC') !== undefined && (
+                <LabItem
+                  labName="HDLC"
+                  label="HDL-C"
+                  value={getValue('lipid', 'HDLC')}
+                  unit={getUnit('lipid', 'HDLC', 'mg/dL')}
+                  isAbnormal={isAbnormal('lipid', 'HDLC')}
+                  onClick={() => handleLabClick('HDLC', 'lipid', getValue('lipid', 'HDLC'), getUnit('lipid', 'HDLC', 'mg/dL'))}
+                  isOptional={true}
+                />
+              )}
+
+              {getValue('lipid', 'UA') !== undefined && (
+                <LabItem
+                  labName="UA"
+                  label="UA"
+                  value={getValue('lipid', 'UA')}
+                  unit={getUnit('lipid', 'UA', 'mg/dL')}
+                  isAbnormal={isAbnormal('lipid', 'UA')}
+                  onClick={() => handleLabClick('UA', 'lipid', getValue('lipid', 'UA'), getUnit('lipid', 'UA', 'mg/dL'))}
+                  isOptional={true}
+                />
+              )}
+
+              {getValue('lipid', 'P') !== undefined && (
+                <LabItem
+                  labName="P"
+                  label="P"
+                  value={getValue('lipid', 'P')}
+                  unit={getUnit('lipid', 'P', 'mg/dL')}
+                  isAbnormal={isAbnormal('lipid', 'P')}
+                  onClick={() => handleLabClick('P', 'lipid', getValue('lipid', 'P'), getUnit('lipid', 'P', 'mg/dL'))}
+                  isOptional={true}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 選擇性追蹤項目 - 其他 */}
+        {labData?.other && Object.keys(labData.other).length > 0 && (
+          <div className="space-y-2">
+            <h3 className="font-semibold text-[#f59e0b]">其他檢驗（選擇性追蹤）</h3>
+            <div className="grid gap-3 md:grid-cols-4">
+              {getValue('other', 'HbA1C') !== undefined && (
+                <LabItem
+                  labName="HbA1C"
+                  label="HbA1C"
+                  value={getValue('other', 'HbA1C')}
+                  unit={getUnit('other', 'HbA1C', '%')}
+                  isAbnormal={isAbnormal('other', 'HbA1C')}
+                  onClick={() => handleLabClick('HbA1C', 'other', getValue('other', 'HbA1C'), getUnit('other', 'HbA1C', '%'))}
+                  isOptional={true}
+                />
+              )}
+
+              {getValue('other', 'LDH') !== undefined && (
+                <LabItem
+                  labName="LDH"
+                  label="LDH"
+                  value={getValue('other', 'LDH')}
+                  unit={getUnit('other', 'LDH', 'U/L')}
+                  isAbnormal={isAbnormal('other', 'LDH')}
+                  onClick={() => handleLabClick('LDH', 'other', getValue('other', 'LDH'), getUnit('other', 'LDH', 'U/L'))}
+                  isOptional={true}
+                />
+              )}
+
+              {getValue('other', 'NH3') !== undefined && (
+                <LabItem
+                  labName="NH3"
+                  label="NH₃"
+                  value={getValue('other', 'NH3')}
+                  unit={getUnit('other', 'NH3', 'μg/dL')}
+                  isAbnormal={isAbnormal('other', 'NH3')}
+                  onClick={() => handleLabClick('NH3', 'other', getValue('other', 'NH3'), getUnit('other', 'NH3', 'μg/dL'))}
+                  isOptional={true}
+                />
+              )}
+
+              {getValue('other', 'Amylase') !== undefined && (
+                <LabItem
+                  labName="Amylase"
+                  label="Amylase"
+                  value={getValue('other', 'Amylase')}
+                  unit={getUnit('other', 'Amylase', 'U/L')}
+                  isAbnormal={isAbnormal('other', 'Amylase')}
+                  onClick={() => handleLabClick('Amylase', 'other', getValue('other', 'Amylase'), getUnit('other', 'Amylase', 'U/L'))}
+                  isOptional={true}
+                />
+              )}
+
+              {getValue('other', 'Lipase') !== undefined && (
+                <LabItem
+                  labName="Lipase"
+                  label="Lipase"
+                  value={getValue('other', 'Lipase')}
+                  unit={getUnit('other', 'Lipase', 'U/L')}
+                  isAbnormal={isAbnormal('other', 'Lipase')}
+                  onClick={() => handleLabClick('Lipase', 'other', getValue('other', 'Lipase'), getUnit('other', 'Lipase', 'U/L'))}
+                  isOptional={true}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 選擇性追蹤項目 - 甲狀腺與荷爾蒙 */}
+        {((labData?.thyroid && Object.keys(labData.thyroid).length > 0) || (labData?.hormone && Object.keys(labData.hormone).length > 0)) && (
+          <div className="space-y-2">
+            <h3 className="font-semibold text-[#f59e0b]">甲狀腺與荷爾蒙（選擇性追蹤）</h3>
+            <div className="grid gap-3 md:grid-cols-4">
+              {getValue('thyroid', 'TSH') !== undefined && (
+                <LabItem
+                  labName="TSH"
+                  label="TSH"
+                  value={getValue('thyroid', 'TSH')}
+                  unit={getUnit('thyroid', 'TSH', 'μIU/mL')}
+                  isAbnormal={isAbnormal('thyroid', 'TSH')}
+                  onClick={() => handleLabClick('TSH', 'thyroid', getValue('thyroid', 'TSH'), getUnit('thyroid', 'TSH', 'μIU/mL'))}
+                  isOptional={true}
+                />
+              )}
+
+              {getValue('thyroid', 'freeT4') !== undefined && (
+                <LabItem
+                  labName="freeT4"
+                  label="free T4"
+                  value={getValue('thyroid', 'freeT4')}
+                  unit={getUnit('thyroid', 'freeT4', 'ng/dL')}
+                  isAbnormal={isAbnormal('thyroid', 'freeT4')}
+                  onClick={() => handleLabClick('freeT4', 'thyroid', getValue('thyroid', 'freeT4'), getUnit('thyroid', 'freeT4', 'ng/dL'))}
+                  isOptional={true}
+                />
+              )}
+
+              {getValue('hormone', 'Cortisol') !== undefined && (
+                <LabItem
+                  labName="Cortisol"
+                  label="Cortisol"
+                  value={getValue('hormone', 'Cortisol')}
+                  unit={getUnit('hormone', 'Cortisol', 'μg/dL')}
+                  isAbnormal={isAbnormal('hormone', 'Cortisol')}
+                  onClick={() => handleLabClick('Cortisol', 'hormone', getValue('hormone', 'Cortisol'), getUnit('hormone', 'Cortisol', 'μg/dL'))}
+                  isOptional={true}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 pt-2">
+          <div className="h-8 w-1.5 bg-orange-500 rounded-full shadow-md"></div>
+          <span className="text-xs text-muted-foreground">橘色邊框表示異常值 • 點擊有圖表圖示的項目可查看歷史趨勢</span>
+        </div>
+      </div>
+
+      {selectedLab && (
+        <LabTrendChart
+          isOpen={true}
+          onClose={() => setSelectedLab(null)}
+          labName={selectedLab.name}
+          labNameChinese={selectedLab.nameChinese}
+          unit={selectedLab.unit}
+          currentValue={selectedLab.value}
+          trendData={selectedLab.trendData}
+          referenceRange={labReferenceRanges[selectedLab.name] || 'N/A'}
+        />
+      )}
+    </>
+  );
+}

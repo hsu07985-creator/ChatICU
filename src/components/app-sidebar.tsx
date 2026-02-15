@@ -1,0 +1,261 @@
+import { Home, Users, MessageSquare, Database, FileText, Activity, UserCog, Briefcase, BarChart3 } from 'lucide-react';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarSeparator,
+  SidebarHeader,
+  SidebarFooter,
+  useSidebar
+} from './ui/sidebar';
+import { useAuth } from '../lib/auth-context';
+import { Button } from './ui/button';
+import { useNavigate, useLocation } from 'react-router-dom';
+
+export function AppSidebar() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { state, toggleSidebar } = useSidebar();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
+  const isActive = (path: string) => {
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
+
+  const isCollapsed = state === 'collapsed';
+
+  // 病人照護選單（所有角色可見）
+  const patientCareItems = [
+    {
+      title: '總覽',
+      url: '/dashboard',
+      icon: Home,
+    },
+    {
+      title: '病人清單',
+      url: '/patients',
+      icon: Users,
+    },
+  ];
+
+  // 其他聊天（所有角色可見）
+  const chatItems = [
+    {
+      title: '團隊聊天室',
+      url: '/chat',
+      icon: MessageSquare,
+    },
+  ];
+
+  // 資料管理（僅管理者可見）
+  const dataManagementItems = user?.role === 'admin' ? [
+    {
+      title: '向量資料庫',
+      url: '/admin/vectors',
+      icon: Database,
+    },
+  ] : [];
+
+  // 紀錄（僅管理者可見）
+  const recordItems = user?.role === 'admin' ? [
+    {
+      title: '稽核紀錄',
+      url: '/admin/audit',
+      icon: FileText,
+    },
+    {
+      title: '帳號與權限',
+      url: '/admin/users',
+      icon: UserCog,
+    },
+  ] : [];
+
+  // 藥事支援中心（僅藥師可見）
+  const pharmacyItems = user?.role === 'pharmacist' ? [
+    {
+      title: '藥事支援工作台',
+      url: '/pharmacy/workstation',
+      icon: Briefcase,
+    },
+    {
+      title: '用藥建議與統計',
+      url: '/pharmacy/advice-statistics',
+      icon: BarChart3,
+    },
+  ] : [];
+
+  return (
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="p-4 border-b">
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-full bg-[#7f265b] flex items-center justify-center shadow-lg flex-shrink-0">
+            <Activity className="h-7 w-7 text-white" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="font-bold text-lg text-[#1a1a1a]">ChatICU</h2>
+            <p className="text-xs text-[#6b7280] truncate">{user?.name} · {user?.unit}</p>
+          </div>
+        </div>
+      </SidebarHeader>
+
+      <SidebarContent>
+        {/* 病人照護 */}
+        <SidebarGroup>
+          <SidebarGroupLabel>病人照護</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {patientCareItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton 
+                    asChild
+                    isActive={isActive(item.url)}
+                  >
+                    <a href={item.url} onClick={(e) => {
+                      e.preventDefault();
+                      navigate(item.url);
+                    }}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* 其他聊天 */}
+        <SidebarGroup>
+          <SidebarGroupLabel>其他聊天</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {chatItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton 
+                    asChild
+                    isActive={isActive(item.url)}
+                  >
+                    <a href={item.url} onClick={(e) => {
+                      e.preventDefault();
+                      navigate(item.url);
+                    }}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* 資料管理（僅管理者） */}
+        {dataManagementItems.length > 0 && (
+          <>
+            <SidebarSeparator />
+            <SidebarGroup>
+              <SidebarGroupLabel>資料管理</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {dataManagementItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton 
+                        asChild
+                        isActive={isActive(item.url)}
+                      >
+                        <a href={item.url} onClick={(e) => {
+                          e.preventDefault();
+                          navigate(item.url);
+                        }}>
+                          <item.icon />
+                          <span>{item.title}</span>
+                        </a>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        )}
+
+        {/* 紀錄（僅管理者） */}
+        {recordItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>紀錄</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {recordItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild
+                      isActive={isActive(item.url)}
+                    >
+                      <a href={item.url} onClick={(e) => {
+                        e.preventDefault();
+                        navigate(item.url);
+                      }}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </a>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* 藥事支援中心（僅藥師） */}
+        {pharmacyItems.length > 0 && (
+          <>
+            <SidebarSeparator />
+            <SidebarGroup>
+              <SidebarGroupLabel>藥事支援中心</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {pharmacyItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton 
+                        asChild
+                        isActive={isActive(item.url)}
+                      >
+                        <a href={item.url} onClick={(e) => {
+                          e.preventDefault();
+                          navigate(item.url);
+                        }}>
+                          <item.icon />
+                          <span>{item.title}</span>
+                        </a>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        )}
+      </SidebarContent>
+
+      <SidebarFooter className="p-4 border-t">
+        <Button 
+          variant="outline" 
+          onClick={handleLogout} 
+          className="w-full border-[#e5e7eb] text-[#1a1a1a] hover:bg-[#f8f9fa]"
+        >
+          登出
+        </Button>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}

@@ -1,0 +1,197 @@
+{
+  "patientMessages": [
+    {
+      "id": "pmsg_001",
+      "patientId": "pat_001",
+      "authorId": "usr_004",
+      "authorName": "林藥師",
+      "authorRole": "pharmacist",
+      "messageType": "medication-advice",
+      "content": "建議監測血鉀並補充 KCl，目前 K: 3.2 偏低。Morphine 劑量可維持，但需注意與 Dormicum 併用的呼吸抑制風險。",
+      "timestamp": "2025-01-10T09:15:00Z",
+      "isRead": false,
+      "linkedMedication": "Morphine",
+      "adviceCode": "E",
+      "readBy": []
+    },
+    {
+      "id": "pmsg_002",
+      "patientId": "pat_001",
+      "authorId": "usr_002",
+      "authorName": "李穎灝",
+      "authorRole": "doctor",
+      "messageType": "general",
+      "content": "今日查房發現病患鎮靜深度較深（RASS -3），建議調降 Dormicum 劑量。",
+      "timestamp": "2025-01-10T08:30:00Z",
+      "isRead": false,
+      "readBy": []
+    },
+    {
+      "id": "pmsg_003",
+      "patientId": "pat_002",
+      "authorId": "usr_001",
+      "authorName": "王小華",
+      "authorRole": "nurse",
+      "messageType": "alert",
+      "content": "病患昨夜躁動，已調整 Propofol 輸注速率，目前鎮靜評估 RASS -2，請醫師評估。",
+      "timestamp": "2025-01-10T07:20:00Z",
+      "isRead": true,
+      "readBy": [
+        {
+          "userId": "usr_002",
+          "userName": "李穎灝",
+          "readAt": "2025-01-10T07:45:00Z"
+        }
+      ]
+    },
+    {
+      "id": "pmsg_004",
+      "patientId": "pat_002",
+      "authorId": "usr_004",
+      "authorName": "林藥師",
+      "authorRole": "pharmacist",
+      "messageType": "medication-advice",
+      "content": "Propofol 與 Fentanyl 需使用不同輸注管路，避免配伍不相容。Cisatracurium 使用中需監測 TOF。",
+      "timestamp": "2025-01-10T11:20:00Z",
+      "isRead": false,
+      "linkedMedication": "Propofol",
+      "adviceCode": "G",
+      "readBy": []
+    },
+    {
+      "id": "pmsg_005",
+      "patientId": "pat_003",
+      "authorId": "usr_004",
+      "authorName": "林藥師",
+      "authorRole": "pharmacist",
+      "messageType": "medication-advice",
+      "content": "病患腎功能不全（eGFR 32），Morphine 需減量使用，建議間隔延長至 q4-6h，密切監測鎮靜與呼吸狀態。",
+      "timestamp": "2025-01-09T14:30:00Z",
+      "isRead": true,
+      "linkedMedication": "Morphine",
+      "adviceCode": "J",
+      "readBy": [
+        {
+          "userId": "usr_002",
+          "userName": "黃英哲",
+          "readAt": "2025-01-09T15:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": "pmsg_006",
+      "patientId": "pat_004",
+      "authorId": "usr_001",
+      "authorName": "王小華",
+      "authorRole": "nurse",
+      "messageType": "general",
+      "content": "病患術後恢復良好，生命徵象穩定，預計明日可轉出 ICU。",
+      "timestamp": "2025-01-10T10:00:00Z",
+      "isRead": false,
+      "readBy": []
+    },
+    {
+      "id": "pmsg_ae5f85e2",
+      "patientId": "pat_002",
+      "authorId": "usr_001",
+      "authorName": "王小華",
+      "authorRole": "nurse",
+      "messageType": "general",
+      "content": "2",
+      "timestamp": "2026-01-10T16:54:00.360120Z",
+      "isRead": false,
+      "readBy": []
+    },
+    {
+      "id": "pmsg_1fa7687f",
+      "patientId": "pat_002",
+      "authorId": "usr_004",
+      "authorName": "林藥師",
+      "authorRole": "pharmacist",
+      "messageType": "general",
+      "content": "pharmacist",
+      "timestamp": "2026-01-10T16:54:21.466100Z",
+      "isRead": false,
+      "readBy": []
+    },
+    {
+      "id": "pmsg_d40f63c7",
+      "patientId": "pat_001",
+      "authorId": "usr_001",
+      "authorName": "王小華",
+      "authorRole": "nurse",
+      "messageType": "general",
+      "content": "ㄘㄛ",
+      "timestamp": "2026-01-10T17:18:08.326794Z",
+      "isRead": false,
+      "readBy": []
+    },
+    {
+      "id": "pmsg_408aa65d",
+      "patientId": "pat_001",
+      "authorId": "usr_004",
+      "authorName": "林藥師",
+      "authorRole": "pharmacist",
+      "messageType": "general",
+      "content": "hi",
+      "timestamp": "2026-01-22T04:51:01.625502Z",
+      "isRead": false,
+      "readBy": []
+    }
+  ],
+  "teamChatMessages": [
+    {
+      "id": "tchat_001",
+      "userId": "usr_001",
+      "userName": "王小華",
+      "userRole": "nurse",
+      "content": "I-1 床的張三病患血鉀偏低（3.2），已通知醫師。",
+      "timestamp": "2025-01-10T08:00:00Z"
+    },
+    {
+      "id": "tchat_002",
+      "userId": "usr_002",
+      "userName": "李穎灝",
+      "userRole": "doctor",
+      "content": "收到，已開立 KCl 補充醫囑，請護理人員協助執行。",
+      "timestamp": "2025-01-10T08:05:00Z",
+      "pinned": true,
+      "pinnedBy": {
+        "userId": "usr_001",
+        "userName": "王小華"
+      },
+      "pinnedAt": "2026-01-10T17:08:20.122945Z"
+    },
+    {
+      "id": "tchat_003",
+      "userId": "usr_004",
+      "userName": "林藥師",
+      "userRole": "pharmacist",
+      "content": "提醒：I-2 床病患使用 Propofol 超過 48 小時，建議監測 TG 與 Lactate。",
+      "timestamp": "2025-01-10T09:30:00Z"
+    },
+    {
+      "id": "tchat_92775cb2",
+      "userId": "usr_001",
+      "userName": "王小華",
+      "userRole": "nurse",
+      "content": "hi",
+      "timestamp": "2026-01-10T17:00:52.684954Z",
+      "pinned": true,
+      "pinnedBy": {
+        "userId": "usr_001",
+        "userName": "王小華"
+      },
+      "pinnedAt": "2026-01-10T17:08:17.936885Z"
+    },
+    {
+      "id": "tchat_e7ef452e",
+      "userId": "usr_001",
+      "userName": "王小華",
+      "userRole": "nurse",
+      "content": "1",
+      "timestamp": "2026-01-10T17:01:58.612616Z",
+      "pinned": false
+    }
+  ]
+}

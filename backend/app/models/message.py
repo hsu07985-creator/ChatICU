@@ -1,0 +1,33 @@
+from typing import Optional
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.database import Base
+
+
+class PatientMessage(Base):
+    __tablename__ = "patient_messages"
+
+    id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    patient_id: Mapped[str] = mapped_column(
+        String(50), ForeignKey("patients.id"), index=True
+    )
+    author_id: Mapped[str] = mapped_column(String(50), index=True)
+    author_name: Mapped[str] = mapped_column(String(100))
+    author_role: Mapped[str] = mapped_column(String(20))
+    message_type: Mapped[str] = mapped_column(String(30), default="general")
+    content: Mapped[str] = mapped_column(Text)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False)
+    linked_medication: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    advice_code: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    read_by: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of {userId, userName, readAt}
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    # Relationships
+    patient = relationship("Patient", back_populates="messages")

@@ -1,0 +1,35 @@
+node_modules/
+build/
+
+# OS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+backend/.venv312/
+
+# Env files
+.env
+backend/.env
+
+# Tooling caches
+.pre-commit-cache/
+.pytest_cache/
+
+# Non-code assets / local tooling
+.claude/
+rag 文本/
+*.xlsx
+security_report.json
+.mcp.json
+.env.development
+chaticu-dev-skill/
+ChatICU/
+server/.dart_tool/
+server/build/
+server/.vscode/

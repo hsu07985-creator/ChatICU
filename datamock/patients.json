@@ -1,0 +1,174 @@
+{
+  "patients": [
+    {
+      "id": "pat_001",
+      "name": "張三",
+      "bedNumber": "I-1",
+      "medicalRecordNumber": "123456",
+      "age": 65,
+      "gender": "男",
+      "height": 170,
+      "weight": 65,
+      "bmi": 22.5,
+      "diagnosis": "重度肺炎併呼吸衰竭",
+      "symptoms": [
+        "COVID-19 Complicated with Pulmonary Infection",
+        "Respiratory Failure",
+        "Septic Shock"
+      ],
+      "intubated": false,
+      "criticalStatus": "嚴重",
+      "sedation": [
+        "Dormicum"
+      ],
+      "analgesia": [
+        "Morphine"
+      ],
+      "nmb": [],
+      "admissionDate": "2025-10-15",
+      "icuAdmissionDate": "2025-10-17",
+      "ventilatorDays": 6,
+      "attendingPhysician": "李穎灝",
+      "department": "內科-李穎灝",
+      "alerts": [
+        "血鉀偏低",
+        "呼吸抑制風險"
+      ],
+      "consentStatus": "valid",
+      "allergies": [
+        "Penicillin"
+      ],
+      "bloodType": "A+",
+      "codeStatus": "Full Code",
+      "hasDNR": false,
+      "isIsolated": false,
+      "hasUnreadMessages": true,
+      "lastUpdate": "2026-01-11"
+    },
+    {
+      "id": "pat_002",
+      "name": "李四",
+      "bedNumber": "I-2",
+      "medicalRecordNumber": "123457",
+      "age": 58,
+      "gender": "男",
+      "height": 175,
+      "weight": 72,
+      "bmi": 23.5,
+      "diagnosis": "敗血性休克併多重器官衰竭",
+      "symptoms": [
+        "Septic Shock",
+        "MODS",
+        "ARDS"
+      ],
+      "intubated": true,
+      "criticalStatus": "危急",
+      "sedation": [
+        "Propofol"
+      ],
+      "analgesia": [
+        "Fentanyl"
+      ],
+      "nmb": [
+        "Cisatracurium"
+      ],
+      "admissionDate": "2025-10-18",
+      "icuAdmissionDate": "2025-10-19",
+      "ventilatorDays": 4,
+      "attendingPhysician": "李穎灝",
+      "department": "內科-李穎灝",
+      "alerts": [
+        "血壓偏低",
+        "QT間期延長"
+      ],
+      "consentStatus": "valid",
+      "allergies": [],
+      "bloodType": "B+",
+      "codeStatus": "Full Code",
+      "hasDNR": false,
+      "isIsolated": true,
+      "hasUnreadMessages": true,
+      "lastUpdate": "2025-01-10T07:15:00Z"
+    },
+    {
+      "id": "pat_003",
+      "name": "王五",
+      "bedNumber": "I-3",
+      "medicalRecordNumber": "123458",
+      "age": 72,
+      "gender": "女",
+      "height": 158,
+      "weight": 55,
+      "bmi": 22.0,
+      "diagnosis": "急性腎衰竭併肺水腫",
+      "symptoms": [
+        "AKI",
+        "Pulmonary Edema",
+        "Metabolic Acidosis"
+      ],
+      "intubated": true,
+      "criticalStatus": "嚴重",
+      "sedation": [
+        "Dexmedetomidine"
+      ],
+      "analgesia": [
+        "Morphine"
+      ],
+      "nmb": [],
+      "admissionDate": "2025-10-12",
+      "icuAdmissionDate": "2025-10-13",
+      "ventilatorDays": 10,
+      "attendingPhysician": "黃英哲",
+      "department": "內科-黃英哲",
+      "alerts": [
+        "腎功能不全",
+        "電解質異常"
+      ],
+      "consentStatus": "expired",
+      "allergies": [
+        "Sulfa"
+      ],
+      "bloodType": "O+",
+      "codeStatus": "DNR",
+      "hasDNR": true,
+      "isIsolated": false,
+      "hasUnreadMessages": false,
+      "lastUpdate": "2025-01-10T08:00:00Z"
+    },
+    {
+      "id": "pat_004",
+      "name": "趙六",
+      "bedNumber": "I-4",
+      "medicalRecordNumber": "123459",
+      "age": 45,
+      "gender": "男",
+      "height": 180,
+      "weight": 82,
+      "bmi": 25.3,
+      "diagnosis": "創傷性腦損傷",
+      "symptoms": [
+        "Traumatic Brain Injury",
+        "ICP Elevation"
+      ],
+      "intubated": false,
+      "criticalStatus": "穩定",
+      "sedation": [],
+      "analgesia": [],
+      "nmb": [],
+      "admissionDate": "2025-10-20",
+      "icuAdmissionDate": "2025-10-20",
+      "ventilatorDays": 0,
+      "attendingPhysician": "李穎灝",
+      "department": "外科",
+      "alerts": [],
+      "consentStatus": "valid",
+      "allergies": [],
+      "bloodType": "AB+",
+      "codeStatus": "Full Code",
+      "hasDNR": false,
+      "isIsolated": false,
+      "hasUnreadMessages": false,
+      "lastUpdate": "2026-01-11"
+    }
+  ]
+}

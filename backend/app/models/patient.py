@@ -1,0 +1,54 @@
+from typing import Optional
+from datetime import date, datetime
+
+from sqlalchemy import Boolean, Date, DateTime, Float, Integer, String, func
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.database import Base
+
+
+class Patient(Base):
+    __tablename__ = "patients"
+
+    id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    name: Mapped[str] = mapped_column(String(100))
+    bed_number: Mapped[str] = mapped_column(String(20), index=True)
+    medical_record_number: Mapped[str] = mapped_column(String(50), index=True)
+    age: Mapped[int] = mapped_column(Integer)
+    gender: Mapped[str] = mapped_column(String(10))
+    height: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    weight: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    bmi: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    diagnosis: Mapped[str] = mapped_column(String(500))
+    symptoms: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of strings
+    intubated: Mapped[bool] = mapped_column(Boolean, default=False)
+    critical_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    sedation: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of strings
+    analgesia: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of strings
+    nmb: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of strings
+    admission_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    icu_admission_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    ventilator_days: Mapped[int] = mapped_column(Integer, default=0)
+    attending_physician: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    department: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    alerts: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of strings
+    consent_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    allergies: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of strings
+    blood_type: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    code_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    has_dnr: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_isolated: Mapped[bool] = mapped_column(Boolean, default=False)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_update: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    # Relationships
+    medications = relationship("Medication", back_populates="patient")
+    lab_data = relationship("LabData", back_populates="patient")
+    vital_signs = relationship("VitalSign", back_populates="patient")
+    ventilator_settings = relationship("VentilatorSetting", back_populates="patient")
+    weaning_assessments = relationship("WeaningAssessment", back_populates="patient")
+    messages = relationship("PatientMessage", back_populates="patient")
