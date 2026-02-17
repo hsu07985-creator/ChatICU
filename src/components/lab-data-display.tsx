@@ -30,7 +30,8 @@ interface LabItemProps {
   isOptional?: boolean; // 選擇性追蹤項目使用粉紅色背景
 }
 
-const compactGridClass = 'grid gap-1 [grid-template-columns:repeat(auto-fill,minmax(96px,1fr))] sm:[grid-template-columns:repeat(auto-fill,minmax(104px,1fr))]';
+const compactGridClass = 'grid gap-1';
+const compactGridStyle = { gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))' } as const;
 
 function toFiniteNumber(input: unknown): number | undefined {
   if (typeof input === 'number' && Number.isFinite(input)) {
@@ -113,7 +114,7 @@ function LabItem({ labName, label, value, unit, isAbnormal, onClick, isOptional 
 
   return (
     <div
-      className={`group relative flex aspect-square flex-col rounded-lg border px-1.5 py-1 ${
+      className={`group relative flex aspect-square flex-col rounded-md border px-1 py-0.5 ${
         isOptional ? 'border-amber-200/80 bg-gradient-to-br from-amber-50 to-orange-50/70' : 'border-slate-200 bg-gradient-to-br from-white to-slate-50'
       } ${
         isAbnormal ? 'border-orange-400 bg-gradient-to-br from-orange-50 to-rose-50/70' : ''
@@ -123,15 +124,15 @@ function LabItem({ labName, label, value, unit, isAbnormal, onClick, isOptional 
       onClick={canOpenTrend ? onClick : undefined}
     >
       <div className="flex items-start justify-between gap-1">
-        <p className="text-[8px] font-semibold uppercase tracking-tight text-slate-500">{label}</p>
-        {canOpenTrend && <TrendingUp className="h-2.5 w-2.5 shrink-0 text-[#7f265b] opacity-70" />}
+        <p className="text-[7px] font-semibold uppercase tracking-tight text-slate-500">{label}</p>
+        {canOpenTrend && <TrendingUp className="h-2 w-2 shrink-0 text-[#7f265b] opacity-70" />}
       </div>
       <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <span className={`text-lg font-semibold leading-none tracking-tight ${isAbnormal ? 'text-orange-700' : 'text-slate-900'}`}>
+        <span className={`text-base font-semibold leading-none tracking-tight ${isAbnormal ? 'text-orange-700' : 'text-slate-900'}`}>
           {displayValue}
         </span>
         {unit && (
-          <span className="mt-0.5 max-w-full break-words text-[8px] leading-tight text-slate-500">
+          <span className="mt-0.5 max-w-full break-words text-[7px] leading-tight text-slate-500">
             {unit}
           </span>
         )}
@@ -228,7 +229,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         {/* 固定追蹤項目 - 電解質 */}
         <div className="space-y-1">
           <h3 className="text-xs font-semibold tracking-wide text-[#7f265b]">電解質與礦物質</h3>
-          <div className={compactGridClass}>
+          <div className={compactGridClass} style={compactGridStyle}>
             <LabItem
               labName="Na"
               label="Na"
@@ -275,7 +276,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         {/* 血液學檢查 */}
         <div className="space-y-1">
           <h3 className="text-xs font-semibold tracking-wide text-[#7f265b]">血液學檢查</h3>
-          <div className={compactGridClass}>
+          <div className={compactGridClass} style={compactGridStyle}>
             <LabItem
               labName="WBC"
               label="WBC"
@@ -314,7 +315,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         {/* 生化與炎症指標 */}
         <div className="space-y-1">
           <h3 className="text-xs font-semibold tracking-wide text-[#7f265b]">生化與炎症指標</h3>
-          <div className={compactGridClass}>
+          <div className={compactGridClass} style={compactGridStyle}>
             <LabItem
               labName="Alb"
               label="Alb"
@@ -353,7 +354,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         {/* 動脈血氣體分析 */}
         <div className="space-y-1">
           <h3 className="text-xs font-semibold tracking-wide text-[#7f265b]">動脈血氣體分析</h3>
-          <div className={compactGridClass}>
+          <div className={compactGridClass} style={compactGridStyle}>
             <LabItem
               labName="pH"
               label="pH"
@@ -400,7 +401,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         {/* 肝腎功能 */}
         <div className="space-y-1">
           <h3 className="text-xs font-semibold tracking-wide text-[#7f265b]">肝腎功能</h3>
-          <div className={compactGridClass}>
+          <div className={compactGridClass} style={compactGridStyle}>
             <LabItem
               labName="AST"
               label="AST"
@@ -472,7 +473,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         {labData?.cardiac && Object.keys(labData.cardiac).length > 0 && (
           <div className="space-y-1">
             <h3 className="text-xs font-semibold tracking-wide text-[#f59e0b]">心臟標記（選擇性追蹤）</h3>
-            <div className={compactGridClass}>
+            <div className={compactGridClass} style={compactGridStyle}>
               {getValue('cardiac', 'TnT') !== undefined && (
                 <LabItem
                   labName="TnT"
@@ -528,7 +529,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         {labData?.lipid && Object.keys(labData.lipid).length > 0 && (
           <div className="space-y-1">
             <h3 className="text-xs font-semibold tracking-wide text-[#f59e0b]">血脂與代謝（選擇性追蹤）</h3>
-            <div className={compactGridClass}>
+            <div className={compactGridClass} style={compactGridStyle}>
               {getValue('lipid', 'TCHO') !== undefined && (
                 <LabItem
                   labName="TCHO"
@@ -608,7 +609,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         {labData?.other && Object.keys(labData.other).length > 0 && (
           <div className="space-y-1">
             <h3 className="text-xs font-semibold tracking-wide text-[#f59e0b]">其他檢驗（選擇性追蹤）</h3>
-            <div className={compactGridClass}>
+            <div className={compactGridClass} style={compactGridStyle}>
               {getValue('other', 'HbA1C') !== undefined && (
                 <LabItem
                   labName="HbA1C"
@@ -676,7 +677,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         {((labData?.thyroid && Object.keys(labData.thyroid).length > 0) || (labData?.hormone && Object.keys(labData.hormone).length > 0)) && (
           <div className="space-y-1">
             <h3 className="text-xs font-semibold tracking-wide text-[#f59e0b]">甲狀腺與荷爾蒙（選擇性追蹤）</h3>
-            <div className={compactGridClass}>
+            <div className={compactGridClass} style={compactGridStyle}>
               {getValue('thyroid', 'TSH') !== undefined && (
                 <LabItem
                   labName="TSH"
