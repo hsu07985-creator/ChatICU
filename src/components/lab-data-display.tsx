@@ -1,7 +1,6 @@
 import { type LabData } from '../lib/api';
 import { createContext, useContext, useState } from 'react';
 import { LabTrendChart, type LabTrendData } from './lab-trend-chart';
-import { TrendingUp } from 'lucide-react';
 import { getLabTrends } from '../lib/api/lab-data';
 
 const labChineseNames: Record<string, string> = {
@@ -228,14 +227,13 @@ function LabItem({ labName, label, value, unit, isAbnormal, onClick, isOptional 
       }`}
       onClick={canOpenTrend ? onClick : undefined}
     >
-      <div className="flex items-start justify-between gap-1">
+      <div className="flex items-start gap-1">
         <p
           className="font-semibold leading-tight tracking-tight text-slate-500"
           style={{ fontSize: 'var(--metric-card-label-size)' }}
         >
           {label}
         </p>
-        {canOpenTrend && <TrendingUp className="h-3 w-3 shrink-0 text-[#7f265b] opacity-70" />}
       </div>
       <div className="flex flex-1 flex-col items-center justify-center text-center">
         <span

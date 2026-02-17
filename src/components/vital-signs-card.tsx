@@ -1,5 +1,3 @@
-import { TrendingUp } from 'lucide-react';
-
 interface VitalSignCardProps {
   label: string;
   value?: number | string | null;
@@ -37,14 +35,13 @@ export function VitalSignCard({ label, value, unit, onClick, isAbnormal, seconda
       }`}
       onClick={canClick ? onClick : undefined}
     >
-      <div className="flex items-start justify-between gap-1">
+      <div className="flex items-start gap-1">
         <p
           className="font-semibold leading-tight tracking-tight text-slate-500"
           style={{ fontSize: 'var(--metric-card-label-size)' }}
         >
           {label}
         </p>
-        {canClick && <TrendingUp className="h-3 w-3 text-[#7f265b] opacity-70" />}
       </div>
       <div className="flex flex-1 flex-col items-center justify-center text-center">
         <span
