@@ -13,11 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Textarea } from '../ui/textarea';
-import { Alert, AlertDescription } from '../ui/alert';
 import { AiMarkdown, SafetyWarnings } from '../ui/ai-markdown';
 import {
-  AlertCircle,
-  Brain,
   FileText,
   Sparkles,
   BookOpen,
@@ -212,32 +209,6 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
           </CardContent>
         </Card>
       </div>
-
-      <h2 className="flex flex-wrap items-center gap-2 text-base font-bold">
-        <Brain className="h-4 w-4 text-[#7f265b]" />
-        AI 臨床輔助工具
-        {ragStatus !== null && (
-          ragStatus.is_indexed ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-              知識庫：已索引 {ragStatus.total_documents} 文件 / {ragStatus.total_chunks} 區塊
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-              知識庫：未索引
-            </span>
-          )
-        )}
-      </h2>
-      {aiReadiness && !aiReadiness.overall_ready && (
-        <Alert className="border-amber-300 bg-amber-50 py-2">
-          <AlertCircle className="h-4 w-4 text-amber-700" />
-          <AlertDescription className="text-sm text-amber-800">
-            {(aiReadiness.display_reasons || []).join(' ') || 'AI 服務尚未就緒，部分功能已暫時停用。'}
-          </AlertDescription>
-        </Alert>
-      )}
 
       <div className={`grid gap-3 ${userRole === 'doctor' || userRole === 'admin' ? 'xl:grid-cols-2' : ''}`}>
         <Card className="border border-blue-200">
