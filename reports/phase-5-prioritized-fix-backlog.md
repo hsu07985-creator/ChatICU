@@ -20,21 +20,20 @@ Covered Phase-4 risks:
 
 | Epic | Priority | Goal | Risk Covered | Status |
 |---|---|---|---|---|
-| P0-A | P0 | Medication administrations become DB-persisted, queryable, auditable | R-MF-002 | In progress (A1/A2 implemented) |
+| P0-A | P0 | Medication administrations become DB-persisted, queryable, auditable | R-MF-002 | In progress (A1/A2/A3 implemented) |
 | P0-B | P0 | Docker default runtime uses `DATA_SOURCE_MODE=db`; json mode explicit only | R-MF-001 | In progress (B1/B2/B3 implemented) |
 
 ## 3) Epic P0-A: Administrations 真實持久化
 
 ### 3.1 Current gap evidence
 
-- Synthetic rows are generated in router code instead of database records:
-  - `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/app/routers/medications.py:73`
-- Patch writes to in-memory override map (lost on process restart):
-  - `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/app/routers/medications.py:26`
-  - `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/app/routers/medications.py:316`
-- Medication model has no administration relation/table:
-  - `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/app/models/medication.py:11`
-  - `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/alembic/versions/001_initial_schema.py:172`
+Legacy gaps were:
+- Synthetic rows generated in router code instead of database records.
+- Patch writing to in-memory override map (state lost after restart).
+- Missing persisted administration table/relationship (already solved by P0-A1).
+
+Current status:
+- Resolved in `P0-A3`: administrations now read/write `medication_administrations` via SQLAlchemy in `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/app/routers/medications.py`.
 
 ### 3.2 Work items (implementation-ready)
 
@@ -50,7 +49,7 @@ Covered Phase-4 risks:
 P0-A implementation progress (this round):
 - [x] P0-A1 completed: added migration + ORM model + relationships for `medication_administrations`.
 - [x] P0-A2 completed: added explicit response schemas (`MedicationAdministrationResponse` + list/item envelopes) and applied endpoint `response_model` in medication router.
-- [ ] P0-A3 pending: router switch from synthetic/in-memory to DB CRUD.
+- [x] P0-A3 completed: `medications` router now reads/writes `medication_administrations` table directly (removed synthetic schedule and in-memory overrides).
 - [ ] P0-A4 pending: seed/validator alignment for offline data path.
 - [ ] P0-A5 pending: persistence-focused tests.
 - [ ] P0-A6 pending: manual API evidence package.
@@ -127,12 +126,11 @@ This backlog slice is complete when:
 
 ## 8) Current Gate
 
-- `Phase 5`: In progress (P0-A1/A2 and P0-B1/B2/B3 implemented; P0-A3~A6 and P0-B5 pending).
+- `Phase 5`: In progress (P0-A1/A2/A3 and P0-B1/B2/B3 implemented; P0-A4~A6 and P0-B5 pending).
 
 ## 9) Next Steps (A2~A6 + B5)
 
-1. `P0-A3`: refactor `backend/app/routers/medications.py` to use DB-backed administrations.
-2. `P0-A5`: update/add tests first for persistence semantics (then implement to green).
-3. `P0-A4`: backfill seed and validation path for administration rows in offline mode.
-4. `P0-B5`: produce docker mode regression evidence bundle (`db` default vs `json` override).
-5. `P0-A6`: manual end-to-end persistence evidence (patch, restart, re-query).
+1. `P0-A4`: backfill seed and validation path for administration rows in offline mode.
+2. `P0-A5`: add persistence-focused assertions (DB-backed behavior and date-window coverage).
+3. `P0-B5`: produce docker mode regression evidence bundle (`db` default vs `json` override).
+4. `P0-A6`: manual end-to-end persistence evidence (patch, restart, re-query).

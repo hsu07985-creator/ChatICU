@@ -1,6 +1,5 @@
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
@@ -10,6 +9,7 @@ from app.database import get_db
 from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log
 from app.models.medication import Medication
+from app.models.medication_administration import MedicationAdministration
 from app.models.drug_interaction import DrugInteraction
 from app.models.user import User
 from app.routers.patients import normalize_patient_id
@@ -23,9 +23,6 @@ from app.schemas.medication import (
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/patients/{patient_id}/medications", tags=["medications"])
-
-
-_ADMINISTRATION_OVERRIDES: dict[str, dict[str, dict[str, Any]]] = {}
 
 
 def med_to_dict(med: Medication) -> dict:
@@ -66,57 +63,19 @@ async def _get_medication_or_404(
     return med
 
 
-def _format_dose_with_unit(med: Medication) -> str:
-    if med.dose and med.unit:
-        return f"{med.dose} {med.unit}"
-    return med.dose or ""
-
-
-def _build_default_administrations(med: Medication) -> list[dict[str, Any]]:
-    base_date = med.start_date or datetime.now(timezone.utc).date()
-    dose = _format_dose_with_unit(med)
-    schedule_template = [
-        (1, 8, "administered"),
-        (2, 12, "scheduled"),
-        (3, 16, "scheduled"),
-    ]
-    administrations: list[dict[str, Any]] = []
-
-    for idx, hour, status in schedule_template:
-        scheduled_dt = datetime.combine(base_date, time(hour=hour, tzinfo=timezone.utc))
-        administered_time = (
-            (scheduled_dt + timedelta(minutes=5)).isoformat()
-            if status == "administered"
-            else None
-        )
-        administrations.append(
-            {
-                "id": f"adm_{med.id}_{idx}",
-                "medicationId": med.id,
-                "patientId": med.patient_id,
-                "scheduledTime": scheduled_dt.isoformat(),
-                "administeredTime": administered_time,
-                "status": status,
-                "dose": dose,
-                "route": med.route or "",
-                "administeredBy": med.prescribed_by,
-                "notes": None,
-            }
-        )
-
-    return administrations
-
-
-def _get_merged_administrations(med: Medication) -> list[dict[str, Any]]:
-    defaults = _build_default_administrations(med)
-    overrides = _ADMINISTRATION_OVERRIDES.get(med.id, {})
-    merged: list[dict[str, Any]] = []
-
-    for row in defaults:
-        merged_row = {**row, **overrides.get(row["id"], {})}
-        merged.append(merged_row)
-
-    return merged
+def administration_to_dict(administration: MedicationAdministration) -> dict:
+    return {
+        "id": administration.id,
+        "medicationId": administration.medication_id,
+        "patientId": administration.patient_id,
+        "scheduledTime": administration.scheduled_time,
+        "administeredTime": administration.administered_time,
+        "status": administration.status,
+        "dose": administration.dose or "",
+        "route": administration.route or "",
+        "administeredBy": administration.administered_by,
+        "notes": administration.notes,
+    }
 
 
 @router.get("")
@@ -204,17 +163,23 @@ async def list_medication_administrations(
     pid = normalize_patient_id(patient_id)
     med = await _get_medication_or_404(db, pid, medication_id)
 
-    administrations = _get_merged_administrations(med)
-    if start_date or end_date:
-        filtered: list[dict[str, Any]] = []
-        for item in administrations:
-            scheduled_date = datetime.fromisoformat(item["scheduledTime"]).date()
-            if start_date and scheduled_date < start_date:
-                continue
-            if end_date and scheduled_date > end_date:
-                continue
-            filtered.append(item)
-        administrations = filtered
+    query = select(MedicationAdministration).where(
+        (MedicationAdministration.medication_id == med.id)
+        & (MedicationAdministration.patient_id == pid)
+    )
+    if start_date:
+        start_at = datetime.combine(start_date, time.min, tzinfo=timezone.utc)
+        query = query.where(MedicationAdministration.scheduled_time >= start_at)
+    if end_date:
+        end_exclusive = datetime.combine(
+            end_date + timedelta(days=1),
+            time.min,
+            tzinfo=timezone.utc,
+        )
+        query = query.where(MedicationAdministration.scheduled_time < end_exclusive)
+
+    result = await db.execute(query.order_by(MedicationAdministration.scheduled_time))
+    administrations = [administration_to_dict(row) for row in result.scalars().all()]
 
     return success_response(data=administrations)
 
@@ -304,24 +269,27 @@ async def record_medication_administration(
     pid = normalize_patient_id(patient_id)
     med = await _get_medication_or_404(db, pid, medication_id)
 
-    administrations = _get_merged_administrations(med)
-    existing = next((item for item in administrations if item["id"] == administration_id), None)
-    if not existing:
+    result = await db.execute(
+        select(MedicationAdministration).where(
+            (MedicationAdministration.id == administration_id)
+            & (MedicationAdministration.medication_id == med.id)
+            & (MedicationAdministration.patient_id == pid)
+        )
+    )
+    administration = result.scalar_one_or_none()
+    if not administration:
         raise HTTPException(status_code=404, detail="Administration not found")
 
-    updated = {
-        **existing,
-        "status": body.status,
-        "notes": body.notes,
-    }
+    administration.status = body.status
+    administration.notes = body.notes
     if body.status == "administered":
-        updated["administeredTime"] = existing.get("administeredTime") or datetime.now(
+        administration.administered_time = administration.administered_time or datetime.now(
             timezone.utc
-        ).isoformat()
+        )
+        administration.administered_by = {"id": user.id, "name": user.name}
     else:
-        updated["administeredTime"] = None
-
-    _ADMINISTRATION_OVERRIDES.setdefault(med.id, {})[administration_id] = updated
+        administration.administered_time = None
+        administration.administered_by = None
 
     await create_audit_log(
         db,
@@ -339,4 +307,7 @@ async def record_medication_administration(
         },
     )
 
-    return success_response(data=updated, message="給藥記錄已更新")
+    return success_response(
+        data=administration_to_dict(administration),
+        message="給藥記錄已更新",
+    )

@@ -1,9 +1,10 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
 import pytest
 import pytest_asyncio
 
 from app.models.medication import Medication
+from app.models.medication_administration import MedicationAdministration
 
 
 @pytest_asyncio.fixture
@@ -27,6 +28,34 @@ async def seeded_medication(seeded_db):
         warnings=["respiratory depression"],
     )
     seeded_db.add(med)
+    seeded_db.add_all(
+        [
+            MedicationAdministration(
+                id="adm_contract_001",
+                medication_id=med.id,
+                patient_id="pat_001",
+                scheduled_time=datetime(2026, 2, 17, 8, 0, tzinfo=timezone.utc),
+                administered_time=datetime(2026, 2, 17, 8, 5, tzinfo=timezone.utc),
+                status="administered",
+                dose="2 mg",
+                route="IV",
+                administered_by={"id": "usr_test", "name": "Test Doctor"},
+                notes=None,
+            ),
+            MedicationAdministration(
+                id="adm_contract_002",
+                medication_id=med.id,
+                patient_id="pat_001",
+                scheduled_time=datetime(2026, 2, 17, 12, 0, tzinfo=timezone.utc),
+                administered_time=None,
+                status="scheduled",
+                dose="2 mg",
+                route="IV",
+                administered_by=None,
+                notes=None,
+            ),
+        ]
+    )
     await seeded_db.commit()
     return med
 
