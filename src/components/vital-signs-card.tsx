@@ -20,7 +20,7 @@ export function VitalSignCard({ label, value, unit, onClick, isAbnormal, seconda
 
   return (
     <div
-      className={`group relative flex aspect-square flex-col rounded-md border px-1 py-0.5 ${
+      className={`group relative flex aspect-square flex-col rounded-lg border px-2 py-1.5 ${
         isAbnormal
           ? 'border-[#f59e0b] bg-gradient-to-br from-orange-50 to-rose-50/70'
           : 'border-[#e5e7eb] bg-gradient-to-br from-white to-slate-50'
@@ -32,14 +32,14 @@ export function VitalSignCard({ label, value, unit, onClick, isAbnormal, seconda
       onClick={canClick ? onClick : undefined}
     >
       <div className="flex items-start justify-between gap-1">
-        <p className="text-[7px] font-semibold uppercase tracking-tight text-slate-500">{label}</p>
-        {canClick && <TrendingUp className="h-2 w-2 text-[#7f265b] opacity-70" />}
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+        {canClick && <TrendingUp className="h-3 w-3 text-[#7f265b] opacity-70" />}
       </div>
       <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <span className={`text-base font-semibold leading-none tracking-tight ${isAbnormal ? 'text-[#d97706]' : 'text-[#0f172a]'}`}>
+        <span className={`text-xl font-semibold leading-none tracking-tight ${isAbnormal ? 'text-[#d97706]' : 'text-[#0f172a]'}`}>
           {displayValue}
         </span>
-        {unit && <span className="mt-0.5 text-[7px] leading-tight text-[#64748b]">{unit}</span>}
+        {unit && <span className="mt-0.5 text-[10px] leading-tight text-[#64748b]">{unit}</span>}
       </div>
     </div>
   );
