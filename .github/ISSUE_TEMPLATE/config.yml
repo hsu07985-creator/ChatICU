@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability report
+    url: https://github.com/ZymoMed/ChatICU_YU/security/policy
+    about: Please report security vulnerabilities privately via the security policy.
