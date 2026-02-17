@@ -96,26 +96,30 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
             <CardTitle className="text-base">基本資訊 Basic Information</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="grid gap-2 sm:grid-cols-3">
-              <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-1.5">
                 <p className="text-[11px] text-muted-foreground">Age</p>
                 <p className="text-sm font-semibold">{patient.age} years</p>
               </div>
-              <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-2">
+              <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-1.5">
                 <p className="text-[11px] text-muted-foreground">Gender</p>
                 <p className="text-sm font-semibold">{patient.gender || '-'}</p>
               </div>
-              <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-2">
+              <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-1.5">
                 <p className="text-[11px] text-muted-foreground">BMI</p>
                 <p className="text-sm font-semibold">{patient.bmi ? `${patient.bmi} kg/m²` : '-'}</p>
               </div>
-              <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-2">
+              <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-1.5">
                 <p className="text-[11px] text-muted-foreground">Height</p>
                 <p className="text-sm font-semibold">{patient.height ? `${patient.height} cm` : '-'}</p>
               </div>
-              <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-2">
+              <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-1.5">
                 <p className="text-[11px] text-muted-foreground">Weight</p>
                 <p className="text-sm font-semibold">{patient.weight ? `${patient.weight} kg` : '-'}</p>
+              </div>
+              <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-1.5">
+                <p className="text-[11px] text-muted-foreground">Patient ID</p>
+                <p className="text-sm font-semibold">{patient.id || '-'}</p>
               </div>
             </div>
           </CardContent>
@@ -216,10 +220,10 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
         </CardHeader>
         <CardContent className="space-y-2 pt-0">
           {alerts.map((alert, idx) => (
-            <Alert key={idx} className="border-[#ff3975]/40 bg-[#ffe6f0] py-2">
-              <AlertCircle className="h-4 w-4 text-[#ff3975]" />
-              <AlertDescription className="text-sm text-[#ff3975]">{alert}</AlertDescription>
-            </Alert>
+            <div key={idx} className="flex items-start gap-2 rounded-md border border-[#ff3975]/30 bg-[#ffeef5] px-3 py-1.5">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#ff3975]" />
+              <p className="text-sm leading-relaxed text-[#c2205c]">{alert}</p>
+            </div>
           ))}
           {alerts.length === 0 && (
             <p className="text-sm text-muted-foreground">目前無警示</p>
@@ -253,187 +257,71 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
         </Alert>
       )}
 
-      <Card className="border border-blue-200">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <BookOpen className="h-4 w-4 text-blue-600" />
-            衛教說明產生器
-          </CardTitle>
-          <CardDescription className="text-xs">將複雜的臨床資訊轉換為簡單易懂的病患/家屬說明</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 pt-0">
-          <Textarea
-            placeholder="輸入衛教主題，例如：目前使用的藥物有什麼副作用？呼吸器什麼時候可以拔管？"
-            value={explanationTopic}
-            onChange={(e) => setExplanationTopic(e.target.value)}
-            className="min-h-[72px] border-2 border-blue-200"
-          />
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-blue-700 whitespace-nowrap">說明程度：</label>
-            <select
-              value={readingLevel}
-              onChange={(e) => setReadingLevel(e.target.value as 'simple' | 'moderate' | 'detailed')}
-              className="border border-blue-200 rounded px-2 py-1 text-sm bg-white"
-            >
-              <option value="simple">簡單（一般民眾）</option>
-              <option value="moderate">中等（預設）</option>
-              <option value="detailed">詳細（有醫學背景）</option>
-            </select>
-          </div>
-          <Button
-            size="sm"
-            onClick={async () => {
-              if (!explanationTopic.trim()) return;
-              if (!canExplanation) {
-                toast.error(explanationReason);
-                return;
-              }
-              setIsGeneratingExplanation(true);
-              try {
-                const result = await getPatientExplanation(patient.id, explanationTopic, readingLevel);
-                setExplanationResult(result.explanation);
-                setExplanationWarnings(result.safetyWarnings || null);
-                setExplanationFreshness(result.dataFreshness || null);
-              } catch {
-                toast.error('衛教說明生成失敗');
-              } finally {
-                setIsGeneratingExplanation(false);
-              }
-            }}
-            className="bg-blue-600 hover:bg-blue-700"
-            disabled={isGeneratingExplanation || !explanationTopic.trim() || !canExplanation}
-          >
-            <BookOpen className="mr-2 h-4 w-4" />
-            {isGeneratingExplanation ? '生成中...' : '產生衛教說明'}
-          </Button>
-          {explanationResult && (
-            <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-3">
-              <AiMarkdown content={explanationResult} className="text-sm" />
-              <SafetyWarnings warnings={explanationWarnings} />
-              <DataFreshnessHint dataFreshness={explanationFreshness} />
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={async () => {
-                  const ok = await copyToClipboard(explanationResult);
-                  ok ? toast.success('已複製') : toast.error('複製失敗');
-                }}
-              >
-                <Copy className="mr-1 h-3 w-3" /> 複製
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {(userRole === 'doctor' || userRole === 'admin') && (
-        <Card className="border border-amber-200">
+      <div className={`grid gap-3 ${userRole === 'doctor' || userRole === 'admin' ? 'xl:grid-cols-2' : ''}`}>
+        <Card className="border border-blue-200">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Shield className="h-4 w-4 text-amber-600" />
-              多角色決策支援
-              <Badge variant="outline" className="text-xs border-amber-400 text-amber-600">醫師專用</Badge>
+              <BookOpen className="h-4 w-4 text-blue-600" />
+              衛教說明產生器
             </CardTitle>
-            <CardDescription className="text-xs">整合多科別評估意見，產生統合性臨床建議</CardDescription>
+            <CardDescription className="text-xs">將複雜的臨床資訊轉換為簡單易懂的病患/家屬說明</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 pt-0">
             <Textarea
-              placeholder="輸入臨床問題，例如：是否應該從 Midazolam 轉換為 Propofol？腎功能持續下降是否需要 CRRT？"
-              value={decisionQuestion}
-              onChange={(e) => setDecisionQuestion(e.target.value)}
-              className="min-h-[72px] border-2 border-amber-200"
+              placeholder="輸入衛教主題，例如：目前使用的藥物有什麼副作用？呼吸器什麼時候可以拔管？"
+              value={explanationTopic}
+              onChange={(e) => setExplanationTopic(e.target.value)}
+              className="min-h-[64px] border-2 border-blue-200"
             />
-            <button
-              type="button"
-              onClick={() => setShowAssessments(!showAssessments)}
-              className="flex items-center gap-1 text-sm text-amber-700 hover:text-amber-900"
-            >
-              <ChevronDown className={`h-4 w-4 transition-transform ${showAssessments ? 'rotate-180' : ''}`} />
-              多科別評估意見（選填）
-            </button>
-            {showAssessments && (
-              <div className="space-y-2 pl-2 border-l-2 border-amber-200">
-                <div>
-                  <label className="text-xs text-amber-700 font-medium">腎臟科意見（選填）</label>
-                  <Textarea
-                    placeholder="例如：eGFR 持續下降至 28，建議評估 CRRT 時機"
-                    value={nephrologistOpinion}
-                    onChange={(e) => setNephrologistOpinion(e.target.value)}
-                    className="min-h-[48px] border border-amber-200 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-amber-700 font-medium">藥師意見（選填）</label>
-                  <Textarea
-                    placeholder="例如：Meropenem 需根據腎功能調整劑量，建議 0.5g Q8H"
-                    value={pharmacistOpinion}
-                    onChange={(e) => setPharmacistOpinion(e.target.value)}
-                    className="min-h-[48px] border border-amber-200 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-amber-700 font-medium">護理觀點（選填）</label>
-                  <Textarea
-                    placeholder="例如：病人躁動頻繁，RASS -1 到 +2 波動，翻身時 SpO2 會掉到 88%"
-                    value={nursingOpinion}
-                    onChange={(e) => setNursingOpinion(e.target.value)}
-                    className="min-h-[48px] border border-amber-200 text-sm"
-                  />
-                </div>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-blue-700 whitespace-nowrap">說明程度：</label>
+              <select
+                value={readingLevel}
+                onChange={(e) => setReadingLevel(e.target.value as 'simple' | 'moderate' | 'detailed')}
+                className="border border-blue-200 rounded px-2 py-1 text-sm bg-white"
+              >
+                <option value="simple">簡單（一般民眾）</option>
+                <option value="moderate">中等（預設）</option>
+                <option value="detailed">詳細（有醫學背景）</option>
+              </select>
+            </div>
             <Button
               size="sm"
               onClick={async () => {
-                if (!decisionQuestion.trim()) return;
-                if (!canDecision) {
-                  toast.error(decisionReason);
+                if (!explanationTopic.trim()) return;
+                if (!canExplanation) {
+                  toast.error(explanationReason);
                   return;
                 }
-                setIsGeneratingDecision(true);
+                setIsGeneratingExplanation(true);
                 try {
-                  const assessments: Array<Record<string, unknown>> = [];
-                  if (nephrologistOpinion.trim()) {
-                    assessments.push({ agent: 'nephrologist', opinion: nephrologistOpinion.trim() });
-                  }
-                  if (pharmacistOpinion.trim()) {
-                    assessments.push({ agent: 'pharmacist', opinion: pharmacistOpinion.trim() });
-                  }
-                  if (nursingOpinion.trim()) {
-                    assessments.push({ agent: 'nurse', opinion: nursingOpinion.trim() });
-                  }
-                  const result = await getDecisionSupport({
-                    patientId: patient.id,
-                    question: decisionQuestion,
-                    assessments: assessments.length > 0 ? assessments : undefined,
-                  });
-                  setDecisionResult(result.recommendation);
-                  setDecisionWarnings(result.safetyWarnings || null);
-                  setDecisionFreshness(result.dataFreshness || null);
+                  const result = await getPatientExplanation(patient.id, explanationTopic, readingLevel);
+                  setExplanationResult(result.explanation);
+                  setExplanationWarnings(result.safetyWarnings || null);
+                  setExplanationFreshness(result.dataFreshness || null);
                 } catch {
-                  toast.error('決策支援生成失敗');
+                  toast.error('衛教說明生成失敗');
                 } finally {
-                  setIsGeneratingDecision(false);
+                  setIsGeneratingExplanation(false);
                 }
               }}
-              className="bg-amber-600 hover:bg-amber-700"
-              disabled={isGeneratingDecision || !decisionQuestion.trim() || !canDecision}
+              className="bg-blue-600 hover:bg-blue-700"
+              disabled={isGeneratingExplanation || !explanationTopic.trim() || !canExplanation}
             >
-              <Shield className="mr-2 h-4 w-4" />
-              {isGeneratingDecision ? '分析中...' : '產生決策建議'}
+              <BookOpen className="mr-2 h-4 w-4" />
+              {isGeneratingExplanation ? '生成中...' : '產生衛教說明'}
             </Button>
-            {decisionResult && (
-              <div className="rounded-lg border-2 border-amber-200 bg-amber-50 p-3">
-                <AiMarkdown content={decisionResult} className="text-sm" />
-                <SafetyWarnings warnings={decisionWarnings} />
-                <DataFreshnessHint dataFreshness={decisionFreshness} />
+            {explanationResult && (
+              <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-3">
+                <AiMarkdown content={explanationResult} className="text-sm" />
+                <SafetyWarnings warnings={explanationWarnings} />
+                <DataFreshnessHint dataFreshness={explanationFreshness} />
                 <Button
                   variant="outline"
                   size="sm"
                   className="mt-2"
                   onClick={async () => {
-                    const ok = await copyToClipboard(decisionResult);
+                    const ok = await copyToClipboard(explanationResult);
                     ok ? toast.success('已複製') : toast.error('複製失敗');
                   }}
                 >
@@ -443,7 +331,125 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
             )}
           </CardContent>
         </Card>
-      )}
+
+        {(userRole === 'doctor' || userRole === 'admin') && (
+          <Card className="border border-amber-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Shield className="h-4 w-4 text-amber-600" />
+                多角色決策支援
+                <Badge variant="outline" className="text-xs border-amber-400 text-amber-600">醫師專用</Badge>
+              </CardTitle>
+              <CardDescription className="text-xs">整合多科別評估意見，產生統合性臨床建議</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2 pt-0">
+              <Textarea
+                placeholder="輸入臨床問題，例如：是否應該從 Midazolam 轉換為 Propofol？腎功能持續下降是否需要 CRRT？"
+                value={decisionQuestion}
+                onChange={(e) => setDecisionQuestion(e.target.value)}
+                className="min-h-[64px] border-2 border-amber-200"
+              />
+              <button
+                type="button"
+                onClick={() => setShowAssessments(!showAssessments)}
+                className="flex items-center gap-1 text-sm text-amber-700 hover:text-amber-900"
+              >
+                <ChevronDown className={`h-4 w-4 transition-transform ${showAssessments ? 'rotate-180' : ''}`} />
+                多科別評估意見（選填）
+              </button>
+              {showAssessments && (
+                <div className="space-y-2 pl-2 border-l-2 border-amber-200">
+                  <div>
+                    <label className="text-xs text-amber-700 font-medium">腎臟科意見（選填）</label>
+                    <Textarea
+                      placeholder="例如：eGFR 持續下降至 28，建議評估 CRRT 時機"
+                      value={nephrologistOpinion}
+                      onChange={(e) => setNephrologistOpinion(e.target.value)}
+                      className="min-h-[44px] border border-amber-200 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-amber-700 font-medium">藥師意見（選填）</label>
+                    <Textarea
+                      placeholder="例如：Meropenem 需根據腎功能調整劑量，建議 0.5g Q8H"
+                      value={pharmacistOpinion}
+                      onChange={(e) => setPharmacistOpinion(e.target.value)}
+                      className="min-h-[44px] border border-amber-200 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-amber-700 font-medium">護理觀點（選填）</label>
+                    <Textarea
+                      placeholder="例如：病人躁動頻繁，RASS -1 到 +2 波動，翻身時 SpO2 會掉到 88%"
+                      value={nursingOpinion}
+                      onChange={(e) => setNursingOpinion(e.target.value)}
+                      className="min-h-[44px] border border-amber-200 text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+              <Button
+                size="sm"
+                onClick={async () => {
+                  if (!decisionQuestion.trim()) return;
+                  if (!canDecision) {
+                    toast.error(decisionReason);
+                    return;
+                  }
+                  setIsGeneratingDecision(true);
+                  try {
+                    const assessments: Array<Record<string, unknown>> = [];
+                    if (nephrologistOpinion.trim()) {
+                      assessments.push({ agent: 'nephrologist', opinion: nephrologistOpinion.trim() });
+                    }
+                    if (pharmacistOpinion.trim()) {
+                      assessments.push({ agent: 'pharmacist', opinion: pharmacistOpinion.trim() });
+                    }
+                    if (nursingOpinion.trim()) {
+                      assessments.push({ agent: 'nurse', opinion: nursingOpinion.trim() });
+                    }
+                    const result = await getDecisionSupport({
+                      patientId: patient.id,
+                      question: decisionQuestion,
+                      assessments: assessments.length > 0 ? assessments : undefined,
+                    });
+                    setDecisionResult(result.recommendation);
+                    setDecisionWarnings(result.safetyWarnings || null);
+                    setDecisionFreshness(result.dataFreshness || null);
+                  } catch {
+                    toast.error('決策支援生成失敗');
+                  } finally {
+                    setIsGeneratingDecision(false);
+                  }
+                }}
+                className="bg-amber-600 hover:bg-amber-700"
+                disabled={isGeneratingDecision || !decisionQuestion.trim() || !canDecision}
+              >
+                <Shield className="mr-2 h-4 w-4" />
+                {isGeneratingDecision ? '分析中...' : '產生決策建議'}
+              </Button>
+              {decisionResult && (
+                <div className="rounded-lg border-2 border-amber-200 bg-amber-50 p-3">
+                  <AiMarkdown content={decisionResult} className="text-sm" />
+                  <SafetyWarnings warnings={decisionWarnings} />
+                  <DataFreshnessHint dataFreshness={decisionFreshness} />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={async () => {
+                      const ok = await copyToClipboard(decisionResult);
+                      ok ? toast.success('已複製') : toast.error('複製失敗');
+                    }}
+                  >
+                    <Copy className="mr-1 h-3 w-3" /> 複製
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
