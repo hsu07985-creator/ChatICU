@@ -80,7 +80,6 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
   const [nursingOpinion, setNursingOpinion] = useState('');
 
   const symptoms = Array.isArray(patient.symptoms) ? patient.symptoms : [];
-  const alerts = Array.isArray(patient.alerts) ? patient.alerts : [];
   const canSummary = aiReadiness ? aiReadiness.feature_gates.clinical_summary : true;
   const canExplanation = aiReadiness ? aiReadiness.feature_gates.patient_explanation : true;
   const canDecision = aiReadiness ? aiReadiness.feature_gates.decision_support : true;
@@ -93,7 +92,7 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
       <div className="grid gap-3 xl:grid-cols-2">
         <Card className="border border-[#d9dee6] bg-[#f8f9fa]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">基本資訊 Basic Information</CardTitle>
+            <CardTitle className="text-base">基本資訊 / 症狀 / 入院診斷</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -120,6 +119,24 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
               <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-1.5">
                 <p className="text-[11px] text-muted-foreground">Patient ID</p>
                 <p className="text-sm font-semibold">{patient.id || '-'}</p>
+              </div>
+            </div>
+            <div className="mt-3 grid gap-3 lg:grid-cols-2">
+              <div>
+                <p className="text-xs font-semibold text-slate-600">症狀 Symptom</p>
+                <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm">
+                  {symptoms.length > 0 ? (
+                    symptoms.map((symptom: string, idx: number) => (
+                      <li key={idx} className="leading-relaxed">{symptom}</li>
+                    ))
+                  ) : (
+                    <li className="text-muted-foreground">尚無症狀記錄</li>
+                  )}
+                </ol>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-600">入院診斷</p>
+                <p className="mt-1 text-sm leading-relaxed">{patient.diagnosis || '-'}</p>
               </div>
             </div>
           </CardContent>
@@ -182,54 +199,6 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
           </CardContent>
         </Card>
       </div>
-
-      <div className="grid gap-3 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">症狀 Symptom</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <ol className="list-decimal space-y-1 pl-5 text-sm">
-              {symptoms.length > 0 ? (
-                symptoms.map((symptom: string, idx: number) => (
-                  <li key={idx} className="leading-relaxed">{symptom}</li>
-                ))
-              ) : (
-                <li className="text-muted-foreground">尚無症狀記錄</li>
-              )}
-            </ol>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-[#3c7acb]">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">入院診斷</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-sm leading-relaxed">{patient.diagnosis || '-'}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="border border-[#ff3975]/40 bg-[#fff8fb]">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base text-[#ff3975]">
-            <AlertCircle className="h-4 w-4" />
-            風險與警示
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 pt-0">
-          {alerts.map((alert, idx) => (
-            <div key={idx} className="flex items-start gap-2 rounded-md border border-[#ff3975]/30 bg-[#ffeef5] px-3 py-1.5">
-              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#ff3975]" />
-              <p className="text-sm leading-relaxed text-[#c2205c]">{alert}</p>
-            </div>
-          ))}
-          {alerts.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前無警示</p>
-          )}
-        </CardContent>
-      </Card>
 
       <h2 className="flex flex-wrap items-center gap-2 text-base font-bold">
         <Brain className="h-4 w-4 text-[#7f265b]" />
