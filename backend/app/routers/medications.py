@@ -14,6 +14,8 @@ from app.models.drug_interaction import DrugInteraction
 from app.models.user import User
 from app.routers.patients import normalize_patient_id
 from app.schemas.medication import (
+    MedicationAdministrationItemEnvelope,
+    MedicationAdministrationListEnvelope,
     MedicationAdministrationUpdate,
     MedicationCreate,
     MedicationUpdate,
@@ -184,7 +186,10 @@ async def get_medication(
     return success_response(data=med_to_dict(med))
 
 
-@router.get("/{medication_id}/administrations")
+@router.get(
+    "/{medication_id}/administrations",
+    response_model=MedicationAdministrationListEnvelope,
+)
 async def list_medication_administrations(
     patient_id: str,
     medication_id: str,
@@ -283,7 +288,10 @@ async def update_medication(
     return success_response(data=med_to_dict(med), message="藥物已更新")
 
 
-@router.patch("/{medication_id}/administrations/{administration_id}")
+@router.patch(
+    "/{medication_id}/administrations/{administration_id}",
+    response_model=MedicationAdministrationItemEnvelope,
+)
 async def record_medication_administration(
     patient_id: str,
     medication_id: str,

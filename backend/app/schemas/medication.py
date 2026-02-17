@@ -1,5 +1,5 @@
-from datetime import date
-from typing import Any, Literal, Optional
+from datetime import date, datetime
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
@@ -52,3 +52,33 @@ class MedicationResponse(BaseModel):
 class MedicationAdministrationUpdate(BaseModel):
     status: Literal["scheduled", "administered", "missed", "held", "refused"]
     notes: Optional[str] = None
+
+
+class MedicationAdministrationUser(BaseModel):
+    id: str
+    name: str
+
+
+class MedicationAdministrationResponse(BaseModel):
+    id: str
+    medicationId: str
+    patientId: str
+    scheduledTime: datetime
+    administeredTime: Optional[datetime] = None
+    status: Literal["scheduled", "administered", "missed", "held", "refused"]
+    dose: str
+    route: str
+    administeredBy: Optional[MedicationAdministrationUser] = None
+    notes: Optional[str] = None
+
+
+class MedicationAdministrationItemEnvelope(BaseModel):
+    success: Literal[True] = True
+    data: MedicationAdministrationResponse
+    message: Optional[str] = None
+
+
+class MedicationAdministrationListEnvelope(BaseModel):
+    success: Literal[True] = True
+    data: list[MedicationAdministrationResponse]
+    message: Optional[str] = None
