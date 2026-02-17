@@ -5,10 +5,10 @@
   --font-size: 18px;
 
   /* Metric Card Layout Tokens */
-  --metric-card-size: clamp(112px, 6.8vw, 132px);
-  --metric-card-gap: 10px;
+  --metric-card-size: clamp(104px, 5.8vw, 120px);
+  --metric-card-gap: 8px;
   --metric-card-label-size: 0.6875rem;
-  --metric-card-value-size: clamp(1.375rem, 1.2rem + 0.35vw, 1.5rem);
+  --metric-card-value-size: clamp(1.25rem, 1.12rem + 0.28vw, 1.375rem);
   --metric-card-unit-size: 0.625rem;
   
   /* Primary - 主色 #7f265b */

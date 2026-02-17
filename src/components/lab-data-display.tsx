@@ -1,5 +1,5 @@
 import { type LabData } from '../lib/api';
-import { useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { LabTrendChart, type LabTrendData } from './lab-trend-chart';
 import { TrendingUp } from 'lucide-react';
 import { getLabTrends } from '../lib/api/lab-data';
@@ -20,6 +20,11 @@ interface LabDataDisplayProps {
   patientId?: string;
 }
 
+type LabMetricDescriptor = {
+  category: keyof LabData;
+  itemName: string;
+};
+
 interface LabItemProps {
   labName: string;
   label: string;
@@ -29,6 +34,87 @@ interface LabItemProps {
   onClick?: () => void;
   isOptional?: boolean; // 選擇性追蹤項目使用粉紅色背景
 }
+
+interface LabFilterState {
+  onlyAbnormal: boolean;
+  hideMissing: boolean;
+}
+
+const LabDisplayFilterContext = createContext<LabFilterState>({
+  onlyAbnormal: false,
+  hideMissing: false,
+});
+
+const ELECTROLYTES_METRICS: readonly LabMetricDescriptor[] = [
+  { category: 'biochemistry', itemName: 'Na' },
+  { category: 'biochemistry', itemName: 'K' },
+  { category: 'biochemistry', itemName: 'Ca' },
+  { category: 'biochemistry', itemName: 'freeCa' },
+  { category: 'biochemistry', itemName: 'Mg' },
+];
+
+const HEMATOLOGY_METRICS: readonly LabMetricDescriptor[] = [
+  { category: 'hematology', itemName: 'WBC' },
+  { category: 'hematology', itemName: 'RBC' },
+  { category: 'hematology', itemName: 'Hb' },
+  { category: 'hematology', itemName: 'PLT' },
+];
+
+const INFLAMMATORY_METRICS: readonly LabMetricDescriptor[] = [
+  { category: 'biochemistry', itemName: 'Alb' },
+  { category: 'inflammatory', itemName: 'CRP' },
+  { category: 'inflammatory', itemName: 'PCT' },
+  { category: 'coagulation', itemName: 'DDimer' },
+];
+
+const ABG_METRICS: readonly LabMetricDescriptor[] = [
+  { category: 'bloodGas', itemName: 'pH' },
+  { category: 'bloodGas', itemName: 'PCO2' },
+  { category: 'bloodGas', itemName: 'PO2' },
+  { category: 'bloodGas', itemName: 'HCO3' },
+  { category: 'bloodGas', itemName: 'Lactate' },
+];
+
+const LIVER_RENAL_METRICS: readonly LabMetricDescriptor[] = [
+  { category: 'biochemistry', itemName: 'AST' },
+  { category: 'biochemistry', itemName: 'ALT' },
+  { category: 'biochemistry', itemName: 'TBil' },
+  { category: 'coagulation', itemName: 'INR' },
+  { category: 'biochemistry', itemName: 'BUN' },
+  { category: 'biochemistry', itemName: 'Scr' },
+  { category: 'biochemistry', itemName: 'eGFR' },
+  { category: 'biochemistry', itemName: 'Clcr' },
+];
+
+const CARDIAC_METRICS: readonly LabMetricDescriptor[] = [
+  { category: 'cardiac', itemName: 'TnT' },
+  { category: 'cardiac', itemName: 'CKMB' },
+  { category: 'cardiac', itemName: 'CK' },
+  { category: 'cardiac', itemName: 'NTproBNP' },
+];
+
+const LIPID_METRICS: readonly LabMetricDescriptor[] = [
+  { category: 'lipid', itemName: 'TCHO' },
+  { category: 'lipid', itemName: 'TG' },
+  { category: 'lipid', itemName: 'LDLC' },
+  { category: 'lipid', itemName: 'HDLC' },
+  { category: 'lipid', itemName: 'UA' },
+  { category: 'lipid', itemName: 'P' },
+];
+
+const OTHER_METRICS: readonly LabMetricDescriptor[] = [
+  { category: 'other', itemName: 'HbA1C' },
+  { category: 'other', itemName: 'LDH' },
+  { category: 'other', itemName: 'NH3' },
+  { category: 'other', itemName: 'Amylase' },
+  { category: 'other', itemName: 'Lipase' },
+];
+
+const THYROID_HORMONE_METRICS: readonly LabMetricDescriptor[] = [
+  { category: 'thyroid', itemName: 'TSH' },
+  { category: 'thyroid', itemName: 'freeT4' },
+  { category: 'hormone', itemName: 'Cortisol' },
+];
 
 const compactGridClass = 'grid';
 const compactGridStyle = {
@@ -112,6 +198,7 @@ function getAbnormalFlag(input: unknown): boolean {
 }
 
 function LabItem({ labName, label, value, unit, isAbnormal, onClick, isOptional }: LabItemProps) {
+  const { hideMissing, onlyAbnormal } = useContext(LabDisplayFilterContext);
   const displayValue = toDisplayText(value);
   const hasValue = displayValue !== '-';
   const canOpenTrend = hasValue && !!onClick;
@@ -121,6 +208,14 @@ function LabItem({ labName, label, value, unit, isAbnormal, onClick, isOptional 
     : isAbnormal
       ? 'font-semibold text-orange-700'
       : 'font-semibold text-slate-900';
+
+  if (hideMissing && isMissing) {
+    return null;
+  }
+
+  if (onlyAbnormal && !isAbnormal) {
+    return null;
+  }
 
   return (
     <div
@@ -170,6 +265,8 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
     trendData: LabTrendData[];
   } | null>(null);
   const [trendLoading, setTrendLoading] = useState(false);
+  const [onlyAbnormal, setOnlyAbnormal] = useState(false);
+  const [hideMissing, setHideMissing] = useState(false);
 
   // 輔助函數：從類別和項目名稱取得 LabItem
   const getItem = (category: keyof LabData | undefined, itemName: string): unknown => {
@@ -196,6 +293,38 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
     const item = getItem(category, itemName);
     return getAbnormalFlag(item);
   };
+
+  const hasVisibleMetrics = (
+    metrics: readonly LabMetricDescriptor[],
+    options?: { requireValue?: boolean },
+  ): boolean => {
+    return metrics.some(({ category, itemName }) => {
+      const value = getValue(category, itemName);
+      const abnormal = isAbnormal(category, itemName);
+
+      if (options?.requireValue && value === undefined) {
+        return false;
+      }
+      if (hideMissing && value === undefined) {
+        return false;
+      }
+      if (onlyAbnormal && !abnormal) {
+        return false;
+      }
+      return true;
+    });
+  };
+
+  const showElectrolytes = hasVisibleMetrics(ELECTROLYTES_METRICS);
+  const showHematology = hasVisibleMetrics(HEMATOLOGY_METRICS);
+  const showInflammatory = hasVisibleMetrics(INFLAMMATORY_METRICS);
+  const showAbg = hasVisibleMetrics(ABG_METRICS);
+  const showLiverRenal = hasVisibleMetrics(LIVER_RENAL_METRICS);
+  const showCardiac = Boolean(labData?.cardiac && Object.keys(labData.cardiac).length > 0) && hasVisibleMetrics(CARDIAC_METRICS, { requireValue: true });
+  const showLipid = Boolean(labData?.lipid && Object.keys(labData.lipid).length > 0) && hasVisibleMetrics(LIPID_METRICS, { requireValue: true });
+  const showOther = Boolean(labData?.other && Object.keys(labData.other).length > 0) && hasVisibleMetrics(OTHER_METRICS, { requireValue: true });
+  const showThyroidHormone = Boolean(((labData?.thyroid && Object.keys(labData.thyroid).length > 0) || (labData?.hormone && Object.keys(labData.hormone).length > 0)) && hasVisibleMetrics(THYROID_HORMONE_METRICS, { requireValue: true }));
+  const hasAnyVisibleSection = showElectrolytes || showHematology || showInflammatory || showAbg || showLiverRenal || showCardiac || showLipid || showOther || showThyroidHormone;
 
   const handleLabClick = async (labName: string, category: string, value: number | undefined, unit: string) => {
     if (value === undefined || !patientId) return;
@@ -246,9 +375,46 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
 
   return (
     <>
+      <LabDisplayFilterContext.Provider value={{ onlyAbnormal, hideMissing }}>
       <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white/80 px-3 py-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                onlyAbnormal
+                  ? 'border-[#7f265b] bg-[#7f265b] text-white'
+                  : 'border-slate-300 bg-white text-slate-700 hover:border-[#7f265b]/40'
+              }`}
+              aria-pressed={onlyAbnormal}
+              onClick={() => setOnlyAbnormal((prev) => !prev)}
+            >
+              只看異常
+            </button>
+            <button
+              type="button"
+              className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                hideMissing
+                  ? 'border-[#7f265b] bg-[#7f265b] text-white'
+                  : 'border-slate-300 bg-white text-slate-700 hover:border-[#7f265b]/40'
+              }`}
+              aria-pressed={hideMissing}
+              onClick={() => setHideMissing((prev) => !prev)}
+            >
+              隱藏無資料
+            </button>
+          </div>
+          <span className="text-xs text-slate-500">高效率篩選</span>
+        </div>
+
+        {!hasAnyVisibleSection && (
+          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">
+            目前篩選條件下沒有可顯示的檢驗項目
+          </div>
+        )}
+
         {/* 固定追蹤項目 - 電解質 */}
-        <div className="space-y-2">
+        <div className={showElectrolytes ? 'space-y-2' : 'hidden'}>
           <h3 className="text-xs font-semibold tracking-wide text-[#7f265b]">電解質與礦物質</h3>
           <div className={compactGridClass} style={compactGridStyle}>
             <LabItem
@@ -295,7 +461,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         </div>
 
         {/* 血液學檢查 */}
-        <div className="space-y-2">
+        <div className={showHematology ? 'space-y-2' : 'hidden'}>
           <h3 className="text-xs font-semibold tracking-wide text-[#7f265b]">血液學檢查</h3>
           <div className={compactGridClass} style={compactGridStyle}>
             <LabItem
@@ -334,7 +500,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         </div>
 
         {/* 生化與炎症指標 */}
-        <div className="space-y-2">
+        <div className={showInflammatory ? 'space-y-2' : 'hidden'}>
           <h3 className="text-xs font-semibold tracking-wide text-[#7f265b]">生化與炎症指標</h3>
           <div className={compactGridClass} style={compactGridStyle}>
             <LabItem
@@ -373,7 +539,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         </div>
 
         {/* 動脈血氣體分析 */}
-        <div className="space-y-2">
+        <div className={showAbg ? 'space-y-2' : 'hidden'}>
           <h3 className="text-xs font-semibold tracking-wide text-[#7f265b]">動脈血氣體分析</h3>
           <div className={compactGridClass} style={compactGridStyle}>
             <LabItem
@@ -420,7 +586,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         </div>
 
         {/* 肝腎功能 */}
-        <div className="space-y-2">
+        <div className={showLiverRenal ? 'space-y-2' : 'hidden'}>
           <h3 className="text-xs font-semibold tracking-wide text-[#7f265b]">肝腎功能</h3>
           <div className={compactGridClass} style={compactGridStyle}>
             <LabItem
@@ -491,7 +657,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         </div>
 
         {/* 選擇性追蹤項目 - 心臟標記 */}
-        {labData?.cardiac && Object.keys(labData.cardiac).length > 0 && (
+        {showCardiac && (
           <div className="space-y-2">
             <h3 className="text-xs font-semibold tracking-wide text-[#f59e0b]">心臟標記（選擇性追蹤）</h3>
             <div className={compactGridClass} style={compactGridStyle}>
@@ -547,7 +713,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         )}
 
         {/* 選擇性追蹤項目 - 血脂與代謝 */}
-        {labData?.lipid && Object.keys(labData.lipid).length > 0 && (
+        {showLipid && (
           <div className="space-y-2">
             <h3 className="text-xs font-semibold tracking-wide text-[#f59e0b]">血脂與代謝（選擇性追蹤）</h3>
             <div className={compactGridClass} style={compactGridStyle}>
@@ -627,7 +793,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         )}
 
         {/* 選擇性追蹤項目 - 其他 */}
-        {labData?.other && Object.keys(labData.other).length > 0 && (
+        {showOther && (
           <div className="space-y-2">
             <h3 className="text-xs font-semibold tracking-wide text-[#f59e0b]">其他檢驗（選擇性追蹤）</h3>
             <div className={compactGridClass} style={compactGridStyle}>
@@ -695,7 +861,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         )}
 
         {/* 選擇性追蹤項目 - 甲狀腺與荷爾蒙 */}
-        {((labData?.thyroid && Object.keys(labData.thyroid).length > 0) || (labData?.hormone && Object.keys(labData.hormone).length > 0)) && (
+        {showThyroidHormone && (
           <div className="space-y-2">
             <h3 className="text-xs font-semibold tracking-wide text-[#f59e0b]">甲狀腺與荷爾蒙（選擇性追蹤）</h3>
             <div className={compactGridClass} style={compactGridStyle}>
@@ -738,11 +904,14 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
           </div>
         )}
 
-        <div className="flex items-center gap-2 pt-0.5">
-          <div className="h-4 w-1 rounded-full bg-orange-500"></div>
-          <span className="text-[11px] text-muted-foreground">橘框=異常值 • 點擊=歷史趨勢</span>
-        </div>
+        {hasAnyVisibleSection && (
+          <div className="flex items-center gap-2 pt-0.5">
+            <div className="h-4 w-1 rounded-full bg-orange-500"></div>
+            <span className="text-[11px] text-muted-foreground">橘框=異常值 • 點擊=歷史趨勢</span>
+          </div>
+        )}
       </div>
+      </LabDisplayFilterContext.Provider>
 
       {selectedLab && (
         <LabTrendChart
