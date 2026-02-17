@@ -4,14 +4,6 @@ import { LabTrendChart, type LabTrendData } from './lab-trend-chart';
 import { TrendingUp } from 'lucide-react';
 import { getLabTrends } from '../lib/api/lab-data';
 
-const labReferenceRanges: Record<string, string> = {
-  Na: '136-145 mEq/L', K: '3.5-5.1 mEq/L', Ca: '8.6-10.2 mg/dL',
-  Mg: '1.8-2.4 mg/dL', WBC: '4.0-10.0 10\u00B3/\u03BCL', Hb: '12.0-16.0 g/dL',
-  PLT: '150-400 10\u00B3/\u03BCL', Alb: '3.5-5.0 g/dL', CRP: '< 5.0 mg/L',
-  BUN: '7-20 mg/dL', Scr: '0.6-1.2 mg/dL', eGFR: '> 90 mL/min',
-  Lactate: '0.5-2.0 mmol/L',
-};
-
 const labChineseNames: Record<string, string> = {
   Na: '\u9209', K: '\u9240', Ca: '\u9223', freeCa: '\u6E38\u96E2\u9223', Mg: '\u93C2',
   WBC: '\u767D\u8840\u7403', RBC: '\u7D05\u8840\u7403', Hb: '\u8840\u7D05\u7D20', PLT: '\u8840\u5C0F\u677F',
@@ -35,7 +27,6 @@ interface LabItemProps {
   unit: string;
   isAbnormal?: boolean;
   onClick?: () => void;
-  hasHistory?: boolean;
   isOptional?: boolean; // 選擇性追蹤項目使用粉紅色背景
 }
 
@@ -113,10 +104,10 @@ function getAbnormalFlag(input: unknown): boolean {
   return false;
 }
 
-function LabItem({ labName, label, value, unit, isAbnormal, onClick, hasHistory, isOptional }: LabItemProps) {
+function LabItem({ labName, label, value, unit, isAbnormal, onClick, isOptional }: LabItemProps) {
   const displayValue = toDisplayText(value);
   const hasValue = displayValue !== '-';
-  const canOpenTrend = hasValue && !!hasHistory && !!onClick;
+  const canOpenTrend = hasValue && !!onClick;
 
   return (
     <div
@@ -146,7 +137,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
     name: string;
     nameChinese: string;
     unit: string;
-    value: number;
     trendData: LabTrendData[];
   } | null>(null);
   const [trendLoading, setTrendLoading] = useState(false);
@@ -198,12 +188,17 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
           });
         }
       }
+      if (trendData.length === 0) {
+        trendData.push({
+          date: '目前',
+          value,
+        });
+      }
 
       setSelectedLab({
         name: labName,
         nameChinese: labChineseNames[labName] || labName,
         unit,
-        value,
         trendData,
       });
     } catch (err) {
@@ -212,8 +207,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         name: labName,
         nameChinese: labChineseNames[labName] || labName,
         unit,
-        value,
-        trendData: [],
+        trendData: [{ date: '目前', value }],
       });
     } finally {
       setTrendLoading(false);
@@ -233,7 +227,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               value={getValue('biochemistry', 'Na')}
               unit={getUnit('biochemistry', 'Na', 'mEq/L')}
               isAbnormal={isAbnormal('biochemistry', 'Na')}
-              hasHistory={!!patientId}
               onClick={() => handleLabClick('Na', 'biochemistry', getValue('biochemistry', 'Na'), getUnit('biochemistry', 'Na', 'mEq/L'))}
             />
             <LabItem
@@ -242,7 +235,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               value={getValue('biochemistry', 'K')}
               unit={getUnit('biochemistry', 'K', 'mEq/L')}
               isAbnormal={isAbnormal('biochemistry', 'K')}
-              hasHistory={!!patientId}
               onClick={() => handleLabClick('K', 'biochemistry', getValue('biochemistry', 'K'), getUnit('biochemistry', 'K', 'mEq/L'))}
             />
             <LabItem
@@ -282,7 +274,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               value={getValue('hematology', 'WBC')}
               unit={getUnit('hematology', 'WBC', '10³/μL')}
               isAbnormal={isAbnormal('hematology', 'WBC')}
-              hasHistory={!!patientId}
               onClick={() => handleLabClick('WBC', 'hematology', getValue('hematology', 'WBC'), getUnit('hematology', 'WBC', '10³/μL'))}
             />
             <LabItem
@@ -299,7 +290,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               value={getValue('hematology', 'Hb')}
               unit={getUnit('hematology', 'Hb', 'g/dL')}
               isAbnormal={isAbnormal('hematology', 'Hb')}
-              hasHistory={!!patientId}
               onClick={() => handleLabClick('Hb', 'hematology', getValue('hematology', 'Hb'), getUnit('hematology', 'Hb', 'g/dL'))}
             />
             <LabItem
@@ -308,7 +298,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               value={getValue('hematology', 'PLT')}
               unit={getUnit('hematology', 'PLT', '10³/μL')}
               isAbnormal={isAbnormal('hematology', 'PLT')}
-              hasHistory={!!patientId}
               onClick={() => handleLabClick('PLT', 'hematology', getValue('hematology', 'PLT'), getUnit('hematology', 'PLT', '10³/μL'))}
             />
           </div>
@@ -324,7 +313,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               value={getValue('biochemistry', 'Alb')}
               unit={getUnit('biochemistry', 'Alb', 'g/dL')}
               isAbnormal={isAbnormal('biochemistry', 'Alb')}
-              hasHistory={!!patientId}
               onClick={() => handleLabClick('Alb', 'biochemistry', getValue('biochemistry', 'Alb'), getUnit('biochemistry', 'Alb', 'g/dL'))}
             />
             <LabItem
@@ -333,7 +321,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               value={getValue('inflammatory', 'CRP')}
               unit={getUnit('inflammatory', 'CRP', 'mg/L')}
               isAbnormal={isAbnormal('inflammatory', 'CRP')}
-              hasHistory={!!patientId}
               onClick={() => handleLabClick('CRP', 'inflammatory', getValue('inflammatory', 'CRP'), getUnit('inflammatory', 'CRP', 'mg/L'))}
             />
             <LabItem
@@ -397,7 +384,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               value={getValue('bloodGas', 'Lactate')}
               unit={getUnit('bloodGas', 'Lactate', 'mmol/L')}
               isAbnormal={isAbnormal('bloodGas', 'Lactate')}
-              hasHistory={!!patientId}
               onClick={() => handleLabClick('Lactate', 'bloodGas', getValue('bloodGas', 'Lactate'), getUnit('bloodGas', 'Lactate', 'mmol/L'))}
             />
           </div>
@@ -445,7 +431,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               value={getValue('biochemistry', 'BUN')}
               unit={getUnit('biochemistry', 'BUN', 'mg/dL')}
               isAbnormal={isAbnormal('biochemistry', 'BUN')}
-              hasHistory={!!patientId}
               onClick={() => handleLabClick('BUN', 'biochemistry', getValue('biochemistry', 'BUN'), getUnit('biochemistry', 'BUN', 'mg/dL'))}
             />
             <LabItem
@@ -454,7 +439,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               value={getValue('biochemistry', 'Scr')}
               unit={getUnit('biochemistry', 'Scr', 'mg/dL')}
               isAbnormal={isAbnormal('biochemistry', 'Scr')}
-              hasHistory={!!patientId}
               onClick={() => handleLabClick('Scr', 'biochemistry', getValue('biochemistry', 'Scr'), getUnit('biochemistry', 'Scr', 'mg/dL'))}
             />
             <LabItem
@@ -463,7 +447,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               value={getValue('biochemistry', 'eGFR')}
               unit={getUnit('biochemistry', 'eGFR', 'mL/min')}
               isAbnormal={isAbnormal('biochemistry', 'eGFR')}
-              hasHistory={!!patientId}
               onClick={() => handleLabClick('eGFR', 'biochemistry', getValue('biochemistry', 'eGFR'), getUnit('biochemistry', 'eGFR', 'mL/min/1.73m²'))}
             />
             <LabItem
@@ -738,9 +721,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
           labName={selectedLab.name}
           labNameChinese={selectedLab.nameChinese}
           unit={selectedLab.unit}
-          currentValue={selectedLab.value}
           trendData={selectedLab.trendData}
-          referenceRange={labReferenceRanges[selectedLab.name] || 'N/A'}
         />
       )}
     </>

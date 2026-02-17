@@ -1,5 +1,4 @@
 import { MedicalRecords } from '../components/medical-records';
-import { PharmacistAdviceWidget } from '../components/pharmacist-advice-widget';
 import { LabTrendChart, LabTrendData } from '../components/lab-trend-chart';
 import { VitalSignCard } from '../components/vital-signs-card';
 import { useCallback, useEffect, useState } from 'react';
@@ -85,7 +84,8 @@ const defaultLabData: LabData = {
 
 // 檢驗項目中文名稱對照
 const LAB_CHINESE_NAMES_MAP: Record<string, string> = {
-  RespiratoryRate: '呼吸速率', Temperature: '體溫', BloodPressure: '血壓',
+  RespiratoryRate: '呼吸速率', Temperature: '體溫',
+  BloodPressureSystolic: '高血壓', BloodPressureDiastolic: '低血壓',
   HeartRate: '心率', SpO2: '血氧飽和度', EtCO2: '呼氣末二氧化碳',
   CVP: '中心靜脈壓', ICP: '顱內壓', FiO2: '吸入氧濃度',
   PEEP: '呼氣末正壓', TidalVolume: '潮氣量', VentRR: '呼吸器設定呼吸速率',
@@ -93,16 +93,6 @@ const LAB_CHINESE_NAMES_MAP: Record<string, string> = {
   Na: '鈉', K: '鉀', Cl: '氯', BUN: '血中尿素氮', Scr: '肌酐酸',
   WBC: '白血球', Hb: '血紅素', PLT: '血小板', CRP: 'C反應蛋白',
   pH: '酸鹼值', PCO2: '二氧化碳分壓', PO2: '氧分壓', Lactate: '乳酸'
-};
-
-// 檢驗項目所屬分類對照
-const LAB_CATEGORY_MAP: Record<string, string> = {
-  Na: 'biochemistry', K: 'biochemistry', Cl: 'biochemistry',
-  BUN: 'biochemistry', Scr: 'biochemistry', eGFR: 'biochemistry',
-  Alb: 'biochemistry', Ca: 'biochemistry', Mg: 'biochemistry',
-  WBC: 'hematology', Hb: 'hematology', PLT: 'hematology',
-  pH: 'bloodGas', PCO2: 'bloodGas', PO2: 'bloodGas', Lactate: 'bloodGas',
-  CRP: 'inflammatory',
 };
 
 // 擴展 Patient 類型以包含前端需要的額外欄位
@@ -303,6 +293,67 @@ function formatDisplayTimestamp(timestamp?: string | null): string {
   return parsed.toLocaleString('zh-TW');
 }
 
+type TrendSource = 'vital' | 'ventilator';
+
+function formatTrendAxisLabel(timestamp?: string | null): string {
+  if (!timestamp) return '-';
+  const parsed = new Date(timestamp);
+  if (Number.isNaN(parsed.getTime())) return '-';
+  return parsed.toLocaleString('zh-TW', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
+function getVitalTrendValue(record: VitalSigns, itemName: string): number | undefined {
+  switch (itemName) {
+    case 'RespiratoryRate':
+      return record.respiratoryRate ?? undefined;
+    case 'Temperature':
+      return record.temperature ?? undefined;
+    case 'BloodPressureSystolic':
+      return record.bloodPressure?.systolic ?? undefined;
+    case 'BloodPressureDiastolic':
+      return record.bloodPressure?.diastolic ?? undefined;
+    case 'HeartRate':
+      return record.heartRate ?? undefined;
+    case 'SpO2':
+      return record.spo2 ?? undefined;
+    case 'EtCO2':
+      return record.etco2 ?? undefined;
+    case 'CVP':
+      return record.cvp ?? undefined;
+    case 'ICP':
+      return record.icp ?? undefined;
+    default:
+      return undefined;
+  }
+}
+
+function getVentilatorTrendValue(record: VentilatorSettings, itemName: string): number | undefined {
+  switch (itemName) {
+    case 'FiO2':
+      return record.fio2;
+    case 'PEEP':
+      return record.peep;
+    case 'TidalVolume':
+      return record.tidalVolume;
+    case 'VentRR':
+      return record.respiratoryRate;
+    case 'PIP':
+      return record.pip ?? undefined;
+    case 'Plateau':
+      return record.plateau ?? undefined;
+    case 'Compliance':
+      return record.compliance ?? undefined;
+    default:
+      return undefined;
+  }
+}
+
 function normalizeSanCategory(raw: unknown): 'S' | 'A' | 'N' | null {
   if (typeof raw !== 'string') return null;
   const normalized = raw.trim().toUpperCase();
@@ -439,17 +490,17 @@ export function PatientDetailPage() {
   const [sessionTitle, setSessionTitle] = useState('');
   const [showSessionList, setShowSessionList] = useState(true);
 
-  // 生命徵象折線圖狀態
-  const [selectedVitalSign, setSelectedVitalSign] = useState<{
+  // 檢驗數據頁折線圖狀態（生命徵象 / 呼吸器）
+  const [selectedTrendMetric, setSelectedTrendMetric] = useState<{
     name: string;
     nameChinese: string;
     unit: string;
     value: number;
+    source: TrendSource;
   } | null>(null);
 
   // 趨勢資料狀態
   const [trendChartData, setTrendChartData] = useState<LabTrendData[]>([]);
-  const [trendReferenceRange, setTrendReferenceRange] = useState('');
 
   const loadPatientBundle = useCallback(async (mode: 'initial' | 'refresh') => {
     if (!id) return;
@@ -571,49 +622,61 @@ export function PatientDetailPage() {
     getRAGStatus().then(setRagStatus).catch(() => setRagStatus(null));
   }, []);
 
-  // 選取生命徵象/檢驗項目時，從後端 API 載入趨勢資料
+  // 檢驗數據頁：選取生命徵象/呼吸器項目時，從對應 API 載入趨勢資料
   useEffect(() => {
-    if (!selectedVitalSign || !id) {
+    if (!selectedTrendMetric || !id) {
       setTrendChartData([]);
-      setTrendReferenceRange('');
       return;
     }
 
     const fetchTrend = async () => {
       try {
-        const response = await labDataApi.getLabTrends(id, { days: 7 });
-        const labName = selectedVitalSign.name;
-        const category = LAB_CATEGORY_MAP[labName];
         const points: LabTrendData[] = [];
-        let refRange = '';
 
-        if (category) {
+        if (selectedTrendMetric.source === 'vital') {
+          const response = await vitalSignsApi.getVitalSignsTrends(id, { hours: 168 });
           for (const record of response.trends || []) {
-            const catData = (record as unknown as Record<string, unknown>)[category] as
-              | Record<string, { value: number; referenceRange?: string }>
-              | undefined;
-            if (catData && catData[labName]) {
+            const trendValue = getVitalTrendValue(record, selectedTrendMetric.name);
+            if (isFiniteNumber(trendValue)) {
               points.push({
-                date: record.timestamp?.split('T')[0] || '',
-                value: catData[labName].value,
+                date: formatTrendAxisLabel(record.timestamp),
+                value: trendValue,
               });
-              if (!refRange && catData[labName].referenceRange) {
-                refRange = catData[labName].referenceRange!;
-              }
+            }
+          }
+        } else if (selectedTrendMetric.source === 'ventilator') {
+          const response = await ventilatorApi.getVentilatorTrends(id, { hours: 168 });
+          for (const record of response.trends || []) {
+            const trendValue = getVentilatorTrendValue(record, selectedTrendMetric.name);
+            if (isFiniteNumber(trendValue)) {
+              points.push({
+                date: formatTrendAxisLabel(record.timestamp),
+                value: trendValue,
+              });
             }
           }
         }
 
+        if (points.length === 0) {
+          points.push({
+            date: '目前',
+            value: selectedTrendMetric.value,
+          });
+        }
+
         setTrendChartData(points);
-        setTrendReferenceRange(refRange);
       } catch {
-        setTrendChartData([]);
-        setTrendReferenceRange('');
+        setTrendChartData([
+          {
+            date: '目前',
+            value: selectedTrendMetric.value,
+          },
+        ]);
       }
     };
 
     fetchTrend();
-  }, [selectedVitalSign, id]);
+  }, [selectedTrendMetric, id]);
 
   // 發送留言板留言
   const handleSendBoardMessage = async () => {
@@ -878,15 +941,13 @@ export function PatientDetailPage() {
   const cvp = vitalSigns?.cvp;
   const icp = vitalSigns?.icp;
 
-  const bloodPressureDisplay =
-    isFiniteNumber(systolicBP) && isFiniteNumber(diastolicBP) ? `${systolicBP}/${diastolicBP}` : '-';
-
-  const handleVitalSignClick = (labName: string, value: number, unit: string) => {
-    setSelectedVitalSign({
+  const handleVitalSignClick = (labName: string, value: number, unit: string, source: TrendSource = 'vital') => {
+    setSelectedTrendMetric({
       name: labName,
       nameChinese: LAB_CHINESE_NAMES_MAP[labName] || labName,
       unit,
-      value
+      value,
+      source,
     });
   };
 
@@ -1645,7 +1706,7 @@ export function PatientDetailPage() {
                     value={respiratoryRate}
                     unit="rpm"
                     isAbnormal={isFiniteNumber(respiratoryRate) && (respiratoryRate > 25 || respiratoryRate < 12)}
-                    onClick={isFiniteNumber(respiratoryRate) ? () => handleVitalSignClick('RespiratoryRate', respiratoryRate, 'rpm') : undefined}
+                    onClick={isFiniteNumber(respiratoryRate) ? () => handleVitalSignClick('RespiratoryRate', respiratoryRate, 'rpm', 'vital') : undefined}
                   />
 
                   <VitalSignCard
@@ -1653,16 +1714,23 @@ export function PatientDetailPage() {
                     value={temperature}
                     unit="°C"
                     isAbnormal={isFiniteNumber(temperature) && (temperature > 37.5 || temperature < 36)}
-                    onClick={isFiniteNumber(temperature) ? () => handleVitalSignClick('Temperature', temperature, '°C') : undefined}
+                    onClick={isFiniteNumber(temperature) ? () => handleVitalSignClick('Temperature', temperature, '°C', 'vital') : undefined}
                   />
 
                   <VitalSignCard
-                    label="Blood Pressure"
+                    label="高血壓"
                     value={systolicBP}
                     unit="mmHg"
-                    secondaryValue={bloodPressureDisplay}
                     isAbnormal={isFiniteNumber(systolicBP) && (systolicBP > 140 || systolicBP < 90)}
-                    onClick={isFiniteNumber(systolicBP) ? () => handleVitalSignClick('BloodPressure', systolicBP, 'mmHg') : undefined}
+                    onClick={isFiniteNumber(systolicBP) ? () => handleVitalSignClick('BloodPressureSystolic', systolicBP, 'mmHg', 'vital') : undefined}
+                  />
+
+                  <VitalSignCard
+                    label="低血壓"
+                    value={diastolicBP}
+                    unit="mmHg"
+                    isAbnormal={isFiniteNumber(diastolicBP) && (diastolicBP > 90 || diastolicBP < 60)}
+                    onClick={isFiniteNumber(diastolicBP) ? () => handleVitalSignClick('BloodPressureDiastolic', diastolicBP, 'mmHg', 'vital') : undefined}
                   />
 
                   <VitalSignCard
@@ -1670,7 +1738,7 @@ export function PatientDetailPage() {
                     value={heartRate}
                     unit="bpm"
                     isAbnormal={isFiniteNumber(heartRate) && (heartRate > 100 || heartRate < 60)}
-                    onClick={isFiniteNumber(heartRate) ? () => handleVitalSignClick('HeartRate', heartRate, 'bpm') : undefined}
+                    onClick={isFiniteNumber(heartRate) ? () => handleVitalSignClick('HeartRate', heartRate, 'bpm', 'vital') : undefined}
                   />
 
                   <VitalSignCard
@@ -1678,7 +1746,7 @@ export function PatientDetailPage() {
                     value={spo2}
                     unit="%"
                     isAbnormal={isFiniteNumber(spo2) && spo2 < 94}
-                    onClick={isFiniteNumber(spo2) ? () => handleVitalSignClick('SpO2', spo2, '%') : undefined}
+                    onClick={isFiniteNumber(spo2) ? () => handleVitalSignClick('SpO2', spo2, '%', 'vital') : undefined}
                   />
 
                   <VitalSignCard
@@ -1686,7 +1754,7 @@ export function PatientDetailPage() {
                     value={etco2}
                     unit="mmHg"
                     isAbnormal={isFiniteNumber(etco2) && (etco2 > 45 || etco2 < 35)}
-                    onClick={isFiniteNumber(etco2) ? () => handleVitalSignClick('EtCO2', etco2, 'mmHg') : undefined}
+                    onClick={isFiniteNumber(etco2) ? () => handleVitalSignClick('EtCO2', etco2, 'mmHg', 'vital') : undefined}
                   />
 
                   <VitalSignCard
@@ -1694,7 +1762,7 @@ export function PatientDetailPage() {
                     value={cvp}
                     unit="mmHg"
                     isAbnormal={isFiniteNumber(cvp) && (cvp > 12 || cvp < 2)}
-                    onClick={isFiniteNumber(cvp) ? () => handleVitalSignClick('CVP', cvp, 'mmHg') : undefined}
+                    onClick={isFiniteNumber(cvp) ? () => handleVitalSignClick('CVP', cvp, 'mmHg', 'vital') : undefined}
                   />
 
                   <VitalSignCard
@@ -1702,7 +1770,7 @@ export function PatientDetailPage() {
                     value={icp}
                     unit="mmHg"
                     isAbnormal={isFiniteNumber(icp) && icp > 20}
-                    onClick={isFiniteNumber(icp) ? () => handleVitalSignClick('ICP', icp, 'mmHg') : undefined}
+                    onClick={isFiniteNumber(icp) ? () => handleVitalSignClick('ICP', icp, 'mmHg', 'vital') : undefined}
                   />
                 </div>
               )}
@@ -1736,27 +1804,27 @@ export function PatientDetailPage() {
                         value={ventilator.fio2}
                         unit="%"
                         isAbnormal={ventilator.fio2 > 60}
-                        onClick={() => handleVitalSignClick('FiO2', ventilator.fio2, '%')}
+                        onClick={() => handleVitalSignClick('FiO2', ventilator.fio2, '%', 'ventilator')}
                       />
                       <VitalSignCard
                         label="PEEP"
                         value={ventilator.peep}
                         unit="cmH₂O"
                         isAbnormal={ventilator.peep > 12}
-                        onClick={() => handleVitalSignClick('PEEP', ventilator.peep, 'cmH₂O')}
+                        onClick={() => handleVitalSignClick('PEEP', ventilator.peep, 'cmH₂O', 'ventilator')}
                       />
                       <VitalSignCard
                         label="Vt"
                         value={ventilator.tidalVolume}
                         unit="mL"
                         isAbnormal={ventilator.tidalVolume > 500}
-                        onClick={() => handleVitalSignClick('TidalVolume', ventilator.tidalVolume, 'mL')}
+                        onClick={() => handleVitalSignClick('TidalVolume', ventilator.tidalVolume, 'mL', 'ventilator')}
                       />
                       <VitalSignCard
                         label="RR (Set)"
                         value={ventilator.respiratoryRate}
                         unit="/min"
-                        onClick={() => handleVitalSignClick('VentRR', ventilator.respiratoryRate, '/min')}
+                        onClick={() => handleVitalSignClick('VentRR', ventilator.respiratoryRate, '/min', 'ventilator')}
                       />
                       {ventilator.pip && (
                         <VitalSignCard
@@ -1764,7 +1832,7 @@ export function PatientDetailPage() {
                           value={ventilator.pip}
                           unit="cmH₂O"
                           isAbnormal={ventilator.pip > 30}
-                          onClick={() => handleVitalSignClick('PIP', ventilator.pip!, 'cmH₂O')}
+                          onClick={() => handleVitalSignClick('PIP', ventilator.pip!, 'cmH₂O', 'ventilator')}
                         />
                       )}
                       {ventilator.plateau && (
@@ -1773,7 +1841,7 @@ export function PatientDetailPage() {
                           value={ventilator.plateau}
                           unit="cmH₂O"
                           isAbnormal={ventilator.plateau > 30}
-                          onClick={() => handleVitalSignClick('Plateau', ventilator.plateau!, 'cmH₂O')}
+                          onClick={() => handleVitalSignClick('Plateau', ventilator.plateau!, 'cmH₂O', 'ventilator')}
                         />
                       )}
                       {ventilator.compliance && (
@@ -1782,7 +1850,7 @@ export function PatientDetailPage() {
                           value={ventilator.compliance}
                           unit="mL/cmH₂O"
                           isAbnormal={ventilator.compliance < 30}
-                          onClick={() => handleVitalSignClick('Compliance', ventilator.compliance!, 'mL/cmH₂O')}
+                          onClick={() => handleVitalSignClick('Compliance', ventilator.compliance!, 'mL/cmH₂O', 'ventilator')}
                         />
                       )}
                     </div>
@@ -1973,24 +2041,6 @@ export function PatientDetailPage() {
             </>
           )}
 
-          {/* 藥師用藥建議（僅藥師可見） */}
-          {(user?.role === 'pharmacist' || user?.role === 'admin') && (
-            <PharmacistAdviceWidget 
-              patientId={patient.id} 
-              patientName={patient.name}
-              aiReadiness={aiReadiness}
-            />
-          )}
-
-          <div className="flex gap-2">
-            <Button variant="outline" className="border-[#7f265b] text-[#7f265b] hover:bg-[#7f265b] hover:text-white" onClick={() => navigate('/pharmacy/interactions')}>
-              交互作用查詢
-            </Button>
-            <Button variant="outline">
-              <Copy className="mr-2 h-4 w-4" />
-              複製到報告
-            </Button>
-          </div>
         </TabsContent>
 
         {/* 病歷摘要 */}
@@ -2004,17 +2054,15 @@ export function PatientDetailPage() {
         </TabsContent>
       </Tabs>
 
-      {/* 生命徵象折線圖對話框 */}
-      {selectedVitalSign && (
+      {/* 檢驗數據頁折線圖對話框 */}
+      {selectedTrendMetric && (
         <LabTrendChart
-          isOpen={!!selectedVitalSign}
-          onClose={() => setSelectedVitalSign(null)}
-          labName={selectedVitalSign.name}
-          labNameChinese={selectedVitalSign.nameChinese}
-          currentValue={selectedVitalSign.value}
-          unit={selectedVitalSign.unit}
+          isOpen={!!selectedTrendMetric}
+          onClose={() => setSelectedTrendMetric(null)}
+          labName={selectedTrendMetric.name}
+          labNameChinese={selectedTrendMetric.nameChinese}
+          unit={selectedTrendMetric.unit}
           trendData={trendChartData}
-          referenceRange={trendReferenceRange}
         />
       )}
     </div>

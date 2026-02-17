@@ -1,6 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Dot } from 'recharts';
-import { TrendingDown, TrendingUp } from 'lucide-react';
 
 export interface LabTrendData {
   date: string;
@@ -13,9 +12,7 @@ export interface LabTrendChartProps {
   labName: string;
   labNameChinese: string;
   unit: string;
-  currentValue: number;
   trendData: LabTrendData[];
-  referenceRange: string;
 }
 
 export function LabTrendChart({
@@ -24,32 +21,15 @@ export function LabTrendChart({
   labName,
   labNameChinese,
   unit,
-  currentValue,
-  trendData,
-  referenceRange
+  trendData
 }: LabTrendChartProps) {
-  // 計算變化量和變化率
-  const calculateChange = () => {
-    if (trendData.length < 2) {
-      return { changeValue: 0, changePercent: 0, isIncrease: false };
-    }
-    
-    const previousValue = trendData[trendData.length - 2].value;
-    const changeValue = currentValue - previousValue;
-    const changePercent = previousValue !== 0 ? ((changeValue / previousValue) * 100) : 0;
-    const isIncrease = changeValue > 0;
-    
-    return { changeValue, changePercent, isIncrease };
-  };
-
-  const { changeValue, changePercent, isIncrease } = calculateChange();
-
   // 計算 Y 軸範圍
   const values = trendData.map(d => d.value);
-  const minValue = Math.min(...values);
-  const maxValue = Math.max(...values);
-  const padding = (maxValue - minValue) * 0.2;
-  const yMin = Math.max(0, Math.floor(minValue - padding));
+  const minValue = values.length > 0 ? Math.min(...values) : 0;
+  const maxValue = values.length > 0 ? Math.max(...values) : 1;
+  const baseRange = Math.max(maxValue - minValue, 1);
+  const padding = baseRange * 0.2;
+  const yMin = Math.floor(minValue - padding);
   const yMax = Math.ceil(maxValue + padding);
 
   return (
@@ -64,56 +44,8 @@ export function LabTrendChart({
           </DialogDescription>
         </DialogHeader>
 
-        {/* 統計資訊區 */}
-        <div className="grid grid-cols-4 gap-4 mt-6">
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">目前數值</p>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-semibold">{currentValue}</span>
-              <span className="text-sm text-muted-foreground">{unit}</span>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">變化量</p>
-            <div className="flex items-center gap-2">
-              {changeValue !== 0 && (
-                isIncrease ? (
-                  <TrendingUp className="h-5 w-5 text-red-500" />
-                ) : (
-                  <TrendingDown className="h-5 w-5 text-green-500" />
-                )
-              )}
-              <span className={`text-3xl font-semibold ${
-                changeValue > 0 ? 'text-red-500' : changeValue < 0 ? 'text-green-500' : ''
-              }`}>
-                {changeValue > 0 ? '+' : ''}{changeValue.toFixed(1)}
-              </span>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">變化率</p>
-            <div className="flex items-baseline gap-2">
-              <span className={`text-3xl font-semibold ${
-                changePercent > 0 ? 'text-red-500' : changePercent < 0 ? 'text-green-500' : ''
-              }`}>
-                {changePercent > 0 ? '+' : ''}{changePercent.toFixed(1)}%
-              </span>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">參考範圍</p>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-semibold">{referenceRange}</span>
-              <span className="text-sm text-muted-foreground">{unit}</span>
-            </div>
-          </div>
-        </div>
-
         {/* 折線圖 */}
-        <div className="mt-8 h-[400px]">
+        <div className="mt-4 h-[400px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={trendData}
