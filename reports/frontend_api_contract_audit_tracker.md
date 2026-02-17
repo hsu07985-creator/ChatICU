@@ -3,7 +3,7 @@
 > 專案：前端驅動 API 契約盤點與整合修復  
 > 版本：v1.0  
 > 狀態：`Phase 0/1/2/3/4 完成，Phase 5 進行中（P0-A1/A2/A3/A4 + P0-B1/B2/B3 已實作）`  
-> 最後更新：2026-02-17 14:04 CST  
+> 最後更新：2026-02-17 14:06 CST  
 > 負責角色：Principal Frontend-Driven API Contract Auditor + Full-Stack Architect + QA Lead
 
 ---
@@ -173,6 +173,7 @@
 | 018 | 2026-02-17 13:56 | Assistant | 實作 P0-A3：`medications` administrations 改為 DB 真實讀寫（移除 synthetic/in-memory override），並更新 API 測試改以 seed `medication_administrations` 驗證 | 5 | `backend/app/routers/medications.py`, `backend/tests/test_api/test_medications_api.py` | 進入 P0-A4/P0-A5/P0-B5/P0-A6 |
 | 019 | 2026-02-17 14:01 | Assistant | 建立 GitHub 稽核追蹤 issues（umbrella + P0-A4/A5/A6 + P0-B5）以補齊工作項目追蹤鏈 | 5 | Issues: `#25`, `#26`, `#27`, `#28`, `#29` | 按 issue 順序實作與關閉 |
 | 020 | 2026-02-17 14:04 | Assistant | 實作 P0-A4：新增 `datamock/medicationAdministrations.json`，seed flow 併入 administrations，validator 補結構/關聯檢查，並通過 validator + API contract 測試 | 5 | `datamock/medicationAdministrations.json`, `backend/seeds/seed_data.py`, `backend/seeds/validate_datamock.py`, `docs/operations/json-offline-dev-runbook.md` | 進入 P0-A5 / P0-B5 / P0-A6 |
+| 021 | 2026-02-17 14:06 | Assistant | 推送 `P0-A4` commit 並完成 GitHub issue 回填：#26 附驗證摘要後關閉，#25 留下進度留言 | 5 | Commit `7bb599f`, issue comments `#25/#26` | 持續處理 #27 / #29 / #28 |
 
 ---
 
