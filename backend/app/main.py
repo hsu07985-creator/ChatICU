@@ -1,8 +1,10 @@
 import json
 import logging
 import logging.config
+import os
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -76,7 +78,36 @@ from app.routers import (
 async def lifespan(app: FastAPI):
     # Startup
     print(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    print(f"Data source mode: {settings.DATA_SOURCE_MODE}")
+    mode_source = "default"
+    mode_source_value = ""
+    env_mode = (os.getenv("DATA_SOURCE_MODE") or "").strip()
+    if env_mode:
+        mode_source = "env"
+        mode_source_value = env_mode
+    else:
+        env_file = settings.model_config.get("env_file")
+        env_path = Path(str(env_file)) if env_file else None
+        if env_path and env_path.exists():
+            for raw in env_path.read_text(encoding="utf-8").splitlines():
+                line = raw.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                if key.strip() == "DATA_SOURCE_MODE":
+                    mode_source = str(env_path)
+                    mode_source_value = value.strip().strip('"').strip("'")
+                    break
+    logger.info(
+        "[INTG][DB] Startup data source mode=%s source=%s source_value=%s",
+        settings.DATA_SOURCE_MODE,
+        mode_source,
+        mode_source_value or "n/a",
+    )
+    if mode_source == "default":
+        logger.warning(
+            "[INTG][DB] DATA_SOURCE_MODE not explicitly configured; using default=%s",
+            settings.DATA_SOURCE_MODE,
+        )
     if settings.DATA_SOURCE_MODE == "json":
         from seeds.validate_datamock import validate_datamock
 

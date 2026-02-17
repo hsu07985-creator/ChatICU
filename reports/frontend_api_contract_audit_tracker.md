@@ -2,8 +2,8 @@
 
 > 專案：前端驅動 API 契約盤點與整合修復  
 > 版本：v1.0  
-> 狀態：`Phase 0/1/2/3/4 完成，Phase 5 進行中（P0-B1/B2 已實作）`  
-> 最後更新：2026-02-17 13:24 CST  
+> 狀態：`Phase 0/1/2/3/4 完成，Phase 5 進行中（P0-B1/B2/B3 已實作）`  
+> 最後更新：2026-02-17 13:36 CST  
 > 負責角色：Principal Frontend-Driven API Contract Auditor + Full-Stack Architect + QA Lead
 
 ---
@@ -28,7 +28,7 @@
 | 2 | Contract Matrix | ✅ Completed | FE vs BE 契約比對 | 已完成，見 `reports/phase-2-contract-matrix.md` | 中 |
 | 3 | Field Lineage Matrix | ✅ Completed | 欄位來源分類完成 | 已完成，見 `reports/phase-3-field-lineage-matrix.md` | 中 |
 | 4 | Mock/Fake Risk Register | ✅ Completed | mock/fake 證據與替換計畫 | 已完成，見 `reports/phase-4-mock-fake-risk-register.md` | 中 |
-| 5 | Prioritized Fix Backlog | 🟡 In Progress | P0/P1/P2 修復藍圖 | 已完成：P0 backlog 拆解；P0-B1/B2 已實作（docker db default + offline override） | 中 |
+| 5 | Prioritized Fix Backlog | 🟡 In Progress | P0/P1/P2 修復藍圖 | 已完成：P0 backlog 拆解；P0-B1/B2/B3 已實作（docker db default + offline override + startup mode-source log） | 中 |
 | 6 | Verification Plan | ⬜ Not Started | 可執行驗證命令完整 | 未開始 | 中 |
 
 ---
@@ -167,6 +167,7 @@
 | 012 | 2026-02-17 13:06 | Assistant | 完成 Phase 4 mock/fake risk register（含風險分級、污染路徑、P0/P1/P2 替換計畫） | 4 | `reports/phase-4-mock-fake-risk-register.md` | 進入 Phase 5 prioritized fix backlog |
 | 013 | 2026-02-17 13:11 | Assistant | 完成 Phase 5 P0 backlog 拆解（administrations 真實持久化 + docker 預設 mode 安全化）並定義可實作工單/依賴/驗收 | 5 | `reports/phase-5-prioritized-fix-backlog.md` | 開始實作 P0-A1 / P0-B1 |
 | 014 | 2026-02-17 13:24 | Assistant | 實作 P0-B1/P0-B2：docker default 改為 db、新增 offline override，並以 `docker compose config` 驗證結果（db/json） | 5 | `backend/docker-compose.yml`, `backend/docker-compose.offline.yml`, `README.md`, `docs/operations/json-offline-dev-runbook.md` | 進入 P0-B3 或開始 P0-A1 |
+| 015 | 2026-02-17 13:36 | Assistant | 實作 P0-B3：後端啟動時記錄 DATA_SOURCE_MODE 與來源（env/.env/default），補強 json mode guardrail 可觀測性 | 5 | `backend/app/main.py` | 進入 P0-B5 或開始 P0-A1 |
 
 ---
 
@@ -195,8 +196,8 @@
 
 ## 8) Final Gate（本檔狀態）
 
-目前結論：`Phase 5 In Progress / P0-B1+B2 implemented`  
-原因：Phase 0~4 已完成；Phase 5 已完成 P0 backlog 拆解，且已落地 docker mode 安全化的首輪實作（db default + explicit offline override）。  
+目前結論：`Phase 5 In Progress / P0-B1+B2+B3 implemented`  
+原因：Phase 0~4 已完成；Phase 5 已完成 P0 backlog 拆解，且已落地 docker mode 安全化實作（db default + explicit offline override + startup mode source log）。  
 證據包：
 - `reports/phase-2-contract-matrix.md`
 - `reports/phase-3-field-lineage-matrix.md`
@@ -204,6 +205,7 @@
 - `reports/phase-5-prioritized-fix-backlog.md`
 - `backend/docker-compose.yml`
 - `backend/docker-compose.offline.yml`
+- `backend/app/main.py`
 - `reports/operations/manual-api-phase2-medications-20260217T043002Z/`
 - `reports/operations/manual-api-phase2-vitals-history-20260217T044226Z-with-data/`  
-下一步：開始實作 P0-A1（administrations DB model + migration），並補 P0-B3（mode source guardrail log）。
+下一步：開始實作 P0-A1（administrations DB model + migration），並補 P0-B5（docker mode regression evidence）。

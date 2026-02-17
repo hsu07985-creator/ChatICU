@@ -21,7 +21,7 @@ Covered Phase-4 risks:
 | Epic | Priority | Goal | Risk Covered | Status |
 |---|---|---|---|---|
 | P0-A | P0 | Medication administrations become DB-persisted, queryable, auditable | R-MF-002 | Ready for implementation |
-| P0-B | P0 | Docker default runtime uses `DATA_SOURCE_MODE=db`; json mode explicit only | R-MF-001 | In progress (B1/B2 implemented) |
+| P0-B | P0 | Docker default runtime uses `DATA_SOURCE_MODE=db`; json mode explicit only | R-MF-001 | In progress (B1/B2/B3 implemented) |
 
 ## 3) Epic P0-A: Administrations 真實持久化
 
@@ -85,6 +85,7 @@ Recommended minimum columns for `medication_administrations`:
 P0-B implementation progress (this round):
 - [x] P0-B1 completed: `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/docker-compose.yml` default changed to `DATA_SOURCE_MODE=${DATA_SOURCE_MODE:-db}`.
 - [x] P0-B2 completed: added `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/docker-compose.offline.yml` for explicit offline opt-in.
+- [x] P0-B3 completed: startup now logs `DATA_SOURCE_MODE` with source (`env` / `.env path` / `default`) in `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/app/main.py`.
 - [x] P0-B4 partially completed: docker usage docs updated in `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/README.md` and `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/docs/operations/json-offline-dev-runbook.md` with `-p` isolation guidance.
 - [x] Compose static validation done: `docker compose ... config` confirms db default and json override behavior.
 
@@ -118,4 +119,4 @@ This backlog slice is complete when:
 
 ## 8) Current Gate
 
-- `Phase 5`: In progress (P0-B1/P0-B2 implemented and validated; P0-A not started, P0-B3/P0-B5 pending).
+- `Phase 5`: In progress (P0-B1/P0-B2/P0-B3 implemented; P0-A not started, P0-B5 pending).
