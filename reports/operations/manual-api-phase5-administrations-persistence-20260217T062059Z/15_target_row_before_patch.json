@@ -1,0 +1,12 @@
+{
+  "id": "adm_med_001_02",
+  "medicationId": "med_001",
+  "patientId": "pat_001",
+  "scheduledTime": "2025-10-17T12:00:00Z",
+  "administeredTime": null,
+  "status": "scheduled",
+  "dose": "2 mg",
+  "route": "IV",
+  "administeredBy": null,
+  "notes": null
+}

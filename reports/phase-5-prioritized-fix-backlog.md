@@ -20,8 +20,8 @@ Covered Phase-4 risks:
 
 | Epic | Priority | Goal | Risk Covered | Status |
 |---|---|---|---|---|
-| P0-A | P0 | Medication administrations become DB-persisted, queryable, auditable | R-MF-002 | In progress (A1/A2/A3/A4/A5 implemented) |
-| P0-B | P0 | Docker default runtime uses `DATA_SOURCE_MODE=db`; json mode explicit only | R-MF-001 | In progress (B1/B2/B3 implemented) |
+| P0-A | P0 | Medication administrations become DB-persisted, queryable, auditable | R-MF-002 | Completed (A1/A2/A3/A4/A5/A6 implemented) |
+| P0-B | P0 | Docker default runtime uses `DATA_SOURCE_MODE=db`; json mode explicit only | R-MF-001 | Completed (B1/B2/B3/B4/B5 implemented) |
 
 ## 3) Epic P0-A: Administrations 真實持久化
 
@@ -52,7 +52,7 @@ P0-A implementation progress (this round):
 - [x] P0-A3 completed: `medications` router now reads/writes `medication_administrations` table directly (removed synthetic schedule and in-memory overrides).
 - [x] P0-A4 completed: added `datamock/medicationAdministrations.json`, wired seed ingestion in `backend/seeds/seed_data.py`, and added validator structure/reference checks in `backend/seeds/validate_datamock.py`.
 - [x] P0-A5 completed: added persistence-focused tests in `backend/tests/test_api/test_medications_api.py` (DB query verification and `startDate/endDate` subset assertions).
-- [ ] P0-A6 pending: manual API evidence package.
+- [x] P0-A6 completed: manual API persistence evidence archived at `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/reports/operations/manual-api-phase5-administrations-persistence-20260217T062059Z/`.
 
 ### 3.3 Data model contract (target)
 
@@ -93,8 +93,9 @@ P0-B implementation progress (this round):
 - [x] P0-B1 completed: `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/docker-compose.yml` default changed to `DATA_SOURCE_MODE=${DATA_SOURCE_MODE:-db}`.
 - [x] P0-B2 completed: added `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/docker-compose.offline.yml` for explicit offline opt-in.
 - [x] P0-B3 completed: startup now logs `DATA_SOURCE_MODE` with source (`env` / `.env path` / `default`) in `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/app/main.py`.
-- [x] P0-B4 partially completed: docker usage docs updated in `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/README.md` and `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/docs/operations/json-offline-dev-runbook.md` with `-p` isolation guidance.
+- [x] P0-B4 completed: docker usage docs now clearly separate default db mode and explicit offline override in `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/README.md` and `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/docs/operations/json-offline-dev-runbook.md`.
 - [x] Compose static validation done: `docker compose ... config` confirms db default and json override behavior.
+- [x] P0-B5 completed: manual docker regression evidence archived at `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/reports/operations/manual-api-phase5-docker-mode-20260217T061536Z/`.
 
 ## 5) Execution Order (recommended)
 
@@ -126,12 +127,12 @@ This backlog slice is complete when:
 
 ## 8) Current Gate
 
-- `Phase 5`: In progress (P0-A1/A2/A3/A4/A5 and P0-B1/B2/B3 implemented; P0-A6 and P0-B5 pending).
+- `Phase 5`: Completed for this P0 slice (P0-A1~A6 and P0-B1~B5 implemented with evidence).
 
 ## 9) Next Steps (A2~A6 + B5)
 
-1. `P0-B5`: produce docker mode regression evidence bundle (`db` default vs `json` override).
-2. `P0-A6`: manual end-to-end persistence evidence (patch, restart, re-query).
+1. Move to `Phase 6`: consolidate final verification plan and release checklist.
+2. Keep issue registry synchronized with final close states and commit links.
 
 ## 10) GitHub Issue Traceability
 
@@ -141,3 +142,5 @@ This backlog slice is complete when:
 - P0-A6: [#28](https://github.com/ZymoMed/ChatICU_YU/issues/28) (Open)
 - P0-B5: [#29](https://github.com/ZymoMed/ChatICU_YU/issues/29) (Open)
 - Registry snapshot: `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/reports/operations/github-issues-phase5-20260217T1404Z.md`
+- Docker regression evidence: `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/reports/operations/manual-api-phase5-docker-mode-20260217T061536Z/`
+- Administrations persistence evidence: `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/reports/operations/manual-api-phase5-administrations-persistence-20260217T062059Z/`

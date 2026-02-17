@@ -1,0 +1,2 @@
+ Container chaticu-a6-db-api-1 Restarting 
+ Container chaticu-a6-db-api-1 Started 

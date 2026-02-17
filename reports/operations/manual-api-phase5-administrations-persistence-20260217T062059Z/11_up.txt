@@ -1,0 +1,92 @@
+ Image chaticu-a6-db-api Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 558B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.22kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python:3.12-slim
+#3 DONE 1.4s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [builder 1/5] FROM docker.io/library/python:3.12-slim@sha256:9e01bf1ae5db7649a236da7be1e94ffbbbdd7a93f867dd0d8d5720d9e1f89fab
+#5 resolve docker.io/library/python:3.12-slim@sha256:9e01bf1ae5db7649a236da7be1e94ffbbbdd7a93f867dd0d8d5720d9e1f89fab done
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 12.41kB 0.0s done
+#6 DONE 0.0s
+
+#7 [runtime 6/8] COPY alembic.ini .
+#7 CACHED
+
+#8 [builder 4/5] COPY requirements.lock .
+#8 CACHED
+
+#9 [builder 3/5] RUN apt-get update && apt-get install -y --no-install-recommends     gcc     && rm -rf /var/lib/apt/lists/*
+#9 CACHED
+
+#10 [runtime 3/8] COPY --from=builder /install /usr/local
+#10 CACHED
+
+#11 [builder 2/5] WORKDIR /build
+#11 CACHED
+
+#12 [runtime 7/8] COPY seeds/ seeds/
+#12 CACHED
+
+#13 [builder 5/5] RUN pip install --no-cache-dir --prefix=/install -r requirements.lock
+#13 CACHED
+
+#14 [runtime 2/8] WORKDIR /code
+#14 CACHED
+
+#15 [runtime 5/8] COPY alembic/ alembic/
+#15 CACHED
+
+#16 [runtime 4/8] COPY app/ app/
+#16 CACHED
+
+#17 [runtime 8/8] RUN groupadd -r chaticu && useradd -r -g chaticu chaticu
+#17 CACHED
+
+#18 exporting to image
+#18 exporting layers done
+#18 exporting manifest sha256:ff139fe74be4e5e759974f1b174de350dff67e82f7f98f7bf312ae4a3dcba883 done
+#18 exporting config sha256:5d58831b68de214d78231713a4beb55028f5703935e16555d8e484e397819df3 done
+#18 exporting attestation manifest sha256:4f27e883beba81d4a80338db928454a29f9963c89aabe25c0012f2f17e55e816 done
+#18 exporting manifest list sha256:290da9a54d4ce1023a3463d686eccb6611f3890ae21d3363bdcd28f279bcff31 done
+#18 naming to docker.io/library/chaticu-a6-db-api:latest done
+#18 unpacking to docker.io/library/chaticu-a6-db-api:latest done
+#18 DONE 0.0s
+
+#19 resolving provenance for metadata file
+#19 DONE 0.0s
+ Image chaticu-a6-db-api Built 
+ Network chaticu-a6-db_default Creating 
+ Network chaticu-a6-db_default Created 
+ Volume chaticu-a6-db_postgres_data Creating 
+ Volume chaticu-a6-db_postgres_data Created 
+ Volume chaticu-a6-db_redis_data Creating 
+ Volume chaticu-a6-db_redis_data Created 
+ Container chaticu-a6-db-db-1 Creating 
+ Container chaticu-a6-db-redis-1 Creating 
+ Container chaticu-a6-db-redis-1 Created 
+ Container chaticu-a6-db-db-1 Created 
+ Container chaticu-a6-db-api-1 Creating 
+ Container chaticu-a6-db-api-1 Created 
+ Container chaticu-a6-db-db-1 Starting 
+ Container chaticu-a6-db-redis-1 Starting 
+ Container chaticu-a6-db-db-1 Started 
+ Container chaticu-a6-db-redis-1 Started 
+ Container chaticu-a6-db-db-1 Waiting 
+ Container chaticu-a6-db-redis-1 Waiting 
+ Container chaticu-a6-db-db-1 Healthy 
+ Container chaticu-a6-db-redis-1 Healthy 
+ Container chaticu-a6-db-api-1 Starting 
+ Container chaticu-a6-db-api-1 Started 

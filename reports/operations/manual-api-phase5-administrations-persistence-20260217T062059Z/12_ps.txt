@@ -1,0 +1,4 @@
+NAME                    IMAGE                COMMAND                  SERVICE   CREATED         STATUS                                     PORTS
+chaticu-a6-db-api-1     chaticu-a6-db-api    "sh -c 'alembic upgr…"   api       6 seconds ago   Up Less than a second (health: starting)   0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp, 0.0.0.0:18000->8000/tcp, [::]:18000->8000/tcp
+chaticu-a6-db-db-1      postgres:16-alpine   "docker-entrypoint.s…"   db        6 seconds ago   Up 5 seconds (healthy)                     0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp, 0.0.0.0:15432->5432/tcp, [::]:15432->5432/tcp
+chaticu-a6-db-redis-1   redis:7-alpine       "docker-entrypoint.s…"   redis     6 seconds ago   Up 5 seconds (healthy)                     0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp, 0.0.0.0:16379->6379/tcp, [::]:16379->6379/tcp

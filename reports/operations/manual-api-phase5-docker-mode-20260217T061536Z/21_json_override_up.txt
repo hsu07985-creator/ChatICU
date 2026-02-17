@@ -1,0 +1,92 @@
+ Image chaticu-b5-json-api Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 562B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.22kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/python:3.12-slim
+#3 DONE 1.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [builder 1/5] FROM docker.io/library/python:3.12-slim@sha256:9e01bf1ae5db7649a236da7be1e94ffbbbdd7a93f867dd0d8d5720d9e1f89fab
+#5 resolve docker.io/library/python:3.12-slim@sha256:9e01bf1ae5db7649a236da7be1e94ffbbbdd7a93f867dd0d8d5720d9e1f89fab done
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 12.41kB 0.0s done
+#6 DONE 0.0s
+
+#7 [runtime 5/8] COPY alembic/ alembic/
+#7 CACHED
+
+#8 [runtime 7/8] COPY seeds/ seeds/
+#8 CACHED
+
+#9 [runtime 3/8] COPY --from=builder /install /usr/local
+#9 CACHED
+
+#10 [builder 3/5] RUN apt-get update && apt-get install -y --no-install-recommends     gcc     && rm -rf /var/lib/apt/lists/*
+#10 CACHED
+
+#11 [runtime 6/8] COPY alembic.ini .
+#11 CACHED
+
+#12 [builder 5/5] RUN pip install --no-cache-dir --prefix=/install -r requirements.lock
+#12 CACHED
+
+#13 [builder 4/5] COPY requirements.lock .
+#13 CACHED
+
+#14 [runtime 2/8] WORKDIR /code
+#14 CACHED
+
+#15 [builder 2/5] WORKDIR /build
+#15 CACHED
+
+#16 [runtime 4/8] COPY app/ app/
+#16 CACHED
+
+#17 [runtime 8/8] RUN groupadd -r chaticu && useradd -r -g chaticu chaticu
+#17 CACHED
+
+#18 exporting to image
+#18 exporting layers done
+#18 exporting manifest sha256:8bfb66fd7afc4b0077615f56b91cb6fe20abafd785582080f43aaea13fbdc39b done
+#18 exporting config sha256:8da3302c73b4d3ad7865f61912c53097b00243caddec2364ed43c8132c9a982e done
+#18 exporting attestation manifest sha256:0bb049e851eebbafabea67000922c6524507d492389e92228e547a4ab103de7c done
+#18 exporting manifest list sha256:abe215cfb2120fce83eb2b3dd306537057484ef161bd0b36c61205220da01cbd done
+#18 naming to docker.io/library/chaticu-b5-json-api:latest done
+#18 unpacking to docker.io/library/chaticu-b5-json-api:latest done
+#18 DONE 0.0s
+
+#19 resolving provenance for metadata file
+#19 DONE 0.0s
+ Image chaticu-b5-json-api Built 
+ Network chaticu-b5-json_default Creating 
+ Network chaticu-b5-json_default Created 
+ Volume chaticu-b5-json_redis_data Creating 
+ Volume chaticu-b5-json_redis_data Created 
+ Volume chaticu-b5-json_postgres_data Creating 
+ Volume chaticu-b5-json_postgres_data Created 
+ Container chaticu-b5-json-redis-1 Creating 
+ Container chaticu-b5-json-db-1 Creating 
+ Container chaticu-b5-json-redis-1 Created 
+ Container chaticu-b5-json-db-1 Created 
+ Container chaticu-b5-json-api-1 Creating 
+ Container chaticu-b5-json-api-1 Created 
+ Container chaticu-b5-json-db-1 Starting 
+ Container chaticu-b5-json-redis-1 Starting 
+ Container chaticu-b5-json-db-1 Started 
+ Container chaticu-b5-json-redis-1 Started 
+ Container chaticu-b5-json-db-1 Waiting 
+ Container chaticu-b5-json-redis-1 Waiting 
+ Container chaticu-b5-json-db-1 Healthy 
+ Container chaticu-b5-json-redis-1 Healthy 
+ Container chaticu-b5-json-api-1 Starting 
+ Container chaticu-b5-json-api-1 Started 

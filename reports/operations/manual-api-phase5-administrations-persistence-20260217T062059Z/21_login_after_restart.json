@@ -1,0 +1,16 @@
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "usr_002",
+      "name": "李穎灝",
+      "role": "doctor",
+      "unit": "加護病房一",
+      "email": "doctor@hospital.com"
+    },
+    "token": "[REDACTED]",
+    "refreshToken": "[REDACTED]",
+    "expiresIn": 3600,
+    "passwordExpired": false
+  }
+}

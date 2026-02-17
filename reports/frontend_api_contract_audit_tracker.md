@@ -2,8 +2,8 @@
 
 > 專案：前端驅動 API 契約盤點與整合修復  
 > 版本：v1.0  
-> 狀態：`Phase 0/1/2/3/4 完成，Phase 5 進行中（P0-A1/A2/A3/A4/A5 + P0-B1/B2/B3 已實作）`  
-> 最後更新：2026-02-17 14:13 CST  
+> 狀態：`Phase 0/1/2/3/4 完成，Phase 5（P0 slice）已完成（P0-A1~A6 + P0-B1~B5）`  
+> 最後更新：2026-02-17 14:23 CST  
 > 負責角色：Principal Frontend-Driven API Contract Auditor + Full-Stack Architect + QA Lead
 
 ---
@@ -28,7 +28,7 @@
 | 2 | Contract Matrix | ✅ Completed | FE vs BE 契約比對 | 已完成，見 `reports/phase-2-contract-matrix.md` | 中 |
 | 3 | Field Lineage Matrix | ✅ Completed | 欄位來源分類完成 | 已完成，見 `reports/phase-3-field-lineage-matrix.md` | 中 |
 | 4 | Mock/Fake Risk Register | ✅ Completed | mock/fake 證據與替換計畫 | 已完成，見 `reports/phase-4-mock-fake-risk-register.md` | 中 |
-| 5 | Prioritized Fix Backlog | 🟡 In Progress | P0/P1/P2 修復藍圖 | 已完成：P0 backlog 拆解；P0-A1/A2/A3/A4/A5 + P0-B1/B2/B3 已實作 | 中 |
+| 5 | Prioritized Fix Backlog | ✅ Completed (P0 slice) | P0/P1/P2 修復藍圖 | 已完成：P0-A1~A6 + P0-B1~B5，含手動 API 證據包 | 低 |
 | 6 | Verification Plan | ⬜ Not Started | 可執行驗證命令完整 | 未開始 | 中 |
 
 ---
@@ -177,6 +177,8 @@
 | 022 | 2026-02-17 14:10 | Assistant | 完成 GitHub 對外呈現英文化與專業化：重寫 README、補齊 CONTRIBUTING/CODE_OF_CONDUCT、Issue/PR templates，並更新 repo description/topics | 5 | `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `.github/ISSUE_TEMPLATE/*`, `.github/pull_request_template.md` | 開始 P0-A5 |
 | 023 | 2026-02-17 14:11 | Assistant | 完成 P0-A5：新增 administrations persistence-focused 測試（DB query persistence + date-window subset）並通過 API 測試 | 5 | `backend/tests/test_api/test_medications_api.py` | 關閉 #27，進入 P0-B5 / P0-A6 |
 | 024 | 2026-02-17 14:13 | Assistant | 推送 `P0-A5` commit 並完成 issue 回填：#27 附驗證摘要後關閉，#25 更新剩餘項目 | 5 | Commit `5ad82a9`, issue comments `#25/#27` | 進入 #29（P0-B5）與 #28（P0-A6） |
+| 025 | 2026-02-17 14:19 | Assistant | 完成 P0-B5：docker default db vs offline json 實跑 API 驗證，確認 `dataFreshness.mode` 分別為 `db/json`，證據已歸檔 | 5 | `reports/operations/manual-api-phase5-docker-mode-20260217T061536Z/` | 進入 P0-A6 |
+| 026 | 2026-02-17 14:22 | Assistant | 完成 P0-A6：PATCH administrations 後重啟 API 再查詢，狀態/備註保持一致，確認真實持久化 | 5 | `reports/operations/manual-api-phase5-administrations-persistence-20260217T062059Z/` | 同步 tracker/backlog 與 issue closure |
 
 ---
 
@@ -205,8 +207,8 @@
 
 ## 8) Final Gate（本檔狀態）
 
-目前結論：`Phase 5 In Progress / P0-A1+A2+A3+A4+A5 + P0-B1+B2+B3 implemented`  
-原因：Phase 0~4 已完成；Phase 5 已完成 docker mode 安全化與 administrations 持久化前五步（migration/model + API schema/response contract + router DB 真實讀寫 + seed/validator 對齊 + persistence tests）。  
+目前結論：`Phase 5 Completed (P0 slice) / P0-A1~A6 + P0-B1~B5 implemented with evidence`  
+原因：Phase 0~4 已完成；Phase 5 目標項（administrations 真實持久化與 docker mode regression）已全數落地並完成手動 API 證據驗證。  
 證據包：
 - `reports/phase-2-contract-matrix.md`
 - `reports/phase-3-field-lineage-matrix.md`
@@ -224,6 +226,8 @@
 - `backend/seeds/validate_datamock.py`
 - `docs/operations/json-offline-dev-runbook.md`
 - `reports/operations/github-issues-phase5-20260217T1404Z.md`
+- `reports/operations/manual-api-phase5-docker-mode-20260217T061536Z/`
+- `reports/operations/manual-api-phase5-administrations-persistence-20260217T062059Z/`
 - `CONTRIBUTING.md`
 - `CODE_OF_CONDUCT.md`
 - `.github/pull_request_template.md`
@@ -233,4 +237,4 @@
 - `.github/ISSUE_TEMPLATE/config.yml`
 - `reports/operations/manual-api-phase2-medications-20260217T043002Z/`
 - `reports/operations/manual-api-phase2-vitals-history-20260217T044226Z-with-data/`  
-下一步：實作 P0-B5（docker mode regression evidence）與 P0-A6（手動 API 持久化證據）；並依序關閉 `#29/#28`。
+下一步：進入 Phase 6（verification plan），並完成 #29/#28/#25 issue closure 與 commit 連結回填。
