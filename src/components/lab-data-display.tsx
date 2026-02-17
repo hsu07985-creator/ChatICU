@@ -30,7 +30,7 @@ interface LabItemProps {
   isOptional?: boolean; // 選擇性追蹤項目使用粉紅色背景
 }
 
-const compactGridClass = 'grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6';
+const compactGridClass = 'grid gap-1.5 [grid-template-columns:repeat(auto-fill,minmax(112px,1fr))] sm:[grid-template-columns:repeat(auto-fill,minmax(120px,1fr))]';
 
 function toFiniteNumber(input: unknown): number | undefined {
   if (typeof input === 'number' && Number.isFinite(input)) {
@@ -113,7 +113,7 @@ function LabItem({ labName, label, value, unit, isAbnormal, onClick, isOptional 
 
   return (
     <div
-      className={`group relative flex aspect-square flex-col rounded-xl border px-2.5 py-2 ${
+      className={`group relative flex aspect-square flex-col rounded-xl border px-2 py-1.5 ${
         isOptional ? 'border-amber-200/80 bg-gradient-to-br from-amber-50 to-orange-50/70' : 'border-slate-200 bg-gradient-to-br from-white to-slate-50'
       } ${
         isAbnormal ? 'border-orange-400 bg-gradient-to-br from-orange-50 to-rose-50/70' : ''
@@ -123,15 +123,15 @@ function LabItem({ labName, label, value, unit, isAbnormal, onClick, isOptional 
       onClick={canOpenTrend ? onClick : undefined}
     >
       <div className="flex items-start justify-between gap-1">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+        <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
         {canOpenTrend && <TrendingUp className="h-3 w-3 shrink-0 text-[#7f265b] opacity-75" />}
       </div>
       <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <span className={`text-2xl font-semibold leading-none tracking-tight ${isAbnormal ? 'text-orange-700' : 'text-slate-900'}`}>
+        <span className={`text-xl font-semibold leading-none tracking-tight ${isAbnormal ? 'text-orange-700' : 'text-slate-900'}`}>
           {displayValue}
         </span>
         {unit && (
-          <span className="mt-1 max-w-full break-words text-[10px] leading-tight text-slate-500">
+          <span className="mt-0.5 max-w-full break-words text-[9px] leading-tight text-slate-500">
             {unit}
           </span>
         )}

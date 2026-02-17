@@ -1700,7 +1700,7 @@ export function PatientDetailPage() {
                   <LoadingSpinner size="md" text="載入生命徵象..." />
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                <div className="grid gap-1.5 [grid-template-columns:repeat(auto-fill,minmax(112px,1fr))] sm:[grid-template-columns:repeat(auto-fill,minmax(120px,1fr))]">
                   <VitalSignCard
                     label="Respiratory Rate"
                     value={respiratoryRate}
@@ -1798,7 +1798,7 @@ export function PatientDetailPage() {
                   </div>
                 ) : ventilator ? (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                    <div className="grid gap-1.5 [grid-template-columns:repeat(auto-fill,minmax(112px,1fr))] sm:[grid-template-columns:repeat(auto-fill,minmax(120px,1fr))]">
                       <VitalSignCard
                         label="FiO₂"
                         value={ventilator.fio2}
