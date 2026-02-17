@@ -502,13 +502,13 @@ export function PatientDetailPage() {
   // 趨勢資料狀態
   const [trendChartData, setTrendChartData] = useState<LabTrendData[]>([]);
   const metricGridStyle = {
-    gridTemplateColumns: 'repeat(auto-fit, minmax(var(--metric-card-size), var(--metric-card-size)))',
-    gap: 'var(--metric-card-gap)',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(var(--metric-card-size, 124px), var(--metric-card-size, 124px)))',
+    gap: 'var(--metric-card-gap, 10px)',
     justifyContent: 'start',
   } as const;
   const vitalMetricGridStyle = {
     ...metricGridStyle,
-    maxWidth: 'calc(var(--metric-card-size) * 9 + var(--metric-card-gap) * 8)',
+    maxWidth: 'calc(9 * var(--metric-card-size, 124px) + 8 * var(--metric-card-gap, 10px))',
     marginInline: 'auto',
   } as const;
 

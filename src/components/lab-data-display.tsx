@@ -32,8 +32,8 @@ interface LabItemProps {
 
 const compactGridClass = 'grid';
 const compactGridStyle = {
-  gridTemplateColumns: 'repeat(auto-fit, minmax(var(--metric-card-size), var(--metric-card-size)))',
-  gap: 'var(--metric-card-gap)',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(var(--metric-card-size, 124px), var(--metric-card-size, 124px)))',
+  gap: 'var(--metric-card-gap, 10px)',
   justifyContent: 'start',
 } as const;
 
