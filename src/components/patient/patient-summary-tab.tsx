@@ -89,72 +89,86 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 xl:grid-cols-2">
-        <Card className="border border-[#d9dee6] bg-[#f8f9fa]">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">基本資訊 / 症狀 / 入院診斷</CardTitle>
+      <div className="grid gap-3 lg:grid-cols-[1.2fr_1fr]">
+        <Card className="overflow-hidden border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100/80">
+          <CardHeader className="border-b border-slate-200/80 bg-white/70 pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-base tracking-tight text-slate-900">基本資訊 / 症狀 / 入院診斷</CardTitle>
+                <p className="mt-1 text-xs text-slate-500">病例概覽</p>
+              </div>
+              <span className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                Overview
+              </span>
+            </div>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-1.5">
-                <p className="text-[11px] text-muted-foreground">Age</p>
-                <p className="text-sm font-semibold">{patient.age} years</p>
+          <CardContent className="space-y-3 pt-3">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
+                <p className="text-[10px] uppercase tracking-wide text-slate-500">Age</p>
+                <p className="mt-0.5 text-sm font-semibold text-slate-900">{patient.age} years</p>
               </div>
-              <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-1.5">
-                <p className="text-[11px] text-muted-foreground">Gender</p>
-                <p className="text-sm font-semibold">{patient.gender || '-'}</p>
+              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
+                <p className="text-[10px] uppercase tracking-wide text-slate-500">Gender</p>
+                <p className="mt-0.5 text-sm font-semibold text-slate-900">{patient.gender || '-'}</p>
               </div>
-              <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-1.5">
-                <p className="text-[11px] text-muted-foreground">BMI</p>
-                <p className="text-sm font-semibold">{patient.bmi ? `${patient.bmi} kg/m²` : '-'}</p>
+              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
+                <p className="text-[10px] uppercase tracking-wide text-slate-500">BMI</p>
+                <p className="mt-0.5 text-sm font-semibold text-slate-900">{patient.bmi ? `${patient.bmi} kg/m²` : '-'}</p>
               </div>
-              <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-1.5">
-                <p className="text-[11px] text-muted-foreground">Height</p>
-                <p className="text-sm font-semibold">{patient.height ? `${patient.height} cm` : '-'}</p>
+              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
+                <p className="text-[10px] uppercase tracking-wide text-slate-500">Height</p>
+                <p className="mt-0.5 text-sm font-semibold text-slate-900">{patient.height ? `${patient.height} cm` : '-'}</p>
               </div>
-              <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-1.5">
-                <p className="text-[11px] text-muted-foreground">Weight</p>
-                <p className="text-sm font-semibold">{patient.weight ? `${patient.weight} kg` : '-'}</p>
+              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
+                <p className="text-[10px] uppercase tracking-wide text-slate-500">Weight</p>
+                <p className="mt-0.5 text-sm font-semibold text-slate-900">{patient.weight ? `${patient.weight} kg` : '-'}</p>
               </div>
-              <div className="rounded-md border border-slate-200 bg-white/80 px-3 py-1.5">
-                <p className="text-[11px] text-muted-foreground">Patient ID</p>
-                <p className="text-sm font-semibold">{patient.id || '-'}</p>
+              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
+                <p className="text-[10px] uppercase tracking-wide text-slate-500">Patient ID</p>
+                <p className="mt-0.5 text-sm font-semibold text-slate-900">{patient.id || '-'}</p>
               </div>
             </div>
-            <div className="mt-3 grid gap-3 lg:grid-cols-2">
-              <div>
-                <p className="text-xs font-semibold text-slate-600">症狀 Symptom</p>
-                <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm">
+            <div className="grid gap-3 lg:grid-cols-[1.2fr_1fr]">
+              <section className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-xs font-semibold tracking-wide text-slate-600">症狀 Symptom</p>
+                <ul className="mt-2 space-y-1.5">
                   {symptoms.length > 0 ? (
                     symptoms.map((symptom: string, idx: number) => (
-                      <li key={idx} className="leading-relaxed">{symptom}</li>
+                      <li key={idx} className="flex items-start gap-2 rounded-md border border-slate-200 bg-slate-50/70 px-2.5 py-1.5">
+                        <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[11px] font-semibold text-slate-700">
+                          {idx + 1}
+                        </span>
+                        <span className="text-sm leading-relaxed text-slate-800">{symptom}</span>
+                      </li>
                     ))
                   ) : (
-                    <li className="text-muted-foreground">尚無症狀記錄</li>
+                    <li className="text-sm text-muted-foreground">尚無症狀記錄</li>
                   )}
-                </ol>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-600">入院診斷</p>
-                <p className="mt-1 text-sm leading-relaxed">{patient.diagnosis || '-'}</p>
-              </div>
+                </ul>
+              </section>
+              <section className="rounded-lg border border-blue-200/80 bg-gradient-to-br from-blue-50/80 to-white p-3">
+                <p className="text-xs font-semibold tracking-wide text-blue-700">入院診斷</p>
+                <p className="mt-2 text-sm leading-relaxed text-slate-800">{patient.diagnosis || '-'}</p>
+              </section>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border border-[#7f265b]/35">
-          <CardHeader className="space-y-1 pb-2">
+        <Card className="border border-[#7f265b]/25 bg-gradient-to-br from-white via-white to-[#7f265b]/[0.04]">
+          <CardHeader className="space-y-1 pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <FileText className="h-4 w-4 text-[#7f265b]" />
               AI 臨床摘要
             </CardTitle>
-            <CardDescription className="text-xs leading-relaxed">
+            <CardDescription className="text-xs leading-relaxed text-slate-600">
               根據病患完整臨床資料（檢驗、生命徵象、藥物、呼吸器）自動生成摘要
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 pt-0">
             <Button
               size="sm"
+              className="w-full bg-[#7f265b] hover:bg-[#631e4d] sm:w-auto"
               onClick={async () => {
                 if (!canSummary) {
                   toast.error(summaryReason);
@@ -172,14 +186,13 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
                   setIsGeneratingSummary(false);
                 }
               }}
-              className="bg-[#7f265b] hover:bg-[#631e4d]"
               disabled={isGeneratingSummary || !canSummary}
             >
               <Sparkles className="mr-2 h-4 w-4" />
               {isGeneratingSummary ? '生成中...' : '生成臨床摘要'}
             </Button>
             {aiSummary && (
-              <div className="rounded-lg border border-[#7f265b]/30 bg-[#f8f9fa] p-3">
+              <div className="rounded-lg border border-[#7f265b]/30 bg-white/90 p-3">
                 <AiMarkdown content={aiSummary} className="text-sm" />
                 <SafetyWarnings warnings={summaryWarnings} />
                 <DataFreshnessHint dataFreshness={summaryFreshness} />
