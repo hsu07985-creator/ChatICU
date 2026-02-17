@@ -16,11 +16,17 @@ export function VitalSignCard({ label, value, unit, onClick, isAbnormal, seconda
       ? '-'
       : String(value);
   const displayValue = hasSecondaryValue ? secondaryValue : normalizedValue;
+  const isMissing = displayValue === '-';
   const canClick = typeof onClick === 'function' && displayValue !== '-';
+  const valueToneClass = isMissing
+    ? 'font-medium text-slate-400'
+    : isAbnormal
+      ? 'font-semibold text-[#d97706]'
+      : 'font-semibold text-[#0f172a]';
 
   return (
     <div
-      className={`group relative flex aspect-square flex-col rounded-lg border px-2 py-1.5 ${
+      className={`group relative flex aspect-square flex-col rounded-xl border px-2.5 py-2 ${
         isAbnormal
           ? 'border-[#f59e0b] bg-gradient-to-br from-orange-50 to-rose-50/70'
           : 'border-[#e5e7eb] bg-gradient-to-br from-white to-slate-50'
@@ -32,14 +38,29 @@ export function VitalSignCard({ label, value, unit, onClick, isAbnormal, seconda
       onClick={canClick ? onClick : undefined}
     >
       <div className="flex items-start justify-between gap-1">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+        <p
+          className="font-semibold leading-tight tracking-tight text-slate-500"
+          style={{ fontSize: 'var(--metric-card-label-size)' }}
+        >
+          {label}
+        </p>
         {canClick && <TrendingUp className="h-3 w-3 text-[#7f265b] opacity-70" />}
       </div>
       <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <span className={`text-xl font-semibold leading-none tracking-tight ${isAbnormal ? 'text-[#d97706]' : 'text-[#0f172a]'}`}>
+        <span
+          className={`leading-none tracking-tight ${valueToneClass}`}
+          style={{ fontSize: 'var(--metric-card-value-size)' }}
+        >
           {displayValue}
         </span>
-        {unit && <span className="mt-0.5 text-[10px] leading-tight text-[#64748b]">{unit}</span>}
+        {unit && (
+          <span
+            className={`mt-0.5 leading-tight ${isMissing ? 'text-slate-400' : 'text-[#64748b]'}`}
+            style={{ fontSize: 'var(--metric-card-unit-size)' }}
+          >
+            {unit}
+          </span>
+        )}
       </div>
     </div>
   );

@@ -501,6 +501,16 @@ export function PatientDetailPage() {
 
   // 趨勢資料狀態
   const [trendChartData, setTrendChartData] = useState<LabTrendData[]>([]);
+  const metricGridStyle = {
+    gridTemplateColumns: 'repeat(auto-fit, minmax(var(--metric-card-size), var(--metric-card-size)))',
+    gap: 'var(--metric-card-gap)',
+    justifyContent: 'start',
+  } as const;
+  const vitalMetricGridStyle = {
+    ...metricGridStyle,
+    maxWidth: 'calc(var(--metric-card-size) * 9 + var(--metric-card-gap) * 8)',
+    marginInline: 'auto',
+  } as const;
 
   const loadPatientBundle = useCallback(async (mode: 'initial' | 'refresh') => {
     if (!id) return;
@@ -1682,15 +1692,15 @@ export function PatientDetailPage() {
         </TabsContent>
 
         {/* 檢驗數據 */}
-        <TabsContent value="labs" className="space-y-6">
+        <TabsContent value="labs" className="space-y-4">
           {/* 生命徵象 */}
           <Card className="border-2">
-            <CardHeader className="bg-[#f8f9fa] border-b-2">
+            <CardHeader className="min-h-14 bg-[#f8f9fa] border-b-2 py-3">
               <CardTitle className="flex items-center gap-2 text-xl">
                 <Activity className="h-6 w-6 text-[#7f265b]" />
                 生命徵象 Vital Signs
               </CardTitle>
-              <CardDescription className="text-[15px] mt-2">
+              <CardDescription className="mt-1 text-sm">
                 📅 {formatDisplayTimestamp(vitalSigns?.timestamp)}
               </CardDescription>
             </CardHeader>
@@ -1700,7 +1710,7 @@ export function PatientDetailPage() {
                   <LoadingSpinner size="md" text="載入生命徵象..." />
                 </div>
               ) : (
-                <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(124px, 124px))' }}>
+                <div className="grid" style={vitalMetricGridStyle}>
                   <VitalSignCard
                     label="Respiratory Rate"
                     value={respiratoryRate}
@@ -1780,13 +1790,13 @@ export function PatientDetailPage() {
           {/* 呼吸器設定 - 僅在插管病人顯示 */}
           {patient.intubated && (
             <Card className="border-2">
-              <CardHeader className="bg-[#f8f9fa] border-b-2">
+              <CardHeader className="min-h-14 bg-[#f8f9fa] border-b-2 py-3">
                 <CardTitle className="flex items-center gap-2 text-xl">
                   <Wind className="h-6 w-6 text-[#7f265b]" />
                   呼吸器設定 Ventilator Settings
                 </CardTitle>
                 {ventilator && (
-                  <CardDescription className="text-[15px] mt-2">
+                  <CardDescription className="mt-1 text-sm">
                     📅 {new Date(ventilator.timestamp).toLocaleString('zh-TW')} | Mode: {ventilator.mode}
                   </CardDescription>
                 )}
@@ -1798,7 +1808,7 @@ export function PatientDetailPage() {
                   </div>
                 ) : ventilator ? (
                   <div className="space-y-4">
-                    <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(124px, 124px))' }}>
+                    <div className="grid" style={metricGridStyle}>
                       <VitalSignCard
                         label="FiO₂"
                         value={ventilator.fio2}
@@ -1911,16 +1921,16 @@ export function PatientDetailPage() {
 
           {/* 檢驗數據 */}
           <Card className="border-2">
-            <CardHeader className="bg-[#f8f9fa] border-b-2">
+            <CardHeader className="min-h-14 bg-[#f8f9fa] border-b-2 py-3">
               <CardTitle className="flex items-center gap-2 text-xl">
                 <TestTube className="h-6 w-6 text-[#7f265b]" />
                 檢驗數據 Lab Data
               </CardTitle>
-              <CardDescription className="text-[15px] mt-2">
+              <CardDescription className="mt-1 text-sm">
                 📅 {formatDisplayTimestamp(labData?.timestamp)}
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-6">
+            <CardContent className="pt-3">
               <LabDataDisplay labData={labData} patientId={patient.id} />
             </CardContent>
           </Card>
