@@ -137,7 +137,7 @@ This backlog slice is complete when:
 
 - Umbrella: [#25](https://github.com/ZymoMed/ChatICU_YU/issues/25) (Open)
 - P0-A4: [#26](https://github.com/ZymoMed/ChatICU_YU/issues/26) (Closed)
-- P0-A5: [#27](https://github.com/ZymoMed/ChatICU_YU/issues/27) (Open)
+- P0-A5: [#27](https://github.com/ZymoMed/ChatICU_YU/issues/27) (Closed)
 - P0-A6: [#28](https://github.com/ZymoMed/ChatICU_YU/issues/28) (Open)
 - P0-B5: [#29](https://github.com/ZymoMed/ChatICU_YU/issues/29) (Open)
 - Registry snapshot: `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/reports/operations/github-issues-phase5-20260217T1404Z.md`

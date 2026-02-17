@@ -3,7 +3,7 @@
 > 專案：前端驅動 API 契約盤點與整合修復  
 > 版本：v1.0  
 > 狀態：`Phase 0/1/2/3/4 完成，Phase 5 進行中（P0-A1/A2/A3/A4/A5 + P0-B1/B2/B3 已實作）`  
-> 最後更新：2026-02-17 14:11 CST  
+> 最後更新：2026-02-17 14:13 CST  
 > 負責角色：Principal Frontend-Driven API Contract Auditor + Full-Stack Architect + QA Lead
 
 ---
@@ -176,6 +176,7 @@
 | 021 | 2026-02-17 14:06 | Assistant | 推送 `P0-A4` commit 並完成 GitHub issue 回填：#26 附驗證摘要後關閉，#25 留下進度留言 | 5 | Commit `7bb599f`, issue comments `#25/#26` | 持續處理 #27 / #29 / #28 |
 | 022 | 2026-02-17 14:10 | Assistant | 完成 GitHub 對外呈現英文化與專業化：重寫 README、補齊 CONTRIBUTING/CODE_OF_CONDUCT、Issue/PR templates，並更新 repo description/topics | 5 | `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `.github/ISSUE_TEMPLATE/*`, `.github/pull_request_template.md` | 開始 P0-A5 |
 | 023 | 2026-02-17 14:11 | Assistant | 完成 P0-A5：新增 administrations persistence-focused 測試（DB query persistence + date-window subset）並通過 API 測試 | 5 | `backend/tests/test_api/test_medications_api.py` | 關閉 #27，進入 P0-B5 / P0-A6 |
+| 024 | 2026-02-17 14:13 | Assistant | 推送 `P0-A5` commit 並完成 issue 回填：#27 附驗證摘要後關閉，#25 更新剩餘項目 | 5 | Commit `5ad82a9`, issue comments `#25/#27` | 進入 #29（P0-B5）與 #28（P0-A6） |
 
 ---
 
@@ -232,4 +233,4 @@
 - `.github/ISSUE_TEMPLATE/config.yml`
 - `reports/operations/manual-api-phase2-medications-20260217T043002Z/`
 - `reports/operations/manual-api-phase2-vitals-history-20260217T044226Z-with-data/`  
-下一步：實作 P0-B5（docker mode regression evidence）與 P0-A6（手動 API 持久化證據）；並依序關閉 `#29/#28`（#27 先關閉）。
+下一步：實作 P0-B5（docker mode regression evidence）與 P0-A6（手動 API 持久化證據）；並依序關閉 `#29/#28`。
