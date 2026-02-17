@@ -230,7 +230,7 @@ function LabItem({ labName, label, value, unit, isAbnormal, onClick, isOptional 
       <div className="flex items-start gap-1">
         <p
           className="font-semibold leading-tight tracking-tight text-slate-500"
-          style={{ fontSize: 'var(--metric-card-label-size)' }}
+          style={{ fontSize: 'calc(var(--metric-card-label-size) + 0.06rem)' }}
         >
           {label}
         </p>
@@ -238,14 +238,14 @@ function LabItem({ labName, label, value, unit, isAbnormal, onClick, isOptional 
       <div className="flex flex-1 flex-col items-center justify-center text-center">
         <span
           className={`leading-none tracking-tight ${valueToneClass}`}
-          style={{ fontSize: 'var(--metric-card-value-size)' }}
+          style={{ fontSize: 'calc(var(--metric-card-value-size) + 0.2rem)' }}
         >
           {displayValue}
         </span>
         {unit && (
           <span
             className={`mt-0.5 max-w-full break-words leading-tight ${isMissing ? 'text-slate-400' : 'text-slate-500'}`}
-            style={{ fontSize: 'var(--metric-card-unit-size)' }}
+            style={{ fontSize: 'calc(var(--metric-card-unit-size) + 0.08rem)' }}
           >
             {unit}
           </span>
