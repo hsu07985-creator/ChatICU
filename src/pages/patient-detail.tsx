@@ -147,6 +147,20 @@ interface ChatMessage {
   dataFreshness?: DataFreshness | null;
 }
 
+interface MedicationGroups {
+  sedation: Medication[];
+  analgesia: Medication[];
+  nmb: Medication[];
+  other: Medication[];
+}
+
+const EMPTY_MEDICATION_GROUPS: MedicationGroups = {
+  sedation: [],
+  analgesia: [],
+  nmb: [],
+  other: [],
+};
+
 function formatAiDegradedReason(reason?: string | null, upstreamStatus?: string | null): string {
   if (reason === 'insufficient_evidence') {
     return '目前可用證據有限';
@@ -266,6 +280,73 @@ function formatSnapshotValue(value: number | undefined): string {
   return value !== undefined ? String(value) : 'N/A';
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function formatDisplayValue(value: unknown): string {
+  if (value === null || value === undefined) return '-';
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed === '' ? '-' : trimmed;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? String(value) : '-';
+  }
+  return String(value);
+}
+
+function formatDisplayTimestamp(timestamp?: string | null): string {
+  if (!timestamp) return '-';
+  const parsed = new Date(timestamp);
+  if (Number.isNaN(parsed.getTime())) return '-';
+  return parsed.toLocaleString('zh-TW');
+}
+
+function normalizeSanCategory(raw: unknown): 'S' | 'A' | 'N' | null {
+  if (typeof raw !== 'string') return null;
+  const normalized = raw.trim().toUpperCase();
+  if (normalized === 'S' || normalized === 'A' || normalized === 'N') {
+    return normalized;
+  }
+  return null;
+}
+
+function formatMedicationRegimen(med: Medication): string {
+  const dose = formatDisplayValue(med.dose);
+  const unit = formatDisplayValue(med.unit);
+  const frequency = formatDisplayValue(med.frequency);
+  const route = formatDisplayValue(med.route);
+
+  const dosePart = [dose, unit].filter((part) => part !== '-').join(' ');
+  const parts = [dosePart || '-', frequency, med.prn ? 'PRN' : '', route].filter(Boolean);
+  return parts.join(' ');
+}
+
+function deriveMedicationGroups(items: Medication[]): MedicationGroups {
+  const grouped: MedicationGroups = {
+    sedation: [],
+    analgesia: [],
+    nmb: [],
+    other: [],
+  };
+
+  for (const med of items) {
+    const san = normalizeSanCategory(med.sanCategory);
+    if (san === 'S') {
+      grouped.sedation.push(med);
+    } else if (san === 'A') {
+      grouped.analgesia.push(med);
+    } else if (san === 'N') {
+      grouped.nmb.push(med);
+    } else {
+      grouped.other.push(med);
+    }
+  }
+
+  return grouped;
+}
+
 function createReadinessFallback(reason: string): AIReadiness {
   return {
     overall_ready: false,
@@ -333,7 +414,7 @@ export function PatientDetailPage() {
   const [labDataLoading, setLabDataLoading] = useState(false);
 
   // 用藥數據狀態
-  const [medications, setMedications] = useState<Medication[]>([]);
+  const [medicationGroups, setMedicationGroups] = useState<MedicationGroups>(EMPTY_MEDICATION_GROUPS);
   const [medicationsLoading, setMedicationsLoading] = useState(false);
 
   // 留言板狀態
@@ -390,7 +471,7 @@ export function PatientDetailPage() {
       const [patientData, labDataResult, medicationsResult, messagesResult, vitalSignsResult, ventilatorResult, weaningResult] = await Promise.all([
         patientsApi.getPatient(id),
         labDataApi.getLatestLabData(id).catch(() => defaultLabData),
-        medicationsApi.getMedications(id).catch(() => ({ medications: [], total: 0 })),
+        medicationsApi.getMedications(id, { status: 'active' }).catch(() => ({ medications: [], grouped: EMPTY_MEDICATION_GROUPS, interactions: [] })),
         messagesApi.getMessages(id).catch(() => ({ messages: [], total: 0, unreadCount: 0 })),
         vitalSignsApi.getLatestVitalSigns(id).catch(() => null),
         ventilatorApi.getLatestVentilatorSettings(id).catch(() => null),
@@ -399,7 +480,7 @@ export function PatientDetailPage() {
 
       setPatient(patientData as PatientWithFrontendFields);
       setLabData(labDataResult);
-      setMedications(medicationsResult.medications);
+      setMedicationGroups(medicationsResult.grouped || deriveMedicationGroups(medicationsResult.medications));
       setMessages(messagesResult.messages);
       setUnreadCount(messagesResult.unreadCount);
       setVitalSigns(vitalSignsResult);
@@ -777,6 +858,28 @@ export function PatientDetailPage() {
   const daysAdmitted = Math.floor(
     (new Date().getTime() - new Date(patient.admissionDate).getTime()) / (1000 * 60 * 60 * 24)
   );
+
+  const painMedications = medicationGroups.analgesia;
+  const sedationMedications = medicationGroups.sedation;
+  const nmbMedications = medicationGroups.nmb;
+  const otherMedications = medicationGroups.other;
+
+  const painIndication = painMedications[0]?.indication;
+  const sedationIndication = sedationMedications[0]?.indication;
+  const nmbIndication = nmbMedications[0]?.indication;
+
+  const respiratoryRate = vitalSigns?.respiratoryRate;
+  const temperature = vitalSigns?.temperature;
+  const systolicBP = vitalSigns?.bloodPressure?.systolic;
+  const diastolicBP = vitalSigns?.bloodPressure?.diastolic;
+  const heartRate = vitalSigns?.heartRate;
+  const spo2 = vitalSigns?.spo2;
+  const etco2 = vitalSigns?.etco2;
+  const cvp = vitalSigns?.cvp;
+  const icp = vitalSigns?.icp;
+
+  const bloodPressureDisplay =
+    isFiniteNumber(systolicBP) && isFiniteNumber(diastolicBP) ? `${systolicBP}/${diastolicBP}` : '-';
 
   const handleVitalSignClick = (labName: string, value: number, unit: string) => {
     setSelectedVitalSign({
@@ -1526,96 +1629,82 @@ export function PatientDetailPage() {
                 <Activity className="h-6 w-6 text-[#7f265b]" />
                 生命徵象 Vital Signs
               </CardTitle>
-              {vitalSigns && (
-                <CardDescription className="text-[15px] mt-2">
-                  📅 {new Date(vitalSigns.timestamp).toLocaleString('zh-TW')}
-                </CardDescription>
-              )}
+              <CardDescription className="text-[15px] mt-2">
+                📅 {formatDisplayTimestamp(vitalSigns?.timestamp)}
+              </CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
               {vitalSignsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <LoadingSpinner size="md" text="載入生命徵象..." />
                 </div>
-              ) : vitalSigns ? (
+              ) : (
                 <div className="grid gap-4 md:grid-cols-4">
                   <VitalSignCard
                     label="Respiratory Rate"
-                    value={vitalSigns.respiratoryRate}
+                    value={respiratoryRate}
                     unit="rpm"
-                    isAbnormal={vitalSigns.respiratoryRate > 25 || vitalSigns.respiratoryRate < 12}
-                    onClick={() => handleVitalSignClick('RespiratoryRate', vitalSigns.respiratoryRate, 'rpm')}
+                    isAbnormal={isFiniteNumber(respiratoryRate) && (respiratoryRate > 25 || respiratoryRate < 12)}
+                    onClick={isFiniteNumber(respiratoryRate) ? () => handleVitalSignClick('RespiratoryRate', respiratoryRate, 'rpm') : undefined}
                   />
 
                   <VitalSignCard
                     label="Temperature"
-                    value={vitalSigns.temperature}
+                    value={temperature}
                     unit="°C"
-                    isAbnormal={vitalSigns.temperature > 37.5 || vitalSigns.temperature < 36}
-                    onClick={() => handleVitalSignClick('Temperature', vitalSigns.temperature, '°C')}
+                    isAbnormal={isFiniteNumber(temperature) && (temperature > 37.5 || temperature < 36)}
+                    onClick={isFiniteNumber(temperature) ? () => handleVitalSignClick('Temperature', temperature, '°C') : undefined}
                   />
 
                   <VitalSignCard
                     label="Blood Pressure"
-                    value={vitalSigns.bloodPressure.systolic}
+                    value={systolicBP}
                     unit="mmHg"
-                    secondaryValue={`${vitalSigns.bloodPressure.systolic}/${vitalSigns.bloodPressure.diastolic}`}
-                    isAbnormal={vitalSigns.bloodPressure.systolic > 140 || vitalSigns.bloodPressure.systolic < 90}
-                    onClick={() => handleVitalSignClick('BloodPressure', vitalSigns.bloodPressure.systolic, 'mmHg')}
+                    secondaryValue={bloodPressureDisplay}
+                    isAbnormal={isFiniteNumber(systolicBP) && (systolicBP > 140 || systolicBP < 90)}
+                    onClick={isFiniteNumber(systolicBP) ? () => handleVitalSignClick('BloodPressure', systolicBP, 'mmHg') : undefined}
                   />
 
                   <VitalSignCard
                     label="Heart Rate"
-                    value={vitalSigns.heartRate}
+                    value={heartRate}
                     unit="bpm"
-                    isAbnormal={vitalSigns.heartRate > 100 || vitalSigns.heartRate < 60}
-                    onClick={() => handleVitalSignClick('HeartRate', vitalSigns.heartRate, 'bpm')}
+                    isAbnormal={isFiniteNumber(heartRate) && (heartRate > 100 || heartRate < 60)}
+                    onClick={isFiniteNumber(heartRate) ? () => handleVitalSignClick('HeartRate', heartRate, 'bpm') : undefined}
                   />
 
                   <VitalSignCard
                     label="SpO₂"
-                    value={vitalSigns.spo2}
+                    value={spo2}
                     unit="%"
-                    isAbnormal={vitalSigns.spo2 < 94}
-                    onClick={() => handleVitalSignClick('SpO2', vitalSigns.spo2, '%')}
+                    isAbnormal={isFiniteNumber(spo2) && spo2 < 94}
+                    onClick={isFiniteNumber(spo2) ? () => handleVitalSignClick('SpO2', spo2, '%') : undefined}
                   />
 
-                  {vitalSigns.etco2 && (
-                    <VitalSignCard
-                      label="EtCO₂"
-                      value={vitalSigns.etco2}
-                      unit="mmHg"
-                      isAbnormal={vitalSigns.etco2 > 45 || vitalSigns.etco2 < 35}
-                      onClick={() => handleVitalSignClick('EtCO2', vitalSigns.etco2!, 'mmHg')}
-                    />
-                  )}
+                  <VitalSignCard
+                    label="EtCO₂"
+                    value={etco2}
+                    unit="mmHg"
+                    isAbnormal={isFiniteNumber(etco2) && (etco2 > 45 || etco2 < 35)}
+                    onClick={isFiniteNumber(etco2) ? () => handleVitalSignClick('EtCO2', etco2, 'mmHg') : undefined}
+                  />
 
-                  {vitalSigns.cvp !== undefined && (
-                    <VitalSignCard
-                      label="CVP"
-                      value={vitalSigns.cvp}
-                      unit="mmHg"
-                      isAbnormal={vitalSigns.cvp > 12 || vitalSigns.cvp < 2}
-                      onClick={() => handleVitalSignClick('CVP', vitalSigns.cvp!, 'mmHg')}
-                    />
-                  )}
+                  <VitalSignCard
+                    label="CVP"
+                    value={cvp}
+                    unit="mmHg"
+                    isAbnormal={isFiniteNumber(cvp) && (cvp > 12 || cvp < 2)}
+                    onClick={isFiniteNumber(cvp) ? () => handleVitalSignClick('CVP', cvp, 'mmHg') : undefined}
+                  />
 
-                  {vitalSigns.icp !== undefined && (
-                    <VitalSignCard
-                      label="ICP"
-                      value={vitalSigns.icp}
-                      unit="mmHg"
-                      isAbnormal={vitalSigns.icp > 20}
-                      onClick={() => handleVitalSignClick('ICP', vitalSigns.icp!, 'mmHg')}
-                    />
-                  )}
+                  <VitalSignCard
+                    label="ICP"
+                    value={icp}
+                    unit="mmHg"
+                    isAbnormal={isFiniteNumber(icp) && icp > 20}
+                    onClick={isFiniteNumber(icp) ? () => handleVitalSignClick('ICP', icp, 'mmHg') : undefined}
+                  />
                 </div>
-              ) : (
-                <EmptyState
-                  icon={Activity}
-                  title="無生命徵象數據"
-                  description="目前沒有此病人的生命徵象記錄"
-                />
               )}
             </CardContent>
           </Card>
@@ -1760,7 +1849,7 @@ export function PatientDetailPage() {
                 檢驗數據 Lab Data
               </CardTitle>
               <CardDescription className="text-[15px] mt-2">
-                📅 {labData?.timestamp || '無資料'}
+                📅 {formatDisplayTimestamp(labData?.timestamp)}
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
@@ -1783,32 +1872,25 @@ export function PatientDetailPage() {
           ) : (
             <>
               {/* S/A/N 藥物 */}
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-3 md:grid-cols-3">
                 {/* Pain (A) */}
                 <Card className="border-2 border-[#e5e7eb]">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">Pain 止痛</CardTitle>
-                    <CardDescription>
-                      {medications.find(m => m.sanCategory === 'A')?.indication || 'Pain Score: -'}
+                  <CardHeader className="pb-2 space-y-1">
+                    <CardTitle className="text-base leading-tight">Pain 止痛</CardTitle>
+                    <CardDescription className="text-sm leading-tight">
+                      {painIndication || 'Pain Score: -'}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    {medications.filter(m => m.sanCategory === 'A' && m.status === 'active').length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">無止痛藥物</p>
+                  <CardContent className="pt-0">
+                    <p className="mb-2 text-xs font-medium text-muted-foreground">止痛藥物</p>
+                    {painMedications.length === 0 ? (
+                      <p className="py-3 text-sm text-muted-foreground">無止痛藥物</p>
                     ) : (
                       <div className="space-y-2">
-                        {medications.filter(m => m.sanCategory === 'A' && m.status === 'active').map(med => (
-                          <div key={med.id} className="bg-white/80 p-3 rounded-lg">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="font-medium">{med.name}</span>
-                              <Badge className="bg-green-100 text-green-800">A</Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {med.dose}{med.unit} {med.frequency} {med.prn ? 'prn' : ''} {med.route}
-                            </p>
-                            {med.warnings && med.warnings.length > 0 && (
-                              <p className="text-xs text-orange-600 mt-1">⚠️ {med.warnings[0]}</p>
-                            )}
+                        {painMedications.map((med) => (
+                          <div key={med.id} className="rounded-md border bg-white px-3 py-2">
+                            <p className="font-medium leading-tight">{formatDisplayValue(med.name)}</p>
+                            <p className="mt-1 text-sm text-muted-foreground">{formatMedicationRegimen(med)}</p>
                           </div>
                         ))}
                       </div>
@@ -1818,29 +1900,22 @@ export function PatientDetailPage() {
 
                 {/* Sedation (S) */}
                 <Card className="border-2 border-[#e5e7eb]">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">Sedation 鎮靜</CardTitle>
-                    <CardDescription>
-                      {medications.find(m => m.sanCategory === 'S')?.indication || 'RASS Score: -'}
+                  <CardHeader className="pb-2 space-y-1">
+                    <CardTitle className="text-base leading-tight">Sedation 鎮靜</CardTitle>
+                    <CardDescription className="text-sm leading-tight">
+                      {sedationIndication || 'RASS Score: -'}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    {medications.filter(m => m.sanCategory === 'S' && m.status === 'active').length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">無鎮靜藥物</p>
+                  <CardContent className="pt-0">
+                    <p className="mb-2 text-xs font-medium text-muted-foreground">鎮靜藥物</p>
+                    {sedationMedications.length === 0 ? (
+                      <p className="py-3 text-sm text-muted-foreground">無鎮靜藥物</p>
                     ) : (
                       <div className="space-y-2">
-                        {medications.filter(m => m.sanCategory === 'S' && m.status === 'active').map(med => (
-                          <div key={med.id} className="bg-white/80 p-3 rounded-lg">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="font-medium">{med.name}</span>
-                              <Badge className="bg-blue-100 text-blue-800">S</Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {med.dose}{med.unit} {med.frequency} {med.prn ? 'prn' : ''} {med.route}
-                            </p>
-                            {med.warnings && med.warnings.length > 0 && (
-                              <p className="text-xs text-orange-600 mt-1">⚠️ {med.warnings[0]}</p>
-                            )}
+                        {sedationMedications.map((med) => (
+                          <div key={med.id} className="rounded-md border bg-white px-3 py-2">
+                            <p className="font-medium leading-tight">{formatDisplayValue(med.name)}</p>
+                            <p className="mt-1 text-sm text-muted-foreground">{formatMedicationRegimen(med)}</p>
                           </div>
                         ))}
                       </div>
@@ -1850,29 +1925,22 @@ export function PatientDetailPage() {
 
                 {/* Neuromuscular Blockade (N) */}
                 <Card className="border-2 border-[#e5e7eb]">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg text-sm">Neuromuscular Blockade 神經肌肉阻斷</CardTitle>
-                    <CardDescription>
-                      {medications.find(m => m.sanCategory === 'N')?.indication || ''}
+                  <CardHeader className="pb-2 space-y-1">
+                    <CardTitle className="text-base leading-tight">Neuromuscular Blockade 神經肌肉阻斷</CardTitle>
+                    <CardDescription className="text-sm leading-tight">
+                      {nmbIndication || '-'}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    {medications.filter(m => m.sanCategory === 'N' && m.status === 'active').length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">無神經肌肉阻斷藥物</p>
+                  <CardContent className="pt-0">
+                    <p className="mb-2 text-xs font-medium text-muted-foreground">神經肌肉阻斷藥物</p>
+                    {nmbMedications.length === 0 ? (
+                      <p className="py-3 text-sm text-muted-foreground">無神經肌肉阻斷藥物</p>
                     ) : (
                       <div className="space-y-2">
-                        {medications.filter(m => m.sanCategory === 'N' && m.status === 'active').map(med => (
-                          <div key={med.id} className="bg-white/80 p-3 rounded-lg">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="font-medium">{med.name}</span>
-                              <Badge className="bg-purple-100 text-purple-800">N</Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {med.dose}{med.unit} {med.frequency} {med.prn ? 'prn' : ''} {med.route}
-                            </p>
-                            {med.warnings && med.warnings.length > 0 && (
-                              <p className="text-xs text-orange-600 mt-1">⚠️ {med.warnings[0]}</p>
-                            )}
+                        {nmbMedications.map((med) => (
+                          <div key={med.id} className="rounded-md border bg-white px-3 py-2">
+                            <p className="font-medium leading-tight">{formatDisplayValue(med.name)}</p>
+                            <p className="mt-1 text-sm text-muted-foreground">{formatMedicationRegimen(med)}</p>
                           </div>
                         ))}
                       </div>
@@ -1883,27 +1951,19 @@ export function PatientDetailPage() {
 
               {/* Other Medications */}
               <Card className="border-2 border-[#e5e7eb]">
-                <CardHeader>
-                  <CardTitle>其他藥物 Other Medications</CardTitle>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base leading-tight">其他藥物 Other Medications</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  {medications.filter(m => !m.sanCategory && m.status === 'active').length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">無其他藥物</p>
+                <CardContent className="pt-0">
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">其他藥物清單</p>
+                  {otherMedications.length === 0 ? (
+                    <p className="py-3 text-sm text-muted-foreground">無其他藥物</p>
                   ) : (
-                    <div className="grid gap-3 md:grid-cols-3">
-                      {medications.filter(m => !m.sanCategory && m.status === 'active').map(med => (
-                        <div key={med.id} className="bg-[rgba(196,196,196,0.2)] p-3 rounded-[20px]">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-medium">{med.name}</span>
-                            <span className="text-sm">
-                              <span className="text-xl font-bold">{med.dose}</span>{' '}
-                              <span className="text-muted-foreground">{med.unit} {med.frequency}</span>
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">{med.route}</p>
-                          {med.warnings && med.warnings.length > 0 && (
-                            <p className="text-xs text-orange-600 mt-1">⚠️ {med.warnings[0]}</p>
-                          )}
+                    <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+                      {otherMedications.map((med) => (
+                        <div key={med.id} className="rounded-md border bg-[rgba(196,196,196,0.15)] px-3 py-2">
+                          <p className="font-medium leading-tight">{formatDisplayValue(med.name)}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">{formatMedicationRegimen(med)}</p>
                         </div>
                       ))}
                     </div>
@@ -1934,7 +1994,7 @@ export function PatientDetailPage() {
         </TabsContent>
 
         {/* 病歷摘要 */}
-        <TabsContent value="summary" className="space-y-4" forceMount>
+        <TabsContent value="summary" className="space-y-4">
           <PatientSummaryTab
             patient={patient}
             userRole={user?.role}

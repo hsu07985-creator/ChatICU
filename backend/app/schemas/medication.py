@@ -8,7 +8,7 @@ class MedicationCreate(BaseModel):
     name: str
     genericName: Optional[str] = None
     category: Optional[str] = None
-    sanCategory: Optional[str] = None
+    sanCategory: Optional[Literal["S", "A", "N"]] = None
     dose: Optional[str] = None
     unit: Optional[str] = None
     frequency: Optional[str] = None
@@ -25,6 +25,7 @@ class MedicationUpdate(BaseModel):
     route: Optional[str] = None
     status: Optional[str] = None
     endDate: Optional[date] = None
+    sanCategory: Optional[Literal["S", "A", "N"]] = None
 
 
 class MedicationResponse(BaseModel):
@@ -33,7 +34,7 @@ class MedicationResponse(BaseModel):
     name: str
     genericName: Optional[str] = None
     category: Optional[str] = None
-    sanCategory: Optional[str] = None
+    sanCategory: Optional[Literal["S", "A", "N"]] = None
     dose: Optional[str] = None
     unit: Optional[str] = None
     frequency: Optional[str] = None

@@ -1,23 +1,23 @@
-import apiClient, { ensureData } from '../api-client';
+import apiClient, { ensureData, ensureSuccess } from '../api-client';
 
 // 類型定義
 export interface VitalSigns {
   id: string;
   patientId: string;
   timestamp: string;
-  heartRate: number;
-  bloodPressure: {
-    systolic: number;
-    diastolic: number;
-    mean: number;
+  heartRate?: number | null;
+  bloodPressure?: {
+    systolic?: number | null;
+    diastolic?: number | null;
+    mean?: number | null;
   };
-  respiratoryRate: number;
-  spo2: number;
-  temperature: number;
-  etco2?: number;
-  cvp?: number;
-  icp?: number;
-  cpp?: number;
+  respiratoryRate?: number | null;
+  spo2?: number | null;
+  temperature?: number | null;
+  etco2?: number | null;
+  cvp?: number | null;
+  icp?: number | null;
+  cpp?: number | null;
 }
 
 export interface VitalSignsTrendsResponse {
@@ -43,11 +43,12 @@ interface ApiResponse<T> {
 }
 
 // 取得最新生命徵象
-export async function getLatestVitalSigns(patientId: string): Promise<VitalSigns> {
+export async function getLatestVitalSigns(patientId: string): Promise<VitalSigns | null> {
   const response = await apiClient.get<ApiResponse<VitalSigns>>(
     `/patients/${patientId}/vital-signs/latest`
   );
-  return ensureData(response.data, 'API contract');
+  const normalized = ensureSuccess(response.data, 'API contract');
+  return normalized.data ?? null;
 }
 
 // 取得生命徵象趨勢
@@ -81,4 +82,3 @@ export async function getVitalSignsHistory(
   );
   return ensureData(response.data, 'API contract');
 }
-

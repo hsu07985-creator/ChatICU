@@ -25,6 +25,15 @@ from app.utils.response import success_response
 router = APIRouter(prefix="/patients/{patient_id}/medications", tags=["medications"])
 
 
+def normalize_san_category(raw: str | None) -> str | None:
+    if raw is None:
+        return None
+    normalized = raw.strip().upper()
+    if normalized in {"S", "A", "N"}:
+        return normalized
+    return None
+
+
 def med_to_dict(med: Medication) -> dict:
     return {
         "id": med.id,
@@ -32,7 +41,7 @@ def med_to_dict(med: Medication) -> dict:
         "name": med.name,
         "genericName": med.generic_name,
         "category": med.category,
-        "sanCategory": med.san_category,
+        "sanCategory": normalize_san_category(med.san_category),
         "dose": med.dose,
         "unit": med.unit,
         "frequency": med.frequency,
@@ -98,7 +107,7 @@ async def list_medications(
     _SAN_KEY_MAP = {"S": "sedation", "A": "analgesia", "N": "nmb"}
     grouped = {"sedation": [], "analgesia": [], "nmb": [], "other": []}
     for med in medications:
-        cat = med.san_category or "other"
+        cat = normalize_san_category(med.san_category) or "other"
         key = _SAN_KEY_MAP.get(cat, "other")
         grouped[key].append(med_to_dict(med))
 
@@ -199,7 +208,7 @@ async def create_medication(
         name=body.name,
         generic_name=body.genericName,
         category=body.category,
-        san_category=body.sanCategory,
+        san_category=normalize_san_category(body.sanCategory),
         dose=body.dose,
         unit=body.unit,
         frequency=body.frequency,
@@ -236,12 +245,15 @@ async def update_medication(
     med = await _get_medication_or_404(db, pid, medication_id)
 
     update_data = body.model_dump(exclude_unset=True)
-    field_mapping = {
+    field_map = {
         "endDate": "end_date",
+        "sanCategory": "san_category",
     }
-    for key, value in update_data.items():
-        db_key = field_mapping.get(key, key)
-        setattr(med, db_key, value)
+    for field_name, value in update_data.items():
+        mapped_field = field_map.get(field_name, field_name)
+        if mapped_field == "san_category":
+            value = normalize_san_category(value)
+        setattr(med, mapped_field, value)
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
