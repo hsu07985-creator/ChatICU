@@ -30,6 +30,8 @@ interface LabItemProps {
   isOptional?: boolean; // 選擇性追蹤項目使用粉紅色背景
 }
 
+const compactGridClass = 'grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6';
+
 function toFiniteNumber(input: unknown): number | undefined {
   if (typeof input === 'number' && Number.isFinite(input)) {
     return input;
@@ -111,22 +113,24 @@ function LabItem({ labName, label, value, unit, isAbnormal, onClick, isOptional 
 
   return (
     <div
-      className={`${
-        isOptional ? 'bg-[rgba(255,237,241,0.75)]' : 'bg-[rgba(237,241,255,0.75)]'
-      } p-3 rounded-[20px] ${
-        isAbnormal ? 'border-2 border-orange-300' : ''
-      } ${canOpenTrend ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+      className={`group relative min-h-[66px] rounded-xl border px-2.5 py-2 ${
+        isOptional ? 'border-amber-200/70 bg-amber-50/70' : 'border-slate-200 bg-slate-50/80'
+      } ${
+        isAbnormal ? 'border-orange-400 bg-orange-50/70' : ''
+      } ${
+        canOpenTrend ? 'cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-sm hover:border-[#7f265b]/40' : ''
+      }`}
       onClick={canOpenTrend ? onClick : undefined}
     >
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        {canOpenTrend && <TrendingUp className="h-3.5 w-3.5 text-[#7f265b] opacity-60" />}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{label}</p>
+        {canOpenTrend && <TrendingUp className="h-3.5 w-3.5 shrink-0 text-[#7f265b] opacity-70" />}
       </div>
-      <div className="flex items-baseline gap-2 mt-1">
-        <span className={`text-xl font-medium ${isAbnormal ? 'text-orange-600' : ''}`}>
+      <div className="mt-1.5 flex items-baseline gap-1.5">
+        <span className={`text-lg font-semibold leading-none ${isAbnormal ? 'text-orange-700' : 'text-slate-900'}`}>
           {displayValue}
         </span>
-        {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
+        {unit && <span className="text-[11px] text-slate-500">{unit}</span>}
       </div>
     </div>
   );
@@ -216,11 +220,11 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* 固定追蹤項目 - 電解質 */}
-        <div className="space-y-2">
-          <h3 className="font-semibold text-[#7f265b]">電解質與礦物質</h3>
-          <div className="grid gap-3 md:grid-cols-4">
+        <div className="space-y-1.5">
+          <h3 className="text-sm font-semibold tracking-wide text-[#7f265b]">電解質與礦物質</h3>
+          <div className={compactGridClass}>
             <LabItem
               labName="Na"
               label="Na"
@@ -265,9 +269,9 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         </div>
 
         {/* 血液學檢查 */}
-        <div className="space-y-2">
-          <h3 className="font-semibold text-[#7f265b]">血液學檢查</h3>
-          <div className="grid gap-3 md:grid-cols-4">
+        <div className="space-y-1.5">
+          <h3 className="text-sm font-semibold tracking-wide text-[#7f265b]">血液學檢查</h3>
+          <div className={compactGridClass}>
             <LabItem
               labName="WBC"
               label="WBC"
@@ -304,9 +308,9 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         </div>
 
         {/* 生化與炎症指標 */}
-        <div className="space-y-2">
-          <h3 className="font-semibold text-[#7f265b]">生化與炎症指標</h3>
-          <div className="grid gap-3 md:grid-cols-4">
+        <div className="space-y-1.5">
+          <h3 className="text-sm font-semibold tracking-wide text-[#7f265b]">生化與炎症指標</h3>
+          <div className={compactGridClass}>
             <LabItem
               labName="Alb"
               label="Alb"
@@ -343,9 +347,9 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         </div>
 
         {/* 動脈血氣體分析 */}
-        <div className="space-y-2">
-          <h3 className="font-semibold text-[#7f265b]">動脈血氣體分析</h3>
-          <div className="grid gap-3 md:grid-cols-5">
+        <div className="space-y-1.5">
+          <h3 className="text-sm font-semibold tracking-wide text-[#7f265b]">動脈血氣體分析</h3>
+          <div className={compactGridClass}>
             <LabItem
               labName="pH"
               label="pH"
@@ -390,9 +394,9 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         </div>
 
         {/* 肝腎功能 */}
-        <div className="space-y-2">
-          <h3 className="font-semibold text-[#7f265b]">肝腎功能</h3>
-          <div className="grid gap-3 md:grid-cols-4">
+        <div className="space-y-1.5">
+          <h3 className="text-sm font-semibold tracking-wide text-[#7f265b]">肝腎功能</h3>
+          <div className={compactGridClass}>
             <LabItem
               labName="AST"
               label="AST"
@@ -462,9 +466,9 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
 
         {/* 選擇性追蹤項目 - 心臟標記 */}
         {labData?.cardiac && Object.keys(labData.cardiac).length > 0 && (
-          <div className="space-y-2">
-            <h3 className="font-semibold text-[#f59e0b]">心臟標記（選擇性追蹤）</h3>
-            <div className="grid gap-3 md:grid-cols-4">
+          <div className="space-y-1.5">
+            <h3 className="text-sm font-semibold tracking-wide text-[#f59e0b]">心臟標記（選擇性追蹤）</h3>
+            <div className={compactGridClass}>
               {getValue('cardiac', 'TnT') !== undefined && (
                 <LabItem
                   labName="TnT"
@@ -518,9 +522,9 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
 
         {/* 選擇性追蹤項目 - 血脂與代謝 */}
         {labData?.lipid && Object.keys(labData.lipid).length > 0 && (
-          <div className="space-y-2">
-            <h3 className="font-semibold text-[#f59e0b]">血脂與代謝（選擇性追蹤）</h3>
-            <div className="grid gap-3 md:grid-cols-4">
+          <div className="space-y-1.5">
+            <h3 className="text-sm font-semibold tracking-wide text-[#f59e0b]">血脂與代謝（選擇性追蹤）</h3>
+            <div className={compactGridClass}>
               {getValue('lipid', 'TCHO') !== undefined && (
                 <LabItem
                   labName="TCHO"
@@ -598,9 +602,9 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
 
         {/* 選擇性追蹤項目 - 其他 */}
         {labData?.other && Object.keys(labData.other).length > 0 && (
-          <div className="space-y-2">
-            <h3 className="font-semibold text-[#f59e0b]">其他檢驗（選擇性追蹤）</h3>
-            <div className="grid gap-3 md:grid-cols-4">
+          <div className="space-y-1.5">
+            <h3 className="text-sm font-semibold tracking-wide text-[#f59e0b]">其他檢驗（選擇性追蹤）</h3>
+            <div className={compactGridClass}>
               {getValue('other', 'HbA1C') !== undefined && (
                 <LabItem
                   labName="HbA1C"
@@ -666,9 +670,9 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
 
         {/* 選擇性追蹤項目 - 甲狀腺與荷爾蒙 */}
         {((labData?.thyroid && Object.keys(labData.thyroid).length > 0) || (labData?.hormone && Object.keys(labData.hormone).length > 0)) && (
-          <div className="space-y-2">
-            <h3 className="font-semibold text-[#f59e0b]">甲狀腺與荷爾蒙（選擇性追蹤）</h3>
-            <div className="grid gap-3 md:grid-cols-4">
+          <div className="space-y-1.5">
+            <h3 className="text-sm font-semibold tracking-wide text-[#f59e0b]">甲狀腺與荷爾蒙（選擇性追蹤）</h3>
+            <div className={compactGridClass}>
               {getValue('thyroid', 'TSH') !== undefined && (
                 <LabItem
                   labName="TSH"
@@ -708,9 +712,9 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
           </div>
         )}
 
-        <div className="flex items-center gap-2 pt-2">
-          <div className="h-8 w-1.5 bg-orange-500 rounded-full shadow-md"></div>
-          <span className="text-xs text-muted-foreground">橘色邊框表示異常值 • 點擊有圖表圖示的項目可查看歷史趨勢</span>
+        <div className="flex items-center gap-2 pt-1">
+          <div className="h-6 w-1.5 rounded-full bg-orange-500"></div>
+          <span className="text-xs text-muted-foreground">橘色邊框表示異常值 • 點擊項目可查看歷史趨勢</span>
         </div>
       </div>
 
