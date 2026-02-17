@@ -16,26 +16,30 @@ export function VitalSignCard({ label, value, unit, onClick, isAbnormal, seconda
       ? '-'
       : String(value);
   const displayValue = hasSecondaryValue ? secondaryValue : normalizedValue;
-  const canClick = typeof onClick === 'function';
+  const canClick = typeof onClick === 'function' && displayValue !== '-';
 
   return (
     <div
-      className={`bg-white p-4 rounded-lg border-2 ${
+      className={`group relative flex aspect-square flex-col rounded-xl border px-3 py-2.5 ${
         isAbnormal
-          ? 'border-[#f59e0b] hover:border-[#f59e0b]'
-          : 'border-[#e5e7eb] hover:border-[#7f265b]'
-      } transition-colors ${canClick ? 'cursor-pointer hover:shadow-md' : 'cursor-default'}`}
+          ? 'border-[#f59e0b] bg-gradient-to-br from-orange-50 to-rose-50/70'
+          : 'border-[#e5e7eb] bg-gradient-to-br from-white to-slate-50'
+      } ${
+        canClick
+          ? 'cursor-pointer transition-all hover:-translate-y-0.5 hover:border-[#7f265b]/45 hover:shadow-sm'
+          : 'cursor-default'
+      }`}
       onClick={canClick ? onClick : undefined}
     >
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        {canClick && <TrendingUp className="h-3.5 w-3.5 text-[#7f265b] opacity-60" />}
+      <div className="flex items-start justify-between gap-1">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+        {canClick && <TrendingUp className="h-3.5 w-3.5 text-[#7f265b] opacity-70" />}
       </div>
-      <div className="flex items-baseline gap-2">
-        <span className={`text-3xl font-bold ${isAbnormal ? 'text-[#f59e0b]' : 'text-[#1a1a1a]'}`}>
+      <div className="flex flex-1 flex-col items-center justify-center text-center">
+        <span className={`text-2xl font-semibold leading-none tracking-tight ${isAbnormal ? 'text-[#d97706]' : 'text-[#0f172a]'}`}>
           {displayValue}
         </span>
-        <span className="text-sm text-[#6b7280]">{unit}</span>
+        {unit && <span className="mt-1 text-[10px] leading-tight text-[#64748b]">{unit}</span>}
       </div>
     </div>
   );

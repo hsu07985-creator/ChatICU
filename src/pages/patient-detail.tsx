@@ -1694,13 +1694,13 @@ export function PatientDetailPage() {
                 📅 {formatDisplayTimestamp(vitalSigns?.timestamp)}
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-4">
+            <CardContent className="pt-3">
               {vitalSignsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <LoadingSpinner size="md" text="載入生命徵象..." />
                 </div>
               ) : (
-                <div className="grid gap-4 md:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   <VitalSignCard
                     label="Respiratory Rate"
                     value={respiratoryRate}
@@ -1791,14 +1791,14 @@ export function PatientDetailPage() {
                   </CardDescription>
                 )}
               </CardHeader>
-              <CardContent className="pt-4">
+              <CardContent className="pt-3">
                 {ventilatorLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <LoadingSpinner size="md" text="載入呼吸器設定..." />
                   </div>
                 ) : ventilator ? (
                   <div className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                       <VitalSignCard
                         label="FiO₂"
                         value={ventilator.fio2}
