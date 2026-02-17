@@ -38,7 +38,7 @@ export function VitalSignCard({ label, value, unit, onClick, isAbnormal, seconda
       <div className="flex items-start gap-1">
         <p
           className="font-semibold leading-tight tracking-tight text-slate-500"
-          style={{ fontSize: 'var(--metric-card-label-size)' }}
+          style={{ fontSize: 'calc(var(--metric-card-label-size) + 0.1rem)' }}
         >
           {label}
         </p>
@@ -46,14 +46,14 @@ export function VitalSignCard({ label, value, unit, onClick, isAbnormal, seconda
       <div className="flex flex-1 flex-col items-center justify-center text-center">
         <span
           className={`leading-none tracking-tight ${valueToneClass}`}
-          style={{ fontSize: 'var(--metric-card-value-size)' }}
+          style={{ fontSize: 'calc(var(--metric-card-value-size) + 0.3rem)' }}
         >
           {displayValue}
         </span>
         {unit && (
           <span
             className={`mt-0.5 leading-tight ${isMissing ? 'text-slate-400' : 'text-[#64748b]'}`}
-            style={{ fontSize: 'var(--metric-card-unit-size)' }}
+            style={{ fontSize: 'calc(var(--metric-card-unit-size) + 0.12rem)' }}
           >
             {unit}
           </span>
