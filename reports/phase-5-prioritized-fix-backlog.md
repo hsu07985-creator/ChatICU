@@ -136,11 +136,11 @@ This backlog slice is complete when:
 
 ## 10) GitHub Issue Traceability
 
-- Umbrella: [#25](https://github.com/ZymoMed/ChatICU_YU/issues/25) (Open)
+- Umbrella: [#25](https://github.com/ZymoMed/ChatICU_YU/issues/25) (Closed)
 - P0-A4: [#26](https://github.com/ZymoMed/ChatICU_YU/issues/26) (Closed)
 - P0-A5: [#27](https://github.com/ZymoMed/ChatICU_YU/issues/27) (Closed)
-- P0-A6: [#28](https://github.com/ZymoMed/ChatICU_YU/issues/28) (Open)
-- P0-B5: [#29](https://github.com/ZymoMed/ChatICU_YU/issues/29) (Open)
+- P0-A6: [#28](https://github.com/ZymoMed/ChatICU_YU/issues/28) (Closed)
+- P0-B5: [#29](https://github.com/ZymoMed/ChatICU_YU/issues/29) (Closed)
 - Registry snapshot: `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/reports/operations/github-issues-phase5-20260217T1404Z.md`
 - Docker regression evidence: `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/reports/operations/manual-api-phase5-docker-mode-20260217T061536Z/`
 - Administrations persistence evidence: `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/reports/operations/manual-api-phase5-administrations-persistence-20260217T062059Z/`

@@ -3,7 +3,7 @@
 > 專案：前端驅動 API 契約盤點與整合修復  
 > 版本：v1.0  
 > 狀態：`Phase 0/1/2/3/4 完成，Phase 5（P0 slice）已完成（P0-A1~A6 + P0-B1~B5）`  
-> 最後更新：2026-02-17 14:23 CST  
+> 最後更新：2026-02-17 14:25 CST  
 > 負責角色：Principal Frontend-Driven API Contract Auditor + Full-Stack Architect + QA Lead
 
 ---
@@ -179,6 +179,7 @@
 | 024 | 2026-02-17 14:13 | Assistant | 推送 `P0-A5` commit 並完成 issue 回填：#27 附驗證摘要後關閉，#25 更新剩餘項目 | 5 | Commit `5ad82a9`, issue comments `#25/#27` | 進入 #29（P0-B5）與 #28（P0-A6） |
 | 025 | 2026-02-17 14:19 | Assistant | 完成 P0-B5：docker default db vs offline json 實跑 API 驗證，確認 `dataFreshness.mode` 分別為 `db/json`，證據已歸檔 | 5 | `reports/operations/manual-api-phase5-docker-mode-20260217T061536Z/` | 進入 P0-A6 |
 | 026 | 2026-02-17 14:22 | Assistant | 完成 P0-A6：PATCH administrations 後重啟 API 再查詢，狀態/備註保持一致，確認真實持久化 | 5 | `reports/operations/manual-api-phase5-administrations-persistence-20260217T062059Z/` | 同步 tracker/backlog 與 issue closure |
+| 027 | 2026-02-17 14:24 | Assistant | 推送 Phase 5 證據 commit `c1ca5d0`，並完成 issue closure：#29、#28、#25 全部關閉（含 commit/evidence 回填） | 5 | Commit `c1ca5d0`, issue comments `#29/#28/#25` | 進入 Phase 6 verification plan |
 
 ---
 
@@ -237,4 +238,4 @@
 - `.github/ISSUE_TEMPLATE/config.yml`
 - `reports/operations/manual-api-phase2-medications-20260217T043002Z/`
 - `reports/operations/manual-api-phase2-vitals-history-20260217T044226Z-with-data/`  
-下一步：進入 Phase 6（verification plan），並完成 #29/#28/#25 issue closure 與 commit 連結回填。
+下一步：進入 Phase 6（verification plan），彙整最終回歸命令與 release readiness 清單。

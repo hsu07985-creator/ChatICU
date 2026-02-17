@@ -20,3 +20,11 @@ Repository: https://github.com/ZymoMed/ChatICU_YU
 
 - #25 was created first and then body-updated using `gh issue edit --body-file` to avoid shell escaping issues.
 - Child issue bodies include parent link `#25` for traceability.
+
+## Closure Update (2026-02-17 14:24 CST)
+
+- #26 closed after merge (`7bb599f`)
+- #27 closed after merge (`5ad82a9`)
+- #29 closed after merge (`c1ca5d0`)
+- #28 closed after merge (`c1ca5d0`)
+- #25 umbrella closed after all child tasks completed (`c1ca5d0`)
