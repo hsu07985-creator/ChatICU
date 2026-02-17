@@ -502,14 +502,9 @@ export function PatientDetailPage() {
   // 趨勢資料狀態
   const [trendChartData, setTrendChartData] = useState<LabTrendData[]>([]);
   const metricGridStyle = {
-    gridTemplateColumns: 'repeat(auto-fit, minmax(var(--metric-card-size, 124px), var(--metric-card-size, 124px)))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(var(--metric-card-size, 124px), 1fr))',
     gap: 'var(--metric-card-gap, 10px)',
-    justifyContent: 'start',
-  } as const;
-  const vitalMetricGridStyle = {
-    ...metricGridStyle,
-    maxWidth: 'calc(9 * var(--metric-card-size, 124px) + 8 * var(--metric-card-gap, 10px))',
-    marginInline: 'auto',
+    alignItems: 'stretch',
   } as const;
 
   const loadPatientBundle = useCallback(async (mode: 'initial' | 'refresh') => {
@@ -950,6 +945,16 @@ export function PatientDetailPage() {
   const etco2 = vitalSigns?.etco2;
   const cvp = vitalSigns?.cvp;
   const icp = vitalSigns?.icp;
+
+  const ventTimestamp = ventilator?.timestamp;
+  const ventMode = ventilator?.mode;
+  const ventFiO2 = ventilator?.fio2;
+  const ventPeep = ventilator?.peep;
+  const ventTidalVolume = ventilator?.tidalVolume;
+  const ventRespRate = ventilator?.respiratoryRate;
+  const ventPip = ventilator?.pip;
+  const ventPlateau = ventilator?.plateau;
+  const ventCompliance = ventilator?.compliance;
 
   const handleVitalSignClick = (labName: string, value: number, unit: string, source: TrendSource = 'vital') => {
     setSelectedTrendMetric({
@@ -1710,7 +1715,7 @@ export function PatientDetailPage() {
                   <LoadingSpinner size="md" text="載入生命徵象..." />
                 </div>
               ) : (
-                <div className="grid" style={vitalMetricGridStyle}>
+                <div className="grid" style={metricGridStyle}>
                   <VitalSignCard
                     label="Respiratory Rate"
                     value={respiratoryRate}
@@ -1795,74 +1800,66 @@ export function PatientDetailPage() {
                   <Wind className="h-6 w-6 text-[#7f265b]" />
                   呼吸器設定 Ventilator Settings
                 </CardTitle>
-                {ventilator && (
-                  <CardDescription className="mt-1 text-sm">
-                    📅 {new Date(ventilator.timestamp).toLocaleString('zh-TW')} | Mode: {ventilator.mode}
-                  </CardDescription>
-                )}
+                <CardDescription className="mt-1 text-sm">
+                  📅 {formatDisplayTimestamp(ventTimestamp)} | Mode: {formatDisplayValue(ventMode)}
+                </CardDescription>
               </CardHeader>
               <CardContent className="pt-3">
                 {ventilatorLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <LoadingSpinner size="md" text="載入呼吸器設定..." />
                   </div>
-                ) : ventilator ? (
+                ) : (
                   <div className="space-y-4">
                     <div className="grid" style={metricGridStyle}>
                       <VitalSignCard
                         label="FiO₂"
-                        value={ventilator.fio2}
+                        value={ventFiO2}
                         unit="%"
-                        isAbnormal={ventilator.fio2 > 60}
-                        onClick={() => handleVitalSignClick('FiO2', ventilator.fio2, '%', 'ventilator')}
+                        isAbnormal={isFiniteNumber(ventFiO2) && ventFiO2 > 60}
+                        onClick={isFiniteNumber(ventFiO2) ? () => handleVitalSignClick('FiO2', ventFiO2, '%', 'ventilator') : undefined}
                       />
                       <VitalSignCard
                         label="PEEP"
-                        value={ventilator.peep}
+                        value={ventPeep}
                         unit="cmH₂O"
-                        isAbnormal={ventilator.peep > 12}
-                        onClick={() => handleVitalSignClick('PEEP', ventilator.peep, 'cmH₂O', 'ventilator')}
+                        isAbnormal={isFiniteNumber(ventPeep) && ventPeep > 12}
+                        onClick={isFiniteNumber(ventPeep) ? () => handleVitalSignClick('PEEP', ventPeep, 'cmH₂O', 'ventilator') : undefined}
                       />
                       <VitalSignCard
                         label="Vt"
-                        value={ventilator.tidalVolume}
+                        value={ventTidalVolume}
                         unit="mL"
-                        isAbnormal={ventilator.tidalVolume > 500}
-                        onClick={() => handleVitalSignClick('TidalVolume', ventilator.tidalVolume, 'mL', 'ventilator')}
+                        isAbnormal={isFiniteNumber(ventTidalVolume) && ventTidalVolume > 500}
+                        onClick={isFiniteNumber(ventTidalVolume) ? () => handleVitalSignClick('TidalVolume', ventTidalVolume, 'mL', 'ventilator') : undefined}
                       />
                       <VitalSignCard
                         label="RR (Set)"
-                        value={ventilator.respiratoryRate}
+                        value={ventRespRate}
                         unit="/min"
-                        onClick={() => handleVitalSignClick('VentRR', ventilator.respiratoryRate, '/min', 'ventilator')}
+                        onClick={isFiniteNumber(ventRespRate) ? () => handleVitalSignClick('VentRR', ventRespRate, '/min', 'ventilator') : undefined}
                       />
-                      {ventilator.pip && (
-                        <VitalSignCard
-                          label="PIP"
-                          value={ventilator.pip}
-                          unit="cmH₂O"
-                          isAbnormal={ventilator.pip > 30}
-                          onClick={() => handleVitalSignClick('PIP', ventilator.pip!, 'cmH₂O', 'ventilator')}
-                        />
-                      )}
-                      {ventilator.plateau && (
-                        <VitalSignCard
-                          label="Pplat"
-                          value={ventilator.plateau}
-                          unit="cmH₂O"
-                          isAbnormal={ventilator.plateau > 30}
-                          onClick={() => handleVitalSignClick('Plateau', ventilator.plateau!, 'cmH₂O', 'ventilator')}
-                        />
-                      )}
-                      {ventilator.compliance && (
-                        <VitalSignCard
-                          label="Compliance"
-                          value={ventilator.compliance}
-                          unit="mL/cmH₂O"
-                          isAbnormal={ventilator.compliance < 30}
-                          onClick={() => handleVitalSignClick('Compliance', ventilator.compliance!, 'mL/cmH₂O', 'ventilator')}
-                        />
-                      )}
+                      <VitalSignCard
+                        label="PIP"
+                        value={ventPip}
+                        unit="cmH₂O"
+                        isAbnormal={isFiniteNumber(ventPip) && ventPip > 30}
+                        onClick={isFiniteNumber(ventPip) ? () => handleVitalSignClick('PIP', ventPip, 'cmH₂O', 'ventilator') : undefined}
+                      />
+                      <VitalSignCard
+                        label="Pplat"
+                        value={ventPlateau}
+                        unit="cmH₂O"
+                        isAbnormal={isFiniteNumber(ventPlateau) && ventPlateau > 30}
+                        onClick={isFiniteNumber(ventPlateau) ? () => handleVitalSignClick('Plateau', ventPlateau, 'cmH₂O', 'ventilator') : undefined}
+                      />
+                      <VitalSignCard
+                        label="Compliance"
+                        value={ventCompliance}
+                        unit="mL/cmH₂O"
+                        isAbnormal={isFiniteNumber(ventCompliance) && ventCompliance < 30}
+                        onClick={isFiniteNumber(ventCompliance) ? () => handleVitalSignClick('Compliance', ventCompliance, 'mL/cmH₂O', 'ventilator') : undefined}
+                      />
                     </div>
 
                     {/* 脫機評估 */}
@@ -1908,12 +1905,6 @@ export function PatientDetailPage() {
                       </Card>
                     )}
                   </div>
-                ) : (
-                  <EmptyState
-                    icon={Wind}
-                    title="無呼吸器數據"
-                    description="目前沒有此病人的呼吸器設定記錄"
-                  />
                 )}
               </CardContent>
             </Card>
