@@ -1,0 +1,103 @@
+--- /dev/null	2026-02-16 14:29:31
++++ reports/prompt-P01-result.md	2026-02-16 14:29:15
+@@ -0,0 +1,54 @@
++1) Summary
++- 已完成 UI→API→Backend→Service→DB→AI 全鏈路拓樸盤點，覆蓋核心模組：Auth、Dashboard、Team Chat、Admin、Clinical/RAG、Pharmacy、AI Chat。
++- 共識別 14 條核心鏈路；其中 `Connected` 9 條、`Partial` 4 條、`Broken` 1 條。
++- 已輸出缺失鏈路清單（含 Severity、Evidence、Impact）。
++
++2) Findings
++| Action | Frontend Trigger(File:Line) | API Route | Backend Handler(File:Line) | Service | DB Tables | AI Dependency | Status |
++|---|---|---|---|---|---|---|---|
++| Auth Login | `src/lib/auth-context.tsx:70` | `POST /auth/login` | `backend/app/routers/auth.py:52` | `verify_password/create_access_token/create_refresh_token` | `users`(R/W), `audit_logs`(W) | None | Connected |
++| Dashboard Stats | `src/pages/dashboard.tsx:76` | `GET /dashboard/stats` | `backend/app/routers/dashboard.py:18` | SQL aggregate queries | `patients`(R), `medications`(R), `patient_messages`(R) | None | Connected |
++| Team Chat Send | `src/pages/chat.tsx:89` | `POST /team/chat` | `backend/app/routers/team_chat.py:58` | `create_audit_log` | `team_chat_messages`(W), `audit_logs`(W) | None | Connected |
++| Admin Users CRUD | `src/pages/admin/users.tsx:80` | `GET/POST/PATCH /admin/users` | `backend/app/routers/admin.py:91`, `backend/app/routers/admin.py:144`, `backend/app/routers/admin.py:215` | `hash_password/create_audit_log` | `users`(R/W), `password_history`(W), `audit_logs`(W) | None | Connected |
++| Admin Audit Logs | `src/pages/admin/placeholder.tsx:30` | `GET /admin/audit-logs` | `backend/app/routers/admin.py:24` | SQL filtered query | `audit_logs`(R) | None | Partial |
++| Admin Vector Rebuild | `src/pages/admin/vectors.tsx:132` | `POST /admin/vectors/rebuild` | `backend/app/routers/admin.py:288` | `rag_service.load_and_chunk/index` | `audit_logs`(W) | RAG indexing | Connected |
++| Admin Vector Upload | `src/pages/admin/vectors.tsx:94` | (No API call; simulated) | (No backend endpoint) | N/A | N/A | N/A | Broken |
++| Clinical Summary | `src/pages/patient-detail.tsx:1768` | `POST /api/v1/clinical/summary` | `backend/app/routers/clinical.py:120` | `generate_clinical_summary + apply_safety_guardrail` | `patients/lab_data/vital_signs/medications/ventilator_settings`(R), `audit_logs`(W) | LLM | Connected |
++| Clinical Dose | `src/pages/pharmacy/dosage.tsx:39` | `POST /api/v1/clinical/dose` | `backend/app/routers/clinical.py:349` | `evidence_client.dose_calculate` | `audit_logs`(W) | Evidence service (`func/`) | Partial |
++| RAG Status | `src/pages/patient-detail.tsx:347` | `GET /api/v1/rag/status` | `backend/app/routers/rag.py:94` | `evidence_client.health` fallback `rag_service.get_status` | None | Hybrid RAG/TF-IDF fallback | Connected |
++| AI Chat | `src/pages/patient-detail.tsx:530` | `POST /ai/chat` | `backend/app/routers/ai_chat.py:170` | `call_llm_multi_turn + rag/evidence + guardrail` | `ai_sessions`(R/W), `ai_messages`(R/W), `patients`(R), `audit_logs`(W) | LLM + RAG | Partial |
++| Pharmacy Advice Record | `src/pages/pharmacy/workstation.tsx:541` | `POST /pharmacy/advice-records` | `backend/app/routers/pharmacy.py:453` | `create_audit_log` + board sync | `pharmacy_advices`(W), `patient_messages`(W), `patients`(R), `audit_logs`(W) | Optional AI-generated content (frontend) | Connected |
++| Pharmacy Error Reports | `src/pages/pharmacy/error-report.tsx:46` | `GET /pharmacy/error-reports` | `backend/app/routers/pharmacy.py:44` | SQL query | `error_reports`(R) | None | Partial |
++| Pharmacy Compatibility Favorites | `src/pages/pharmacy/compatibility.tsx:59` | `GET/POST/DELETE /pharmacy/compatibility-favorites` | `backend/app/routers/pharmacy.py:224`, `backend/app/routers/pharmacy.py:241`, `backend/app/routers/pharmacy.py:282` | pair-key canonicalization | `pharmacy_compatibility_favorites`(R/W), `audit_logs`(W) | None | Connected |
++
++Missing Link List
++- `LNK-001` Severity: High
++  - Evidence: `src/pages/admin/vectors.tsx:94-111` 明確標示 upload 為模擬；backend 只有 `GET /admin/vectors` 與 `POST /admin/vectors/rebuild`（`backend/app/routers/admin.py:269-312`）。
++  - Impact: 管理後台無法透過 UI 上傳 PDF 入庫，僅能重建既有索引。
++- `LNK-002` Severity: Medium
++  - Evidence: 前端 Audit API 支援 `startDate/endDate/user`（`src/lib/api/admin.ts:39-47`），後端僅支援 `action/userId/status`（`backend/app/routers/admin.py:24-33`）。
++  - Impact: 日期區間與使用者名稱過濾在前端存在但後端不生效。
++- `LNK-003` Severity: Medium
++  - Evidence: 前端 Error Reports 參數含 `page/limit/type`（`src/lib/api/pharmacy.ts:40-45`），後端僅實作 `status/severity`（`backend/app/routers/pharmacy.py:44-56`）。
++  - Impact: 分頁與 type filter 契約漂移，UI 篩選與資料量控制不可預期。
++- `LNK-004` Severity: High
++  - Evidence: AI chat 在 LLM 失敗時仍走 `success_response`（`backend/app/routers/ai_chat.py:279-291`, `backend/app/routers/ai_chat.py:339-350`）；前端直接把回覆當一般助理訊息渲染（`src/pages/patient-detail.tsx:535-541`）。
++  - Impact: 前端無法以結構化欄位判斷「AI 正常回覆」或「服務降級訊息」。
++- `LNK-005` Severity: Medium
++  - Evidence: Playwright 設定僅定義 `baseURL`，無 `webServer` 自動啟動（`playwright.config.js:5-11`）；實測 critical E2E 直接 `ERR_CONNECTION_REFUSED` 到 `127.0.0.1:3000`。
++  - Impact: 本機/CI 外場景容易出現假失敗，降低整合可靠性。
++
++3) Patch
++- 新增 `reports/prompt-P01-result.md`
++- 更新 `.orchestrator/state.json`
++
++4) Verification
++- 命令：`rg -n "router\.(get|post|put|delete|patch)\(" backend/app/routers -g '*.py'`
++  - 證據：涵蓋 Auth/Dashboard/Team Chat/Admin/Clinical/RAG/AI/Pharmacy 路由。
++- 命令：`rg -n "getDashboardStats|getTeamChatMessages|sendChatMessage|getAuditLogs|getErrorReports|getClinicalSummary" src/pages src/lib -g '*.{ts,tsx}'`
++  - 證據：前端觸發點可定位到核心模組。
++- 命令：`npm run test:e2e -- --grep @critical --project=chromium --workers=1`
++  - 證據：`ERR_CONNECTION_REFUSED`（顯示 E2E 鏈路缺少服務啟動連接）。
++
++5) Gate
++- PROMPT-01 COMPLETE
+--- /tmp/state_p00.json	2026-02-16 14:29:31
++++ .orchestrator/state.json	2026-02-16 14:29:15
+@@ -1,7 +1,7 @@
+ {
+   "autopilot": true,
+   "started_at": "2026-02-16T06:27:39Z",
+-  "current_phase": "P00",
++  "current_phase": "P01",
+   "phases": {
+     "P00": {
+       "status": "COMPLETE",
+@@ -34,6 +34,34 @@
+         }
+       ],
+       "blockers": []
++    },
++    "P01": {
++      "status": "COMPLETE",
++      "evidence": [
++        "Topology table covers Auth/Dashboard/Team Chat/Admin/Clinical/RAG/Pharmacy/AI Chat",
++        "Missing links captured with file-line evidence and impact",
++        "Critical E2E connection dependency failure reproduced"
++      ],
++      "files_changed": [
++        "reports/prompt-P01-result.md",
++        ".orchestrator/state.json"
++      ],
++      "tests": [
++        {
++          "command": "rg -n router handlers across backend/app/routers",
++          "result": "PASS"
++        },
++        {
++          "command": "rg -n frontend API triggers across src/pages and src/lib",
++          "result": "PASS"
++        },
++        {
++          "command": "npm run test:e2e -- --grep @critical --project=chromium --workers=1",
++          "result": "FAIL",
++          "note": "ERR_CONNECTION_REFUSED on http://127.0.0.1:3000/login"
++        }
++      ],
++      "blockers": []
+     }
+   }
+ }

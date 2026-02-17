@@ -31,7 +31,7 @@
             "@radix-ui/react-tooltip": "^1.1.8",
             "axios": "^1.13.2",
             "class-variance-authority": "^0.7.1",
-            "clsx": "*",
+            "clsx": "^2.1.1",
             "cmdk": "^1.1.1",
             "embla-carousel-react": "^8.6.0",
             "input-otp": "^1.4.2",
@@ -41,22 +41,28 @@
             "react-day-picker": "^8.10.1",
             "react-dom": "^18.3.1",
             "react-hook-form": "^7.55.0",
+            "react-markdown": "^10.1.0",
             "react-resizable-panels": "^2.1.7",
-            "react-router-dom": "*",
+            "react-router-dom": "^6.30.0",
             "recharts": "^2.15.2",
             "sonner": "^2.0.3",
-            "tailwind-merge": "*",
+            "tailwind-merge": "^2.6.0",
             "vaul": "^1.1.2"
       },
       "devDependencies": {
             "@playwright/test": "^1.52.0",
             "@types/node": "^20.10.0",
+            "@types/react": "^19.2.14",
+            "@types/react-dom": "^19.2.3",
             "@vitejs/plugin-react-swc": "^3.10.2",
+            "typescript": "^5.9.3",
             "vite": "6.3.5"
       },
       "scripts": {
             "dev": "vite",
             "build": "vite build",
-            "test:e2e": "playwright test"
+            "typecheck": "tsc -p tsconfig.json",
+            "test:e2e": "bash ./scripts/e2e/run_managed_e2e.sh",
+            "test:e2e:raw": "playwright test"
       }
 }

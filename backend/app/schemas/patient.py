@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel
 
@@ -16,17 +16,31 @@ class PatientBase(BaseModel):
 class PatientCreate(PatientBase):
     height: Optional[float] = None
     weight: Optional[float] = None
+    symptoms: Optional[List[str]] = None
     intubated: bool = False
     critical_status: Optional[str] = None
+    sedation: Optional[List[str]] = None
+    analgesia: Optional[List[str]] = None
+    nmb: Optional[List[str]] = None
     admission_date: Optional[date] = None
     icu_admission_date: Optional[date] = None
+    ventilator_days: int = 0
     attending_physician: Optional[str] = None
     department: Optional[str] = None
+    unit: Optional[str] = None
+    alerts: Optional[List[str]] = None
+    consent_status: Optional[str] = None
+    allergies: Optional[List[str]] = None
+    blood_type: Optional[str] = None
+    code_status: Optional[str] = None
+    has_dnr: bool = False
+    is_isolated: bool = False
 
 
 class PatientUpdate(BaseModel):
     name: Optional[str] = None
     bed_number: Optional[str] = None
+    medical_record_number: Optional[str] = None
     age: Optional[int] = None
     gender: Optional[str] = None
     height: Optional[float] = None
@@ -34,16 +48,24 @@ class PatientUpdate(BaseModel):
     diagnosis: Optional[str] = None
     intubated: Optional[bool] = None
     critical_status: Optional[str] = None
-    sedation: Optional[list[str]] = None
-    analgesia: Optional[list[str]] = None
-    nmb: Optional[list[str]] = None
+    sedation: Optional[List[str]] = None
+    analgesia: Optional[List[str]] = None
+    nmb: Optional[List[str]] = None
+    admission_date: Optional[date] = None
+    icu_admission_date: Optional[date] = None
     ventilator_days: Optional[int] = None
     attending_physician: Optional[str] = None
     department: Optional[str] = None
-    alerts: Optional[list[str]] = None
+    alerts: Optional[List[str]] = None
     code_status: Optional[str] = None
     has_dnr: Optional[bool] = None
     is_isolated: Optional[bool] = None
+
+
+class PatientArchiveUpdate(BaseModel):
+    archived: bool
+    reason: Optional[str] = None
+    discharge_type: Optional[str] = None
 
 
 class PatientResponse(BaseModel):
@@ -57,20 +79,20 @@ class PatientResponse(BaseModel):
     weight: Optional[float] = None
     bmi: Optional[float] = None
     diagnosis: str
-    symptoms: Optional[list[str]] = None
+    symptoms: Optional[List[str]] = None
     intubated: bool
     criticalStatus: Optional[str] = None
-    sedation: Optional[list[Any]] = None
-    analgesia: Optional[list[Any]] = None
-    nmb: Optional[list[Any]] = None
+    sedation: Optional[List[Any]] = None
+    analgesia: Optional[List[Any]] = None
+    nmb: Optional[List[Any]] = None
     admissionDate: Optional[str] = None
     icuAdmissionDate: Optional[str] = None
     ventilatorDays: int = 0
     attendingPhysician: Optional[str] = None
     department: Optional[str] = None
-    alerts: Optional[list[str]] = None
+    alerts: Optional[List[str]] = None
     consentStatus: Optional[str] = None
-    allergies: Optional[list[str]] = None
+    allergies: Optional[List[str]] = None
     bloodType: Optional[str] = None
     codeStatus: Optional[str] = None
     hasDNR: bool = False

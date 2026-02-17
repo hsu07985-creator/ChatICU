@@ -57,8 +57,8 @@ export function ChatPage() {
     try {
       setError(null);
       const response = await getTeamChatMessages({ limit: 50 });
-      // API 返回的是最新的在前，我們要反轉顯示（舊的在上）
-      setMessages(response.messages.reverse());
+      // API contract: messages are oldest -> newest.
+      setMessages(response.messages);
     } catch (err) {
       console.error('載入團隊聊天訊息失敗:', err);
       setError('無法載入聊天訊息');
@@ -193,6 +193,7 @@ export function ChatPage() {
                   {messages.map((msg) => (
                     <div
                       key={msg.id}
+                      data-testid="team-chat-message"
                       className={`group space-y-2 p-3 rounded-lg ${msg.pinned ? 'border-l-4 border-[#f59e0b] bg-[#f8f9fa]' : 'bg-white border border-[#e5e7eb]'}`}
                     >
                       <div className="flex items-center justify-between">

@@ -81,19 +81,21 @@ async def get_redis() -> redis.Redis:
         try:
             await real_client.ping()
             _redis_client = real_client
-        except Exception:
+        except Exception as exc:
             if not settings.DEBUG:
                 logger.error(
-                    "Redis unavailable at %s — refusing to start without Redis in production.",
-                    settings.REDIS_URL,
+                    "[F02] Redis unavailable at %s — refusing to start without Redis in production. %s",
+                    settings.REDIS_URL, exc,
                 )
                 raise RuntimeError(
                     f"Redis connection failed ({settings.REDIS_URL}). "
                     "Set DEBUG=true for in-memory fallback (dev only)."
                 )
             logger.warning(
-                "Redis unavailable at %s; falling back to in-memory cache (DEBUG mode only).",
-                settings.REDIS_URL,
+                "[F02] SECURITY: Using InMemoryRedis fallback — "
+                "token blacklist, account lockout, and idle timeout are NOT persistent. "
+                "Redis unavailable at %s: %s",
+                settings.REDIS_URL, exc,
             )
             _redis_client = _InMemoryRedis()  # type: ignore[assignment]
     return _redis_client

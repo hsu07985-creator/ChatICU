@@ -1,4 +1,4 @@
-import apiClient from '../api-client';
+import apiClient, { ensureData } from '../api-client';
 
 // 類型定義
 export interface PatientMessage {
@@ -7,7 +7,7 @@ export interface PatientMessage {
   authorId: string;
   authorName: string;
   authorRole: 'doctor' | 'nurse' | 'pharmacist' | 'admin';
-  messageType: 'general' | 'medication-advice' | 'alert';
+  messageType: 'general' | 'medication-advice' | 'alert' | 'urgent' | 'note' | 'progress-note' | 'nursing-record';
   content: string;
   timestamp: string;
   isRead: boolean;
@@ -21,8 +21,6 @@ export interface PatientMessage {
 }
 
 export interface MessagesResponse {
-  patientId: string;
-  patientName: string;
   messages: PatientMessage[];
   total: number;
   unreadCount: number;
@@ -30,7 +28,7 @@ export interface MessagesResponse {
 
 export interface SendMessageData {
   content: string;
-  messageType?: 'general' | 'medication-advice' | 'alert';
+  messageType?: 'general' | 'medication-advice' | 'alert' | 'urgent' | 'note' | 'progress-note' | 'nursing-record';
   linkedMedication?: string;
   adviceCode?: string;
 }
@@ -49,12 +47,14 @@ export async function getMessages(
 ): Promise<MessagesResponse> {
   const params = new URLSearchParams();
   if (options.type) params.append('type', options.type);
-  if (options.unreadOnly) params.append('unreadOnly', 'true');
+  if (options.unreadOnly) params.append('unread', 'true');
 
-  const response = await apiClient.get<ApiResponse<MessagesResponse>>(
+  const response = await apiClient.get<ApiResponse<{ messages: PatientMessage[]; total: number }>>(
     `/patients/${patientId}/messages?${params}`
   );
-  return response.data.data!;
+  const payload = ensureData(response.data, 'API contract');
+  const unreadCount = (payload.messages || []).filter((m) => !m.isRead).length;
+  return { ...payload, unreadCount };
 }
 
 // 發送留言
@@ -66,7 +66,7 @@ export async function sendMessage(
     `/patients/${patientId}/messages`,
     data
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 // 標記留言已讀
@@ -77,6 +77,5 @@ export async function markMessageRead(
   const response = await apiClient.patch<ApiResponse<PatientMessage>>(
     `/patients/${patientId}/messages/${messageId}/read`
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
-

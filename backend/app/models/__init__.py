@@ -11,6 +11,7 @@ from app.models.ai_session import AISession, AIMessage
 from app.models.drug_interaction import DrugInteraction, IVCompatibility
 from app.models.error_report import ErrorReport
 from app.models.pharmacy_advice import PharmacyAdvice
+from app.models.pharmacy_favorite import PharmacyCompatibilityFavorite
 
 __all__ = [
     "User",
@@ -30,4 +31,5 @@ __all__ = [
     "IVCompatibility",
     "ErrorReport",
     "PharmacyAdvice",
+    "PharmacyCompatibilityFavorite",
 ]

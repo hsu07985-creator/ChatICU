@@ -1,0 +1,1 @@
+{"success":true,"data":{"id":"adm_med_002_1","medicationId":"med_002","patientId":"pat_001","scheduledTime":"2025-10-17T08:00:00+00:00","administeredTime":null,"status":"held","dose":"2 mg","route":"IV","administeredBy":{"id":"usr_002","name":"李穎灝"},"notes":"manual_phase2_validation"},"message":"給藥記錄已更新"}

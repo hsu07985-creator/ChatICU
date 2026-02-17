@@ -21,9 +21,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-# ── Password Policy (T07) ────────────────────────────────────────────
+# ── Password Policy (T07) — configurable via env (F15) ──────────────
 
-MIN_PASSWORD_LENGTH = 12
+MIN_PASSWORD_LENGTH = settings.MIN_PASSWORD_LENGTH
 
 
 def validate_password_strength(password: str) -> Optional[str]:

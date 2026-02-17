@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import JSON, event
+from sqlalchemy import JSON
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+import app.middleware.auth as auth_middleware
+import app.routers.auth as auth_router
 from app.database import Base, get_db
 from app.main import app
 from app.models import *  # noqa: F401, F403  — register all models
@@ -48,7 +49,7 @@ async def db_session(db_engine):
 
 @pytest_asyncio.fixture
 async def seeded_db(db_session):
-    """Seed a test user and patient for API tests."""
+    """Legacy seed fixture for existing API tests (mock auth client)."""
     from app.models.patient import Patient
 
     user = User(
@@ -80,8 +81,66 @@ async def seeded_db(db_session):
 
 
 @pytest_asyncio.fixture
-async def client(seeded_db, db_engine):
-    """Async test client with DB and auth overrides."""
+async def auth_seeded_db(db_session):
+    """Auth-focused seed fixture with multiple roles and known passwords."""
+    users = [
+        User(
+            id="usr_admin",
+            name="Admin User",
+            username="admin",
+            password_hash=hash_password("AdminPass123!"),
+            email="admin@hospital.com",
+            role="admin",
+            unit="ICU",
+            active=True,
+        ),
+        User(
+            id="usr_doctor",
+            name="Doctor User",
+            username="doctor",
+            password_hash=hash_password("DoctorPass123!"),
+            email="doctor@hospital.com",
+            role="doctor",
+            unit="ICU",
+            active=True,
+        ),
+        User(
+            id="usr_nurse",
+            name="Nurse User",
+            username="nurse",
+            password_hash=hash_password("NursePass123!"),
+            email="nurse@hospital.com",
+            role="nurse",
+            unit="ICU",
+            active=True,
+        ),
+        User(
+            id="usr_pharm",
+            name="Pharmacist User",
+            username="pharmacist",
+            password_hash=hash_password("PharmPass123!"),
+            email="pharmacist@hospital.com",
+            role="pharmacist",
+            unit="Pharmacy",
+            active=True,
+        ),
+    ]
+    db_session.add_all(users)
+    await db_session.commit()
+    yield db_session
+
+
+@pytest_asyncio.fixture
+async def test_redis():
+    """In-memory redis stub to isolate auth tests from external Redis."""
+    client = auth_middleware._InMemoryRedis()
+    yield client
+    await client.close()
+
+
+@pytest_asyncio.fixture
+async def mock_auth_client(seeded_db, db_engine):
+    """Async client with DB override + mocked current user (legacy behavior)."""
     session_factory = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
 
     async def override_get_db():
@@ -93,7 +152,6 @@ async def client(seeded_db, db_engine):
                 await session.rollback()
                 raise
 
-    # Mock auth to skip Redis + JWT
     async def override_get_current_user():
         return User(
             id="usr_test",
@@ -107,6 +165,7 @@ async def client(seeded_db, db_engine):
         )
 
     from app.middleware.auth import get_current_user
+
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
 
@@ -115,3 +174,37 @@ async def client(seeded_db, db_engine):
         yield ac
 
     app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def real_auth_client(auth_seeded_db, db_engine, test_redis, monkeypatch):
+    """Async client with real auth/JWT path enabled (no get_current_user override)."""
+    session_factory = async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
+
+    async def override_get_db():
+        async with session_factory() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    async def override_get_redis():
+        return test_redis
+
+    app.dependency_overrides[get_db] = override_get_db
+    monkeypatch.setattr(auth_middleware, "get_redis", override_get_redis)
+    monkeypatch.setattr(auth_router, "get_redis", override_get_redis)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def client(mock_auth_client):
+    """Backwards-compatible alias used by existing tests."""
+    yield mock_auth_client

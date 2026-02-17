@@ -77,6 +77,4 @@ class Config:
             raise ValueError("OPENAI_MAX_OUTPUT_TOKENS 必須 > 0")
 
         return True
-
-
-
+# Legacy shell export removed for security. Set OPENAI_API_KEY via environment or backend/.env only.

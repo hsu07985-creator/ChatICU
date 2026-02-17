@@ -1,4 +1,4 @@
-import apiClient from '../api-client';
+import apiClient, { ensureData } from '../api-client';
 
 // 單一檢驗項目的結構
 export interface LabItem {
@@ -80,7 +80,7 @@ export async function getLatestLabData(patientId: string): Promise<LabData> {
   const response = await apiClient.get<ApiResponse<LabData>>(
     `/patients/${patientId}/lab-data/latest`
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 // 取得檢驗趨勢
@@ -95,7 +95,7 @@ export async function getLabTrends(
   const response = await apiClient.get<ApiResponse<LabTrendsResponse>>(
     `/patients/${patientId}/lab-data/trends?${params}`
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 // 校正檢驗數據
@@ -108,6 +108,6 @@ export async function correctLabData(
     `/patients/${patientId}/lab-data/${labDataId}/correct`,
     correction
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 

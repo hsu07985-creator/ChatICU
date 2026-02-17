@@ -1,0 +1,63 @@
+{
+  "rule_set_id": "interaction_rules_icu_v1",
+  "version": "1.0.0",
+  "effective_date": "2026-02-15",
+  "rules": [
+    {
+      "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+      "drug_pair": {
+        "a": "haloperidol",
+        "b": "ziprasidone",
+        "unordered": true,
+        "aliases_a": [
+          "haldol"
+        ],
+        "aliases_b": [
+          "geodon"
+        ]
+      },
+      "severity": "major",
+      "mechanism": "Additive QT prolongation risk.",
+      "clinical_effect": "Increased risk of torsades de pointes.",
+      "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+      "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+      "monitoring": [
+        "baseline ECG",
+        "correct K/Mg",
+        "repeat ECG in 24h"
+      ],
+      "citations": [
+        {
+          "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+          "page": 6,
+          "chunk_id": "chunk-mock-int-001"
+        }
+      ]
+    },
+    {
+      "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+      "drug_pair": {
+        "a": "midazolam",
+        "b": "fentanyl",
+        "unordered": true
+      },
+      "severity": "moderate",
+      "mechanism": "Additive CNS and respiratory depression.",
+      "clinical_effect": "Higher risk of oversedation and hypoventilation.",
+      "recommended_action": "Start lower doses and monitor respiratory status closely.",
+      "dose_adjustment_hint": "Use lower initial sedative/opioid rates and titrate slowly.",
+      "monitoring": [
+        "respiratory rate",
+        "SpO2/EtCO2",
+        "sedation scale (RASS)"
+      ],
+      "citations": [
+        {
+          "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+          "page": 10,
+          "chunk_id": "chunk-mock-int-002"
+        }
+      ]
+    }
+  ]
+}

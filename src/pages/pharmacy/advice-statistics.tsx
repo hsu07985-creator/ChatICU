@@ -7,61 +7,11 @@ import { Calendar, TrendingUp, FileText, Tag, User, Pill, Loader2 } from 'lucide
 import { Badge } from '../../components/ui/badge';
 import { ScrollArea } from '../../components/ui/scroll-area';
 import { LoadingSpinner, ErrorDisplay, EmptyState } from '../../components/ui/state-display';
+import { PHARMACY_ADVICE_CATEGORIES, PHARMACY_ADVICE_CATEGORY_COLORS } from '../../lib/pharmacy-master-data';
 
-// 四大類別的顏色配置
-const CATEGORY_COLORS: Record<string, string> = {
-  '1. 建議處方': '#7f265b',
-  '2. 主動建議': '#f59e0b',
-  '3. 建議監測': '#1a1a1a',
-  '4. 用藥適從性': '#3b82f6'
-};
-
-// 四大類別定義（UI 靜態配置）
-const ADVICE_CATEGORIES = {
-  prescription: {
-    label: '1. 建議處方',
-    codes: [
-      { code: '1-1', label: '建議更適當用藥/配方組成' },
-      { code: '1-2', label: '用藥途徑或劑型問題' },
-      { code: '1-3', label: '用藥期間/數量問題（包含停藥）' },
-      { code: '1-4', label: '用藥劑量/頻次問題' },
-      { code: '1-5', label: '不符健保給付規定' },
-      { code: '1-6', label: '其他' },
-      { code: '1-7', label: '藥品相容性問題' },
-      { code: '1-8', label: '疑似藥品不良反應' },
-      { code: '1-9', label: '藥品交互作用' },
-      { code: '1-10', label: '藥品併用問題' },
-      { code: '1-11', label: '用藥替急問題（包括過敏史）' },
-      { code: '1-12', label: '適應症問題' },
-      { code: '1-13', label: '給藥問題（途徑、輸注方式、濃度或稀釋液）' }
-    ]
-  },
-  proactive: {
-    label: '2. 主動建議',
-    codes: [
-      { code: '2-1', label: '建議靜脈營養配方' },
-      { code: '2-2', label: '建議藥物治療療程' },
-      { code: '2-3', label: '建議用藥/建議增加用藥' },
-      { code: '2-4', label: '藥品不良反應評估' }
-    ]
-  },
-  monitoring: {
-    label: '3. 建議監測',
-    codes: [
-      { code: '3-1', label: '建議藥品濃度監測' },
-      { code: '3-2', label: '建議藥品不良反應監測' },
-      { code: '3-3', label: '建議藥品療效監測' }
-    ]
-  },
-  appropriateness: {
-    label: '4. 用藥適從性',
-    codes: [
-      { code: '4-1', label: '病人用藥適從性問題' },
-      { code: '4-2', label: '藥品辨識/自備藥辨識' },
-      { code: '4-3', label: '藥歷查核與整合' }
-    ]
-  }
-};
+// 四大類別定義（固定 master data，集中管理）
+const ADVICE_CATEGORIES = PHARMACY_ADVICE_CATEGORIES;
+const CATEGORY_COLORS = PHARMACY_ADVICE_CATEGORY_COLORS;
 
 export function PharmacyAdviceStatisticsPage() {
   const currentDate = new Date();
@@ -117,12 +67,10 @@ export function PharmacyAdviceStatisticsPage() {
 
   // 統計各分類數量
   const getCategoryStats = () => {
-    const stats: Record<string, number> = {
-      '1. 建議處方': 0,
-      '2. 主動建議': 0,
-      '3. 建議監測': 0,
-      '4. 用藥適從性': 0
-    };
+    const stats: Record<string, number> = {};
+    Object.values(ADVICE_CATEGORIES).forEach((cat) => {
+      stats[cat.label] = 0;
+    });
 
     records.forEach(record => {
       if (stats[record.category] !== undefined) {
@@ -166,7 +114,7 @@ export function PharmacyAdviceStatisticsPage() {
     return (
       <div className="p-6">
         <h1 className="text-3xl font-bold text-[#7f265b] mb-6">用藥建議與統計</h1>
-        <LoadingSpinner message="載入用藥建議記錄中..." />
+        <LoadingSpinner text="載入用藥建議記錄中..." />
       </div>
     );
   }
@@ -223,10 +171,9 @@ export function PharmacyAdviceStatisticsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">全部類別</SelectItem>
-                <SelectItem value="1. 建議處方">1. 建議處方</SelectItem>
-                <SelectItem value="2. 主動建議">2. 主動建議</SelectItem>
-                <SelectItem value="3. 建議監測">3. 建議監測</SelectItem>
-                <SelectItem value="4. 用藥適從性">4. 用藥適從性</SelectItem>
+                {Object.values(ADVICE_CATEGORIES).map((cat) => (
+                  <SelectItem key={cat.key} value={cat.label}>{cat.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </CardContent>

@@ -1,7 +1,7 @@
 import { type LabData } from '../lib/api';
 import { useState } from 'react';
 import { LabTrendChart, type LabTrendData } from './lab-trend-chart';
-import { TrendingUp, Loader2 } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { getLabTrends } from '../lib/api/lab-data';
 
 const labReferenceRanges: Record<string, string> = {
@@ -156,7 +156,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
     if (!labData || !category) return undefined;
     const cat = labData[category];
     if (!cat || typeof cat !== 'object') return undefined;
-    return (cat as Record<string, unknown>)[itemName];
+    return (cat as unknown as Record<string, unknown>)[itemName];
   };
 
   // 輔助函數：取得數值
@@ -186,9 +186,9 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
       const trendData: LabTrendData[] = [];
       const snapshots = response.trends || [];
       for (const snapshot of snapshots) {
-        const categoryData = (snapshot as Record<string, unknown>)[category];
+        const categoryData = (snapshot as unknown as Record<string, unknown>)[category];
         const labItem = categoryData && typeof categoryData === 'object'
-          ? (categoryData as Record<string, unknown>)[labName]
+          ? (categoryData as unknown as Record<string, unknown>)[labName]
           : undefined;
         const trendValue = toFiniteNumber(labItem);
         if (trendValue !== undefined) {

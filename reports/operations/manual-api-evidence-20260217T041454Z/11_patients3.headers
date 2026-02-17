@@ -1,0 +1,17 @@
+HTTP/1.1 200 OK
+date: Tue, 17 Feb 2026 04:17:52 GMT
+server: uvicorn
+content-length: 895
+content-type: application/json
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-xss-protection: 1; mode=block
+referrer-policy: strict-origin-when-cross-origin
+permissions-policy: camera=(), microphone=(), geolocation=()
+cross-origin-resource-policy: cross-origin
+cache-control: no-store
+pragma: no-cache
+expires: 0
+x-request-id: audit3_patients_20260217T041752Z
+x-trace-id: audit3_patients_20260217T041752Z
+

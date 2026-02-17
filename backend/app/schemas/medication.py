@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel
 
@@ -47,3 +47,8 @@ class MedicationResponse(BaseModel):
     warnings: Optional[list[str]] = None
 
     model_config = {"from_attributes": True}
+
+
+class MedicationAdministrationUpdate(BaseModel):
+    status: Literal["scheduled", "administered", "missed", "held", "refused"]
+    notes: Optional[str] = None

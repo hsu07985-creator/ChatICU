@@ -1,4 +1,4 @@
-import apiClient from '../api-client';
+import apiClient, { ensureData } from '../api-client';
 
 // 類型定義
 export interface Patient {
@@ -7,7 +7,7 @@ export interface Patient {
   bedNumber: string;
   medicalRecordNumber: string;
   age: number;
-  gender: '男' | '女';
+  gender: string;
   diagnosis: string;
   intubated: boolean;
   admissionDate: string;
@@ -17,10 +17,20 @@ export interface Patient {
   department: string;
   lastUpdate: string;
   alerts: string[];
-  consentStatus: 'valid' | 'expired' | 'none';
+  consentStatus: string;
   hasDNR: boolean;
   isIsolated: boolean;
+  height?: number | null;
+  weight?: number | null;
+  bmi?: number | null;
+  symptoms?: string[];
+  allergies?: string[];
+  bloodType?: string | null;
+  codeStatus?: string | null;
   criticalStatus?: string;
+  sedation?: string[];
+  analgesia?: string[];
+  nmb?: string[];
   sanSummary?: {
     sedation: string[];
     analgesia: string[];
@@ -68,19 +78,46 @@ export async function getPatients(filters: PatientFilters = {}): Promise<Patient
   if (filters.department) params.append('department', filters.department);
 
   const response = await apiClient.get<ApiResponse<PatientsResponse>>(`/patients?${params}`);
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 // 取得單一病人詳情
 export async function getPatient(id: string): Promise<Patient> {
   const response = await apiClient.get<ApiResponse<Patient>>(`/patients/${id}`);
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 // 更新病人資料
 export async function updatePatient(id: string, data: Partial<Patient>): Promise<Patient> {
-  const response = await apiClient.patch<ApiResponse<Patient>>(`/patients/${id}`, data);
-  return response.data.data!;
+  const body: Record<string, unknown> = {};
+
+  // Map frontend camelCase fields to backend snake_case update schema.
+  if (data.name !== undefined) body.name = data.name;
+  if (data.bedNumber !== undefined) body.bed_number = data.bedNumber;
+  if (data.medicalRecordNumber !== undefined) body.medical_record_number = data.medicalRecordNumber;
+  if (data.age !== undefined) body.age = data.age;
+  if (data.gender !== undefined) body.gender = data.gender;
+  if (data.height !== undefined) body.height = data.height;
+  if (data.weight !== undefined) body.weight = data.weight;
+  if (data.bmi !== undefined) body.bmi = data.bmi;
+  if (data.diagnosis !== undefined) body.diagnosis = data.diagnosis;
+  if (data.intubated !== undefined) body.intubated = data.intubated;
+  if (data.criticalStatus !== undefined) body.critical_status = data.criticalStatus;
+  if (data.admissionDate !== undefined) body.admission_date = data.admissionDate;
+  if (data.icuAdmissionDate !== undefined) body.icu_admission_date = data.icuAdmissionDate;
+  if (data.ventilatorDays !== undefined) body.ventilator_days = data.ventilatorDays;
+  if (data.attendingPhysician !== undefined) body.attending_physician = data.attendingPhysician;
+  if (data.department !== undefined) body.department = data.department;
+  if (data.alerts !== undefined) body.alerts = data.alerts;
+  if (data.codeStatus !== undefined) body.code_status = data.codeStatus;
+  if (data.hasDNR !== undefined) body.has_dnr = data.hasDNR;
+  if (data.isIsolated !== undefined) body.is_isolated = data.isIsolated;
+  if (data.sedation !== undefined) body.sedation = data.sedation;
+  if (data.analgesia !== undefined) body.analgesia = data.analgesia;
+  if (data.nmb !== undefined) body.nmb = data.nmb;
+
+  const response = await apiClient.patch<ApiResponse<Patient>>(`/patients/${id}`, body);
+  return ensureData(response.data, 'API contract');
 }
 
 // 新增病人
@@ -90,19 +127,63 @@ export interface CreatePatientData {
   medicalRecordNumber: string;
   diagnosis: string;
   age?: number;
-  gender?: '男' | '女';
+  gender?: string;
+  height?: number;
+  weight?: number;
+  symptoms?: string[];
   intubated?: boolean;
+  sedation?: string[];
+  analgesia?: string[];
+  nmb?: string[];
   admissionDate?: string;
   icuAdmissionDate?: string;
+  ventilatorDays?: number;
   attendingPhysician?: string;
   department?: string;
+  unit?: string;
+  alerts?: string[];
+  consentStatus?: string;
+  allergies?: string[];
+  bloodType?: string;
+  codeStatus?: string;
+  hasDNR?: boolean;
   isIsolated?: boolean;
   criticalStatus?: string;
 }
 
 export async function createPatient(data: CreatePatientData): Promise<Patient> {
-  const response = await apiClient.post<ApiResponse<Patient>>('/patients', data);
-  return response.data.data!;
+  const body: Record<string, unknown> = {
+    name: data.name,
+    bed_number: data.bedNumber,
+    medical_record_number: data.medicalRecordNumber,
+    diagnosis: data.diagnosis,
+    age: data.age ?? 0,
+    gender: data.gender ?? '男',
+    height: data.height ?? undefined,
+    weight: data.weight ?? undefined,
+    symptoms: data.symptoms ?? undefined,
+    intubated: data.intubated ?? false,
+    critical_status: data.criticalStatus ?? undefined,
+    sedation: data.sedation ?? undefined,
+    analgesia: data.analgesia ?? undefined,
+    nmb: data.nmb ?? undefined,
+    admission_date: data.admissionDate ?? undefined,
+    icu_admission_date: data.icuAdmissionDate ?? undefined,
+    ventilator_days: data.ventilatorDays ?? 0,
+    attending_physician: data.attendingPhysician ?? undefined,
+    department: data.department ?? undefined,
+    unit: data.unit ?? undefined,
+    alerts: data.alerts ?? undefined,
+    consent_status: data.consentStatus ?? undefined,
+    allergies: data.allergies ?? undefined,
+    blood_type: data.bloodType ?? undefined,
+    code_status: data.codeStatus ?? undefined,
+    has_dnr: data.hasDNR ?? false,
+    is_isolated: data.isIsolated ?? false,
+  };
+
+  const response = await apiClient.post<ApiResponse<Patient>>('/patients', body);
+  return ensureData(response.data, 'API contract');
 }
 
 // 封存病人
@@ -113,8 +194,13 @@ export interface ArchivePatientData {
 }
 
 export async function archivePatient(id: string, data: ArchivePatientData): Promise<Patient> {
-  const response = await apiClient.patch<ApiResponse<Patient>>(`/patients/${id}/archive`, data);
-  return response.data.data!;
+  const body: Record<string, unknown> = {
+    archived: data.archived,
+    reason: data.reason,
+    discharge_type: data.dischargeType,
+  };
+  const response = await apiClient.patch<ApiResponse<Patient>>(`/patients/${id}/archive`, body);
+  return ensureData(response.data, 'API contract');
 }
 
 // 導出所有 API 函數
@@ -125,4 +211,3 @@ export const patientsApi = {
   createPatient,
   archivePatient,
 };
-

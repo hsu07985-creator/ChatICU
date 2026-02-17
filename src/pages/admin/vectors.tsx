@@ -8,7 +8,6 @@ import {
   Database,
   Upload,
   FileText,
-  Clock,
   CheckCircle2,
   AlertCircle,
   Trash2,
@@ -19,8 +18,10 @@ import {
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Progress } from '../../components/ui/progress';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '../../lib/api-client';
 import {
   getVectorDatabases,
+  uploadVectorDocument,
   rebuildVectorIndex,
   VectorDatabase,
   VectorsResponse
@@ -58,6 +59,16 @@ export function VectorsPage() {
   // 使用 API 數據
   const vectorDatabases = apiData?.databases || [];
 
+  useEffect(() => {
+    if (vectorDatabases.length === 0 && selectedDatabase !== 'clinical-guidelines') {
+      setSelectedDatabase('clinical-guidelines');
+      return;
+    }
+    if (vectorDatabases.length > 0 && !vectorDatabases.some((db) => db.id === selectedDatabase)) {
+      setSelectedDatabase(vectorDatabases[0].id);
+    }
+  }, [selectedDatabase, vectorDatabases]);
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -80,41 +91,23 @@ export function VectorsPage() {
     setIsUploading(true);
     setUploadProgress(0);
 
-    // 模擬上傳進度
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 300);
-
     try {
-      // Upload endpoint is not yet available in backend
-      // Simulate upload progress for now
-      await new Promise<void>((resolve) => {
-        const checkInterval = setInterval(() => {
-          if (uploadProgress >= 100) {
-            clearInterval(checkInterval);
-            resolve();
-          }
-        }, 100);
-        // Auto-resolve after 3 seconds
-        setTimeout(() => {
-          clearInterval(checkInterval);
-          resolve();
-        }, 3000);
+      const result = await uploadVectorDocument({
+        file: selectedFile,
+        collection: selectedDatabase,
+        metadata: {
+          source: 'admin-vectors-ui',
+          uploadedAt: new Date().toISOString(),
+        },
+        onUploadProgress: (progress) => setUploadProgress(progress),
       });
-      clearInterval(interval);
       setUploadProgress(100);
-      toast.info('上傳功能尚未啟用，請等待後端實作完成');
+      toast.success(`上傳完成：${result.fileName}`);
+      await loadData();
     } catch (err) {
-      clearInterval(interval);
       setUploadProgress(0);
       console.error('上傳失敗:', err);
-      toast.error('上傳失敗，請確認後端服務是否正常運行');
+      toast.error(getApiErrorMessage(err, '上傳失敗，請確認後端服務是否正常運行'));
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -126,16 +119,16 @@ export function VectorsPage() {
     }
   };
 
-  const handleRefreshDatabase = async (dbId: string) => {
+  const handleRefreshDatabase = async () => {
     toast.info('正在重建向量索引...');
 
     try {
       await rebuildVectorIndex();
       toast.success('向量索引重建完成');
-      loadData();
+      await loadData();
     } catch (err) {
       console.error('重建索引失敗:', err);
-      toast.error('重建索引失敗，請確認後端服務是否正常運行');
+      toast.error(getApiErrorMessage(err, '重建索引失敗，請確認後端服務是否正常運行'));
     }
   };
 
@@ -195,11 +188,15 @@ export function VectorsPage() {
               className="w-full px-3 py-2 border-2 border-[#e5e7eb] rounded-lg focus:border-[#7f265b] focus:outline-none text-[16px]"
               disabled={isUploading}
             >
-              {vectorDatabases.map((db) => (
-                <option key={db.id} value={db.id}>
-                  {db.name}
-                </option>
-              ))}
+              {vectorDatabases.length === 0 ? (
+                <option value="clinical-guidelines">clinical-guidelines（預設）</option>
+              ) : (
+                vectorDatabases.map((db) => (
+                  <option key={db.id} value={db.id}>
+                    {db.name}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
@@ -302,23 +299,18 @@ export function VectorsPage() {
                       <h3 className="text-xl font-semibold text-[#1a1a1a]">{db.name}</h3>
                       {getStatusBadge(db.status)}
                     </div>
-                    <p className="text-[15px] text-muted-foreground mb-3">{db.description}</p>
-                    
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-3 gap-4 mt-3">
                       <div className="bg-white border-2 border-[#e5e7eb] rounded-lg p-3">
                         <p className="text-xs text-muted-foreground mb-1">文件數量</p>
                         <p className="text-lg font-bold text-[#7f265b]">{db.documentCount}</p>
                       </div>
                       <div className="bg-white border-2 border-[#e5e7eb] rounded-lg p-3">
-                        <p className="text-xs text-muted-foreground mb-1">資料庫大小</p>
-                        <p className="text-lg font-bold text-[#7f265b]">{db.size}</p>
+                        <p className="text-xs text-muted-foreground mb-1">切片數量</p>
+                        <p className="text-lg font-bold text-[#7f265b]">{db.chunkCount}</p>
                       </div>
-                      <div className="col-span-2 bg-white border-2 border-[#e5e7eb] rounded-lg p-3">
-                        <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          最後更新時間
-                        </p>
-                        <p className="text-[15px] font-medium text-[#1a1a1a]">{db.lastUpdated}</p>
+                      <div className="bg-white border-2 border-[#e5e7eb] rounded-lg p-3">
+                        <p className="text-xs text-muted-foreground mb-1">嵌入模型</p>
+                        <p className="text-[15px] font-medium text-[#1a1a1a]">{db.embeddingModel}</p>
                       </div>
                     </div>
                   </div>
@@ -327,7 +319,7 @@ export function VectorsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleRefreshDatabase(db.id)}
+                      onClick={handleRefreshDatabase}
                       disabled={db.status === 'updating'}
                       className="border-[#7f265b] text-[#7f265b] hover:bg-[#7f265b] hover:text-white"
                     >

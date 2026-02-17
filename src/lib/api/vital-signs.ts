@@ -1,4 +1,4 @@
-import apiClient from '../api-client';
+import apiClient, { ensureData } from '../api-client';
 
 // 類型定義
 export interface VitalSigns {
@@ -20,20 +20,12 @@ export interface VitalSigns {
   cpp?: number;
 }
 
-export interface VitalSignsTrendPoint {
-  timestamp: string;
-  value: number;
-}
-
 export interface VitalSignsTrendsResponse {
-  patientId: string;
-  patientName: string;
-  trends: Record<string, VitalSignsTrendPoint[]>;
+  trends: VitalSigns[];
+  hours: number;
 }
 
 export interface VitalSignsHistoryResponse {
-  patientId: string;
-  patientName: string;
   history: VitalSigns[];
   pagination: {
     page: number;
@@ -55,7 +47,7 @@ export async function getLatestVitalSigns(patientId: string): Promise<VitalSigns
   const response = await apiClient.get<ApiResponse<VitalSigns>>(
     `/patients/${patientId}/vital-signs/latest`
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 // 取得生命徵象趨勢
@@ -70,7 +62,7 @@ export async function getVitalSignsTrends(
   const response = await apiClient.get<ApiResponse<VitalSignsTrendsResponse>>(
     `/patients/${patientId}/vital-signs/trends?${params}`
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 // 取得生命徵象歷史
@@ -87,6 +79,6 @@ export async function getVitalSignsHistory(
   const response = await apiClient.get<ApiResponse<VitalSignsHistoryResponse>>(
     `/patients/${patientId}/vital-signs/history?${params}`
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 

@@ -1,4 +1,4 @@
-import apiClient from '../api-client';
+import apiClient, { ensureData } from '../api-client';
 
 // 類型定義
 export interface VentilatorSettings {
@@ -19,15 +19,9 @@ export interface VentilatorSettings {
   resistance?: number;
 }
 
-export interface VentilatorTrendPoint {
-  timestamp: string;
-  value: number;
-}
-
 export interface VentilatorTrendsResponse {
-  patientId: string;
-  patientName: string;
-  trends: Record<string, VentilatorTrendPoint[]>;
+  trends: VentilatorSettings[];
+  hours: number;
 }
 
 export interface WeaningAssessment {
@@ -66,7 +60,7 @@ export async function getLatestVentilatorSettings(patientId: string): Promise<Ve
   const response = await apiClient.get<ApiResponse<VentilatorSettings>>(
     `/patients/${patientId}/ventilator/latest`
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 // 取得呼吸器趨勢
@@ -81,7 +75,7 @@ export async function getVentilatorTrends(
   const response = await apiClient.get<ApiResponse<VentilatorTrendsResponse>>(
     `/patients/${patientId}/ventilator/trends?${params}`
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 // 取得脫機評估
@@ -89,7 +83,7 @@ export async function getWeaningAssessment(patientId: string): Promise<WeaningAs
   const response = await apiClient.get<ApiResponse<WeaningAssessment>>(
     `/patients/${patientId}/ventilator/weaning-assessment`
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 // 建立脫機評估
@@ -101,6 +95,6 @@ export async function createWeaningAssessment(
     `/patients/${patientId}/ventilator/weaning-assessment`,
     data
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 

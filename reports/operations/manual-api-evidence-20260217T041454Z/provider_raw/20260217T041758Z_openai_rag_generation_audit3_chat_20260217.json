@@ -1,0 +1,48 @@
+{
+  "captured_at": "2026-02-17T04:17:58.764812Z",
+  "provider": "openai",
+  "model": "gpt-4o",
+  "task": "rag_generation",
+  "request_id": "audit3_chat_20260217T041752Z",
+  "trace_id": "audit3_chat_20260217T041752Z",
+  "input_fingerprint": "04c3b2406615de09",
+  "response_raw": {
+    "id": "chatcmpl-DA6p0KihEqsG5d4ZOwmqqFs5mYeZn",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "logprobs": null,
+        "message": {
+          "content": "【主回答】C。建議繼續使用靜脈注射型鴉片類藥物如Morphine，並考慮合併使用非鴉片類藥物如乙醯氨基酚以減少鴉片類藥物劑量。\n\n【說明/補充】\n- 目前患者使用Morphine控制疼痛，根據實證研究，靜脈注射型鴉片類藥物是重症病人非神經病變性疼痛的首選。（+1C）\n- 合併使用非鴉片類藥物如乙醯氨基酚可減少鴉片類藥物的劑量和相關副作用，並提升止痛效果。\n- 注意患者已有呼吸抑制風險，需密切監測呼吸頻率和血氧飽和度，每2小時一次，若SpO2低於90%或RR低於10次/分鐘，需立即通知醫師。\n- 參考文獻指出，非鴉片類藥物的使用在減少鴉片類藥物依賴及副作用方面有助益。（Resuscitation & Intensive Care Med 2016;1:62-70）",
+          "refusal": null,
+          "role": "assistant",
+          "annotations": [],
+          "audio": null,
+          "function_call": null,
+          "tool_calls": null
+        }
+      }
+    ],
+    "created": 1771301874,
+    "model": "gpt-4o-2024-08-06",
+    "object": "chat.completion",
+    "service_tier": "default",
+    "system_fingerprint": "fp_9e0d253e63",
+    "usage": {
+      "completion_tokens": 298,
+      "prompt_tokens": 4436,
+      "total_tokens": 4734,
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": 0,
+        "audio_tokens": 0,
+        "reasoning_tokens": 0,
+        "rejected_prediction_tokens": 0
+      },
+      "prompt_tokens_details": {
+        "audio_tokens": 0,
+        "cached_tokens": 4096
+      }
+    }
+  }
+}

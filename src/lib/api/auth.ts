@@ -1,4 +1,4 @@
-import apiClient, { tokenManager } from '../api-client';
+import apiClient, { ensureData, tokenManager } from '../api-client';
 import type { User, UserRole } from '../auth-context';
 
 // API 回應類型
@@ -28,7 +28,7 @@ export async function login(username: string, password: string): Promise<User> {
     password,
   });
 
-  const { user, token, refreshToken } = response.data.data!;
+  const { user, token, refreshToken } = ensureData(response.data, 'API contract');
   tokenManager.setToken(token);
   tokenManager.setRefreshToken(refreshToken);
   
@@ -50,7 +50,7 @@ export async function logout(): Promise<void> {
 // 取得當前用戶資訊
 export async function getCurrentUser(): Promise<User> {
   const response = await apiClient.get<ApiResponse<User>>('/auth/me');
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 // 刷新 Token
@@ -64,7 +64,7 @@ export async function refreshToken(): Promise<RefreshResponse> {
     refreshToken: currentRefreshToken,
   });
 
-  const data = response.data.data!;
+  const data = ensureData(response.data, 'API contract');
   tokenManager.setToken(data.token);
   tokenManager.setRefreshToken(data.refreshToken);
   

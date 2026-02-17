@@ -1,26 +1,24 @@
 import { useState } from 'react';
+import { getReadinessReason, polishClinicalText, type AIReadiness } from '../lib/api/ai';
+import { sendMessage } from '../lib/api/messages';
 import { copyToClipboard } from '../lib/clipboard-utils';
 import { useAuth } from '../lib/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
-import { ScrollArea } from './ui/scroll-area';
 import { Separator } from './ui/separator';
 import { Label } from './ui/label';
+import { AiMarkdown } from './ui/ai-markdown';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { 
-  FileText, 
-  Pill, 
-  ClipboardList, 
-  Brain, 
-  Copy, 
-  Download, 
+import {
+  FileText,
+  Pill,
+  ClipboardList,
+  Brain,
+  Copy,
+  Download,
   Calendar,
-  TrendingUp,
-  Heart,
-  Wind,
-  Droplet,
   Send,
   Sparkles
 } from 'lucide-react';
@@ -29,6 +27,7 @@ import { toast } from 'sonner';
 interface MedicalRecordsProps {
   patientId: string;
   patientName: string;
+  aiReadiness?: AIReadiness | null;
 }
 
 interface MedicalRecord {
@@ -40,8 +39,10 @@ interface MedicalRecord {
   polishedContent?: string;
 }
 
-export function MedicalRecords({ patientId, patientName }: MedicalRecordsProps) {
+export function MedicalRecords({ patientId, patientName, aiReadiness = null }: MedicalRecordsProps) {
   const { user } = useAuth();
+  const canPolish = aiReadiness ? aiReadiness.feature_gates.clinical_polish : true;
+  const polishReason = getReadinessReason(aiReadiness, 'clinical_polish');
   
   // 根據角色設定預設記錄類型
   const getDefaultRecordType = (): 'progress-note' | 'medication-advice' | 'nursing-record' => {
@@ -55,6 +56,8 @@ export function MedicalRecords({ patientId, patientName }: MedicalRecordsProps) 
   const [polishedContent, setPolishedContent] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   
+  const [isPolishing, setIsPolishing] = useState(false);
+
   // 儲存的病歷記錄
   const [records, setRecords] = useState<MedicalRecord[]>([]);
 
@@ -88,60 +91,58 @@ CAM-ICU: Positive / Negative
 使用敷料: ___`
   };
 
-  const handlePolishContent = () => {
+  const handlePolishContent = async () => {
     if (!inputContent.trim()) return;
-    
-    let polished = '';
-    
-    if (recordType === 'progress-note') {
-      polished = `Assessment:
-The patient remains intubated on day X of ICU stay, currently receiving mechanical ventilation with stable hemodynamics.
-
-Current Status:
-${inputContent}
-
-Laboratory findings show stable renal function with creatinine levels within normal limits. Electrolytes are being monitored closely.
-
-Plan:
-- Continue current ventilator settings with daily assessment
-- Monitor vital signs and adjust support as needed
-- Daily sedation vacation and assessment for extubation readiness
-- Ensure adequate analgesia and sedation targeting RASS -1 to -2`;
-    } else if (recordType === 'medication-advice') {
-      polished = `Medication Recommendation:
-
-Current Assessment:
-${inputContent}
-
-Recommendation:
-Based on current clinical status and laboratory findings, recommend adjusting medication regimen accordingly. Close monitoring of therapeutic effects and potential adverse reactions is advised.
-
-Please monitor renal function and adjust doses for renally cleared medications as appropriate.`;
-    } else {
-      // 護理記錄：檢查錯字、整理格式
-      polished = inputContent
-        .replace(/巳/g, '已')
-        .replace(/​/g, '')
-        .trim();
+    if (!canPolish) {
+      toast.error(polishReason);
+      return;
     }
-    
-    setPolishedContent(polished);
+    setIsPolishing(true);
+    try {
+      const polishTypeMap: Record<string, 'progress_note' | 'medication_advice' | 'nursing_record'> = {
+        'progress-note': 'progress_note',
+        'medication-advice': 'medication_advice',
+        'nursing-record': 'nursing_record',
+      };
+      const result = await polishClinicalText({
+        patientId,
+        content: inputContent,
+        polishType: polishTypeMap[recordType],
+      });
+      setPolishedContent(result.polished);
+    } catch {
+      toast.error('AI 修飾失敗，請稍後再試');
+    } finally {
+      setIsPolishing(false);
+    }
   };
 
-  const handleSaveRecord = () => {
-    const newRecord: MedicalRecord = {
-      id: Date.now().toString(),
-      type: recordType,
-      date: new Date().toLocaleString('zh-TW'),
-      author: '未知',
-      content: inputContent,
-      polishedContent: polishedContent || undefined
-    };
-    
-    setRecords([newRecord, ...records]);
-    setInputContent('');
-    setPolishedContent('');
-    toast.success('病歷記錄已儲存！');
+  const handleSaveRecord = async () => {
+    const contentToSave = polishedContent || inputContent;
+    const authorName = user?.name || user?.username || '未知';
+
+    try {
+      await sendMessage(patientId, {
+        content: contentToSave,
+        messageType: recordType,
+      });
+
+      const newRecord: MedicalRecord = {
+        id: Date.now().toString(),
+        type: recordType,
+        date: new Date().toLocaleString('zh-TW'),
+        author: authorName,
+        content: inputContent,
+        polishedContent: polishedContent || undefined
+      };
+
+      setRecords([newRecord, ...records]);
+      setInputContent('');
+      setPolishedContent('');
+      toast.success('病歷記錄已儲存！');
+    } catch {
+      toast.error('儲存病歷記錄失敗，請稍後再試');
+    }
   };
 
   const applyTemplate = (template: string) => {
@@ -202,6 +203,11 @@ Please monitor renal function and adjust doses for renally cleared medications a
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {!canPolish && (
+            <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {polishReason}
+            </div>
+          )}
           {/* 記錄類型選擇器 - 只在管理者時顯示 */}
           {user?.role === 'admin' && (
             <>
@@ -263,12 +269,13 @@ Please monitor renal function and adjust doses for renally cleared medications a
                     />
                   </div>
                   
-                  <Button 
+                  <Button
                     onClick={handlePolishContent}
                     className="bg-blue-600 hover:bg-blue-700"
+                    disabled={isPolishing || !inputContent.trim() || !canPolish}
                   >
                     <Brain className="mr-2 h-5 w-5" />
-                    AI 修飾成英文 Progress Note
+                    {isPolishing ? 'AI 修飾中...' : 'AI 修飾 Progress Note'}
                   </Button>
                 </div>
               </div>
@@ -282,9 +289,9 @@ Please monitor renal function and adjust doses for renally cleared medications a
                 <div className="flex items-start gap-3 mb-3">
                   <Pill className="h-6 w-6 text-green-600 mt-1" />
                   <div>
-                    <h3 className="font-semibold text-green-900">用藥建議英文修飾</h3>
+                    <h3 className="font-semibold text-green-900">用藥建議修飾</h3>
                     <p className="text-sm text-green-700 mt-1">
-                      輸入中文建議，AI 會協助修飾為專業的英文用藥建議格式
+                      輸入建議草稿，AI 會協助修飾為專業的用藥建議格式
                     </p>
                   </div>
                 </div>
@@ -300,12 +307,13 @@ Please monitor renal function and adjust doses for renally cleared medications a
                     />
                   </div>
                   
-                  <Button 
+                  <Button
                     onClick={handlePolishContent}
                     className="bg-green-600 hover:bg-green-700"
+                    disabled={isPolishing || !inputContent.trim() || !canPolish}
                   >
                     <Brain className="mr-2 h-5 w-5" />
-                    AI 修飾成英文
+                    {isPolishing ? 'AI 修飾中...' : 'AI 修飾用藥建議'}
                   </Button>
                 </div>
               </div>
@@ -355,12 +363,13 @@ Please monitor renal function and adjust doses for renally cleared medications a
                     />
                   </div>
                   
-                  <Button 
+                  <Button
                     onClick={handlePolishContent}
                     className="bg-purple-600 hover:bg-purple-700"
+                    disabled={isPolishing || !inputContent.trim() || !canPolish}
                   >
                     <Sparkles className="mr-2 h-5 w-5" />
-                    AI 檢查錯字與格式
+                    {isPolishing ? 'AI 檢查中...' : 'AI 檢查錯字與格式'}
                   </Button>
                 </div>
               </div>
@@ -382,7 +391,7 @@ Please monitor renal function and adjust doses for renally cleared medications a
                   recordType === 'medication-advice' ? 'bg-green-50 border-green-300' :
                   'bg-purple-50 border-purple-300'
                 }`}>
-                  <pre className="whitespace-pre-wrap font-mono text-sm">{polishedContent}</pre>
+                  <AiMarkdown content={polishedContent} className="text-sm" />
                 </div>
                 
                 <div className="flex gap-2 mt-3">
@@ -407,9 +416,30 @@ Please monitor renal function and adjust doses for renally cleared medications a
                     <Send className="mr-2 h-4 w-4" />
                     儲存記錄
                   </Button>
-                  <Button variant="outline">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const exportData = {
+                        patient_id: patientId,
+                        patient_name: patientName,
+                        record_type: recordType,
+                        content: polishedContent,
+                        created_at: new Date().toISOString(),
+                        created_by: user?.name || '',
+                        role: user?.role || '',
+                      };
+                      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${patientId}_${recordType}_${new Date().toISOString().slice(0, 10)}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      toast.success('已匯出 JSON 檔案');
+                    }}
+                  >
                     <Download className="mr-2 h-4 w-4" />
-                    匯入 HIS
+                    匯出 JSON
                   </Button>
                 </div>
               </div>
@@ -456,16 +486,36 @@ Please monitor renal function and adjust doses for renally cleared medications a
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
-                      <Button size="sm" variant="ghost">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          const exportData = {
+                            patient_id: patientId,
+                            patient_name: patientName,
+                            record_type: record.type,
+                            content: record.polishedContent || record.content,
+                            created_at: record.date,
+                            created_by: record.author,
+                          };
+                          const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `${patientId}_${record.type}_${record.id}.json`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                      >
                         <Download className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <pre className="whitespace-pre-wrap text-sm bg-[#f8f9fa] p-3 rounded-lg font-mono">
-                    {record.polishedContent || record.content}
-                  </pre>
+                  <div className="bg-[#f8f9fa] p-3 rounded-lg">
+                    <AiMarkdown content={record.polishedContent || record.content} className="text-sm" />
+                  </div>
                 </CardContent>
               </Card>
             ))

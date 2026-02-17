@@ -1,0 +1,4 @@
+
+> ChatICU_2026_verf_0110_Yu@0.1.0 typecheck
+> tsc -p tsconfig.json
+

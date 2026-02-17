@@ -1,0 +1,2978 @@
+{
+  "date": "2026-02-17",
+  "manifest_path": "/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/func/clinical_rules/release_manifest.json",
+  "dose_cases_path": "/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/func/clinical_rules/golden/dose_cases.v1.mock.json",
+  "interaction_cases_path": "/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/func/clinical_rules/golden/interaction_cases.v1.mock.json",
+  "rules_snapshot": {
+    "active_release": "clinical_rules_release_2026_02_15_mock",
+    "manifest_path": "/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/func/clinical_rules/release_manifest.json",
+    "dose_version": "1.0.0",
+    "interaction_version": "1.0.0",
+    "dose_rule_count": 5,
+    "interaction_rule_count": 2,
+    "dose_rule_ids": [
+      "DEX_INFUSION_ADULT_ICU",
+      "FENTANYL_INFUSION_ADULT_ICU",
+      "HALOPERIDOL_FIXED_DOSE_DELIRIUM",
+      "PROPOFOL_INFUSION_MLHR_ICU",
+      "MIDAZOLAM_BOLUS_WEIGHT_BASED"
+    ],
+    "interaction_rule_ids": [
+      "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+      "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+    ],
+    "rule_source": "json",
+    "repository": {
+      "source": "json",
+      "manifest_path": "/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/func/clinical_rules/release_manifest.json"
+    },
+    "source_info": {
+      "source": "json",
+      "manifest_path": "/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/func/clinical_rules/release_manifest.json",
+      "dose_path": "/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/func/clinical_rules/dose_rules/dose_rules.v1.mock.json",
+      "interaction_path": "/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/func/clinical_rules/interactions/interaction_rules.v1.mock.json"
+    }
+  },
+  "dose": {
+    "suite": "dose",
+    "version": "1.0.0",
+    "total": 30,
+    "passed": 30,
+    "failed": 0,
+    "pass_rate": 1.0,
+    "cases": [
+      {
+        "case_id": "d01",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 40.88,
+          "final_rate_unit": "mcg/hr"
+        },
+        "actual": {
+          "request_id": "d01",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "dexmedetomidine",
+          "computed_values": {
+            "input_dose": {
+              "value": 0.7,
+              "unit": "mcg/kg/hr"
+            },
+            "final_rate": {
+              "value": 40.88,
+              "unit": "mcg/hr"
+            }
+          },
+          "calculation_steps": [
+            "base = weight_kg * dose_mcg_per_kg_hr = 58.4 * 0.7 = 40.88"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "DEX_INFUSION_ADULT_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Dexmedetomidine_ Drug information - UpToDate 1140201.pdf",
+              "page": 12,
+              "chunk_id": "chunk-mock-dex-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d02",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 14.0,
+          "final_rate_unit": "mcg/hr"
+        },
+        "actual": {
+          "request_id": "d02",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "dexmedetomidine",
+          "computed_values": {
+            "input_dose": {
+              "value": 0.2,
+              "unit": "mcg/kg/hr"
+            },
+            "final_rate": {
+              "value": 14.0,
+              "unit": "mcg/hr"
+            }
+          },
+          "calculation_steps": [
+            "base = weight_kg * dose_mcg_per_kg_hr = 70 * 0.2 = 14.0"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "DEX_INFUSION_ADULT_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Dexmedetomidine_ Drug information - UpToDate 1140201.pdf",
+              "page": 12,
+              "chunk_id": "chunk-mock-dex-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d03",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 98.0,
+          "final_rate_unit": "mcg/hr"
+        },
+        "actual": {
+          "request_id": "d03",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "dexmedetomidine",
+          "computed_values": {
+            "input_dose": {
+              "value": 1.4,
+              "unit": "mcg/kg/hr"
+            },
+            "final_rate": {
+              "value": 98.0,
+              "unit": "mcg/hr"
+            }
+          },
+          "calculation_steps": [
+            "base = weight_kg * dose_mcg_per_kg_hr = 70 * 1.4 = 98.0"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "DEX_INFUSION_ADULT_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Requested dose above maximum; clamped from 2.0 to 1.4 mcg/kg/hr"
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Dexmedetomidine_ Drug information - UpToDate 1140201.pdf",
+              "page": 12,
+              "chunk_id": "chunk-mock-dex-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d04",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 67.2,
+          "final_rate_unit": "mcg/hr"
+        },
+        "actual": {
+          "request_id": "d04",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "dexmedetomidine",
+          "computed_values": {
+            "input_dose": {
+              "value": 1.2,
+              "unit": "mcg/kg/hr"
+            },
+            "final_rate": {
+              "value": 67.2,
+              "unit": "mcg/hr"
+            }
+          },
+          "calculation_steps": [
+            "base = weight_kg * dose_mcg_per_kg_hr = 80 * 1.2 = 96.0",
+            "adjustment applied (hepatic_class == 'C'): 96.0 * 0.7 = 67.20"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "DEX_INFUSION_ADULT_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Severe hepatic impairment: reduce initial rate."
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Dexmedetomidine_ Drug information - UpToDate 1140201.pdf",
+              "page": 12,
+              "chunk_id": "chunk-mock-dex-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d05",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 120.0,
+          "final_rate_unit": "mcg/hr"
+        },
+        "actual": {
+          "request_id": "d05",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "dexmedetomidine",
+          "computed_values": {
+            "input_dose": {
+              "value": 1.4,
+              "unit": "mcg/kg/hr"
+            },
+            "final_rate": {
+              "value": 120.0,
+              "unit": "mcg/hr"
+            }
+          },
+          "calculation_steps": [
+            "base = weight_kg * dose_mcg_per_kg_hr = 90 * 1.4 = 126.0"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "DEX_INFUSION_ADULT_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Absolute max rate applied: 120.0 mcg/hr"
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Dexmedetomidine_ Drug information - UpToDate 1140201.pdf",
+              "page": 12,
+              "chunk_id": "chunk-mock-dex-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d06",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "refused",
+          "error_code": "SAFETY_HARD_STOP"
+        },
+        "actual": {
+          "request_id": "d06",
+          "status": "refused",
+          "error_code": "SAFETY_HARD_STOP",
+          "message": "Hard stop condition triggered",
+          "result_type": "dose_calculation",
+          "computed_values": {},
+          "calculation_steps": [
+            "base = weight_kg * dose_mcg_per_kg_hr = 80 * 0.5 = 40.0"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "DEX_INFUSION_ADULT_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Hard stop triggered: sbp_mmHg < 90"
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Dexmedetomidine_ Drug information - UpToDate 1140201.pdf",
+              "page": 12,
+              "chunk_id": "chunk-mock-dex-001"
+            }
+          ],
+          "confidence": 0.0
+        }
+      },
+      {
+        "case_id": "d07",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "refused",
+          "error_code": "SAFETY_HARD_STOP"
+        },
+        "actual": {
+          "request_id": "d07",
+          "status": "refused",
+          "error_code": "SAFETY_HARD_STOP",
+          "message": "Hard stop condition triggered",
+          "result_type": "dose_calculation",
+          "computed_values": {},
+          "calculation_steps": [
+            "base = weight_kg * dose_mcg_per_kg_hr = 80 * 0.5 = 40.0"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "DEX_INFUSION_ADULT_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Hard stop triggered: hr_bpm < 50"
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Dexmedetomidine_ Drug information - UpToDate 1140201.pdf",
+              "page": 12,
+              "chunk_id": "chunk-mock-dex-001"
+            }
+          ],
+          "confidence": 0.0
+        }
+      },
+      {
+        "case_id": "d08",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "refused",
+          "error_code": "MISSING_REQUIRED_FIELDS"
+        },
+        "actual": {
+          "request_id": "d08",
+          "status": "refused",
+          "error_code": "MISSING_REQUIRED_FIELDS",
+          "message": "Missing required patient fields: ['weight_kg']",
+          "result_type": "dose_calculation",
+          "applied_rules": [
+            {
+              "rule_id": "DEX_INFUSION_ADULT_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Dexmedetomidine_ Drug information - UpToDate 1140201.pdf",
+              "page": 12,
+              "chunk_id": "chunk-mock-dex-001"
+            }
+          ],
+          "confidence": 0.0
+        }
+      },
+      {
+        "case_id": "d09",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 60.0,
+          "final_rate_unit": "mcg/hr"
+        },
+        "actual": {
+          "request_id": "d09",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "fentanyl",
+          "computed_values": {
+            "input_dose": {
+              "value": 1.0,
+              "unit": "mcg/kg/hr"
+            },
+            "final_rate": {
+              "value": 60.0,
+              "unit": "mcg/hr"
+            }
+          },
+          "calculation_steps": [
+            "base = weight_kg * dose_mcg_per_kg_hr = 60 * 1.0 = 60.0"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "FENTANYL_INFUSION_ADULT_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [],
+          "citations": [
+            {
+              "source_file": "rag 文本/1_analgesic/Fentanyl_ Drug information - UpToDate 1140131.pdf",
+              "page": 4,
+              "chunk_id": "chunk-mock-fen-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d10",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 180.0,
+          "final_rate_unit": "mcg/hr"
+        },
+        "actual": {
+          "request_id": "d10",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "fentanyl",
+          "computed_values": {
+            "input_dose": {
+              "value": 3.0,
+              "unit": "mcg/kg/hr"
+            },
+            "final_rate": {
+              "value": 180.0,
+              "unit": "mcg/hr"
+            }
+          },
+          "calculation_steps": [
+            "base = weight_kg * dose_mcg_per_kg_hr = 60 * 3.0 = 180.0"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "FENTANYL_INFUSION_ADULT_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Requested dose above maximum; clamped from 4.0 to 3.0 mcg/kg/hr"
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/1_analgesic/Fentanyl_ Drug information - UpToDate 1140131.pdf",
+              "page": 4,
+              "chunk_id": "chunk-mock-fen-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d11",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 30.0,
+          "final_rate_unit": "mcg/hr"
+        },
+        "actual": {
+          "request_id": "d11",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "fentanyl",
+          "computed_values": {
+            "input_dose": {
+              "value": 0.5,
+              "unit": "mcg/kg/hr"
+            },
+            "final_rate": {
+              "value": 30.0,
+              "unit": "mcg/hr"
+            }
+          },
+          "calculation_steps": [
+            "base = weight_kg * dose_mcg_per_kg_hr = 60 * 0.5 = 30.0"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "FENTANYL_INFUSION_ADULT_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Requested dose below minimum; clamped from 0.1 to 0.5 mcg/kg/hr"
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/1_analgesic/Fentanyl_ Drug information - UpToDate 1140131.pdf",
+              "page": 4,
+              "chunk_id": "chunk-mock-fen-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d12",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 112.0,
+          "final_rate_unit": "mcg/hr"
+        },
+        "actual": {
+          "request_id": "d12",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "fentanyl",
+          "computed_values": {
+            "input_dose": {
+              "value": 2.0,
+              "unit": "mcg/kg/hr"
+            },
+            "final_rate": {
+              "value": 112.0,
+              "unit": "mcg/hr"
+            }
+          },
+          "calculation_steps": [
+            "base = weight_kg * dose_mcg_per_kg_hr = 70 * 2.0 = 140.0",
+            "adjustment applied (crcl_ml_min < 30): 140.0 * 0.8 = 112.00"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "FENTANYL_INFUSION_ADULT_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Low renal function: consider lower maintenance rate."
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/1_analgesic/Fentanyl_ Drug information - UpToDate 1140131.pdf",
+              "page": 4,
+              "chunk_id": "chunk-mock-fen-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d13",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 250.0,
+          "final_rate_unit": "mcg/hr"
+        },
+        "actual": {
+          "request_id": "d13",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "fentanyl",
+          "computed_values": {
+            "input_dose": {
+              "value": 3.0,
+              "unit": "mcg/kg/hr"
+            },
+            "final_rate": {
+              "value": 250.0,
+              "unit": "mcg/hr"
+            }
+          },
+          "calculation_steps": [
+            "base = weight_kg * dose_mcg_per_kg_hr = 120 * 3.0 = 360.0"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "FENTANYL_INFUSION_ADULT_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Absolute max rate applied: 250.0 mcg/hr"
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/1_analgesic/Fentanyl_ Drug information - UpToDate 1140131.pdf",
+              "page": 4,
+              "chunk_id": "chunk-mock-fen-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d14",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "refused",
+          "error_code": "SAFETY_HARD_STOP"
+        },
+        "actual": {
+          "request_id": "d14",
+          "status": "refused",
+          "error_code": "SAFETY_HARD_STOP",
+          "message": "Hard stop condition triggered",
+          "result_type": "dose_calculation",
+          "computed_values": {},
+          "calculation_steps": [
+            "base = weight_kg * dose_mcg_per_kg_hr = 70 * 1.0 = 70.0"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "FENTANYL_INFUSION_ADULT_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Hard stop triggered: rr_bpm < 8"
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/1_analgesic/Fentanyl_ Drug information - UpToDate 1140131.pdf",
+              "page": 4,
+              "chunk_id": "chunk-mock-fen-001"
+            }
+          ],
+          "confidence": 0.0
+        }
+      },
+      {
+        "case_id": "d15",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 96.0,
+          "final_rate_unit": "mcg/hr"
+        },
+        "actual": {
+          "request_id": "d15",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "fentanyl",
+          "computed_values": {
+            "input_dose": {
+              "value": 1.5,
+              "unit": "mcg/kg/hr"
+            },
+            "final_rate": {
+              "value": 96.0,
+              "unit": "mcg/hr"
+            }
+          },
+          "calculation_steps": [
+            "base = weight_kg * dose_mcg_per_kg_hr = 80 * 1.5 = 120.0",
+            "adjustment applied (crcl_ml_min < 30): 120.0 * 0.8 = 96.00"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "FENTANYL_INFUSION_ADULT_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Low renal function: consider lower maintenance rate."
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/1_analgesic/Fentanyl_ Drug information - UpToDate 1140131.pdf",
+              "page": 4,
+              "chunk_id": "chunk-mock-fen-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d16",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "refused",
+          "error_code": "MISSING_REQUIRED_FIELDS"
+        },
+        "actual": {
+          "request_id": "d16",
+          "status": "refused",
+          "error_code": "MISSING_REQUIRED_FIELDS",
+          "message": "Missing required patient fields: ['weight_kg']",
+          "result_type": "dose_calculation",
+          "applied_rules": [
+            {
+              "rule_id": "FENTANYL_INFUSION_ADULT_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/1_analgesic/Fentanyl_ Drug information - UpToDate 1140131.pdf",
+              "page": 4,
+              "chunk_id": "chunk-mock-fen-001"
+            }
+          ],
+          "confidence": 0.0
+        }
+      },
+      {
+        "case_id": "d17",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 1.5,
+          "final_rate_unit": "mg"
+        },
+        "actual": {
+          "request_id": "d17",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "haloperidol",
+          "computed_values": {
+            "input_dose": {
+              "value": 1.5,
+              "unit": "mg"
+            },
+            "final_rate": {
+              "value": 1.5,
+              "unit": "mg"
+            }
+          },
+          "calculation_steps": [
+            "fixed dose selected: 1.5 mg"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_FIXED_DOSE_DELIRIUM",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/Haloperidol_ Drug information - UpToDate 1140310.pdf",
+              "page": 8,
+              "chunk_id": "chunk-mock-hal-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d18",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 5.0,
+          "final_rate_unit": "mg"
+        },
+        "actual": {
+          "request_id": "d18",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "haloperidol",
+          "computed_values": {
+            "input_dose": {
+              "value": 5.0,
+              "unit": "mg"
+            },
+            "final_rate": {
+              "value": 5.0,
+              "unit": "mg"
+            }
+          },
+          "calculation_steps": [
+            "fixed dose selected: 5.0 mg"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_FIXED_DOSE_DELIRIUM",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Requested dose above maximum; clamped from 10 to 5.0 mg"
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/Haloperidol_ Drug information - UpToDate 1140310.pdf",
+              "page": 8,
+              "chunk_id": "chunk-mock-hal-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d19",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 0.5,
+          "final_rate_unit": "mg"
+        },
+        "actual": {
+          "request_id": "d19",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "haloperidol",
+          "computed_values": {
+            "input_dose": {
+              "value": 0.5,
+              "unit": "mg"
+            },
+            "final_rate": {
+              "value": 0.5,
+              "unit": "mg"
+            }
+          },
+          "calculation_steps": [
+            "fixed dose selected: 0.5 mg"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_FIXED_DOSE_DELIRIUM",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Requested dose below minimum; clamped from 0.1 to 0.5 mg"
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/Haloperidol_ Drug information - UpToDate 1140310.pdf",
+              "page": 8,
+              "chunk_id": "chunk-mock-hal-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d20",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 1.0,
+          "final_rate_unit": "mg"
+        },
+        "actual": {
+          "request_id": "d20",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "haloperidol",
+          "computed_values": {
+            "input_dose": {
+              "value": 1.0,
+              "unit": "mg"
+            },
+            "final_rate": {
+              "value": 1.0,
+              "unit": "mg"
+            }
+          },
+          "calculation_steps": [
+            "fixed dose selected: 1.0 mg"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_FIXED_DOSE_DELIRIUM",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/Haloperidol_ Drug information - UpToDate 1140310.pdf",
+              "page": 8,
+              "chunk_id": "chunk-mock-hal-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d21",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 14.0,
+          "final_rate_unit": "ml/hr"
+        },
+        "actual": {
+          "request_id": "d21",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "propofol",
+          "computed_values": {
+            "input_dose": {
+              "value": 2.0,
+              "unit": "mg/kg/hr"
+            },
+            "final_rate": {
+              "value": 14.0,
+              "unit": "ml/hr"
+            }
+          },
+          "calculation_steps": [
+            "mg_per_hr = weight_kg * dose_mg_per_kg_hr = 70 * 2.0 = 140.0",
+            "ml_per_hr = mg_per_hr / concentration_mg_per_ml = 140.0 / 10 = 14.0"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "PROPOFOL_INFUSION_MLHR_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Propofol_ Drug information - UpToDate 1140201.pdf",
+              "page": 7,
+              "chunk_id": "chunk-mock-pro-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d22",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 2.1,
+          "final_rate_unit": "ml/hr"
+        },
+        "actual": {
+          "request_id": "d22",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "propofol",
+          "computed_values": {
+            "input_dose": {
+              "value": 0.3,
+              "unit": "mg/kg/hr"
+            },
+            "final_rate": {
+              "value": 2.1,
+              "unit": "ml/hr"
+            }
+          },
+          "calculation_steps": [
+            "mg_per_hr = weight_kg * dose_mg_per_kg_hr = 70 * 0.3 = 21.0",
+            "ml_per_hr = mg_per_hr / concentration_mg_per_ml = 21.0 / 10 = 2.1"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "PROPOFOL_INFUSION_MLHR_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Requested dose below minimum; clamped from 0.1 to 0.3 mg/kg/hr"
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Propofol_ Drug information - UpToDate 1140201.pdf",
+              "page": 7,
+              "chunk_id": "chunk-mock-pro-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d23",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 60.0,
+          "final_rate_unit": "ml/hr"
+        },
+        "actual": {
+          "request_id": "d23",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "propofol",
+          "computed_values": {
+            "input_dose": {
+              "value": 4.0,
+              "unit": "mg/kg/hr"
+            },
+            "final_rate": {
+              "value": 60.0,
+              "unit": "ml/hr"
+            }
+          },
+          "calculation_steps": [
+            "mg_per_hr = weight_kg * dose_mg_per_kg_hr = 100 * 4.0 = 400.0",
+            "ml_per_hr = mg_per_hr / concentration_mg_per_ml = 400.0 / 5 = 80.0"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "PROPOFOL_INFUSION_MLHR_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Absolute max rate applied: 60.0 ml/hr"
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Propofol_ Drug information - UpToDate 1140201.pdf",
+              "page": 7,
+              "chunk_id": "chunk-mock-pro-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d24",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "refused",
+          "error_code": "SAFETY_HARD_STOP"
+        },
+        "actual": {
+          "request_id": "d24",
+          "status": "refused",
+          "error_code": "SAFETY_HARD_STOP",
+          "message": "Hard stop condition triggered",
+          "result_type": "dose_calculation",
+          "computed_values": {},
+          "calculation_steps": [
+            "mg_per_hr = weight_kg * dose_mg_per_kg_hr = 70 * 2.0 = 140.0",
+            "ml_per_hr = mg_per_hr / concentration_mg_per_ml = 140.0 / 10 = 14.0"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "PROPOFOL_INFUSION_MLHR_ICU",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Hard stop triggered: sbp_mmHg < 85"
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Propofol_ Drug information - UpToDate 1140201.pdf",
+              "page": 7,
+              "chunk_id": "chunk-mock-pro-001"
+            }
+          ],
+          "confidence": 0.0
+        }
+      },
+      {
+        "case_id": "d25",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "refused",
+          "error_code": "RULE_OR_INPUT_ERROR"
+        },
+        "actual": {
+          "request_id": "d25",
+          "status": "refused",
+          "result_type": "dose_calculation",
+          "error_code": "RULE_OR_INPUT_ERROR",
+          "message": "concentration_mg_per_ml must be > 0",
+          "computed_values": {},
+          "calculation_steps": [],
+          "applied_rules": [],
+          "safety_warnings": [
+            "concentration_mg_per_ml must be > 0"
+          ],
+          "citations": [],
+          "confidence": 0.0
+        }
+      },
+      {
+        "case_id": "d26",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 3.5,
+          "final_rate_unit": "mg"
+        },
+        "actual": {
+          "request_id": "d26",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "midazolam",
+          "computed_values": {
+            "input_dose": {
+              "value": 0.05,
+              "unit": "mg/kg"
+            },
+            "final_rate": {
+              "value": 3.5,
+              "unit": "mg"
+            }
+          },
+          "calculation_steps": [
+            "base = weight_kg * dose_mg_per_kg = 70 * 0.05 = 3.50"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "MIDAZOLAM_BOLUS_WEIGHT_BASED",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 5,
+              "chunk_id": "chunk-mock-mid-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d27",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 7.0,
+          "final_rate_unit": "mg"
+        },
+        "actual": {
+          "request_id": "d27",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "midazolam",
+          "computed_values": {
+            "input_dose": {
+              "value": 0.1,
+              "unit": "mg/kg"
+            },
+            "final_rate": {
+              "value": 7.0,
+              "unit": "mg"
+            }
+          },
+          "calculation_steps": [
+            "base = weight_kg * dose_mg_per_kg = 70 * 0.1 = 7.0"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "MIDAZOLAM_BOLUS_WEIGHT_BASED",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Requested dose above maximum; clamped from 0.2 to 0.1 mg/kg"
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 5,
+              "chunk_id": "chunk-mock-mid-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d28",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 10.0,
+          "final_rate_unit": "mg"
+        },
+        "actual": {
+          "request_id": "d28",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "midazolam",
+          "computed_values": {
+            "input_dose": {
+              "value": 0.1,
+              "unit": "mg/kg"
+            },
+            "final_rate": {
+              "value": 10.0,
+              "unit": "mg"
+            }
+          },
+          "calculation_steps": [
+            "base = weight_kg * dose_mg_per_kg = 120 * 0.1 = 12.0"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "MIDAZOLAM_BOLUS_WEIGHT_BASED",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Absolute max rate applied: 10.0 mg"
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 5,
+              "chunk_id": "chunk-mock-mid-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d29",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "final_rate_value": 0.6,
+          "final_rate_unit": "mg"
+        },
+        "actual": {
+          "request_id": "d29",
+          "status": "ok",
+          "result_type": "dose_calculation",
+          "drug": "midazolam",
+          "computed_values": {
+            "input_dose": {
+              "value": 0.01,
+              "unit": "mg/kg"
+            },
+            "final_rate": {
+              "value": 0.6,
+              "unit": "mg"
+            }
+          },
+          "calculation_steps": [
+            "base = weight_kg * dose_mg_per_kg = 60 * 0.01 = 0.60"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "MIDAZOLAM_BOLUS_WEIGHT_BASED",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Requested dose below minimum; clamped from 0.005 to 0.01 mg/kg"
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 5,
+              "chunk_id": "chunk-mock-mid-001"
+            }
+          ],
+          "confidence": 0.96
+        }
+      },
+      {
+        "case_id": "d30",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "refused",
+          "error_code": "SAFETY_HARD_STOP"
+        },
+        "actual": {
+          "request_id": "d30",
+          "status": "refused",
+          "error_code": "SAFETY_HARD_STOP",
+          "message": "Hard stop condition triggered",
+          "result_type": "dose_calculation",
+          "computed_values": {},
+          "calculation_steps": [
+            "base = weight_kg * dose_mg_per_kg = 80 * 0.05 = 4.00"
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "MIDAZOLAM_BOLUS_WEIGHT_BASED",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "safety_warnings": [
+            "Hard stop triggered: rr_bpm < 10"
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 5,
+              "chunk_id": "chunk-mock-mid-001"
+            }
+          ],
+          "confidence": 0.0
+        }
+      }
+    ]
+  },
+  "interaction": {
+    "suite": "interaction",
+    "version": "1.0.0",
+    "total": 30,
+    "passed": 30,
+    "failed": 0,
+    "pass_rate": 1.0,
+    "cases": [
+      {
+        "case_id": "i01",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 1,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+          ]
+        },
+        "actual": {
+          "request_id": "i01",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "haloperidol",
+                "ziprasidone"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i02",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 1,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+          ]
+        },
+        "actual": {
+          "request_id": "i02",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "ziprasidone",
+                "haloperidol"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i03",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 1,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+          ]
+        },
+        "actual": {
+          "request_id": "i03",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "haloperidol",
+                "ziprasidone"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i04",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 1,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+          ]
+        },
+        "actual": {
+          "request_id": "i04",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "haloperidol",
+                "ziprasidone"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i05",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 1,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+          ]
+        },
+        "actual": {
+          "request_id": "i05",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "haloperidol",
+                "ziprasidone"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i06",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 1,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+          ]
+        },
+        "actual": {
+          "request_id": "i06",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "haloperidol",
+                "ziprasidone"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i07",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 1,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+          ]
+        },
+        "actual": {
+          "request_id": "i07",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "haloperidol",
+                "ziprasidone"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i08",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 1,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+          ]
+        },
+        "actual": {
+          "request_id": "i08",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "haloperidol",
+                "ziprasidone"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i09",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "none",
+          "finding_count": 0,
+          "rule_ids": []
+        },
+        "actual": {
+          "request_id": "i09",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "none",
+          "findings": [],
+          "applied_rules": [],
+          "citations": [],
+          "conflicts": [],
+          "confidence": 0.75
+        }
+      },
+      {
+        "case_id": "i10",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "moderate",
+          "finding_count": 1,
+          "rule_ids": [
+            "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+          ]
+        },
+        "actual": {
+          "request_id": "i10",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "moderate",
+          "findings": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "pair": [
+                "midazolam",
+                "fentanyl"
+              ],
+              "severity": "moderate",
+              "mechanism": "Additive CNS and respiratory depression.",
+              "clinical_effect": "Higher risk of oversedation and hypoventilation.",
+              "recommended_action": "Start lower doses and monitor respiratory status closely.",
+              "dose_adjustment_hint": "Use lower initial sedative/opioid rates and titrate slowly.",
+              "monitoring": [
+                "respiratory rate",
+                "SpO2/EtCO2",
+                "sedation scale (RASS)"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 10,
+              "chunk_id": "chunk-mock-int-002"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i11",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "moderate",
+          "finding_count": 1,
+          "rule_ids": [
+            "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+          ]
+        },
+        "actual": {
+          "request_id": "i11",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "moderate",
+          "findings": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "pair": [
+                "fentanyl",
+                "midazolam"
+              ],
+              "severity": "moderate",
+              "mechanism": "Additive CNS and respiratory depression.",
+              "clinical_effect": "Higher risk of oversedation and hypoventilation.",
+              "recommended_action": "Start lower doses and monitor respiratory status closely.",
+              "dose_adjustment_hint": "Use lower initial sedative/opioid rates and titrate slowly.",
+              "monitoring": [
+                "respiratory rate",
+                "SpO2/EtCO2",
+                "sedation scale (RASS)"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 10,
+              "chunk_id": "chunk-mock-int-002"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i12",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "moderate",
+          "finding_count": 1,
+          "rule_ids": [
+            "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+          ]
+        },
+        "actual": {
+          "request_id": "i12",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "moderate",
+          "findings": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "pair": [
+                "midazolam",
+                "fentanyl"
+              ],
+              "severity": "moderate",
+              "mechanism": "Additive CNS and respiratory depression.",
+              "clinical_effect": "Higher risk of oversedation and hypoventilation.",
+              "recommended_action": "Start lower doses and monitor respiratory status closely.",
+              "dose_adjustment_hint": "Use lower initial sedative/opioid rates and titrate slowly.",
+              "monitoring": [
+                "respiratory rate",
+                "SpO2/EtCO2",
+                "sedation scale (RASS)"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 10,
+              "chunk_id": "chunk-mock-int-002"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i13",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "moderate",
+          "finding_count": 1,
+          "rule_ids": [
+            "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+          ]
+        },
+        "actual": {
+          "request_id": "i13",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "moderate",
+          "findings": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "pair": [
+                "midazolam",
+                "fentanyl"
+              ],
+              "severity": "moderate",
+              "mechanism": "Additive CNS and respiratory depression.",
+              "clinical_effect": "Higher risk of oversedation and hypoventilation.",
+              "recommended_action": "Start lower doses and monitor respiratory status closely.",
+              "dose_adjustment_hint": "Use lower initial sedative/opioid rates and titrate slowly.",
+              "monitoring": [
+                "respiratory rate",
+                "SpO2/EtCO2",
+                "sedation scale (RASS)"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 10,
+              "chunk_id": "chunk-mock-int-002"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i14",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "moderate",
+          "finding_count": 1,
+          "rule_ids": [
+            "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+          ]
+        },
+        "actual": {
+          "request_id": "i14",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "moderate",
+          "findings": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "pair": [
+                "midazolam",
+                "fentanyl"
+              ],
+              "severity": "moderate",
+              "mechanism": "Additive CNS and respiratory depression.",
+              "clinical_effect": "Higher risk of oversedation and hypoventilation.",
+              "recommended_action": "Start lower doses and monitor respiratory status closely.",
+              "dose_adjustment_hint": "Use lower initial sedative/opioid rates and titrate slowly.",
+              "monitoring": [
+                "respiratory rate",
+                "SpO2/EtCO2",
+                "sedation scale (RASS)"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 10,
+              "chunk_id": "chunk-mock-int-002"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i15",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 2,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+            "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+          ]
+        },
+        "actual": {
+          "request_id": "i15",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "haloperidol",
+                "ziprasidone"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            },
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "pair": [
+                "midazolam",
+                "fentanyl"
+              ],
+              "severity": "moderate",
+              "mechanism": "Additive CNS and respiratory depression.",
+              "clinical_effect": "Higher risk of oversedation and hypoventilation.",
+              "recommended_action": "Start lower doses and monitor respiratory status closely.",
+              "dose_adjustment_hint": "Use lower initial sedative/opioid rates and titrate slowly.",
+              "monitoring": [
+                "respiratory rate",
+                "SpO2/EtCO2",
+                "sedation scale (RASS)"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            },
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            },
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 10,
+              "chunk_id": "chunk-mock-int-002"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i16",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 2,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+            "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+          ]
+        },
+        "actual": {
+          "request_id": "i16",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "haloperidol",
+                "ziprasidone"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            },
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "pair": [
+                "midazolam",
+                "fentanyl"
+              ],
+              "severity": "moderate",
+              "mechanism": "Additive CNS and respiratory depression.",
+              "clinical_effect": "Higher risk of oversedation and hypoventilation.",
+              "recommended_action": "Start lower doses and monitor respiratory status closely.",
+              "dose_adjustment_hint": "Use lower initial sedative/opioid rates and titrate slowly.",
+              "monitoring": [
+                "respiratory rate",
+                "SpO2/EtCO2",
+                "sedation scale (RASS)"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            },
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            },
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 10,
+              "chunk_id": "chunk-mock-int-002"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i17",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 1,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+          ]
+        },
+        "actual": {
+          "request_id": "i17",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "haloperidol",
+                "ziprasidone"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i18",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "moderate",
+          "finding_count": 1,
+          "rule_ids": [
+            "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+          ]
+        },
+        "actual": {
+          "request_id": "i18",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "moderate",
+          "findings": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "pair": [
+                "midazolam",
+                "fentanyl"
+              ],
+              "severity": "moderate",
+              "mechanism": "Additive CNS and respiratory depression.",
+              "clinical_effect": "Higher risk of oversedation and hypoventilation.",
+              "recommended_action": "Start lower doses and monitor respiratory status closely.",
+              "dose_adjustment_hint": "Use lower initial sedative/opioid rates and titrate slowly.",
+              "monitoring": [
+                "respiratory rate",
+                "SpO2/EtCO2",
+                "sedation scale (RASS)"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 10,
+              "chunk_id": "chunk-mock-int-002"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i19",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 1,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+          ]
+        },
+        "actual": {
+          "request_id": "i19",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "haloperidol",
+                "ziprasidone"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i20",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "moderate",
+          "finding_count": 1,
+          "rule_ids": [
+            "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+          ]
+        },
+        "actual": {
+          "request_id": "i20",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "moderate",
+          "findings": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "pair": [
+                "midazolam",
+                "fentanyl"
+              ],
+              "severity": "moderate",
+              "mechanism": "Additive CNS and respiratory depression.",
+              "clinical_effect": "Higher risk of oversedation and hypoventilation.",
+              "recommended_action": "Start lower doses and monitor respiratory status closely.",
+              "dose_adjustment_hint": "Use lower initial sedative/opioid rates and titrate slowly.",
+              "monitoring": [
+                "respiratory rate",
+                "SpO2/EtCO2",
+                "sedation scale (RASS)"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 10,
+              "chunk_id": "chunk-mock-int-002"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i21",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 1,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+          ]
+        },
+        "actual": {
+          "request_id": "i21",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "haloperidol",
+                "ziprasidone"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i22",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 2,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+            "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+          ]
+        },
+        "actual": {
+          "request_id": "i22",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "pair": [
+                "fentanyl",
+                "midazolam"
+              ],
+              "severity": "moderate",
+              "mechanism": "Additive CNS and respiratory depression.",
+              "clinical_effect": "Higher risk of oversedation and hypoventilation.",
+              "recommended_action": "Start lower doses and monitor respiratory status closely.",
+              "dose_adjustment_hint": "Use lower initial sedative/opioid rates and titrate slowly.",
+              "monitoring": [
+                "respiratory rate",
+                "SpO2/EtCO2",
+                "sedation scale (RASS)"
+              ]
+            },
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "ziprasidone",
+                "haloperidol"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "rule_version": "1.0.0"
+            },
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 10,
+              "chunk_id": "chunk-mock-int-002"
+            },
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i23",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 1,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+          ]
+        },
+        "actual": {
+          "request_id": "i23",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "haloperidol",
+                "ziprasidone"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i24",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "moderate",
+          "finding_count": 1,
+          "rule_ids": [
+            "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+          ]
+        },
+        "actual": {
+          "request_id": "i24",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "moderate",
+          "findings": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "pair": [
+                "midazolam",
+                "fentanyl"
+              ],
+              "severity": "moderate",
+              "mechanism": "Additive CNS and respiratory depression.",
+              "clinical_effect": "Higher risk of oversedation and hypoventilation.",
+              "recommended_action": "Start lower doses and monitor respiratory status closely.",
+              "dose_adjustment_hint": "Use lower initial sedative/opioid rates and titrate slowly.",
+              "monitoring": [
+                "respiratory rate",
+                "SpO2/EtCO2",
+                "sedation scale (RASS)"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 10,
+              "chunk_id": "chunk-mock-int-002"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i25",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 2,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+            "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+          ]
+        },
+        "actual": {
+          "request_id": "i25",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "haloperidol",
+                "ziprasidone"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            },
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "pair": [
+                "midazolam",
+                "fentanyl"
+              ],
+              "severity": "moderate",
+              "mechanism": "Additive CNS and respiratory depression.",
+              "clinical_effect": "Higher risk of oversedation and hypoventilation.",
+              "recommended_action": "Start lower doses and monitor respiratory status closely.",
+              "dose_adjustment_hint": "Use lower initial sedative/opioid rates and titrate slowly.",
+              "monitoring": [
+                "respiratory rate",
+                "SpO2/EtCO2",
+                "sedation scale (RASS)"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            },
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            },
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 10,
+              "chunk_id": "chunk-mock-int-002"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i26",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 1,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+          ]
+        },
+        "actual": {
+          "request_id": "i26",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "haloperidol",
+                "ziprasidone"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i27",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "moderate",
+          "finding_count": 1,
+          "rule_ids": [
+            "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+          ]
+        },
+        "actual": {
+          "request_id": "i27",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "moderate",
+          "findings": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "pair": [
+                "midazolam",
+                "fentanyl"
+              ],
+              "severity": "moderate",
+              "mechanism": "Additive CNS and respiratory depression.",
+              "clinical_effect": "Higher risk of oversedation and hypoventilation.",
+              "recommended_action": "Start lower doses and monitor respiratory status closely.",
+              "dose_adjustment_hint": "Use lower initial sedative/opioid rates and titrate slowly.",
+              "monitoring": [
+                "respiratory rate",
+                "SpO2/EtCO2",
+                "sedation scale (RASS)"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 10,
+              "chunk_id": "chunk-mock-int-002"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      },
+      {
+        "case_id": "i28",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "refused",
+          "error_code": "RULE_OR_INPUT_ERROR"
+        },
+        "actual": {
+          "request_id": "i28",
+          "status": "refused",
+          "result_type": "interaction_check",
+          "error_code": "RULE_OR_INPUT_ERROR",
+          "overall_severity": "none",
+          "findings": [],
+          "applied_rules": [],
+          "citations": [],
+          "confidence": 0.0,
+          "message": "`drug_list` must contain at least 2 drugs"
+        }
+      },
+      {
+        "case_id": "i29",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "refused",
+          "error_code": "RULE_OR_INPUT_ERROR"
+        },
+        "actual": {
+          "request_id": "i29",
+          "status": "refused",
+          "result_type": "interaction_check",
+          "error_code": "RULE_OR_INPUT_ERROR",
+          "overall_severity": "none",
+          "findings": [],
+          "applied_rules": [],
+          "citations": [],
+          "confidence": 0.0,
+          "message": "`drug_list` must contain at least 2 drugs"
+        }
+      },
+      {
+        "case_id": "i30",
+        "passed": true,
+        "errors": [],
+        "expected": {
+          "status": "ok",
+          "overall_severity": "major",
+          "finding_count": 2,
+          "rule_ids": [
+            "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+            "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+          ]
+        },
+        "actual": {
+          "request_id": "i30",
+          "status": "ok",
+          "result_type": "interaction_check",
+          "overall_severity": "major",
+          "findings": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "pair": [
+                "midazolam",
+                "fentanyl"
+              ],
+              "severity": "moderate",
+              "mechanism": "Additive CNS and respiratory depression.",
+              "clinical_effect": "Higher risk of oversedation and hypoventilation.",
+              "recommended_action": "Start lower doses and monitor respiratory status closely.",
+              "dose_adjustment_hint": "Use lower initial sedative/opioid rates and titrate slowly.",
+              "monitoring": [
+                "respiratory rate",
+                "SpO2/EtCO2",
+                "sedation scale (RASS)"
+              ]
+            },
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "pair": [
+                "haloperidol",
+                "ziprasidone"
+              ],
+              "severity": "major",
+              "mechanism": "Additive QT prolongation risk.",
+              "clinical_effect": "Increased risk of torsades de pointes.",
+              "recommended_action": "Avoid if possible; if unavoidable, intensive ECG/electrolyte monitoring.",
+              "dose_adjustment_hint": "No direct equation; prioritize alternative regimen.",
+              "monitoring": [
+                "baseline ECG",
+                "correct K/Mg",
+                "repeat ECG in 24h"
+              ]
+            }
+          ],
+          "applied_rules": [
+            {
+              "rule_id": "MIDAZOLAM_PLUS_FENTANYL_MODERATE",
+              "rule_version": "1.0.0"
+            },
+            {
+              "rule_id": "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+              "rule_version": "1.0.0"
+            }
+          ],
+          "citations": [
+            {
+              "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+              "page": 10,
+              "chunk_id": "chunk-mock-int-002"
+            },
+            {
+              "source_file": "rag 文本/5_delirium/仿單Geodon 1140310.pdf",
+              "page": 6,
+              "chunk_id": "chunk-mock-int-001"
+            }
+          ],
+          "conflicts": [],
+          "confidence": 0.94
+        }
+      }
+    ]
+  },
+  "total": 60,
+  "passed": 60,
+  "failed": 0,
+  "pass_rate": 1.0,
+  "quality_gate": {
+    "passed": true,
+    "violations": [],
+    "thresholds": {
+      "overall_min_pass_rate": 1.0,
+      "dose_min_pass_rate": 1.0,
+      "interaction_min_pass_rate": 1.0
+    }
+  },
+  "report_paths": {
+    "clinical_golden_report": "/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/func/evidence_rag_data/logs/clinical_golden_report.json",
+    "dose_engine_eval": "/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/func/evidence_rag_data/logs/dose_engine_eval_v1.md",
+    "interaction_engine_eval": "/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/func/evidence_rag_data/logs/interaction_engine_eval_v1.md"
+  }
+}

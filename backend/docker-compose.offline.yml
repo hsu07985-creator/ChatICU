@@ -1,0 +1,14 @@
+# Explicit offline override for ChatICU.
+# Usage:
+#   docker compose -p chaticu-offline \
+#     -f docker-compose.yml \
+#     -f docker-compose.offline.yml \
+#     up --build
+#
+# This file intentionally only overrides data-source mode so default compose
+# stays in DB mode unless offline mode is explicitly requested.
+
+services:
+  api:
+    environment:
+      - DATA_SOURCE_MODE=json

@@ -1,6 +1,8 @@
 import uuid
 from datetime import datetime, timezone
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +13,7 @@ from app.middleware.audit import create_audit_log
 from app.models.patient import Patient
 from app.models.message import PatientMessage
 from app.models.user import User
-from app.schemas.patient import PatientCreate, PatientUpdate
+from app.schemas.patient import PatientArchiveUpdate, PatientCreate, PatientUpdate
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/patients", tags=["patients"])
@@ -40,6 +42,7 @@ def patient_to_dict(patient: Patient, unread_count: int = 0) -> dict:
         "ventilatorDays": patient.ventilator_days,
         "attendingPhysician": patient.attending_physician,
         "department": patient.department,
+        "unit": patient.unit,
         "alerts": patient.alerts or [],
         "consentStatus": patient.consent_status,
         "allergies": patient.allergies or [],
@@ -77,14 +80,14 @@ async def list_patients(
         if user.role == "doctor":
             query = query.where(
                 or_(
-                    Patient.department.ilike(f"%{user.unit}%") if user.unit else False,
+                    Patient.unit.ilike(f"%{user.unit}%") if user.unit else False,
                     Patient.attending_physician.ilike(f"%{user.name}%"),
                 )
             )
         else:
             # Nurses and other roles: see patients in their unit only
             if user.unit:
-                query = query.where(Patient.department.ilike(f"%{user.unit}%"))
+                query = query.where(Patient.unit.ilike(f"%{user.unit}%"))
 
     if search:
         query = query.where(
@@ -164,12 +167,29 @@ async def create_patient(
         weight=body.weight,
         bmi=bmi,
         diagnosis=body.diagnosis,
+        symptoms=body.symptoms,
         intubated=body.intubated,
         critical_status=body.critical_status,
+        sedation=body.sedation,
+        analgesia=body.analgesia,
+        nmb=body.nmb,
         admission_date=body.admission_date,
         icu_admission_date=body.icu_admission_date,
+        ventilator_days=body.ventilator_days,
         attending_physician=body.attending_physician,
         department=body.department,
+        alerts=body.alerts,
+        consent_status=body.consent_status,
+        allergies=body.allergies,
+        blood_type=body.blood_type,
+        code_status=body.code_status,
+        has_dnr=body.has_dnr,
+        is_isolated=body.is_isolated,
+        # Keep access-control workable for demo: default to creator's unit (or ICU-1 for admin).
+        unit=(
+            body.unit
+            or (user.unit if (user.unit and user.unit != "系統管理") else "加護病房一")
+        ),
         last_update=datetime.now(timezone.utc),
     )
     db.add(patient)
@@ -202,11 +222,11 @@ async def get_patient(
     if user.role not in ("admin", "pharmacist"):
         has_access = False
         if user.role == "doctor":
-            if (user.unit and user.unit in (patient.department or "")) or \
+            if (user.unit and user.unit in (patient.unit or "")) or \
                (user.name in (patient.attending_physician or "")):
                 has_access = True
         else:
-            if user.unit and user.unit in (patient.department or ""):
+            if user.unit and user.unit in (patient.unit or ""):
                 has_access = True
         if not has_access:
             raise HTTPException(status_code=403, detail="無權限查看此病患資料")
@@ -240,8 +260,11 @@ async def update_patient(
     update_data = body.model_dump(exclude_unset=True)
     field_mapping = {
         "bed_number": "bed_number",
+        "medical_record_number": "medical_record_number",
         "critical_status": "critical_status",
         "attending_physician": "attending_physician",
+        "admission_date": "admission_date",
+        "icu_admission_date": "icu_admission_date",
         "ventilator_days": "ventilator_days",
         "has_dnr": "has_dnr",
         "is_isolated": "is_isolated",
@@ -268,6 +291,7 @@ async def update_patient(
 async def archive_patient(
     patient_id: str,
     request: Request,
+    body: Optional[PatientArchiveUpdate] = None,
     user: User = Depends(require_roles("admin", "doctor")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -278,14 +302,17 @@ async def archive_patient(
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
-    patient.archived = not patient.archived
+    if body is not None:
+        patient.archived = body.archived
+    else:
+        patient.archived = not patient.archived
     status_text = "已歸檔" if patient.archived else "已取消歸檔"
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="病患歸檔", target=pid, status="success",
         ip=request.client.host if request.client else None,
-        details={"archived": patient.archived},
+        details={"archived": patient.archived, "reason": getattr(body, "reason", None)},
     )
 
     return success_response(data=patient_to_dict(patient), message=f"病患{status_text}")

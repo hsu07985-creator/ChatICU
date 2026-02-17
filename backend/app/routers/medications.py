@@ -1,5 +1,6 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
@@ -12,10 +13,17 @@ from app.models.medication import Medication
 from app.models.drug_interaction import DrugInteraction
 from app.models.user import User
 from app.routers.patients import normalize_patient_id
-from app.schemas.medication import MedicationCreate, MedicationUpdate
+from app.schemas.medication import (
+    MedicationAdministrationUpdate,
+    MedicationCreate,
+    MedicationUpdate,
+)
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/patients/{patient_id}/medications", tags=["medications"])
+
+
+_ADMINISTRATION_OVERRIDES: dict[str, dict[str, dict[str, Any]]] = {}
 
 
 def med_to_dict(med: Medication) -> dict:
@@ -40,6 +48,75 @@ def med_to_dict(med: Medication) -> dict:
     }
 
 
+async def _get_medication_or_404(
+    db: AsyncSession,
+    patient_id: str,
+    medication_id: str,
+) -> Medication:
+    result = await db.execute(
+        select(Medication).where(
+            (Medication.id == medication_id) & (Medication.patient_id == patient_id)
+        )
+    )
+    med = result.scalar_one_or_none()
+    if not med:
+        raise HTTPException(status_code=404, detail="Medication not found")
+    return med
+
+
+def _format_dose_with_unit(med: Medication) -> str:
+    if med.dose and med.unit:
+        return f"{med.dose} {med.unit}"
+    return med.dose or ""
+
+
+def _build_default_administrations(med: Medication) -> list[dict[str, Any]]:
+    base_date = med.start_date or datetime.now(timezone.utc).date()
+    dose = _format_dose_with_unit(med)
+    schedule_template = [
+        (1, 8, "administered"),
+        (2, 12, "scheduled"),
+        (3, 16, "scheduled"),
+    ]
+    administrations: list[dict[str, Any]] = []
+
+    for idx, hour, status in schedule_template:
+        scheduled_dt = datetime.combine(base_date, time(hour=hour, tzinfo=timezone.utc))
+        administered_time = (
+            (scheduled_dt + timedelta(minutes=5)).isoformat()
+            if status == "administered"
+            else None
+        )
+        administrations.append(
+            {
+                "id": f"adm_{med.id}_{idx}",
+                "medicationId": med.id,
+                "patientId": med.patient_id,
+                "scheduledTime": scheduled_dt.isoformat(),
+                "administeredTime": administered_time,
+                "status": status,
+                "dose": dose,
+                "route": med.route or "",
+                "administeredBy": med.prescribed_by,
+                "notes": None,
+            }
+        )
+
+    return administrations
+
+
+def _get_merged_administrations(med: Medication) -> list[dict[str, Any]]:
+    defaults = _build_default_administrations(med)
+    overrides = _ADMINISTRATION_OVERRIDES.get(med.id, {})
+    merged: list[dict[str, Any]] = []
+
+    for row in defaults:
+        merged_row = {**row, **overrides.get(row["id"], {})}
+        merged.append(merged_row)
+
+    return merged
+
+
 @router.get("")
 async def list_medications(
     patient_id: str,
@@ -56,14 +133,13 @@ async def list_medications(
     result = await db.execute(query.order_by(Medication.name))
     medications = result.scalars().all()
 
-    # Group by SAN category
-    grouped = {"S": [], "A": [], "N": [], "other": []}
+    # Group by SAN category — keys match frontend MedicationsResponse interface
+    _SAN_KEY_MAP = {"S": "sedation", "A": "analgesia", "N": "nmb"}
+    grouped = {"sedation": [], "analgesia": [], "nmb": [], "other": []}
     for med in medications:
         cat = med.san_category or "other"
-        if cat in grouped:
-            grouped[cat].append(med_to_dict(med))
-        else:
-            grouped["other"].append(med_to_dict(med))
+        key = _SAN_KEY_MAP.get(cat, "other")
+        grouped[key].append(med_to_dict(med))
 
     # Find drug interactions for active medications
     active_meds = [m for m in medications if m.status == "active"]
@@ -94,6 +170,48 @@ async def list_medications(
         "grouped": grouped,
         "interactions": interactions,
     })
+
+
+@router.get("/{medication_id}")
+async def get_medication(
+    patient_id: str,
+    medication_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    pid = normalize_patient_id(patient_id)
+    med = await _get_medication_or_404(db, pid, medication_id)
+    return success_response(data=med_to_dict(med))
+
+
+@router.get("/{medication_id}/administrations")
+async def list_medication_administrations(
+    patient_id: str,
+    medication_id: str,
+    start_date: date | None = Query(None, alias="startDate"),
+    end_date: date | None = Query(None, alias="endDate"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(status_code=400, detail="startDate cannot be after endDate")
+
+    pid = normalize_patient_id(patient_id)
+    med = await _get_medication_or_404(db, pid, medication_id)
+
+    administrations = _get_merged_administrations(med)
+    if start_date or end_date:
+        filtered: list[dict[str, Any]] = []
+        for item in administrations:
+            scheduled_date = datetime.fromisoformat(item["scheduledTime"]).date()
+            if start_date and scheduled_date < start_date:
+                continue
+            if end_date and scheduled_date > end_date:
+                continue
+            filtered.append(item)
+        administrations = filtered
+
+    return success_response(data=administrations)
 
 
 @router.post("")
@@ -144,11 +262,8 @@ async def update_medication(
     user: User = Depends(require_roles("doctor", "pharmacist")),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Medication).where(Medication.id == medication_id))
-    med = result.scalar_one_or_none()
-
-    if not med:
-        raise HTTPException(status_code=404, detail="Medication not found")
+    pid = normalize_patient_id(patient_id)
+    med = await _get_medication_or_404(db, pid, medication_id)
 
     update_data = body.model_dump(exclude_unset=True)
     field_mapping = {
@@ -166,3 +281,54 @@ async def update_medication(
     )
 
     return success_response(data=med_to_dict(med), message="藥物已更新")
+
+
+@router.patch("/{medication_id}/administrations/{administration_id}")
+async def record_medication_administration(
+    patient_id: str,
+    medication_id: str,
+    administration_id: str,
+    body: MedicationAdministrationUpdate,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    pid = normalize_patient_id(patient_id)
+    med = await _get_medication_or_404(db, pid, medication_id)
+
+    administrations = _get_merged_administrations(med)
+    existing = next((item for item in administrations if item["id"] == administration_id), None)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Administration not found")
+
+    updated = {
+        **existing,
+        "status": body.status,
+        "notes": body.notes,
+    }
+    if body.status == "administered":
+        updated["administeredTime"] = existing.get("administeredTime") or datetime.now(
+            timezone.utc
+        ).isoformat()
+    else:
+        updated["administeredTime"] = None
+
+    _ADMINISTRATION_OVERRIDES.setdefault(med.id, {})[administration_id] = updated
+
+    await create_audit_log(
+        db,
+        user_id=user.id,
+        user_name=user.name,
+        role=user.role,
+        action="記錄給藥",
+        target=administration_id,
+        status="success",
+        ip=request.client.host if request.client else None,
+        details={
+            "medication_id": med.id,
+            "administration_id": administration_id,
+            "status": body.status,
+        },
+    )
+
+    return success_response(data=updated, message="給藥記錄已更新")

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -36,15 +36,22 @@ async def list_team_chat(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Total count for frontend pagination (F13)
+    total_result = await db.execute(
+        select(func.count(TeamChatMessage.id))
+    )
+    total = total_result.scalar() or 0
+
     result = await db.execute(
         select(TeamChatMessage)
-        .order_by(TeamChatMessage.timestamp.desc())
+        .order_by(TeamChatMessage.timestamp.asc(), TeamChatMessage.id.asc())
         .limit(limit)
     )
     messages = result.scalars().all()
 
     return success_response(data={
-        "messages": [chat_to_dict(m) for m in reversed(messages)],
+        "messages": [chat_to_dict(m) for m in messages],
+        "total": total,
     })
 
 

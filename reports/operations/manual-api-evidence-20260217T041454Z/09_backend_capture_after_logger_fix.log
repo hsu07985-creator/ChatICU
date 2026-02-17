@@ -1,0 +1,108 @@
+2026-02-17 12:17:34,574 [INFO] uvicorn.error: Started server process [24418]
+2026-02-17 12:17:34,574 [INFO] uvicorn.error: Waiting for application startup.
+2026-02-17 12:17:51,364 [INFO] uvicorn.error: Application startup complete.
+2026-02-17 12:17:51,364 [INFO] uvicorn.error: Uvicorn running on http://127.0.0.1:8011 (Press CTRL+C to quit)
+Starting ChatICU API v1.0.0
+Data source mode: db
+RAG indexed: 2150 chunks from 44 documents
+2026-02-17 12:17:52,353 INFO sqlalchemy.engine.Engine select pg_catalog.version()
+2026-02-17 12:17:52,353 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-17 12:17:52,354 INFO sqlalchemy.engine.Engine select current_schema()
+2026-02-17 12:17:52,354 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-17 12:17:52,355 INFO sqlalchemy.engine.Engine show standard_conforming_strings
+2026-02-17 12:17:52,355 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-17 12:17:52,355 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-17 12:17:52,369 INFO sqlalchemy.engine.Engine SELECT users.id, users.name, users.username, users.password_hash, users.email, users.role, users.unit, users.active, users.last_login, users.password_changed_at, users.created_at 
+FROM users 
+WHERE users.username = $1::VARCHAR
+2026-02-17 12:17:52,369 INFO sqlalchemy.engine.Engine [generated in 0.00013s] ('doctor',)
+(trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/.venv312/lib/python3.12/site-packages/passlib/handlers/bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+2026-02-17 12:17:52,575 INFO sqlalchemy.engine.Engine UPDATE users SET last_login=$1::TIMESTAMP WITH TIME ZONE WHERE users.id = $2::VARCHAR
+2026-02-17 12:17:52,575 INFO sqlalchemy.engine.Engine [generated in 0.00011s] (datetime.datetime(2026, 2, 17, 4, 17, 52, 572353, tzinfo=datetime.timezone.utc), 'usr_002')
+2026-02-17 12:17:52,576 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, timestamp, user_id, user_name, role, action, target, status, ip, details) VALUES ($1::VARCHAR, $2::TIMESTAMP WITH TIME ZONE, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::JSONB) RETURNING audit_logs.created_at
+2026-02-17 12:17:52,576 INFO sqlalchemy.engine.Engine [generated in 0.00006s] ('audit_2d47af76c06d', datetime.datetime(2026, 2, 17, 4, 17, 52, 574615, tzinfo=datetime.timezone.utc), 'usr_002', '李穎灝', 'doctor', '用戶登入', '系統', 'success', '127.0.0.1', 'null')
+2026-02-17 12:17:52,578 [INFO] chaticu.audit: {"event": "audit", "ts": "2026-02-17T04:17:52.574615+00:00", "user_id": "usr_002", "user_name": "李穎灝", "role": "doctor", "action": "用戶登入", "target": "系統", "status": "success", "ip": "127.0.0.1", "details": null}
+2026-02-17 12:17:52,578 INFO sqlalchemy.engine.Engine COMMIT
+2026-02-17 12:17:52,579 [INFO] uvicorn.access: 127.0.0.1:51202 - "POST /auth/login HTTP/1.1" 200
+2026-02-17 12:17:52,618 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-17 12:17:52,619 INFO sqlalchemy.engine.Engine SELECT users.id, users.name, users.username, users.password_hash, users.email, users.role, users.unit, users.active, users.last_login, users.password_changed_at, users.created_at 
+FROM users 
+WHERE users.id = $1::VARCHAR
+2026-02-17 12:17:52,619 INFO sqlalchemy.engine.Engine [generated in 0.00006s] ('usr_002',)
+2026-02-17 12:17:52,621 INFO sqlalchemy.engine.Engine SELECT count(*) AS count_1 
+FROM (SELECT patients.id AS id, patients.name AS name, patients.bed_number AS bed_number, patients.medical_record_number AS medical_record_number, patients.age AS age, patients.gender AS gender, patients.height AS height, patients.weight AS weight, patients.bmi AS bmi, patients.diagnosis AS diagnosis, patients.symptoms AS symptoms, patients.intubated AS intubated, patients.critical_status AS critical_status, patients.sedation AS sedation, patients.analgesia AS analgesia, patients.nmb AS nmb, patients.admission_date AS admission_date, patients.icu_admission_date AS icu_admission_date, patients.ventilator_days AS ventilator_days, patients.attending_physician AS attending_physician, patients.department AS department, patients.unit AS unit, patients.alerts AS alerts, patients.consent_status AS consent_status, patients.allergies AS allergies, patients.blood_type AS blood_type, patients.code_status AS code_status, patients.has_dnr AS has_dnr, patients.is_isolated AS is_isolated, patients.archived AS archived, patients.last_update AS last_update, patients.created_at AS created_at 
+FROM patients 
+WHERE patients.archived = false AND (patients.unit ILIKE $1::VARCHAR OR patients.attending_physician ILIKE $2::VARCHAR)) AS anon_1
+2026-02-17 12:17:52,621 INFO sqlalchemy.engine.Engine [generated in 0.00008s] ('%加護病房一%', '%李穎灝%')
+2026-02-17 12:17:52,623 INFO sqlalchemy.engine.Engine SELECT patients.id, patients.name, patients.bed_number, patients.medical_record_number, patients.age, patients.gender, patients.height, patients.weight, patients.bmi, patients.diagnosis, patients.symptoms, patients.intubated, patients.critical_status, patients.sedation, patients.analgesia, patients.nmb, patients.admission_date, patients.icu_admission_date, patients.ventilator_days, patients.attending_physician, patients.department, patients.unit, patients.alerts, patients.consent_status, patients.allergies, patients.blood_type, patients.code_status, patients.has_dnr, patients.is_isolated, patients.archived, patients.last_update, patients.created_at 
+FROM patients 
+WHERE patients.archived = false AND (patients.unit ILIKE $1::VARCHAR OR patients.attending_physician ILIKE $2::VARCHAR) ORDER BY patients.bed_number 
+ LIMIT $3::INTEGER OFFSET $4::INTEGER
+2026-02-17 12:17:52,623 INFO sqlalchemy.engine.Engine [generated in 0.00007s] ('%加護病房一%', '%李穎灝%', 1, 0)
+2026-02-17 12:17:52,625 INFO sqlalchemy.engine.Engine SELECT patient_messages.patient_id, count(patient_messages.id) AS count_1 
+FROM patient_messages 
+WHERE patient_messages.patient_id IN ($1::VARCHAR) AND patient_messages.is_read = false GROUP BY patient_messages.patient_id
+2026-02-17 12:17:52,625 INFO sqlalchemy.engine.Engine [generated in 0.00006s] ('pat_001',)
+2026-02-17 12:17:52,625 INFO sqlalchemy.engine.Engine COMMIT
+2026-02-17 12:17:52,626 [INFO] uvicorn.access: 127.0.0.1:51206 - "GET /patients?limit=1 HTTP/1.1" 200
+2026-02-17 12:17:52,658 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-17 12:17:52,658 INFO sqlalchemy.engine.Engine SELECT users.id, users.name, users.username, users.password_hash, users.email, users.role, users.unit, users.active, users.last_login, users.password_changed_at, users.created_at 
+FROM users 
+WHERE users.id = $1::VARCHAR
+2026-02-17 12:17:52,658 INFO sqlalchemy.engine.Engine [cached since 0.03962s ago] ('usr_002',)
+2026-02-17 12:17:52,661 INFO sqlalchemy.engine.Engine SELECT ai_sessions.id, ai_sessions.user_id, ai_sessions.patient_id, ai_sessions.title, ai_sessions.summary, ai_sessions.summary_up_to, ai_sessions.created_at, ai_sessions.updated_at 
+FROM ai_sessions 
+WHERE ai_sessions.id = $1::VARCHAR
+2026-02-17 12:17:52,661 INFO sqlalchemy.engine.Engine [generated in 0.00007s] ('session_4349a30b',)
+2026-02-17 12:17:52,662 INFO sqlalchemy.engine.Engine INSERT INTO ai_sessions (id, user_id, patient_id, title, summary, summary_up_to) VALUES ($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::INTEGER) RETURNING ai_sessions.created_at, ai_sessions.updated_at
+2026-02-17 12:17:52,662 INFO sqlalchemy.engine.Engine [generated in 0.00007s] ('session_4349a30b', 'usr_002', 'pat_001', '患者在痛我要如何給止痛藥物', None, 0)
+2026-02-17 12:17:52,663 INFO sqlalchemy.engine.Engine SELECT ai_messages.id, ai_messages.session_id, ai_messages.role, ai_messages.content, ai_messages.citations, ai_messages.suggested_actions, ai_messages.token_count, ai_messages.created_at 
+FROM ai_messages 
+WHERE ai_messages.session_id = $1::VARCHAR ORDER BY ai_messages.created_at ASC
+2026-02-17 12:17:52,663 INFO sqlalchemy.engine.Engine [generated in 0.00004s] ('session_4349a30b',)
+2026-02-17 12:17:52,665 INFO sqlalchemy.engine.Engine INSERT INTO ai_messages (id, session_id, role, content, token_count) VALUES ($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::INTEGER) RETURNING ai_messages.created_at
+2026-02-17 12:17:52,665 INFO sqlalchemy.engine.Engine [generated in 0.00004s] ('msg_5c55827b', 'session_4349a30b', 'user', '患者在痛我要如何給止痛藥物', None)
+2026-02-17 12:17:52,666 INFO sqlalchemy.engine.Engine SELECT patients.id, patients.name, patients.bed_number, patients.medical_record_number, patients.age, patients.gender, patients.height, patients.weight, patients.bmi, patients.diagnosis, patients.symptoms, patients.intubated, patients.critical_status, patients.sedation, patients.analgesia, patients.nmb, patients.admission_date, patients.icu_admission_date, patients.ventilator_days, patients.attending_physician, patients.department, patients.unit, patients.alerts, patients.consent_status, patients.allergies, patients.blood_type, patients.code_status, patients.has_dnr, patients.is_isolated, patients.archived, patients.last_update, patients.created_at 
+FROM patients 
+WHERE patients.id = $1::VARCHAR
+2026-02-17 12:17:52,666 INFO sqlalchemy.engine.Engine [generated in 0.00003s] ('pat_001',)
+2026-02-17 12:17:52,667 INFO sqlalchemy.engine.Engine SELECT medications.patient_id AS medications_patient_id, medications.id AS medications_id, medications.name AS medications_name, medications.generic_name AS medications_generic_name, medications.category AS medications_category, medications.san_category AS medications_san_category, medications.dose AS medications_dose, medications.unit AS medications_unit, medications.frequency AS medications_frequency, medications.route AS medications_route, medications.prn AS medications_prn, medications.indication AS medications_indication, medications.start_date AS medications_start_date, medications.end_date AS medications_end_date, medications.status AS medications_status, medications.prescribed_by AS medications_prescribed_by, medications.warnings AS medications_warnings, medications.created_at AS medications_created_at 
+FROM medications 
+WHERE medications.patient_id IN ($1::VARCHAR)
+2026-02-17 12:17:52,667 INFO sqlalchemy.engine.Engine [generated in 0.00009s] ('pat_001',)
+2026-02-17 12:17:52,669 INFO sqlalchemy.engine.Engine SELECT lab_data.patient_id AS lab_data_patient_id, lab_data.id AS lab_data_id, lab_data.timestamp AS lab_data_timestamp, lab_data.biochemistry AS lab_data_biochemistry, lab_data.hematology AS lab_data_hematology, lab_data.blood_gas AS lab_data_blood_gas, lab_data.inflammatory AS lab_data_inflammatory, lab_data.coagulation AS lab_data_coagulation, lab_data.corrections AS lab_data_corrections, lab_data.created_at AS lab_data_created_at 
+FROM lab_data 
+WHERE lab_data.patient_id IN ($1::VARCHAR)
+2026-02-17 12:17:52,669 INFO sqlalchemy.engine.Engine [generated in 0.00006s] ('pat_001',)
+2026-02-17 12:17:52,671 INFO sqlalchemy.engine.Engine SELECT vital_signs.patient_id AS vital_signs_patient_id, vital_signs.id AS vital_signs_id, vital_signs.timestamp AS vital_signs_timestamp, vital_signs.heart_rate AS vital_signs_heart_rate, vital_signs.systolic_bp AS vital_signs_systolic_bp, vital_signs.diastolic_bp AS vital_signs_diastolic_bp, vital_signs.mean_bp AS vital_signs_mean_bp, vital_signs.respiratory_rate AS vital_signs_respiratory_rate, vital_signs.spo2 AS vital_signs_spo2, vital_signs.temperature AS vital_signs_temperature, vital_signs.reference_ranges AS vital_signs_reference_ranges, vital_signs.created_at AS vital_signs_created_at 
+FROM vital_signs 
+WHERE vital_signs.patient_id IN ($1::VARCHAR)
+2026-02-17 12:17:52,671 INFO sqlalchemy.engine.Engine [generated in 0.00009s] ('pat_001',)
+2026-02-17 12:17:52,673 INFO sqlalchemy.engine.Engine SELECT ventilator_settings.patient_id AS ventilator_settings_patient_id, ventilator_settings.id AS ventilator_settings_id, ventilator_settings.timestamp AS ventilator_settings_timestamp, ventilator_settings.mode AS ventilator_settings_mode, ventilator_settings.fio2 AS ventilator_settings_fio2, ventilator_settings.peep AS ventilator_settings_peep, ventilator_settings.tidal_volume AS ventilator_settings_tidal_volume, ventilator_settings.respiratory_rate AS ventilator_settings_respiratory_rate, ventilator_settings.inspiratory_pressure AS ventilator_settings_inspiratory_pressure, ventilator_settings.pressure_support AS ventilator_settings_pressure_support, ventilator_settings.ie_ratio AS ventilator_settings_ie_ratio, ventilator_settings.pip AS ventilator_settings_pip, ventilator_settings.plateau AS ventilator_settings_plateau, ventilator_settings.compliance AS ventilator_settings_compliance, ventilator_settings.resistance AS ventilator_settings_resistance, ventilator_settings.created_at AS ventilator_settings_created_at 
+FROM ventilator_settings 
+WHERE ventilator_settings.patient_id IN ($1::VARCHAR)
+2026-02-17 12:17:52,673 INFO sqlalchemy.engine.Engine [generated in 0.00008s] ('pat_001',)
+2026-02-17 12:17:52,673 [INFO] chaticu: [INTG][AI][API] /ai/chat request_id=audit3_chat_20260217T041752Z trace_id=audit3_chat_20260217T041752Z session_id=session_4349a30b user_id=usr_002 patient_id=pat_001 intent=medication_fact
+[INTG][AI][API] Evidence POST transient failure attempt=1/3 url=http://127.0.0.1:8001/query err=[Errno 61] Connection refused
+[INTG][AI][API] Evidence POST transient failure attempt=2/3 url=http://127.0.0.1:8001/query err=[Errno 61] Connection refused
+[INTG][AI][API] Evidence POST transient failure attempt=3/3 url=http://127.0.0.1:8001/query err=[Errno 61] Connection refused
+2026-02-17 12:17:54,203 [WARNING] chaticu: [INTG][AI][API][F07] Hybrid RAG unavailable for ai_chat, falling back to TF-IDF: [Errno 61] Connection refused
+/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/app/services/llm_services/rag_service.py:103: RuntimeWarning: divide by zero encountered in matmul
+  similarities = normed @ q_vec
+/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/app/services/llm_services/rag_service.py:103: RuntimeWarning: overflow encountered in matmul
+  similarities = normed @ q_vec
+/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/app/services/llm_services/rag_service.py:103: RuntimeWarning: invalid value encountered in matmul
+  similarities = normed @ q_vec
+2026-02-17 12:17:58,766 [INFO] chaticu: [INTG][AI][AUDIT] provider_raw_captured path=/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/../reports/operations/manual-api-evidence-20260217T041454Z/provider_raw/20260217T041758Z_openai_rag_generation_audit3_chat_20260217.json request_id=audit3_chat_20260217T041752Z trace_id=audit3_chat_20260217T041752Z task=rag_generation
+2026-02-17 12:17:58,769 INFO sqlalchemy.engine.Engine INSERT INTO ai_messages (id, session_id, role, content, citations, suggested_actions, token_count) VALUES ($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::JSONB, $6::JSONB, $7::INTEGER) RETURNING ai_messages.created_at
+2026-02-17 12:17:58,769 INFO sqlalchemy.engine.Engine [generated in 0.00027s] ('msg_58df4444', 'session_4349a30b', 'assistant', '建議繼續使用靜脈注射型鴉片類藥物如Morphine，並考慮合併使用非鴉片類藥物如乙醯氨基酚以減少鴉片類藥物劑量。', '[{"id": "cite_0", "type": "guideline", "title": "Taiwan PAD (pain) 1140131.pdf", "source": "1_analgesic", "sourceFile": "1_analgesic/Taiwan PAD (pain ... (6239 characters truncated) ... 2\\u3001\\u76ee\\u524d\\u75c5\\u6cc1\\u548c\\u5668\\u5b98\\u640d\\u50b7\\u7a0b\\u5ea6\\u505a\\u9069\\u5ea6\\u8abf\\u6574\\u3002", "snippetCount": 3}]', '{"guardrail": {"warnings": null, "flagged": false, "requiresExpertReview": false}, "delivery": {"degraded": false, "degradedReason": null, "upstreamS ... (2261 characters truncated) ... 2025-01-10T08:30:00Z", "\\u8cc7\\u6599\\u6642\\u9593\\u8f03\\u820a\\uff1alab_data\\u3002", "\\u8cc7\\u6599\\u7f3a\\u503c\\uff1avital_signs\\u3002"]}}', None)
+2026-02-17 12:17:58,775 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, timestamp, user_id, user_name, role, action, target, status, ip, details) VALUES ($1::VARCHAR, $2::TIMESTAMP WITH TIME ZONE, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::JSONB) RETURNING audit_logs.created_at
+2026-02-17 12:17:58,775 INFO sqlalchemy.engine.Engine [cached since 6.199s ago] ('audit_bbe767b703d3', datetime.datetime(2026, 2, 17, 4, 17, 58, 768274, tzinfo=datetime.timezone.utc), 'usr_002', '李穎灝', 'doctor', 'AI 對話', 'session_4349a30b', 'success', '127.0.0.1', '{"patient_id": "pat_001", "message_length": 13, "safety_flagged": false, "llm_status": "success", "llm_error": null, "chat_intent": "medication_fact" ... (43 characters truncated) ... ation": true, "evidence_gate_passed": true, "evidence_citation_count": 1, "evidence_confidence": 0.607, "history_msg_count": 2, "has_summary": false}')
+2026-02-17 12:17:58,776 [INFO] chaticu.audit: {"event": "audit", "ts": "2026-02-17T04:17:58.768274+00:00", "user_id": "usr_002", "user_name": "李穎灝", "role": "doctor", "action": "AI 對話", "target": "session_4349a30b", "status": "success", "ip": "127.0.0.1", "details": {"patient_id": "pat_001", "message_length": 13, "safety_flagged": false, "llm_status": "success", "llm_error": null, "chat_intent": "medication_fact", "stability_gap_reason": null, "has_explanation": true, "evidence_gate_passed": true, "evidence_citation_count": 1, "evidence_confidence": 0.607, "history_msg_count": 2, "has_summary": false}}
+2026-02-17 12:17:58,776 INFO sqlalchemy.engine.Engine COMMIT
+2026-02-17 12:17:58,777 [INFO] uvicorn.access: 127.0.0.1:51207 - "POST /ai/chat HTTP/1.1" 200

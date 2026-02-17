@@ -6,7 +6,7 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Label } from '../components/ui/label';
 import { Alert, AlertDescription } from '../components/ui/alert';
-import { Checkbox } from '../components/ui/checkbox';
+
 import svgPaths from '../imports/svg-n38m0xb9r6';
 import imgImage9 from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 import imgImage10 from 'figma:asset/876ec040af4ae472e932818bce39f20ca0e1e282.png';
@@ -68,7 +68,7 @@ function SpeechBubble() {
 export function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -79,14 +79,14 @@ export function LoginPage() {
     setError('');
     setLoading(true);
 
-    const success = await login(username, password);
-    
-    if (success) {
+    const result = await login(username, password);
+
+    if (result.success) {
       navigate('/dashboard');
     } else {
-      setError('帳號或密碼錯誤');
+      setError(result.message || '帳號或密碼錯誤');
     }
-    
+
     setLoading(false);
   };
 
@@ -180,26 +180,8 @@ export function LoginPage() {
                   required
                 />
 
-                {/* Remember Me & Forgot Password */}
-                <div className="flex items-center justify-between pt-2">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="remember"
-                      checked={rememberMe}
-                      onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                      className="border-[#7f265b] data-[state=checked]:bg-[#7f265b]"
-                    />
-                    <label htmlFor="remember" className="text-xs text-[#6b7280] cursor-pointer">
-                      Remember Me
-                    </label>
-                  </div>
-                  <button
-                    type="button"
-                    className="text-xs text-[#7f265b] font-semibold hover:opacity-80 transition-opacity"
-                  >
-                    Forgot Password?
-                  </button>
-                </div>
+                {/* Spacer */}
+                <div className="pt-2" />
               </div>
 
               {/* Error Message */}
@@ -218,13 +200,16 @@ export function LoginPage() {
                 {loading ? '登入中...' : 'Login'}
               </Button>
 
-              {/* Test Accounts */}
-              <div className="text-xs text-[#6b7280] p-4 bg-[#f8f9fa] rounded-md border border-[#e5e7eb]">
-                <p className="font-semibold text-[#1a1a1a] mb-2">測試帳號：</p>
-                <p>• 一般醫護：nurse / nurse</p>
-                <p>• 管理者：admin / admin</p>
-                <p>• 藥師：pharmacist / pharmacist</p>
-              </div>
+              {/* Test Accounts — dev only */}
+              {import.meta.env.DEV && (
+                <div className="text-xs text-[#6b7280] p-4 bg-[#f8f9fa] rounded-md border border-[#e5e7eb]">
+                  <p className="font-semibold text-[#1a1a1a] mb-2">測試帳號：</p>
+                  <p>• 護理師：nurse / nurse</p>
+                  <p>• 醫師：doctor / doctor</p>
+                  <p>• 管理者：admin / admin</p>
+                  <p>• 藥師：pharmacist / pharmacist</p>
+                </div>
+              )}
             </form>
           </div>
         </div>

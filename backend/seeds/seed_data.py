@@ -3,7 +3,6 @@ Seed script to populate the database with mock data from datamock/ JSON files.
 Run: python -m seeds.seed_data
 """
 import asyncio
-import json
 import os
 import sys
 from datetime import datetime, timezone
@@ -19,35 +18,11 @@ from app.config import settings
 from app.database import Base, async_session, engine
 from app.models import *  # noqa: F401, F403
 from app.utils.security import hash_password
-
-DATAMOCK_DIR = Path(__file__).parent.parent.parent / "datamock"
-
-
-from typing import Optional, Union
+from seeds.datamock_source import get_datamock_dir, load_json, unwrap_list
+from seeds.validate_datamock import validate_datamock
 
 
-def load_json(filename: str) -> Union[list, dict]:
-    filepath = DATAMOCK_DIR / filename
-    if not filepath.exists():
-        print(f"  Warning: {filepath} not found, skipping")
-        return []
-    with open(filepath, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def unwrap_list(raw: Union[list, dict], key: str) -> list:
-    """Return list payload from either raw list or wrapped dict {key: [...]}."""
-    if isinstance(raw, list):
-        return raw
-    if isinstance(raw, dict):
-        value = raw.get(key)
-        if isinstance(value, list):
-            return value
-        # Fallback: return the first list-like value in dict if key is absent.
-        for v in raw.values():
-            if isinstance(v, list):
-                return v
-    return []
+from typing import Optional
 
 
 def parse_datetime(dt_str: Optional[str]) -> Optional[datetime]:
@@ -70,11 +45,19 @@ def parse_date(date_str: Optional[str]):
         return None
 
 
-# Seed password MUST be set via environment variable — no plaintext fallback
+SEED_PASSWORD_STRATEGY = os.environ.get("SEED_PASSWORD_STRATEGY", "default").strip().lower()
 SEED_DEFAULT_PASSWORD = os.environ.get("SEED_DEFAULT_PASSWORD", "")
-if not SEED_DEFAULT_PASSWORD:
+
+if SEED_PASSWORD_STRATEGY not in ("default", "username"):
+    print("  ERROR: invalid SEED_PASSWORD_STRATEGY.")
+    print("  Allowed: default | username")
+    sys.exit(1)
+
+if SEED_PASSWORD_STRATEGY == "default" and not SEED_DEFAULT_PASSWORD:
+    # Seed password MUST be set via environment variable — no plaintext fallback
     print("  ERROR: SEED_DEFAULT_PASSWORD environment variable is required.")
     print("  Set it before running: export SEED_DEFAULT_PASSWORD='YourSecurePassword!'")
+    print("  Or use username-based dev passwords: export SEED_PASSWORD_STRATEGY='username'")
     sys.exit(1)
 
 
@@ -86,11 +69,15 @@ async def seed_users(session: AsyncSession):
 
     now = datetime.now(timezone.utc)
     for u in users_data:
+        if SEED_PASSWORD_STRATEGY == "username":
+            raw_password = u["username"]
+        else:
+            raw_password = SEED_DEFAULT_PASSWORD
         user = User(
             id=u["id"],
             name=u["name"],
             username=u["username"],
-            password_hash=hash_password(SEED_DEFAULT_PASSWORD),
+            password_hash=hash_password(raw_password),
             email=u.get("email", f"{u['username']}@hospital.com"),
             role=u["role"],
             unit=u.get("unit", "加護病房一"),
@@ -133,6 +120,7 @@ async def seed_patients(session: AsyncSession):
             ventilator_days=p.get("ventilatorDays", 0),
             attending_physician=p.get("attendingPhysician"),
             department=p.get("department"),
+            unit=p.get("unit") or "加護病房一",
             alerts=p.get("alerts"),
             consent_status=p.get("consentStatus"),
             allergies=p.get("allergies"),
@@ -309,8 +297,14 @@ async def main():
     print("=" * 50)
     print("ChatICU Database Seed Script")
     print("=" * 50)
+    datamock_dir = get_datamock_dir()
     print(f"Database: {settings.DATABASE_URL}")
-    print(f"Mock data dir: {DATAMOCK_DIR}")
+    print(f"Mock data dir: {datamock_dir}")
+    print()
+
+    # Validate JSON structure before seeding so failures are explicit and early.
+    validation_report = validate_datamock(raise_on_error=True)
+    print(f"Datamock validation summary: {validation_report}")
     print()
 
     # Create all tables

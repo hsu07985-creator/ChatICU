@@ -14,10 +14,17 @@ export interface User {
   lastLogin?: string;
 }
 
+export interface LoginResult {
+  success: boolean;
+  status?: number;
+  message?: string;
+  code?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<LoginResult>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   checkAuth: () => Promise<void>;
@@ -64,15 +71,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [checkAuth]);
 
   // 登入
-  const login = async (username: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<LoginResult> => {
     try {
       setLoading(true);
       const loggedInUser = await authApi.login(username, password);
       setUser(loggedInUser);
-      return true;
-    } catch (error) {
-      console.error('登入失敗:', error);
-      return false;
+      console.info('[INTG][API][AUTH] login success');
+      return { success: true };
+    } catch (error: unknown) {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      const data = (error as { response?: { data?: { message?: string; detail?: string; error?: string } } })
+        ?.response?.data;
+      const message = data?.message || data?.detail || '登入失敗，請稍後再試';
+      const code = data?.error;
+
+      console.error(
+        `[INTG][API][AUTH] login failed status=${status ?? 'N/A'} code=${code ?? 'N/A'} message=${message}`,
+      );
+      return {
+        success: false,
+        status,
+        message,
+        code,
+      };
     } finally {
       setLoading(false);
     }

@@ -1,0 +1,1 @@
+{"success":true,"data":{"id":"med_002","patientId":"pat_001","name":"Dormicum","genericName":"Midazolam","category":"sedative","sanCategory":"S","dose":"2","unit":"mg","frequency":"q4h","route":"IV","prn":true,"indication":"RASS Score: -2/4","startDate":"2025-10-17","endDate":null,"status":"active","prescribedBy":{"id":"usr_002","name":"李穎灝"},"warnings":["併用 Morphine，需注意呼吸抑制"]}}

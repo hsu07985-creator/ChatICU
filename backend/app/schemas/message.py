@@ -12,7 +12,7 @@ class MessageCreate(BaseModel):
     @field_validator("messageType")
     @classmethod
     def check_message_type(cls, v: str) -> str:
-        allowed = {"general", "medication-advice", "urgent", "note"}
+        allowed = {"general", "medication-advice", "urgent", "note", "progress-note", "nursing-record"}
         if v not in allowed:
             raise ValueError(f"messageType 須為 {', '.join(sorted(allowed))} 之一")
         return v

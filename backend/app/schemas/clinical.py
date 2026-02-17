@@ -17,6 +17,10 @@ class SummaryRequest(BaseModel):
 class ExplanationRequest(BaseModel):
     patient_id: str = Field(..., min_length=1, max_length=50)
     topic: str = Field("", max_length=500)
+    reading_level: Optional[str] = Field(
+        None,
+        pattern=r"^(simple|moderate|detailed)$",
+    )
 
 
 class GuidelineRequest(BaseModel):
@@ -29,6 +33,15 @@ class DecisionRequest(BaseModel):
     patient_id: str = Field(..., min_length=1, max_length=50)
     question: str = Field(..., min_length=1, max_length=2000)
     assessments: Optional[List[dict]] = None
+
+
+class PolishRequest(BaseModel):
+    patient_id: str = Field(..., min_length=1, max_length=50)
+    content: str = Field(..., min_length=1, max_length=10000)
+    polish_type: str = Field(
+        ...,
+        pattern=r"^(progress_note|medication_advice|nursing_record|pharmacy_advice)$",
+    )
 
 
 # ─── RAG ──────────────────────────────────────────────
@@ -48,6 +61,47 @@ class CKDStageRequest(BaseModel):
     egfr: float = Field(..., ge=0, le=200)
     age: Optional[int] = Field(None, ge=0, le=150)
     has_proteinuria: bool = False
+
+
+# ─── Dose Calculation (P3-1) ──────────────────────────
+
+class PatientContext(BaseModel):
+    age_years: Optional[float] = None
+    weight_kg: Optional[float] = None
+    sex: Optional[str] = None
+    crcl_ml_min: Optional[float] = None
+    hepatic_class: Optional[str] = None
+    sbp_mmHg: Optional[float] = None
+    hr_bpm: Optional[float] = None
+    rr_bpm: Optional[float] = None
+    qtc_ms: Optional[float] = None
+    k_mmol_l: Optional[float] = None
+    mg_mmol_l: Optional[float] = None
+
+
+class DoseCalculateRequest(BaseModel):
+    drug: str = Field(..., min_length=2, max_length=200)
+    indication: Optional[str] = Field(None, max_length=500)
+    patient_context: PatientContext
+    dose_target: Optional[dict] = None
+
+
+# ─── Interaction Check (P3-2) ────────────────────────
+
+class InteractionCheckRequest(BaseModel):
+    drug_list: List[str] = Field(..., min_length=2)
+    patient_context: Optional[PatientContext] = None
+
+
+# ─── Clinical Query (P3-3) ───────────────────────────
+
+class ClinicalQueryRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=2000)
+    intent: str = Field("auto", max_length=30)
+    drug: Optional[str] = Field(None, max_length=200)
+    drug_list: Optional[List[str]] = None
+    patient_context: Optional[PatientContext] = None
+    dose_target: Optional[dict] = None
 
 
 # ─── AI Chat ─────────────────────────────────────────

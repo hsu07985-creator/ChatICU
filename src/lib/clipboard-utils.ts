@@ -7,7 +7,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   // 先檢測是否可以使用 Clipboard API
   const canUseClipboardAPI = !!(
     navigator.clipboard && 
-    navigator.clipboard.writeText &&
+    typeof navigator.clipboard.writeText === 'function' &&
     // 檢查是否在安全上下文中（HTTPS 或 localhost）
     window.isSecureContext
   );

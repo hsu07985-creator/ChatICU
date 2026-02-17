@@ -1,4 +1,4 @@
-import apiClient from '../api-client';
+import apiClient, { ensureData } from '../api-client';
 
 // 團隊聊天訊息類型
 export interface TeamChatMessage {
@@ -31,7 +31,7 @@ export async function getTeamChatMessages(options: { limit?: number } = {}): Pro
   if (options.limit) params.append('limit', String(options.limit));
 
   const response = await apiClient.get<ApiResponse<TeamChatResponse>>(`/team/chat?${params}`);
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 /**
@@ -39,7 +39,7 @@ export async function getTeamChatMessages(options: { limit?: number } = {}): Pro
  */
 export async function sendTeamChatMessage(content: string, pinned = false): Promise<TeamChatMessage> {
   const response = await apiClient.post<ApiResponse<TeamChatMessage>>('/team/chat', { content, pinned });
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 /**
@@ -56,7 +56,7 @@ export async function togglePinMessage(messageId: string): Promise<{ messageId: 
   const response = await apiClient.patch<ApiResponse<{ messageId: string; pinned: boolean }>>(
     `/team/chat/${messageId}/pin`
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 // 導出所有 API 函數

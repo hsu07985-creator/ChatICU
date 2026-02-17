@@ -1,14 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
-import { Search, Save, CheckCircle2, XCircle, HelpCircle, BookOpen, Loader2 } from 'lucide-react';
+import { Search, Save, CheckCircle2, XCircle, HelpCircle, BookOpen, Loader2, X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Separator } from '../../components/ui/separator';
 import { toast } from 'sonner';
-import apiClient from '../../lib/api-client';
+import { useAuth } from '../../lib/auth-context';
+import { copyToClipboard } from '../../lib/clipboard-utils';
+import { IV_COMPATIBILITY_SOLUTIONS } from '../../lib/pharmacy-master-data';
+import {
+  createCompatibilityFavorite,
+  deleteCompatibilityFavorite,
+  getCompatibilityFavorites,
+  getIVCompatibility,
+} from '../../lib/api/pharmacy';
 
 interface IVCompatibility {
   id: string;
@@ -16,29 +24,95 @@ interface IVCompatibility {
   drug2: string;
   solution: string;
   compatible: boolean;
-  timeStability: string;
-  notes: string;
-  references: string;
+  timeStability?: string;
+  notes?: string;
+  references?: string;
 }
 
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
-}
-
-interface CompatibilityResponse {
-  compatibilities: IVCompatibility[];
-  total: number;
+interface FavoriteCompatibilityPair {
+  id: string;
+  drugA: string;
+  drugB: string;
+  solution: string; // 'none' | 'NS' | 'D5W' | ...
+  createdAt: string;
 }
 
 export function CompatibilityPage() {
+  const { user } = useAuth();
   const [drugA, setDrugA] = useState('');
   const [drugB, setDrugB] = useState('');
   const [solution, setSolution] = useState('');
   const [searchResults, setSearchResults] = useState<IVCompatibility[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [favorites, setFavorites] = useState<FavoriteCompatibilityPair[]>([]);
+
+  const loadFavorites = async () => {
+    try {
+      const resp = await getCompatibilityFavorites();
+      setFavorites(resp.favorites || []);
+    } catch (err) {
+      console.error('載入常用組合失敗:', err);
+      setFavorites([]);
+    }
+  };
+
+  useEffect(() => {
+    loadFavorites();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const normalizeSolution = (value: string): string => {
+    if (!value) return 'none';
+    return value;
+  };
+
+  const handleAddFavorite = async () => {
+    const a = drugA.trim();
+    const b = drugB.trim();
+    if (!a || !b) {
+      toast.error('請先輸入兩種藥品名稱');
+      return;
+    }
+
+    const sol = normalizeSolution(solution);
+    try {
+      const created = await createCompatibilityFavorite({ drugA: a, drugB: b, solution: sol });
+      const existed = favorites.some((f) => f.id === created.id);
+      const next = existed ? favorites : [created, ...favorites];
+      setFavorites(next);
+      toast.success(existed ? '此組合已在常用清單' : '已加入常用組合（雲端同步）');
+    } catch (err) {
+      console.error('加入常用組合失敗:', err);
+      toast.error('加入失敗，請稍後再試');
+    }
+  };
+
+  const handleRemoveFavorite = async (id: string) => {
+    try {
+      await deleteCompatibilityFavorite(id);
+      setFavorites(favorites.filter((f) => f.id !== id));
+      toast.success('已移除常用組合');
+    } catch (err) {
+      console.error('移除常用組合失敗:', err);
+      toast.error('移除失敗，請稍後再試');
+    }
+  };
+
+  const handleViewReference = async (ref?: string) => {
+    const trimmed = String(ref || '').trim();
+    if (!trimmed) {
+      toast.message('此筆資料未提供文獻來源');
+      return;
+    }
+    if (/^https?:\/\//i.test(trimmed)) {
+      window.open(trimmed, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    const ok = await copyToClipboard(trimmed);
+    if (ok) toast.success('已複製文獻來源到剪貼簿');
+    else toast.message(`資料來源：${trimmed}`);
+  };
 
   const handleSearch = async () => {
     if (!drugA.trim() || !drugB.trim()) {
@@ -50,7 +124,7 @@ export function CompatibilityPage() {
     setLoading(true);
     setHasSearched(true);
     try {
-      const params: Record<string, string> = {
+      const params: { drugA: string; drugB: string; solution?: string } = {
         drugA: drugA.trim(),
         drugB: drugB.trim(),
       };
@@ -58,11 +132,8 @@ export function CompatibilityPage() {
         params.solution = solution;
       }
 
-      const response = await apiClient.get<ApiResponse<CompatibilityResponse>>(
-        '/pharmacy/iv-compatibility',
-        { params }
-      );
-      setSearchResults(response.data.data?.compatibilities || []);
+      const response = await getIVCompatibility(params);
+      setSearchResults(response.compatibilities || []);
     } catch (err) {
       console.error('查詢相容性失敗:', err);
       toast.error('查詢失敗，請確認後端服務是否正常運行');
@@ -130,11 +201,9 @@ export function CompatibilityPage() {
                   <SelectValue placeholder="選擇溶液" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">不限定</SelectItem>
-                  <SelectItem value="NS">NS (Normal Saline)</SelectItem>
-                  <SelectItem value="D5W">D5W (5% Dextrose)</SelectItem>
-                  <SelectItem value="LR">LR (Lactated Ringer's)</SelectItem>
-                  <SelectItem value="D5NS">D5NS</SelectItem>
+                  {IV_COMPATIBILITY_SOLUTIONS.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -149,7 +218,11 @@ export function CompatibilityPage() {
               )}
               查詢
             </Button>
-            <Button variant="outline">
+            <Button
+              variant="outline"
+              onClick={handleAddFavorite}
+              disabled={loading || !drugA.trim() || !drugB.trim()}
+            >
               <Save className="mr-2 h-4 w-4" />
               加入常用組合
             </Button>
@@ -242,9 +315,15 @@ export function CompatibilityPage() {
                         <div className="flex items-center gap-2">
                           <BookOpen className="h-4 w-4 text-muted-foreground" />
                           <span className="text-muted-foreground">資料來源：</span>
-                          <span className="font-medium">{comp.references}</span>
+                          <span className="font-medium">{comp.references || '—'}</span>
                         </div>
-                        <Button variant="link" size="sm">查看完整文獻 →</Button>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          onClick={() => handleViewReference(comp.references)}
+                        >
+                          查看完整文獻 →
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -283,6 +362,38 @@ export function CompatibilityPage() {
               <CardTitle className="text-base">常用組合快速查詢</CardTitle>
             </CardHeader>
             <CardContent>
+              {favorites.length > 0 && (
+                <>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">
+                    我的常用（雲端同步）
+                  </p>
+                  <div className="grid gap-2 md:grid-cols-2 mb-4">
+                    {favorites.map((fav) => (
+                      <div key={fav.id} className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          className="justify-start flex-1"
+                          onClick={() => {
+                            setDrugA(fav.drugA);
+                            setDrugB(fav.drugB);
+                            setSolution(fav.solution);
+                          }}
+                        >
+                          {fav.drugA} + {fav.drugB}{fav.solution && fav.solution !== 'none' ? ` (${fav.solution})` : ''}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="移除常用組合"
+                          onClick={() => handleRemoveFavorite(fav.id)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
               <div className="grid gap-2 md:grid-cols-2">
                 <Button
                   variant="outline"

@@ -1,0 +1,25 @@
+old_path,new_path,reason,confidence,risk
+ChatICU,_archive_candidates/20260216/ChatICU,Marked archived in tracker and not referenced by active runtime scripts/CI,92,medium
+AI_AUDIT_REPORT.md,_archive_candidates/20260216/AI_AUDIT_REPORT.md,Historical audit note not used in runtime/build/test chain,90,low
+AI_TASK_TRACKER.md,_archive_candidates/20260216/AI_TASK_TRACKER.md,Historical tracker not used in runtime/build/test chain,90,low
+patches/prompt-P00.patch,_archive_candidates/20260216/patches/prompt-P00.patch,Generated historical patch artifact not used by runtime chain,95,low
+patches/prompt-P01.patch,_archive_candidates/20260216/patches/prompt-P01.patch,Generated historical patch artifact not used by runtime chain,95,low
+patches/prompt-P02.patch,_archive_candidates/20260216/patches/prompt-P02.patch,Generated historical patch artifact not used by runtime chain,95,low
+patches/prompt-P03.patch,_archive_candidates/20260216/patches/prompt-P03.patch,Generated historical patch artifact not used by runtime chain,95,low
+patches/prompt-P04.patch,_archive_candidates/20260216/patches/prompt-P04.patch,Generated historical patch artifact not used by runtime chain,95,low
+patches/prompt-P05.patch,_archive_candidates/20260216/patches/prompt-P05.patch,Generated historical patch artifact not used by runtime chain,95,low
+patches/prompt-P06.patch,_archive_candidates/20260216/patches/prompt-P06.patch,Generated historical patch artifact not used by runtime chain,95,low
+patches/prompt-P07.patch,_archive_candidates/20260216/patches/prompt-P07.patch,Generated historical patch artifact not used by runtime chain,95,low
+patches/prompt-P08.patch,_archive_candidates/20260216/patches/prompt-P08.patch,Generated historical patch artifact not used by runtime chain,95,low
+patches/prompt-P09.patch,_archive_candidates/20260216/patches/prompt-P09.patch,Generated historical patch artifact not used by runtime chain,95,low
+reports/final-integration-gate.md,_archive_candidates/20260216/reports/final-integration-gate.md,Historical gate report superseded by current-cycle reports,90,low
+reports/prompt-P00-result.md,_archive_candidates/20260216/reports/prompt-P00-result.md,Historical phase report not referenced by runtime chain,92,low
+reports/prompt-P01-result.md,_archive_candidates/20260216/reports/prompt-P01-result.md,Historical phase report not referenced by runtime chain,92,low
+reports/prompt-P02-result.md,_archive_candidates/20260216/reports/prompt-P02-result.md,Historical phase report not referenced by runtime chain,92,low
+reports/prompt-P03-result.md,_archive_candidates/20260216/reports/prompt-P03-result.md,Historical phase report not referenced by runtime chain,92,low
+reports/prompt-P04-result.md,_archive_candidates/20260216/reports/prompt-P04-result.md,Historical phase report not referenced by runtime chain,92,low
+reports/prompt-P05-result.md,_archive_candidates/20260216/reports/prompt-P05-result.md,Historical phase report not referenced by runtime chain,92,low
+reports/prompt-P06-result.md,_archive_candidates/20260216/reports/prompt-P06-result.md,Historical phase report not referenced by runtime chain,92,low
+reports/prompt-P07-result.md,_archive_candidates/20260216/reports/prompt-P07-result.md,Historical phase report not referenced by runtime chain,92,low
+reports/prompt-P08-result.md,_archive_candidates/20260216/reports/prompt-P08-result.md,Historical phase report not referenced by runtime chain,92,low
+reports/prompt-P09-result.md,_archive_candidates/20260216/reports/prompt-P09-result.md,Historical phase report not referenced by runtime chain,92,low

@@ -1,6 +1,11 @@
 const { defineConfig, devices } = require("@playwright/test");
 
-const baseURL = process.env.E2E_BASE_URL || "http://127.0.0.1:4173";
+const isCI = Boolean(process.env.CI);
+// Local dev defaults to the Vite dev server on :3000; CI uses the preview server on :4173.
+const baseURL =
+  process.env.E2E_BASE_URL || (isCI ? "http://127.0.0.1:4173" : "http://127.0.0.1:3000");
+// Keep E2E runnable in offline environments by defaulting to system Chrome locally.
+const useSystemChrome = process.env.PLAYWRIGHT_USE_SYSTEM_CHROME === "1" || !isCI;
 
 module.exports = defineConfig({
   testDir: "./e2e",
@@ -22,7 +27,8 @@ module.exports = defineConfig({
     viewport: { width: 1536, height: 960 },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    video: process.env.CI ? "on" : "retain-on-failure",
+    // Keep E2E runnable in offline environments (Playwright video requires ffmpeg download).
+    video: "off",
     actionTimeout: 15000,
     navigationTimeout: 30000,
   },
@@ -30,7 +36,10 @@ module.exports = defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(useSystemChrome ? { channel: "chrome" } : {}),
+      },
     },
   ],
 });

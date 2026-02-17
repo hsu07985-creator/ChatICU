@@ -1,0 +1,39 @@
+{
+  "version": "1.0.0",
+  "cases": [
+    {"case_id":"d01","request":{"drug":"dexmedetomidine","indication":"ICU sedation","patient_context":{"weight_kg":58.4,"hepatic_class":"B","sbp_mmHg":118,"hr_bpm":78},"dose_target":{"dose_mcg_per_kg_hr":0.7}},"expected":{"status":"ok","final_rate_value":40.88,"final_rate_unit":"mcg/hr"}},
+    {"case_id":"d02","request":{"drug":"dexmedetomidine","indication":"ICU sedation","patient_context":{"weight_kg":70,"hepatic_class":"B","sbp_mmHg":110,"hr_bpm":70},"dose_target":{"dose_mcg_per_kg_hr":0.2}},"expected":{"status":"ok","final_rate_value":14.0,"final_rate_unit":"mcg/hr"}},
+    {"case_id":"d03","request":{"drug":"dexmedetomidine","indication":"ICU sedation","patient_context":{"weight_kg":70,"hepatic_class":"B","sbp_mmHg":110,"hr_bpm":70},"dose_target":{"dose_mcg_per_kg_hr":2.0}},"expected":{"status":"ok","final_rate_value":98.0,"final_rate_unit":"mcg/hr"}},
+    {"case_id":"d04","request":{"drug":"dexmedetomidine","indication":"ICU sedation","patient_context":{"weight_kg":80,"hepatic_class":"C","sbp_mmHg":110,"hr_bpm":70},"dose_target":{"dose_mcg_per_kg_hr":1.2}},"expected":{"status":"ok","final_rate_value":67.2,"final_rate_unit":"mcg/hr"}},
+    {"case_id":"d05","request":{"drug":"dexmedetomidine","indication":"ICU sedation","patient_context":{"weight_kg":90,"hepatic_class":"B","sbp_mmHg":110,"hr_bpm":70},"dose_target":{"dose_mcg_per_kg_hr":1.4}},"expected":{"status":"ok","final_rate_value":120.0,"final_rate_unit":"mcg/hr"}},
+    {"case_id":"d06","request":{"drug":"dexmedetomidine","indication":"ICU sedation","patient_context":{"weight_kg":80,"hepatic_class":"B","sbp_mmHg":80,"hr_bpm":70},"dose_target":{"dose_mcg_per_kg_hr":0.5}},"expected":{"status":"refused","error_code":"SAFETY_HARD_STOP"}},
+    {"case_id":"d07","request":{"drug":"dexmedetomidine","indication":"ICU sedation","patient_context":{"weight_kg":80,"hepatic_class":"B","sbp_mmHg":120,"hr_bpm":45},"dose_target":{"dose_mcg_per_kg_hr":0.5}},"expected":{"status":"refused","error_code":"SAFETY_HARD_STOP"}},
+    {"case_id":"d08","request":{"drug":"dexmedetomidine","indication":"ICU sedation","patient_context":{"hepatic_class":"B","sbp_mmHg":120,"hr_bpm":70},"dose_target":{"dose_mcg_per_kg_hr":0.5}},"expected":{"status":"refused","error_code":"MISSING_REQUIRED_FIELDS"}},
+
+    {"case_id":"d09","request":{"drug":"fentanyl","indication":"ICU analgesia","patient_context":{"weight_kg":60,"crcl_ml_min":50,"rr_bpm":14},"dose_target":{"dose_mcg_per_kg_hr":1.0}},"expected":{"status":"ok","final_rate_value":60.0,"final_rate_unit":"mcg/hr"}},
+    {"case_id":"d10","request":{"drug":"fentanyl","indication":"ICU analgesia","patient_context":{"weight_kg":60,"crcl_ml_min":50,"rr_bpm":14},"dose_target":{"dose_mcg_per_kg_hr":4.0}},"expected":{"status":"ok","final_rate_value":180.0,"final_rate_unit":"mcg/hr"}},
+    {"case_id":"d11","request":{"drug":"fentanyl","indication":"ICU analgesia","patient_context":{"weight_kg":60,"crcl_ml_min":50,"rr_bpm":14},"dose_target":{"dose_mcg_per_kg_hr":0.1}},"expected":{"status":"ok","final_rate_value":30.0,"final_rate_unit":"mcg/hr"}},
+    {"case_id":"d12","request":{"drug":"fentanyl","indication":"ICU analgesia","patient_context":{"weight_kg":70,"crcl_ml_min":20,"rr_bpm":14},"dose_target":{"dose_mcg_per_kg_hr":2.0}},"expected":{"status":"ok","final_rate_value":112.0,"final_rate_unit":"mcg/hr"}},
+    {"case_id":"d13","request":{"drug":"fentanyl","indication":"ICU analgesia","patient_context":{"weight_kg":120,"crcl_ml_min":50,"rr_bpm":14},"dose_target":{"dose_mcg_per_kg_hr":3.0}},"expected":{"status":"ok","final_rate_value":250.0,"final_rate_unit":"mcg/hr"}},
+    {"case_id":"d14","request":{"drug":"fentanyl","indication":"ICU analgesia","patient_context":{"weight_kg":70,"crcl_ml_min":50,"rr_bpm":7},"dose_target":{"dose_mcg_per_kg_hr":1.0}},"expected":{"status":"refused","error_code":"SAFETY_HARD_STOP"}},
+    {"case_id":"d15","request":{"drug":"fentanyl","indication":"ICU analgesia","patient_context":{"weight_kg":80,"crcl_ml_min":25,"rr_bpm":14},"dose_target":{"dose_mcg_per_kg_hr":1.5}},"expected":{"status":"ok","final_rate_value":96.0,"final_rate_unit":"mcg/hr"}},
+    {"case_id":"d16","request":{"drug":"fentanyl","indication":"ICU analgesia","patient_context":{"crcl_ml_min":25,"rr_bpm":14},"dose_target":{"dose_mcg_per_kg_hr":1.5}},"expected":{"status":"refused","error_code":"MISSING_REQUIRED_FIELDS"}},
+
+    {"case_id":"d17","request":{"drug":"haloperidol","indication":"delirium agitation","patient_context":{},"dose_target":{"dose_mg":1.5}},"expected":{"status":"ok","final_rate_value":1.5,"final_rate_unit":"mg"}},
+    {"case_id":"d18","request":{"drug":"haloperidol","indication":"delirium agitation","patient_context":{},"dose_target":{"dose_mg":10}},"expected":{"status":"ok","final_rate_value":5.0,"final_rate_unit":"mg"}},
+    {"case_id":"d19","request":{"drug":"haloperidol","indication":"delirium agitation","patient_context":{},"dose_target":{"dose_mg":0.1}},"expected":{"status":"ok","final_rate_value":0.5,"final_rate_unit":"mg"}},
+    {"case_id":"d20","request":{"drug":"haloperidol","indication":"delirium agitation","patient_context":{},"dose_target":{}},"expected":{"status":"ok","final_rate_value":1.0,"final_rate_unit":"mg"}},
+
+    {"case_id":"d21","request":{"drug":"propofol","indication":"ICU sedation","patient_context":{"weight_kg":70,"sbp_mmHg":110},"dose_target":{"dose_mg_per_kg_hr":2.0,"concentration_mg_per_ml":10}},"expected":{"status":"ok","final_rate_value":14.0,"final_rate_unit":"ml/hr"}},
+    {"case_id":"d22","request":{"drug":"propofol","indication":"ICU sedation","patient_context":{"weight_kg":70,"sbp_mmHg":110},"dose_target":{"dose_mg_per_kg_hr":0.1,"concentration_mg_per_ml":10}},"expected":{"status":"ok","final_rate_value":2.1,"final_rate_unit":"ml/hr"}},
+    {"case_id":"d23","request":{"drug":"propofol","indication":"ICU sedation","patient_context":{"weight_kg":100,"sbp_mmHg":110},"dose_target":{"dose_mg_per_kg_hr":4.0,"concentration_mg_per_ml":5}},"expected":{"status":"ok","final_rate_value":60.0,"final_rate_unit":"ml/hr"}},
+    {"case_id":"d24","request":{"drug":"propofol","indication":"ICU sedation","patient_context":{"weight_kg":70,"sbp_mmHg":80},"dose_target":{"dose_mg_per_kg_hr":2.0,"concentration_mg_per_ml":10}},"expected":{"status":"refused","error_code":"SAFETY_HARD_STOP"}},
+    {"case_id":"d25","request":{"drug":"propofol","indication":"ICU sedation","patient_context":{"weight_kg":70,"sbp_mmHg":110},"dose_target":{"dose_mg_per_kg_hr":2.0,"concentration_mg_per_ml":0}},"expected":{"status":"refused","error_code":"RULE_OR_INPUT_ERROR"}},
+
+    {"case_id":"d26","request":{"drug":"midazolam","indication":"procedural sedation","patient_context":{"weight_kg":70,"rr_bpm":14},"dose_target":{"dose_mg_per_kg":0.05}},"expected":{"status":"ok","final_rate_value":3.5,"final_rate_unit":"mg"}},
+    {"case_id":"d27","request":{"drug":"midazolam","indication":"procedural sedation","patient_context":{"weight_kg":70,"rr_bpm":14},"dose_target":{"dose_mg_per_kg":0.2}},"expected":{"status":"ok","final_rate_value":7.0,"final_rate_unit":"mg"}},
+    {"case_id":"d28","request":{"drug":"midazolam","indication":"procedural sedation","patient_context":{"weight_kg":120,"rr_bpm":14},"dose_target":{"dose_mg_per_kg":0.1}},"expected":{"status":"ok","final_rate_value":10.0,"final_rate_unit":"mg"}},
+    {"case_id":"d29","request":{"drug":"midazolam","indication":"procedural sedation","patient_context":{"weight_kg":60,"rr_bpm":14},"dose_target":{"dose_mg_per_kg":0.005}},"expected":{"status":"ok","final_rate_value":0.6,"final_rate_unit":"mg"}},
+    {"case_id":"d30","request":{"drug":"midazolam","indication":"procedural sedation","patient_context":{"weight_kg":80,"rr_bpm":8},"dose_target":{"dose_mg_per_kg":0.05}},"expected":{"status":"refused","error_code":"SAFETY_HARD_STOP"}}
+  ]
+}

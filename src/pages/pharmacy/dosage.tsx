@@ -4,59 +4,71 @@ import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
-import { Search, Calculator, AlertTriangle } from 'lucide-react';
+import { Search, AlertTriangle, Loader2 } from 'lucide-react';
 import { Separator } from '../../components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-
-interface DosageResult {
-  drugName: string;
-  normalDose: string;
-  adjustedDose: string;
-  renalAdjustment: string;
-  hepaticWarning: string;
-  warnings: string[];
-}
+import { toast } from 'sonner';
+import { calculateDose, type DoseCalculateResponse } from '../../lib/api/ai';
+import { isAxiosError } from 'axios';
 
 export function DosagePage() {
   const [drugName, setDrugName] = useState('');
+  const [indication, setIndication] = useState('');
   const [age, setAge] = useState('');
   const [weight, setWeight] = useState('');
   const [egfr, setEgfr] = useState('');
   const [hepaticFunction, setHepaticFunction] = useState('normal');
-  const [result, setResult] = useState<DosageResult | null>(null);
+  const [result, setResult] = useState<DoseCalculateResponse | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleCalculate = () => {
-    if (!drugName.trim()) return;
+  const handleCalculate = async () => {
+    if (!drugName.trim()) {
+      toast.error('請輸入藥品名稱');
+      return;
+    }
 
-    // 本地劑量計算（未來可替換為 API 呼叫）
-    const calculatedResult: DosageResult = {
-      drugName: drugName,
-      normalDose: '2-4 mg IV q1-2h PRN',
-      adjustedDose: '1-2 mg IV q2-4h PRN',
-      renalAdjustment: egfr && parseInt(egfr) < 30
-        ? '減半劑量，間隔延長至 q4-6h'
-        : '不需調整',
-      hepaticWarning: hepaticFunction !== 'normal'
-        ? '肝功能不全病患建議減量使用，並密切監測鎮靜程度與呼吸狀態'
-        : '無特殊警示',
-      warnings: [
-        '老年病患（≥65歲）建議從低劑量開始',
-        '併用其他 CNS 抑制劑時需調整劑量',
-        '監測呼吸抑制與過度鎮靜'
-      ]
-    };
+    setLoading(true);
+    try {
+      const hepaticMap: Record<string, string> = {
+        normal: '',
+        mild: 'child_pugh_a',
+        moderate: 'child_pugh_b',
+        severe: 'child_pugh_c',
+      };
 
-    setResult(calculatedResult);
+      const res = await calculateDose({
+        drug: drugName.trim(),
+        indication: indication.trim() || undefined,
+        patientContext: {
+          age_years: age ? parseFloat(age) : undefined,
+          weight_kg: weight ? parseFloat(weight) : undefined,
+          crcl_ml_min: egfr ? parseFloat(egfr) : undefined,
+          hepatic_class: hepaticMap[hepaticFunction] || undefined,
+        },
+      }, { suppressErrorToast: true });
+      setResult(res);
+    } catch (err) {
+      console.error('劑量計算失敗:', err);
+      if (isAxiosError(err)) {
+        const status = err.response?.status;
+        const serverMessage = String((err.response?.data as Record<string, unknown>)?.message || '');
+        if (status === 503 && serverMessage.includes('Evidence engine service unavailable')) {
+          toast.error('劑量引擎不可用（請啟動 func/ 服務）');
+        } else if (serverMessage) {
+          toast.error(serverMessage);
+        } else {
+          toast.error('劑量計算失敗，請稍後再試');
+        }
+      } else {
+        toast.error('劑量計算失敗，請稍後再試');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const calculateAdjustedDose = () => {
-    if (!weight) return null;
-    
-    const weightNum = parseFloat(weight);
-    const normalDosePerKg = 0.05; // 示例：0.05 mg/kg
-    const calculatedDose = (weightNum * normalDosePerKg).toFixed(2);
-    
-    return `${calculatedDose} mg`;
+  const formatComputedValues = (values: Record<string, unknown>): string[] => {
+    return Object.entries(values).map(([k, v]) => `${k}: ${v}`);
   };
 
   return (
@@ -77,11 +89,22 @@ export function DosagePage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">藥品名稱 *</label>
               <Input
-                placeholder="例：Morphine"
+                placeholder="例：Norepinephrine"
                 value={drugName}
                 onChange={(e) => setDrugName(e.target.value)}
               />
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">適應症</label>
+              <Input
+                placeholder="例：septic shock"
+                value={indication}
+                onChange={(e) => setIndication(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">年齡（歲）</label>
               <Input
@@ -91,9 +114,6 @@ export function DosagePage() {
                 onChange={(e) => setAge(e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <label className="text-sm font-medium">體重（kg）</label>
               <Input
@@ -104,7 +124,7 @@ export function DosagePage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">eGFR (mL/min/1.73m²)</label>
+              <label className="text-sm font-medium">CrCl (mL/min)</label>
               <Input
                 type="number"
                 placeholder="例：45"
@@ -120,26 +140,22 @@ export function DosagePage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="normal">正常</SelectItem>
-                  <SelectItem value="mild">輕度不全</SelectItem>
-                  <SelectItem value="moderate">中度不全</SelectItem>
-                  <SelectItem value="severe">重度不全</SelectItem>
+                  <SelectItem value="mild">Child-Pugh A</SelectItem>
+                  <SelectItem value="moderate">Child-Pugh B</SelectItem>
+                  <SelectItem value="severe">Child-Pugh C</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="flex gap-2">
-            <Button onClick={handleCalculate}>
+          <Button onClick={handleCalculate} disabled={loading}>
+            {loading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
               <Search className="mr-2 h-4 w-4" />
-              查詢
-            </Button>
-            {weight && (
-              <Button variant="outline" onClick={() => alert(`計算劑量：${calculateAdjustedDose()}`)}>
-                <Calculator className="mr-2 h-4 w-4" />
-                計算劑量
-              </Button>
             )}
-          </div>
+            計算劑量
+          </Button>
         </CardContent>
       </Card>
 
@@ -148,90 +164,83 @@ export function DosagePage() {
         <div className="space-y-4">
           <h2>劑量建議</h2>
 
+          {result.status === 'refused' && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                {result.message || '無法計算劑量，請檢查輸入參數。'}
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Card>
             <CardHeader>
-              <CardTitle>{result.drugName}</CardTitle>
-              <CardDescription>成人建議劑量與調整規則</CardDescription>
+              <div className="flex items-center justify-between">
+                <CardTitle>{result.drug || drugName}</CardTitle>
+                <Badge variant={result.status === 'ok' ? 'default' : 'destructive'}>
+                  信心度：{(result.confidence * 100).toFixed(0)}%
+                </Badge>
+              </div>
+              <CardDescription>
+                {result.result_type === 'dose_calculation' ? '規則引擎計算結果' : result.result_type}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* 基本劑量 */}
-              <div>
-                <h3 className="font-medium mb-2">成人標準劑量</h3>
-                <div className="p-3 bg-muted rounded-lg">
-                  <p className="font-mono">{result.normalDose}</p>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* 調整後劑量 */}
-              {(egfr && parseInt(egfr) < 60) || hepaticFunction !== 'normal' || (age && parseInt(age) >= 65) ? (
-                <>
-                  <div>
-                    <h3 className="font-medium mb-2">依病患狀況調整後劑量</h3>
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="font-mono text-blue-900">{result.adjustedDose}</p>
-                    </div>
-                    <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                      {age && parseInt(age) >= 65 && <p>• 老年病患（{age} 歲）</p>}
-                      {egfr && parseInt(egfr) < 60 && <p>• 腎功能不全（eGFR: {egfr}）</p>}
-                      {hepaticFunction !== 'normal' && <p>• 肝功能不全</p>}
-                    </div>
+              {/* 計算結果 */}
+              {Object.keys(result.computed_values).length > 0 && (
+                <div>
+                  <h3 className="font-medium mb-2">計算結果</h3>
+                  <div className="p-3 bg-muted rounded-lg space-y-1">
+                    {formatComputedValues(result.computed_values).map((line, idx) => (
+                      <p key={idx} className="font-mono text-sm">{line}</p>
+                    ))}
                   </div>
+                </div>
+              )}
 
-                  <Separator />
-                </>
-              ) : null}
-
-              {/* 腎功能調整 */}
-              <div>
-                <h3 className="font-medium mb-2">腎功能調整</h3>
-                <Alert className={egfr && parseInt(egfr) < 30 ? 'border-orange-200 bg-orange-50' : ''}>
-                  <AlertDescription>{result.renalAdjustment}</AlertDescription>
-                </Alert>
-              </div>
-
-              {/* 肝功能警示 */}
-              {hepaticFunction !== 'normal' && (
+              {/* 計算步驟 */}
+              {result.calculation_steps.length > 0 && (
                 <>
                   <Separator />
                   <div>
-                    <h3 className="font-medium mb-2">肝功能不全警示</h3>
-                    <Alert variant="destructive">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>{result.hepaticWarning}</AlertDescription>
-                    </Alert>
+                    <h3 className="font-medium mb-2">計算步驟</h3>
+                    <ol className="list-decimal list-inside space-y-1 text-sm">
+                      {result.calculation_steps.map((step, idx) => (
+                        <li key={idx}>{step}</li>
+                      ))}
+                    </ol>
                   </div>
                 </>
               )}
 
-              {/* 警示事項 */}
-              <Separator />
-              <div>
-                <h3 className="font-medium mb-2">注意事項</h3>
-                <div className="space-y-2">
-                  {result.warnings.map((warning, idx) => (
-                    <div key={idx} className="flex items-start gap-2 text-sm">
-                      <Badge variant="outline" className="mt-0.5">!</Badge>
-                      <span>{warning}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 體重計算 */}
-              {weight && (
+              {/* 安全警告 */}
+              {result.safety_warnings.length > 0 && (
                 <>
                   <Separator />
                   <div>
-                    <h3 className="font-medium mb-2">依體重計算（參考值）</h3>
-                    <div className="p-3 bg-muted rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">
-                          體重 {weight} kg × 0.05 mg/kg =
-                        </span>
-                        <span className="font-mono font-medium">{calculateAdjustedDose()}</span>
-                      </div>
+                    <h3 className="font-medium mb-2">安全警告</h3>
+                    <div className="space-y-2">
+                      {result.safety_warnings.map((warning, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-sm">
+                          <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                          <span>{warning}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* 引用規則 */}
+              {result.applied_rules.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <h3 className="font-medium mb-2">應用規則</h3>
+                    <div className="space-y-1 text-sm text-muted-foreground">
+                      {result.applied_rules.map((rule, idx) => (
+                        <p key={idx}>{JSON.stringify(rule)}</p>
+                      ))}
                     </div>
                   </div>
                 </>
@@ -242,24 +251,31 @@ export function DosagePage() {
           <Alert>
             <AlertDescription>
               <strong>免責聲明：</strong>
-              以上劑量建議僅供參考，實際使用時應依據完整的臨床評估、藥品仿單與最新文獻進行調整。
+              以上劑量建議由規則引擎計算，僅供參考。實際使用時應依據完整的臨床評估、藥品仿單與最新文獻進行調整。
             </AlertDescription>
           </Alert>
         </div>
       )}
 
+      {loading && (
+        <div className="text-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-[#7f265b]" />
+          <p className="text-muted-foreground">計算中...</p>
+        </div>
+      )}
+
       {/* 使用說明 */}
-      {!result && (
+      {!result && !loading && (
         <Card className="bg-muted/30">
           <CardHeader>
             <CardTitle className="text-base">使用說明</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <p>• 輸入藥品名稱查詢標準劑量（必填）</p>
-            <p>• 輸入病患年齡、體重、腎功能與肝功能參數</p>
-            <p>• 系統將根據參數自動調整建議劑量</p>
-            <p>• 可使用「計算劑量」功能依體重計算個人化劑量</p>
-            <p>• 建議劑量僅供參考，實際處方需依臨床判斷</p>
+            <p>• 輸入藥品名稱查詢建議劑量（必填）</p>
+            <p>• 提供病患年齡、體重、腎功能與肝功能可獲得個人化建議</p>
+            <p>• 系統使用臨床規則引擎進行 deterministic 計算</p>
+            <p>• 計算結果包含具體劑量、計算步驟、安全警告</p>
+            <p>• 支援 weight-based、fixed-dose、infusion rate 等計算模式</p>
           </CardContent>
         </Card>
       )}

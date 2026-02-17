@@ -22,6 +22,8 @@ import {
   ErrorReport,
   ErrorReportsResponse
 } from '../../lib/api/pharmacy';
+import { getApiErrorMessage } from '../../lib/api-client';
+import { ERROR_REPORT_SEVERITIES, ERROR_REPORT_TYPES } from '../../lib/pharmacy-master-data';
 
 export function ErrorReportPage() {
   const [showForm, setShowForm] = useState(false);
@@ -44,9 +46,9 @@ export function ErrorReportPage() {
     try {
       const data = await getErrorReports({ limit: 50 });
       setApiData(data);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('載入錯誤回報列表失敗:', err);
-      setError('無法連線至伺服器，請確認後端服務是否正常運行');
+      setError(getApiErrorMessage(err, '載入用藥錯誤回報失敗，請稍後重試'));
     } finally {
       setLoading(false);
     }
@@ -95,8 +97,8 @@ export function ErrorReportPage() {
       setSeverity('moderate');
       // 重新載入資料
       await loadData();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || '送出回報失敗');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, '送出回報失敗'));
     } finally {
       setSubmitting(false);
     }
@@ -193,14 +195,10 @@ export function ErrorReportPage() {
                     <SelectTrigger>
                       <SelectValue placeholder="選擇錯誤類型" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="開立錯誤">開立錯誤</SelectItem>
-                      <SelectItem value="劑量錯誤">劑量錯誤</SelectItem>
-                      <SelectItem value="重複給藥">重複給藥</SelectItem>
-                      <SelectItem value="路徑錯誤">路徑錯誤</SelectItem>
-                      <SelectItem value="頻次錯誤">頻次錯誤</SelectItem>
-                      <SelectItem value="藥品辨識錯誤">藥品辨識錯誤</SelectItem>
-                      <SelectItem value="其他">其他</SelectItem>
+                  <SelectContent>
+                      {ERROR_REPORT_TYPES.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -252,10 +250,10 @@ export function ErrorReportPage() {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">輕微 - 未到達病患</SelectItem>
-                      <SelectItem value="moderate">中度 - 無明顯傷害</SelectItem>
-                      <SelectItem value="high">嚴重 - 可能造成傷害</SelectItem>
+                  <SelectContent>
+                      {ERROR_REPORT_SEVERITIES.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

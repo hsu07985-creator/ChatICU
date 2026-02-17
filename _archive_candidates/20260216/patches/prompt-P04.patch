@@ -1,0 +1,1935 @@
+diff --git a/backend/app/routers/ai_chat.py b/backend/app/routers/ai_chat.py
+index 7ae57f6..2d780f4 100644
+--- a/backend/app/routers/ai_chat.py
++++ b/backend/app/routers/ai_chat.py
+@@ -1,10 +1,19 @@
+-"""AI Chat endpoints — database-backed, LLM-powered (Phase 3)."""
++"""AI Chat endpoints — database-backed, LLM-powered (Phase 3).
++
++P2-1: Supports multi-turn conversation history with automatic compression.
++- Recent messages (last RECENT_MSG_WINDOW) are sent verbatim to LLM.
++- Older messages are periodically compressed into a summary stored on AISession.
++- Compression is incremental: new messages merge with existing summary.
++"""
+ 
+ from __future__ import annotations
+ 
+ import asyncio
++import json
++import logging
+ import uuid
+ from datetime import datetime, timezone
++from typing import List, Optional
+ 
+ from fastapi import APIRouter, Depends, HTTPException, Query, Request
+ from sqlalchemy import delete, func, select
+@@ -12,18 +21,151 @@ from sqlalchemy.ext.asyncio import AsyncSession
+ from sqlalchemy.orm import selectinload
+ 
+ from app.database import get_db
+-from app.llm import call_llm
++from app.llm import (
++    COMPRESS_THRESHOLD,
++    RECENT_MSG_WINDOW,
++    call_llm,
++    call_llm_multi_turn,
++)
+ from app.middleware.auth import get_current_user
+ from app.middleware.audit import create_audit_log
++from app.routers.clinical import _get_patient_dict
+ from app.models.ai_session import AIMessage, AISession
+ from app.models.user import User
+ from app.schemas.clinical import AIChatRequest
++from app.services.evidence_client import evidence_client
+ from app.services.llm_services.rag_service import rag_service
+ from app.services.safety_guardrail import apply_safety_guardrail
++from app.utils.llm_errors import llm_unavailable_detail
+ from app.utils.response import success_response
++from pydantic import BaseModel, Field
++
++logger = logging.getLogger(__name__)
+ 
+ router = APIRouter(prefix="/ai", tags=["AI"])
+ 
++def _iso_z(dt: Optional[datetime]) -> Optional[str]:
++    """Return an RFC3339/ISO timestamp suitable for JS Date parsing.
++
++    NOTE: datetime.isoformat() for tz-aware values already includes an offset
++    (e.g. +00:00). Appending 'Z' would produce an invalid string like
++    '+00:00Z', which breaks the frontend session list parsing.
++    """
++    if not dt:
++        return None
++    if dt.tzinfo is None:
++        dt = dt.replace(tzinfo=timezone.utc)
++    dt_utc = dt.astimezone(timezone.utc)
++    return dt_utc.isoformat().replace("+00:00", "Z")
++
++
++# ── Helper: build multi-turn messages for LLM ──────────────────────────
++
++def _build_chat_messages(
++    session_summary: Optional[str],
++    history: List[AIMessage],
++    current_question: str,
++    rag_context: str,
++    patient_context: Optional[dict],
++) -> List[dict]:
++    """Build a multi-turn messages array for the LLM.
++
++    Structure:
++      [summary context pair] + [recent history] + [current user message with RAG/patient]
++    """
++    messages: List[dict] = []
++
++    # 1. Inject compressed summary as context (if exists)
++    if session_summary:
++        messages.append({
++            "role": "user",
++            "content": (
++                f"[先前對話摘要]\n{session_summary}\n\n"
++                "請基於以上摘要的上下文繼續對話。"
++            ),
++        })
++        messages.append({
++            "role": "assistant",
++            "content": "好的，我已了解先前對話的內容，將基於此上下文繼續協助您。",
++        })
++
++    # 2. Add recent history messages (capped at RECENT_MSG_WINDOW)
++    recent = history[-RECENT_MSG_WINDOW:] if len(history) > RECENT_MSG_WINDOW else history
++    for msg in recent:
++        messages.append({"role": msg.role, "content": msg.content})
++
++    # 3. Build current user message with RAG + patient context
++    parts: List[str] = []
++    if patient_context:
++        parts.append(
++            f"[病患資料]\n{json.dumps(patient_context, ensure_ascii=False, default=str)}"
++        )
++    if rag_context:
++        parts.append(f"[參考文獻]\n{rag_context}")
++    parts.append(current_question)
++
++    messages.append({"role": "user", "content": "\n\n".join(parts)})
++    return messages
++
++
++# ── Helper: compress older conversation history ────────────────────────
++
++async def _maybe_compress_history(
++    session: AISession,
++    all_messages: List[AIMessage],
++) -> None:
++    """Compress older messages into session.summary if threshold exceeded.
++
++    Only compresses messages outside the recent window that haven't been
++    compressed yet (tracked by session.summary_up_to). Compression is
++    incremental — combines existing summary with new messages.
++    """
++    total = len(all_messages)
++    if total < COMPRESS_THRESHOLD:
++        return
++
++    # Messages outside recent window
++    to_compress = all_messages[:-RECENT_MSG_WINDOW]
++    already_compressed = session.summary_up_to or 0
++
++    # Only compress if there are new messages beyond what's already summarized
++    new_messages = to_compress[already_compressed:]
++    if not new_messages:
++        return
++
++    lines: List[str] = []
++    if session.summary:
++        lines.append(f"[先前摘要]\n{session.summary}")
++
++    lines.append("[新增對話]")
++    for msg in new_messages:
++        role_label = "使用者" if msg.role == "user" else "AI助手"
++        # Truncate very long messages to keep compression input manageable
++        content = msg.content[:500] if len(msg.content) > 500 else msg.content
++        lines.append(f"{role_label}: {content}")
++
++    conv_text = "\n".join(lines)
++
++    try:
++        result = await asyncio.to_thread(
++            call_llm,
++            task="conversation_compress",
++            input_data={"conversation": conv_text},
++        )
++        if result.get("status") == "success":
++            session.summary = result["content"]
++            session.summary_up_to = len(to_compress)
++            logger.info(
++                "Compressed %d messages for session %s (total: %d)",
++                len(new_messages), session.id, total,
++            )
++    except Exception:
++        logger.warning(
++            "Failed to compress history for session %s", session.id, exc_info=True,
++        )
++
++
++# ── Main chat endpoint ─────────────────────────────────────────────────
+ 
+ @router.post("/chat")
+ async def ai_chat(
+@@ -48,6 +190,14 @@ async def ai_chat(
+         db.add(session)
+         await db.flush()
+ 
++    # Query existing conversation history (before adding current message)
++    history_result = await db.execute(
++        select(AIMessage)
++        .where(AIMessage.session_id == session_id)
++        .order_by(AIMessage.created_at.asc())
++    )
++    all_messages = list(history_result.scalars().all())
++
+     # Store user message
+     user_msg_id = f"msg_{uuid.uuid4().hex[:8]}"
+     user_msg = AIMessage(
+@@ -58,53 +208,138 @@ async def ai_chat(
+     )
+     db.add(user_msg)
+ 
+-    # RAG-augmented LLM response
++    # RAG-augmented LLM response — try hybrid RAG (func/) first, fallback to TF-IDF
+     citations = []
+     rag_context = ""
+-    if rag_service.is_indexed:
+-        sources = rag_service.retrieve(req.message, top_k=3)
+-        rag_context = "\n\n---\n\n".join([s["text"] for s in sources])
++    try:
++        hybrid_result = await asyncio.to_thread(
++            evidence_client.query, req.message, top_k=5,
++        )
++        rag_context = hybrid_result.get("answer", "")
++        # Also gather evidence snippets for richer context
++        snippets = hybrid_result.get("evidence_snippets", [])
++        if snippets:
++            snippet_texts = [s.get("text", "") for s in snippets if s.get("text")]
++            if snippet_texts:
++                rag_context += "\n\n---\n\n" + "\n\n---\n\n".join(snippet_texts[:3])
+         citations = [
+             {
+-                "id": f"cite_{i}",
++                "id": c.get("citation_id", f"cite_{i}"),
+                 "type": "guideline",
+-                "title": s["doc_id"].split("/")[-1] if "/" in s["doc_id"] else s["doc_id"],
+-                "source": s["category"],
+-                "relevance": round(s["score"], 3),
++                "title": c.get("source_file", "").split("/")[-1] if "/" in c.get("source_file", "") else c.get("source_file", ""),
++                "source": c.get("topic", ""),
++                "relevance": round(c.get("score", 0), 3),
+             }
+-            for i, s in enumerate(sources)
++            for i, c in enumerate(hybrid_result.get("citations", []))
+         ]
++        logger.info("Hybrid RAG returned %d citations", len(citations))
++    except Exception as exc:
++        logger.warning(
++            "[INTG][AI][API][F07] Hybrid RAG unavailable for ai_chat, falling back to TF-IDF: %s",
++            exc,
++        )
++        if rag_service.is_indexed:
++            sources = rag_service.retrieve(req.message, top_k=3)
++            rag_context = "\n\n---\n\n".join([s["text"] for s in sources])
++            citations = [
++                {
++                    "id": f"cite_{i}",
++                    "type": "guideline",
++                    "title": s["doc_id"].split("/")[-1] if "/" in s["doc_id"] else s["doc_id"],
++                    "source": s["category"],
++                    "relevance": round(s["score"], 3),
++                }
++                for i, s in enumerate(sources)
++            ]
++
++    # Patient context injection — enrich LLM with patient clinical data
++    patient_context = None
++    if req.patientId:
++        try:
++            patient_context = await _get_patient_dict(req.patientId, db)
++        except HTTPException:
++            logger.warning(
++                "[INTG][AI][API][F05] Patient %s not found — proceeding without patient context",
++                req.patientId,
++            )
++
++    # Build multi-turn messages with history + summary + current question
++    chat_messages = _build_chat_messages(
++        session_summary=session.summary,
++        history=all_messages,
++        current_question=req.message,
++        rag_context=rag_context,
++        patient_context=patient_context,
++    )
+ 
+     llm_result = await asyncio.to_thread(
+-        call_llm,
++        call_llm_multi_turn,
+         task="rag_generation",
+-        input_data={"question": req.message, "context": rag_context},
++        messages=chat_messages,
+     )
+ 
+-    raw_content = llm_result.get("content", "Unable to generate response.")
+-
+-    # Apply medical safety guardrail (T30)
+-    guardrail_result = apply_safety_guardrail(raw_content)
+-    ai_content = guardrail_result["content"]
++    llm_status = llm_result.get("status")
++    degraded = llm_status != "success"
++    if degraded:
++        # Chat is a critical UI flow (T27). When LLM is unavailable, we still return a
++        # user-friendly message and persist the conversation so the UI remains usable.
++        logger.error(
++            "[INTG][AI][API] LLM chat failed [status=%s]: %s",
++            llm_status,
++            (llm_result.get("content") or "")[:500],
++        )
++        raw_content = llm_unavailable_detail()
++        ai_content = raw_content
++        citations = []  # Avoid implying an evidence-based answer when LLM did not run.
++        guardrail_result = {
++            "content": ai_content,
++            "flagged": False,
++            "warnings": None,
++            "requiresExpertReview": False,
++        }
++    else:
++        raw_content = llm_result.get("content", "Unable to generate response.")
++        # Apply medical safety guardrail (T30)
++        # Skip inline disclaimer for chat — frontend shows a persistent banner instead
++        guardrail_result = apply_safety_guardrail(raw_content, include_disclaimer=False, user_role=user.role)
++        ai_content = guardrail_result["content"]
+ 
+     ai_msg_id = f"msg_{uuid.uuid4().hex[:8]}"
++    guardrail_meta = {
++        "guardrail": {
++            "warnings": guardrail_result.get("warnings") if guardrail_result.get("flagged") else None,
++            "flagged": guardrail_result.get("flagged", False),
++            "requiresExpertReview": guardrail_result.get("requiresExpertReview", False),
++        }
++    }
+     ai_msg = AIMessage(
+         id=ai_msg_id,
+         session_id=session_id,
+         role="assistant",
+         content=ai_content,
+         citations=citations or None,
++        suggested_actions=guardrail_meta,
+     )
+     db.add(ai_msg)
+ 
++    # Check if conversation history needs compression
++    # all_messages + user_msg + ai_msg = total messages in session
++    all_messages.append(user_msg)
++    all_messages.append(ai_msg)
++    await _maybe_compress_history(session, all_messages)
++
+     await create_audit_log(
+         db, user_id=user.id, user_name=user.name, role=user.role,
+-        action="AI 對話", target=session_id, status="success",
++        action="AI 對話", target=session_id, status="success" if llm_status == "success" else "failed",
+         ip=request.client.host if request.client else None,
+         details={
+             "patient_id": req.patientId,
+             "message_length": len(req.message),
+             "safety_flagged": guardrail_result["flagged"],
++            "llm_status": llm_status,
++            "llm_error": (llm_result.get("content") or "")[:200] if llm_status != "success" else None,
++            "history_msg_count": len(all_messages),
++            "has_summary": session.summary is not None,
+         },
+     )
+     await db.commit()
+@@ -114,10 +349,13 @@ async def ai_chat(
+             "id": ai_msg_id,
+             "role": "assistant",
+             "content": ai_content,
+-            "timestamp": now.isoformat() + "Z",
++            "timestamp": _iso_z(now),
+             "citations": citations,
+             "safetyWarnings": guardrail_result["warnings"] if guardrail_result["flagged"] else None,
+             "requiresExpertReview": guardrail_result.get("requiresExpertReview", False),
++            "degraded": degraded,
++            "degradedReason": "llm_unavailable" if degraded else None,
++            "upstreamStatus": llm_status,
+         },
+         "sessionId": session_id,
+     })
+@@ -143,6 +381,16 @@ async def list_sessions(
+     result = await db.execute(query)
+     sessions = result.scalars().all()
+ 
++    session_ids = [s.id for s in sessions]
++    msg_counts: dict[str, int] = {}
++    if session_ids:
++        counts_result = await db.execute(
++            select(AIMessage.session_id, func.count(AIMessage.id))
++            .where(AIMessage.session_id.in_(session_ids))
++            .group_by(AIMessage.session_id)
++        )
++        msg_counts = {sid: int(cnt) for sid, cnt in counts_result.all()}
++
+     return success_response(data={
+         "sessions": [
+             {
+@@ -150,8 +398,9 @@ async def list_sessions(
+                 "userId": s.user_id,
+                 "patientId": s.patient_id,
+                 "title": s.title,
+-                "createdAt": s.created_at.isoformat() + "Z" if s.created_at else None,
+-                "updatedAt": s.updated_at.isoformat() + "Z" if s.updated_at else None,
++                "createdAt": _iso_z(s.created_at),
++                "updatedAt": _iso_z(s.updated_at),
++                "messageCount": msg_counts.get(s.id, 0),
+             }
+             for s in sessions
+         ],
+@@ -185,17 +434,25 @@ async def get_session(
+             "userId": session.user_id,
+             "patientId": session.patient_id,
+             "title": session.title,
+-            "createdAt": session.created_at.isoformat() + "Z" if session.created_at else None,
+-            "updatedAt": session.updated_at.isoformat() + "Z" if session.updated_at else None,
++            "createdAt": _iso_z(session.created_at),
++            "updatedAt": _iso_z(session.updated_at),
+         },
+         "messages": [
+             {
+                 "id": m.id,
+                 "role": m.role,
+                 "content": m.content,
+-                "timestamp": m.created_at.isoformat() + "Z" if m.created_at else None,
++                "timestamp": _iso_z(m.created_at),
+                 "citations": m.citations,
+                 "suggestedActions": m.suggested_actions,
++                "safetyWarnings": (
++                    (m.suggested_actions or {}).get("guardrail", {}).get("warnings")
++                    if isinstance(m.suggested_actions, dict)
++                    else None
++                ),
++                "requiresExpertReview": bool(
++                    (m.suggested_actions or {}).get("guardrail", {}).get("requiresExpertReview")
++                ) if isinstance(m.suggested_actions, dict) else False,
+             }
+             for m in sorted(session.messages, key=lambda x: x.created_at)
+         ],
+@@ -246,11 +503,13 @@ async def review_ai_message(
+     review_info = {
+         "expertReview": {
+             "reviewedBy": {"id": user.id, "name": user.name, "role": user.role},
+-            "reviewedAt": datetime.now(timezone.utc).isoformat() + "Z",
++            "reviewedAt": _iso_z(datetime.now(timezone.utc)),
+             "status": "reviewed",
+         }
+     }
+-    msg.suggested_actions = review_info
++    existing_actions = msg.suggested_actions if isinstance(msg.suggested_actions, dict) else {}
++    existing_actions.update(review_info)
++    msg.suggested_actions = existing_actions
+ 
+     await create_audit_log(
+         db, user_id=user.id, user_name=user.name, role=user.role,
+@@ -264,3 +523,36 @@ async def review_ai_message(
+         "messageId": message_id,
+         "review": review_info["expertReview"],
+     }, message="AI 輸出已標記為專家審閱完成")
++
++
++class UpdateSessionTitleRequest(BaseModel):
++    title: str = Field(..., min_length=1, max_length=80)
++
++
++@router.patch("/sessions/{session_id}")
++async def update_session_title(
++    session_id: str,
++    request: Request,
++    body: UpdateSessionTitleRequest,
++    user: User = Depends(get_current_user),
++    db: AsyncSession = Depends(get_db),
++):
++    result = await db.execute(
++        select(AISession).where(AISession.id == session_id, AISession.user_id == user.id)
++    )
++    session = result.scalar_one_or_none()
++    if not session:
++        raise HTTPException(status_code=404, detail="Session not found")
++
++    session.title = body.title.strip()
++    await db.flush()
++
++    await create_audit_log(
++        db, user_id=user.id, user_name=user.name, role=user.role,
++        action="更新對話標題", target=session_id, status="success",
++        ip=request.client.host if request.client else None,
++        details={"title": session.title},
++    )
++
++    await db.commit()
++    return success_response(data={"sessionId": session_id, "title": session.title})
+diff --git a/src/lib/api/ai.ts b/src/lib/api/ai.ts
+index 1d4f56a..7ad45af 100644
+--- a/src/lib/api/ai.ts
++++ b/src/lib/api/ai.ts
+@@ -12,6 +12,11 @@ export interface ChatMessage {
+   };
+   citations?: Citation[];
+   suggestedActions?: SuggestedAction[];
++  safetyWarnings?: string[] | null;
++  requiresExpertReview?: boolean;
++  degraded?: boolean;
++  degradedReason?: string | null;
++  upstreamStatus?: string | null;
+ }
+ 
+ export interface Citation {
+@@ -125,3 +130,265 @@ export async function deleteChatSession(sessionId: string): Promise<void> {
+   await apiClient.delete(`/ai/sessions/${sessionId}`);
+ }
+ 
++export async function updateChatSessionTitle(sessionId: string, title: string): Promise<void> {
++  await apiClient.patch(`/ai/sessions/${sessionId}`, { title });
++}
++
++// ─── Clinical Polish ────────────────────────────────────────
++
++export interface PolishResponse {
++  patient_id: string;
++  polish_type: string;
++  original: string;
++  polished: string;
++  metadata: Record<string, unknown>;
++  safetyWarnings?: string[] | null;
++}
++
++// ─── Clinical Summary ────────────────────────────────────────
++
++export interface ClinicalSummaryResponse {
++  summary: string;
++  metadata: Record<string, unknown>;
++  safetyWarnings?: string[] | null;
++}
++
++export async function getClinicalSummary(patientId: string): Promise<ClinicalSummaryResponse> {
++  const response = await apiClient.post<ApiResponse<ClinicalSummaryResponse>>('/api/v1/clinical/summary', {
++    patient_id: patientId,
++  });
++  return response.data.data!;
++}
++
++// ─── Patient Explanation ─────────────────────────────────────
++
++export interface ExplanationResponse {
++  patient_id: string;
++  topic: string;
++  explanation: string;
++  metadata: Record<string, unknown>;
++  safetyWarnings?: string[] | null;
++}
++
++export async function getPatientExplanation(
++  patientId: string,
++  topic: string,
++  readingLevel?: 'simple' | 'moderate' | 'detailed',
++): Promise<ExplanationResponse> {
++  const response = await apiClient.post<ApiResponse<ExplanationResponse>>('/api/v1/clinical/explanation', {
++    patient_id: patientId,
++    topic,
++    reading_level: readingLevel || undefined,
++  });
++  return response.data.data!;
++}
++
++// ─── Guideline Interpretation ────────────────────────────────
++
++export interface GuidelineSource {
++  doc_id: string;
++  score: number;
++  category: string;
++}
++
++export interface GuidelineResponse {
++  patient_id: string;
++  scenario: string;
++  interpretation: string;
++  sources: GuidelineSource[];
++  metadata: Record<string, unknown>;
++  safetyWarnings?: string[] | null;
++}
++
++export async function getGuidelineInterpretation(data: {
++  patientId: string;
++  scenario: string;
++  guidelineTopic?: string;
++}): Promise<GuidelineResponse> {
++  const response = await apiClient.post<ApiResponse<GuidelineResponse>>('/api/v1/clinical/guideline', {
++    patient_id: data.patientId,
++    scenario: data.scenario,
++    guideline_topic: data.guidelineTopic,
++  });
++  return response.data.data!;
++}
++
++// ─── Multi-Agent Decision ────────────────────────────────────
++
++export interface DecisionResponse {
++  patient_id: string;
++  question: string;
++  recommendation: string;
++  metadata: Record<string, unknown>;
++  safetyWarnings?: string[] | null;
++}
++
++export async function getDecisionSupport(data: {
++  patientId: string;
++  question: string;
++  assessments?: Array<Record<string, unknown>>;
++}): Promise<DecisionResponse> {
++  const response = await apiClient.post<ApiResponse<DecisionResponse>>('/api/v1/clinical/decision', {
++    patient_id: data.patientId,
++    question: data.question,
++    assessments: data.assessments,
++  });
++  return response.data.data!;
++}
++
++// ─── Clinical Polish ────────────────────────────────────────
++
++export async function polishClinicalText(data: {
++  patientId: string;
++  content: string;
++  polishType: 'progress_note' | 'medication_advice' | 'nursing_record' | 'pharmacy_advice';
++}): Promise<PolishResponse> {
++  const response = await apiClient.post<ApiResponse<PolishResponse>>('/api/v1/clinical/polish', {
++    patient_id: data.patientId,
++    content: data.content,
++    polish_type: data.polishType,
++  });
++  return response.data.data!;
++}
++
++// ─── RAG Status ─────────────────────────────────────────────
++
++export interface RAGStatus {
++  is_indexed: boolean;
++  total_chunks: number;
++  total_documents: number;
++  categories?: Record<string, number>;
++  embedding_dim?: number;
++  embedding_model?: string;
++}
++
++export async function getRAGStatus(): Promise<RAGStatus> {
++  const response = await apiClient.get<ApiResponse<RAGStatus>>('/api/v1/rag/status');
++  return response.data.data!;
++}
++
++// ─── Dose Calculation (P3-1) ────────────────────────────────────────
++
++export interface PatientContext {
++  age_years?: number;
++  weight_kg?: number;
++  sex?: string;
++  crcl_ml_min?: number;
++  hepatic_class?: string;
++  sbp_mmHg?: number;
++  hr_bpm?: number;
++  rr_bpm?: number;
++  qtc_ms?: number;
++  k_mmol_l?: number;
++  mg_mmol_l?: number;
++}
++
++export interface DoseCalculateResponse {
++  request_id: string;
++  status: string;
++  result_type: string;
++  drug?: string;
++  error_code?: string;
++  message?: string;
++  computed_values: Record<string, unknown>;
++  calculation_steps: string[];
++  applied_rules: Record<string, unknown>[];
++  safety_warnings: string[];
++  citations: Record<string, unknown>[];
++  confidence: number;
++  rag?: Record<string, unknown> | null;
++}
++
++export async function calculateDose(data: {
++  drug: string;
++  patientContext: PatientContext;
++  indication?: string;
++  doseTarget?: Record<string, unknown>;
++}, options?: { suppressErrorToast?: boolean }): Promise<DoseCalculateResponse> {
++  const response = await apiClient.post<ApiResponse<DoseCalculateResponse>>('/api/v1/clinical/dose', {
++    drug: data.drug,
++    patient_context: data.patientContext,
++    indication: data.indication,
++    dose_target: data.doseTarget,
++  }, { suppressErrorToast: options?.suppressErrorToast } as any);
++  return response.data.data!;
++}
++
++// ─── Drug Interaction Check (P3-2) ──────────────────────────────────
++
++export interface InteractionCheckResponse {
++  request_id: string;
++  status: string;
++  result_type: string;
++  overall_severity: string;
++  findings: Array<{
++    drugA?: string;
++    drugB?: string;
++    drug_a?: string;
++    drug_b?: string;
++    severity?: string;
++    mechanism?: string;
++    clinical_effect?: string;
++    recommended_action?: string;
++    dose_adjustment_hint?: string;
++    monitoring?: string[];
++  }>;
++  applied_rules: Record<string, unknown>[];
++  citations: Record<string, unknown>[];
++  conflicts: Record<string, unknown>[];
++  confidence: number;
++  rag?: Record<string, unknown> | null;
++}
++
++export async function checkInteractions(data: {
++  drugList: string[];
++  patientContext?: PatientContext;
++}, options?: { suppressErrorToast?: boolean }): Promise<InteractionCheckResponse> {
++  const payload: Record<string, unknown> = {
++    drug_list: data.drugList,
++  };
++  if (data.patientContext) {
++    payload.patient_context = data.patientContext;
++  }
++  const response = await apiClient.post<ApiResponse<InteractionCheckResponse>>(
++    '/api/v1/clinical/interactions',
++    payload,
++    { suppressErrorToast: options?.suppressErrorToast } as any,
++  );
++  return response.data.data!;
++}
++
++// ─── Clinical Query with Intent Routing (P3-3) ─────────────────────
++
++export interface ClinicalQueryResponse {
++  request_id: string;
++  intent: string;
++  status: string;
++  result_type: string;
++  confidence: number;
++  warnings: string[];
++  rag?: Record<string, unknown> | null;
++  dose_result?: DoseCalculateResponse | null;
++  interaction_result?: InteractionCheckResponse | null;
++  citations: Record<string, unknown>[];
++}
++
++export async function clinicalQuery(data: {
++  question: string;
++  intent?: string;
++  drug?: string;
++  drugList?: string[];
++  patientContext?: PatientContext;
++  doseTarget?: Record<string, unknown>;
++}): Promise<ClinicalQueryResponse> {
++  const payload: Record<string, unknown> = {
++    question: data.question,
++  };
++  if (data.intent) payload.intent = data.intent;
++  if (data.drug) payload.drug = data.drug;
++  if (data.drugList) payload.drug_list = data.drugList;
++  if (data.patientContext) payload.patient_context = data.patientContext;
++  if (data.doseTarget) payload.dose_target = data.doseTarget;
++  const response = await apiClient.post<ApiResponse<ClinicalQueryResponse>>('/api/v1/clinical/clinical-query', payload);
++  return response.data.data!;
++}
+diff --git a/src/pages/patient-detail.tsx b/src/pages/patient-detail.tsx
+index a0d767c..9ea0675 100644
+--- a/src/pages/patient-detail.tsx
++++ b/src/pages/patient-detail.tsx
+@@ -2,9 +2,10 @@ import { MedicalRecords } from '../components/medical-records';
+ import { PharmacistAdviceWidget } from '../components/pharmacist-advice-widget';
+ import { LabTrendChart, LabTrendData } from '../components/lab-trend-chart';
+ import { VitalSignCard } from '../components/vital-signs-card';
+-import { useState, useEffect } from 'react';
++import { useCallback, useEffect, useState } from 'react';
+ import { useParams, useNavigate } from 'react-router-dom';
+-import { sendChatMessage, getChatSessions as fetchChatSessionsApi } from '../lib/api/ai';
++import { isAxiosError } from 'axios';
++import { sendChatMessage, getChatSessions as fetchChatSessionsApi, getChatSession as fetchChatSessionApi, updateChatSessionTitle, deleteChatSession, polishClinicalText, getClinicalSummary, getPatientExplanation, getGuidelineInterpretation, getDecisionSupport, getRAGStatus, type GuidelineSource, type RAGStatus } from '../lib/api/ai';
+ import { patientsApi, labDataApi, medicationsApi, messagesApi, vitalSignsApi, ventilatorApi, type Patient, type LabData, type Medication, type PatientMessage, type VitalSigns, type VentilatorSettings, type WeaningAssessment } from '../lib/api';
+ import { copyToClipboard } from '../lib/clipboard-utils';
+ import { useAuth } from '../lib/auth-context';
+@@ -18,6 +19,7 @@ import { ScrollArea } from '../components/ui/scroll-area';
+ import { Alert, AlertDescription } from '../components/ui/alert';
+ import { toast } from 'sonner';
+ import { LoadingSpinner, ErrorDisplay, EmptyState } from '../components/ui/state-display';
++import { AiMarkdown, SafetyWarnings } from '../components/ui/ai-markdown';
+ import { LabDataSkeleton, MedicationsSkeleton, MessageListSkeleton } from '../components/ui/skeletons';
+ import {
+   ArrowLeft,
+@@ -50,7 +52,9 @@ import {
+   Plus,
+   Save,
+   History,
+-  BookOpen
++  BookOpen,
++  ChevronDown,
++  Trash2
+ } from 'lucide-react';
+ import { LabDataDisplay } from '../components/lab-data-display';
+ 
+@@ -105,6 +109,7 @@ interface ChatSession {
+   title: string;
+   messages: ChatMessage[];
+   lastUpdated: string;
++  messageCount?: number;
+   labDataSnapshot?: {
+     K?: number;
+     Na?: number;
+@@ -120,6 +125,11 @@ interface ChatMessage {
+   content: string;
+   timestamp?: string;
+   references?: string[];
++  warnings?: string[] | null;
++  requiresExpertReview?: boolean;
++  degraded?: boolean;
++  degradedReason?: string | null;
++  upstreamStatus?: string | null;
+ }
+ 
+ function extractLabNumericValue(value: unknown): number | undefined {
+@@ -161,14 +171,36 @@ export function PatientDetailPage() {
+   const { user } = useAuth();
+   const [activeTab, setActiveTab] = useState('chat');
+   const [chatInput, setChatInput] = useState('');
+-  const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant', content: string, references?: string[] }>>([]);
++  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+   const [expandedReferences, setExpandedReferences] = useState<Set<number>>(new Set()); // 追蹤哪些參考依據是展開的
+-  const [progressNoteInput, setProgressNoteInput] = useState('');
+-  const [polishedNote, setPolishedNote] = useState('');
+-  const [medAdviceInput, setMedAdviceInput] = useState('');
+-  const [polishedAdvice, setPolishedAdvice] = useState('');
+   const [isSending, setIsSending] = useState(false);
+ 
++  // AI 臨床功能狀態
++  const [aiSummary, setAiSummary] = useState('');
++  const [summaryWarnings, setSummaryWarnings] = useState<string[] | null>(null);
++  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
++  const [explanationTopic, setExplanationTopic] = useState('');
++  const [explanationResult, setExplanationResult] = useState('');
++  const [explanationWarnings, setExplanationWarnings] = useState<string[] | null>(null);
++  const [isGeneratingExplanation, setIsGeneratingExplanation] = useState(false);
++  const [readingLevel, setReadingLevel] = useState<'simple' | 'moderate' | 'detailed'>('moderate');
++  const [guidelineScenario, setGuidelineScenario] = useState('');
++  const [guidelineResult, setGuidelineResult] = useState('');
++  const [guidelineWarnings, setGuidelineWarnings] = useState<string[] | null>(null);
++  const [guidelineSources, setGuidelineSources] = useState<GuidelineSource[]>([]);
++  const [isQueryingGuideline, setIsQueryingGuideline] = useState(false);
++  const [decisionQuestion, setDecisionQuestion] = useState('');
++  const [decisionResult, setDecisionResult] = useState('');
++  const [decisionWarnings, setDecisionWarnings] = useState<string[] | null>(null);
++  const [isGeneratingDecision, setIsGeneratingDecision] = useState(false);
++  const [showAssessments, setShowAssessments] = useState(false);
++  const [nephrologistOpinion, setNephrologistOpinion] = useState('');
++  const [pharmacistOpinion, setPharmacistOpinion] = useState('');
++  const [nursingOpinion, setNursingOpinion] = useState('');
++
++  // RAG 索引狀態
++  const [ragStatus, setRagStatus] = useState<RAGStatus | null>(null);
++
+   // 病人資料狀態
+   const [patient, setPatient] = useState<PatientWithFrontendFields | null>(null);
+   const [patientLoading, setPatientLoading] = useState(true);
+@@ -196,6 +228,7 @@ export function PatientDetailPage() {
+   const [ventilator, setVentilator] = useState<VentilatorSettings | null>(null);
+   const [ventilatorLoading, setVentilatorLoading] = useState(false);
+   const [weaningAssessment, setWeaningAssessment] = useState<WeaningAssessment | null>(null);
++  const [isRefreshingPatientData, setIsRefreshingPatientData] = useState(false);
+ 
+   // 對話記錄相關狀態
+   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+@@ -215,67 +248,108 @@ export function PatientDetailPage() {
+   const [trendChartData, setTrendChartData] = useState<LabTrendData[]>([]);
+   const [trendReferenceRange, setTrendReferenceRange] = useState('');
+ 
+-  // 載入病人資料、檢驗數據、用藥數據、留言、生命徵象和呼吸器數據
+-  useEffect(() => {
+-    const fetchData = async () => {
+-      if (!id) return;
+-      try {
++  const loadPatientBundle = useCallback(async (mode: 'initial' | 'refresh') => {
++    if (!id) return;
++    try {
++      if (mode === 'initial') {
+         setPatientLoading(true);
+-        setMedicationsLoading(true);
+-        setMessagesLoading(true);
+-        setVitalSignsLoading(true);
+-        setVentilatorLoading(true);
+         setPatientError(null);
++      } else {
++        setIsRefreshingPatientData(true);
++      }
+ 
+-        // 同時載入所有數據
+-        const [patientData, labDataResult, medicationsResult, messagesResult, vitalSignsResult, ventilatorResult, weaningResult] = await Promise.all([
+-          patientsApi.getPatient(id),
+-          labDataApi.getLatestLabData(id).catch(() => defaultLabData),
+-          medicationsApi.getMedications(id).catch(() => ({ medications: [], total: 0 })),
+-          messagesApi.getMessages(id).catch(() => ({ messages: [], total: 0, unreadCount: 0 })),
+-          vitalSignsApi.getLatestVitalSigns(id).catch(() => null),
+-          ventilatorApi.getLatestVentilatorSettings(id).catch(() => null),
+-          ventilatorApi.getWeaningAssessment(id).catch(() => null)
+-        ]);
+-
+-        setPatient(patientData as PatientWithFrontendFields);
+-        setLabData(labDataResult);
+-        setMedications(medicationsResult.medications);
+-        setMessages(messagesResult.messages);
+-        setUnreadCount(messagesResult.unreadCount);
+-        setVitalSigns(vitalSignsResult);
+-        setVentilator(ventilatorResult);
+-        setWeaningAssessment(weaningResult);
+-
+-        // 載入對話記錄
+-        try {
+-          const sessionsData = await fetchChatSessionsApi({ patientId: id });
+-          setChatSessions(sessionsData.sessions.map(s => ({
+-            id: s.id,
+-            patientId: s.patientId || id,
+-            sessionDate: new Date(s.createdAt).toISOString().split('T')[0],
+-            sessionTime: new Date(s.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
+-            title: s.title,
+-            messages: [],
+-            lastUpdated: new Date(s.updatedAt).toLocaleString('zh-TW'),
+-          })));
+-        } catch {
+-          setChatSessions([]);
+-        }
+-      } catch (err) {
+-        console.error('載入病人資料失敗:', err);
++      setMedicationsLoading(true);
++      setMessagesLoading(true);
++      setVitalSignsLoading(true);
++      setVentilatorLoading(true);
++      setLabDataLoading(true);
++
++      // 同時載入所有數據
++      const [patientData, labDataResult, medicationsResult, messagesResult, vitalSignsResult, ventilatorResult, weaningResult] = await Promise.all([
++        patientsApi.getPatient(id),
++        labDataApi.getLatestLabData(id).catch(() => defaultLabData),
++        medicationsApi.getMedications(id).catch(() => ({ medications: [], total: 0 })),
++        messagesApi.getMessages(id).catch(() => ({ messages: [], total: 0, unreadCount: 0 })),
++        vitalSignsApi.getLatestVitalSigns(id).catch(() => null),
++        ventilatorApi.getLatestVentilatorSettings(id).catch(() => null),
++        ventilatorApi.getWeaningAssessment(id).catch(() => null)
++      ]);
++
++      setPatient(patientData as PatientWithFrontendFields);
++      setLabData(labDataResult);
++      setMedications(medicationsResult.medications);
++      setMessages(messagesResult.messages);
++      setUnreadCount(messagesResult.unreadCount);
++      setVitalSigns(vitalSignsResult);
++      setVentilator(ventilatorResult);
++      setWeaningAssessment(weaningResult);
++
++      // 載入對話記錄
++      try {
++        const sessionsData = await fetchChatSessionsApi({ patientId: id });
++	        setChatSessions(sessionsData.sessions.map(s => ({
++	          id: s.id,
++	          patientId: s.patientId || id,
++	          sessionDate: new Date(s.createdAt).toISOString().split('T')[0],
++	          sessionTime: new Date(s.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
++	          title: s.title,
++	          messages: [],
++	          lastUpdated: new Date(s.updatedAt).toLocaleString('zh-TW'),
++	          messageCount: s.messageCount,
++	        })));
++      } catch {
++        setChatSessions([]);
++      }
++
++      if (mode === 'refresh') {
++        toast.success('已更新患者數值');
++      }
++    } catch (err) {
++      console.error('載入病人資料失敗:', err);
++      if (mode === 'initial') {
+         setPatientError('無法載入病人資料');
+-      } finally {
++      } else {
++        toast.error('更新患者數值失敗，請確認網路與後端服務狀態');
++      }
++    } finally {
++      if (mode === 'initial') {
+         setPatientLoading(false);
+-        setMedicationsLoading(false);
+-        setMessagesLoading(false);
+-        setVitalSignsLoading(false);
+-        setVentilatorLoading(false);
++      } else {
++        setIsRefreshingPatientData(false);
+       }
+-    };
+-    fetchData();
++      setMedicationsLoading(false);
++      setMessagesLoading(false);
++      setVitalSignsLoading(false);
++      setVentilatorLoading(false);
++      setLabDataLoading(false);
++    }
++  }, [id]);
++
++  const refreshMessagesOnly = useCallback(async () => {
++    if (!id) return;
++    try {
++      setMessagesLoading(true);
++      const res = await messagesApi.getMessages(id);
++      setMessages(res.messages);
++      setUnreadCount(res.unreadCount);
++    } catch (err) {
++      console.error('重新載入留言失敗:', err);
++      toast.error('重新載入留言失敗');
++    } finally {
++      setMessagesLoading(false);
++    }
+   }, [id]);
+ 
++  // 載入病人資料、檢驗數據、用藥數據、留言、生命徵象和呼吸器數據
++  useEffect(() => {
++    loadPatientBundle('initial');
++  }, [loadPatientBundle]);
++
++  // P3-6: 載入 RAG 索引狀態
++  useEffect(() => {
++    getRAGStatus().then(setRagStatus).catch(() => setRagStatus(null));
++  }, []);
++
+   // 選取生命徵象/檢驗項目時，從後端 API 載入趨勢資料
+   useEffect(() => {
+     if (!selectedVitalSign || !id) {
+@@ -294,7 +368,9 @@ export function PatientDetailPage() {
+ 
+         if (category) {
+           for (const record of response.trends || []) {
+-            const catData = (record as Record<string, unknown>)[category] as Record<string, { value: number; referenceRange?: string }> | undefined;
++            const catData = (record as unknown as Record<string, unknown>)[category] as
++              | Record<string, { value: number; referenceRange?: string }>
++              | undefined;
+             if (catData && catData[labName]) {
+               points.push({
+                 date: record.timestamp?.split('T')[0] || '',
+@@ -405,6 +481,42 @@ export function PatientDetailPage() {
+   const getAnalgesia = () => patient.analgesia || patient.sanSummary?.analgesia || [];
+   const getNmb = () => patient.nmb || patient.sanSummary?.nmb || [];
+ 
++  const refreshChatSessions = async () => {
++    if (!id) return;
++    try {
++      const sessionsData = await fetchChatSessionsApi({ patientId: id });
++      setChatSessions(sessionsData.sessions.map(s => ({
++        id: s.id,
++        patientId: s.patientId || id,
++        sessionDate: new Date(s.createdAt).toISOString().split('T')[0],
++        sessionTime: new Date(s.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
++        title: s.title,
++        messages: [],
++        lastUpdated: new Date(s.updatedAt).toLocaleString('zh-TW'),
++        messageCount: s.messageCount,
++      })));
++    } catch {
++      setChatSessions([]);
++    }
++  };
++
++  const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
++    e.stopPropagation();
++    if (!confirm('確定要刪除此對話記錄嗎？')) return;
++    try {
++      await deleteChatSession(sessionId);
++      if (selectedSession?.id === sessionId) {
++        setSelectedSession(null);
++        setChatMessages([]);
++        setSessionTitle('');
++      }
++      await refreshChatSessions();
++      toast.success('對話記錄已刪除');
++    } catch {
++      toast.error('刪除對話記錄失敗');
++    }
++  };
++
+   const handleSendMessage = async () => {
+     if (!chatInput.trim() || isSending) return;
+ 
+@@ -417,119 +529,73 @@ export function PatientDetailPage() {
+     setChatInput('');
+     setIsSending(true);
+ 
+-    let finalMessages = messagesWithUser;
+-
+     try {
+-      const response = await sendChatMessage(userMessage, { patientId: id });
+-      finalMessages = [
++      const response = await sendChatMessage(userMessage, {
++        patientId: id,
++        sessionId: selectedSession?.id,
++      });
++
++      const assistantMsg: ChatMessage = {
++        role: 'assistant',
++        content: response.message.content,
++        references: response.message.citations?.map(c => `${c.title} (${c.source})`) || [],
++        warnings: response.message.safetyWarnings || null,
++        requiresExpertReview: response.message.requiresExpertReview || false,
++        degraded: response.message.degraded || false,
++        degradedReason: response.message.degradedReason || null,
++        upstreamStatus: response.message.upstreamStatus || null,
++      };
++
++      const finalMessages = [
+         ...messagesWithUser,
+-        {
+-          role: 'assistant' as const,
+-          content: response.message.content,
+-          references: response.message.citations?.map(c => `${c.title} (${c.source})`) || []
+-        }
++        assistantMsg,
+       ];
+       setChatMessages(finalMessages);
++
++      // If this is a new session, persist the user-provided title (optional)
++      if (!selectedSession) {
++        if (sessionTitle.trim()) {
++          try {
++            await updateChatSessionTitle(response.sessionId, sessionTitle.trim());
++          } catch {
++            // Non-blocking: chat still works even if title update fails
++          }
++        }
++	        await refreshChatSessions();
++	        setSelectedSession({
++	          id: response.sessionId,
++	          patientId: id || patient.id,
++	          sessionDate: new Date().toISOString().split('T')[0],
++	          sessionTime: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
++	          // Keep title consistent with backend default (first user message) unless user provided one.
++	          title: sessionTitle.trim() || userMessage.slice(0, 50),
++	          messages: [],
++	          lastUpdated: new Date().toLocaleString('zh-TW'),
++	        });
++      } else {
++        // Keep list metadata fresh
++        await refreshChatSessions();
++      }
+     } catch (err) {
+       console.error('AI 回覆失敗:', err);
+-      finalMessages = [
++      let errorMessage = 'AI 助手目前無法回應，請確認後端服務是否正常運行，稍後再試。';
++      if (isAxiosError(err)) {
++        const data = err.response?.data as { message?: unknown; detail?: unknown } | undefined;
++        const detail = (data?.message ?? data?.detail);
++        if (typeof detail === 'string' && detail.trim()) {
++          errorMessage = `AI 服務暫時不可用：${detail}`;
++        }
++      }
++      setChatMessages([
+         ...messagesWithUser,
+         {
+-          role: 'assistant' as const,
+-          content: 'AI 助手目前無法回應，請確認後端服務是否正常運行，稍後再試。'
+-        }
+-      ];
+-      setChatMessages(finalMessages);
++          role: 'assistant',
++          content: errorMessage
++        },
++      ]);
+     } finally {
+       setIsSending(false);
+     }
+-
+-    // 自動儲存對話到本地狀態
+-    const title = sessionTitle.trim() || `對話記錄 ${new Date().toLocaleString('zh-TW')}`;
+-    const now = new Date();
+-
+-    if (selectedSession) {
+-      const updatedSession: ChatSession = {
+-        ...selectedSession,
+-        messages: finalMessages.map(m => ({
+-          ...m,
+-          timestamp: new Date().toLocaleString('zh-TW')
+-        })),
+-        lastUpdated: new Date().toLocaleString('zh-TW'),
+-        labDataSnapshot: {
+-          K: extractLabNumericValue(labData.biochemistry?.K),
+-          Na: extractLabNumericValue(labData.biochemistry?.Na),
+-          Scr: extractLabNumericValue(labData.biochemistry?.Scr),
+-          eGFR: extractLabNumericValue(labData.biochemistry?.eGFR),
+-          CRP: extractLabNumericValue(labData.inflammatory?.CRP),
+-          WBC: extractLabNumericValue(labData.hematology?.WBC)
+-        }
+-      };
+-      setChatSessions(chatSessions.map(s => s.id === selectedSession.id ? updatedSession : s));
+-      setSelectedSession(updatedSession);
+-    } else {
+-      const newSession: ChatSession = {
+-        id: `chat${Date.now()}`,
+-        patientId: patient.id,
+-        sessionDate: now.toISOString().split('T')[0],
+-        sessionTime: now.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
+-        title,
+-        messages: finalMessages.map(m => ({
+-          ...m,
+-          timestamp: new Date().toLocaleString('zh-TW')
+-        })),
+-        lastUpdated: new Date().toLocaleString('zh-TW'),
+-        labDataSnapshot: {
+-          K: extractLabNumericValue(labData.biochemistry?.K),
+-          Na: extractLabNumericValue(labData.biochemistry?.Na),
+-          Scr: extractLabNumericValue(labData.biochemistry?.Scr),
+-          eGFR: extractLabNumericValue(labData.biochemistry?.eGFR),
+-          CRP: extractLabNumericValue(labData.inflammatory?.CRP),
+-          WBC: extractLabNumericValue(labData.hematology?.WBC)
+-        }
+-      };
+-      setChatSessions([newSession, ...chatSessions]);
+-      setSelectedSession(newSession);
+-    }
+-  };
+-
+-  const handlePolishProgressNote = () => {
+-    if (!progressNoteInput.trim()) return;
+-    
+-    const potassium = extractLabNumericValue(labData?.biochemistry?.K) ?? 3.5;
+-    const creatinine = extractLabNumericValue(labData?.biochemistry?.Scr) ?? 1.0;
+-    const egfr = extractLabNumericValue(labData?.biochemistry?.eGFR) ?? 60;
+-    const crp = extractLabNumericValue(labData?.inflammatory?.CRP) ?? 5;
+-
+-    const polished = `Assessment:
+-Patient remains intubated on day ${Math.floor((new Date().getTime() - new Date(patient.icuAdmissionDate).getTime()) / (1000 * 60 * 60 * 24))} of ICU stay. Currently receiving mechanical ventilation. Hemodynamics stable on current support.
+-
+-Laboratory findings show potassium ${potassium} mEq/L, creatinine ${creatinine} mg/dL, with eGFR ${egfr} mL/min. Inflammatory markers: CRP ${crp} mg/L.
+-
+-Plan:
+-- Continue current ventilator settings
+-- Monitor electrolytes and adjust supplementation as needed
+-- Titrate sedation to target RASS -2
+-- Daily assessment for extubation readiness`;
+-    
+-    setPolishedNote(polished);
+-  };
+-
+-  const handlePolishMedAdvice = () => {
+-    if (!medAdviceInput.trim()) return;
+-    
+-    const potassium = extractLabNumericValue(labData?.biochemistry?.K) ?? 3.5;
+-    const egfr = extractLabNumericValue(labData?.biochemistry?.eGFR) ?? 60;
+-
+-    const polished = `Medication Recommendation:
+-
+-The patient's current potassium level (${potassium} mEq/L) is below normal range. Recommend supplementation with potassium chloride 20-40 mEq, with close monitoring every 4-6 hours until normalized.
+-
+-Concurrent use of Morphine and Dormicum requires careful monitoring for respiratory depression. Suggest daily RASS assessment, targeting RASS -2 to -1 for optimal sedation.
+-
+-Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally cleared medications.`;
+-    
+-    setPolishedAdvice(polished);
+   };
+ 
+   const daysAdmitted = Math.floor(
+@@ -655,18 +721,33 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
+                         </div>
+                       ) : (
+                         <div className="space-y-1 p-2">
+-                          {chatSessions.map((session) => (
+-                            <button
+-                              key={session.id}
+-                              onClick={() => {
+-                                setSelectedSession(session);
+-                                setChatMessages(session.messages.map(m => ({ role: m.role, content: m.content })));
+-                                setSessionTitle(session.title);
+-                              }}
+-                              className={`w-full text-left p-3 rounded-lg border-2 transition-all hover:bg-[#f8f9fa] ${
+-                                selectedSession?.id === session.id
+-                                  ? 'bg-[#f8f9fa] border-[#7f265b]'
+-                                  : 'border-transparent'
++	                          {chatSessions.map((session) => (
++	                            <button
++	                              key={session.id}
++	                              onClick={async () => {
++	                                setSelectedSession(session);
++	                                setSessionTitle(session.title);
++	                                try {
++		                                  const detail = await fetchChatSessionApi(session.id);
++		                                  setChatMessages((detail.messages || []).map(m => ({
++		                                    role: (m.role === 'assistant' ? 'assistant' : 'user'),
++		                                    content: m.content,
++		                                    references: m.citations?.map(c => `${c.title} (${c.source})`) || [],
++		                                    warnings: m.safetyWarnings || null,
++		                                    requiresExpertReview: m.requiresExpertReview || false,
++		                                    degraded: m.degraded || false,
++		                                    degradedReason: m.degradedReason || null,
++		                                    upstreamStatus: m.upstreamStatus || null,
++		                                  })));
++		                                } catch {
++	                                  toast.error('載入對話內容失敗');
++	                                  setChatMessages([]);
++	                                }
++	                              }}
++	                              className={`w-full text-left p-3 rounded-lg border-2 transition-all hover:bg-[#f8f9fa] ${
++	                                selectedSession?.id === session.id
++	                                  ? 'bg-[#f8f9fa] border-[#7f265b]'
++	                                  : 'border-transparent'
+                               }`}
+                             >
+                               <div className="flex items-start justify-between gap-2">
+@@ -688,9 +769,18 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
+                                     </div>
+                                   )}
+                                 </div>
+-                                <Badge className="bg-[#7f265b] text-white text-xs shrink-0">
+-                                  {session.messages.length}
+-                                </Badge>
++                                <div className="flex items-center gap-1 shrink-0">
++	                                <Badge className="bg-[#7f265b] text-white text-xs">
++	                                  {session.messageCount ?? session.messages.length}
++	                                </Badge>
++                                  <button
++                                    onClick={(e) => handleDeleteSession(e, session.id)}
++                                    className="p-1 rounded hover:bg-red-100 text-muted-foreground hover:text-red-600 transition-colors"
++                                    title="刪除對話"
++                                  >
++                                    <Trash2 className="h-3.5 w-3.5" />
++                                  </button>
++                                </div>
+                               </div>
+                             </button>
+                           ))}
+@@ -724,26 +814,24 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
+                         </div>
+                       )}
+                     </div>
+-                    <div className="flex items-center gap-2">
+-                      <Button
+-                        variant="outline"
+-                        size="sm"
+-                        onClick={() => {
+-                          toast.success('已更新患者最新數值');
+-                        }}
+-                        className="border-[#f59e0b] text-[#f59e0b] hover:bg-[#f59e0b] hover:text-white"
+-                      >
+-                        <RefreshCw className="h-4 w-4 mr-1" />
+-                        更新患者數值
+-                      </Button>
+-                      <Button
+-                        variant="ghost"
+-                        size="sm"
+-                        onClick={() => setShowSessionList(!showSessionList)}
+-                      >
+-                        {showSessionList ? '隱藏' : '顯示'}記錄
+-                      </Button>
+-                    </div>
++	                    <div className="flex items-center gap-2">
++	                      <Button
++	                        variant="outline"
++	                        size="sm"
++	                        onClick={() => loadPatientBundle('refresh')}
++	                        disabled={isRefreshingPatientData}
++	                      >
++	                        <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshingPatientData ? 'animate-spin' : ''}`} />
++	                        更新患者數值
++	                      </Button>
++	                      <Button
++	                        variant="ghost"
++	                        size="sm"
++	                        onClick={() => setShowSessionList(!showSessionList)}
++	                      >
++	                        {showSessionList ? '隱藏' : '顯示'}記錄
++	                      </Button>
++	                    </div>
+                   </div>
+                   {!selectedSession && chatMessages.length > 0 && (
+                     <div className="mt-3">
+@@ -759,6 +847,11 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
+                   )}
+                 </CardHeader>
+                 <CardContent className="space-y-4 pt-6">
++                  {/* 免責聲明 banner */}
++                  <div className="text-xs text-[#6b7280] bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
++                    ⚕️ 本對話由 AI 輔助產生，僅供臨床參考，不可取代醫師專業判斷。任何治療決策應以主治醫師評估為準。
++                  </div>
++
+                   {/* 對話區 */}
+                   <div className="border-2 border-[#e5e7eb] rounded-lg p-4 min-h-[500px] max-h-[600px] overflow-y-auto space-y-4 bg-[#f8f9fa]">
+                     {chatMessages.length === 0 ? (
+@@ -766,10 +859,6 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
+                         <MessageSquare className="h-16 w-16 mx-auto mb-4 text-[#7f265b] opacity-30" />
+                         <p className="text-[17px] font-medium">開始對話以獲得 AI 協助</p>
+                         <p className="text-sm text-[#6b7280] mt-2">可以詢問檢驗數據、用藥建議、治療指引等</p>
+-                        <p className="text-xs text-[#6b7280] mt-4 flex items-center justify-center gap-2">
+-                          <RefreshCw className="h-3 w-3" />
+-                          建議先點擊「更新患者數值」以獲得最新數據
+-                        </p>
+                       </div>
+                     ) : (
+                       chatMessages.map((msg, idx) => (
+@@ -784,7 +873,25 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
+                                 : 'bg-white border-2 border-[#e5e7eb] text-[#1a1a1a] shadow-sm'
+                             }`}
+                           >
+-                            <p className="whitespace-pre-wrap text-[16px] leading-relaxed pr-2">{msg.content}</p>
++		                            {msg.role === 'assistant' ? (
++		                              <div>
++		                                <AiMarkdown content={msg.content} className="text-[16px] pr-2" />
++		                                {msg.degraded && (
++		                                  <div className="mt-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
++		                                    AI 服務目前為降級模式（{msg.degradedReason || msg.upstreamStatus || 'llm_unavailable'}），
++		                                    請以臨床判斷覆核後使用。
++		                                  </div>
++		                                )}
++		                                <SafetyWarnings warnings={msg.warnings} />
++		                                {msg.requiresExpertReview && (
++	                                  <div className="mt-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
++	                                    此 AI 回覆包含潛在高風險資訊，建議由醫師/藥師覆核後再採用。
++	                                  </div>
++	                                )}
++	                              </div>
++	                            ) : (
++	                              <p className="whitespace-pre-wrap text-[16px] leading-relaxed pr-2">{msg.content}</p>
++	                            )}
+                             {msg.role === 'assistant' && msg.references && msg.references.length > 0 && (() => {
+                               const isExpanded = expandedReferences.has(idx);
+                               return (
+@@ -886,64 +993,7 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
+             </div>
+           </div>
+ 
+-          {/* Progress Note 輔助（醫師/專科護理師） */}
+-          {(user?.role === 'doctor' || user?.role === 'admin') && (
+-            <Card className="border-2 border-[#7f265b]">
+-              <CardHeader className="bg-[#f8f9fa]">
+-                <CardTitle className="flex items-center gap-2 text-xl">
+-                  <FileText className="h-6 w-6 text-[#7f265b]" />
+-                  Progress Note 輔助
+-                </CardTitle>
+-                <CardDescription className="text-[15px] mt-2">
+-                  輸入中文或草稿，AI 將協助翻譯修飾為專業英文 Progress Note
+-                </CardDescription>
+-              </CardHeader>
+-              <CardContent className="space-y-4">
+-                <div className="space-y-2">
+-                  <label className="font-semibold text-[#1a1a1a]">輸入草稿或中文描述</label>
+-                  <Textarea
+-                    placeholder="例如：病人今天狀況穩定，血鉀偏低已補充，目前插管中..."
+-                    value={progressNoteInput}
+-                    onChange={(e) => setProgressNoteInput(e.target.value)}
+-                    className="min-h-[100px] border-2"
+-                  />
+-                  <Button 
+-                    onClick={handlePolishProgressNote}
+-                    className="bg-[#7f265b] hover:bg-[#631e4d]"
+-                  >
+-                    <Brain className="mr-2 h-5 w-5" />
+-                    AI 修飾 & 翻譯
+-                  </Button>
+-                </div>
+-
+-                {polishedNote && (
+-                  <div className="space-y-2">
+-                    <label className="font-semibold text-[#1a1a1a]">修飾後的 Progress Note</label>
+-                    <div className="bg-[#f8f9fa] border-2 border-[#7f265b] rounded-lg p-4">
+-                      <pre className="whitespace-pre-wrap text-[16px] font-mono">{polishedNote}</pre>
+-                    </div>
+-                    <div className="flex gap-2">
+-                      <Button variant="outline" onClick={async () => {
+-                        const success = await copyToClipboard(polishedNote);
+-                        if (success) {
+-                          toast.success('已複製到剪貼簿');
+-                        } else {
+-                          toast.error('複製失敗，請手動複製');
+-                        }
+-                      }}>
+-                        <Copy className="mr-2 h-4 w-4" />
+-                        複製
+-                      </Button>
+-                      <Button className="bg-[#7f265b] hover:bg-[#631e4d]">
+-                        <Download className="mr-2 h-4 w-4" />
+-                        匯入 HIS
+-                      </Button>
+-                    </div>
+-                  </div>
+-                )}
+-              </CardContent>
+-            </Card>
+-          )}
++          {/* Progress Note 功能已統一至「病歷記錄」tab */}
+ 
+           {/* RAG 來源側欄 - 已移除 */}
+         </TabsContent>
+@@ -971,8 +1021,20 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
+                   <Button 
+                     variant="outline" 
+                     size="sm"
+-                    onClick={() => {
+-                      setMessages(messages.map(m => ({ ...m, isRead: true })));
++                    onClick={async () => {
++                      if (!id) return;
++                      const unread = messages.filter(m => !m.isRead);
++                      if (unread.length === 0) return;
++                      try {
++                        await Promise.all(
++                          unread.map(m => messagesApi.markMessageRead(id, m.id).catch(() => null))
++                        );
++                        toast.success(`已標記 ${unread.length} 則留言為已讀`);
++                        await refreshMessagesOnly();
++                      } catch (err) {
++                        console.error('全部標為已讀失敗:', err);
++                        toast.error('全部標為已讀失敗');
++                      }
+                     }}
+                   >
+                     全部標為已讀
+@@ -1150,10 +1212,16 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
+                               <Button
+                                 variant="ghost"
+                                 size="sm"
+-                                onClick={() => {
+-                                  setMessages(messages.map(m => 
+-                                    m.id === message.id ? { ...m, isRead: true } : m
+-                                  ));
++                                onClick={async () => {
++                                  if (!id) return;
++                                  try {
++                                    await messagesApi.markMessageRead(id, message.id);
++                                    toast.success('已標記為已讀');
++                                    await refreshMessagesOnly();
++                                  } catch (err) {
++                                    console.error('標記已讀失敗:', err);
++                                    toast.error('標記已讀失敗');
++                                  }
+                                 }}
+                               >
+                                 <CheckCircle2 className="h-4 w-4 mr-1" />
+@@ -1586,7 +1654,7 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
+           )}
+ 
+           <div className="flex gap-2">
+-            <Button variant="outline" className="border-[#7f265b] text-[#7f265b] hover:bg-[#7f265b] hover:text-white">
++            <Button variant="outline" className="border-[#7f265b] text-[#7f265b] hover:bg-[#7f265b] hover:text-white" onClick={() => navigate('/pharmacy/interactions')}>
+               交互作用查詢
+             </Button>
+             <Button variant="outline">
+@@ -1611,19 +1679,19 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
+                 </div>
+                 <div className="text-center">
+                   <p className="text-sm text-muted-foreground mb-1">Gender</p>
+-                  <p className="text-xl font-medium">male</p>
++                  <p className="text-xl font-medium">{patient.gender || 'N/A'}</p>
+                 </div>
+                 <div className="text-center">
+                   <p className="text-sm text-muted-foreground mb-1">BMI</p>
+-                  <p className="text-xl font-medium">16.4 kg/m²</p>
++                  <p className="text-xl font-medium">{patient.bmi ? `${patient.bmi} kg/m²` : 'N/A'}</p>
+                 </div>
+                 <div className="text-center">
+                   <p className="text-sm text-muted-foreground mb-1">Height</p>
+-                  <p className="text-xl font-medium">164 cm</p>
++                  <p className="text-xl font-medium">{patient.height ? `${patient.height} cm` : 'N/A'}</p>
+                 </div>
+                 <div className="text-center">
+                   <p className="text-sm text-muted-foreground mb-1">Weight</p>
+-                  <p className="text-xl font-medium">44 kg</p>
++                  <p className="text-xl font-medium">{patient.weight ? `${patient.weight} kg` : 'N/A'}</p>
+                 </div>
+               </div>
+             </CardContent>
+@@ -1636,9 +1704,13 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
+             </CardHeader>
+             <CardContent>
+               <ol className="space-y-2 list-decimal list-inside">
+-                <li className="text-base">COVID-19 Complicated with Pulmonary Infection</li>
+-                <li className="text-base">Septic Shock</li>
+-                <li className="text-base">Respiratory Acidosis</li>
++                {patient.symptoms && patient.symptoms.length > 0 ? (
++                  patient.symptoms.map((symptom: string, idx: number) => (
++                    <li key={idx} className="text-base">{symptom}</li>
++                  ))
++                ) : (
++                  <li className="text-base text-muted-foreground">尚無症狀記錄</li>
++                )}
+               </ol>
+             </CardContent>
+           </Card>
+@@ -1673,6 +1745,318 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
+               )}
+             </CardContent>
+           </Card>
++
++          {/* ── AI 臨床功能 ── */}
++          <Separator className="my-4" />
++          <h2 className="text-lg font-bold flex items-center gap-2">
++            <Brain className="h-5 w-5 text-[#7f265b]" />
++            AI 臨床輔助工具
++            {ragStatus !== null && (
++              ragStatus.is_indexed ? (
++                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
++                  <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
++                  知識庫：已索引 {ragStatus.total_documents} 文件 / {ragStatus.total_chunks} 區塊
++                </span>
++              ) : (
++                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
++                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
++                  知識庫：未索引
++                </span>
++              )
++            )}
++          </h2>
++
++          {/* T3: AI 臨床摘要 */}
++          <Card className="border-2 border-[#7f265b]/30">
++            <CardHeader>
++              <CardTitle className="flex items-center gap-2">
++                <FileText className="h-5 w-5 text-[#7f265b]" />
++                AI 臨床摘要
++              </CardTitle>
++              <CardDescription>根據病患完整臨床資料（檢驗、生命徵象、藥物、呼吸器）自動生成摘要</CardDescription>
++            </CardHeader>
++            <CardContent className="space-y-3">
++              <Button
++                onClick={async () => {
++                  setIsGeneratingSummary(true);
++                  try {
++                    const result = await getClinicalSummary(patient.id);
++                    setAiSummary(typeof result.summary === 'string' ? result.summary : JSON.stringify(result.summary));
++                    setSummaryWarnings(result.safetyWarnings || null);
++                  } catch {
++                    toast.error('AI 摘要生成失敗，請稍後再試');
++                  } finally {
++                    setIsGeneratingSummary(false);
++                  }
++                }}
++                className="bg-[#7f265b] hover:bg-[#631e4d]"
++                disabled={isGeneratingSummary}
++              >
++                <Sparkles className="mr-2 h-4 w-4" />
++                {isGeneratingSummary ? '生成中...' : '生成臨床摘要'}
++              </Button>
++              {aiSummary && (
++                <div className="bg-[#f8f9fa] border-2 border-[#7f265b]/30 rounded-lg p-4">
++                  <AiMarkdown content={aiSummary} className="text-sm" />
++                  <SafetyWarnings warnings={summaryWarnings} />
++                  <Button variant="outline" size="sm" className="mt-2" onClick={async () => {
++                    const ok = await copyToClipboard(aiSummary);
++                    ok ? toast.success('已複製') : toast.error('複製失敗');
++                  }}>
++                    <Copy className="mr-1 h-3 w-3" /> 複製
++                  </Button>
++                </div>
++              )}
++            </CardContent>
++          </Card>
++
++          {/* T4: 衛教說明 */}
++          <Card className="border-2 border-blue-200">
++            <CardHeader>
++              <CardTitle className="flex items-center gap-2">
++                <BookOpen className="h-5 w-5 text-blue-600" />
++                衛教說明產生器
++              </CardTitle>
++              <CardDescription>將複雜的臨床資訊轉換為簡單易懂的病患/家屬說明</CardDescription>
++            </CardHeader>
++            <CardContent className="space-y-3">
++              <Textarea
++                placeholder="輸入衛教主題，例如：目前使用的藥物有什麼副作用？呼吸器什麼時候可以拔管？"
++                value={explanationTopic}
++                onChange={(e) => setExplanationTopic(e.target.value)}
++                className="min-h-[80px] border-2 border-blue-200"
++              />
++              {/* P2-4: Reading level selector */}
++              <div className="flex items-center gap-2">
++                <label className="text-sm text-blue-700 whitespace-nowrap">說明程度：</label>
++                <select
++                  value={readingLevel}
++                  onChange={(e) => setReadingLevel(e.target.value as 'simple' | 'moderate' | 'detailed')}
++                  className="border border-blue-200 rounded px-2 py-1 text-sm bg-white"
++                >
++                  <option value="simple">簡單（一般民眾）</option>
++                  <option value="moderate">中等（預設）</option>
++                  <option value="detailed">詳細（有醫學背景）</option>
++                </select>
++              </div>
++              <Button
++                onClick={async () => {
++                  if (!explanationTopic.trim()) return;
++                  setIsGeneratingExplanation(true);
++                  try {
++                    const result = await getPatientExplanation(patient.id, explanationTopic, readingLevel);
++                    setExplanationResult(result.explanation);
++                    setExplanationWarnings(result.safetyWarnings || null);
++                  } catch {
++                    toast.error('衛教說明生成失敗');
++                  } finally {
++                    setIsGeneratingExplanation(false);
++                  }
++                }}
++                className="bg-blue-600 hover:bg-blue-700"
++                disabled={isGeneratingExplanation || !explanationTopic.trim()}
++              >
++                <BookOpen className="mr-2 h-4 w-4" />
++                {isGeneratingExplanation ? '生成中...' : '產生衛教說明'}
++              </Button>
++              {explanationResult && (
++                <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
++                  <AiMarkdown content={explanationResult} className="text-sm" />
++                  <SafetyWarnings warnings={explanationWarnings} />
++                  <Button variant="outline" size="sm" className="mt-2" onClick={async () => {
++                    const ok = await copyToClipboard(explanationResult);
++                    ok ? toast.success('已複製') : toast.error('複製失敗');
++                  }}>
++                    <Copy className="mr-1 h-3 w-3" /> 複製
++                  </Button>
++                </div>
++              )}
++            </CardContent>
++          </Card>
++
++          {/* T5: 指引查詢 */}
++          <Card className="border-2 border-green-200">
++            <CardHeader>
++              <CardTitle className="flex items-center gap-2">
++                <Stethoscope className="h-5 w-5 text-green-600" />
++                臨床指引查詢
++              </CardTitle>
++              <CardDescription>根據病患情境查詢 RAG 知識庫中的臨床指引建議</CardDescription>
++            </CardHeader>
++            <CardContent className="space-y-3">
++              <Textarea
++                placeholder="描述臨床情境，例如：病人持續使用 Midazolam 鎮靜超過 3 天，是否應該更換藥物？"
++                value={guidelineScenario}
++                onChange={(e) => setGuidelineScenario(e.target.value)}
++                className="min-h-[80px] border-2 border-green-200"
++              />
++              <Button
++                onClick={async () => {
++                  if (!guidelineScenario.trim()) return;
++                  setIsQueryingGuideline(true);
++                  try {
++                    const result = await getGuidelineInterpretation({
++                      patientId: patient.id,
++                      scenario: guidelineScenario,
++                    });
++                    setGuidelineResult(result.interpretation);
++                    setGuidelineWarnings(result.safetyWarnings || null);
++                    setGuidelineSources(result.sources || []);
++                  } catch {
++                    toast.error('指引查詢失敗');
++                  } finally {
++                    setIsQueryingGuideline(false);
++                  }
++                }}
++                className="bg-green-600 hover:bg-green-700"
++                disabled={isQueryingGuideline || !guidelineScenario.trim()}
++              >
++                <Stethoscope className="mr-2 h-4 w-4" />
++                {isQueryingGuideline ? '查詢中...' : '查詢指引建議'}
++              </Button>
++              {guidelineResult && (
++                <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
++                  <AiMarkdown content={guidelineResult} className="text-sm" />
++                  <SafetyWarnings warnings={guidelineWarnings} />
++                  {/* P2-2: RAG sources display */}
++                  {guidelineSources.length > 0 ? (
++                    <div className="mt-3 border-t border-green-200 pt-3">
++                      <p className="text-xs font-semibold text-green-700 mb-1">引用來源：</p>
++                      <ul className="space-y-1">
++                        {guidelineSources.map((s, i) => (
++                          <li key={i} className="text-xs text-green-800 flex items-center gap-2">
++                            <span className="bg-green-200 text-green-800 px-1.5 py-0.5 rounded text-[10px] font-mono">
++                              {(s.score * 100).toFixed(0)}%
++                            </span>
++                            <span>{s.doc_id}</span>
++                            <span className="text-green-500">({s.category})</span>
++                          </li>
++                        ))}
++                      </ul>
++                    </div>
++                  ) : (
++                    <div className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
++                      注意：此建議來自 AI 預訓練知識，未引用院內文件庫。請以臨床指引原文為準。
++                    </div>
++                  )}
++                  <Button variant="outline" size="sm" className="mt-2" onClick={async () => {
++                    const ok = await copyToClipboard(guidelineResult);
++                    ok ? toast.success('已複製') : toast.error('複製失敗');
++                  }}>
++                    <Copy className="mr-1 h-3 w-3" /> 複製
++                  </Button>
++                </div>
++              )}
++            </CardContent>
++          </Card>
++
++          {/* T6: 決策支援（醫師/管理員限定） */}
++          {(user?.role === 'doctor' || user?.role === 'admin') && (
++            <Card className="border-2 border-amber-200">
++              <CardHeader>
++                <CardTitle className="flex items-center gap-2">
++                  <Shield className="h-5 w-5 text-amber-600" />
++                  多角色決策支援
++                  <Badge variant="outline" className="text-xs border-amber-400 text-amber-600">醫師專用</Badge>
++                </CardTitle>
++                <CardDescription>整合多科別評估意見，產生統合性臨床建議</CardDescription>
++              </CardHeader>
++              <CardContent className="space-y-3">
++                <Textarea
++                  placeholder="輸入臨床問題，例如：是否應該從 Midazolam 轉換為 Propofol？腎功能持續下降是否需要 CRRT？"
++                  value={decisionQuestion}
++                  onChange={(e) => setDecisionQuestion(e.target.value)}
++                  className="min-h-[80px] border-2 border-amber-200"
++                />
++                {/* P2-3: Collapsible multi-role assessment inputs */}
++                <button
++                  type="button"
++                  onClick={() => setShowAssessments(!showAssessments)}
++                  className="flex items-center gap-1 text-sm text-amber-700 hover:text-amber-900"
++                >
++                  <ChevronDown className={`h-4 w-4 transition-transform ${showAssessments ? 'rotate-180' : ''}`} />
++                  多科別評估意見（選填）
++                </button>
++                {showAssessments && (
++                  <div className="space-y-2 pl-2 border-l-2 border-amber-200">
++                    <div>
++                      <label className="text-xs text-amber-700 font-medium">腎臟科意見（選填）</label>
++                      <Textarea
++                        placeholder="例如：eGFR 持續下降至 28，建議評估 CRRT 時機"
++                        value={nephrologistOpinion}
++                        onChange={(e) => setNephrologistOpinion(e.target.value)}
++                        className="min-h-[50px] border border-amber-200 text-sm"
++                      />
++                    </div>
++                    <div>
++                      <label className="text-xs text-amber-700 font-medium">藥師意見（選填）</label>
++                      <Textarea
++                        placeholder="例如：Meropenem 需根據腎功能調整劑量，建議 0.5g Q8H"
++                        value={pharmacistOpinion}
++                        onChange={(e) => setPharmacistOpinion(e.target.value)}
++                        className="min-h-[50px] border border-amber-200 text-sm"
++                      />
++                    </div>
++                    <div>
++                      <label className="text-xs text-amber-700 font-medium">護理觀點（選填）</label>
++                      <Textarea
++                        placeholder="例如：病人躁動頻繁，RASS -1 到 +2 波動，翻身時 SpO2 會掉到 88%"
++                        value={nursingOpinion}
++                        onChange={(e) => setNursingOpinion(e.target.value)}
++                        className="min-h-[50px] border border-amber-200 text-sm"
++                      />
++                    </div>
++                  </div>
++                )}
++                <Button
++                  onClick={async () => {
++                    if (!decisionQuestion.trim()) return;
++                    setIsGeneratingDecision(true);
++                    try {
++                      const assessments: Array<Record<string, unknown>> = [];
++                      if (nephrologistOpinion.trim()) {
++                        assessments.push({ agent: 'nephrologist', opinion: nephrologistOpinion.trim() });
++                      }
++                      if (pharmacistOpinion.trim()) {
++                        assessments.push({ agent: 'pharmacist', opinion: pharmacistOpinion.trim() });
++                      }
++                      if (nursingOpinion.trim()) {
++                        assessments.push({ agent: 'nurse', opinion: nursingOpinion.trim() });
++                      }
++                      const result = await getDecisionSupport({
++                        patientId: patient.id,
++                        question: decisionQuestion,
++                        assessments: assessments.length > 0 ? assessments : undefined,
++                      });
++                      setDecisionResult(result.recommendation);
++                      setDecisionWarnings(result.safetyWarnings || null);
++                    } catch {
++                      toast.error('決策支援生成失敗');
++                    } finally {
++                      setIsGeneratingDecision(false);
++                    }
++                  }}
++                  className="bg-amber-600 hover:bg-amber-700"
++                  disabled={isGeneratingDecision || !decisionQuestion.trim()}
++                >
++                  <Shield className="mr-2 h-4 w-4" />
++                  {isGeneratingDecision ? '分析中...' : '產生決策建議'}
++                </Button>
++                {decisionResult && (
++                  <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
++                    <AiMarkdown content={decisionResult} className="text-sm" />
++                    <SafetyWarnings warnings={decisionWarnings} />
++                    <Button variant="outline" size="sm" className="mt-2" onClick={async () => {
++                      const ok = await copyToClipboard(decisionResult);
++                      ok ? toast.success('已複製') : toast.error('複製失敗');
++                    }}>
++                      <Copy className="mr-1 h-3 w-3" /> 複製
++                    </Button>
++                  </div>
++                )}
++              </CardContent>
++            </Card>
++          )}
+         </TabsContent>
+       </Tabs>
+ 
+diff --git a/reports/prompt-P04-result.md b/reports/prompt-P04-result.md
+new file mode 100644
+index 0000000..58b4429
+--- /dev/null
++++ b/reports/prompt-P04-result.md
+@@ -0,0 +1,32 @@
++1) Summary
++- 已完成 AI 鏈路驗證並修復 `/ai/chat` silent success 問題，現在降級回覆有結構化欄位。
++- AI fallback 現在可 grep 到統一可觀測標籤（`[INTG][AI][API]`）。
++- P04 Gate 由 INCOMPLETE 轉為 COMPLETE。
++
++2) Findings
++AI Flow Matrix（節錄）
++| Feature | Entry Endpoint | Model/Service | Fallback Path | DB Write | UI Render | Observability |
++|---|---|---|---|---|---|---|
++| AI Chat | `POST /ai/chat` | `call_llm_multi_turn` + RAG | LLM 失敗時降級訊息 + `degradedReason` | `ai_sessions`, `ai_messages`, `audit_logs` | `src/pages/patient-detail.tsx:877-885` | `backend/app/routers/ai_chat.py:238`, `backend/app/routers/ai_chat.py:287` |
++| RAG Query | `POST /api/v1/rag/query` | `evidence_client.query` | fail -> TF-IDF | None | 間接 | `backend/app/routers/ai_chat.py:238` |
++
++Failure Mode 修復
++- FM-001 (High) 修復：
++  - 後端補上 `degraded`, `degradedReason`, `upstreamStatus`（`backend/app/routers/ai_chat.py:355-358`）。
++  - 前端顯示降級提示，不再當作一般成功答案（`src/pages/patient-detail.tsx:877-885`）。
++  - 契約測試補齊（`backend/tests/test_api/test_ai_chat.py:145-160`）。
++
++3) Patch
++- 更新 `backend/app/routers/ai_chat.py`
++- 更新 `src/lib/api/ai.ts`
++- 更新 `src/pages/patient-detail.tsx`
++- 更新 `backend/tests/test_api/test_ai_chat.py`
++
++4) Verification
++- `backend/.venv312/bin/python -m pytest backend/tests/test_api/test_ai_chat.py -q`
++  - 證據：`10 passed`。
++- `rg -n "degradedReason|upstreamStatus|\[INTG\]\[AI\]\[API\]" backend/app/routers/ai_chat.py src/pages/patient-detail.tsx src/lib/api/ai.ts`
++  - 證據：命中 `backend/app/routers/ai_chat.py:238,287,357,358` 與前端映射/渲染行。
++
++5) Gate
++- PROMPT-04 COMPLETE

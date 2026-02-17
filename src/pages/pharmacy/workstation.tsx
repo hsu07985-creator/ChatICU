@@ -1,148 +1,44 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getPatients, Patient as ApiPatient } from '../../lib/api/patients';
 import { useAuth } from '../../lib/auth-context';
+import { getLatestLabData, type LabData as ApiLabData } from '../../lib/api/lab-data';
+import { getLatestVitalSigns, type VitalSigns as ApiVitalSigns } from '../../lib/api/vital-signs';
+import { calculateDose, checkInteractions, type PatientContext } from '../../lib/api/ai';
+import { createAdviceRecord, getDrugInteractions, getIVCompatibility } from '../../lib/api/pharmacy';
+import { getMedications } from '../../lib/api/medications';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Textarea } from '../../components/ui/textarea';
 import { Separator } from '../../components/ui/separator';
 import { ScrollArea } from '../../components/ui/scroll-area';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
-import { Label } from '../../components/ui/label';
+import { AssessmentResultsPanel } from './workstation/assessment-results-panel';
+import { AdviceSubmitDialog } from './workstation/advice-submit-dialog';
+import {
+  adviceCategories,
+  type AssessmentResults,
+  type DosageResult,
+  type DrugInteraction,
+  type ExpandedSections,
+  type ExtendedPatientData,
+  type IVCompatibility,
+} from './workstation/types';
 import {
   Plus,
   X,
-  AlertTriangle,
-  AlertCircle,
   Info,
-  CheckCircle2,
-  XCircle,
   Pill,
-  Droplets,
-  Calculator,
-  Lightbulb,
   User,
-  Activity,
   Zap,
-  FileText,
-  ChevronDown,
-  ChevronUp,
-  Check,
-  Edit3,
-  BarChart3,
-  Send,
-  BookOpen
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
-
-// 藥物交互作用類型
-interface DrugInteraction {
-  id: string;
-  drugA: string;
-  drugB: string;
-  severity: 'high' | 'medium' | 'low';
-  description: string;
-  mechanism: string;
-  clinicalEffect: string;
-  management: string;
-  references?: string;
-}
-
-// 靜脈注射相容性類型
-interface IVCompatibility {
-  id: string;
-  drugA: string;
-  drugB: string;
-  solution: 'NS' | 'D5W' | 'LR' | 'D5NS' | 'multiple';
-  compatible: boolean;
-  timeStability?: string;
-  notes?: string;
-  concentration?: string;
-  references?: string;
-}
-
-// 用藥建議分類介面
-interface AdviceCategory {
-  label: string;
-  codes: { code: string; label: string }[];
-}
-
-// 用藥建議分類（靜態配置）
-const adviceCategories: Record<string, AdviceCategory> = {
-  prescription: {
-    label: '1. 建議處方',
-    codes: [
-      { code: '1-1', label: '建議更適當用藥/配方組成' },
-      { code: '1-2', label: '用藥途徑或劑型問題' },
-      { code: '1-3', label: '用藥期間/數量問題（包含停藥）' },
-      { code: '1-4', label: '用藥劑量/頻次問題' },
-      { code: '1-5', label: '不符健保給付規定' },
-      { code: '1-6', label: '其他' },
-      { code: '1-7', label: '藥品相容性問題' },
-      { code: '1-8', label: '疑似藥品不良反應' },
-      { code: '1-9', label: '藥品交互作用' },
-      { code: '1-10', label: '藥品併用問題' },
-      { code: '1-11', label: '用藥替急問題（包括過敏史）' },
-      { code: '1-12', label: '適應症問題' },
-      { code: '1-13', label: '給藥問題（途徑、輸注方式、濃度或稀釋液）' }
-    ]
-  },
-  proactive: {
-    label: '2. 主動建議',
-    codes: [
-      { code: '2-1', label: '建議靜脈營養配方' },
-      { code: '2-2', label: '建議藥物治療療程' },
-      { code: '2-3', label: '建議用藥/建議增加用藥' },
-      { code: '2-4', label: '藥品不良反應評估' }
-    ]
-  },
-  monitoring: {
-    label: '3. 建議監測',
-    codes: [
-      { code: '3-1', label: '建議藥品濃度監測' },
-      { code: '3-2', label: '建議藥品不良反應監測' },
-      { code: '3-3', label: '建議藥品療效監測' }
-    ]
-  },
-  appropriateness: {
-    label: '4. 用藥適從性',
-    codes: [
-      { code: '4-1', label: '病人用藥適從性問題' },
-      { code: '4-2', label: '藥品辨識/自備藥辨識' },
-      { code: '4-3', label: '藥歷查核與整合' }
-    ]
-  }
-};
-
-// 病患擴展資料（需後端整合）
-interface ExtendedPatientData {
-  weight: number;
-  egfr: number;
-  hepaticFunction: 'normal' | 'mild' | 'moderate' | 'severe';
-}
-
-interface AssessmentResults {
-  interactions: DrugInteraction[];
-  compatibility: IVCompatibility[];
-  dosage: DosageResult[];
-  adviceRecommendations: string[];
-}
-
-interface DosageResult {
-  drugName: string;
-  normalDose: string;
-  adjustedDose: string;
-  renalAdjustment: string;
-  hepaticWarning: string;
-  warnings: string[];
-  references?: string; // 添加參考來源
-}
+import { toast } from 'sonner';
 
 export function PharmacyWorkstationPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   // 病患列表（從 API 載入）
   const [patients, setPatients] = useState<ApiPatient[]>([]);
@@ -171,13 +67,46 @@ export function PharmacyWorkstationPage() {
   // 病患選擇
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const selectedPatient = selectedPatientId
-    ? patients.find(p => p.id === selectedPatientId)
+    ? (patients.find(p => p.id === selectedPatientId) ?? null)
     : null;
-  // TODO: 擴展資料應從後端 API 取得（目前使用預設值）
+  const [hepaticFunction, setHepaticFunction] = useState<ExtendedPatientData['hepaticFunction']>('normal');
+  const [latestLab, setLatestLab] = useState<ApiLabData | null>(null);
+  const [latestVital, setLatestVital] = useState<ApiVitalSigns | null>(null);
+
+  // 當選擇病患時載入最新檢驗/生命徵象，提供 eGFR/血壓等臨床參數
+  useEffect(() => {
+    let cancelled = false;
+    const loadContext = async () => {
+      if (!selectedPatientId) {
+        setLatestLab(null);
+        setLatestVital(null);
+        return;
+      }
+      try {
+        const lab = await getLatestLabData(selectedPatientId);
+        if (!cancelled) setLatestLab((lab as ApiLabData) || null);
+      } catch {
+        if (!cancelled) setLatestLab(null);
+      }
+      try {
+        const vital = await getLatestVitalSigns(selectedPatientId);
+        if (!cancelled) setLatestVital((vital as ApiVitalSigns) || null);
+      } catch {
+        if (!cancelled) setLatestVital(null);
+      }
+    };
+    loadContext();
+    return () => { cancelled = true; };
+  }, [selectedPatientId]);
+
   const extendedData: ExtendedPatientData | null = selectedPatient ? {
-    weight: 70,
-    egfr: 60,
-    hepaticFunction: 'normal' as const
+    weight: selectedPatient.weight ?? null,
+    egfr: latestLab?.biochemistry?.eGFR?.value ?? null,
+    hepaticFunction,
+    sbp: latestVital?.bloodPressure?.systolic ?? null,
+    hr: latestVital?.heartRate ?? null,
+    rr: latestVital?.respiratoryRate ?? null,
+    k: latestLab?.biochemistry?.K?.value ?? null,
   } : null;
 
   // 藥品列表
@@ -189,7 +118,7 @@ export function PharmacyWorkstationPage() {
   const [isAssessing, setIsAssessing] = useState(false);
 
   // 展開狀態
-  const [expandedSections, setExpandedSections] = useState({
+  const [expandedSections, setExpandedSections] = useState<ExpandedSections>({
     interactions: true,
     compatibility: true,
     dosage: true,
@@ -206,14 +135,31 @@ export function PharmacyWorkstationPage() {
 
   // 當選擇病患時，自動載入病患用藥
   useEffect(() => {
-    if (selectedPatient) {
-      const sedation = selectedPatient.sanSummary?.sedation || [];
-      const analgesia = selectedPatient.sanSummary?.analgesia || [];
-      const nmb = selectedPatient.sanSummary?.nmb || [];
-      const patientMeds = [...sedation, ...analgesia, ...nmb].filter(Boolean);
-      setDrugList(patientMeds);
-      setAssessmentResults(null);
-    }
+    let cancelled = false;
+    const loadActiveMeds = async () => {
+      if (!selectedPatient) return;
+      try {
+        const resp = await getMedications(selectedPatient.id, { status: 'active', limit: 200 });
+        const names = (resp.medications || []).map(m => m.name).filter(Boolean);
+        const unique = Array.from(new Set(names));
+        if (!cancelled) setDrugList(unique);
+      } catch (err) {
+        console.error('載入病患用藥醫囑失敗，改用摘要 SAN 清單:', err);
+        const sedation = selectedPatient.sedation || selectedPatient.sanSummary?.sedation || [];
+        const analgesia = selectedPatient.analgesia || selectedPatient.sanSummary?.analgesia || [];
+        const nmb = selectedPatient.nmb || selectedPatient.sanSummary?.nmb || [];
+        const patientMeds = [...sedation, ...analgesia, ...nmb].filter(Boolean);
+        if (!cancelled) setDrugList(patientMeds);
+        toast.message('無法載入用藥醫囑，已改用病患摘要用藥清單');
+      } finally {
+        if (!cancelled) {
+          setAssessmentResults(null);
+          setHepaticFunction('normal');
+        }
+      }
+    };
+    loadActiveMeds();
+    return () => { cancelled = true; };
   }, [selectedPatient]);
 
   // 新增藥品
@@ -231,8 +177,7 @@ export function PharmacyWorkstationPage() {
     setAssessmentResults(null); // 重置評估結果
   };
 
-  // 全面評估（需後端 API 支援藥物交互作用與相容性查詢）
-  const handleComprehensiveAssessment = () => {
+  const handleComprehensiveAssessment = async () => {
     if (drugList.length === 0) {
       toast.error('請至少新增一個藥品');
       return;
@@ -244,55 +189,199 @@ export function PharmacyWorkstationPage() {
     }
 
     setIsAssessing(true);
+    try {
+      const uniqueDrugs = Array.from(new Set(drugList.map(d => d.trim()).filter(Boolean)));
+      const mapSeverity = (s?: string): 'high' | 'medium' | 'low' => {
+        if (!s) return 'low';
+        const v = s.toLowerCase();
+        if (v === 'contraindicated' || v === 'major' || v === 'high') return 'high';
+        if (v === 'moderate' || v === 'medium') return 'medium';
+        return 'low';
+      };
 
-    // TODO: 替換為後端 API 呼叫 (POST /pharmacy/assessment)
-    // 目前交互作用與相容性查詢尚未整合後端，僅產生劑量建議框架
-    setTimeout(() => {
-      // 交互作用 & 相容性：需後端整合
-      const interactions: DrugInteraction[] = [];
-      const compatibility: IVCompatibility[] = [];
+      const hepaticMap: Record<ExtendedPatientData['hepaticFunction'], string | undefined> = {
+        normal: undefined,
+        mild: 'child_pugh_a',
+        moderate: 'child_pugh_b',
+        severe: 'child_pugh_c',
+      };
 
-      // 劑量建議框架
-      const dosage: DosageResult[] = drugList.map(drug => ({
-        drugName: drug,
-        normalDose: '待後端查詢',
-        adjustedDose: extendedData!.egfr < 60 ? '需依腎功能調整' : '待後端查詢',
-        renalAdjustment: extendedData!.egfr < 60
-          ? `腎功能 eGFR ${extendedData!.egfr} ml/min: 建議劑量減半，延長給藥間隔`
-          : `腎功能正常 (eGFR ${extendedData!.egfr} ml/min)，無需調整`,
-        hepaticWarning: extendedData!.hepaticFunction !== 'normal'
-          ? '肝功能異常，建議謹慎使用並監測肝功能指標'
-          : '肝功能正常，無需特殊調整',
-        warnings: extendedData!.egfr < 60
-          ? ['注意監測腎功能變化', '避免與其他腎毒性藥物併用', '定期監測血中濃度']
-          : [],
-        references: '待後端整合參考文獻'
-      }));
+      const patientContext: PatientContext = {
+        age_years: selectedPatient.age,
+        weight_kg: extendedData?.weight ?? undefined,
+        sex: selectedPatient.gender === '男' ? 'male' : 'female',
+        crcl_ml_min: extendedData?.egfr ?? undefined,
+        hepatic_class: hepaticMap[extendedData?.hepaticFunction || 'normal'],
+        sbp_mmHg: extendedData?.sbp ?? undefined,
+        hr_bpm: extendedData?.hr ?? undefined,
+        rr_bpm: extendedData?.rr ?? undefined,
+        k_mmol_l: extendedData?.k ?? undefined,
+      };
 
-      // 用藥建議
-      const adviceRecommendations: string[] = [];
-      adviceRecommendations.push('藥物交互作用與相容性查詢功能待後端整合');
-      if (extendedData!.egfr < 60) {
-        adviceRecommendations.push('病患腎功能異常，建議調整經腎臟代謝藥物劑量');
+      // 1) Interactions (func deterministic engine first; fallback to DB index)
+      let interactions: DrugInteraction[] = [];
+      try {
+        const res = await checkInteractions(
+          { drugList: uniqueDrugs, patientContext },
+          { suppressErrorToast: true },
+        );
+        interactions = (res.findings || [])
+          .map((f, idx) => ({
+            id: `int_${idx}`,
+            drugA: f.drugA || f.drug_a || '',
+            drugB: f.drugB || f.drug_b || '',
+            severity: mapSeverity(f.severity),
+            description: f.clinical_effect || f.mechanism || '',
+            mechanism: f.mechanism || '',
+            clinicalEffect: f.clinical_effect || '',
+            management: f.recommended_action || '',
+            references: f.dose_adjustment_hint || (Array.isArray(f.monitoring) ? f.monitoring.join('、') : ''),
+          }))
+          .filter(x => x.drugA && x.drugB);
+      } catch (err) {
+        console.warn('Evidence 交互作用引擎不可用，改用本地資料庫查詢', err);
+        try {
+          const drugSet = new Set(uniqueDrugs.map(d => d.toLowerCase()));
+          const respList = await Promise.all(
+            uniqueDrugs.map((d) => getDrugInteractions({ drugA: d }))
+          );
+          const all = respList.flatMap((resp) => resp.interactions || []);
+          const byId = new Map<string, typeof all[number]>();
+          for (const it of all) {
+            const id = String(it.id || '');
+            if (!id) continue;
+            if (!byId.has(id)) byId.set(id, it);
+          }
+          interactions = Array.from(byId.values())
+            .filter((it) => {
+              const a = String(it.drug1).toLowerCase();
+              const b = String(it.drug2).toLowerCase();
+              return drugSet.has(a) && drugSet.has(b);
+            })
+            .map((it) => ({
+              id: it.id,
+              drugA: it.drug1,
+              drugB: it.drug2,
+              severity: mapSeverity(it.severity),
+              description: it.clinicalEffect || '',
+              mechanism: it.mechanism || '',
+              clinicalEffect: it.clinicalEffect || '',
+              management: it.management || '',
+              references: it.references || '',
+            }));
+        } catch (fallbackErr) {
+          console.error('本地交互作用資料庫查詢失敗:', fallbackErr);
+        }
       }
-      if (extendedData!.hepaticFunction !== 'normal') {
-        adviceRecommendations.push('病患肝功能異常，建議調整經肝臟代謝藥物劑量');
+
+      // 2) IV Compatibility (DB)
+      const compatibility: IVCompatibility[] = [];
+      const pairs: Array<[string, string]> = [];
+      for (let i = 0; i < uniqueDrugs.length; i++) {
+        for (let j = i + 1; j < uniqueDrugs.length; j++) {
+          pairs.push([uniqueDrugs[i], uniqueDrugs[j]]);
+        }
+      }
+      // Avoid excessive requests for very long lists.
+      const limitedPairs = pairs.slice(0, 20);
+      for (const [a, b] of limitedPairs) {
+        try {
+          const resp = await getIVCompatibility({ drugA: a, drugB: b });
+          const rows = resp.compatibilities || [];
+          for (const row of rows) {
+            compatibility.push({
+              id: row.id || '',
+              drugA: row.drug1 || a,
+              drugB: row.drug2 || b,
+              solution: (row.solution as IVCompatibility['solution']) || 'multiple',
+              compatible: Boolean(row.compatible),
+              timeStability: row.timeStability || undefined,
+              notes: row.notes || undefined,
+              references: row.references || undefined,
+            });
+          }
+        } catch (err) {
+          console.warn('相容性查詢失敗:', err);
+        }
+      }
+
+      // 3) Dose suggestions (func deterministic engine via backend proxy)
+      const dosage: DosageResult[] = await Promise.all(
+        uniqueDrugs.map(async (drug) => {
+          try {
+            const res = await calculateDose({ drug, patientContext }, { suppressErrorToast: true });
+            const cv = res.computed_values as Record<string, unknown>;
+            const inputDose = cv?.input_dose;
+            const finalRate = cv?.final_rate;
+            const fmt = (v: unknown) => v && typeof v === 'object' && v !== null && 'value' in v && 'unit' in v
+              ? `${(v as Record<string, unknown>).value} ${(v as Record<string, unknown>).unit}`
+              : '';
+            const normalDose = fmt(inputDose) || (res.status === 'ok' ? '—' : '無法計算');
+            const adjustedDose = fmt(finalRate) || (res.status === 'ok' ? '—' : '無法計算');
+            return {
+              drugName: drug,
+              normalDose,
+              adjustedDose,
+              renalAdjustment: (res.calculation_steps || []).slice(0, 4).join('；') || (res.message || ''),
+              hepaticWarning: extendedData?.hepaticFunction && extendedData.hepaticFunction !== 'normal'
+                ? '已套用肝功能調整（如適用）'
+                : '',
+              warnings: res.safety_warnings || [],
+              references: (res.citations || []).length ? '包含規則引用（詳見劑量頁）' : undefined,
+            };
+          } catch (err) {
+            const msg = '劑量引擎不可用（請啟動 func/ 服務）';
+            return {
+              drugName: drug,
+              normalDose: '—',
+              adjustedDose: msg,
+              renalAdjustment: msg,
+              hepaticWarning: '',
+              warnings: [],
+            };
+          }
+        })
+      );
+
+      // 4) Recommendations (rule-based hints; not LLM-generated)
+      const adviceRecommendations: string[] = [];
+      if (interactions.length > 0) {
+        const high = interactions.filter(i => i.severity === 'high').length;
+        adviceRecommendations.push(
+          high > 0
+            ? `發現 ${high} 項高風險交互作用，建議優先處理並加強監測。`
+            : `發現 ${interactions.length} 項交互作用，建議依嚴重度調整處置與監測。`
+        );
+      }
+      const incompatible = compatibility.filter(c => !c.compatible).length;
+      if (incompatible > 0) {
+        adviceRecommendations.push(`發現 ${incompatible} 組不相容組合，建議分管路或避免同路輸注。`);
+      }
+      if (typeof extendedData?.egfr === 'number' && extendedData.egfr < 60) {
+        adviceRecommendations.push(`腎功能 eGFR ${extendedData.egfr}，建議檢視需腎調整藥物與監測。`);
+      }
+      if (extendedData?.hepaticFunction && extendedData.hepaticFunction !== 'normal') {
+        adviceRecommendations.push('肝功能異常，建議檢視需肝代謝調整藥物並監測肝功能。');
+      }
+      if (dosage.some(d => d.renalAdjustment.includes('func/'))) {
+        adviceRecommendations.push('劑量計算需啟動 func/ Evidence 引擎服務（仍可先完成交互作用/相容性檢核）。');
       }
 
       setAssessmentResults({
         interactions,
         compatibility,
         dosage,
-        adviceRecommendations
+        adviceRecommendations,
       });
 
+      toast.success('評估完成');
+    } finally {
       setIsAssessing(false);
-      toast.success('評估完成（部分功能待後端整合）');
-    }, 1000);
+    }
   };
 
   // 切換展開狀態
-  const toggleSection = (section: keyof typeof expandedSections) => {
+  const toggleSection = (section: keyof ExpandedSections) => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]
@@ -330,9 +419,9 @@ export function PharmacyWorkstationPage() {
       });
     }
 
-    if (extendedData!.egfr < 60) {
+    if (typeof extendedData?.egfr === 'number' && extendedData.egfr < 60) {
       report += `【劑量調整建議】\n`;
-      report += `腎功能 eGFR ${extendedData!.egfr} ml/min，建議調整劑量\n\n`;
+      report += `腎功能 eGFR ${extendedData.egfr} ml/min，建議調整劑量\n\n`;
     }
 
     report += `【綜合建議】\n`;
@@ -356,7 +445,15 @@ export function PharmacyWorkstationPage() {
   };
 
   // 確認送出用藥建議
-  const handleConfirmSubmit = () => {
+  const handleConfirmSubmit = async () => {
+    if (!selectedPatient) {
+      toast.error('請先選擇病患');
+      return;
+    }
+    if (!adviceContent.trim()) {
+      toast.error('請先產生或輸入用藥建議內容');
+      return;
+    }
     if (!selectedAdviceCode || !selectedCategory) {
       toast.error('請選擇用藥建議分類');
       return;
@@ -365,37 +462,34 @@ export function PharmacyWorkstationPage() {
     // 取得分類資訊
     const categoryInfo = adviceCategories[selectedCategory as keyof typeof adviceCategories];
     const codeInfo = categoryInfo.codes.find(c => c.code === selectedAdviceCode);
+    if (!codeInfo) {
+      toast.error('建議代碼無效，請重新選擇');
+      return;
+    }
 
-    // TODO: 呼叫後端 API 儲存用藥建議 (POST /pharmacy/advice)
-    // 目前僅顯示成功訊息，實際儲存待後端整合
-    toast.success(`用藥建議已送出（分類：${codeInfo!.label}）`);
-    setAdviceContent('');
-    setShowSubmitDialog(false);
-    setSelectedCategory('');
-    setSelectedAdviceCode('');
+    try {
+      await createAdviceRecord({
+        patientId: selectedPatient.id,
+        adviceCode: selectedAdviceCode,
+        adviceLabel: codeInfo.label,
+        category: categoryInfo.label,
+        content: adviceContent.trim(),
+        linkedMedications: drugList,
+      });
+      toast.success(`用藥建議已送出並同步至留言板（分類：${codeInfo.label}）`);
+      setAdviceContent('');
+      setShowSubmitDialog(false);
+      setSelectedCategory('');
+      setSelectedAdviceCode('');
+    } catch (err) {
+      console.error('送出用藥建議失敗:', err);
+      toast.error('送出失敗，請稍後再試');
+    }
   };
 
   // 跳轉到用藥建議與統計頁面
   const handleGoToStatistics = () => {
-    window.location.href = '/pharmacy/advice-statistics';
-  };
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-300';
-      case 'medium': return 'bg-orange-100 text-orange-800 border-orange-300';
-      case 'low': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
-    }
-  };
-
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case 'high': return <AlertTriangle className="h-4 w-4" />;
-      case 'medium': return <AlertCircle className="h-4 w-4" />;
-      case 'low': return <Info className="h-4 w-4" />;
-      default: return null;
-    }
+    navigate('/pharmacy/advice-statistics');
   };
 
   return (
@@ -452,13 +546,29 @@ export function PharmacyWorkstationPage() {
                     </div>
                     <div>
                       <p className="text-muted-foreground text-xs">年齡/體重</p>
-                      <p className="font-semibold">{selectedPatient.age}歲 / {extendedData.weight}kg</p>
+                      <p className="font-semibold">
+                        {selectedPatient.age}歲 / {typeof extendedData.weight === 'number' ? `${extendedData.weight}kg` : 'N/A'}
+                      </p>
                     </div>
                     <div>
                       <p className="text-muted-foreground text-xs">腎功能</p>
-                      <p className={`font-semibold ${extendedData.egfr < 60 ? 'text-[#f59e0b]' : ''}`}>
-                        eGFR {extendedData.egfr}
+                      <p className={`font-semibold ${typeof extendedData.egfr === 'number' && extendedData.egfr < 60 ? 'text-[#f59e0b]' : ''}`}>
+                        eGFR {typeof extendedData.egfr === 'number' ? extendedData.egfr : 'N/A'}
                       </p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-muted-foreground text-xs mb-1">肝功能（Child-Pugh）</p>
+                      <Select value={hepaticFunction} onValueChange={(v) => setHepaticFunction(v as ExtendedPatientData['hepaticFunction'])}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="選擇肝功能..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="normal">正常</SelectItem>
+                          <SelectItem value="mild">A（輕度）</SelectItem>
+                          <SelectItem value="moderate">B（中度）</SelectItem>
+                          <SelectItem value="severe">C（重度）</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="col-span-2">
                       <p className="text-muted-foreground text-xs">診斷</p>
@@ -562,438 +672,38 @@ export function PharmacyWorkstationPage() {
           )}
         </div>
 
-        {/* 右側：評估結果 (60%) */}
-        <div className="lg:col-span-3 space-y-4">
-          {!selectedPatient && (
-            <Card>
-              <CardContent className="py-16">
-                <div className="text-center space-y-3">
-                  <User className="h-12 w-12 mx-auto text-muted-foreground" />
-                  <div>
-                    <h3 className="font-semibold text-lg">請先選擇病患</h3>
-                    <p className="text-muted-foreground text-sm">選擇病患後即可管理用藥並執行評估</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {selectedPatient && !assessmentResults && (
-            <Card>
-              <CardContent className="py-16">
-                <div className="text-center space-y-3">
-                  <Activity className="h-12 w-12 mx-auto text-muted-foreground" />
-                  <div>
-                    <h3 className="font-semibold text-lg">準備執行評估</h3>
-                    <p className="text-muted-foreground text-sm">
-                      目前已載入 {drugList.length} 項藥品，點擊「執行全面評估」開始分析
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {selectedPatient && assessmentResults && (
-            <>
-              {/* 1. 藥物交互作用 */}
-              <Card className={assessmentResults.interactions.length > 0 ? 'border-l-4 border-l-[#f59e0b]' : 'border-l-4 border-l-[#7f265b]'}>
-                <CardHeader 
-                  className="cursor-pointer bg-[#f8f9fa] py-3"
-                  onClick={() => toggleSection('interactions')}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className={`h-5 w-5 ${assessmentResults.interactions.length > 0 ? 'text-[#f59e0b]' : 'text-[#7f265b]'}`} />
-                      <CardTitle className="text-base">藥物交互作用</CardTitle>
-                      {assessmentResults.interactions.length > 0 ? (
-                        <Badge variant="secondary" className="bg-[#f59e0b] text-white">
-                          {assessmentResults.interactions.length} 項
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-xs">
-                          無異常
-                        </Badge>
-                      )}
-                    </div>
-                    {expandedSections.interactions ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </div>
-                </CardHeader>
-                {expandedSections.interactions && (
-                  <CardContent className="space-y-2.5 pt-3">
-                    {assessmentResults.interactions.length === 0 ? (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                        <CheckCircle2 className="h-4 w-4" />
-                        <span>未發現藥物交互作用</span>
-                      </div>
-                    ) : (
-                      assessmentResults.interactions.map((interaction, idx) => (
-                        <div key={idx} className="border rounded-lg p-3 space-y-2 bg-[#f8f9fa]">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-2">
-                              {getSeverityIcon(interaction.severity)}
-                              <p className="font-semibold text-sm">
-                                {interaction.drugA} + {interaction.drugB}
-                              </p>
-                            </div>
-                            <Badge variant="outline" className="text-xs">
-                              {interaction.severity === 'high' ? '高風險' : interaction.severity === 'medium' ? '中風險' : '低風險'}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{interaction.description}</p>
-                          <Separator />
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-1">機轉說明</p>
-                            <p className="text-sm">{interaction.mechanism}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-1">臨床影響</p>
-                            <p className="text-sm">{interaction.clinicalEffect}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-1">處理建議</p>
-                            <p className="text-sm">{interaction.management}</p>
-                          </div>
-                          {interaction.references && (
-                            <>
-                              <Separator />
-                              <div className="bg-white rounded p-2 border border-[#e5e7eb]">
-                                <div className="flex items-center gap-1 mb-1">
-                                  <BookOpen className="h-3 w-3 text-[#7f265b]" />
-                                  <p className="text-xs font-medium text-[#7f265b]">參考依據</p>
-                                </div>
-                                <p className="text-xs text-muted-foreground">{interaction.references}</p>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </CardContent>
-                )}
-              </Card>
-
-              {/* 2. 相容性檢核 */}
-              <Card className={assessmentResults.compatibility.some(c => !c.compatible) ? 'border-l-4 border-l-[#f59e0b]' : 'border-l-4 border-l-[#7f265b]'}>
-                <CardHeader 
-                  className="cursor-pointer bg-[#f8f9fa] py-3"
-                  onClick={() => toggleSection('compatibility')}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Droplets className={`h-5 w-5 ${assessmentResults.compatibility.some(c => !c.compatible) ? 'text-[#f59e0b]' : 'text-[#7f265b]'}`} />
-                      <CardTitle className="text-base">靜脈注射相容性</CardTitle>
-                      {assessmentResults.compatibility.length > 0 ? (
-                        <Badge variant="secondary" className="text-xs">
-                          {assessmentResults.compatibility.length} 組
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-xs">
-                          無資料
-                        </Badge>
-                      )}
-                    </div>
-                    {expandedSections.compatibility ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </div>
-                </CardHeader>
-                {expandedSections.compatibility && (
-                  <CardContent className="space-y-2.5 pt-3">
-                    {assessmentResults.compatibility.length === 0 ? (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                        <CheckCircle2 className="h-4 w-4" />
-                        <span>無相容性資料或所有組合皆相容</span>
-                      </div>
-                    ) : (
-                      assessmentResults.compatibility.map((comp, idx) => (
-                        <div key={idx} className="border rounded-lg p-3 space-y-2 bg-[#f8f9fa]">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {comp.compatible ? (
-                                <CheckCircle2 className="h-4 w-4 text-[#7f265b]" />
-                              ) : (
-                                <XCircle className="h-4 w-4 text-[#f59e0b]" />
-                              )}
-                              <p className="font-semibold text-sm">
-                                {comp.drugA} + {comp.drugB}
-                              </p>
-                            </div>
-                            <Badge className={comp.compatible ? 'bg-[#7f265b]' : 'bg-[#f59e0b]'}>
-                              {comp.compatible ? '相容' : '不相容'}
-                            </Badge>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div>
-                              <span className="text-muted-foreground">溶劑：</span>
-                              <span className="font-medium">{comp.solution}</span>
-                            </div>
-                            {comp.timeStability && (
-                              <div>
-                                <span className="text-muted-foreground">穩定時間：</span>
-                                <span className="font-medium">{comp.timeStability}</span>
-                              </div>
-                            )}
-                          </div>
-                          {comp.concentration && (
-                            <div className="text-xs">
-                              <span className="text-muted-foreground">濃度：</span>
-                              <span>{comp.concentration}</span>
-                            </div>
-                          )}
-                          {comp.notes && (
-                            <div>
-                              <p className="text-xs font-medium text-muted-foreground">注意事項</p>
-                              <p className="text-sm">{comp.notes}</p>
-                            </div>
-                          )}
-                          {comp.references && (
-                            <>
-                              <Separator />
-                              <div className="bg-white rounded p-2 border border-[#e5e7eb]">
-                                <div className="flex items-center gap-1 mb-1">
-                                  <BookOpen className="h-3 w-3 text-[#7f265b]" />
-                                  <p className="text-xs font-medium text-[#7f265b]">參考依據</p>
-                                </div>
-                                <p className="text-xs text-muted-foreground">{comp.references}</p>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </CardContent>
-                )}
-              </Card>
-
-              {/* 3. 劑量建議 */}
-              <Card className="border-l-4 border-l-[#7f265b]">
-                <CardHeader 
-                  className="cursor-pointer bg-[#f8f9fa] py-3"
-                  onClick={() => toggleSection('dosage')}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Calculator className="h-5 w-5 text-[#7f265b]" />
-                      <CardTitle className="text-base">劑量調整建議</CardTitle>
-                      <Badge variant="secondary" className="text-xs">
-                        {assessmentResults.dosage.length} 項
-                      </Badge>
-                    </div>
-                    {expandedSections.dosage ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </div>
-                </CardHeader>
-                {expandedSections.dosage && (
-                  <CardContent className="space-y-2.5 pt-3">
-                    {assessmentResults.dosage.map((dose, idx) => (
-                      <div key={idx} className="border rounded-lg p-3 space-y-2 bg-[#f8f9fa]">
-                        <div className="flex items-center justify-between">
-                          <p className="font-semibold text-sm">{dose.drugName}</p>
-                          {extendedData!.egfr < 60 && (
-                            <Badge variant="outline" className="text-xs border-[#f59e0b] text-[#f59e0b]">
-                              需調整
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 text-xs">
-                          <div>
-                            <p className="text-muted-foreground">標準劑量</p>
-                            <p className="font-medium">{dose.normalDose}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">建議劑量</p>
-                            <p className="font-medium text-[#7f265b]">{dose.adjustedDose}</p>
-                          </div>
-                        </div>
-                        <Separator />
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-1">腎功能調整</p>
-                          <p className="text-sm">{dose.renalAdjustment}</p>
-                        </div>
-                        {dose.hepaticWarning && (
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-1">肝功能評估</p>
-                            <p className="text-sm">{dose.hepaticWarning}</p>
-                          </div>
-                        )}
-                        {dose.warnings && dose.warnings.length > 0 && (
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-1">注意事項</p>
-                            <ul className="list-disc list-inside space-y-0.5 text-xs">
-                              {dose.warnings.map((warning, wIdx) => (
-                                <li key={wIdx}>{warning}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        {dose.references && (
-                          <>
-                            <Separator />
-                            <div className="bg-white rounded p-2 border border-[#e5e7eb]">
-                              <div className="flex items-center gap-1 mb-1">
-                                <BookOpen className="h-3 w-3 text-[#7f265b]" />
-                                <p className="text-xs font-medium text-[#7f265b]">參考依據</p>
-                              </div>
-                              <p className="text-xs text-muted-foreground">{dose.references}</p>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ))}
-                  </CardContent>
-                )}
-              </Card>
-
-              {/* 4. 用藥建議產生 */}
-              <Card className="border-l-4 border-l-[#7f265b]">
-                <CardHeader className="bg-[#f8f9fa] py-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Lightbulb className="h-5 w-5 text-[#7f265b]" />
-                      <CardTitle className="text-base">用藥建議</CardTitle>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        onClick={handleGoToStatistics}
-                        variant="outline"
-                        size="sm"
-                        className="h-8 text-xs"
-                      >
-                        <BarChart3 className="mr-1 h-3 w-3" />
-                        統計
-                      </Button>
-                      <Button 
-                        onClick={handleGenerateAdvice}
-                        variant="outline"
-                        size="sm"
-                        className="h-8 text-xs"
-                      >
-                        <FileText className="mr-1 h-3 w-3" />
-                        產生報告
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3 pt-3">
-                  {assessmentResults.adviceRecommendations.length > 0 && (
-                    <div className="border rounded-lg p-3 bg-[#f8f9fa]">
-                      <p className="font-semibold text-sm mb-2 flex items-center gap-1">
-                        <Lightbulb className="h-4 w-4 text-[#7f265b]" />
-                        重點提示
-                      </p>
-                      <ul className="list-disc list-inside space-y-1 text-xs text-muted-foreground">
-                        {assessmentResults.adviceRecommendations.map((rec, idx) => (
-                          <li key={idx}>{rec}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <Textarea
-                      value={adviceContent}
-                      onChange={(e) => setAdviceContent(e.target.value)}
-                      placeholder="點擊「產生報告」自動產生完整建議，或手動輸入..."
-                      className="min-h-[180px]"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button 
-                      onClick={handleSaveAdvice}
-                      disabled={!adviceContent.trim()}
-                      className="bg-[#7f265b] hover:bg-[#631e4d]"
-                    >
-                      <Check className="mr-1 h-4 w-4" />
-                      接受並送出
-                    </Button>
-                    <Button 
-                      onClick={() => {
-                        // 允許修正
-                        toast.info('您可以直接在上方編輯建議內容');
-                      }}
-                      disabled={!adviceContent.trim()}
-                      variant="outline"
-                    >
-                      <Edit3 className="mr-1 h-4 w-4" />
-                      修正內容
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </>
-          )}
-        </div>
+        <AssessmentResultsPanel
+          selectedPatient={selectedPatient}
+          assessmentResults={assessmentResults}
+          drugList={drugList}
+          expandedSections={expandedSections}
+          toggleSection={toggleSection}
+          extendedData={extendedData}
+          adviceContent={adviceContent}
+          onAdviceContentChange={setAdviceContent}
+          onGoToStatistics={handleGoToStatistics}
+          onGenerateAdvice={handleGenerateAdvice}
+          onSaveAdvice={handleSaveAdvice}
+        />
       </div>
 
-      {/* 用藥建議送出對話框 */}
-      <Dialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>選擇用藥建議分類</DialogTitle>
-            <DialogDescription>
-              先選擇大類別，再選擇具體項目
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {/* 第一層：選擇大類別 */}
-            <div className="space-y-2">
-              <Label>步驟 1：選擇大類別</Label>
-              <Select value={selectedCategory} onValueChange={(value) => {
-                setSelectedCategory(value);
-                setSelectedAdviceCode(''); // 清空細項選擇
-              }}>
-                <SelectTrigger>
-                  <SelectValue placeholder="請選擇大類別..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(adviceCategories).map(([key, category]) => (
-                    <SelectItem key={key} value={key}>
-                      {category.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* 第二層：選擇細項 */}
-            {selectedCategory && (
-              <div className="space-y-2">
-                <Label>步驟 2：選擇具體分類</Label>
-                <Select value={selectedAdviceCode} onValueChange={setSelectedAdviceCode}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="請選擇具體分類..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {adviceCategories[selectedCategory as keyof typeof adviceCategories].codes.map((item) => (
-                      <SelectItem key={item.code} value={item.code}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button 
-              onClick={handleConfirmSubmit}
-              disabled={!selectedAdviceCode}
-              className="bg-[#7f265b] hover:bg-[#631e4d]"
-            >
-              確認送出
-            </Button>
-            <Button 
-              onClick={() => {
-                setShowSubmitDialog(false);
-                setSelectedCategory('');
-                setSelectedAdviceCode('');
-              }}
-              variant="outline"
-            >
-              取消
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AdviceSubmitDialog
+        open={showSubmitDialog}
+        onOpenChange={setShowSubmitDialog}
+        selectedCategory={selectedCategory}
+        selectedAdviceCode={selectedAdviceCode}
+        onCategoryChange={(value) => {
+          setSelectedCategory(value);
+          setSelectedAdviceCode('');
+        }}
+        onAdviceCodeChange={setSelectedAdviceCode}
+        onConfirm={handleConfirmSubmit}
+        onCancel={() => {
+          setShowSubmitDialog(false);
+          setSelectedCategory('');
+          setSelectedAdviceCode('');
+        }}
+      />
     </div>
   );
 }

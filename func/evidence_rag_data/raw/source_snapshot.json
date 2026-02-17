@@ -1,0 +1,233 @@
+{
+  "source_dir": "/Users/chun/Desktop/RAG-Anything-main/rag 文本",
+  "recursive": true,
+  "file_count": 45,
+  "fingerprint": "2ee070228543e80a1fb4020c0b3b1d7b1252a0e2",
+  "files": [
+    {
+      "path": "0_guideline/2018 PADIS guideline.pdf",
+      "size": 477754,
+      "mtime_ns": 1731419370000000000
+    },
+    {
+      "path": "0_guideline/2025 A Focused Update to the Clinical Practice Guidelines for the Prevention and Management of Pain, Anxiety, Agitation (Sedation), Delirium, Immobility, and Sleep Disruption in Adult Patients in the ICU.pdf",
+      "size": 657965,
+      "mtime_ns": 1741194128000000000
+    },
+    {
+      "path": "0_guideline/PAD使用 (1140131).pdf",
+      "size": 1302350,
+      "mtime_ns": 1738424964000000000
+    },
+    {
+      "path": "0_guideline/PAD使用 (1140308).pdf",
+      "size": 1792836,
+      "mtime_ns": 1741896708000000000
+    },
+    {
+      "path": "1_analgesic/Behavioral pain scale - UpToDate 1140131.pdf",
+      "size": 98846,
+      "mtime_ns": 1738411464000000000
+    },
+    {
+      "path": "1_analgesic/Clinical features of opioid withdrawal - UpToDate 1140131.pdf",
+      "size": 91825,
+      "mtime_ns": 1738279934000000000
+    },
+    {
+      "path": "1_analgesic/Critical care pain observation tool - UpToDate 1140131.pdf",
+      "size": 112142,
+      "mtime_ns": 1738418196000000000
+    },
+    {
+      "path": "1_analgesic/Fentanyl_ Drug information - UpToDate 1140131.pdf",
+      "size": 1290104,
+      "mtime_ns": 1738420682000000000
+    },
+    {
+      "path": "1_analgesic/Fentanyl仿單 1140131.pdf",
+      "size": 1244085,
+      "mtime_ns": 1738419178000000000
+    },
+    {
+      "path": "1_analgesic/Morphine_ Drug information - UpToDate 1140131.pdf",
+      "size": 1153593,
+      "mtime_ns": 1738420906000000000
+    },
+    {
+      "path": "1_analgesic/Numeric pain scale - UpToDate 1140131.pdf",
+      "size": 80017,
+      "mtime_ns": 1738281548000000000
+    },
+    {
+      "path": "1_analgesic/Pain control in the critically ill adult patient - UpToDate 1140131.pdf",
+      "size": 1110653,
+      "mtime_ns": 1738418976000000000
+    },
+    {
+      "path": "1_analgesic/Taiwan PAD (pain) 1140131.pdf",
+      "size": 1991492,
+      "mtime_ns": 1738418458000000000
+    },
+    {
+      "path": "1_analgesic/morphine仿單 1140131.pdf",
+      "size": 754198,
+      "mtime_ns": 1738420198000000000
+    },
+    {
+      "path": "2_sedation/Anxicam仿單 1140201.pdf",
+      "size": 736589,
+      "mtime_ns": 1738421690000000000
+    },
+    {
+      "path": "2_sedation/Dexmedetomidine_ Drug information - UpToDate 1140201.pdf",
+      "size": 683618,
+      "mtime_ns": 1738417108000000000
+    },
+    {
+      "path": "2_sedation/Dormicum仿單.docx",
+      "size": 372700,
+      "mtime_ns": 1738421660000000000
+    },
+    {
+      "path": "2_sedation/Fresofol仿單 1140201.pdf",
+      "size": 673977,
+      "mtime_ns": 1738416858000000000
+    },
+    {
+      "path": "2_sedation/Lorazepam_ Drug information - UpToDate 1140201.pdf",
+      "size": 926330,
+      "mtime_ns": 1738417186000000000
+    },
+    {
+      "path": "2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+      "size": 899005,
+      "mtime_ns": 1738413204000000000
+    },
+    {
+      "path": "2_sedation/Precedex仿單 1140201.pdf",
+      "size": 2106664,
+      "mtime_ns": 1738416172000000000
+    },
+    {
+      "path": "2_sedation/Propofol_ Drug information - UpToDate 1140201.pdf",
+      "size": 857628,
+      "mtime_ns": 1738417524000000000
+    },
+    {
+      "path": "2_sedation/Sedative-analgesia in ventilated adults_ Management strategies, agent selection, monitoring, and withdrawal - UpToDate 1140201.pdf",
+      "size": 907407,
+      "mtime_ns": 1738414848000000000
+    },
+    {
+      "path": "2_sedation/Sedative-analgesia in ventilated adults_ Medication properties, dose regimens, and adverse effects - UpToDate 1140201.pdf",
+      "size": 717076,
+      "mtime_ns": 1738415278000000000
+    },
+    {
+      "path": "2_sedation/Taiwan PAD (sedation) 1140201.pdf",
+      "size": 621603,
+      "mtime_ns": 1738413376000000000
+    },
+    {
+      "path": "3_NM blocker/Cisatracurium_ Drug information - UpToDate 1140131.pdf",
+      "size": 456783,
+      "mtime_ns": 1738422120000000000
+    },
+    {
+      "path": "3_NM blocker/Neuromuscular blocking agents in critically ill patients_ Use, agent selection, administration, and adverse effects - UpToDate 1140131.pdf",
+      "size": 493336,
+      "mtime_ns": 1738421466000000000
+    },
+    {
+      "path": "3_NM blocker/Nimbex仿單 1140202.pdf",
+      "size": 1577729,
+      "mtime_ns": 1738421762000000000
+    },
+    {
+      "path": "3_NM blocker/Rocuronium Kabi仿單 1140202.pdf",
+      "size": 605653,
+      "mtime_ns": 1738423672000000000
+    },
+    {
+      "path": "3_NM blocker/Rocuronium_ Drug information - UpToDate 1140202.pdf",
+      "size": 484673,
+      "mtime_ns": 1738424142000000000
+    },
+    {
+      "path": "4_others/加護病房Y+site+compatibility資料整理 1140131.xlsx",
+      "size": 1682249,
+      "mtime_ns": 1765677452000000000
+    },
+    {
+      "path": "4_others/完整給付規定1140131_removed 1140131.pdf",
+      "size": 431057,
+      "mtime_ns": 1738278576000000000
+    },
+    {
+      "path": "5_delirium/Causes of delirium and confusion - UpToDate 1140308.pdf",
+      "size": 101361,
+      "mtime_ns": 1741464960000000000
+    },
+    {
+      "path": "5_delirium/Confusion assessment method - UpToDate 1140308.pdf",
+      "size": 101275,
+      "mtime_ns": 1741896562000000000
+    },
+    {
+      "path": "5_delirium/Delirium and acute confusional states_ Prevention, treatment, and prognosis - UpToDate 1140308.pdf",
+      "size": 529562,
+      "mtime_ns": 1741364424000000000
+    },
+    {
+      "path": "5_delirium/Diagnosis of delirium and confusional states - UpToDate 1140308.pdf",
+      "size": 493193,
+      "mtime_ns": 1741359390000000000
+    },
+    {
+      "path": "5_delirium/Drugs that cause or prolong delirium or confusional states - UpToDate 1140308.pdf",
+      "size": 120743,
+      "mtime_ns": 1741465026000000000
+    },
+    {
+      "path": "5_delirium/Haloperidol_ Drug information - UpToDate 1140309.pdf",
+      "size": 1108078,
+      "mtime_ns": 1741443126000000000
+    },
+    {
+      "path": "5_delirium/Olanzapine_ Drug information - UpToDate 1140309.pdf",
+      "size": 1408801,
+      "mtime_ns": 1741460428000000000
+    },
+    {
+      "path": "5_delirium/Quetiapine_ Drug information - UpToDate 1140309.pdf",
+      "size": 1351683,
+      "mtime_ns": 1741450452000000000
+    },
+    {
+      "path": "5_delirium/Ziprasidone_ Drug information - UpToDate 1140309.pdf",
+      "size": 1075615,
+      "mtime_ns": 1741445864000000000
+    },
+    {
+      "path": "5_delirium/仿單Binin-U inj 1140309.pdf",
+      "size": 858867,
+      "mtime_ns": 1741443692000000000
+    },
+    {
+      "path": "5_delirium/仿單Geodon 1140310.pdf",
+      "size": 712795,
+      "mtime_ns": 1741540998000000000
+    },
+    {
+      "path": "5_delirium/仿單Seroquel 1140309.pdf",
+      "size": 880167,
+      "mtime_ns": 1741541184000000000
+    },
+    {
+      "path": "5_delirium/仿單Zyprexa 1140309.pdf",
+      "size": 468640,
+      "mtime_ns": 1741464902000000000
+    }
+  ]
+}

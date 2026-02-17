@@ -37,9 +37,9 @@ from app.utils.security import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# ── Account Lockout Constants ─────────────────────────────────────────
-MAX_LOGIN_ATTEMPTS = 5
-LOCKOUT_SECONDS = 900  # 15 minutes
+# ── Account Lockout (configurable via env: F10) ──────────────────────
+MAX_LOGIN_ATTEMPTS = settings.MAX_LOGIN_ATTEMPTS
+LOCKOUT_SECONDS = settings.LOCKOUT_SECONDS
 
 ROLE_PERMISSIONS = {
     "nurse": ["view_patients", "chat_ai", "edit_nursing_records", "view_medications", "team_chat"],
@@ -79,12 +79,16 @@ async def login(
         if attempts >= MAX_LOGIN_ATTEMPTS:
             await redis_client.setex(lockout_key, LOCKOUT_SECONDS, "1")
 
-        await create_audit_log(
-            db, user_id=body.username, user_name=body.username,
-            role="unknown", action="用戶登入", target="系統",
-            status="failed", ip=request.client.host if request.client else None,
-            details={"reason": "Invalid credentials", "attempt": attempts},
-        )
+        # Only write DB audit when user exists to avoid FK violations on unknown username.
+        if user:
+            await create_audit_log(
+                db, user_id=user.id, user_name=user.name,
+                role=user.role, action="用戶登入", target="系統",
+                status="failed", ip=request.client.host if request.client else None,
+                details={"reason": "Invalid credentials", "attempt": attempts},
+            )
+        else:
+            logger.warning("[INTG][API][AUTH] Login failed for unknown username=%s", body.username)
         remaining = MAX_LOGIN_ATTEMPTS - attempts
         detail = "帳號或密碼錯誤"
         if 0 < remaining <= 2:
@@ -316,9 +320,9 @@ async def change_password(
     return success_response(message="密碼已變更，請重新登入")
 
 
-# ── Password Reset (T08) ────────────────────────────────────────────
+# ── Password Reset (T08) — configurable via env (F16) ────────────────
 
-RESET_TOKEN_EXPIRE_MINUTES = 30
+RESET_TOKEN_EXPIRE_MINUTES = settings.RESET_TOKEN_EXPIRE_MINUTES
 
 
 @router.post("/reset-password-request")

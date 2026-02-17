@@ -1,0 +1,12 @@
+{
+  "updated_at": "2026-02-15T10:15:49.807086+00:00",
+  "embedding_signature": "hashing:1024",
+  "embedding_dim": 1024,
+  "chunk_count": 2112,
+  "vector_stats": {
+    "strategy": "full_reembed",
+    "reused": 0,
+    "embedded": 2112,
+    "reason": "no_reusable_index_or_signature_changed"
+  }
+}

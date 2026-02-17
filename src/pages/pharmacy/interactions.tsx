@@ -7,9 +7,11 @@ import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Separator } from '../../components/ui/separator';
 import { toast } from 'sonner';
-import apiClient from '../../lib/api-client';
+import { checkInteractions, type InteractionCheckResponse } from '../../lib/api/ai';
+import { getDrugInteractions } from '../../lib/api/pharmacy';
+import { copyToClipboard } from '../../lib/clipboard-utils';
 
-interface DrugInteraction {
+interface DisplayInteraction {
   id: string;
   drug1: string;
   drug2: string;
@@ -20,50 +22,94 @@ interface DrugInteraction {
   references: string;
 }
 
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
-}
-
-interface InteractionsResponse {
-  interactions: DrugInteraction[];
-  total: number;
-}
-
 export function DrugInteractionsPage() {
   const [drugA, setDrugA] = useState('');
   const [drugB, setDrugB] = useState('');
-  const [searchResults, setSearchResults] = useState<DrugInteraction[]>([]);
+  const [searchResults, setSearchResults] = useState<DisplayInteraction[]>([]);
+  const [overallSeverity, setOverallSeverity] = useState<string>('');
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSearch = async () => {
-    if (!drugA.trim() && !drugB.trim()) {
-      setSearchResults([]);
-      setHasSearched(false);
+    const drugs = [drugA.trim(), drugB.trim()].filter(Boolean);
+    if (drugs.length < 2) {
+      toast.error('請至少輸入兩種藥品名稱');
       return;
     }
 
     setLoading(true);
     setHasSearched(true);
     try {
-      const params: Record<string, string> = {};
-      if (drugA.trim()) params.drugA = drugA.trim();
-      if (drugB.trim()) params.drugB = drugB.trim();
-
-      const response = await apiClient.get<ApiResponse<InteractionsResponse>>(
-        '/pharmacy/drug-interactions',
-        { params }
-      );
-      setSearchResults(response.data.data?.interactions || []);
+      const result: InteractionCheckResponse = await checkInteractions({ drugList: drugs }, { suppressErrorToast: true });
+      setOverallSeverity(result.overall_severity || 'none');
+      const mapped: DisplayInteraction[] = (result.findings || []).map((f, idx) => ({
+        id: `int-${idx}`,
+        drug1: f.drugA || f.drug_a || drugs[0],
+        drug2: f.drugB || f.drug_b || drugs[1],
+        severity: mapSeverity(f.severity),
+        mechanism: f.mechanism || '',
+        clinicalEffect: f.clinical_effect || '',
+        management: f.recommended_action || '',
+        references: f.dose_adjustment_hint || '',
+      }));
+      setSearchResults(mapped);
     } catch (err) {
       console.error('查詢交互作用失敗:', err);
-      toast.error('查詢失敗，請確認後端服務是否正常運行');
-      setSearchResults([]);
+      // Fallback: use DB-backed interactions when Evidence engine (func/) isn't running.
+      try {
+        const resp = await getDrugInteractions({ drugA: drugs[0], drugB: drugs[1] });
+        const rows = resp.interactions || [];
+        const mapped: DisplayInteraction[] = rows.map((r, idx) => ({
+          id: r.id || `db-int-${idx}`,
+          drug1: r.drug1 || drugs[0],
+          drug2: r.drug2 || drugs[1],
+          severity: mapSeverity(r.severity || ''),
+          mechanism: r.mechanism || '',
+          clinicalEffect: r.clinicalEffect || '',
+          management: r.management || '',
+          references: r.references || '',
+        }));
+
+        if (mapped.length) {
+          const rank: Record<string, number> = { low: 1, medium: 2, high: 3 };
+          const max = mapped.reduce((acc, it) => (rank[it.severity] > rank[acc] ? it.severity : acc), 'low');
+          setOverallSeverity(max);
+        } else {
+          setOverallSeverity('none');
+        }
+        setSearchResults(mapped);
+        toast.message('已改用本地資料庫查詢（Evidence 引擎未啟動）');
+      } catch (fallbackErr) {
+        console.error('DB fallback 查詢交互作用失敗:', fallbackErr);
+        toast.error('查詢失敗，請確認後端服務是否正常運行');
+        setSearchResults([]);
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleViewReference = async (ref: string) => {
+    const trimmed = String(ref || '').trim();
+    if (!trimmed) {
+      toast.message('此筆資料未提供文獻來源');
+      return;
+    }
+    if (/^https?:\/\//i.test(trimmed)) {
+      window.open(trimmed, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    const ok = await copyToClipboard(trimmed);
+    if (ok) toast.success('已複製文獻來源到剪貼簿');
+    else toast.message(`資料來源：${trimmed}`);
+  };
+
+  const mapSeverity = (s?: string): string => {
+    if (!s) return 'low';
+    const lower = s.toLowerCase();
+    if (lower === 'contraindicated' || lower === 'major') return 'high';
+    if (lower === 'moderate') return 'medium';
+    return 'low';
   };
 
   const getSeverityBadge = (severity: string) => {
@@ -90,12 +136,12 @@ export function DrugInteractionsPage() {
       <Card>
         <CardHeader>
           <CardTitle>藥品選擇</CardTitle>
-          <CardDescription>輸入藥品名稱（支援中英文與商品名）</CardDescription>
+          <CardDescription>輸入至少兩種藥品名稱查詢交互作用</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">藥品 A</label>
+              <label className="text-sm font-medium">藥品 A *</label>
               <Input
                 placeholder="例：Propofol"
                 value={drugA}
@@ -104,7 +150,7 @@ export function DrugInteractionsPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">藥品 B（可選）</label>
+              <label className="text-sm font-medium">藥品 B *</label>
               <Input
                 placeholder="例：Fentanyl"
                 value={drugB}
@@ -123,9 +169,17 @@ export function DrugInteractionsPage() {
               )}
               查詢
             </Button>
-            <Button variant="outline">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDrugA('');
+                setDrugB('');
+                setSearchResults([]);
+                setHasSearched(false);
+              }}
+            >
               <Plus className="mr-2 h-4 w-4" />
-              新增藥品
+              清除
             </Button>
           </div>
         </CardContent>
@@ -138,7 +192,9 @@ export function DrugInteractionsPage() {
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                未找到相關的藥物交互作用資料。請確認藥品名稱是否正確，或嘗試其他關鍵字。
+                {overallSeverity === 'none'
+                  ? '未發現藥物交互作用。'
+                  : '未找到相關的藥物交互作用資料。請確認藥品名稱是否正確。'}
               </AlertDescription>
             </Alert>
           ) : (
@@ -146,7 +202,7 @@ export function DrugInteractionsPage() {
               <div className="flex items-center justify-between">
                 <h2>查詢結果</h2>
                 <span className="text-sm text-muted-foreground">
-                  找到 {searchResults.length} 筆交互作用
+                  找到 {searchResults.length} 筆交互作用 · 總體嚴重度：{overallSeverity}
                 </span>
               </div>
 
@@ -161,39 +217,51 @@ export function DrugInteractionsPage() {
                           </CardTitle>
                           <div className="flex items-center gap-2">
                             {getSeverityBadge(interaction.severity)}
-                            <Badge variant="outline">{interaction.mechanism}</Badge>
+                            {interaction.mechanism && (
+                              <Badge variant="outline">{interaction.mechanism}</Badge>
+                            )}
                           </div>
                         </div>
-                        <Button variant="ghost" size="icon">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="查看文獻來源"
+                          onClick={() => handleViewReference(interaction.references)}
+                        >
                           <BookOpen className="h-4 w-4" />
                         </Button>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <div>
-                        <h4 className="font-medium mb-2">交互作用說明</h4>
-                        <p className="text-sm">{interaction.clinicalEffect}</p>
-                      </div>
-
-                      <Separator />
-
-                      <div>
-                        <h4 className="font-medium mb-2">處理建議</h4>
-                        <Alert>
-                          <AlertDescription>{interaction.management}</AlertDescription>
-                        </Alert>
-                      </div>
-
-                      <Separator />
-
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-muted-foreground">資料來源：</span>
-                          <span className="font-medium">{interaction.references}</span>
+                      {interaction.clinicalEffect && (
+                        <div>
+                          <h4 className="font-medium mb-2">交互作用說明</h4>
+                          <p className="text-sm">{interaction.clinicalEffect}</p>
                         </div>
-                        <Button variant="link" size="sm">查看完整文獻 →</Button>
-                      </div>
+                      )}
+
+                      {interaction.management && (
+                        <>
+                          <Separator />
+                          <div>
+                            <h4 className="font-medium mb-2">處理建議</h4>
+                            <Alert>
+                              <AlertDescription>{interaction.management}</AlertDescription>
+                            </Alert>
+                          </div>
+                        </>
+                      )}
+
+                      {interaction.references && (
+                        <>
+                          <Separator />
+                          <div className="flex items-center gap-2 text-sm">
+                            <BookOpen className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-muted-foreground">劑量調整提示：</span>
+                            <span className="font-medium">{interaction.references}</span>
+                          </div>
+                        </>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -217,11 +285,11 @@ export function DrugInteractionsPage() {
             <CardTitle className="text-base">使用說明</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <p>• 輸入至少一種藥品名稱進行查詢</p>
+            <p>• 輸入至少兩種藥品名稱進行交互作用查詢</p>
             <p>• 支援中英文藥品名稱與常見商品名</p>
-            <p>• 可同時輸入兩種藥品進行精確查詢</p>
             <p>• 查詢結果包含交互作用類型、嚴重程度與處理建議</p>
-            <p>• 所有資料來源均註明出處，可追溯查證</p>
+            <p>• 嚴重度分級：contraindicated {'>'} major {'>'} moderate {'>'} minor</p>
+            <p>• 所有結果基於臨床規則引擎，僅供參考</p>
           </CardContent>
         </Card>
       )}

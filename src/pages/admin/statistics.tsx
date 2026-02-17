@@ -1,443 +1,275 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, FileText, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Badge } from '../../components/ui/badge';
-import { toast } from 'sonner';
-import apiClient from '../../lib/api-client';
+import { LoadingSpinner, ErrorDisplay, EmptyState } from '../../components/ui/state-display';
+import { BarChart3, TrendingUp, Tag, User as UserIcon } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { getAdviceRecordStats, type AdviceRecordStats } from '../../lib/api/pharmacy';
+import { PHARMACY_ADVICE_CATEGORIES, PHARMACY_ADVICE_CATEGORY_COLORS } from '../../lib/pharmacy-master-data';
 
-type MedicationAdviceCode = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W';
-
-const ADVICE_TYPE_MAP: Record<MedicationAdviceCode, { name: string; category: string; code: string }> = {
-  A: { name: 'A.建議新增藥品', category: '1.建議處方', code: 'A' },
-  B: { name: 'B.建議停用藥品', category: '1.建議處方', code: 'B' },
-  C: { name: 'C.建議修改劑量', category: '1.建議處方', code: 'C' },
-  D: { name: 'D.建議修改途徑', category: '1.建議處方', code: 'D' },
-  E: { name: 'E.建議修改頻率', category: '1.建議處方', code: 'E' },
-  F: { name: 'F.建議修改劑型', category: '1.建議處方', code: 'F' },
-  G: { name: 'G.建議藥品替換', category: '1.建議處方', code: 'G' },
-  H: { name: 'H.藥品交互作用處理', category: '1.建議處方', code: 'H' },
-  I: { name: 'I.重複用藥處理', category: '1.建議處方', code: 'I' },
-  J: { name: 'J.禁忌症用藥處理', category: '1.建議處方', code: 'J' },
-  K: { name: 'K.過敏史用藥處理', category: '1.建議處方', code: 'K' },
-  L: { name: 'L.特殊族群用藥調整', category: '1.建議處方', code: 'L' },
-  M: { name: 'M.其他處方建議', category: '1.建議處方', code: 'M' },
-  N: { name: 'N.營養支持建議', category: '2.主動建議', code: 'N' },
-  O: { name: 'O.感染管理建議', category: '2.主動建議', code: 'O' },
-  P: { name: 'P.疼痛管理建議', category: '2.主動建議', code: 'P' },
-  Q: { name: 'Q.其他主動建議', category: '2.主動建議', code: 'Q' },
-  R: { name: 'R.藥物血中濃度監測', category: '3.建議監測', code: 'R' },
-  S: { name: 'S.肝腎功能監測', category: '3.建議監測', code: 'S' },
-  T: { name: 'T.其他監測建議', category: '3.建議監測', code: 'T' },
-  U: { name: 'U.入院用藥整合', category: '4.用藥連貫性', code: 'U' },
-  V: { name: 'V.轉科用藥銜接', category: '4.用藥連貫性', code: 'V' },
-  W: { name: 'W.出院用藥衛教', category: '4.用藥連貫性', code: 'W' },
-};
-
-// 四大類別的顏色配置
-const CATEGORY_COLORS: Record<string, string> = {
-  '1.建議處方': '#7f265b',
-  '2.主動建議': '#f59e0b',
-  '3.建議監測': '#1a1a1a',
-  '4.用藥連貫性': '#3b82f6'
-};
-
-interface AdviceStatisticsData {
-  totalReports: number;
-  resolvedRate: number;
-  severityCounts: {
-    low: number;
-    moderate: number;
-    high: number;
-  };
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
-}
-
-export function StatisticsPage() {
+export function AdminStatisticsPage() {
+  const currentDate = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState<AdviceStatisticsData | null>(null);
+  const [stats, setStats] = useState<AdviceRecordStats | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
-    setError(null);
+  const monthOptions = useMemo(() => {
+    const options: Array<{ value: string; label: string }> = [];
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const label = `${date.getFullYear()} 年 ${date.getMonth() + 1} 月`;
+      options.push({ value, label });
+    }
+    return options;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadStats = useCallback(async () => {
     try {
-      const response = await apiClient.get<ApiResponse<AdviceStatisticsData>>('/pharmacy/advice-statistics');
-      setStats(response.data.data || null);
+      setLoading(true);
+      setError(null);
+      const resp = await getAdviceRecordStats({ month: selectedMonth });
+      setStats(resp);
     } catch (err) {
       console.error('載入統計資料失敗:', err);
-      setError('無法連線至伺服器，請確認後端服務是否正常運行');
-      toast.error('載入統計資料失敗');
+      setError('無法載入統計資料，請確認後端服務是否正常運行');
+      setStats(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedMonth]);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadStats();
+  }, [loadStats]);
 
-  // 嚴重程度分佈圖表資料
-  const severityChartData = stats ? [
-    { name: '輕微 (Low)', count: stats.severityCounts.low, color: '#22c55e' },
-    { name: '中度 (Moderate)', count: stats.severityCounts.moderate, color: '#f59e0b' },
-    { name: '嚴重 (High)', count: stats.severityCounts.high, color: '#ef4444' },
-  ] : [];
-
-  // A-W 分類代碼參考資料（目前 API 未提供每個代碼的統計，顯示為 0）
-  const getCategoryCodeData = (category: string, codes: string[]) => {
-    return codes.map(code => {
-      const info = ADVICE_TYPE_MAP[code as MedicationAdviceCode];
-      return {
-        code,
-        name: info.name,
-        category: info.category,
-        count: 0,
-        color: CATEGORY_COLORS[category]
-      };
+  const categoryCountMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    (stats?.byCategory || []).forEach((it) => {
+      map[it.category] = it.count;
     });
-  };
+    return map;
+  }, [stats?.byCategory]);
 
-  // 自訂 Tooltip
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white p-3 rounded-lg shadow-lg border border-[#e5e7eb]">
-          <p className="text-sm font-bold text-[#1a1a1a] mb-1">{data.name}</p>
-          {data.category && <p className="text-xs text-muted-foreground mb-1">{data.category}</p>}
-          <p className="text-sm font-bold" style={{ color: data.color }}>{data.count} 筆</p>
-        </div>
-      );
-    }
-    return null;
-  };
+  const categoryChartData = useMemo(() => {
+    return Object.values(PHARMACY_ADVICE_CATEGORIES).map((cat) => ({
+      category: cat.label,
+      count: categoryCountMap[cat.label] || 0,
+      color: PHARMACY_ADVICE_CATEGORY_COLORS[cat.label] || '#999',
+    }));
+  }, [categoryCountMap]);
+
+  const topCodes = useMemo(() => {
+    const rows = [...(stats?.byCode || [])];
+    rows.sort((a, b) => b.count - a.count);
+    return rows.slice(0, 10).map((r) => ({
+      name: `${r.code} ${r.label}`,
+      count: r.count,
+      color: PHARMACY_ADVICE_CATEGORY_COLORS[r.category] || '#999',
+    }));
+  }, [stats?.byCode]);
+
+  const topPharmacists = useMemo(() => {
+    return (stats?.byPharmacist || []).slice(0, 10);
+  }, [stats?.byPharmacist]);
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-[#7f265b]" />
-          <p className="text-muted-foreground">載入統計資料中...</p>
-        </div>
+      <div className="p-6">
+        <h1 className="text-3xl font-bold text-[#3c7acb] mb-6">藥事統計（管理者）</h1>
+        <LoadingSpinner text="載入統計資料中..." />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-6 flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-400" />
-          <p className="text-red-600 font-medium">{error}</p>
-          <button onClick={loadData} className="mt-4 text-sm text-[#7f265b] hover:underline">
-            重新載入
-          </button>
+      <div className="p-6">
+        <h1 className="text-3xl font-bold text-[#3c7acb] mb-6">藥事統計（管理者）</h1>
+        <ErrorDisplay
+          type="server"
+          title="載入失敗"
+          message={error}
+          onRetry={loadStats}
+        />
+      </div>
+    );
+  }
+
+  if (!stats || stats.total === 0) {
+    return (
+      <div className="p-6 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-[#3c7acb]">藥事統計（管理者）</h1>
+          <p className="text-muted-foreground mt-1">用藥建議介入紀錄與統計（依月份）</p>
         </div>
+
+        <Card>
+          <CardContent className="pt-4">
+            <label className="text-sm font-medium mb-2 block">選擇月份</label>
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger>
+                <SelectValue placeholder="選擇月份" />
+              </SelectTrigger>
+              <SelectContent>
+                {monthOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+
+        <EmptyState
+          icon={BarChart3}
+          title="本月尚無用藥建議介入記錄"
+          description="當藥師送出用藥建議並完成分類後，這裡會自動彙總統計。"
+        />
       </div>
     );
   }
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-[#7f265b]">用藥建議統計分析</h1>
-        <p className="text-muted-foreground mt-1">臨床藥事照護介入分類統計（A-W 共 23 項）</p>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-[#3c7acb]">藥事統計（管理者）</h1>
+          <p className="text-muted-foreground mt-1">用藥建議介入紀錄與統計（依月份）</p>
+        </div>
+        <div className="w-full max-w-[260px]">
+          <label className="text-sm font-medium mb-2 block">選擇月份</label>
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger>
+              <SelectValue placeholder="選擇月份" />
+            </SelectTrigger>
+            <SelectContent>
+              {monthOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* 統計摘要卡片 */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="border-l-4 border-l-[#7f265b]">
+      {/* Summary cards */}
+      <div className="grid gap-4 md:grid-cols-5">
+        <Card className="border-2 border-[#7f265b]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">總回報數</CardTitle>
+            <CardTitle className="text-sm font-medium">總介入數</CardTitle>
             <TrendingUp className="h-5 w-5 text-[#7f265b]" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-[#7f265b]">
-              {stats?.totalReports ?? 0}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">累計回報</p>
+            <div className="text-3xl font-bold text-[#7f265b]">{stats.total}</div>
+            <p className="text-xs text-muted-foreground mt-1">本月累計</p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-[#22c55e]">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">解決率</CardTitle>
-            <CheckCircle2 className="h-5 w-5 text-[#22c55e]" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-[#22c55e]">
-              {stats?.resolvedRate !== undefined ? `${(stats.resolvedRate * 100).toFixed(1)}%` : '-'}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">已解決比例</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-[#f59e0b]">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">中度事件</CardTitle>
-            <AlertCircle className="h-5 w-5 text-[#f59e0b]" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-[#f59e0b]">
-              {stats?.severityCounts?.moderate ?? 0}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">中度嚴重程度</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-[#ef4444]">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">嚴重事件</CardTitle>
-            <AlertCircle className="h-5 w-5 text-[#ef4444]" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-[#ef4444]">
-              {stats?.severityCounts?.high ?? 0}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">高嚴重程度</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 嚴重程度分佈圖表 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>嚴重程度分佈</CardTitle>
-          <CardDescription>各嚴重程度回報數量</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {severityChartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={severityChartData} margin={{ top: 5, right: 50, left: 10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="name" stroke="#6b7280" tick={{ fontSize: 12 }} />
-                <YAxis stroke="#6b7280" />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar
-                  dataKey="count"
-                  radius={[4, 4, 0, 0]}
-                  name="回報數量"
-                  label={{ position: 'top', fontSize: 12 }}
-                  fill="#7f265b"
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-              <p>尚無統計資料</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 圖表區域 - 分類別顯示（代碼參考） */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* 1. 建議處方 (A-M) */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded" style={{ backgroundColor: CATEGORY_COLORS['1.建議處方'] }}></div>
-              1. 建議處方
-            </CardTitle>
-            <CardDescription>A-M 項目（待後端提供詳細分類統計）</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {(() => {
-              const completeData = getCategoryCodeData('1.建議處方', ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']);
-              return (
-                <ResponsiveContainer width="100%" height={Math.max(500, completeData.length * 35)}>
-                  <BarChart
-                    data={completeData}
-                    layout="horizontal"
-                    margin={{ top: 5, right: 50, left: 10, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis type="number" stroke="#6b7280" />
-                    <YAxis
-                      dataKey="name"
-                      type="category"
-                      width={280}
-                      stroke="#6b7280"
-                      tick={{ fontSize: 11 }}
-                      interval={0}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar
-                      dataKey="count"
-                      fill={CATEGORY_COLORS['1.建議處方']}
-                      radius={[0, 4, 4, 0]}
-                      name="建議數量"
-                      label={{ position: 'right', fontSize: 11 }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              );
-            })()}
-          </CardContent>
-        </Card>
-
-        {/* 2. 主動建議 (N-Q) */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded" style={{ backgroundColor: CATEGORY_COLORS['2.主動建議'] }}></div>
-              2. 主動建議
-            </CardTitle>
-            <CardDescription>N-Q 項目（待後端提供詳細分類統計）</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {(() => {
-              const completeData = getCategoryCodeData('2.主動建議', ['N', 'O', 'P', 'Q']);
-              return (
-                <ResponsiveContainer width="100%" height={Math.max(220, completeData.length * 45)}>
-                  <BarChart
-                    data={completeData}
-                    layout="horizontal"
-                    margin={{ top: 5, right: 50, left: 10, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis type="number" stroke="#6b7280" />
-                    <YAxis
-                      dataKey="name"
-                      type="category"
-                      width={180}
-                      stroke="#6b7280"
-                      tick={{ fontSize: 11 }}
-                      interval={0}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar
-                      dataKey="count"
-                      fill={CATEGORY_COLORS['2.主動建議']}
-                      radius={[0, 4, 4, 0]}
-                      name="建議數量"
-                      label={{ position: 'right', fontSize: 11 }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              );
-            })()}
-          </CardContent>
-        </Card>
-
-        {/* 3. 建議監測 (R-T) */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded" style={{ backgroundColor: CATEGORY_COLORS['3.建議監測'] }}></div>
-              3. 建議監測
-            </CardTitle>
-            <CardDescription>R-T 項目（待後端提供詳細分類統計）</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {(() => {
-              const completeData = getCategoryCodeData('3.建議監測', ['R', 'S', 'T']);
-              return (
-                <ResponsiveContainer width="100%" height={Math.max(200, completeData.length * 55)}>
-                  <BarChart
-                    data={completeData}
-                    layout="horizontal"
-                    margin={{ top: 5, right: 50, left: 10, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis type="number" stroke="#6b7280" />
-                    <YAxis
-                      dataKey="name"
-                      type="category"
-                      width={180}
-                      stroke="#6b7280"
-                      tick={{ fontSize: 11 }}
-                      interval={0}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar
-                      dataKey="count"
-                      fill={CATEGORY_COLORS['3.建議監測']}
-                      radius={[0, 4, 4, 0]}
-                      name="建議數量"
-                      label={{ position: 'right', fontSize: 11 }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              );
-            })()}
-          </CardContent>
-        </Card>
-
-        {/* 4. 用藥連貫性 (U-W) */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded" style={{ backgroundColor: CATEGORY_COLORS['4.用藥連貫性'] }}></div>
-              4. 用藥連貫性
-            </CardTitle>
-            <CardDescription>U-W 項目（待後端提供詳細分類統計）</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {(() => {
-              const completeData = getCategoryCodeData('4.用藥連貫性', ['U', 'V', 'W']);
-              return (
-                <ResponsiveContainer width="100%" height={Math.max(200, completeData.length * 55)}>
-                  <BarChart
-                    data={completeData}
-                    layout="horizontal"
-                    margin={{ top: 5, right: 50, left: 10, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis type="number" stroke="#6b7280" />
-                    <YAxis
-                      dataKey="name"
-                      type="category"
-                      width={180}
-                      stroke="#6b7280"
-                      tick={{ fontSize: 11 }}
-                      interval={0}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar
-                      dataKey="count"
-                      fill={CATEGORY_COLORS['4.用藥連貫性']}
-                      radius={[0, 4, 4, 0]}
-                      name="建議數量"
-                      label={{ position: 'right', fontSize: 11 }}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              );
-            })()}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 建議代碼參考 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>建議代碼參考</CardTitle>
-          <CardDescription>臨床藥事照護介入分類（A-W 共 23 項）</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-            {(Object.entries(ADVICE_TYPE_MAP) as [MedicationAdviceCode, { name: string; category: string; code: string }][]).map(([code, info]) => (
-              <div key={code} className="flex items-center gap-2 p-2 border rounded-lg">
-                <Badge
-                  className="text-white text-xs"
-                  style={{ backgroundColor: CATEGORY_COLORS[info.category] }}
-                >
-                  {code}
-                </Badge>
-                <span className="text-sm">{info.name}</span>
+        {Object.values(PHARMACY_ADVICE_CATEGORIES).map((cat) => (
+          <Card key={cat.key} className="border-l-4" style={{ borderLeftColor: PHARMACY_ADVICE_CATEGORY_COLORS[cat.label] || '#999' }}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{cat.label}</CardTitle>
+              <Badge variant="outline" className="text-xs">
+                {(cat.codes || []).length} 細項
+              </Badge>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold" style={{ color: PHARMACY_ADVICE_CATEGORY_COLORS[cat.label] || '#111' }}>
+                {categoryCountMap[cat.label] || 0}
               </div>
-            ))}
-          </div>
+              <p className="text-xs text-muted-foreground mt-1">本月累計</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Category chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-[#7f265b]" />
+            類別分佈
+          </CardTitle>
+          <CardDescription>四大類介入數量</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={categoryChartData} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="category" tick={{ fontSize: 12 }} angle={-10} textAnchor="end" interval={0} height={60} />
+              <YAxis tick={{ fontSize: 12 }} />
+              <Tooltip />
+              <Bar dataKey="count" radius={[4, 4, 0, 0]} fill="#7f265b" />
+            </BarChart>
+          </ResponsiveContainer>
         </CardContent>
       </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Top codes */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Tag className="h-5 w-5 text-[#7f265b]" />
+              Top 10 介入代碼
+            </CardTitle>
+            <CardDescription>依本月數量排序</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {topCodes.length === 0 ? (
+              <EmptyState icon={Tag} title="尚無代碼統計" description="建立用藥建議介入記錄後會自動統計。" />
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={topCodes} layout="vertical" margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis type="number" tick={{ fontSize: 12 }} />
+                  <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#7f265b" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Top pharmacists */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserIcon className="h-5 w-5 text-[#7f265b]" />
+              Top 10 藥師
+            </CardTitle>
+            <CardDescription>依本月介入數量排序</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {topPharmacists.length === 0 ? (
+              <EmptyState icon={UserIcon} title="尚無藥師統計" description="建立用藥建議介入記錄後會自動統計。" />
+            ) : (
+              <div className="space-y-2">
+                {topPharmacists.map((p, idx) => (
+                  <div key={`${p.pharmacistName}-${idx}`} className="flex items-center justify-between rounded-lg border p-3">
+                    <div className="flex items-center gap-3">
+                      <Badge className="bg-[#7f265b] text-white">{idx + 1}</Badge>
+                      <div>
+                        <div className="font-medium">{p.pharmacistName}</div>
+                        <div className="text-xs text-muted-foreground">本月介入</div>
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold text-[#7f265b]">{p.count}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
+
+export default AdminStatisticsPage;
+

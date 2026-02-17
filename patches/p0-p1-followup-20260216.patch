@@ -1,0 +1,1434 @@
+diff --git a/backend/app/routers/ai_chat.py b/backend/app/routers/ai_chat.py
+index 7ae57f6..69b69ac 100644
+--- a/backend/app/routers/ai_chat.py
++++ b/backend/app/routers/ai_chat.py
+@@ -1,10 +1,19 @@
+-"""AI Chat endpoints — database-backed, LLM-powered (Phase 3)."""
++"""AI Chat endpoints — database-backed, LLM-powered (Phase 3).
++
++P2-1: Supports multi-turn conversation history with automatic compression.
++- Recent messages (last RECENT_MSG_WINDOW) are sent verbatim to LLM.
++- Older messages are periodically compressed into a summary stored on AISession.
++- Compression is incremental: new messages merge with existing summary.
++"""
+ 
+ from __future__ import annotations
+ 
+ import asyncio
++import json
++import logging
+ import uuid
+ from datetime import datetime, timezone
++from typing import List, Optional
+ 
+ from fastapi import APIRouter, Depends, HTTPException, Query, Request
+ from sqlalchemy import delete, func, select
+@@ -12,18 +21,152 @@ from sqlalchemy.ext.asyncio import AsyncSession
+ from sqlalchemy.orm import selectinload
+ 
+ from app.database import get_db
+-from app.llm import call_llm
++from app.llm import (
++    COMPRESS_THRESHOLD,
++    RECENT_MSG_WINDOW,
++    call_llm,
++    call_llm_multi_turn,
++)
+ from app.middleware.auth import get_current_user
+ from app.middleware.audit import create_audit_log
++from app.routers.clinical import _get_patient_dict
+ from app.models.ai_session import AIMessage, AISession
+ from app.models.user import User
+ from app.schemas.clinical import AIChatRequest
++from app.services.evidence_client import evidence_client
+ from app.services.llm_services.rag_service import rag_service
+ from app.services.safety_guardrail import apply_safety_guardrail
++from app.utils.llm_errors import llm_unavailable_detail
++from app.utils.request_context import evidence_trace_kwargs
+ from app.utils.response import success_response
++from pydantic import BaseModel, Field
++
++logger = logging.getLogger(__name__)
+ 
+ router = APIRouter(prefix="/ai", tags=["AI"])
+ 
++def _iso_z(dt: Optional[datetime]) -> Optional[str]:
++    """Return an RFC3339/ISO timestamp suitable for JS Date parsing.
++
++    NOTE: datetime.isoformat() for tz-aware values already includes an offset
++    (e.g. +00:00). Appending 'Z' would produce an invalid string like
++    '+00:00Z', which breaks the frontend session list parsing.
++    """
++    if not dt:
++        return None
++    if dt.tzinfo is None:
++        dt = dt.replace(tzinfo=timezone.utc)
++    dt_utc = dt.astimezone(timezone.utc)
++    return dt_utc.isoformat().replace("+00:00", "Z")
++
++
++# ── Helper: build multi-turn messages for LLM ──────────────────────────
++
++def _build_chat_messages(
++    session_summary: Optional[str],
++    history: List[AIMessage],
++    current_question: str,
++    rag_context: str,
++    patient_context: Optional[dict],
++) -> List[dict]:
++    """Build a multi-turn messages array for the LLM.
++
++    Structure:
++      [summary context pair] + [recent history] + [current user message with RAG/patient]
++    """
++    messages: List[dict] = []
++
++    # 1. Inject compressed summary as context (if exists)
++    if session_summary:
++        messages.append({
++            "role": "user",
++            "content": (
++                f"[先前對話摘要]\n{session_summary}\n\n"
++                "請基於以上摘要的上下文繼續對話。"
++            ),
++        })
++        messages.append({
++            "role": "assistant",
++            "content": "好的，我已了解先前對話的內容，將基於此上下文繼續協助您。",
++        })
++
++    # 2. Add recent history messages (capped at RECENT_MSG_WINDOW)
++    recent = history[-RECENT_MSG_WINDOW:] if len(history) > RECENT_MSG_WINDOW else history
++    for msg in recent:
++        messages.append({"role": msg.role, "content": msg.content})
++
++    # 3. Build current user message with RAG + patient context
++    parts: List[str] = []
++    if patient_context:
++        parts.append(
++            f"[病患資料]\n{json.dumps(patient_context, ensure_ascii=False, default=str)}"
++        )
++    if rag_context:
++        parts.append(f"[參考文獻]\n{rag_context}")
++    parts.append(current_question)
++
++    messages.append({"role": "user", "content": "\n\n".join(parts)})
++    return messages
++
++
++# ── Helper: compress older conversation history ────────────────────────
++
++async def _maybe_compress_history(
++    session: AISession,
++    all_messages: List[AIMessage],
++) -> None:
++    """Compress older messages into session.summary if threshold exceeded.
++
++    Only compresses messages outside the recent window that haven't been
++    compressed yet (tracked by session.summary_up_to). Compression is
++    incremental — combines existing summary with new messages.
++    """
++    total = len(all_messages)
++    if total < COMPRESS_THRESHOLD:
++        return
++
++    # Messages outside recent window
++    to_compress = all_messages[:-RECENT_MSG_WINDOW]
++    already_compressed = session.summary_up_to or 0
++
++    # Only compress if there are new messages beyond what's already summarized
++    new_messages = to_compress[already_compressed:]
++    if not new_messages:
++        return
++
++    lines: List[str] = []
++    if session.summary:
++        lines.append(f"[先前摘要]\n{session.summary}")
++
++    lines.append("[新增對話]")
++    for msg in new_messages:
++        role_label = "使用者" if msg.role == "user" else "AI助手"
++        # Truncate very long messages to keep compression input manageable
++        content = msg.content[:500] if len(msg.content) > 500 else msg.content
++        lines.append(f"{role_label}: {content}")
++
++    conv_text = "\n".join(lines)
++
++    try:
++        result = await asyncio.to_thread(
++            call_llm,
++            task="conversation_compress",
++            input_data={"conversation": conv_text},
++        )
++        if result.get("status") == "success":
++            session.summary = result["content"]
++            session.summary_up_to = len(to_compress)
++            logger.info(
++                "Compressed %d messages for session %s (total: %d)",
++                len(new_messages), session.id, total,
++            )
++    except Exception:
++        logger.warning(
++            "Failed to compress history for session %s", session.id, exc_info=True,
++        )
++
++
++# ── Main chat endpoint ─────────────────────────────────────────────────
+ 
+ @router.post("/chat")
+ async def ai_chat(
+@@ -48,6 +191,14 @@ async def ai_chat(
+         db.add(session)
+         await db.flush()
+ 
++    # Query existing conversation history (before adding current message)
++    history_result = await db.execute(
++        select(AIMessage)
++        .where(AIMessage.session_id == session_id)
++        .order_by(AIMessage.created_at.asc())
++    )
++    all_messages = list(history_result.scalars().all())
++
+     # Store user message
+     user_msg_id = f"msg_{uuid.uuid4().hex[:8]}"
+     user_msg = AIMessage(
+@@ -58,53 +209,141 @@ async def ai_chat(
+     )
+     db.add(user_msg)
+ 
+-    # RAG-augmented LLM response
++    # RAG-augmented LLM response — try hybrid RAG (func/) first, fallback to TF-IDF
+     citations = []
+     rag_context = ""
+-    if rag_service.is_indexed:
+-        sources = rag_service.retrieve(req.message, top_k=3)
+-        rag_context = "\n\n---\n\n".join([s["text"] for s in sources])
++    try:
++        hybrid_result = await asyncio.to_thread(
++            evidence_client.query,
++            req.message,
++            top_k=5,
++            **evidence_trace_kwargs(request),
++        )
++        rag_context = hybrid_result.get("answer", "")
++        # Also gather evidence snippets for richer context
++        snippets = hybrid_result.get("evidence_snippets", [])
++        if snippets:
++            snippet_texts = [s.get("text", "") for s in snippets if s.get("text")]
++            if snippet_texts:
++                rag_context += "\n\n---\n\n" + "\n\n---\n\n".join(snippet_texts[:3])
+         citations = [
+             {
+-                "id": f"cite_{i}",
++                "id": c.get("citation_id", f"cite_{i}"),
+                 "type": "guideline",
+-                "title": s["doc_id"].split("/")[-1] if "/" in s["doc_id"] else s["doc_id"],
+-                "source": s["category"],
+-                "relevance": round(s["score"], 3),
++                "title": c.get("source_file", "").split("/")[-1] if "/" in c.get("source_file", "") else c.get("source_file", ""),
++                "source": c.get("topic", ""),
++                "relevance": round(c.get("score", 0), 3),
+             }
+-            for i, s in enumerate(sources)
++            for i, c in enumerate(hybrid_result.get("citations", []))
+         ]
++        logger.info("[INTG][AI][API] Hybrid RAG returned %d citations", len(citations))
++    except Exception as exc:
++        logger.warning(
++            "[INTG][AI][API][F07] Hybrid RAG unavailable for ai_chat, falling back to TF-IDF: %s",
++            exc,
++        )
++        if rag_service.is_indexed:
++            sources = rag_service.retrieve(req.message, top_k=3)
++            rag_context = "\n\n---\n\n".join([s["text"] for s in sources])
++            citations = [
++                {
++                    "id": f"cite_{i}",
++                    "type": "guideline",
++                    "title": s["doc_id"].split("/")[-1] if "/" in s["doc_id"] else s["doc_id"],
++                    "source": s["category"],
++                    "relevance": round(s["score"], 3),
++                }
++                for i, s in enumerate(sources)
++            ]
++
++    # Patient context injection — enrich LLM with patient clinical data
++    patient_context = None
++    if req.patientId:
++        try:
++            patient_context = await _get_patient_dict(req.patientId, db)
++        except HTTPException:
++            logger.warning(
++                "[INTG][AI][API][F05] Patient %s not found — proceeding without patient context",
++                req.patientId,
++            )
++
++    # Build multi-turn messages with history + summary + current question
++    chat_messages = _build_chat_messages(
++        session_summary=session.summary,
++        history=all_messages,
++        current_question=req.message,
++        rag_context=rag_context,
++        patient_context=patient_context,
++    )
+ 
+     llm_result = await asyncio.to_thread(
+-        call_llm,
++        call_llm_multi_turn,
+         task="rag_generation",
+-        input_data={"question": req.message, "context": rag_context},
++        messages=chat_messages,
+     )
+ 
+-    raw_content = llm_result.get("content", "Unable to generate response.")
+-
+-    # Apply medical safety guardrail (T30)
+-    guardrail_result = apply_safety_guardrail(raw_content)
+-    ai_content = guardrail_result["content"]
++    llm_status = llm_result.get("status")
++    degraded = llm_status != "success"
++    if degraded:
++        # Chat is a critical UI flow (T27). When LLM is unavailable, we still return a
++        # user-friendly message and persist the conversation so the UI remains usable.
++        logger.error(
++            "[INTG][AI][API] LLM chat failed [status=%s]: %s",
++            llm_status,
++            (llm_result.get("content") or "")[:500],
++        )
++        raw_content = llm_unavailable_detail()
++        ai_content = raw_content
++        citations = []  # Avoid implying an evidence-based answer when LLM did not run.
++        guardrail_result = {
++            "content": ai_content,
++            "flagged": False,
++            "warnings": None,
++            "requiresExpertReview": False,
++        }
++    else:
++        raw_content = llm_result.get("content", "Unable to generate response.")
++        # Apply medical safety guardrail (T30)
++        # Skip inline disclaimer for chat — frontend shows a persistent banner instead
++        guardrail_result = apply_safety_guardrail(raw_content, include_disclaimer=False, user_role=user.role)
++        ai_content = guardrail_result["content"]
+ 
+     ai_msg_id = f"msg_{uuid.uuid4().hex[:8]}"
++    guardrail_meta = {
++        "guardrail": {
++            "warnings": guardrail_result.get("warnings") if guardrail_result.get("flagged") else None,
++            "flagged": guardrail_result.get("flagged", False),
++            "requiresExpertReview": guardrail_result.get("requiresExpertReview", False),
++        }
++    }
+     ai_msg = AIMessage(
+         id=ai_msg_id,
+         session_id=session_id,
+         role="assistant",
+         content=ai_content,
+         citations=citations or None,
++        suggested_actions=guardrail_meta,
+     )
+     db.add(ai_msg)
+ 
++    # Check if conversation history needs compression
++    # all_messages + user_msg + ai_msg = total messages in session
++    all_messages.append(user_msg)
++    all_messages.append(ai_msg)
++    await _maybe_compress_history(session, all_messages)
++
+     await create_audit_log(
+         db, user_id=user.id, user_name=user.name, role=user.role,
+-        action="AI 對話", target=session_id, status="success",
++        action="AI 對話", target=session_id, status="success" if llm_status == "success" else "failed",
+         ip=request.client.host if request.client else None,
+         details={
+             "patient_id": req.patientId,
+             "message_length": len(req.message),
+             "safety_flagged": guardrail_result["flagged"],
++            "llm_status": llm_status,
++            "llm_error": (llm_result.get("content") or "")[:200] if llm_status != "success" else None,
++            "history_msg_count": len(all_messages),
++            "has_summary": session.summary is not None,
+         },
+     )
+     await db.commit()
+@@ -114,10 +353,13 @@ async def ai_chat(
+             "id": ai_msg_id,
+             "role": "assistant",
+             "content": ai_content,
+-            "timestamp": now.isoformat() + "Z",
++            "timestamp": _iso_z(now),
+             "citations": citations,
+             "safetyWarnings": guardrail_result["warnings"] if guardrail_result["flagged"] else None,
+             "requiresExpertReview": guardrail_result.get("requiresExpertReview", False),
++            "degraded": degraded,
++            "degradedReason": "llm_unavailable" if degraded else None,
++            "upstreamStatus": llm_status,
+         },
+         "sessionId": session_id,
+     })
+@@ -143,6 +385,16 @@ async def list_sessions(
+     result = await db.execute(query)
+     sessions = result.scalars().all()
+ 
++    session_ids = [s.id for s in sessions]
++    msg_counts: dict[str, int] = {}
++    if session_ids:
++        counts_result = await db.execute(
++            select(AIMessage.session_id, func.count(AIMessage.id))
++            .where(AIMessage.session_id.in_(session_ids))
++            .group_by(AIMessage.session_id)
++        )
++        msg_counts = {sid: int(cnt) for sid, cnt in counts_result.all()}
++
+     return success_response(data={
+         "sessions": [
+             {
+@@ -150,8 +402,9 @@ async def list_sessions(
+                 "userId": s.user_id,
+                 "patientId": s.patient_id,
+                 "title": s.title,
+-                "createdAt": s.created_at.isoformat() + "Z" if s.created_at else None,
+-                "updatedAt": s.updated_at.isoformat() + "Z" if s.updated_at else None,
++                "createdAt": _iso_z(s.created_at),
++                "updatedAt": _iso_z(s.updated_at),
++                "messageCount": msg_counts.get(s.id, 0),
+             }
+             for s in sessions
+         ],
+@@ -185,17 +438,25 @@ async def get_session(
+             "userId": session.user_id,
+             "patientId": session.patient_id,
+             "title": session.title,
+-            "createdAt": session.created_at.isoformat() + "Z" if session.created_at else None,
+-            "updatedAt": session.updated_at.isoformat() + "Z" if session.updated_at else None,
++            "createdAt": _iso_z(session.created_at),
++            "updatedAt": _iso_z(session.updated_at),
+         },
+         "messages": [
+             {
+                 "id": m.id,
+                 "role": m.role,
+                 "content": m.content,
+-                "timestamp": m.created_at.isoformat() + "Z" if m.created_at else None,
++                "timestamp": _iso_z(m.created_at),
+                 "citations": m.citations,
+                 "suggestedActions": m.suggested_actions,
++                "safetyWarnings": (
++                    (m.suggested_actions or {}).get("guardrail", {}).get("warnings")
++                    if isinstance(m.suggested_actions, dict)
++                    else None
++                ),
++                "requiresExpertReview": bool(
++                    (m.suggested_actions or {}).get("guardrail", {}).get("requiresExpertReview")
++                ) if isinstance(m.suggested_actions, dict) else False,
+             }
+             for m in sorted(session.messages, key=lambda x: x.created_at)
+         ],
+@@ -246,11 +507,13 @@ async def review_ai_message(
+     review_info = {
+         "expertReview": {
+             "reviewedBy": {"id": user.id, "name": user.name, "role": user.role},
+-            "reviewedAt": datetime.now(timezone.utc).isoformat() + "Z",
++            "reviewedAt": _iso_z(datetime.now(timezone.utc)),
+             "status": "reviewed",
+         }
+     }
+-    msg.suggested_actions = review_info
++    existing_actions = msg.suggested_actions if isinstance(msg.suggested_actions, dict) else {}
++    existing_actions.update(review_info)
++    msg.suggested_actions = existing_actions
+ 
+     await create_audit_log(
+         db, user_id=user.id, user_name=user.name, role=user.role,
+@@ -264,3 +527,36 @@ async def review_ai_message(
+         "messageId": message_id,
+         "review": review_info["expertReview"],
+     }, message="AI 輸出已標記為專家審閱完成")
++
++
++class UpdateSessionTitleRequest(BaseModel):
++    title: str = Field(..., min_length=1, max_length=80)
++
++
++@router.patch("/sessions/{session_id}")
++async def update_session_title(
++    session_id: str,
++    request: Request,
++    body: UpdateSessionTitleRequest,
++    user: User = Depends(get_current_user),
++    db: AsyncSession = Depends(get_db),
++):
++    result = await db.execute(
++        select(AISession).where(AISession.id == session_id, AISession.user_id == user.id)
++    )
++    session = result.scalar_one_or_none()
++    if not session:
++        raise HTTPException(status_code=404, detail="Session not found")
++
++    session.title = body.title.strip()
++    await db.flush()
++
++    await create_audit_log(
++        db, user_id=user.id, user_name=user.name, role=user.role,
++        action="更新對話標題", target=session_id, status="success",
++        ip=request.client.host if request.client else None,
++        details={"title": session.title},
++    )
++
++    await db.commit()
++    return success_response(data={"sessionId": session_id, "title": session.title})
+diff --git a/backend/app/routers/clinical.py b/backend/app/routers/clinical.py
+index 74153b5..7699705 100644
+--- a/backend/app/routers/clinical.py
++++ b/backend/app/routers/clinical.py
+@@ -3,10 +3,13 @@
+ from __future__ import annotations
+ 
+ import asyncio
++import logging
+ 
++import httpx
+ from fastapi import APIRouter, Depends, HTTPException, Request
+ from sqlalchemy import select
+ from sqlalchemy.ext.asyncio import AsyncSession
++from sqlalchemy.orm import selectinload
+ 
+ from app.database import get_db
+ from app.llm import call_llm
+@@ -14,28 +17,51 @@ from app.middleware.auth import get_current_user, require_roles
+ from app.middleware.audit import create_audit_log
+ from app.models.patient import Patient
+ from app.models.user import User
++from app.routers.lab_data import lab_to_dict
++from app.routers.vital_signs import vital_to_dict
++from app.routers.medications import med_to_dict
++from app.routers.ventilator import vent_to_dict
+ from app.schemas.clinical import (
++    ClinicalQueryRequest,
+     DecisionRequest,
++    DoseCalculateRequest,
+     ExplanationRequest,
+     GuidelineRequest,
++    InteractionCheckRequest,
++    PolishRequest,
+     SummaryRequest,
+ )
++from app.services.evidence_client import evidence_client
+ from app.services.llm_services.clinical_summary import generate_clinical_summary
+ from app.services.llm_services.patient_explanation import generate_patient_explanation
+ from app.services.llm_services.rag_service import rag_service
+ from app.services.safety_guardrail import apply_safety_guardrail
++from app.utils.llm_errors import llm_unavailable_detail
++from app.utils.request_context import evidence_trace_kwargs
+ from app.utils.response import success_response
+ 
+ router = APIRouter(prefix="/api/v1/clinical", tags=["Clinical"])
+ 
++logger = logging.getLogger(__name__)
+ 
+ async def _get_patient_dict(patient_id: str, db: AsyncSession) -> dict:
+-    """Fetch patient from DB and convert to dict for LLM consumption."""
+-    result = await db.execute(select(Patient).where(Patient.id == patient_id))
++    """Fetch patient + related clinical data from DB for LLM consumption."""
++    result = await db.execute(
++        select(Patient)
++        .options(
++            selectinload(Patient.lab_data),
++            selectinload(Patient.vital_signs),
++            selectinload(Patient.medications),
++            selectinload(Patient.ventilator_settings),
++        )
++        .where(Patient.id == patient_id)
++    )
+     patient = result.scalar_one_or_none()
+     if not patient:
+         raise HTTPException(status_code=404, detail=f"Patient {patient_id} not found")
+-    return {
++
++    # Base patient fields
++    patient_dict: dict = {
+         "id": patient.id,
+         "name": patient.name,
+         "age": patient.age,
+@@ -48,8 +74,49 @@ async def _get_patient_dict(patient_id: str, db: AsyncSession) -> dict:
+         "critical_status": patient.critical_status,
+         "ventilator_days": patient.ventilator_days,
+         "alerts": patient.alerts or [],
++        # Additional patient-table fields
++        "height": patient.height,
++        "weight": patient.weight,
++        "bmi": patient.bmi,
++        "intubated": patient.intubated,
++        "allergies": patient.allergies or [],
++        "blood_type": patient.blood_type,
++        "attending_physician": patient.attending_physician,
++        "department": patient.department,
++        "admission_date": patient.admission_date.isoformat() if patient.admission_date else None,
++        "icu_admission_date": patient.icu_admission_date.isoformat() if patient.icu_admission_date else None,
++        "code_status": patient.code_status,
++        "has_dnr": patient.has_dnr,
++        "is_isolated": patient.is_isolated,
+     }
+ 
++    # Latest lab data (most recent by timestamp)
++    if patient.lab_data:
++        latest_lab = sorted(patient.lab_data, key=lambda x: x.timestamp, reverse=True)[0]
++        patient_dict["lab_data"] = lab_to_dict(latest_lab)
++    else:
++        patient_dict["lab_data"] = None
++
++    # Latest vital signs
++    if patient.vital_signs:
++        latest_vital = sorted(patient.vital_signs, key=lambda x: x.timestamp, reverse=True)[0]
++        patient_dict["vital_signs"] = vital_to_dict(latest_vital)
++    else:
++        patient_dict["vital_signs"] = None
++
++    # Active medications only
++    active_meds = [m for m in patient.medications if m.status == "active"]
++    patient_dict["medications"] = [med_to_dict(m) for m in active_meds]
++
++    # Latest ventilator settings
++    if patient.ventilator_settings:
++        latest_vent = sorted(patient.ventilator_settings, key=lambda x: x.timestamp, reverse=True)[0]
++        patient_dict["ventilator_settings"] = vent_to_dict(latest_vent)
++    else:
++        patient_dict["ventilator_settings"] = None
++
++    return patient_dict
++
+ 
+ @router.post("/summary")
+ async def clinical_summary(
+@@ -59,15 +126,27 @@ async def clinical_summary(
+     db: AsyncSession = Depends(get_db),
+ ):
+     patient_data = await _get_patient_dict(req.patient_id, db)
+-    result = await asyncio.to_thread(generate_clinical_summary, patient_data)
++    try:
++        result = await asyncio.to_thread(generate_clinical_summary, patient_data)
++    except RuntimeError as e:
++        logger.error("[INTG][AI][API] LLM clinical_summary failed: %s", str(e)[:500])
++        raise HTTPException(status_code=503, detail=llm_unavailable_detail())
++
++    raw_summary = result.get("summary", "")
++    guardrail = apply_safety_guardrail(raw_summary, user_role=user.role)
+ 
+     await create_audit_log(
+         db, user_id=user.id, user_name=user.name, role=user.role,
+         action="臨床摘要", target=req.patient_id, status="success",
+         ip=request.client.host if request.client else None,
++        details={"safety_flagged": guardrail["flagged"]},
+     )
+ 
+-    return success_response(data=result)
++    return success_response(data={
++        "summary": guardrail["content"],
++        "metadata": result.get("metadata", {}),
++        "safetyWarnings": guardrail["warnings"] if guardrail["flagged"] else None,
++    })
+ 
+ 
+ @router.post("/explanation")
+@@ -78,18 +157,29 @@ async def patient_explanation(
+     db: AsyncSession = Depends(get_db),
+ ):
+     patient_data = await _get_patient_dict(req.patient_id, db)
+-    result = await asyncio.to_thread(
+-        generate_patient_explanation, patient_data, req.topic
+-    )
++    try:
++        result = await asyncio.to_thread(
++            generate_patient_explanation, patient_data, req.topic, req.reading_level
++        )
++    except RuntimeError as e:
++        logger.error("[INTG][AI][API] LLM patient_explanation failed: %s", str(e)[:500])
++        raise HTTPException(status_code=503, detail=llm_unavailable_detail())
++
++    raw_explanation = result.get("explanation", "")
++    guardrail = apply_safety_guardrail(raw_explanation, user_role=user.role)
+ 
+     await create_audit_log(
+         db, user_id=user.id, user_name=user.name, role=user.role,
+         action="衛教說明", target=req.patient_id, status="success",
+         ip=request.client.host if request.client else None,
+-        details={"topic": req.topic},
++        details={"topic": req.topic, "reading_level": req.reading_level, "safety_flagged": guardrail["flagged"]},
+     )
+ 
+-    return success_response(data=result)
++    return success_response(data={
++        "explanation": guardrail["content"],
++        "metadata": result.get("metadata", {}),
++        "safetyWarnings": guardrail["warnings"] if guardrail["flagged"] else None,
++    })
+ 
+ 
+ @router.post("/guideline")
+@@ -103,14 +193,30 @@ async def guideline_interpretation(
+ 
+     rag_context = ""
+     rag_sources = []
+-    if rag_service.is_indexed:
+-        search_query = f"{req.scenario} {req.guideline_topic or ''}"
+-        results = rag_service.retrieve(search_query, top_k=5)
+-        rag_context = "\n\n---\n\n".join([r["text"] for r in results])
+-        rag_sources = [
+-            {"doc_id": r["doc_id"], "score": r["score"], "category": r["category"]}
+-            for r in results
+-        ]
++    search_query = f"{req.scenario} {req.guideline_topic or ''}"
++    try:
++        hybrid = await asyncio.to_thread(
++            evidence_client.query,
++            search_query,
++            5,
++            **evidence_trace_kwargs(request),
++        )
++        rag_context = hybrid.get("answer", "")
++        for c in hybrid.get("citations", []):
++            rag_sources.append({
++                "doc_id": c.get("source_file", c.get("chunk_id", "")),
++                "score": c.get("score", 0),
++                "category": c.get("topic", ""),
++            })
++    except Exception as exc:
++        logger.warning("[INTG][AI][API][F07] Hybrid RAG failed for guideline_interpretation, falling back to TF-IDF: %s", exc)
++        if rag_service.is_indexed:
++            results = rag_service.retrieve(search_query, top_k=5)
++            rag_context = "\n\n---\n\n".join([r["text"] for r in results])
++            rag_sources = [
++                {"doc_id": r["doc_id"], "score": r["score"], "category": r["category"]}
++                for r in results
++            ]
+ 
+     result = await asyncio.to_thread(
+         call_llm,
+@@ -123,8 +229,12 @@ async def guideline_interpretation(
+         },
+     )
+ 
++    if result.get("status") != "success":
++        logger.error("[INTG][AI][API] LLM guideline_interpretation failed: %s", (result.get("content") or "")[:500])
++        raise HTTPException(status_code=503, detail=llm_unavailable_detail())
++
+     raw_content = result.get("content", "")
+-    guardrail = apply_safety_guardrail(raw_content)
++    guardrail = apply_safety_guardrail(raw_content, user_role=user.role)
+ 
+     await create_audit_log(
+         db, user_id=user.id, user_name=user.name, role=user.role,
+@@ -153,9 +263,19 @@ async def multi_agent_decision(
+     patient_data = await _get_patient_dict(req.patient_id, db)
+ 
+     rag_context = ""
+-    if rag_service.is_indexed:
+-        results = rag_service.retrieve(req.question, top_k=3)
+-        rag_context = "\n\n---\n\n".join([r["text"] for r in results])
++    try:
++        hybrid = await asyncio.to_thread(
++            evidence_client.query,
++            req.question,
++            3,
++            **evidence_trace_kwargs(request),
++        )
++        rag_context = hybrid.get("answer", "")
++    except Exception as exc:
++        logger.warning("[INTG][AI][API][F07] Hybrid RAG failed for multi_agent_decision, falling back to TF-IDF: %s", exc)
++        if rag_service.is_indexed:
++            results = rag_service.retrieve(req.question, top_k=3)
++            rag_context = "\n\n---\n\n".join([r["text"] for r in results])
+ 
+     result = await asyncio.to_thread(
+         call_llm,
+@@ -168,8 +288,12 @@ async def multi_agent_decision(
+         },
+     )
+ 
++    if result.get("status") != "success":
++        logger.error("[INTG][AI][API] LLM multi_agent_decision failed: %s", (result.get("content") or "")[:500])
++        raise HTTPException(status_code=503, detail=llm_unavailable_detail())
++
+     raw_content = result.get("content", "")
+-    guardrail = apply_safety_guardrail(raw_content)
++    guardrail = apply_safety_guardrail(raw_content, user_role=user.role)
+ 
+     await create_audit_log(
+         db, user_id=user.id, user_name=user.name, role=user.role,
+@@ -185,3 +309,169 @@ async def multi_agent_decision(
+         "metadata": result.get("metadata", {}),
+         "safetyWarnings": guardrail["warnings"] if guardrail["flagged"] else None,
+     })
++
++
++@router.post("/polish")
++async def polish_clinical_text(
++    req: PolishRequest,
++    request: Request,
++    user: User = Depends(get_current_user),
++    db: AsyncSession = Depends(get_db),
++):
++    patient_data = await _get_patient_dict(req.patient_id, db)
++
++    result = await asyncio.to_thread(
++        call_llm,
++        task="clinical_polish",
++        input_data={
++            "patient": patient_data,
++            "draft_content": req.content,
++            "polish_type": req.polish_type,
++            "user_role": user.role,
++        },
++    )
++
++    if result.get("status") != "success":
++        logger.error("[INTG][AI][API] LLM clinical_polish failed: %s", (result.get("content") or "")[:500])
++        raise HTTPException(status_code=503, detail=llm_unavailable_detail())
++
++    raw_content = result.get("content", "")
++    guardrail = apply_safety_guardrail(raw_content, user_role=user.role)
++
++    await create_audit_log(
++        db, user_id=user.id, user_name=user.name, role=user.role,
++        action="文本修飾", target=req.patient_id, status="success",
++        ip=request.client.host if request.client else None,
++        details={"polish_type": req.polish_type, "safety_flagged": guardrail["flagged"]},
++    )
++
++    return success_response(data={
++        "patient_id": req.patient_id,
++        "polish_type": req.polish_type,
++        "original": req.content,
++        "polished": guardrail["content"],
++        "metadata": result.get("metadata", {}),
++        "safetyWarnings": guardrail["warnings"] if guardrail["flagged"] else None,
++    })
++
++
++# ── P3-1: Dose Calculation ──────────────────────────────────────────────
++
++@router.post("/dose")
++async def dose_calculate(
++    req: DoseCalculateRequest,
++    request: Request,
++    user: User = Depends(get_current_user),
++    db: AsyncSession = Depends(get_db),
++):
++    """Calculate drug dosage via the Evidence RAG deterministic rule engine."""
++    try:
++        result = await asyncio.to_thread(
++            evidence_client.dose_calculate,
++            drug=req.drug,
++            patient_context=req.patient_context.model_dump(exclude_none=True),
++            indication=req.indication,
++            dose_target=req.dose_target,
++            **evidence_trace_kwargs(request),
++        )
++    except httpx.ConnectError:
++        raise HTTPException(
++            status_code=503,
++            detail="Evidence engine service unavailable. Please start the func/ service and try again.",
++        )
++    except httpx.HTTPStatusError as e:
++        raise HTTPException(
++            status_code=502,
++            detail=f"Evidence engine error: upstream returned {e.response.status_code}",
++        )
++
++    await create_audit_log(
++        db, user_id=user.id, user_name=user.name, role=user.role,
++        action="劑量計算", target=req.drug, status="success",
++        ip=request.client.host if request.client else None,
++        details={"drug": req.drug, "status": result.get("status")},
++    )
++
++    return success_response(data=result)
++
++
++# ── P3-2: Drug Interaction Check ────────────────────────────────────────
++
++@router.post("/interactions")
++async def interaction_check(
++    req: InteractionCheckRequest,
++    request: Request,
++    user: User = Depends(get_current_user),
++    db: AsyncSession = Depends(get_db),
++):
++    """Check drug-drug interactions via the Evidence RAG rule engine."""
++    pc = req.patient_context.model_dump(exclude_none=True) if req.patient_context else None
++    try:
++        result = await asyncio.to_thread(
++            evidence_client.interaction_check,
++            drug_list=req.drug_list,
++            patient_context=pc,
++            **evidence_trace_kwargs(request),
++        )
++    except httpx.ConnectError:
++        raise HTTPException(
++            status_code=503,
++            detail="Evidence engine service unavailable. Please start the func/ service and try again.",
++        )
++    except httpx.HTTPStatusError as e:
++        raise HTTPException(
++            status_code=502,
++            detail=f"Evidence engine error: upstream returned {e.response.status_code}",
++        )
++
++    await create_audit_log(
++        db, user_id=user.id, user_name=user.name, role=user.role,
++        action="交互作用查詢", target=",".join(req.drug_list[:5]), status="success",
++        ip=request.client.host if request.client else None,
++        details={"drug_count": len(req.drug_list), "overall_severity": result.get("overall_severity")},
++    )
++
++    return success_response(data=result)
++
++
++# ── P3-3: Clinical Query with Intent Routing ────────────────────────────
++
++@router.post("/clinical-query")
++async def clinical_query(
++    req: ClinicalQueryRequest,
++    request: Request,
++    user: User = Depends(get_current_user),
++    db: AsyncSession = Depends(get_db),
++):
++    """Unified clinical query — auto-routes to RAG / dose / interaction / hybrid."""
++    pc = req.patient_context.model_dump(exclude_none=True) if req.patient_context else None
++    try:
++        result = await asyncio.to_thread(
++            evidence_client.clinical_query,
++            question=req.question,
++            intent=req.intent,
++            drug=req.drug,
++            drug_list=req.drug_list,
++            patient_context=pc,
++            dose_target=req.dose_target,
++            **evidence_trace_kwargs(request),
++        )
++    except httpx.ConnectError:
++        raise HTTPException(
++            status_code=503,
++            detail="Evidence engine service unavailable. Please start the func/ service and try again.",
++        )
++    except httpx.HTTPStatusError as e:
++        raise HTTPException(
++            status_code=502,
++            detail=f"Evidence engine error: upstream returned {e.response.status_code}",
++        )
++
++    await create_audit_log(
++        db, user_id=user.id, user_name=user.name, role=user.role,
++        action="臨床查詢", target=req.question[:50], status="success",
++        ip=request.client.host if request.client else None,
++        details={"intent": result.get("intent"), "status": result.get("status")},
++    )
++
++    return success_response(data=result)
+diff --git a/backend/app/routers/rag.py b/backend/app/routers/rag.py
+index 40621f9..8170ca2 100644
+--- a/backend/app/routers/rag.py
++++ b/backend/app/routers/rag.py
+@@ -1,7 +1,10 @@
+-"""RAG endpoints (Phase 3)."""
++"""RAG endpoints (Phase 3) — hybrid RAG via func/ with TF-IDF fallback."""
+ 
+ from __future__ import annotations
+ 
++import asyncio
++import logging
++
+ from fastapi import APIRouter, Depends, HTTPException, Request
+ from sqlalchemy.ext.asyncio import AsyncSession
+ 
+@@ -10,17 +13,47 @@ from app.middleware.auth import get_current_user, require_roles
+ from app.middleware.audit import create_audit_log
+ from app.models.user import User
+ from app.schemas.clinical import RAGIndexRequest, RAGQueryRequest
++from app.services.evidence_client import evidence_client
+ from app.services.llm_services.rag_service import rag_service
++from app.utils.request_context import evidence_trace_kwargs
+ from app.utils.response import success_response
+ 
++logger = logging.getLogger(__name__)
++
+ router = APIRouter(prefix="/api/v1/rag", tags=["RAG"])
+ 
+ 
+ @router.post("/query")
+ async def rag_query(
+     payload: RAGQueryRequest,
++    request: Request,
+     user: User = Depends(get_current_user),
+ ):
++    # Try hybrid RAG (func/) first
++    try:
++        result = await asyncio.to_thread(
++            evidence_client.query,
++            payload.question,
++            payload.top_k,
++            **evidence_trace_kwargs(request),
++        )
++        return success_response(data={
++            "answer": result.get("answer", ""),
++            "sources": [
++                {
++                    "doc_id": c.get("source_file", c.get("chunk_id", "")),
++                    "score": c.get("score", 0),
++                    "category": c.get("topic", ""),
++                    "excerpt": c.get("snippet", "")[:200],
++                }
++                for c in result.get("citations", [])
++            ],
++            "metadata": {"engine": "hybrid_rag", "confidence": result.get("confidence", 0)},
++        })
++    except Exception as exc:
++        logger.warning("[INTG][AI][API][F03] Hybrid RAG query failed, falling back to TF-IDF: %s", exc)
++
++    # Fallback to TF-IDF
+     if not rag_service.is_indexed:
+         raise HTTPException(status_code=503, detail="RAG index not ready. Call POST /api/v1/rag/index first.")
+     result = rag_service.query(payload.question, top_k=payload.top_k)
+@@ -34,6 +67,23 @@ async def rag_index(
+     user: User = Depends(require_roles("admin")),
+     db: AsyncSession = Depends(get_db),
+ ):
++    # Try func/ ingest first
++    try:
++        result = await asyncio.to_thread(
++            evidence_client.ingest,
++            payload.docs_path if payload else None,
++            **evidence_trace_kwargs(request),
++        )
++        await create_audit_log(
++            db, user_id=user.id, user_name=user.name, role=user.role,
++            action="RAG 索引建立", target="rag_index", status="success",
++            ip=request.client.host if request.client else None,
++            details={"engine": "hybrid_rag", "chunks_total": result.get("chunks_total")},
++        )
++        return success_response(data=result)
++    except Exception as exc:
++        logger.warning("[INTG][AI][API][F03] Hybrid RAG ingest failed, falling back to TF-IDF: %s", exc)
++
+     docs_path = payload.docs_path if payload else None
+     chunks = rag_service.load_and_chunk(docs_path)
+     result = rag_service.index(chunks)
+@@ -49,9 +99,28 @@ async def rag_index(
+ 
+ 
+ @router.get("/status")
+-async def rag_status(user: User = Depends(get_current_user)):
+-    return success_response(data={
+-        "is_indexed": rag_service.is_indexed,
+-        "total_chunks": len(rag_service.chunks),
+-        "embedding_dim": rag_service.embeddings.shape[1] if rag_service.embeddings is not None else 0,
+-    })
++async def rag_status(
++    request: Request,
++    user: User = Depends(get_current_user),
++):
++    # Try func/ health for richer status
++    try:
++        health = await asyncio.to_thread(
++            evidence_client.health,
++            **evidence_trace_kwargs(request),
++        )
++        index_info = health.get("index", {})
++        return success_response(data={
++            "is_indexed": index_info.get("total_chunks", 0) > 0,
++            "total_chunks": index_info.get("total_chunks", 0),
++            "total_documents": index_info.get("total_documents", 0),
++            "engine": "hybrid_rag",
++            "clinical_rules_loaded": health.get("clinical_rules_loaded", False),
++        })
++    except Exception as exc:
++        logger.warning("[INTG][AI][API][F03] Evidence health check failed, falling back to TF-IDF status: %s", exc)
++
++    # Fallback to TF-IDF status (engine flag reflects degraded state)
++    status = rag_service.get_status()
++    status["engine"] = "tfidf_fallback"
++    return success_response(data=status)
+diff --git a/backend/tests/test_api/test_clinical.py b/backend/tests/test_api/test_clinical.py
+index d46baa8..529fc45 100644
+--- a/backend/tests/test_api/test_clinical.py
++++ b/backend/tests/test_api/test_clinical.py
+@@ -1,5 +1,6 @@
+ """Test clinical API endpoints."""
+ 
++from datetime import datetime, timezone
+ from unittest.mock import patch
+ 
+ import pytest
+@@ -88,3 +89,331 @@ async def test_decision_not_found(client):
+         json={"patient_id": "NONEXIST", "question": "test"},
+     )
+     assert response.status_code == 404
++
++
++@pytest.mark.asyncio
++async def test_patient_dict_includes_related_data(client, seeded_db):
++    """Verify _get_patient_dict() returns lab/vitals/meds/ventilator data."""
++    from app.models.lab_data import LabData
++    from app.models.vital_sign import VitalSign
++    from app.models.medication import Medication
++    from app.models.ventilator import VentilatorSetting
++
++    now = datetime.now(timezone.utc)
++
++    lab = LabData(
++        id="lab_001", patient_id="pat_001", timestamp=now,
++        biochemistry={"K": {"value": 3.8, "unit": "mEq/L", "referenceRange": "3.5-5.0", "isAbnormal": False}},
++        hematology={"WBC": {"value": 12.5, "unit": "10^3/uL", "referenceRange": "4-10", "isAbnormal": True}},
++    )
++    vital = VitalSign(
++        id="vs_001", patient_id="pat_001", timestamp=now,
++        heart_rate=88, systolic_bp=120, diastolic_bp=80, spo2=96, temperature=37.2,
++    )
++    med = Medication(
++        id="med_001", patient_id="pat_001", name="Morphine", dose="2",
++        unit="mg", frequency="Q4H", route="IV", status="active",
++    )
++    vent = VentilatorSetting(
++        id="vent_001", patient_id="pat_001", timestamp=now,
++        mode="PC/AC", fio2=40, peep=8, tidal_volume=450,
++    )
++
++    seeded_db.add_all([lab, vital, med, vent])
++    await seeded_db.commit()
++
++    captured_args = {}
++
++    def mock_summary(patient_data):
++        captured_args["patient_data"] = patient_data
++        return {"summary": "test", "metadata": {}}
++
++    with patch("app.routers.clinical.generate_clinical_summary", side_effect=mock_summary):
++        response = await client.post("/api/v1/clinical/summary", json={"patient_id": "pat_001"})
++        assert response.status_code == 200
++
++    pd = captured_args["patient_data"]
++    # Lab data present
++    assert pd["lab_data"] is not None
++    assert "biochemistry" in pd["lab_data"]
++    # Vital signs present
++    assert pd["vital_signs"] is not None
++    assert pd["vital_signs"]["heartRate"] == 88
++    # Active medications present
++    assert len(pd["medications"]) == 1
++    assert pd["medications"][0]["name"] == "Morphine"
++    # Ventilator settings present
++    assert pd["ventilator_settings"] is not None
++    assert pd["ventilator_settings"]["mode"] == "PC/AC"
++    # Additional patient fields present
++    assert "height" in pd
++    assert "allergies" in pd
++
++
++@pytest.mark.asyncio
++async def test_patient_dict_handles_empty_related_data(client):
++    """Verify _get_patient_dict() returns None/[] for absent related data."""
++    captured_args = {}
++
++    def mock_summary(patient_data):
++        captured_args["patient_data"] = patient_data
++        return {"summary": "test", "metadata": {}}
++
++    with patch("app.routers.clinical.generate_clinical_summary", side_effect=mock_summary):
++        response = await client.post("/api/v1/clinical/summary", json={"patient_id": "pat_001"})
++        assert response.status_code == 200
++
++    pd = captured_args["patient_data"]
++    assert pd["lab_data"] is None
++    assert pd["vital_signs"] is None
++    assert pd["medications"] == []
++    assert pd["ventilator_settings"] is None
++
++
++@pytest.mark.asyncio
++async def test_polish_progress_note(client):
++    mock_response = {
++        "status": "success",
++        "content": "Polished progress note content.",
++        "metadata": {"model": "gpt-4o"},
++    }
++    with patch("app.routers.clinical.call_llm", return_value=mock_response):
++        response = await client.post(
++            "/api/v1/clinical/polish",
++            json={
++                "patient_id": "pat_001",
++                "content": "pt stable, labs ok",
++                "polish_type": "progress_note",
++            },
++        )
++        assert response.status_code == 200
++        data = response.json()
++        assert data["success"] is True
++        assert data["data"]["patient_id"] == "pat_001"
++        assert data["data"]["polish_type"] == "progress_note"
++        assert data["data"]["original"] == "pt stable, labs ok"
++        assert "polished" in data["data"]
++
++
++@pytest.mark.asyncio
++async def test_polish_medication_advice(client):
++    mock_response = {
++        "status": "success",
++        "content": "Polished medication advice.",
++        "metadata": {"model": "gpt-4o"},
++    }
++    with patch("app.routers.clinical.call_llm", return_value=mock_response):
++        response = await client.post(
++            "/api/v1/clinical/polish",
++            json={
++                "patient_id": "pat_001",
++                "content": "suggest switch to propofol",
++                "polish_type": "medication_advice",
++            },
++        )
++        assert response.status_code == 200
++        data = response.json()
++        assert data["success"] is True
++        assert data["data"]["polish_type"] == "medication_advice"
++
++
++@pytest.mark.asyncio
++async def test_polish_invalid_type(client):
++    response = await client.post(
++        "/api/v1/clinical/polish",
++        json={
++            "patient_id": "pat_001",
++            "content": "some text",
++            "polish_type": "invalid_type",
++        },
++    )
++    assert response.status_code == 422
++
++
++@pytest.mark.asyncio
++async def test_polish_patient_not_found(client):
++    mock_response = {
++        "status": "success",
++        "content": "polished",
++        "metadata": {},
++    }
++    with patch("app.routers.clinical.call_llm", return_value=mock_response):
++        response = await client.post(
++            "/api/v1/clinical/polish",
++            json={
++                "patient_id": "NONEXIST",
++                "content": "some text",
++                "polish_type": "progress_note",
++            },
++        )
++        assert response.status_code == 404
++
++
++# ── P3-1: Dose Calculation ──────────────────────────────────────────────
++
++@pytest.mark.asyncio
++async def test_dose_calculate(client):
++    mock_result = {
++        "request_id": "dose-001",
++        "status": "ok",
++        "result_type": "dose_calculation",
++        "drug": "norepinephrine",
++        "computed_values": {"rate_ml_hr": 5.0},
++        "calculation_steps": ["step1"],
++        "applied_rules": [],
++        "safety_warnings": [],
++        "citations": [],
++        "confidence": 0.95,
++        "rag": None,
++    }
++    with patch("app.routers.clinical.evidence_client") as mock_ec:
++        mock_ec.dose_calculate.return_value = mock_result
++        response = await client.post(
++            "/api/v1/clinical/dose",
++            json={
++                "drug": "norepinephrine",
++                "patient_context": {"weight_kg": 70, "age_years": 55},
++            },
++        )
++        assert response.status_code == 200
++        data = response.json()
++        assert data["success"] is True
++        assert data["data"]["status"] == "ok"
++        assert data["data"]["drug"] == "norepinephrine"
++
++
++@pytest.mark.asyncio
++async def test_dose_calculate_forwards_request_trace_ids(client):
++    with patch("app.routers.clinical.evidence_client") as mock_ec:
++        mock_ec.dose_calculate.return_value = {"status": "ok", "drug": "norepinephrine"}
++        response = await client.post(
++            "/api/v1/clinical/dose",
++            json={
++                "drug": "norepinephrine",
++                "patient_context": {"weight_kg": 70, "age_years": 55},
++            },
++            headers={
++                "X-Request-ID": "p1-dose-req-001",
++                "X-Trace-ID": "p1-dose-trace-001",
++            },
++        )
++        assert response.status_code == 200
++        kwargs = mock_ec.dose_calculate.call_args.kwargs
++        assert kwargs["request_id"] == "p1-dose-req-001"
++        assert kwargs["trace_id"] == "p1-dose-trace-001"
++
++
++@pytest.mark.asyncio
++async def test_dose_calculate_missing_drug(client):
++    """Drug name is required and must be >= 2 chars."""
++    response = await client.post(
++        "/api/v1/clinical/dose",
++        json={"drug": "x", "patient_context": {"weight_kg": 70}},
++    )
++    assert response.status_code == 422
++
++
++# ── P3-2: Interaction Check ─────────────────────────────────────────────
++
++@pytest.mark.asyncio
++async def test_interaction_check(client):
++    mock_result = {
++        "request_id": "int-001",
++        "status": "ok",
++        "result_type": "interaction_check",
++        "overall_severity": "major",
++        "findings": [{"drugA": "Warfarin", "drugB": "Amiodarone", "severity": "major"}],
++        "applied_rules": [],
++        "citations": [],
++        "conflicts": [],
++        "confidence": 0.9,
++        "rag": None,
++    }
++    with patch("app.routers.clinical.evidence_client") as mock_ec:
++        mock_ec.interaction_check.return_value = mock_result
++        response = await client.post(
++            "/api/v1/clinical/interactions",
++            json={"drug_list": ["Warfarin", "Amiodarone"]},
++        )
++        assert response.status_code == 200
++        data = response.json()
++        assert data["success"] is True
++        assert data["data"]["overall_severity"] == "major"
++
++
++@pytest.mark.asyncio
++async def test_interaction_check_forwards_request_trace_ids(client):
++    with patch("app.routers.clinical.evidence_client") as mock_ec:
++        mock_ec.interaction_check.return_value = {"status": "ok", "overall_severity": "major"}
++        response = await client.post(
++            "/api/v1/clinical/interactions",
++            json={"drug_list": ["Warfarin", "Amiodarone"]},
++            headers={
++                "X-Request-ID": "p1-int-req-001",
++                "X-Trace-ID": "p1-int-trace-001",
++            },
++        )
++        assert response.status_code == 200
++        kwargs = mock_ec.interaction_check.call_args.kwargs
++        assert kwargs["request_id"] == "p1-int-req-001"
++        assert kwargs["trace_id"] == "p1-int-trace-001"
++
++
++@pytest.mark.asyncio
++async def test_interaction_check_requires_two_drugs(client):
++    """drug_list needs at least 2 items."""
++    response = await client.post(
++        "/api/v1/clinical/interactions",
++        json={"drug_list": ["Warfarin"]},
++    )
++    assert response.status_code == 422
++
++
++# ── P3-3: Clinical Query ────────────────────────────────────────────────
++
++@pytest.mark.asyncio
++async def test_clinical_query(client):
++    mock_result = {
++        "request_id": "cq-001",
++        "intent": "knowledge_qa",
++        "status": "ok",
++        "result_type": "knowledge_qa",
++        "confidence": 0.85,
++        "warnings": [],
++        "rag": {"answer": "PADIS guidelines recommend..."},
++        "dose_result": None,
++        "interaction_result": None,
++        "citations": [],
++    }
++    with patch("app.routers.clinical.evidence_client") as mock_ec:
++        mock_ec.clinical_query.return_value = mock_result
++        response = await client.post(
++            "/api/v1/clinical/clinical-query",
++            json={"question": "What are the PADIS guidelines for sedation?"},
++        )
++        assert response.status_code == 200
++        data = response.json()
++        assert data["success"] is True
++        assert data["data"]["intent"] == "knowledge_qa"
++
++
++@pytest.mark.asyncio
++async def test_clinical_query_forwards_request_trace_ids(client):
++    with patch("app.routers.clinical.evidence_client") as mock_ec:
++        mock_ec.clinical_query.return_value = {
++            "status": "ok",
++            "intent": "knowledge_qa",
++            "result_type": "knowledge_qa",
++        }
++        response = await client.post(
++            "/api/v1/clinical/clinical-query",
++            json={"question": "What are PADIS sedation targets?"},
++            headers={
++                "X-Request-ID": "p1-cq-req-001",
++                "X-Trace-ID": "p1-cq-trace-001",
++            },
++        )
++        assert response.status_code == 200
++        kwargs = mock_ec.clinical_query.call_args.kwargs
++        assert kwargs["request_id"] == "p1-cq-req-001"
++        assert kwargs["trace_id"] == "p1-cq-trace-001"
+diff --git a/backend/tests/test_api/test_rag.py b/backend/tests/test_api/test_rag.py
+index ce15ecd..4fe836d 100644
+--- a/backend/tests/test_api/test_rag.py
++++ b/backend/tests/test_api/test_rag.py
+@@ -1,5 +1,7 @@
+ """Test RAG API endpoints."""
+ 
++from unittest.mock import patch
++
+ import pytest
+ 
+ 
+@@ -21,6 +23,28 @@ async def test_rag_query_not_indexed(client):
+     assert response.status_code == 503
+ 
+ 
++@pytest.mark.asyncio
++async def test_rag_query_forwards_request_trace_ids(client):
++    with patch("app.routers.rag.evidence_client") as mock_ec:
++        mock_ec.query.return_value = {
++            "answer": "PADIS recommendation ...",
++            "citations": [],
++            "confidence": 0.8,
++        }
++        response = await client.post(
++            "/api/v1/rag/query",
++            json={"question": "PADIS sedation guidance"},
++            headers={
++                "X-Request-ID": "p1-rag-req-001",
++                "X-Trace-ID": "p1-rag-trace-001",
++            },
++        )
++        assert response.status_code == 200
++        kwargs = mock_ec.query.call_args.kwargs
++        assert kwargs["request_id"] == "p1-rag-req-001"
++        assert kwargs["trace_id"] == "p1-rag-trace-001"
++
++
+ @pytest.mark.asyncio
+ async def test_rag_index_with_empty_dir(client, tmp_path):
+     response = await client.post(

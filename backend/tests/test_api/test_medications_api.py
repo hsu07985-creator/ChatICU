@@ -1,0 +1,103 @@
+from datetime import date
+
+import pytest
+import pytest_asyncio
+
+from app.models.medication import Medication
+
+
+@pytest_asyncio.fixture
+async def seeded_medication(seeded_db):
+    med = Medication(
+        id="med_contract_001",
+        patient_id="pat_001",
+        name="Morphine",
+        generic_name="Morphine Sulfate",
+        category="analgesic",
+        san_category="A",
+        dose="2",
+        unit="mg",
+        frequency="q4h",
+        route="IV",
+        prn=False,
+        indication="pain",
+        start_date=date(2026, 2, 17),
+        status="active",
+        prescribed_by={"id": "usr_test", "name": "Test Doctor"},
+        warnings=["respiratory depression"],
+    )
+    seeded_db.add(med)
+    await seeded_db.commit()
+    return med
+
+
+@pytest.mark.asyncio
+async def test_get_medication_detail_contract(client, seeded_medication):
+    response = await client.get(f"/patients/pat_001/medications/{seeded_medication.id}")
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["success"] is True
+    data = payload["data"]
+    assert data["id"] == seeded_medication.id
+    assert data["patientId"] == "pat_001"
+    assert data["name"] == "Morphine"
+    assert isinstance(data["warnings"], list)
+
+
+@pytest.mark.asyncio
+async def test_get_medication_administrations_contract(client, seeded_medication):
+    response = await client.get(
+        f"/patients/pat_001/medications/{seeded_medication.id}/administrations",
+        params={"startDate": "2026-02-17", "endDate": "2026-02-17"},
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["success"] is True
+    administrations = payload["data"]
+    assert isinstance(administrations, list)
+    assert len(administrations) >= 1
+
+    first = administrations[0]
+    for field in [
+        "id",
+        "medicationId",
+        "patientId",
+        "scheduledTime",
+        "status",
+        "dose",
+        "route",
+    ]:
+        assert field in first
+    assert first["medicationId"] == seeded_medication.id
+    assert first["patientId"] == "pat_001"
+
+
+@pytest.mark.asyncio
+async def test_patch_medication_administration_contract(client, seeded_medication):
+    list_response = await client.get(
+        f"/patients/pat_001/medications/{seeded_medication.id}/administrations"
+    )
+    assert list_response.status_code == 200
+    administration_id = list_response.json()["data"][0]["id"]
+
+    patch_response = await client.patch(
+        f"/patients/pat_001/medications/{seeded_medication.id}/administrations/{administration_id}",
+        json={"status": "held", "notes": "NPO before procedure"},
+    )
+    assert patch_response.status_code == 200
+
+    patched = patch_response.json()["data"]
+    assert patched["id"] == administration_id
+    assert patched["status"] == "held"
+    assert patched["notes"] == "NPO before procedure"
+
+    verify_response = await client.get(
+        f"/patients/pat_001/medications/{seeded_medication.id}/administrations"
+    )
+    assert verify_response.status_code == 200
+    verify_rows = verify_response.json()["data"]
+    updated_row = next(row for row in verify_rows if row["id"] == administration_id)
+    assert updated_row["status"] == "held"
+    assert updated_row["notes"] == "NPO before procedure"

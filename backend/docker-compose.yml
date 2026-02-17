@@ -1,13 +1,27 @@
+# ── Pre-deployment checklist ─────────────────────────────────────────
+# Before production use, set in .env or shell environment:
+#   POSTGRES_PASSWORD  — strong random password (>= 20 chars)
+#   JWT_SECRET         — python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+#   SEED_DEFAULT_PASSWORD — initial admin password (must meet password policy)
+#   OPENAI_API_KEY     — if using LLM features
+# Default passwords below are intentionally non-functional placeholders.
+# ─────────────────────────────────────────────────────────────────────
+
 services:
   api:
     build:
       context: .
       dockerfile: Dockerfile
+    # Apply DB migrations automatically for local/dev docker runs.
+    # Keeps `docker compose up` working even after adding new Alembic revisions.
+    command: ["sh", "-c", "alembic upgrade head && python -m seeds.validate_datamock && SEED_PASSWORD_STRATEGY=username python -m seeds.seed_if_empty && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
     ports:
       - "8000:8000"
     env_file: .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-chaticu}:${POSTGRES_PASSWORD:-chaticu_password}@db:5432/${POSTGRES_DB:-chaticu}
+      - DATA_SOURCE_MODE=${DATA_SOURCE_MODE:-db}
+      - DATAMOCK_DIR=/datamock
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-chaticu}:${POSTGRES_PASSWORD:-CHANGE_ME_BEFORE_PRODUCTION}@db:5432/${POSTGRES_DB:-chaticu}
       - REDIS_URL=redis://redis:6379/0
       - RAG_DOCS_PATH=/data/rag_docs
     depends_on:
@@ -17,6 +31,20 @@ services:
         condition: service_healthy
     volumes:
       - "../rag 文本:/data/rag_docs:ro"
+      - "../datamock:/datamock:ro"
+    restart: unless-stopped
+
+  # Frontend static server (serves ../build) for local smoke/E2E.
+  # For interactive development, use `npm run dev` on the host instead.
+  web:
+    image: nginx:1.27-alpine
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    volumes:
+      - "../build:/usr/share/nginx/html:ro"
+      - "./nginx.conf:/etc/nginx/conf.d/default.conf:ro"
     restart: unless-stopped
 
   db:
@@ -24,7 +52,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-chaticu}
       POSTGRES_USER: ${POSTGRES_USER:-chaticu}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chaticu_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_ME_BEFORE_PRODUCTION}
     ports:
       - "5432:5432"
     volumes:

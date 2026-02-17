@@ -1,0 +1,17 @@
+HTTP/1.1 200 OK
+date: Tue, 17 Feb 2026 04:29:26 GMT
+server: uvicorn
+content-length: 757
+content-type: application/json
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-xss-protection: 1; mode=block
+referrer-policy: strict-origin-when-cross-origin
+permissions-policy: camera=(), microphone=(), geolocation=()
+cross-origin-resource-policy: cross-origin
+cache-control: no-store
+pragma: no-cache
+expires: 0
+x-request-id: 3da3bce0a098
+x-trace-id: 3da3bce0a098
+

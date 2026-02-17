@@ -1499,7 +1499,7 @@ POST /admin/users
   "email": "nurse2@hospital.com",
   "role": "nurse",
   "unit": "加護病房二",
-  "password": "temporary_password_123"
+  "password": "<GENERATED_BY_SYSTEM>"
 }
 ```
 
@@ -1514,7 +1514,7 @@ POST /admin/users
     "role": "nurse",
     "unit": "加護病房二",
     "createdAt": "2024-11-15T12:00:00Z",
-    "temporaryPassword": "temporary_password_123"
+    "temporaryPassword": "<GENERATED_BY_SYSTEM>"
   }
 }
 ```
@@ -1587,7 +1587,7 @@ Content-Type: multipart/form-data
 
 **Form Data:**
 ```
-file: [PDF file]
+file: [PDF/DOCX/TXT file]
 collection: "clinical_guidelines"
 metadata: { "type": "guideline", "year": "2024" }
 ```
@@ -1596,12 +1596,24 @@ metadata: { "type": "guideline", "year": "2024" }
 ```json
 {
   "success": true,
+  "message": "文件已上傳並完成索引：PADIS_Guideline_2024.pdf",
   "data": {
     "documentId": "doc_001",
     "fileName": "PADIS_Guideline_2024.pdf",
     "collection": "clinical_guidelines",
-    "status": "processing",
-    "estimatedTime": "5 minutes"
+    "status": "indexed",
+    "database": {
+      "id": "rag-main",
+      "name": "RAG 醫療文件庫",
+      "documentCount": 251,
+      "chunkCount": 8432,
+      "status": "active",
+      "embeddingModel": "tfidf"
+    },
+    "metadata": {
+      "type": "guideline",
+      "year": "2024"
+    }
   }
 }
 ```

@@ -1,0 +1,106 @@
+--- /dev/null	2026-02-16 14:30:29
++++ reports/prompt-P02-result.md	2026-02-16 14:30:35
+@@ -0,0 +1,57 @@
++1) Summary
++- 已完成前端型別/呼叫與後端 schema/實作回傳的一致性比對。
++- 發現 6 項契約漂移，其中 High 4 項、Medium 2 項。
++- 已為全部 High 項提供明確修復策略（A 後端對齊前端 / B 前端對齊後端）與測試計畫。
++
++2) Findings
++Contract Mismatch Matrix
++| ID | Severity | Endpoint | Frontend Expectation(File:Line) | Backend Actual(File:Line) | Mismatch Type | Runtime Symptom |
++|---|---|---|---|---|---|---|
++| C-001 | High | `POST /patients/{id}/messages` | `messageType` 僅允許 `'general'|'medication-advice'|'alert'`（`src/lib/api/messages.ts:31`），但 UI 會送出 `progress-note`（`src/components/medical-records.tsx:120`） | backend 允許 `general/medication-advice/urgent/note/progress-note/nursing-record`（`backend/app/schemas/message.py:15-17`） | Enum drift (frontend narrower than backend) | `npm run typecheck` 失敗：`TS2322` (`medical-records.tsx:120`) |
++| C-002 | High | `PATCH /patients/{id}` | 患者型別限制 `gender: '男'|'女'`, `consentStatus: 'valid'|'expired'|'none'`（`src/lib/api/patients.ts:10,20`） | backend schema 對應欄位為 `str/Optional[str]`（`backend/app/schemas/patient.py:12,81`） | Type strictness mismatch | `Select` 回傳 string 導致 `TS2322`（`src/pages/patients.tsx:537,676`） |
++| C-003 | High | `PATCH /patients/{id}` (form binding) | Checkbox/array 欄位在表單端被當成必定 boolean/array（`src/pages/patients.tsx:627-667,693-694`） | 前端 state 型別存在 `boolean | 'indeterminate' | undefined` 流入更新路徑（來源：Radix `onCheckedChange`） | UI binding type mismatch | `TS2322`/`TS18048`（`src/pages/patients.tsx:628,637,650,663,694`） |
++| C-004 | High | `POST /ai/chat` | 前端把回覆當一般成功內容渲染（`src/pages/patient-detail.tsx:535-541`） | LLM 失敗仍回 `success_response` 並包裝降級文字（`backend/app/routers/ai_chat.py:279-291`, `backend/app/routers/ai_chat.py:339-350`） | Error signaling contract gap | 無法結構化區分「AI 成功」與「服務降級」，屬 silent-degrade 風險 |
++| C-005 | Medium | `GET /admin/audit-logs` | 前端支援 `user/startDate/endDate` 參數（`src/lib/api/admin.ts:39-47`） | backend 僅支援 `action/userId/status`（`backend/app/routers/admin.py:24-33`） | Query parameter drift | UI 篩選條件與後端實際過濾不一致 |
++| C-006 | Medium | `GET /pharmacy/error-reports` | 前端帶 `page/limit/type/status`（`src/lib/api/pharmacy.ts:40-45`） | backend 僅 `status/severity`，無分頁（`backend/app/routers/pharmacy.py:44-56`） | Query + pagination drift | 前端期望分頁/類型篩選，後端忽略導致結果不可預期 |
++
++每項修復策略
++- C-001：策略 B（前端對齊後端）
++  - 擴充 `src/lib/api/messages.ts` 的 `messageType` union，至少含 `progress-note`、`nursing-record`、`urgent`、`note`。
++  - 測試：`npm run typecheck` + 患者留言 API contract 測試。
++- C-002：策略 B（前端對齊後端）
++  - 放寬 `src/lib/api/patients.ts` 中 `gender/consentStatus` 型別為 `string`（或更寬 union）。
++  - 測試：`npm run typecheck`。
++- C-003：策略 B（前端對齊元件回傳型別）
++  - `onCheckedChange` 僅寫入 `checked === true`；`sedation/analgesia/nmb` 使用 `?? []`。
++  - 測試：`npm run typecheck`。
++- C-004：策略 A+B（後端補語義 + 前端顯示）
++  - 後端 `/ai/chat` 在降級路徑增加結構化欄位（例：`degraded: true`, `upstreamStatus: 'llm_unavailable'`）。
++  - 前端依 `degraded` 顯示明確提示與告警樣式，不當作一般成功答案。
++  - 測試：新增 `backend/tests/test_api/test_ai_chat.py` 降級契約斷言 + 前端單次互動 smoke。
++- C-005：策略 A（後端對齊前端）
++  - `GET /admin/audit-logs` 新增 `startDate/endDate/user` 參數（user 名稱模糊查詢 + 時間區間）。
++  - 測試：擴充 `backend/tests/test_api/test_contract.py` 或新增 admin filter tests。
++- C-006：策略 A（後端對齊前端）
++  - `GET /pharmacy/error-reports` 新增 `page/limit/type`（`type` 對映 `error_type`）與分頁回傳欄位。
++  - 測試：新增 pharmacy list filter/pagination API tests。
++
++Patch Plan（先不大改）
++1. 先修 C-001/C-002/C-003（純前端型別與表單綁定，低風險且可立即解除 build block）。
++2. 再修 C-004（AI 降級契約顯性化，避免 silent-degrade）。
++3. 補 C-005/C-006 後端查詢參數對齊（保留向後相容）。
++4. 每次修補後跑：`npm run typecheck`、`backend/.venv312/bin/python -m pytest backend/tests/test_api -q`。
++
++3) Patch
++- 新增 `reports/prompt-P02-result.md`
++- 更新 `.orchestrator/state.json`
++
++4) Verification
++- 命令：`npm run typecheck`
++  - 證據：8 個 TS 錯誤，關鍵包含 `medical-records.tsx:120`, `patients.tsx:537,628,637,650,663,676,694`。
++- 命令：`backend/.venv312/bin/python -m pytest backend/tests/test_api/test_contract.py -q`
++  - 證據：`15 passed`，表示後端現有 contract tests 未覆蓋上述前端型別/降級語義缺口。
++- 命令：`backend/.venv312/bin/python -m pytest backend/tests/test_api -q`
++  - 證據：`61 passed`（同樣顯示 mismatch 主要在前端型別與跨層語義）。
++
++5) Gate
++- PROMPT-02 COMPLETE
+--- /tmp/state_p01.json	2026-02-16 14:30:35
++++ .orchestrator/state.json	2026-02-16 14:30:35
+@@ -1,7 +1,7 @@
+ {
+   "autopilot": true,
+   "started_at": "2026-02-16T06:27:39Z",
+-  "current_phase": "P01",
++  "current_phase": "P02",
+   "phases": {
+     "P00": {
+       "status": "COMPLETE",
+@@ -62,6 +62,34 @@
+         }
+       ],
+       "blockers": []
++    },
++    "P02": {
++      "status": "COMPLETE",
++      "evidence": [
++        "Contract mismatch matrix generated with 6 IDs and file-line references",
++        "All High mismatches have remediation strategy and test plan",
++        "No unsupported claims; all findings backed by code or command output"
++      ],
++      "files_changed": [
++        "reports/prompt-P02-result.md",
++        ".orchestrator/state.json"
++      ],
++      "tests": [
++        {
++          "command": "npm run typecheck",
++          "result": "FAIL",
++          "note": "8 TS errors mapped to C-001~C-003"
++        },
++        {
++          "command": "backend/.venv312/bin/python -m pytest backend/tests/test_api/test_contract.py -q",
++          "result": "PASS"
++        },
++        {
++          "command": "backend/.venv312/bin/python -m pytest backend/tests/test_api -q",
++          "result": "PASS"
++        }
++      ],
++      "blockers": []
+     }
+   }
+ }

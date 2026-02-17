@@ -1,0 +1,3 @@
+90:2026-02-17 12:17:52,673 [INFO] chaticu: [INTG][AI][API] /ai/chat request_id=audit3_chat_20260217T041752Z trace_id=audit3_chat_20260217T041752Z session_id=session_4349a30b user_id=usr_002 patient_id=pat_001 intent=medication_fact
+101:2026-02-17 12:17:58,766 [INFO] chaticu: [INTG][AI][AUDIT] provider_raw_captured path=/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/../reports/operations/manual-api-evidence-20260217T041454Z/provider_raw/20260217T041758Z_openai_rag_generation_audit3_chat_20260217.json request_id=audit3_chat_20260217T041752Z trace_id=audit3_chat_20260217T041752Z task=rag_generation
+108:2026-02-17 12:17:58,777 [INFO] uvicorn.access: 127.0.0.1:51207 - "POST /ai/chat HTTP/1.1" 200

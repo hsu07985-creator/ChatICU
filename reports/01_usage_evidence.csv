@@ -1,0 +1,840 @@
+path,score,class,static_incoming,config_ref_count,evidence
+.DS_Store,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+.claude/settings.local.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+.env.development,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+.env.example,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+.github/dependabot.yml,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+.github/workflows/ci.yml,90,ACTIVE,0,0,runtime_root | entrypoint
+.gitignore,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+.mcp.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+.orchestrator/state.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+.pre-commit-config.yaml,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+.secrets.baseline,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+AI_AUDIT_REPORT.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+AI_TASK_TRACKER.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+CHANGELOG.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+ChatICU/.env.example,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/.gitignore,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/.pytest_cache/.gitignore,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/.pytest_cache/CACHEDIR.TAG,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/.pytest_cache/README.md,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/.pytest_cache/v/cache/lastfailed,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/.pytest_cache/v/cache/nodeids,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/.pytest_cache/v/cache/stepwise,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/ARCHIVED.md,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/__init__.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/api/endpoints/__init__.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/api/endpoints/clinical.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/api/endpoints/labs.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/api/endpoints/patients.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/api/endpoints/rag.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/api/endpoints/rules.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/api/frontend/__init__.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/api/frontend/auth.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/api/frontend/fe_ai.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/api/frontend/fe_lab_data.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/api/frontend/fe_medications.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/api/frontend/fe_messages.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/api/frontend/fe_patients.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/api/frontend/fe_pharmacy.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/api/frontend/fe_ventilator.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/api/frontend/fe_vital_signs.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/models/__init__.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/models/clinical.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/models/lab.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/models/patient.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/models/rag.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/models/rules.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/services/data_services/__init__.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/services/data_services/document_loader.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/services/data_services/lab_service.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/services/data_services/mock_loader.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/services/data_services/patient_service.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/services/data_services/text_chunker.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/services/llm_services/__init__.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/services/llm_services/clinical_summary.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/services/llm_services/patient_explanation.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/services/llm_services/rag_service.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/services/rule_engine/__init__.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/services/rule_engine/ckd_rules.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/app/utils/__init__.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/config.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/main.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/mock_data/drugInteractions.json,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/mock_data/labData.json,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/mock_data/labTrends.json,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/mock_data/labs.json,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/mock_data/medications.json,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/mock_data/messages.json,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/mock_data/patients.json,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/mock_data/users.json,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/requirements.txt,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/__init__.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/conftest.py,5,ORPHAN_CANDIDATE,0,1,config_refs=backend/pyproject.toml | legacy_subtree_marker
+ChatICU/tests/test_api/__init__.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/test_api/test_clinical.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/test_api/test_frontend.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/test_api/test_labs.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/test_api/test_patients.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/test_api/test_rag.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/test_api/test_rules.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/test_config.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/test_mock_data.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/test_services/__init__.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/test_services/test_ckd_rules.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/test_services/test_clinical_summary.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/test_services/test_document_loader.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/test_services/test_embedding.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/test_services/test_lab_service.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/test_services/test_patient_explanation.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/test_services/test_patient_service.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/tests/test_services/test_text_chunker.py,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+ChatICU/todo.md,0,ORPHAN_CANDIDATE,0,0,legacy_subtree_marker
+DEV_START_FRONTEND_BACKEND.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+ISMS-4-208-GE-03資通系統控制措施檢核表-1.xlsx,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+README.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+SECURITY.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+TASK_TRACKER.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+backend/.env,15,ORPHAN_CANDIDATE,0,3,config_refs=.github/workflows/ci.yml;playwright.config.js;backend/docker-compose.yml
+backend/.env.example,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+backend/.gitignore,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+backend/Dockerfile,5,ORPHAN_CANDIDATE,0,1,config_refs=backend/docker-compose.yml
+backend/alembic/__pycache__/env.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/alembic/env.py,75,SHARED/INFRA,0,1,runtime_root | config_refs=backend/alembic.ini
+backend/alembic/script.py.mako,70,SHARED/INFRA,0,0,runtime_root
+backend/alembic/versions/001_initial_schema.py,70,SHARED/INFRA,0,0,runtime_root
+backend/alembic/versions/002_password_history.py,70,SHARED/INFRA,0,0,runtime_root
+backend/alembic/versions/003_pharmacy_advices.py,70,SHARED/INFRA,0,0,runtime_root
+backend/alembic/versions/004_ai_session_summary.py,70,SHARED/INFRA,0,0,runtime_root
+backend/alembic/versions/005_patient_unit.py,70,SHARED/INFRA,0,0,runtime_root
+backend/alembic/versions/006_pharmacy_compatibility_favorites.py,70,SHARED/INFRA,0,0,runtime_root
+backend/alembic/versions/__pycache__/001_initial_schema.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/alembic/versions/__pycache__/002_password_history.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/alembic/versions/__pycache__/003_pharmacy_advices.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/alembic/versions/__pycache__/004_ai_session_summary.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/alembic/versions/__pycache__/005_patient_unit.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/alembic.ini,20,ORPHAN_CANDIDATE,0,0,entrypoint
+backend/app/__init__.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/__pycache__/__init__.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/__pycache__/__init__.cpython-314.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/__pycache__/config.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/__pycache__/config.cpython-314.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/__pycache__/database.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/__pycache__/llm.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/__pycache__/main.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/config.py,95,ACTIVE,14,0,runtime_root | import_incoming=14
+backend/app/database.py,95,ACTIVE,33,0,runtime_root | import_incoming=33
+backend/app/llm.py,95,ACTIVE,7,0,runtime_root | import_incoming=7
+backend/app/main.py,95,ACTIVE,1,0,runtime_root | entrypoint | import_incoming=1
+backend/app/middleware/__init__.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/middleware/__pycache__/__init__.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/middleware/__pycache__/audit.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/middleware/__pycache__/auth.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/middleware/__pycache__/rate_limit.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/middleware/audit.py,95,ACTIVE,12,0,runtime_root | import_incoming=12
+backend/app/middleware/auth.py,95,ACTIVE,16,0,runtime_root | import_incoming=16
+backend/app/middleware/rate_limit.py,80,ACTIVE,2,0,runtime_root | import_incoming=2
+backend/app/models/__init__.py,85,ACTIVE,3,0,runtime_root | import_incoming=3
+backend/app/models/__pycache__/__init__.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/models/__pycache__/ai_session.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/models/__pycache__/audit_log.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/models/__pycache__/chat_message.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/models/__pycache__/drug_interaction.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/models/__pycache__/error_report.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/models/__pycache__/lab_data.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/models/__pycache__/medication.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/models/__pycache__/message.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/models/__pycache__/patient.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/models/__pycache__/pharmacy_advice.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/models/__pycache__/pharmacy_favorite.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/models/__pycache__/user.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/models/__pycache__/ventilator.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/models/__pycache__/vital_sign.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/models/ai_session.py,80,ACTIVE,2,0,runtime_root | import_incoming=2
+backend/app/models/audit_log.py,85,ACTIVE,3,0,runtime_root | import_incoming=3
+backend/app/models/chat_message.py,80,ACTIVE,2,0,runtime_root | import_incoming=2
+backend/app/models/drug_interaction.py,85,ACTIVE,3,0,runtime_root | import_incoming=3
+backend/app/models/error_report.py,80,ACTIVE,2,0,runtime_root | import_incoming=2
+backend/app/models/lab_data.py,80,ACTIVE,2,0,runtime_root | import_incoming=2
+backend/app/models/medication.py,85,ACTIVE,3,0,runtime_root | import_incoming=3
+backend/app/models/message.py,95,ACTIVE,5,0,runtime_root | import_incoming=5
+backend/app/models/patient.py,95,ACTIVE,5,0,runtime_root | import_incoming=5
+backend/app/models/pharmacy_advice.py,80,ACTIVE,2,0,runtime_root | import_incoming=2
+backend/app/models/pharmacy_favorite.py,80,ACTIVE,2,0,runtime_root | import_incoming=2
+backend/app/models/user.py,95,ACTIVE,19,0,runtime_root | import_incoming=19
+backend/app/models/ventilator.py,80,ACTIVE,2,0,runtime_root | import_incoming=2
+backend/app/models/vital_sign.py,80,ACTIVE,2,0,runtime_root | import_incoming=2
+backend/app/routers/__init__.py,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+backend/app/routers/__pycache__/__init__.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/__pycache__/admin.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/__pycache__/ai_chat.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/__pycache__/auth.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/__pycache__/clinical.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/__pycache__/dashboard.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/__pycache__/health.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/__pycache__/lab_data.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/__pycache__/medications.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/__pycache__/messages.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/__pycache__/patients.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/__pycache__/pharmacy.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/__pycache__/rag.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/__pycache__/rules.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/__pycache__/team_chat.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/__pycache__/ventilator.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/__pycache__/vital_signs.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/admin.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/ai_chat.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/auth.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/clinical.py,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+backend/app/routers/dashboard.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/health.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/lab_data.py,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+backend/app/routers/medications.py,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+backend/app/routers/messages.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/patients.py,95,ACTIVE,5,0,runtime_root | import_incoming=5
+backend/app/routers/pharmacy.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/rag.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/rules.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/team_chat.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/routers/ventilator.py,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+backend/app/routers/vital_signs.py,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+backend/app/schemas/__init__.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/schemas/__pycache__/__init__.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/schemas/__pycache__/admin.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/schemas/__pycache__/auth.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/schemas/__pycache__/clinical.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/schemas/__pycache__/lab_data.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/schemas/__pycache__/medication.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/schemas/__pycache__/message.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/schemas/__pycache__/patient.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/schemas/__pycache__/pharmacy.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/schemas/admin.py,85,ACTIVE,3,0,runtime_root | import_incoming=3
+backend/app/schemas/auth.py,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+backend/app/schemas/clinical.py,95,ACTIVE,5,0,runtime_root | import_incoming=5
+backend/app/schemas/lab_data.py,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+backend/app/schemas/medication.py,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+backend/app/schemas/message.py,85,ACTIVE,3,0,runtime_root | import_incoming=3
+backend/app/schemas/patient.py,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+backend/app/schemas/pharmacy.py,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+backend/app/schemas/vital_sign.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/services/__init__.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/services/__pycache__/__init__.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/services/__pycache__/evidence_client.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/services/__pycache__/safety_guardrail.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/services/data_services/__init__.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/services/data_services/__pycache__/__init__.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/services/data_services/__pycache__/document_loader.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/services/data_services/__pycache__/text_chunker.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/services/data_services/document_loader.py,80,ACTIVE,2,0,runtime_root | import_incoming=2
+backend/app/services/data_services/text_chunker.py,80,ACTIVE,2,0,runtime_root | import_incoming=2
+backend/app/services/evidence_client.py,85,ACTIVE,3,0,runtime_root | import_incoming=3
+backend/app/services/llm_services/__init__.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/services/llm_services/__pycache__/__init__.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/services/llm_services/__pycache__/clinical_summary.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/services/llm_services/__pycache__/patient_explanation.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/services/llm_services/__pycache__/rag_service.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/services/llm_services/clinical_summary.py,80,ACTIVE,2,0,runtime_root | import_incoming=2
+backend/app/services/llm_services/patient_explanation.py,80,ACTIVE,2,0,runtime_root | import_incoming=2
+backend/app/services/llm_services/rag_service.py,95,ACTIVE,5,0,runtime_root | import_incoming=5
+backend/app/services/rule_engine/__init__.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/services/rule_engine/__pycache__/__init__.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/services/rule_engine/__pycache__/ckd_rules.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/services/rule_engine/ckd_rules.py,90,ACTIVE,4,0,runtime_root | import_incoming=4
+backend/app/services/safety_guardrail.py,85,ACTIVE,3,0,runtime_root | import_incoming=3
+backend/app/utils/__init__.py,70,SHARED/INFRA,0,0,runtime_root
+backend/app/utils/__pycache__/__init__.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/utils/__pycache__/llm_errors.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/utils/__pycache__/response.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/utils/__pycache__/security.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/app/utils/llm_errors.py,80,ACTIVE,2,0,runtime_root | import_incoming=2
+backend/app/utils/response.py,95,ACTIVE,16,0,runtime_root | import_incoming=16
+backend/app/utils/security.py,95,ACTIVE,7,0,runtime_root | import_incoming=7
+backend/docker-compose.yml,20,ORPHAN_CANDIDATE,0,0,entrypoint
+backend/docs/API_CONTRACT.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+backend/docs/ARCHITECTURE.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+backend/docs/openapi.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+backend/nginx.conf,5,ORPHAN_CANDIDATE,0,1,config_refs=backend/docker-compose.yml
+backend/pyproject.toml,25,ORPHAN_CANDIDATE,0,1,entrypoint | config_refs=.github/workflows/ci.yml
+backend/requirements.lock,5,ORPHAN_CANDIDATE,0,1,config_refs=.github/workflows/ci.yml
+backend/requirements.txt,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+backend/seeds/__init__.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+backend/seeds/__pycache__/__init__.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+backend/seeds/__pycache__/seed_data.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+backend/seeds/__pycache__/seed_data.cpython-314.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+backend/seeds/seed_data.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+backend/seeds/seed_if_empty.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+backend/tests/__init__.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/__pycache__/__init__.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/__pycache__/conftest.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/__pycache__/test_e2e_llm.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/__pycache__/test_llm.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/conftest.py,75,SHARED/INFRA,0,1,runtime_root | config_refs=backend/pyproject.toml
+backend/tests/test_api/__init__.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_api/__pycache__/__init__.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_api/__pycache__/test_ai_chat.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_api/__pycache__/test_clinical.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_api/__pycache__/test_contract.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_api/__pycache__/test_pharmacy_advice.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_api/__pycache__/test_pharmacy_favorites.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_api/__pycache__/test_rag.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_api/__pycache__/test_rules.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_api/test_ai_chat.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_api/test_clinical.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_api/test_contract.py,75,SHARED/INFRA,0,1,runtime_root | config_refs=.github/workflows/ci.yml
+backend/tests/test_api/test_pharmacy_advice.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_api/test_pharmacy_favorites.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_api/test_rag.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_api/test_rules.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_e2e_llm.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_llm.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_schemas/__pycache__/test_validation_hardening.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_schemas/test_validation_hardening.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_services/__init__.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_services/__pycache__/__init__.cpython-312.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_services/__pycache__/test_ckd_rules.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_services/__pycache__/test_clinical_summary.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_services/__pycache__/test_document_loader.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_services/__pycache__/test_embedding.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_services/__pycache__/test_password_policy.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_services/__pycache__/test_safety_guardrail.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_services/__pycache__/test_text_chunker.cpython-312-pytest-8.3.4.pyc,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_services/test_ckd_rules.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_services/test_clinical_summary.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_services/test_document_loader.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_services/test_embedding.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_services/test_password_policy.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_services/test_safety_guardrail.py,70,SHARED/INFRA,0,0,runtime_root
+backend/tests/test_services/test_text_chunker.py,70,SHARED/INFRA,0,0,runtime_root
+build/assets/876ec040af4ae472e932818bce39f20ca0e1e282-qCFI9fKW.png,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+build/assets/charts-hZPl4Q23.js,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+build/assets/f438047691c382addfed5c99dfc97977dea5c831-DlXFtnf9.png,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+build/assets/index-BEzo1rAq.js,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+build/assets/index-VKefrhiU.css,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+build/assets/ui-D7mrWnTK.js,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+build/assets/vendor-hLxha9dG.js,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+build/index.html,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+chaticu-dev-skill/.DS_Store,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+chaticu-dev-skill/SKILL.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+chaticu-dev-skill/architecture-rules.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+chaticu-dev-skill/backend-dev.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+chaticu-dev-skill/config-template.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+chaticu-dev-skill/init_project.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+chaticu-dev-skill/pm-agent.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+chaticu-dev-skill/qa-agent.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+chaticu-dev-skill/rag-interface.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+chaticu-dev-skill/repo-analyst.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+chaticu-dev-skill/security-agent.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+chaticu-dev-skill/security_scan.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+chaticu-dev-skill/system-architect.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+chaticu-dev-skill/todo-system.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+config.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+datamock/drugInteractions.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+datamock/labData.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+datamock/labTrends.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+datamock/medications.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+datamock/messages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+datamock/patients.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+datamock/users.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+docs/ai-integration-plan.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/frontend-data-inventory.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/operations/environment-rebuild-runbook.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/operations/reproducibility-report-template.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/operations/reproducibility-reports/2026-02-15-local-rebuild-drill.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/operations/reproducibility-reports/2026-02-15-run-22031771983.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/pharmacy-center-improvement-plan.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/pharmacy-center-task-tracker.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/qa/t04-uat-report-2026-02-15-draft.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/qa/t04-uat-report-template.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/qa/t04-uat-test-script.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/qa/t27-branch-protection-checklist.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/qa/t27-release-gate-policy.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/release/change-request-template.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/release/records/cr-2026-02-15-session13.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/release/records/rollback-drill-2026-02-15.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/release/release-approval-checklist.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/release/rollback-sop.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/security/evidence/t23-security-scan-summary-2026-02-15.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/security/evidence/t24-remediation-drill-2026-02-15-case2.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/security/evidence/t24-remediation-drill-2026-02-15.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/security/vulnerability-register-2026-02.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/security/vulnerability-register-template.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/security/vulnerability-sla.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/system-fix-plan.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+docs/system-task-tracker.md,10,ORPHAN_CANDIDATE,0,0,docs_asset
+e2e/critical-journey.spec.js,70,SHARED/INFRA,0,0,runtime_root
+e2e/helpers/auth.js,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+e2e/pharmacy-center.spec.js,70,SHARED/INFRA,0,0,runtime_root
+e2e/t27-extended-journeys.spec.js,70,SHARED/INFRA,0,0,runtime_root
+func/Makefile,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/README.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/clinical_rules/README.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/clinical_rules/dose_rules/dose_rules.v1.mock.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/clinical_rules/golden/dose_cases.v1.mock.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/clinical_rules/golden/interaction_cases.v1.mock.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/clinical_rules/interactions/interaction_rules.v1.mock.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/clinical_rules/release_manifest.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/env.example,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__init__.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/__init__.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/answering.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/api.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/auto_ingest.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/bm25.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/chunking.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/cli.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/config.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/embeddings.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/evaluate.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/extractors.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/fallback.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/ingest.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/models.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/quality.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/rerank.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/retrieval.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/schemas.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/service.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/storage.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/utils.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/__pycache__/validator.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/answering.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/api.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/auto_ingest.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/bm25.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/chunking.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/cli.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/__init__.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/__pycache__/__init__.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/__pycache__/dose_engine.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/__pycache__/exceptions.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/__pycache__/interaction_engine.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/__pycache__/repositories.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/__pycache__/router.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/__pycache__/rule_loader.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/__pycache__/utils.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/__pycache__/validators.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/dose_engine.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/exceptions.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/interaction_engine.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/repositories.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/router.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/rule_loader.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/utils.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/clinical/validators.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/config.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/embeddings.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/evaluate.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/extractors.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/fallback.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/ingest.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/models.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/quality.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/rerank.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/retrieval.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/schemas.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/service.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/storage.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/utils.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag/validator.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/index/bm25.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/index/chunk_ids.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/index/dense_vectors.npy,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/index/index_meta.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/logs/clinical_golden_report.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/logs/dose_engine_eval_v1.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/logs/interaction_engine_eval_v1.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/chunks.jsonl,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-02faa6545c7beec4_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-0858c0fb767916d9_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-0b489a5d2b5beee6_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-0ee99aec4c8b296d_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-0fb492fea0c0354d_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-10fbc40cea6752b0_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-14cb36dda8506a0a_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-1ebaec12750cdac9_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-23b6a8e81ed21f60_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-24cd0a1b2fffc0c2_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-25167bc44eff1dbb_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-28538452608e4dc1_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-2977f861c3c227b4_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-3a5725d65c203e3e_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-41234f631a168793_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-45842da781a6c93a_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-4941064ce9a21e4a_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-508eee3768b89c1c_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-55118d66e2b9722b_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-5c285a87cd96aa06_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-5c6c4699d3e29140_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-6811fed6797bf032_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-6a992d6c21e42e37_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-7c21ad29160cac28_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-7d38b4a285f64b24_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-836cf0d22502941c_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-866d944e36d2d247_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-89bf81d708e13615_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-8c209710621475af_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-91eea2ac7c9e81c9_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-9c600161cbda5435_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-a5f86fb2e71943e6_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-ad5554c6927be6eb_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-b7b37c6569bc0972_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-befeb2711e2a8499_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-c14b8574cd4891c6_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-c35d721a346a9c14_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-cfc272ccbcd0f7dc_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-d295f6500a12b4eb_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-dac5525c1eb0c6b9_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-ddf6d485607c3e35_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-e825aa49bddfa350_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-e8ad4c3805bf868c_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-ebb1fc6c64c4a8f7_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/doc-f09db8bb2cc79889_pages.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/ingestion_report.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/evidence_rag_data/raw/source_snapshot.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/pyproject.toml,5,ORPHAN_CANDIDATE,0,1,config_refs=.github/workflows/ci.yml
+func/raganything/__init__.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/__pycache__/__init__.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/__pycache__/base.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/__pycache__/batch.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/__pycache__/batch_parser.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/__pycache__/config.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/__pycache__/modalprocessors.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/__pycache__/parser.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/__pycache__/processor.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/__pycache__/prompt.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/__pycache__/query.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/__pycache__/raganything.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/__pycache__/utils.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/base.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/batch.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/batch_parser.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/config.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/enhanced_markdown.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/modalprocessors.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/parser.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/processor.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/prompt.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/query.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/raganything.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/raganything/utils.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/requirements.txt,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/run.sh,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/scripts/__pycache__/run_clinical_golden.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/scripts/__pycache__/test_intent_classifier.cpython-312.pyc,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/scripts/create_tiktoken_cache.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/scripts/run_clinical_golden.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/scripts/test_intent_classifier.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+func/setup.py,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+index.html,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+output/playwright/critical-journey-final.png,15,ORPHAN_CANDIDATE,0,0,runtime_output_dir
+output/playwright/html-report/index.html,15,ORPHAN_CANDIDATE,0,0,runtime_output_dir
+output/playwright/report.json,25,ORPHAN_CANDIDATE,0,2,config_refs=.github/workflows/ci.yml;playwright.config.js | runtime_output_dir
+output/playwright/test-results/.last-run.json,15,ORPHAN_CANDIDATE,0,0,runtime_output_dir
+package-lock.json,5,ORPHAN_CANDIDATE,0,1,config_refs=.github/workflows/ci.yml
+package.json,90,ACTIVE,0,0,runtime_root | entrypoint
+patches/prompt-P00.patch,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+patches/prompt-P01.patch,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+patches/prompt-P02.patch,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+patches/prompt-P03.patch,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+patches/prompt-P04.patch,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+patches/prompt-P05.patch,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+patches/prompt-P06.patch,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+patches/prompt-P07.patch,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+patches/prompt-P08.patch,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+patches/prompt-P09.patch,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+playwright.config.js,90,ACTIVE,0,0,runtime_root | entrypoint
+rag 文本/.DS_Store,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/0_guideline/2018 PADIS guideline.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+"rag 文本/0_guideline/2025 A Focused Update to the Clinical Practice Guidelines for the Prevention and Management of Pain, Anxiety, Agitation (Sedation), Delirium, Immobility, and Sleep Disruption in Adult Patients in the ICU.pdf",0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/0_guideline/PAD使用 (1140131).pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/0_guideline/PAD使用 (1140308).pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/1_analgesic/Behavioral pain scale - UpToDate 1140131.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/1_analgesic/Clinical features of opioid withdrawal - UpToDate 1140131.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/1_analgesic/Critical care pain observation tool - UpToDate 1140131.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/1_analgesic/Fentanyl_ Drug information - UpToDate 1140131.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/1_analgesic/Fentanyl仿單 1140131.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/1_analgesic/Morphine_ Drug information - UpToDate 1140131.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/1_analgesic/Numeric pain scale - UpToDate 1140131.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/1_analgesic/Pain control in the critically ill adult patient - UpToDate 1140131.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/1_analgesic/Taiwan PAD (pain) 1140131.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/1_analgesic/morphine仿單 1140131.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/2_sedation/Anxicam仿單 1140201.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/2_sedation/Dexmedetomidine_ Drug information - UpToDate 1140201.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/2_sedation/Dormicum仿單.docx,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/2_sedation/Fresofol仿單 1140201.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/2_sedation/Lorazepam_ Drug information - UpToDate 1140201.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/2_sedation/Precedex仿單 1140201.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/2_sedation/Propofol_ Drug information - UpToDate 1140201.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+"rag 文本/2_sedation/Sedative-analgesia in ventilated adults_ Management strategies, agent selection, monitoring, and withdrawal - UpToDate 1140201.pdf",0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+"rag 文本/2_sedation/Sedative-analgesia in ventilated adults_ Medication properties, dose regimens, and adverse effects - UpToDate 1140201.pdf",0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/2_sedation/Taiwan PAD (sedation) 1140201.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/3_NM blocker/Cisatracurium_ Drug information - UpToDate 1140131.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+"rag 文本/3_NM blocker/Neuromuscular blocking agents in critically ill patients_ Use, agent selection, administration, and adverse effects - UpToDate 1140131.pdf",0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/3_NM blocker/Nimbex仿單 1140202.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/3_NM blocker/Rocuronium Kabi仿單 1140202.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/3_NM blocker/Rocuronium_ Drug information - UpToDate 1140202.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/4_others/加護病房Y+site+compatibility資料整理 1140131.xlsx,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/4_others/完整給付規定1140131_removed 1140131.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/5_delirium/Causes of delirium and confusion - UpToDate 1140308.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/5_delirium/Confusion assessment method - UpToDate 1140308.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+"rag 文本/5_delirium/Delirium and acute confusional states_ Prevention, treatment, and prognosis - UpToDate 1140308.pdf",0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/5_delirium/Diagnosis of delirium and confusional states - UpToDate 1140308.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/5_delirium/Drugs that cause or prolong delirium or confusional states - UpToDate 1140308.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/5_delirium/Haloperidol_ Drug information - UpToDate 1140309.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/5_delirium/Olanzapine_ Drug information - UpToDate 1140309.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/5_delirium/Quetiapine_ Drug information - UpToDate 1140309.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/5_delirium/Ziprasidone_ Drug information - UpToDate 1140309.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/5_delirium/仿單Binin-U inj 1140309.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/5_delirium/仿單Geodon 1140310.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/5_delirium/仿單Seroquel 1140309.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+rag 文本/5_delirium/仿單Zyprexa 1140309.pdf,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+reports/00_project_inventory.md,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+reports/01_dependency_graph.md,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+reports/01_usage_evidence.csv,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+reports/final-integration-gate.md,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+reports/prompt-P00-result.md,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+reports/prompt-P01-result.md,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+reports/prompt-P02-result.md,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+reports/prompt-P03-result.md,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+reports/prompt-P04-result.md,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+reports/prompt-P05-result.md,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+reports/prompt-P06-result.md,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+reports/prompt-P07-result.md,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+reports/prompt-P08-result.md,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+reports/prompt-P09-result.md,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+reports/t27-remediation-task-board.md,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+reports/t27-remediation-verification.md,5,ORPHAN_CANDIDATE,0,0,generated_artifact
+security_report.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/.dart_frog/server.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/.dart_tool/package_config.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/.dart_tool/package_graph.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/.gitignore,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/.vscode/extensions.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/README.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/analysis_options.yaml,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/.dart_tool/package_config.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/.dart_tool/package_graph.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/.dockerignore,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/.gitignore,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/.vscode/extensions.json,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/Dockerfile,5,ORPHAN_CANDIDATE,0,1,config_refs=backend/docker-compose.yml
+server/build/README.md,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/analysis_options.yaml,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/bin/server.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/lib/config.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/lib/middleware/auth_middleware.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/lib/middleware/cors_middleware.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/lib/models/user.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/lib/services/data_service.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/lib/utils/jwt_utils.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/lib/utils/response_utils.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/pubspec.lock,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/pubspec.yaml,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/_middleware.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/auth/_middleware.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/auth/login.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/auth/logout.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/auth/me.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/auth/refresh.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/health.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/index.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/patients/[id]/index.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/patients/[id]/lab-data/[labDataId]/correct.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/patients/[id]/lab-data/latest.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/patients/[id]/lab-data/trends.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/patients/[id]/medications/[medicationId]/index.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/patients/[id]/medications/index.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/patients/[id]/messages/[messageId]/read.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/patients/[id]/messages/index.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/patients/_middleware.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/patients/index.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/team/_middleware.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/routes/team/chat.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/build/test/routes/index_test.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/lib/config.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/lib/data/advice_statistics_mock.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/lib/data/audit_logs_mock.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/lib/data/error_reports_mock.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/lib/data/users_mock.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/lib/data/vectors_mock.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/lib/data/ventilator_mock.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/lib/data/vital_signs_mock.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/lib/middleware/auth_middleware.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/lib/middleware/cors_middleware.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/lib/models/user.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/lib/services/data_service.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/lib/utils/jwt_utils.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/lib/utils/response_utils.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/pubspec.lock,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/pubspec.yaml,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/_middleware.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/admin/_middleware.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/admin/audit-logs.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/admin/users/[userId].dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/admin/users/index.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/admin/vectors/[databaseId]/rebuild.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/admin/vectors/index.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/admin/vectors/upload.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/auth/_middleware.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/auth/login.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/auth/logout.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/auth/me.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/auth/refresh.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/dashboard/_middleware.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/dashboard/stats.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/health.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/index.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/patients/[id]/archive.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/patients/[id]/index.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/patients/[id]/lab-data/[labDataId]/correct.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/patients/[id]/lab-data/latest.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/patients/[id]/lab-data/trends.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/patients/[id]/medications/[medicationId]/index.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/patients/[id]/medications/index.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/patients/[id]/messages/[messageId]/read.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/patients/[id]/messages/index.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/patients/[id]/ventilator/latest.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/patients/[id]/ventilator/trends.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/patients/[id]/ventilator/weaning-assessment.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/patients/[id]/vital-signs/latest.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/patients/[id]/vital-signs/trends.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/patients/_middleware.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/patients/index.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/pharmacy/advice-statistics.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/pharmacy/error-reports/[reportId].dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/pharmacy/error-reports/index.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/team/_middleware.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/team/chat/[messageId]/_middleware.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/team/chat/[messageId]/pin.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/team/chat/_middleware.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/routes/team/chat/index.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+server/test/routes/index_test.dart,0,ORPHAN_CANDIDATE,0,0,no_direct_evidence
+src/API_SPECIFICATION.md,70,SHARED/INFRA,0,0,runtime_root
+src/App.tsx,95,ACTIVE,1,0,runtime_root | entrypoint | import_incoming=1
+src/Attributions.md,70,SHARED/INFRA,0,0,runtime_root
+src/BUTTON_INTERACTION_FLOW.md,70,SHARED/INFRA,0,0,runtime_root
+src/COMPLETE_UI_AUDIT.md,70,SHARED/INFRA,0,0,runtime_root
+src/DATA_AUDIT.md,70,SHARED/INFRA,0,0,runtime_root
+src/FRONTEND_INTERACTION_MAP.md,70,SHARED/INFRA,0,0,runtime_root
+src/README.md,70,SHARED/INFRA,0,0,runtime_root
+src/SYSTEM_ARCHITECTURE.md,70,SHARED/INFRA,0,0,runtime_root
+src/assets/56f453b1d7e0f5fec7770949c021dfbcdf9ae9d3.png,70,SHARED/INFRA,0,0,runtime_root
+src/assets/735baf1e717d9b01a2f3a837648e600e51820fce.png,70,SHARED/INFRA,0,0,runtime_root
+src/assets/876ec040af4ae472e932818bce39f20ca0e1e282.png,70,SHARED/INFRA,0,0,runtime_root
+src/assets/bd7c13233375885c0d32dc739e575d17db5a2201.png,70,SHARED/INFRA,0,0,runtime_root
+src/assets/f438047691c382addfed5c99dfc97977dea5c831.png,70,SHARED/INFRA,0,0,runtime_root
+src/components/app-sidebar.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/components/error-boundary.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/components/figma/ImageWithFallback.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/lab-data-display.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/components/lab-trend-chart.tsx,80,ACTIVE,2,0,runtime_root | import_incoming=2
+src/components/medical-records.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/components/pharmacist-advice-widget.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/components/sidebar-toggle.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/components/ui/accordion.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/ai-markdown.tsx,85,ACTIVE,3,0,runtime_root | import_incoming=3
+src/components/ui/alert-dialog.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/alert.tsx,95,ACTIVE,8,0,runtime_root | import_incoming=8
+src/components/ui/aspect-ratio.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/avatar.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/badge.tsx,95,ACTIVE,16,0,runtime_root | import_incoming=16
+src/components/ui/breadcrumb.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/button.tsx,95,ACTIVE,24,0,runtime_root | import_incoming=24
+src/components/ui/calendar.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/card.tsx,95,ACTIVE,19,0,runtime_root | import_incoming=19
+src/components/ui/carousel.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/chart.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/checkbox.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/components/ui/collapsible.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/command.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/context-menu.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/dialog.tsx,95,ACTIVE,7,0,runtime_root | import_incoming=7
+src/components/ui/drawer.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/dropdown-menu.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/form.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/hover-card.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/input-otp.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/input.tsx,95,ACTIVE,12,0,runtime_root | import_incoming=12
+src/components/ui/label.tsx,95,ACTIVE,8,0,runtime_root | import_incoming=8
+src/components/ui/menubar.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/navigation-menu.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/pagination.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/popover.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/progress.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/components/ui/radio-group.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/resizable.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/scroll-area.tsx,90,ACTIVE,4,0,runtime_root | import_incoming=4
+src/components/ui/select.tsx,95,ACTIVE,10,0,runtime_root | import_incoming=10
+src/components/ui/separator.tsx,95,ACTIVE,8,0,runtime_root | import_incoming=8
+src/components/ui/sheet.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/components/ui/sidebar.tsx,85,ACTIVE,3,0,runtime_root | import_incoming=3
+src/components/ui/skeleton.tsx,80,ACTIVE,2,0,runtime_root | import_incoming=2
+src/components/ui/skeletons.tsx,80,ACTIVE,2,0,runtime_root | import_incoming=2
+src/components/ui/slider.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/sonner.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/components/ui/state-display.tsx,95,ACTIVE,6,0,runtime_root | import_incoming=6
+src/components/ui/switch.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/components/ui/table.tsx,90,ACTIVE,4,0,runtime_root | import_incoming=4
+src/components/ui/tabs.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/components/ui/textarea.tsx,95,ACTIVE,6,0,runtime_root | import_incoming=6
+src/components/ui/toggle-group.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/components/ui/toggle.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/components/ui/tooltip.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/components/ui/use-mobile.ts,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/components/ui/utils.ts,95,ACTIVE,45,0,runtime_root | import_incoming=45
+src/components/vital-signs-card.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/guidelines/Guidelines.md,70,SHARED/INFRA,0,0,runtime_root
+src/hooks/use-api.ts,70,SHARED/INFRA,0,0,runtime_root
+src/imports/Frame.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/imports/IcuAi1.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/imports/IcuLogin.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/imports/IcuPatientAi11.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/imports/svg-0tbt4.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/imports/svg-fx6y5.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/imports/svg-hnm2h.tsx,70,SHARED/INFRA,0,0,runtime_root
+src/imports/svg-ihon1.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/imports/svg-ik76jdycii.ts,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/imports/svg-n38m0xb9r6.ts,80,ACTIVE,2,0,runtime_root | import_incoming=2
+src/imports/svg-n55v8t8hjk.ts,70,SHARED/INFRA,0,0,runtime_root
+src/imports/svg-q8bgnvty5b.ts,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/imports/svg-v1yr43xgtu.ts,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/index.css,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/lib/api/admin.ts,90,ACTIVE,4,0,runtime_root | import_incoming=4
+src/lib/api/ai.ts,95,ACTIVE,7,0,runtime_root | import_incoming=7
+src/lib/api/auth.ts,80,ACTIVE,2,0,runtime_root | import_incoming=2
+src/lib/api/dashboard.ts,80,ACTIVE,2,0,runtime_root | import_incoming=2
+src/lib/api/health.ts,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/lib/api/index.ts,85,ACTIVE,3,0,runtime_root | import_incoming=3
+src/lib/api/lab-data.ts,85,ACTIVE,3,0,runtime_root | import_incoming=3
+src/lib/api/medications.ts,80,ACTIVE,2,0,runtime_root | import_incoming=2
+src/lib/api/messages.ts,80,ACTIVE,2,0,runtime_root | import_incoming=2
+src/lib/api/patients.ts,85,ACTIVE,3,0,runtime_root | import_incoming=3
+src/lib/api/pharmacy.ts,95,ACTIVE,6,0,runtime_root | import_incoming=6
+src/lib/api/team-chat.ts,80,ACTIVE,2,0,runtime_root | import_incoming=2
+src/lib/api/ventilator.ts,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/lib/api/vital-signs.ts,80,ACTIVE,2,0,runtime_root | import_incoming=2
+src/lib/api-client.ts,95,ACTIVE,17,0,runtime_root | import_incoming=17
+src/lib/auth-context.tsx,95,ACTIVE,10,0,runtime_root | import_incoming=10
+src/lib/clipboard-utils.ts,95,ACTIVE,5,0,runtime_root | import_incoming=5
+src/lib/mock-data.ts,70,SHARED/INFRA,0,0,runtime_root
+src/lib/pharmacy-master-data.ts,95,ACTIVE,6,0,runtime_root | import_incoming=6
+src/main.tsx,90,ACTIVE,0,0,runtime_root | entrypoint
+src/pages/admin/placeholder.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/pages/admin/statistics.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/pages/admin/users.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/pages/admin/vectors.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/pages/chat.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/pages/dashboard.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/pages/login.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/pages/patient-detail.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/pages/patients.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/pages/pharmacy/advice-statistics.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/pages/pharmacy/compatibility.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/pages/pharmacy/dosage.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/pages/pharmacy/error-report.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/pages/pharmacy/interactions.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/pages/pharmacy/workstation.tsx,75,SHARED/INFRA,1,0,runtime_root | import_incoming=1
+src/styles/globals.css,70,SHARED/INFRA,0,0,runtime_root
+tsconfig.json,80,ACTIVE,0,2,runtime_root | config_refs=package.json;.github/workflows/ci.yml
+vite.config.ts,70,SHARED/INFRA,0,0,runtime_root

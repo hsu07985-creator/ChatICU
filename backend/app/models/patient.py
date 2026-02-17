@@ -32,6 +32,8 @@ class Patient(Base):
     ventilator_days: Mapped[int] = mapped_column(Integer, default=0)
     attending_physician: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     department: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    # Care unit / ward (used for data-level access control). Separate from department.
+    unit: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
     alerts: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of strings
     consent_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     allergies: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of strings

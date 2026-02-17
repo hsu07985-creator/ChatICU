@@ -1,0 +1,13 @@
+{
+  "active_release": "clinical_rules_release_2026_02_15_mock",
+  "rule_sets": {
+    "dose": {
+      "path": "dose_rules/dose_rules.v1.mock.json",
+      "version": "1.0.0"
+    },
+    "interaction": {
+      "path": "interactions/interaction_rules.v1.mock.json",
+      "version": "1.0.0"
+    }
+  }
+}

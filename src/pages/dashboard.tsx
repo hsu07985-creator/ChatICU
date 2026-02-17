@@ -6,9 +6,10 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Label } from '../components/ui/label';
-import { Search, AlertCircle, Pencil } from 'lucide-react';
+import { Search, AlertCircle, Pencil, Users, Activity, Pill, MessageSquare, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { getPatients, Patient, updatePatient } from '../lib/api/patients';
+import { getDashboardStats, DashboardStats } from '../lib/api/dashboard';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -51,6 +52,8 @@ export function DashboardPage() {
     attendingPhysician: '',
   });
   const [saving, setSaving] = useState(false);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   // 從 API 獲取病患列表
   const fetchPatients = async () => {
@@ -67,8 +70,21 @@ export function DashboardPage() {
     }
   };
 
+  // 從 API 獲取儀表板統計
+  const fetchStats = async () => {
+    try {
+      const data = await getDashboardStats();
+      setStats(data);
+    } catch (err) {
+      console.error('載入統計數據失敗:', err);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchPatients();
+    fetchStats();
   }, []);
 
   // 開啟編輯對話框
@@ -112,6 +128,12 @@ export function DashboardPage() {
     const matchSearch = patient.name.includes(searchTerm) || patient.bedNumber.includes(searchTerm);
 
     if (filterStatus === 'intubated') return matchSearch && patient.intubated;
+    if (filterStatus === 'san') {
+      const sedation = patient.sedation || patient.sanSummary?.sedation || [];
+      const analgesia = patient.analgesia || patient.sanSummary?.analgesia || [];
+      const nmb = patient.nmb || patient.sanSummary?.nmb || [];
+      return matchSearch && (sedation.length > 0 || analgesia.length > 0 || nmb.length > 0);
+    }
     if (filterStatus === 'alerts') return matchSearch && patient.alerts.length > 0;
 
     return matchSearch;
@@ -125,9 +147,9 @@ export function DashboardPage() {
 
   const getSANBadges = (patient: Patient) => {
     const badges = [];
-    const sedation = patient.sanSummary?.sedation || [];
-    const analgesia = patient.sanSummary?.analgesia || [];
-    const nmb = patient.sanSummary?.nmb || [];
+    const sedation = patient.sedation || patient.sanSummary?.sedation || [];
+    const analgesia = patient.analgesia || patient.sanSummary?.analgesia || [];
+    const nmb = patient.nmb || patient.sanSummary?.nmb || [];
 
     if (sedation.length > 0) {
       badges.push({ label: 'S', items: sedation, color: 'bg-blue-100 text-blue-800' });
@@ -146,6 +168,96 @@ export function DashboardPage() {
       <div>
         <h1 className="text-3xl font-bold text-[#3c7acb]">加護病房總覽</h1>
         <p className="text-muted-foreground mt-1">即時病床與病患狀態監控</p>
+      </div>
+
+      {/* 統計摘要卡片 */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-2">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">病患總數</p>
+                {statsLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin mt-1 text-muted-foreground" />
+                ) : (
+                  <>
+                    <p className="text-2xl font-bold text-[#1a1a1a]">{stats?.patients?.total ?? '-'}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      插管 {stats?.patients?.intubated ?? 0} · SAN {stats?.patients?.withSAN ?? 0}
+                    </p>
+                  </>
+                )}
+              </div>
+              <div className="h-10 w-10 rounded-full bg-[#7f265b]/10 flex items-center justify-center">
+                <Users className="h-5 w-5 text-[#7f265b]" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">警示數量</p>
+                {statsLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin mt-1 text-muted-foreground" />
+                ) : (
+                  <p className="text-2xl font-bold text-[#ff3975]">{stats?.alerts?.total ?? '-'}</p>
+                )}
+              </div>
+              <div className="h-10 w-10 rounded-full bg-[#ff3975]/10 flex items-center justify-center">
+                <AlertCircle className="h-5 w-5 text-[#ff3975]" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">活躍用藥</p>
+                {statsLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin mt-1 text-muted-foreground" />
+                ) : (
+                  <>
+                    <p className="text-2xl font-bold text-[#1a1a1a]">{stats?.medications?.active ?? '-'}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      S {stats?.medications?.sedation ?? 0} · A {stats?.medications?.analgesia ?? 0} · N {stats?.medications?.nmb ?? 0}
+                    </p>
+                  </>
+                )}
+              </div>
+              <div className="h-10 w-10 rounded-full bg-[#3c7acb]/10 flex items-center justify-center">
+                <Pill className="h-5 w-5 text-[#3c7acb]" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">今日訊息</p>
+                {statsLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin mt-1 text-muted-foreground" />
+                ) : (
+                  <>
+                    <p className="text-2xl font-bold text-[#1a1a1a]">{stats?.messages?.today ?? '-'}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      未讀 {stats?.messages?.unread ?? 0}
+                    </p>
+                  </>
+                )}
+              </div>
+              <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                <MessageSquare className="h-5 w-5 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* 搜尋與篩選 */}

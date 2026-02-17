@@ -1,0 +1,302 @@
+{
+  "autopilot": true,
+  "started_at": "2026-02-16T07:26:23Z",
+  "current_phase": "P09",
+  "phases": {
+    "P00": {
+      "status": "COMPLETE",
+      "evidence": [
+        "Discovered backend/frontend/e2e commands from package and pyproject files",
+        "Confirmed fallback commands for missing system pytest",
+        "Initialized orchestrator artifacts"
+      ],
+      "files_changed": [
+        "reports/prompt-P00-result.md",
+        ".orchestrator/state.json"
+      ],
+      "tests": [
+        {
+          "command": "npm run",
+          "result": "PASS"
+        },
+        {
+          "command": "backend/.venv312/bin/python -m pytest --version",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run test:e2e -- --list",
+          "result": "PASS"
+        }
+      ],
+      "blockers": []
+    },
+    "P01": {
+      "status": "COMPLETE",
+      "evidence": [
+        "Topology includes Auth, Dashboard, Team Chat, Admin, Clinical/RAG, Pharmacy, AI Chat",
+        "Missing links documented with file-line evidence"
+      ],
+      "files_changed": [
+        "reports/prompt-P01-result.md",
+        ".orchestrator/state.json"
+      ],
+      "tests": [
+        {
+          "command": "rg -n router handlers across backend/app/routers",
+          "result": "PASS"
+        },
+        {
+          "command": "rg -n frontend triggers across src/pages and src/lib",
+          "result": "PASS"
+        }
+      ],
+      "blockers": []
+    },
+    "P02": {
+      "status": "COMPLETE",
+      "evidence": [
+        "Contract mismatch matrix established and prioritized",
+        "All High mismatches mapped to explicit fix strategy"
+      ],
+      "files_changed": [
+        "reports/prompt-P02-result.md",
+        ".orchestrator/state.json"
+      ],
+      "tests": [
+        {
+          "command": "npm run typecheck",
+          "result": "PASS"
+        },
+        {
+          "command": "backend/.venv312/bin/python -m pytest backend/tests/test_api/test_contract.py -q",
+          "result": "PASS"
+        }
+      ],
+      "blockers": []
+    },
+    "P03": {
+      "status": "COMPLETE",
+      "evidence": [
+        "DB lineage mapped for key endpoints",
+        "Migration-model alignment reviewed",
+        "DB risk list documented"
+      ],
+      "files_changed": [
+        "reports/prompt-P03-result.md",
+        ".orchestrator/state.json"
+      ],
+      "tests": [
+        {
+          "command": "backend/.venv312/bin/python -m pytest backend/tests/test_api -q",
+          "result": "PASS"
+        }
+      ],
+      "blockers": []
+    },
+    "P04": {
+      "status": "COMPLETE",
+      "evidence": [
+        "AI degraded contract fields added and wired to UI",
+        "Fallback logs now include [INTG][AI][API] tags",
+        "AI degraded-path contract test added"
+      ],
+      "files_changed": [
+        "backend/app/routers/ai_chat.py",
+        "src/lib/api/ai.ts",
+        "src/pages/patient-detail.tsx",
+        "backend/tests/test_api/test_ai_chat.py",
+        "reports/prompt-P04-result.md",
+        ".orchestrator/state.json"
+      ],
+      "tests": [
+        {
+          "command": "backend/.venv312/bin/python -m pytest backend/tests/test_api/test_ai_chat.py -q",
+          "result": "PASS (10 passed)"
+        },
+        {
+          "command": "rg -n \"degradedReason|upstreamStatus|\\[INTG\\]\\[AI\\]\\[API\\]\" backend/app/routers/ai_chat.py src/pages/patient-detail.tsx src/lib/api/ai.ts",
+          "result": "PASS"
+        }
+      ],
+      "blockers": []
+    },
+    "P05": {
+      "status": "COMPLETE",
+      "evidence": [
+        "Top 10 E2E blueprint created with 4-assertion structure",
+        "Coverage includes Auth/Dashboard/Team Chat/Admin/Clinical/RAG/Pharmacy/AI Chat"
+      ],
+      "files_changed": [
+        "reports/prompt-P05-result.md",
+        ".orchestrator/state.json"
+      ],
+      "tests": [
+        {
+          "command": "npm run test:e2e -- --list",
+          "result": "PASS"
+        }
+      ],
+      "blockers": []
+    },
+    "P06": {
+      "status": "COMPLETE",
+      "evidence": [
+        "Resolved all Critical/High from P02-P04",
+        "Added degraded-contract and runtime-stability fixes",
+        "Typecheck and API tests green"
+      ],
+      "files_changed": [
+        "src/lib/api/messages.ts",
+        "src/lib/api/patients.ts",
+        "src/pages/patients.tsx",
+        "backend/app/routers/ai_chat.py",
+        "src/lib/api/ai.ts",
+        "src/pages/patient-detail.tsx",
+        "backend/tests/test_api/test_ai_chat.py",
+        "src/lib/api/dashboard.ts",
+        "src/pages/dashboard.tsx",
+        "reports/prompt-P06-result.md",
+        ".orchestrator/state.json"
+      ],
+      "tests": [
+        {
+          "command": "npm run typecheck",
+          "result": "PASS"
+        },
+        {
+          "command": "backend/.venv312/bin/python -m pytest backend/tests/test_api -q",
+          "result": "PASS (65 passed)"
+        },
+        {
+          "command": "npm run test:e2e -- --project=chromium --grep \"@critical\"",
+          "result": "PASS (1 passed)"
+        }
+      ],
+      "blockers": []
+    },
+    "P07": {
+      "status": "COMPLETE",
+      "evidence": [
+        "Admin/pharmacy parameter drifts aligned",
+        "request_id/trace_id added to error responses",
+        "Retry/backoff added for evidence client",
+        "Standard observability tags [INTG][API][DB][AI][E2E] present"
+      ],
+      "files_changed": [
+        "backend/app/config.py",
+        "backend/app/services/evidence_client.py",
+        "backend/app/main.py",
+        "backend/app/routers/admin.py",
+        "backend/app/routers/pharmacy.py",
+        "backend/tests/test_api/test_contract.py",
+        "e2e/critical-journey.spec.js",
+        "e2e/t27-extended-journeys.spec.js",
+        "reports/prompt-P07-result.md",
+        ".orchestrator/state.json"
+      ],
+      "tests": [
+        {
+          "command": "cd backend && ./.venv312/bin/pytest tests/test_api/test_contract.py -q",
+          "result": "PASS (21 passed)"
+        },
+        {
+          "command": "cd backend && ./.venv312/bin/pytest tests/test_api -q",
+          "result": "PASS (79 passed)"
+        },
+        {
+          "command": "rg -n \"\\[INTG\\].*\\[API\\]|\\[INTG\\].*\\[DB\\]|\\[INTG\\].*\\[AI\\]|\\[INTG\\].*\\[E2E\\]\" backend/app e2e -g '*.py' -g '*.js'",
+          "result": "PASS"
+        }
+      ],
+      "blockers": []
+    },
+    "P08": {
+      "status": "COMPLETE",
+      "evidence": [
+        "Added datamock JSON validation gate to backend-test job",
+        "Retained required CI gates: contract, backend integration, frontend typecheck/build, e2e smoke",
+        "Static guards now cover except-pass, dangerous CORS, secret pattern, and risky API payload non-null assertion"
+      ],
+      "files_changed": [
+        ".github/workflows/ci.yml",
+        "docs/json-offline-remediation-task-tracker.md",
+        "reports/prompt-P08-result.md",
+        "patches/prompt-P08.patch",
+        ".orchestrator/state.json"
+      ],
+      "tests": [
+        {
+          "command": "cd backend && ./.venv312/bin/python -m seeds.validate_datamock",
+          "result": "PASS"
+        },
+        {
+          "command": "cd backend && ./.venv312/bin/pytest tests/test_api/test_contract.py -q",
+          "result": "PASS (21 passed)"
+        },
+        {
+          "command": "cd backend && ./.venv312/bin/pytest tests/test_api -q",
+          "result": "PASS (79 passed)"
+        },
+        {
+          "command": "npm run typecheck && npm run build",
+          "result": "PASS"
+        },
+        {
+          "command": "npm run test:e2e -- --list",
+          "result": "PASS (6 tests listed)"
+        },
+        {
+          "command": "workflow static-guard commands (except-pass/cors/secret/non-null)",
+          "result": "PASS"
+        }
+      ],
+      "blockers": []
+    },
+    "P09": {
+      "status": "COMPLETE",
+      "evidence": [
+        "Resolved local E2E flakiness by introducing managed isolated stack runner",
+        "Detected port conflict on 8000 from non-project process and removed dependency on fixed shared ports",
+        "Full E2E now passes with 100% pass rate (6/6)"
+      ],
+      "files_changed": [
+        "scripts/e2e/run_managed_e2e.sh",
+        "package.json",
+        "README.md",
+        "docs/operations/json-offline-dev-runbook.md",
+        "docs/json-offline-remediation-task-tracker.md",
+        "reports/prompt-P09-result.md",
+        "reports/final-integration-gate.md",
+        "patches/prompt-P09.patch",
+        ".orchestrator/state.json"
+      ],
+      "tests": [
+        {
+          "command": "npm run typecheck",
+          "result": "PASS"
+        },
+        {
+          "command": "backend/.venv312/bin/python -m pytest backend/tests/test_api/test_contract.py -q",
+          "result": "PASS (21 passed)"
+        },
+        {
+          "command": "backend/.venv312/bin/python -m pytest backend/tests/test_api -q",
+          "result": "PASS (79 passed)"
+        },
+        {
+          "command": "backend/.venv312/bin/python -m pytest backend/tests/test_api/test_ai_chat.py -q",
+          "result": "PASS (10 passed)"
+        },
+        {
+          "command": "npm run test:e2e -- --project=chromium --grep \"@critical\"",
+          "result": "PASS (1 passed)"
+        },
+        {
+          "command": "npm run test:e2e -- --project=chromium --workers=1",
+          "result": "PASS (6 passed, 0 failed, 100%)"
+        }
+      ],
+      "blockers": []
+    }
+  }
+}

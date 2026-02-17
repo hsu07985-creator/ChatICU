@@ -1,5 +1,6 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Literal
 
 
 class Settings(BaseSettings):
@@ -15,12 +16,18 @@ class Settings(BaseSettings):
     # Database
     # DATABASE_URL MUST be set via .env; default is a non-functional placeholder
     DATABASE_URL: str = "postgresql+asyncpg://user:pass@localhost:5432/chaticu"
+    # Data source mode:
+    # - db:   normal mode (PostgreSQL/Redis-backed API)
+    # - json: offline development mode (DB is seeded from datamock JSON)
+    DATA_SOURCE_MODE: Literal["db", "json"] = "db"
+    # Optional override for datamock path (used in json mode tools/seeds)
+    DATAMOCK_DIR: str = ""
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
-    # JWT — JWT_SECRET MUST be overridden via .env; default is dev-only
-    JWT_SECRET: str = "INSECURE-DEV-ONLY-OVERRIDE-IN-PRODUCTION"
+    # JWT — JWT_SECRET MUST be set via .env; no usable default.
+    JWT_SECRET: str = ""
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 15  # 15 min (production-safe default)
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 1  # 1 day
@@ -29,13 +36,30 @@ class Settings(BaseSettings):
     # Password Policy (T07)
     PASSWORD_EXPIRY_DAYS: int = 90       # force change after 90 days
     PASSWORD_HISTORY_COUNT: int = 5      # disallow reuse of last 5 passwords
+    MIN_PASSWORD_LENGTH: int = 12        # minimum password length (F15)
+    RESET_TOKEN_EXPIRE_MINUTES: int = 30  # password reset token TTL (F16)
 
     # CORS
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:4173",
+        "http://localhost:4174",
         "http://localhost:5173",
+        "http://localhost:5174",
         "http://localhost:8080",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "http://127.0.0.1:4173",
+        "http://127.0.0.1:4174",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:8080",
     ]
+
+    # Account Lockout (F10)
+    MAX_LOGIN_ATTEMPTS: int = 5
+    LOCKOUT_SECONDS: int = 900  # 15 minutes
 
     # Rate Limiting
     RATE_LIMIT_LOGIN: str = "5/minute"
@@ -46,21 +70,57 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "gpt-4o"
     LLM_TEMPERATURE: float = 0.3
     LLM_MAX_TOKENS: int = 2048
+    LLM_RECENT_MSG_WINDOW: int = 10   # keep N most recent messages verbatim (F08)
+    LLM_COMPRESS_THRESHOLD: int = 20  # trigger compression above this count (F08)
+    # Optional audit capture of provider raw payloads (disabled by default).
+    LLM_AUDIT_CAPTURE_RAW: bool = False
+    LLM_AUDIT_CAPTURE_DIR: str = "reports/operations/llm_raw_capture"
     OPENAI_API_KEY: str = ""
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
     ANTHROPIC_API_KEY: str = ""
 
     # RAG (Phase 3)
     RAG_DOCS_PATH: str = ""
+    RAG_MIN_CITATIONS: int = 1
+    RAG_MIN_CONFIDENCE: float = 0.55
+
+    # Evidence RAG microservice (func/) — hybrid RAG, dose calc, interactions
+    # Override FUNC_API_URL in containers (e.g. FUNC_API_URL=http://func:8001)
+    FUNC_API_URL: str = "http://127.0.0.1:8001"
+    FUNC_API_TIMEOUT: float = 30.0  # HTTP timeout in seconds for evidence service (F12)
+    FUNC_API_RETRY_COUNT: int = 2
+    FUNC_API_RETRY_BACKOFF_SECONDS: float = 0.5
 
     # Alerting (T28) — Webhook URL for severe error notifications (Slack/PagerDuty/email)
     ALERT_WEBHOOK_URL: str = ""
 
     model_config = {
-        "env_file": ".env",
+        # Load backend/.env regardless of the current working directory.
+        "env_file": str(Path(__file__).resolve().parents[1] / ".env"),
         "env_file_encoding": "utf-8",
         "case_sensitive": True,
     }
 
 
 settings = Settings()
+
+# ── Fail-closed: JWT_SECRET validation ──────────────────────────────────
+# In non-DEBUG mode the application MUST NOT start without a proper secret.
+_INSECURE_SECRETS = frozenset({
+    "",
+    "INSECURE-DEV-ONLY-OVERRIDE-IN-PRODUCTION",
+    "CHANGE_ME",
+    "secret",
+    "jwt-secret",
+})
+
+if not settings.DEBUG and (settings.JWT_SECRET.strip() in _INSECURE_SECRETS
+                           or len(settings.JWT_SECRET.strip()) < 32):
+    import sys
+    print(
+        "FATAL: JWT_SECRET is missing or insecure. "
+        "Set a cryptographically random value (>= 32 chars) in backend/.env. "
+        "Generate one with: python3 -c \"import secrets; print(secrets.token_urlsafe(48))\"",
+        file=sys.stderr,
+    )
+    sys.exit(1)

@@ -1,4 +1,4 @@
-import { Home, Users, MessageSquare, Database, FileText, Activity, UserCog, Briefcase, BarChart3 } from 'lucide-react';
+import { Home, Users, MessageSquare, Database, FileText, Activity, UserCog, Briefcase, BarChart3, AlertTriangle, Calculator, Droplets, AlertCircle } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -74,18 +74,43 @@ export function AppSidebar() {
       icon: FileText,
     },
     {
+      title: '藥事統計',
+      url: '/admin/statistics',
+      icon: BarChart3,
+    },
+    {
       title: '帳號與權限',
       url: '/admin/users',
       icon: UserCog,
     },
   ] : [];
 
-  // 藥事支援中心（僅藥師可見）
-  const pharmacyItems = user?.role === 'pharmacist' ? [
+  // 藥事支援中心（藥師/管理者可見）
+  const pharmacyItems = (user?.role === 'pharmacist' || user?.role === 'admin') ? [
     {
       title: '藥事支援工作台',
       url: '/pharmacy/workstation',
       icon: Briefcase,
+    },
+    {
+      title: '交互作用查詢',
+      url: '/pharmacy/interactions',
+      icon: AlertTriangle,
+    },
+    {
+      title: '劑量計算與建議',
+      url: '/pharmacy/dosage',
+      icon: Calculator,
+    },
+    {
+      title: '相容性檢核',
+      url: '/pharmacy/compatibility',
+      icon: Droplets,
+    },
+    {
+      title: '用藥異常通報',
+      url: '/pharmacy/error-report',
+      icon: AlertCircle,
     },
     {
       title: '用藥建議與統計',
@@ -216,7 +241,7 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
-        {/* 藥事支援中心（僅藥師） */}
+        {/* 藥事支援中心（藥師/管理者） */}
         {pharmacyItems.length > 0 && (
           <>
             <SidebarSeparator />

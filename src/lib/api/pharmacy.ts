@@ -1,4 +1,4 @@
-import apiClient from '../api-client';
+import apiClient, { ensureData } from '../api-client';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -49,14 +49,14 @@ export async function getErrorReports(params?: ErrorReportsParams): Promise<Erro
     '/pharmacy/error-reports',
     { params }
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 export async function getErrorReportById(reportId: string): Promise<ErrorReport> {
   const response = await apiClient.get<ApiResponse<ErrorReport>>(
     `/pharmacy/error-reports/${reportId}`
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 export interface CreateErrorReportData {
@@ -75,7 +75,7 @@ export async function createErrorReport(
     '/pharmacy/error-reports',
     data
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 export interface UpdateErrorReportData {
@@ -91,7 +91,102 @@ export async function updateErrorReport(
     `/pharmacy/error-reports/${reportId}`,
     data
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
+}
+
+// ========== 相容性常用組合（持久化） ==========
+
+export interface CompatibilityFavoritePair {
+  id: string;
+  drugA: string;
+  drugB: string;
+  solution: string;
+  createdAt: string;
+}
+
+export interface CompatibilityFavoritesResponse {
+  favorites: CompatibilityFavoritePair[];
+  total: number;
+}
+
+export async function getCompatibilityFavorites(): Promise<CompatibilityFavoritesResponse> {
+  const response = await apiClient.get<ApiResponse<CompatibilityFavoritesResponse>>(
+    '/pharmacy/compatibility-favorites'
+  );
+  return ensureData(response.data, 'API contract');
+}
+
+export async function createCompatibilityFavorite(data: {
+  drugA: string;
+  drugB: string;
+  solution?: string;
+}): Promise<CompatibilityFavoritePair> {
+  const response = await apiClient.post<ApiResponse<CompatibilityFavoritePair>>(
+    '/pharmacy/compatibility-favorites',
+    { drugA: data.drugA, drugB: data.drugB, solution: data.solution || 'none' }
+  );
+  return ensureData(response.data, 'API contract');
+}
+
+export async function deleteCompatibilityFavorite(favoriteId: string): Promise<void> {
+  await apiClient.delete(`/pharmacy/compatibility-favorites/${favoriteId}`);
+}
+
+// ========== 交互作用與相容性查詢 ==========
+
+export interface DrugInteractionSearchItem {
+  id: string;
+  drug1: string;
+  drug2: string;
+  severity: string;
+  mechanism: string;
+  clinicalEffect: string;
+  management: string;
+  references: string;
+}
+
+export interface DrugInteractionSearchResponse {
+  interactions: DrugInteractionSearchItem[];
+  total: number;
+}
+
+export async function getDrugInteractions(params: {
+  drugA: string;
+  drugB?: string;
+}): Promise<DrugInteractionSearchResponse> {
+  const response = await apiClient.get<ApiResponse<DrugInteractionSearchResponse>>(
+    '/pharmacy/drug-interactions',
+    { params }
+  );
+  return ensureData(response.data, 'API contract');
+}
+
+export interface IVCompatibilitySearchItem {
+  id: string;
+  drug1: string;
+  drug2: string;
+  solution: string;
+  compatible: boolean;
+  timeStability?: string;
+  notes?: string;
+  references?: string;
+}
+
+export interface IVCompatibilitySearchResponse {
+  compatibilities: IVCompatibilitySearchItem[];
+  total: number;
+}
+
+export async function getIVCompatibility(params: {
+  drugA: string;
+  drugB: string;
+  solution?: string;
+}): Promise<IVCompatibilitySearchResponse> {
+  const response = await apiClient.get<ApiResponse<IVCompatibilitySearchResponse>>(
+    '/pharmacy/iv-compatibility',
+    { params }
+  );
+  return ensureData(response.data, 'API contract');
 }
 
 // ========== 用藥建議統計 ==========
@@ -110,7 +205,7 @@ export async function getAdviceStatistics(): Promise<AdviceStatistics> {
   const response = await apiClient.get<ApiResponse<AdviceStatistics>>(
     '/pharmacy/advice-statistics'
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 // ========== 用藥建議記錄 ==========
@@ -146,7 +241,41 @@ export async function getAdviceRecords(params?: AdviceRecordsParams): Promise<Ad
     '/pharmacy/advice-records',
     { params }
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
+}
+
+export interface CreateAdviceRecordData {
+  patientId: string;
+  adviceCode: string;
+  adviceLabel: string;
+  category: string;
+  content: string;
+  linkedMedications?: string[];
+}
+
+export async function createAdviceRecord(data: CreateAdviceRecordData): Promise<PharmacyAdviceRecord> {
+  const response = await apiClient.post<ApiResponse<PharmacyAdviceRecord>>(
+    '/pharmacy/advice-records',
+    data
+  );
+  return ensureData(response.data, 'API contract');
+}
+
+// ========== 用藥建議記錄統計（聚合） ==========
+
+export interface AdviceRecordStats {
+  total: number;
+  byCategory: Array<{ category: string; count: number }>;
+  byCode: Array<{ code: string; label: string; category: string; count: number }>;
+  byPharmacist: Array<{ pharmacistName: string; count: number }>;
+}
+
+export async function getAdviceRecordStats(params?: { month?: string }): Promise<AdviceRecordStats> {
+  const response = await apiClient.get<ApiResponse<AdviceRecordStats>>(
+    '/pharmacy/advice-records/stats',
+    { params }
+  );
+  return ensureData(response.data, 'API contract');
 }
 
 // 導出所有 API 函數
@@ -155,7 +284,13 @@ export const pharmacyApi = {
   getErrorReportById,
   createErrorReport,
   updateErrorReport,
+  getCompatibilityFavorites,
+  createCompatibilityFavorite,
+  deleteCompatibilityFavorite,
+  getDrugInteractions,
+  getIVCompatibility,
   getAdviceStatistics,
   getAdviceRecords,
+  createAdviceRecord,
+  getAdviceRecordStats,
 };
-

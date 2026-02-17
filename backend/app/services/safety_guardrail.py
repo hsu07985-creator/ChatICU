@@ -39,12 +39,26 @@ DEFINITIVE_CLAIM_PATTERNS = [
 def apply_safety_guardrail(
     content: str,
     context: Optional[str] = None,
+    include_disclaimer: bool = True,
+    user_role: Optional[str] = None,
 ) -> Dict[str, object]:
     """Post-process AI output with safety checks.
 
+    Args:
+        content: Raw LLM output text.
+        context: Optional context hint (unused, reserved).
+        include_disclaimer: If True (default), appends MEDICAL_DISCLAIMER to content.
+            Set to False for chat messages (frontend shows a persistent banner instead)
+            to avoid repeating the disclaimer on every message.
+        user_role: Optional user role (e.g. "pharmacist", "doctor").
+            When role is "pharmacist", drug dosage warnings use
+            「此計算結果僅供參考，請依臨床判斷」 instead of
+            「須經藥師/醫師雙重確認」.
+
     Returns:
         dict with keys:
-            - content: processed content with disclaimer
+            - content: processed content (with or without disclaimer)
+            - disclaimer: the standard disclaimer text (always returned for frontend banner)
             - warnings: list of safety warnings (if any)
             - flagged: True if any safety concern was detected
     """
@@ -60,9 +74,14 @@ def apply_safety_guardrail(
                 re.IGNORECASE,
             )
             if pattern.search(content):
-                warnings.append(
-                    f"⚠️ 高警訊藥物 ({med}) 劑量建議須經藥師/醫師雙重確認"
-                )
+                if user_role == "pharmacist":
+                    warnings.append(
+                        f"⚠️ 高警訊藥物 ({med}) 此計算結果僅供參考，請依臨床判斷"
+                    )
+                else:
+                    warnings.append(
+                        f"⚠️ 高警訊藥物 ({med}) 劑量建議須經藥師/醫師雙重確認"
+                    )
 
     # 2. Check for definitive diagnostic claims
     for pat in DEFINITIVE_CLAIM_PATTERNS:
@@ -70,18 +89,20 @@ def apply_safety_guardrail(
             warnings.append("⚠️ AI 回覆包含確定性診斷用語，請以臨床檢查結果為準")
             break
 
-    # 3. Append disclaimer
-    processed_content = content + MEDICAL_DISCLAIMER
+    # 3. Append disclaimer only when requested
+    processed_content = content
+    if include_disclaimer:
+        processed_content = content + MEDICAL_DISCLAIMER
 
-    # 4. If warnings exist, prepend them
-    if warnings:
-        warning_block = "\n".join(warnings)
-        processed_content = f"**[安全提醒]**\n{warning_block}\n\n{processed_content}"
+    # 4. Warnings are returned separately for UI rendering (avoid duplicating content)
+    # NOTE: Do not inject warnings into content here; the frontend renders warnings
+    # via a dedicated SafetyWarnings component.
 
     flagged = len(warnings) > 0
 
     return {
         "content": processed_content,
+        "disclaimer": MEDICAL_DISCLAIMER,
         "warnings": warnings,
         "flagged": flagged,
         # T30: Flagged outputs require expert review before clinical use

@@ -1,7 +1,11 @@
+import json
+import logging
+import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +21,60 @@ from app.utils.response import success_response
 from app.utils.security import hash_password
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+logger = logging.getLogger(__name__)
+
+_VECTOR_ALLOWED_EXTENSIONS = frozenset({".pdf", ".docx", ".txt"})
+_VECTOR_COLLECTION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+_VECTOR_UPLOAD_MAX_BYTES = 25 * 1024 * 1024  # 25 MiB
+
+
+def _parse_iso_datetime(value: str, field_name: str) -> datetime:
+    normalized = value.strip().replace("Z", "+00:00")
+    try:
+        dt = datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid {field_name} format: {value}") from exc
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _normalize_collection_name(raw_value: str) -> str:
+    collection = (raw_value or "").strip()
+    if not collection:
+        raise HTTPException(status_code=422, detail="collection is required")
+    if not _VECTOR_COLLECTION_RE.fullmatch(collection):
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid collection. Use letters/numbers/_/- and max 64 chars.",
+        )
+    return collection
+
+
+def _normalize_upload_filename(raw_filename: str) -> str:
+    filename = Path(raw_filename or "").name.strip()
+    if not filename:
+        raise HTTPException(status_code=400, detail="Missing upload filename")
+    ext = Path(filename).suffix.lower()
+    if ext not in _VECTOR_ALLOWED_EXTENSIONS:
+        allowlist = ", ".join(sorted(_VECTOR_ALLOWED_EXTENSIONS))
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file extension: {ext or '(none)'}. Allowed: {allowlist}",
+        )
+    return filename
+
+
+def _parse_upload_metadata(metadata_raw: str | None) -> dict:
+    if not metadata_raw:
+        return {}
+    try:
+        parsed = json.loads(metadata_raw)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=422, detail="metadata must be valid JSON") from exc
+    if not isinstance(parsed, dict):
+        raise HTTPException(status_code=422, detail="metadata must be a JSON object")
+    return parsed
 
 
 # ============ AUDIT LOGS ============
@@ -26,8 +84,11 @@ async def list_audit_logs(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     action: str = Query(None),
+    user_name_filter: str = Query(None, alias="user"),
     user_id_filter: str = Query(None, alias="userId"),
     status_filter: str = Query(None, alias="status"),
+    start_date: str = Query(None, alias="startDate"),
+    end_date: str = Query(None, alias="endDate"),
     user: User = Depends(require_roles("admin")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -35,10 +96,30 @@ async def list_audit_logs(
 
     if action:
         query = query.where(AuditLog.action.ilike(f"%{action}%"))
+    if user_name_filter:
+        query = query.where(AuditLog.user_name.ilike(f"%{user_name_filter}%"))
     if user_id_filter:
         query = query.where(AuditLog.user_id == user_id_filter)
     if status_filter:
         query = query.where(AuditLog.status == status_filter)
+    if start_date:
+        start_dt = _parse_iso_datetime(start_date, "startDate")
+        query = query.where(AuditLog.timestamp >= start_dt)
+    if end_date:
+        end_dt = _parse_iso_datetime(end_date, "endDate")
+        if "T" not in end_date and len(end_date.strip()) <= 10:
+            end_dt = end_dt + timedelta(days=1) - timedelta(microseconds=1)
+        query = query.where(AuditLog.timestamp <= end_dt)
+
+    logger.info(
+        "[INTG][API][DB] list_audit_logs filters action=%s user=%s userId=%s status=%s startDate=%s endDate=%s",
+        action,
+        user_name_filter,
+        user_id_filter,
+        status_filter,
+        start_date,
+        end_date,
+    )
 
     count_q = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_q)).scalar() or 0
@@ -48,6 +129,13 @@ async def list_audit_logs(
         query.order_by(AuditLog.timestamp.desc()).offset(offset).limit(limit)
     )
     logs = result.scalars().all()
+
+    # Stats: count success/failed across the *filtered* result set
+    success_q = select(func.count()).select_from(
+        query.where(AuditLog.status == "success").subquery()
+    )
+    success_count = (await db.execute(success_q)).scalar() or 0
+    failed_count = total - success_count
 
     return success_response(data={
         "logs": [
@@ -70,6 +158,11 @@ async def list_audit_logs(
             "limit": limit,
             "total": total,
             "totalPages": (total + limit - 1) // limit,
+        },
+        "stats": {
+            "total": total,
+            "success": success_count,
+            "failed": failed_count,
         },
     })
 
@@ -95,6 +188,17 @@ async def list_users(
     result = await db.execute(query.order_by(User.created_at))
     users = result.scalars().all()
 
+    # Compute stats from full (unfiltered) user set (F18)
+    all_result = await db.execute(select(User))
+    all_users = all_result.scalars().all()
+    role_counts = {"admin": 0, "doctor": 0, "nurse": 0, "pharmacist": 0}
+    active_count = 0
+    for u in all_users:
+        if u.active:
+            active_count += 1
+        if u.role in role_counts:
+            role_counts[u.role] += 1
+
     return success_response(data={
         "users": [
             {
@@ -110,6 +214,11 @@ async def list_users(
             }
             for u in users
         ],
+        "stats": {
+            "total": len(all_users),
+            "active": active_count,
+            "byRole": role_counts,
+        },
     })
 
 
@@ -154,6 +263,8 @@ async def create_user(
         "role": new_user.role,
         "unit": new_user.unit,
         "active": new_user.active,
+        "lastLogin": None,
+        "createdAt": new_user.created_at.isoformat() if new_user.created_at else None,
     }, message="使用者已建立")
 
 
@@ -228,6 +339,8 @@ async def update_user(
         "role": target_user.role,
         "unit": target_user.unit,
         "active": target_user.active,
+        "lastLogin": target_user.last_login.isoformat() if target_user.last_login else None,
+        "createdAt": target_user.created_at.isoformat() if target_user.created_at else None,
     }, message="使用者已更新")
 
 
@@ -251,6 +364,100 @@ async def list_vector_databases(
             "embeddingModel": status.get("embedding_model", "tfidf"),
         })
     return success_response(data={"databases": databases})
+
+
+@router.post("/vectors/upload")
+async def upload_vector_document(
+    request: StarletteRequest,
+    file: UploadFile = File(...),
+    collection: str = Form("clinical-guidelines"),
+    metadata: str | None = Form(None),
+    user: User = Depends(require_roles("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.config import settings as app_settings
+    from app.services.llm_services.rag_service import rag_service
+
+    if not app_settings.RAG_DOCS_PATH:
+        raise HTTPException(status_code=400, detail="RAG_DOCS_PATH not configured")
+
+    collection_name = _normalize_collection_name(collection)
+    upload_filename = _normalize_upload_filename(file.filename or "")
+    metadata_payload = _parse_upload_metadata(metadata)
+
+    docs_root = Path(app_settings.RAG_DOCS_PATH).expanduser()
+    if docs_root.exists() and not docs_root.is_dir():
+        raise HTTPException(status_code=400, detail="RAG_DOCS_PATH must be a directory")
+    docs_root.mkdir(parents=True, exist_ok=True)
+
+    target_dir = docs_root / collection_name
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    file_stem = Path(upload_filename).stem
+    file_ext = Path(upload_filename).suffix.lower()
+    target_path = target_dir / upload_filename
+    if target_path.exists():
+        target_path = target_dir / f"{file_stem}-{uuid.uuid4().hex[:8]}{file_ext}"
+
+    file_bytes = await file.read()
+    await file.close()
+
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+    if len(file_bytes) > _VECTOR_UPLOAD_MAX_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Uploaded file exceeds {_VECTOR_UPLOAD_MAX_BYTES // (1024 * 1024)} MiB limit",
+        )
+
+    target_path.write_bytes(file_bytes)
+
+    try:
+        chunks = rag_service.load_and_chunk(str(docs_root))
+        result = rag_service.index(chunks)
+    except Exception as exc:
+        logger.exception(
+            "[INTG][API][ADMIN] vectors upload reindex failed file=%s collection=%s",
+            upload_filename,
+            collection_name,
+        )
+        raise HTTPException(status_code=500, detail=f"Vector indexing failed: {exc}") from exc
+    if result.get("status") == "error":
+        raise HTTPException(status_code=400, detail=result.get("message", "Vector indexing failed"))
+
+    database = {
+        "id": "rag-main",
+        "name": "RAG 醫療文件庫",
+        "documentCount": result.get("total_documents", 0),
+        "chunkCount": result.get("total_chunks", 0),
+        "status": "active",
+        "embeddingModel": rag_service.get_status().get("embedding_model", "tfidf"),
+    }
+
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="上傳向量文件", target="rag-main", status="success",
+        ip=request.client.host if request.client else None,
+        details={
+            "collection": collection_name,
+            "file_name": target_path.name,
+            "file_size_bytes": len(file_bytes),
+            "metadata": metadata_payload,
+            "total_chunks": result.get("total_chunks", 0),
+        },
+    )
+
+    return success_response(
+        data={
+            "documentId": f"doc_{uuid.uuid4().hex[:10]}",
+            "fileName": target_path.name,
+            "collection": collection_name,
+            "status": "indexed",
+            "database": database,
+            "metadata": metadata_payload,
+        },
+        message=f"文件已上傳並完成索引：{target_path.name}",
+    )
 
 
 @router.post("/vectors/rebuild")

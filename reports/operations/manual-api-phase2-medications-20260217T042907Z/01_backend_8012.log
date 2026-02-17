@@ -1,0 +1,81 @@
+2026-02-17 12:29:08,653 [INFO] uvicorn.error: Started server process [30019]
+2026-02-17 12:29:08,653 [INFO] uvicorn.error: Waiting for application startup.
+2026-02-17 12:29:26,266 [INFO] uvicorn.error: Application startup complete.
+2026-02-17 12:29:26,266 [INFO] uvicorn.error: Uvicorn running on http://127.0.0.1:8012 (Press CTRL+C to quit)
+2026-02-17 12:29:26,487 [INFO] uvicorn.access: 127.0.0.1:51951 - "GET /health HTTP/1.1" 200
+Starting ChatICU API v1.0.0
+Data source mode: db
+RAG indexed: 2150 chunks from 44 documents
+2026-02-17 12:29:26,508 INFO sqlalchemy.engine.Engine select pg_catalog.version()
+2026-02-17 12:29:26,508 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-17 12:29:26,509 INFO sqlalchemy.engine.Engine select current_schema()
+2026-02-17 12:29:26,509 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-17 12:29:26,510 INFO sqlalchemy.engine.Engine show standard_conforming_strings
+2026-02-17 12:29:26,510 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-02-17 12:29:26,510 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-17 12:29:26,524 INFO sqlalchemy.engine.Engine SELECT users.id, users.name, users.username, users.password_hash, users.email, users.role, users.unit, users.active, users.last_login, users.password_changed_at, users.created_at 
+FROM users 
+WHERE users.username = $1::VARCHAR
+2026-02-17 12:29:26,524 INFO sqlalchemy.engine.Engine [generated in 0.00009s] ('doctor',)
+(trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/.venv312/lib/python3.12/site-packages/passlib/handlers/bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+2026-02-17 12:29:26,718 INFO sqlalchemy.engine.Engine UPDATE users SET last_login=$1::TIMESTAMP WITH TIME ZONE WHERE users.id = $2::VARCHAR
+2026-02-17 12:29:26,718 INFO sqlalchemy.engine.Engine [generated in 0.00008s] (datetime.datetime(2026, 2, 17, 4, 29, 26, 715597, tzinfo=datetime.timezone.utc), 'usr_002')
+2026-02-17 12:29:26,720 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (id, timestamp, user_id, user_name, role, action, target, status, ip, details) VALUES ($1::VARCHAR, $2::TIMESTAMP WITH TIME ZONE, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR, $7::VARCHAR, $8::VARCHAR, $9::VARCHAR, $10::JSONB) RETURNING audit_logs.created_at
+2026-02-17 12:29:26,720 INFO sqlalchemy.engine.Engine [generated in 0.00005s] ('audit_3018d212271f', datetime.datetime(2026, 2, 17, 4, 29, 26, 718111, tzinfo=datetime.timezone.utc), 'usr_002', '李穎灝', 'doctor', '用戶登入', '系統', 'success', '127.0.0.1', 'null')
+2026-02-17 12:29:26,722 [INFO] chaticu.audit: {"event": "audit", "ts": "2026-02-17T04:29:26.718111+00:00", "user_id": "usr_002", "user_name": "李穎灝", "role": "doctor", "action": "用戶登入", "target": "系統", "status": "success", "ip": "127.0.0.1", "details": null}
+2026-02-17 12:29:26,722 INFO sqlalchemy.engine.Engine COMMIT
+2026-02-17 12:29:26,723 [INFO] uvicorn.access: 127.0.0.1:51952 - "POST /auth/login HTTP/1.1" 200
+2026-02-17 12:29:26,750 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-17 12:29:26,750 INFO sqlalchemy.engine.Engine SELECT users.id, users.name, users.username, users.password_hash, users.email, users.role, users.unit, users.active, users.last_login, users.password_changed_at, users.created_at 
+FROM users 
+WHERE users.id = $1::VARCHAR
+2026-02-17 12:29:26,750 INFO sqlalchemy.engine.Engine [generated in 0.00005s] ('usr_002',)
+2026-02-17 12:29:26,752 INFO sqlalchemy.engine.Engine SELECT medications.id, medications.patient_id, medications.name, medications.generic_name, medications.category, medications.san_category, medications.dose, medications.unit, medications.frequency, medications.route, medications.prn, medications.indication, medications.start_date, medications.end_date, medications.status, medications.prescribed_by, medications.warnings, medications.created_at 
+FROM medications 
+WHERE medications.patient_id = $1::VARCHAR ORDER BY medications.name
+2026-02-17 12:29:26,752 INFO sqlalchemy.engine.Engine [generated in 0.00004s] ('pat_001',)
+2026-02-17 12:29:26,754 INFO sqlalchemy.engine.Engine SELECT drug_interactions.id, drug_interactions.drug1, drug_interactions.drug2, drug_interactions.severity, drug_interactions.mechanism, drug_interactions.clinical_effect, drug_interactions.management, drug_interactions."references" 
+FROM drug_interactions 
+WHERE drug_interactions.drug1 = $1::VARCHAR AND drug_interactions.drug2 = $2::VARCHAR OR drug_interactions.drug1 = $3::VARCHAR AND drug_interactions.drug2 = $4::VARCHAR
+2026-02-17 12:29:26,754 INFO sqlalchemy.engine.Engine [generated in 0.00004s] ('Dormicum', 'Morphine', 'Morphine', 'Dormicum')
+2026-02-17 12:29:26,756 INFO sqlalchemy.engine.Engine SELECT drug_interactions.id, drug_interactions.drug1, drug_interactions.drug2, drug_interactions.severity, drug_interactions.mechanism, drug_interactions.clinical_effect, drug_interactions.management, drug_interactions."references" 
+FROM drug_interactions 
+WHERE drug_interactions.drug1 = $1::VARCHAR AND drug_interactions.drug2 = $2::VARCHAR OR drug_interactions.drug1 = $3::VARCHAR AND drug_interactions.drug2 = $4::VARCHAR
+2026-02-17 12:29:26,756 INFO sqlalchemy.engine.Engine [cached since 0.001487s ago] ('Dormicum', 'Vancomycin', 'Vancomycin', 'Dormicum')
+2026-02-17 12:29:26,756 INFO sqlalchemy.engine.Engine SELECT drug_interactions.id, drug_interactions.drug1, drug_interactions.drug2, drug_interactions.severity, drug_interactions.mechanism, drug_interactions.clinical_effect, drug_interactions.management, drug_interactions."references" 
+FROM drug_interactions 
+WHERE drug_interactions.drug1 = $1::VARCHAR AND drug_interactions.drug2 = $2::VARCHAR OR drug_interactions.drug1 = $3::VARCHAR AND drug_interactions.drug2 = $4::VARCHAR
+2026-02-17 12:29:26,756 INFO sqlalchemy.engine.Engine [cached since 0.001893s ago] ('Morphine', 'Vancomycin', 'Vancomycin', 'Morphine')
+2026-02-17 12:29:26,757 INFO sqlalchemy.engine.Engine COMMIT
+2026-02-17 12:29:26,757 [INFO] uvicorn.access: 127.0.0.1:51955 - "GET /patients/pat_001/medications HTTP/1.1" 200
+2026-02-17 12:29:26,786 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-17 12:29:26,786 INFO sqlalchemy.engine.Engine SELECT users.id, users.name, users.username, users.password_hash, users.email, users.role, users.unit, users.active, users.last_login, users.password_changed_at, users.created_at 
+FROM users 
+WHERE users.id = $1::VARCHAR
+2026-02-17 12:29:26,786 INFO sqlalchemy.engine.Engine [cached since 0.03602s ago] ('usr_002',)
+2026-02-17 12:29:26,788 INFO sqlalchemy.engine.Engine SELECT medications.id, medications.patient_id, medications.name, medications.generic_name, medications.category, medications.san_category, medications.dose, medications.unit, medications.frequency, medications.route, medications.prn, medications.indication, medications.start_date, medications.end_date, medications.status, medications.prescribed_by, medications.warnings, medications.created_at 
+FROM medications 
+WHERE medications.id = $1::VARCHAR AND medications.patient_id = $2::VARCHAR
+2026-02-17 12:29:26,788 INFO sqlalchemy.engine.Engine [generated in 0.00004s] ('med_002', 'pat_001')
+2026-02-17 12:29:26,789 INFO sqlalchemy.engine.Engine COMMIT
+2026-02-17 12:29:26,789 [INFO] uvicorn.access: 127.0.0.1:51956 - "GET /patients/pat_001/medications/med_002 HTTP/1.1" 200
+2026-02-17 12:29:26,796 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-02-17 12:29:26,796 INFO sqlalchemy.engine.Engine SELECT users.id, users.name, users.username, users.password_hash, users.email, users.role, users.unit, users.active, users.last_login, users.password_changed_at, users.created_at 
+FROM users 
+WHERE users.id = $1::VARCHAR
+2026-02-17 12:29:26,796 INFO sqlalchemy.engine.Engine [cached since 0.04597s ago] ('usr_002',)
+2026-02-17 12:29:26,797 INFO sqlalchemy.engine.Engine SELECT medications.id, medications.patient_id, medications.name, medications.generic_name, medications.category, medications.san_category, medications.dose, medications.unit, medications.frequency, medications.route, medications.prn, medications.indication, medications.start_date, medications.end_date, medications.status, medications.prescribed_by, medications.warnings, medications.created_at 
+FROM medications 
+WHERE medications.id = $1::VARCHAR AND medications.patient_id = $2::VARCHAR
+2026-02-17 12:29:26,797 INFO sqlalchemy.engine.Engine [cached since 0.008997s ago] ('med_002', 'pat_001')
+2026-02-17 12:29:26,797 INFO sqlalchemy.engine.Engine COMMIT
+2026-02-17 12:29:26,797 [INFO] uvicorn.access: 127.0.0.1:51957 - "GET /patients/pat_001/medications/med_002/administrations?startDate=2026-02-01&endDate=2026-03-01 HTTP/1.1" 200
+2026-02-17 12:29:26,815 [INFO] uvicorn.error: Shutting down
+2026-02-17 12:29:26,916 [INFO] uvicorn.error: Waiting for application shutdown.
+2026-02-17 12:29:26,917 [INFO] uvicorn.error: Application shutdown complete.
+2026-02-17 12:29:26,917 [INFO] uvicorn.error: Finished server process [30019]

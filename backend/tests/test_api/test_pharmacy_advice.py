@@ -44,6 +44,27 @@ async def test_create_advice_record(client):
 
 
 @pytest.mark.asyncio
+async def test_create_advice_record_autoposts_message(client):
+    """Saving an advice record should auto-post a medication-advice message to the patient board."""
+    marker = "E2E_AUTOSYNC_MARKER"
+    payload = {
+        "patientId": "pat_001",
+        "adviceCode": "1-9",
+        "adviceLabel": "藥品交互作用",
+        "category": "1. 建議處方",
+        "content": f"建議檢視 Propofol + Fentanyl 交互作用\n\n{marker}",
+        "linkedMedications": ["Propofol", "Fentanyl"],
+    }
+    resp = await client.post("/pharmacy/advice-records", json=payload)
+    assert resp.status_code == 200
+
+    msg_list = await client.get("/patients/pat_001/messages")
+    assert msg_list.status_code == 200
+    messages = msg_list.json()["data"]["messages"]
+    assert any(marker in (m.get("content") or "") for m in messages)
+
+
+@pytest.mark.asyncio
 async def test_create_then_list_advice_records(client):
     """Create a record then verify it appears in the list."""
     # Create
@@ -148,3 +169,39 @@ async def test_advice_record_response_contract(client):
     assert "total" in data["data"]
     assert isinstance(data["data"]["records"], list)
     assert isinstance(data["data"]["total"], int)
+
+
+# ── F19: Invalid month filter must return 422, not silently ignored ──────
+
+
+@pytest.mark.asyncio
+async def test_advice_records_invalid_month_returns_422(client):
+    """GET /pharmacy/advice-records?month=BAD returns 422."""
+    response = await client.get("/pharmacy/advice-records", params={"month": "invalid"})
+    assert response.status_code == 422
+    body = response.json()
+    assert body["success"] is False
+
+
+@pytest.mark.asyncio
+async def test_advice_records_invalid_month_13_returns_422(client):
+    """GET /pharmacy/advice-records?month=2026-13 returns 422 (month out of range)."""
+    response = await client.get("/pharmacy/advice-records", params={"month": "2026-13"})
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_advice_records_valid_month_ok(client):
+    """GET /pharmacy/advice-records?month=2026-01 returns 200."""
+    response = await client.get("/pharmacy/advice-records", params={"month": "2026-01"})
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_advice_stats_invalid_month_returns_422(client):
+    """GET /pharmacy/advice-records/stats?month=BAD returns 422."""
+    response = await client.get("/pharmacy/advice-records/stats", params={"month": "not-a-date"})
+    assert response.status_code == 422
+    body = response.json()
+    assert body["success"] is False

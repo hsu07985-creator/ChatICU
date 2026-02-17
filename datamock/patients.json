@@ -30,6 +30,7 @@
       "ventilatorDays": 6,
       "attendingPhysician": "李穎灝",
       "department": "內科-李穎灝",
+      "unit": "加護病房一",
       "alerts": [
         "血鉀偏低",
         "呼吸抑制風險"
@@ -77,6 +78,7 @@
       "ventilatorDays": 4,
       "attendingPhysician": "李穎灝",
       "department": "內科-李穎灝",
+      "unit": "加護病房一",
       "alerts": [
         "血壓偏低",
         "QT間期延長"
@@ -120,6 +122,7 @@
       "ventilatorDays": 10,
       "attendingPhysician": "黃英哲",
       "department": "內科-黃英哲",
+      "unit": "加護病房一",
       "alerts": [
         "腎功能不全",
         "電解質異常"
@@ -160,6 +163,7 @@
       "ventilatorDays": 0,
       "attendingPhysician": "李穎灝",
       "department": "外科",
+      "unit": "加護病房一",
       "alerts": [],
       "consentStatus": "valid",
       "allergies": [],

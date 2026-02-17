@@ -87,7 +87,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 
 **採取措施：**
 - [x] 確認 `backend/` 為唯一正式後端，`ChatICU/` 僅供開發參考
-- [x] 移除或封存 `ChatICU/` 避免混淆 → `ChatICU/ARCHIVED.md` 已建立
+- [x] 移除或封存 `ChatICU/` 避免混淆 → `_archive_candidates/20260216/ChatICU/ARCHIVED.md` 已建立
 - [x] 繪製最終架構圖（API Gateway → FastAPI → PostgreSQL/Redis） → `backend/docs/ARCHITECTURE.md`
 - [x] 確認所有 endpoint 路由清單（59 endpoints across 16 routers） → `backend/docs/ARCHITECTURE.md`
 - [x] 確認 Docker Compose 部署設定正確（3 services: api, db, redis + health checks）
@@ -98,7 +98,7 @@ Overall:        [===========] 13/32 completed + 10 partial
 - [x] 部署設定查核：Docker Compose 3 services + volumes + health checks 正確
 
 **產出物：**
-- `ChatICU/ARCHIVED.md` — 封存說明
+- `_archive_candidates/20260216/ChatICU/ARCHIVED.md` — 封存說明
 - `backend/docs/ARCHITECTURE.md` — 架構圖 + 59 endpoint 路由清單 + RBAC 矩陣 + 檔案結構
 
 **發現的待修項（移交至後續任務）：**

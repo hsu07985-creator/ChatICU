@@ -2,9 +2,24 @@ import { MedicalRecords } from '../components/medical-records';
 import { PharmacistAdviceWidget } from '../components/pharmacist-advice-widget';
 import { LabTrendChart, LabTrendData } from '../components/lab-trend-chart';
 import { VitalSignCard } from '../components/vital-signs-card';
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { sendChatMessage, getChatSessions as fetchChatSessionsApi } from '../lib/api/ai';
+import { isAxiosError } from 'axios';
+import {
+  streamChatMessage,
+  getChatSessions as fetchChatSessionsApi,
+  getChatSession as fetchChatSessionApi,
+  updateChatSessionTitle,
+  deleteChatSession,
+  getRAGStatus,
+  getAIReadiness,
+  getReadinessReason,
+  type AIReadiness,
+  type ChatResponse,
+  type Citation as AiCitation,
+  type DataFreshness,
+  type RAGStatus,
+} from '../lib/api/ai';
 import { patientsApi, labDataApi, medicationsApi, messagesApi, vitalSignsApi, ventilatorApi, type Patient, type LabData, type Medication, type PatientMessage, type VitalSigns, type VentilatorSettings, type WeaningAssessment } from '../lib/api';
 import { copyToClipboard } from '../lib/clipboard-utils';
 import { useAuth } from '../lib/auth-context';
@@ -18,7 +33,9 @@ import { ScrollArea } from '../components/ui/scroll-area';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { toast } from 'sonner';
 import { LoadingSpinner, ErrorDisplay, EmptyState } from '../components/ui/state-display';
+import { AiMarkdown, SafetyWarnings } from '../components/ui/ai-markdown';
 import { LabDataSkeleton, MedicationsSkeleton, MessageListSkeleton } from '../components/ui/skeletons';
+import { PatientSummaryTab } from '../components/patient/patient-summary-tab';
 import {
   ArrowLeft,
   Calendar,
@@ -43,14 +60,14 @@ import {
   Shield,
   Syringe,
   Brain,
-  Sparkles,
   Stethoscope,
   Info,
   RefreshCw,
   Plus,
   Save,
   History,
-  BookOpen
+  BookOpen,
+  Trash2
 } from 'lucide-react';
 import { LabDataDisplay } from '../components/lab-data-display';
 
@@ -105,6 +122,7 @@ interface ChatSession {
   title: string;
   messages: ChatMessage[];
   lastUpdated: string;
+  messageCount?: number;
   labDataSnapshot?: {
     K?: number;
     Na?: number;
@@ -118,8 +136,102 @@ interface ChatSession {
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  explanation?: string | null;
   timestamp?: string;
-  references?: string[];
+  references?: AiCitation[];
+  warnings?: string[] | null;
+  requiresExpertReview?: boolean;
+  degraded?: boolean;
+  degradedReason?: string | null;
+  upstreamStatus?: string | null;
+  dataFreshness?: DataFreshness | null;
+}
+
+function formatAiDegradedReason(reason?: string | null, upstreamStatus?: string | null): string {
+  if (reason === 'insufficient_evidence') {
+    return '目前可用證據有限';
+  }
+  if (reason === 'insufficient_patient_data') {
+    return '病患關鍵資料不足（已改為部分回覆）';
+  }
+  if (reason === 'llm_unavailable') {
+    return 'LLM 服務不可用';
+  }
+  return reason || upstreamStatus || 'unknown';
+}
+
+function getDisplayFreshnessHints(dataFreshness?: DataFreshness | null): string[] {
+  if (!dataFreshness) {
+    return [];
+  }
+
+  const hints: string[] = [];
+  const seen = new Set<string>();
+  const pushHint = (value: string) => {
+    const text = value.trim();
+    if (!text || seen.has(text)) {
+      return;
+    }
+    seen.add(text);
+    hints.push(text);
+  };
+
+  const sections = dataFreshness.sections || ({} as DataFreshness['sections']);
+  if (sections.vital_signs?.status === 'missing') {
+    pushHint('目前缺少生命徵象資料，建議先補抓最新數值。');
+  } else if (sections.vital_signs?.status === 'stale') {
+    pushHint('生命徵象資料較舊，解讀時請先確認最新量測。');
+  }
+
+  if (sections.lab_data?.status === 'missing') {
+    pushHint('目前缺少檢驗資料。');
+  } else if (sections.lab_data?.status === 'stale') {
+    pushHint('檢驗資料較舊，請留意時效性。');
+  }
+
+  if (sections.medications?.status === 'missing') {
+    pushHint('目前缺少用藥資料。');
+  }
+
+  if (hints.length > 0) {
+    return hints;
+  }
+
+  for (const raw of dataFreshness.hints || []) {
+    const hint = String(raw || '').trim();
+    if (!hint) {
+      continue;
+    }
+    if (hint.includes('JSON 離線模式') || hint.includes('資料快照時間')) {
+      continue;
+    }
+    pushHint(hint);
+  }
+
+  return hints;
+}
+
+function formatCitationPageText(citation: AiCitation): string {
+  const pages = Array.isArray(citation.pages)
+    ? citation.pages.filter((p): p is number => Number.isFinite(Number(p))).map((p) => Number(p))
+    : [];
+  if (pages.length > 1) {
+    const uniq = Array.from(new Set(pages)).sort((a, b) => a - b);
+    return `第 ${uniq.join('、')} 頁`;
+  }
+  if (typeof citation.page === 'number') {
+    return `第 ${citation.page} 頁`;
+  }
+  if (pages.length === 1) {
+    return `第 ${pages[0]} 頁`;
+  }
+  return '頁碼待補';
+}
+
+function compactSnippet(snippet?: string): string {
+  const text = String(snippet || '').trim();
+  if (!text) return '';
+  return text;
 }
 
 function extractLabNumericValue(value: unknown): number | undefined {
@@ -154,6 +266,46 @@ function formatSnapshotValue(value: number | undefined): string {
   return value !== undefined ? String(value) : 'N/A';
 }
 
+function createReadinessFallback(reason: string): AIReadiness {
+  return {
+    overall_ready: false,
+    checked_at: new Date().toISOString(),
+    llm: {
+      ready: false,
+      provider: 'unknown',
+      model: 'unknown',
+      reason: 'READINESS_CHECK_FAILED',
+    },
+    evidence: {
+      reachable: false,
+      ready: false,
+      reason: 'READINESS_CHECK_FAILED',
+      last_error: reason,
+    },
+    rag: {
+      ready: false,
+      is_indexed: false,
+      total_chunks: 0,
+      total_documents: 0,
+      engine: 'unknown',
+      clinical_rules_loaded: false,
+    },
+    feature_gates: {
+      chat: false,
+      clinical_summary: false,
+      patient_explanation: false,
+      guideline_interpretation: false,
+      decision_support: false,
+      clinical_polish: false,
+      dose_calculation: false,
+      drug_interactions: false,
+      clinical_query: false,
+    },
+    blocking_reasons: ['READINESS_CHECK_FAILED'],
+    display_reasons: ['AI 服務狀態檢查失敗，已暫時停用 AI 功能。'],
+  };
+}
+
 
 export function PatientDetailPage() {
   const { id } = useParams();
@@ -161,13 +313,15 @@ export function PatientDetailPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('chat');
   const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant', content: string, references?: string[] }>>([]);
-  const [expandedReferences, setExpandedReferences] = useState<Set<number>>(new Set()); // 追蹤哪些參考依據是展開的
-  const [progressNoteInput, setProgressNoteInput] = useState('');
-  const [polishedNote, setPolishedNote] = useState('');
-  const [medAdviceInput, setMedAdviceInput] = useState('');
-  const [polishedAdvice, setPolishedAdvice] = useState('');
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [expandedExplanations, setExpandedExplanations] = useState<Set<number>>(new Set()); // 追蹤哪些訊息的說明區塊是展開的
+  const [expandedReferences, setExpandedReferences] = useState<Set<number>>(new Set()); // 追蹤哪些訊息的參考依據區塊是展開的
   const [isSending, setIsSending] = useState(false);
+
+  // RAG 索引狀態
+  const [ragStatus, setRagStatus] = useState<RAGStatus | null>(null);
+  const [aiReadiness, setAiReadiness] = useState<AIReadiness | null>(null);
+  const [isCheckingAiReadiness, setIsCheckingAiReadiness] = useState(false);
 
   // 病人資料狀態
   const [patient, setPatient] = useState<PatientWithFrontendFields | null>(null);
@@ -196,6 +350,7 @@ export function PatientDetailPage() {
   const [ventilator, setVentilator] = useState<VentilatorSettings | null>(null);
   const [ventilatorLoading, setVentilatorLoading] = useState(false);
   const [weaningAssessment, setWeaningAssessment] = useState<WeaningAssessment | null>(null);
+  const [isRefreshingPatientData, setIsRefreshingPatientData] = useState(false);
 
   // 對話記錄相關狀態
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
@@ -215,66 +370,125 @@ export function PatientDetailPage() {
   const [trendChartData, setTrendChartData] = useState<LabTrendData[]>([]);
   const [trendReferenceRange, setTrendReferenceRange] = useState('');
 
+  const loadPatientBundle = useCallback(async (mode: 'initial' | 'refresh') => {
+    if (!id) return;
+    try {
+      if (mode === 'initial') {
+        setPatientLoading(true);
+        setPatientError(null);
+      } else {
+        setIsRefreshingPatientData(true);
+      }
+
+      setMedicationsLoading(true);
+      setMessagesLoading(true);
+      setVitalSignsLoading(true);
+      setVentilatorLoading(true);
+      setLabDataLoading(true);
+
+      // 同時載入所有數據
+      const [patientData, labDataResult, medicationsResult, messagesResult, vitalSignsResult, ventilatorResult, weaningResult] = await Promise.all([
+        patientsApi.getPatient(id),
+        labDataApi.getLatestLabData(id).catch(() => defaultLabData),
+        medicationsApi.getMedications(id).catch(() => ({ medications: [], total: 0 })),
+        messagesApi.getMessages(id).catch(() => ({ messages: [], total: 0, unreadCount: 0 })),
+        vitalSignsApi.getLatestVitalSigns(id).catch(() => null),
+        ventilatorApi.getLatestVentilatorSettings(id).catch(() => null),
+        ventilatorApi.getWeaningAssessment(id).catch(() => null)
+      ]);
+
+      setPatient(patientData as PatientWithFrontendFields);
+      setLabData(labDataResult);
+      setMedications(medicationsResult.medications);
+      setMessages(messagesResult.messages);
+      setUnreadCount(messagesResult.unreadCount);
+      setVitalSigns(vitalSignsResult);
+      setVentilator(ventilatorResult);
+      setWeaningAssessment(weaningResult);
+
+      // 載入對話記錄
+      try {
+        const sessionsData = await fetchChatSessionsApi({ patientId: id });
+	        setChatSessions(sessionsData.sessions.map(s => ({
+	          id: s.id,
+	          patientId: s.patientId || id,
+	          sessionDate: new Date(s.createdAt).toISOString().split('T')[0],
+	          sessionTime: new Date(s.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
+	          title: s.title,
+	          messages: [],
+	          lastUpdated: new Date(s.updatedAt).toLocaleString('zh-TW'),
+	          messageCount: s.messageCount,
+	        })));
+      } catch {
+        setChatSessions([]);
+      }
+
+      if (mode === 'refresh') {
+        toast.success('已更新患者數值');
+      }
+    } catch (err) {
+      console.error('載入病人資料失敗:', err);
+      if (mode === 'initial') {
+        setPatientError('無法載入病人資料');
+      } else {
+        toast.error('更新患者數值失敗，請確認網路與後端服務狀態');
+      }
+    } finally {
+      if (mode === 'initial') {
+        setPatientLoading(false);
+      } else {
+        setIsRefreshingPatientData(false);
+      }
+      setMedicationsLoading(false);
+      setMessagesLoading(false);
+      setVitalSignsLoading(false);
+      setVentilatorLoading(false);
+      setLabDataLoading(false);
+    }
+  }, [id]);
+
+  const refreshMessagesOnly = useCallback(async () => {
+    if (!id) return;
+    try {
+      setMessagesLoading(true);
+      const res = await messagesApi.getMessages(id);
+      setMessages(res.messages);
+      setUnreadCount(res.unreadCount);
+    } catch (err) {
+      console.error('重新載入留言失敗:', err);
+      toast.error('重新載入留言失敗');
+    } finally {
+      setMessagesLoading(false);
+    }
+  }, [id]);
+
   // 載入病人資料、檢驗數據、用藥數據、留言、生命徵象和呼吸器數據
   useEffect(() => {
-    const fetchData = async () => {
-      if (!id) return;
-      try {
-        setPatientLoading(true);
-        setMedicationsLoading(true);
-        setMessagesLoading(true);
-        setVitalSignsLoading(true);
-        setVentilatorLoading(true);
-        setPatientError(null);
+    loadPatientBundle('initial');
+  }, [loadPatientBundle]);
 
-        // 同時載入所有數據
-        const [patientData, labDataResult, medicationsResult, messagesResult, vitalSignsResult, ventilatorResult, weaningResult] = await Promise.all([
-          patientsApi.getPatient(id),
-          labDataApi.getLatestLabData(id).catch(() => defaultLabData),
-          medicationsApi.getMedications(id).catch(() => ({ medications: [], total: 0 })),
-          messagesApi.getMessages(id).catch(() => ({ messages: [], total: 0, unreadCount: 0 })),
-          vitalSignsApi.getLatestVitalSigns(id).catch(() => null),
-          ventilatorApi.getLatestVentilatorSettings(id).catch(() => null),
-          ventilatorApi.getWeaningAssessment(id).catch(() => null)
-        ]);
+  const refreshAiReadiness = useCallback(async () => {
+    setIsCheckingAiReadiness(true);
+    try {
+      const readiness = await getAIReadiness();
+      setAiReadiness(readiness);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      console.error('[INTG][AI][API][AO-01] readiness check failed:', reason);
+      setAiReadiness(createReadinessFallback(reason));
+    } finally {
+      setIsCheckingAiReadiness(false);
+    }
+  }, []);
 
-        setPatient(patientData as PatientWithFrontendFields);
-        setLabData(labDataResult);
-        setMedications(medicationsResult.medications);
-        setMessages(messagesResult.messages);
-        setUnreadCount(messagesResult.unreadCount);
-        setVitalSigns(vitalSignsResult);
-        setVentilator(ventilatorResult);
-        setWeaningAssessment(weaningResult);
+  useEffect(() => {
+    refreshAiReadiness();
+  }, [refreshAiReadiness]);
 
-        // 載入對話記錄
-        try {
-          const sessionsData = await fetchChatSessionsApi({ patientId: id });
-          setChatSessions(sessionsData.sessions.map(s => ({
-            id: s.id,
-            patientId: s.patientId || id,
-            sessionDate: new Date(s.createdAt).toISOString().split('T')[0],
-            sessionTime: new Date(s.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
-            title: s.title,
-            messages: [],
-            lastUpdated: new Date(s.updatedAt).toLocaleString('zh-TW'),
-          })));
-        } catch {
-          setChatSessions([]);
-        }
-      } catch (err) {
-        console.error('載入病人資料失敗:', err);
-        setPatientError('無法載入病人資料');
-      } finally {
-        setPatientLoading(false);
-        setMedicationsLoading(false);
-        setMessagesLoading(false);
-        setVitalSignsLoading(false);
-        setVentilatorLoading(false);
-      }
-    };
-    fetchData();
-  }, [id]);
+  // P3-6: 載入 RAG 索引狀態
+  useEffect(() => {
+    getRAGStatus().then(setRagStatus).catch(() => setRagStatus(null));
+  }, []);
 
   // 選取生命徵象/檢驗項目時，從後端 API 載入趨勢資料
   useEffect(() => {
@@ -294,7 +508,9 @@ export function PatientDetailPage() {
 
         if (category) {
           for (const record of response.trends || []) {
-            const catData = (record as Record<string, unknown>)[category] as Record<string, { value: number; referenceRange?: string }> | undefined;
+            const catData = (record as unknown as Record<string, unknown>)[category] as
+              | Record<string, { value: number; referenceRange?: string }>
+              | undefined;
             if (catData && catData[labName]) {
               points.push({
                 date: record.timestamp?.split('T')[0] || '',
@@ -404,9 +620,51 @@ export function PatientDetailPage() {
   const getSedation = () => patient.sedation || patient.sanSummary?.sedation || [];
   const getAnalgesia = () => patient.analgesia || patient.sanSummary?.analgesia || [];
   const getNmb = () => patient.nmb || patient.sanSummary?.nmb || [];
+  const canSendAiChat = aiReadiness ? aiReadiness.feature_gates.chat : true;
+  const aiChatGateReason = getReadinessReason(aiReadiness, 'chat');
+
+  const refreshChatSessions = async () => {
+    if (!id) return;
+    try {
+      const sessionsData = await fetchChatSessionsApi({ patientId: id });
+      setChatSessions(sessionsData.sessions.map(s => ({
+        id: s.id,
+        patientId: s.patientId || id,
+        sessionDate: new Date(s.createdAt).toISOString().split('T')[0],
+        sessionTime: new Date(s.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
+        title: s.title,
+        messages: [],
+        lastUpdated: new Date(s.updatedAt).toLocaleString('zh-TW'),
+        messageCount: s.messageCount,
+      })));
+    } catch {
+      setChatSessions([]);
+    }
+  };
+
+  const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    if (!confirm('確定要刪除此對話記錄嗎？')) return;
+    try {
+      await deleteChatSession(sessionId);
+      if (selectedSession?.id === sessionId) {
+        setSelectedSession(null);
+        setChatMessages([]);
+        setSessionTitle('');
+      }
+      await refreshChatSessions();
+      toast.success('對話記錄已刪除');
+    } catch {
+      toast.error('刪除對話記錄失敗');
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!chatInput.trim() || isSending) return;
+    if (!canSendAiChat) {
+      toast.error(aiChatGateReason);
+      return;
+    }
 
     const userMessage = chatInput.trim();
     const messagesWithUser = [
@@ -417,119 +675,103 @@ export function PatientDetailPage() {
     setChatInput('');
     setIsSending(true);
 
-    let finalMessages = messagesWithUser;
-
     try {
-      const response = await sendChatMessage(userMessage, { patientId: id });
-      finalMessages = [
+      setChatMessages([
         ...messagesWithUser,
         {
-          role: 'assistant' as const,
-          content: response.message.content,
-          references: response.message.citations?.map(c => `${c.title} (${c.source})`) || []
-        }
+          role: 'assistant',
+          content: '',
+        },
+      ]);
+
+      const response = await new Promise<ChatResponse>((resolve, reject) => {
+        streamChatMessage({
+          message: userMessage,
+          patientId: id,
+          sessionId: selectedSession?.id,
+          onMessage: (chunk) => {
+            if (!chunk) return;
+            setChatMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const next = [...prev];
+              const lastIndex = next.length - 1;
+              const last = next[lastIndex];
+              if (last?.role !== 'assistant') return prev;
+              next[lastIndex] = {
+                ...last,
+                content: `${last.content || ''}${chunk}`,
+              };
+              return next;
+            });
+          },
+          onComplete: (streamResult) => resolve(streamResult),
+          onError: (error) => reject(error),
+        });
+      });
+
+      const assistantMsg: ChatMessage = {
+        role: 'assistant',
+        content: response.message.content,
+        explanation: response.message.explanation || null,
+        references: response.message.citations || [],
+        warnings: response.message.safetyWarnings || null,
+        requiresExpertReview: response.message.requiresExpertReview || false,
+        degraded: response.message.degraded || false,
+        degradedReason: response.message.degradedReason || null,
+        upstreamStatus: response.message.upstreamStatus || null,
+        dataFreshness: response.message.dataFreshness || null,
+      };
+
+      const finalMessages = [
+        ...messagesWithUser,
+        assistantMsg,
       ];
       setChatMessages(finalMessages);
+
+      // If this is a new session, persist the user-provided title (optional)
+      if (!selectedSession) {
+        if (sessionTitle.trim()) {
+          try {
+            await updateChatSessionTitle(response.sessionId, sessionTitle.trim());
+          } catch {
+            // Non-blocking: chat still works even if title update fails
+          }
+        }
+	        await refreshChatSessions();
+	        setSelectedSession({
+	          id: response.sessionId,
+	          patientId: id || patient.id,
+	          sessionDate: new Date().toISOString().split('T')[0],
+	          sessionTime: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
+	          // Keep title consistent with backend default (first user message) unless user provided one.
+	          title: sessionTitle.trim() || userMessage.slice(0, 50),
+	          messages: [],
+	          lastUpdated: new Date().toLocaleString('zh-TW'),
+	        });
+      } else {
+        // Keep list metadata fresh
+        await refreshChatSessions();
+      }
     } catch (err) {
       console.error('AI 回覆失敗:', err);
-      finalMessages = [
+      let errorMessage = 'AI 助手目前無法回應，請確認後端服務是否正常運行，稍後再試。';
+      if (isAxiosError(err)) {
+        const data = err.response?.data as { message?: unknown; detail?: unknown } | undefined;
+        const detail = (data?.message ?? data?.detail);
+        if (typeof detail === 'string' && detail.trim()) {
+          errorMessage = `AI 服務暫時不可用：${detail}`;
+        }
+      }
+      setChatMessages([
         ...messagesWithUser,
         {
-          role: 'assistant' as const,
-          content: 'AI 助手目前無法回應，請確認後端服務是否正常運行，稍後再試。'
-        }
-      ];
-      setChatMessages(finalMessages);
+          role: 'assistant',
+          content: errorMessage
+        },
+      ]);
     } finally {
       setIsSending(false);
     }
-
-    // 自動儲存對話到本地狀態
-    const title = sessionTitle.trim() || `對話記錄 ${new Date().toLocaleString('zh-TW')}`;
-    const now = new Date();
-
-    if (selectedSession) {
-      const updatedSession: ChatSession = {
-        ...selectedSession,
-        messages: finalMessages.map(m => ({
-          ...m,
-          timestamp: new Date().toLocaleString('zh-TW')
-        })),
-        lastUpdated: new Date().toLocaleString('zh-TW'),
-        labDataSnapshot: {
-          K: extractLabNumericValue(labData.biochemistry?.K),
-          Na: extractLabNumericValue(labData.biochemistry?.Na),
-          Scr: extractLabNumericValue(labData.biochemistry?.Scr),
-          eGFR: extractLabNumericValue(labData.biochemistry?.eGFR),
-          CRP: extractLabNumericValue(labData.inflammatory?.CRP),
-          WBC: extractLabNumericValue(labData.hematology?.WBC)
-        }
-      };
-      setChatSessions(chatSessions.map(s => s.id === selectedSession.id ? updatedSession : s));
-      setSelectedSession(updatedSession);
-    } else {
-      const newSession: ChatSession = {
-        id: `chat${Date.now()}`,
-        patientId: patient.id,
-        sessionDate: now.toISOString().split('T')[0],
-        sessionTime: now.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
-        title,
-        messages: finalMessages.map(m => ({
-          ...m,
-          timestamp: new Date().toLocaleString('zh-TW')
-        })),
-        lastUpdated: new Date().toLocaleString('zh-TW'),
-        labDataSnapshot: {
-          K: extractLabNumericValue(labData.biochemistry?.K),
-          Na: extractLabNumericValue(labData.biochemistry?.Na),
-          Scr: extractLabNumericValue(labData.biochemistry?.Scr),
-          eGFR: extractLabNumericValue(labData.biochemistry?.eGFR),
-          CRP: extractLabNumericValue(labData.inflammatory?.CRP),
-          WBC: extractLabNumericValue(labData.hematology?.WBC)
-        }
-      };
-      setChatSessions([newSession, ...chatSessions]);
-      setSelectedSession(newSession);
-    }
-  };
-
-  const handlePolishProgressNote = () => {
-    if (!progressNoteInput.trim()) return;
-    
-    const potassium = extractLabNumericValue(labData?.biochemistry?.K) ?? 3.5;
-    const creatinine = extractLabNumericValue(labData?.biochemistry?.Scr) ?? 1.0;
-    const egfr = extractLabNumericValue(labData?.biochemistry?.eGFR) ?? 60;
-    const crp = extractLabNumericValue(labData?.inflammatory?.CRP) ?? 5;
-
-    const polished = `Assessment:
-Patient remains intubated on day ${Math.floor((new Date().getTime() - new Date(patient.icuAdmissionDate).getTime()) / (1000 * 60 * 60 * 24))} of ICU stay. Currently receiving mechanical ventilation. Hemodynamics stable on current support.
-
-Laboratory findings show potassium ${potassium} mEq/L, creatinine ${creatinine} mg/dL, with eGFR ${egfr} mL/min. Inflammatory markers: CRP ${crp} mg/L.
-
-Plan:
-- Continue current ventilator settings
-- Monitor electrolytes and adjust supplementation as needed
-- Titrate sedation to target RASS -2
-- Daily assessment for extubation readiness`;
-    
-    setPolishedNote(polished);
-  };
-
-  const handlePolishMedAdvice = () => {
-    if (!medAdviceInput.trim()) return;
-    
-    const potassium = extractLabNumericValue(labData?.biochemistry?.K) ?? 3.5;
-    const egfr = extractLabNumericValue(labData?.biochemistry?.eGFR) ?? 60;
-
-    const polished = `Medication Recommendation:
-
-The patient's current potassium level (${potassium} mEq/L) is below normal range. Recommend supplementation with potassium chloride 20-40 mEq, with close monitoring every 4-6 hours until normalized.
-
-Concurrent use of Morphine and Dormicum requires careful monitoring for respiratory depression. Suggest daily RASS assessment, targeting RASS -2 to -1 for optimal sedation.
-
-Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally cleared medications.`;
-    
-    setPolishedAdvice(polished);
   };
 
   const daysAdmitted = Math.floor(
@@ -655,18 +897,35 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
                         </div>
                       ) : (
                         <div className="space-y-1 p-2">
-                          {chatSessions.map((session) => (
-                            <button
-                              key={session.id}
-                              onClick={() => {
-                                setSelectedSession(session);
-                                setChatMessages(session.messages.map(m => ({ role: m.role, content: m.content })));
-                                setSessionTitle(session.title);
-                              }}
-                              className={`w-full text-left p-3 rounded-lg border-2 transition-all hover:bg-[#f8f9fa] ${
-                                selectedSession?.id === session.id
-                                  ? 'bg-[#f8f9fa] border-[#7f265b]'
-                                  : 'border-transparent'
+	                          {chatSessions.map((session) => (
+	                            <button
+	                              key={session.id}
+	                              onClick={async () => {
+	                                setSelectedSession(session);
+	                                setSessionTitle(session.title);
+	                                try {
+		                                  const detail = await fetchChatSessionApi(session.id);
+		                                  setChatMessages((detail.messages || []).map(m => ({
+		                                    role: (m.role === 'assistant' ? 'assistant' : 'user'),
+		                                    content: m.content,
+		                                    explanation: m.explanation || null,
+		                                    references: m.citations || [],
+			                                    warnings: m.safetyWarnings || null,
+			                                    requiresExpertReview: m.requiresExpertReview || false,
+			                                    degraded: m.degraded || false,
+			                                    degradedReason: m.degradedReason || null,
+			                                    upstreamStatus: m.upstreamStatus || null,
+			                                    dataFreshness: m.dataFreshness || null,
+			                                  })));
+			                                } catch {
+	                                  toast.error('載入對話內容失敗');
+	                                  setChatMessages([]);
+	                                }
+	                              }}
+	                              className={`w-full text-left p-3 rounded-lg border-2 transition-all hover:bg-[#f8f9fa] ${
+	                                selectedSession?.id === session.id
+	                                  ? 'bg-[#f8f9fa] border-[#7f265b]'
+	                                  : 'border-transparent'
                               }`}
                             >
                               <div className="flex items-start justify-between gap-2">
@@ -688,9 +947,18 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
                                     </div>
                                   )}
                                 </div>
-                                <Badge className="bg-[#7f265b] text-white text-xs shrink-0">
-                                  {session.messages.length}
-                                </Badge>
+                                <div className="flex items-center gap-1 shrink-0">
+	                                <Badge className="bg-[#7f265b] text-white text-xs">
+	                                  {session.messageCount ?? session.messages.length}
+	                                </Badge>
+                                  <button
+                                    onClick={(e) => handleDeleteSession(e, session.id)}
+                                    className="p-1 rounded hover:bg-red-100 text-muted-foreground hover:text-red-600 transition-colors"
+                                    title="刪除對話"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
                               </div>
                             </button>
                           ))}
@@ -724,26 +992,45 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          toast.success('已更新患者最新數值');
-                        }}
-                        className="border-[#f59e0b] text-[#f59e0b] hover:bg-[#f59e0b] hover:text-white"
-                      >
-                        <RefreshCw className="h-4 w-4 mr-1" />
-                        更新患者數值
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowSessionList(!showSessionList)}
-                      >
-                        {showSessionList ? '隱藏' : '顯示'}記錄
-                      </Button>
-                    </div>
+	                    <div className="flex items-center gap-2">
+	                      {aiReadiness && (
+	                        <Badge
+	                          variant="outline"
+	                          className={
+	                            canSendAiChat
+	                              ? 'border-green-300 bg-green-50 text-green-700'
+	                              : 'border-amber-300 bg-amber-50 text-amber-700'
+	                          }
+	                        >
+	                          {canSendAiChat ? 'AI 就緒' : 'AI 未就緒'}
+	                        </Badge>
+	                      )}
+	                      <Button
+	                        variant="outline"
+	                        size="sm"
+	                        onClick={refreshAiReadiness}
+	                        disabled={isCheckingAiReadiness}
+	                      >
+	                        <RefreshCw className={`mr-2 h-4 w-4 ${isCheckingAiReadiness ? 'animate-spin' : ''}`} />
+	                        檢查 AI 狀態
+	                      </Button>
+	                      <Button
+	                        variant="outline"
+	                        size="sm"
+	                        onClick={() => loadPatientBundle('refresh')}
+	                        disabled={isRefreshingPatientData}
+	                      >
+	                        <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshingPatientData ? 'animate-spin' : ''}`} />
+	                        更新患者數值
+	                      </Button>
+	                      <Button
+	                        variant="ghost"
+	                        size="sm"
+	                        onClick={() => setShowSessionList(!showSessionList)}
+	                      >
+	                        {showSessionList ? '隱藏' : '顯示'}記錄
+	                      </Button>
+	                    </div>
                   </div>
                   {!selectedSession && chatMessages.length > 0 && (
                     <div className="mt-3">
@@ -759,6 +1046,16 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
                   )}
                 </CardHeader>
                 <CardContent className="space-y-4 pt-6">
+                  {/* 免責聲明 banner */}
+                  <div className="text-xs text-[#6b7280] bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    ⚕️ 本對話由 AI 輔助產生，僅供臨床參考，不可取代醫師專業判斷。任何治療決策應以主治醫師評估為準。
+                  </div>
+                  {!canSendAiChat && (
+                    <div className="text-xs text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
+                      {aiChatGateReason}
+                    </div>
+                  )}
+
                   {/* 對話區 */}
                   <div className="border-2 border-[#e5e7eb] rounded-lg p-4 min-h-[500px] max-h-[600px] overflow-y-auto space-y-4 bg-[#f8f9fa]">
                     {chatMessages.length === 0 ? (
@@ -766,10 +1063,6 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
                         <MessageSquare className="h-16 w-16 mx-auto mb-4 text-[#7f265b] opacity-30" />
                         <p className="text-[17px] font-medium">開始對話以獲得 AI 協助</p>
                         <p className="text-sm text-[#6b7280] mt-2">可以詢問檢驗數據、用藥建議、治療指引等</p>
-                        <p className="text-xs text-[#6b7280] mt-4 flex items-center justify-center gap-2">
-                          <RefreshCw className="h-3 w-3" />
-                          建議先點擊「更新患者數值」以獲得最新數據
-                        </p>
                       </div>
                     ) : (
                       chatMessages.map((msg, idx) => (
@@ -784,31 +1077,73 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
                                 : 'bg-white border-2 border-[#e5e7eb] text-[#1a1a1a] shadow-sm'
                             }`}
                           >
-                            <p className="whitespace-pre-wrap text-[16px] leading-relaxed pr-2">{msg.content}</p>
-                            {msg.role === 'assistant' && msg.references && msg.references.length > 0 && (() => {
-                              const isExpanded = expandedReferences.has(idx);
-                              return (
-                                <div className="mt-3 pt-3 border-t border-[#e5e7eb]">
-                                  <button
-                                    onClick={() => {
-                                      const newExpanded = new Set(expandedReferences);
-                                      if (isExpanded) {
-                                        newExpanded.delete(idx);
+		                            {msg.role === 'assistant' ? (
+		                              <div>
+		                                <AiMarkdown content={msg.content} className="text-[16px] pr-2" />
+				                                {msg.explanation && msg.explanation.trim().length > 0 && (() => {
+				                                  const isExplanationExpanded = expandedExplanations.has(idx);
+				                                  return (
+				                                    <div className="mt-2">
+				                                      <button
+				                                        onClick={() => {
+				                                          setExpandedExplanations((prev) => {
+				                                            const next = new Set(prev);
+				                                            if (isExplanationExpanded) {
+				                                              next.delete(idx);
+				                                            } else {
+				                                              next.add(idx);
+				                                            }
+				                                            return next;
+				                                          });
+				                                        }}
+				                                        className="text-xs text-[#7f265b] hover:text-[#631e4d] font-medium"
+				                                      >
+				                                        {isExplanationExpanded ? '收起說明' : '展開說明'}
+				                                      </button>
+				                                      {isExplanationExpanded && (
+				                                        <div className="mt-1.5 rounded border border-[#d1d5db] bg-[#f8f9fa] p-2.5">
+				                                          <AiMarkdown content={msg.explanation} className="text-[14px]" />
+				                                        </div>
+				                                      )}
+				                                    </div>
+				                                  );
+				                                })()}
+					                                <SafetyWarnings warnings={msg.warnings} />
+				                                {msg.requiresExpertReview && (
+		                                  <div className="mt-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+		                                    此 AI 回覆包含潛在高風險資訊，建議由醫師/藥師覆核後再採用。
+		                                  </div>
+		                                )}
+		                              </div>
+		                            ) : (
+		                              <p className="whitespace-pre-wrap text-[16px] leading-relaxed pr-2">{msg.content}</p>
+		                            )}
+		                            {msg.role === 'assistant' && (() => {
+		                              const references = msg.references || [];
+		                              const freshnessHints = getDisplayFreshnessHints(msg.dataFreshness);
+		                              const isExpanded = expandedReferences.has(idx);
+		                              return (
+		                                <div className="mt-3 pt-3 border-t border-[#e5e7eb] space-y-2">
+		                                  <button
+		                                    onClick={() => {
+	                                      const newExpanded = new Set(expandedReferences);
+	                                      if (isExpanded) {
+	                                        newExpanded.delete(idx);
                                       } else {
                                         newExpanded.add(idx);
                                       }
                                       setExpandedReferences(newExpanded);
                                     }}
-                                    className="w-full text-left hover:bg-[#f8f9fa]/50 rounded p-2 transition-colors"
-                                  >
-                                    <div className="flex items-center justify-between gap-2">
-                                      <div className="flex items-center gap-1">
-                                        <BookOpen className="h-3 w-3 text-[#7f265b]" />
-                                        <p className="text-xs font-medium text-[#7f265b]">參考依據</p>
-                                        <Badge variant="outline" className="ml-1 text-xs bg-white">
-                                          {msg.references.length}
-                                        </Badge>
-                                      </div>
+	                                    className="w-full text-left hover:bg-[#f8f9fa]/50 rounded p-2 transition-colors"
+	                                  >
+	                                    <div className="flex items-center justify-between gap-2">
+	                                      <div className="flex items-center gap-1">
+	                                        <BookOpen className="h-3 w-3 text-[#7f265b]" />
+	                                        <p className="text-xs font-medium text-[#7f265b]">參考依據</p>
+	                                        <Badge variant="outline" className="ml-1 text-xs bg-white">
+	                                          {references.length}
+	                                        </Badge>
+	                                      </div>
                                       <div className="flex items-center gap-1 text-xs text-[#7f265b]">
                                         <span className="font-medium">{isExpanded ? '收起' : '展開'}</span>
                                         <svg 
@@ -822,21 +1157,60 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
                                       </div>
                                     </div>
                                   </button>
-                                  {isExpanded && (
-                                    <div className="bg-[#f8f9fa] rounded p-2.5 border border-[#e5e7eb] mt-2">
-                                      <ul className="space-y-1">
-                                        {msg.references.map((ref, refIdx) => (
-                                          <li key={refIdx} className="text-xs text-muted-foreground flex items-start gap-1">
-                                            <span className="text-[#7f265b] mt-0.5">•</span>
-                                            <span>{ref}</span>
-                                          </li>
-                                        ))}
-                                      </ul>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })()}
+		                                  {isExpanded && (
+		                                    <div className="bg-[#f8f9fa] rounded p-2.5 border border-[#e5e7eb] mt-2">
+		                                      {references.length === 0 ? (
+		                                        <p className="text-xs text-[#6b7280]">
+		                                          本次回答未擷取到可顯示的文獻段落，可改用更具體關鍵詞再詢問。
+		                                        </p>
+		                                      ) : (
+		                                      <ul className="space-y-2">
+		                                        {references.map((ref, refIdx) => (
+		                                          <li key={`${ref.id || 'ref'}-${refIdx}`} className="text-xs text-muted-foreground">
+		                                            <div className="flex items-start gap-1">
+		                                              <span className="text-[#7f265b] mt-0.5">•</span>
+	                                              <div className="flex-1">
+                                                <p className="font-medium text-[#374151]">
+                                                  {ref.title || ref.sourceFile || 'unknown'}
+                                                </p>
+	                                                <p className="text-[11px] text-muted-foreground mt-0.5">
+	                                                  {(ref.sourceFile || ref.source || 'unknown')}
+	                                                  {' • '}
+	                                                  {formatCitationPageText(ref)}
+	                                                  {' • '}
+	                                                  相關度 {Number.isFinite(Number(ref.relevance)) ? Number(ref.relevance).toFixed(3) : 'N/A'}
+	                                                </p>
+	                                                {typeof ref.snippetCount === 'number' && ref.snippetCount > 1 && (
+	                                                  <p className="text-[11px] text-[#6b7280] mt-0.5">已合併 {ref.snippetCount} 段引用</p>
+	                                                )}
+	                                                {ref.snippet && ref.snippet.trim().length > 0 ? (
+	                                                  <div className="mt-1 rounded border border-[#d1d5db] bg-white p-2 text-[11px] leading-relaxed text-[#374151] whitespace-pre-wrap max-h-32 overflow-y-auto">
+	                                                    {compactSnippet(ref.snippet)}
+	                                                  </div>
+	                                                ) : (
+	                                                  <p className="text-[11px] text-[#9ca3af] mt-1">未提供原文段落。</p>
+	                                                )}
+	                                              </div>
+	                                            </div>
+		                                          </li>
+		                                        ))}
+		                                      </ul>
+		                                      )}
+		                                    </div>
+		                                  )}
+		                                  {(msg.degraded || freshnessHints.length > 0) && (
+		                                    <div className="rounded border border-[#d1d5db] bg-[#f9fafb] px-2.5 py-2 text-[11px] text-[#6b7280]">
+		                                      {msg.degraded && (
+		                                        <p>系統狀態：{formatAiDegradedReason(msg.degradedReason, msg.upstreamStatus)}</p>
+		                                      )}
+		                                      {freshnessHints.length > 0 && (
+		                                        <p>資料品質：{freshnessHints.join(' ')}</p>
+		                                      )}
+		                                    </div>
+		                                  )}
+		                                </div>
+		                              );
+		                            })()}
                             {msg.role === 'assistant' && (
                               <Button
                                 variant="ghost"
@@ -864,7 +1238,7 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
                   <div className="space-y-2">
                     <div className="flex gap-3">
                       <Textarea
-                        placeholder="例如：這位病患的鎮靜深度是否適當？"
+                        placeholder={canSendAiChat ? "例如：這位病患的鎮靜深度是否適當？" : "AI 功能未就緒，請先修復 readiness 問題"}
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -874,8 +1248,9 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
                           }
                         }}
                         className="min-h-[80px] border-2 border-[#7f265b] focus:border-[#7f265b] focus:ring-2 focus:ring-[#7f265b]/20 text-[17px]"
+                        disabled={!canSendAiChat}
                       />
-                      <Button onClick={handleSendMessage} size="icon" className="h-[80px] w-[80px] bg-[#7f265b] hover:bg-[#5f1e45]" disabled={isSending || !chatInput.trim()}>
+                      <Button onClick={handleSendMessage} size="icon" className="h-[80px] w-[80px] bg-[#7f265b] hover:bg-[#5f1e45]" disabled={isSending || !chatInput.trim() || !canSendAiChat}>
                         {isSending ? <RefreshCw className="h-6 w-6 animate-spin" /> : <Send className="h-6 w-6" />}
                       </Button>
                     </div>
@@ -886,64 +1261,7 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
             </div>
           </div>
 
-          {/* Progress Note 輔助（醫師/專科護理師） */}
-          {(user?.role === 'doctor' || user?.role === 'admin') && (
-            <Card className="border-2 border-[#7f265b]">
-              <CardHeader className="bg-[#f8f9fa]">
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <FileText className="h-6 w-6 text-[#7f265b]" />
-                  Progress Note 輔助
-                </CardTitle>
-                <CardDescription className="text-[15px] mt-2">
-                  輸入中文或草稿，AI 將協助翻譯修飾為專業英文 Progress Note
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <label className="font-semibold text-[#1a1a1a]">輸入草稿或中文描述</label>
-                  <Textarea
-                    placeholder="例如：病人今天狀況穩定，血鉀偏低已補充，目前插管中..."
-                    value={progressNoteInput}
-                    onChange={(e) => setProgressNoteInput(e.target.value)}
-                    className="min-h-[100px] border-2"
-                  />
-                  <Button 
-                    onClick={handlePolishProgressNote}
-                    className="bg-[#7f265b] hover:bg-[#631e4d]"
-                  >
-                    <Brain className="mr-2 h-5 w-5" />
-                    AI 修飾 & 翻譯
-                  </Button>
-                </div>
-
-                {polishedNote && (
-                  <div className="space-y-2">
-                    <label className="font-semibold text-[#1a1a1a]">修飾後的 Progress Note</label>
-                    <div className="bg-[#f8f9fa] border-2 border-[#7f265b] rounded-lg p-4">
-                      <pre className="whitespace-pre-wrap text-[16px] font-mono">{polishedNote}</pre>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" onClick={async () => {
-                        const success = await copyToClipboard(polishedNote);
-                        if (success) {
-                          toast.success('已複製到剪貼簿');
-                        } else {
-                          toast.error('複製失敗，請手動複製');
-                        }
-                      }}>
-                        <Copy className="mr-2 h-4 w-4" />
-                        複製
-                      </Button>
-                      <Button className="bg-[#7f265b] hover:bg-[#631e4d]">
-                        <Download className="mr-2 h-4 w-4" />
-                        匯入 HIS
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          {/* Progress Note 功能已統一至「病歷記錄」tab */}
 
           {/* RAG 來源側欄 - 已移除 */}
         </TabsContent>
@@ -971,8 +1289,20 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => {
-                      setMessages(messages.map(m => ({ ...m, isRead: true })));
+                    onClick={async () => {
+                      if (!id) return;
+                      const unread = messages.filter(m => !m.isRead);
+                      if (unread.length === 0) return;
+                      try {
+                        await Promise.all(
+                          unread.map(m => messagesApi.markMessageRead(id, m.id).catch(() => null))
+                        );
+                        toast.success(`已標記 ${unread.length} 則留言為已讀`);
+                        await refreshMessagesOnly();
+                      } catch (err) {
+                        console.error('全部標為已讀失敗:', err);
+                        toast.error('全部標為已讀失敗');
+                      }
                     }}
                   >
                     全部標為已讀
@@ -1150,10 +1480,16 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => {
-                                  setMessages(messages.map(m => 
-                                    m.id === message.id ? { ...m, isRead: true } : m
-                                  ));
+                                onClick={async () => {
+                                  if (!id) return;
+                                  try {
+                                    await messagesApi.markMessageRead(id, message.id);
+                                    toast.success('已標記為已讀');
+                                    await refreshMessagesOnly();
+                                  } catch (err) {
+                                    console.error('標記已讀失敗:', err);
+                                    toast.error('標記已讀失敗');
+                                  }
                                 }}
                               >
                                 <CheckCircle2 className="h-4 w-4 mr-1" />
@@ -1178,7 +1514,7 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
 
         {/* 病歷記錄 */}
         <TabsContent value="records" className="space-y-4">
-          <MedicalRecords patientId={patient.id} patientName={patient.name} />
+          <MedicalRecords patientId={patient.id} patientName={patient.name} aiReadiness={aiReadiness} />
         </TabsContent>
 
         {/* 檢驗數據 */}
@@ -1582,11 +1918,12 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
             <PharmacistAdviceWidget 
               patientId={patient.id} 
               patientName={patient.name}
+              aiReadiness={aiReadiness}
             />
           )}
 
           <div className="flex gap-2">
-            <Button variant="outline" className="border-[#7f265b] text-[#7f265b] hover:bg-[#7f265b] hover:text-white">
+            <Button variant="outline" className="border-[#7f265b] text-[#7f265b] hover:bg-[#7f265b] hover:text-white" onClick={() => navigate('/pharmacy/interactions')}>
               交互作用查詢
             </Button>
             <Button variant="outline">
@@ -1597,82 +1934,13 @@ Given renal function (eGFR ${egfr} mL/min), consider dose adjustment for renally
         </TabsContent>
 
         {/* 病歷摘要 */}
-        <TabsContent value="summary" className="space-y-4">
-          {/* 基本資訊 */}
-          <Card className="border-2 border-[#e5e7eb] bg-[#f8f9fa]">
-            <CardHeader>
-              <CardTitle>基本資訊 Basic Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Age</p>
-                  <p className="text-xl font-medium">{patient.age} years</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Gender</p>
-                  <p className="text-xl font-medium">male</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-1">BMI</p>
-                  <p className="text-xl font-medium">16.4 kg/m²</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Height</p>
-                  <p className="text-xl font-medium">164 cm</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-1">Weight</p>
-                  <p className="text-xl font-medium">44 kg</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 症狀 */}
-          <Card>
-            <CardHeader>
-              <CardTitle>症狀 Symptom</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ol className="space-y-2 list-decimal list-inside">
-                <li className="text-base">COVID-19 Complicated with Pulmonary Infection</li>
-                <li className="text-base">Septic Shock</li>
-                <li className="text-base">Respiratory Acidosis</li>
-              </ol>
-            </CardContent>
-          </Card>
-
-          {/* 診斷 */}
-          <Card className="border-l-4 border-l-[#3c7acb]">
-            <CardHeader>
-              <CardTitle>入院診斷</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-base">{patient.diagnosis}</p>
-            </CardContent>
-          </Card>
-
-          {/* 風險與警示 */}
-          <Card className="border-2 border-[#ff3975]">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-[#ff3975]">
-                <AlertCircle className="h-5 w-5" />
-                風險與警示
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {patient.alerts.map((alert, idx) => (
-                <Alert key={idx} className="bg-[#ffe6f0] border-[#ff3975]">
-                  <AlertCircle className="h-4 w-4 text-[#ff3975]" />
-                  <AlertDescription className="text-[#ff3975]">{alert}</AlertDescription>
-                </Alert>
-              ))}
-              {patient.alerts.length === 0 && (
-                <p className="text-muted-foreground text-sm">目前無警示</p>
-              )}
-            </CardContent>
-          </Card>
+        <TabsContent value="summary" className="space-y-4" forceMount>
+          <PatientSummaryTab
+            patient={patient}
+            userRole={user?.role}
+            ragStatus={ragStatus}
+            aiReadiness={aiReadiness}
+          />
         </TabsContent>
       </Tabs>
 

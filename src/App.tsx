@@ -25,6 +25,7 @@ import { PharmacyAdviceStatisticsPage } from './pages/pharmacy/advice-statistics
 import { AuditPage } from './pages/admin/placeholder';
 import { VectorsPage } from './pages/admin/vectors';
 import { UsersPage } from './pages/admin/users';
+import { AdminStatisticsPage } from './pages/admin/statistics';
 
 // Loading 元件
 function LoadingScreen() {
@@ -187,6 +188,16 @@ function AppRoutes() {
           <AdminRoute>
             <AppLayout>
               <UsersPage />
+            </AppLayout>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/statistics"
+        element={
+          <AdminRoute>
+            <AppLayout>
+              <AdminStatisticsPage />
             </AppLayout>
           </AdminRoute>
         }

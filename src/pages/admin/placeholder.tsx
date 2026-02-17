@@ -13,6 +13,7 @@ import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { useState, useEffect } from 'react';
 import { getAuditLogs, AuditLog, AuditLogsResponse } from '../../lib/api/admin';
+import { getApiErrorMessage } from '../../lib/api-client';
 
 // 稽核紀錄頁面
 export function AuditPage() {
@@ -29,9 +30,9 @@ export function AuditPage() {
     try {
       const data = await getAuditLogs({ limit: 50 });
       setApiData(data);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('載入稽核紀錄失敗:', err);
-      setError('無法連線至伺服器，請確認後端服務是否正常運行');
+      setError(getApiErrorMessage(err, '載入稽核紀錄失敗，請稍後重試'));
     } finally {
       setLoading(false);
     }

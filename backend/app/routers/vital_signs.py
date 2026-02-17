@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from datetime import date
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -86,14 +88,29 @@ async def get_vital_sign_history(
     patient_id: str,
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
+    start_date: date | None = Query(None, alias="startDate"),
+    end_date: date | None = Query(None, alias="endDate"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(status_code=400, detail="startDate cannot be after endDate")
+
     pid = normalize_patient_id(patient_id)
+    filters = [VitalSign.patient_id == pid]
+    if start_date:
+        filters.append(func.date(VitalSign.timestamp) >= start_date)
+    if end_date:
+        filters.append(func.date(VitalSign.timestamp) <= end_date)
+
+    # Total count for pagination
+    count_q = select(func.count()).where(*filters)
+    total = (await db.execute(count_q)).scalar() or 0
+
     offset = (page - 1) * limit
     result = await db.execute(
         select(VitalSign)
-        .where(VitalSign.patient_id == pid)
+        .where(*filters)
         .order_by(VitalSign.timestamp.desc())
         .offset(offset)
         .limit(limit)
@@ -102,6 +119,10 @@ async def get_vital_sign_history(
 
     return success_response(data={
         "history": [vital_to_dict(vs) for vs in signs],
-        "page": page,
-        "limit": limit,
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "totalPages": (total + limit - 1) // limit if total > 0 else 0,
+        },
     })

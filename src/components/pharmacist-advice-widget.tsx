@@ -1,11 +1,15 @@
 import { useState } from 'react';
+import { getReadinessReason, polishClinicalText, type AIReadiness } from '../lib/api/ai';
 import { copyToClipboard } from '../lib/clipboard-utils';
+import { PHARMACY_ADVICE_CATEGORIES, PHARMACY_RESPONSE_CODE_CATEGORIES } from '../lib/pharmacy-master-data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
+import { AiMarkdown } from './ui/ai-markdown';
 import { toast } from 'sonner';
+import { createAdviceRecord } from '../lib/api/pharmacy';
 import { 
   Pill, 
   Brain, 
@@ -22,126 +26,87 @@ interface PharmacistAdviceWidgetProps {
   patientId: string;
   patientName: string;
   linkedMedication?: string;
-  onSendToNotes?: (content: string, category: string, code: string) => void;
+  aiReadiness?: AIReadiness | null;
 }
 
-// 藥師建議分類定義（四大類）
+// 藥師建議分類定義（四大類）— 代碼/標籤來自固定 master data
 const adviceCategories = {
   prescription: {
-    label: '1. 建議處方',
+    label: PHARMACY_ADVICE_CATEGORIES.prescription.label,
     color: 'bg-purple-100 border-purple-300 hover:bg-purple-200',
     activeColor: 'bg-[#7f265b] text-white',
     icon: Pill,
     iconColor: 'text-[#7f265b]',
-    codes: [
-      { code: '1-1', label: '建議更適當用藥/配方組成' },
-      { code: '1-2', label: '用藥途徑或劑型問題' },
-      { code: '1-3', label: '用藥期間/數量問題（包含停藥）' },
-      { code: '1-4', label: '用藥劑量/頻次問題' },
-      { code: '1-5', label: '不符健保給付規定' },
-      { code: '1-6', label: '其他' },
-      { code: '1-7', label: '藥品相容性問題' },
-      { code: '1-8', label: '疑似藥品不良反應' },
-      { code: '1-9', label: '藥品交互作用' },
-      { code: '1-10', label: '藥品併用問題' },
-      { code: '1-11', label: '用藥替急問題（包括過敏史）' },
-      { code: '1-12', label: '適應症問題' },
-      { code: '1-13', label: '給藥問題（途徑、輸注方式、濃度或稀釋液）' }
-    ]
+    codes: PHARMACY_ADVICE_CATEGORIES.prescription.codes,
   },
   proactive: {
-    label: '2. 主動建議',
+    label: PHARMACY_ADVICE_CATEGORIES.proactive.label,
     color: 'bg-orange-100 border-orange-300 hover:bg-orange-200',
     activeColor: 'bg-orange-600 text-white',
     icon: AlertTriangle,
     iconColor: 'text-orange-600',
-    codes: [
-      { code: '2-1', label: '建議靜脈營養配方' },
-      { code: '2-2', label: '建議藥物治療療程' },
-      { code: '2-3', label: '建議用藥/建議增加用藥' },
-      { code: '2-4', label: '藥品不良反應評估' }
-    ]
+    codes: PHARMACY_ADVICE_CATEGORIES.proactive.codes,
   },
   monitoring: {
-    label: '3. 建議監測',
+    label: PHARMACY_ADVICE_CATEGORIES.monitoring.label,
     color: 'bg-gray-100 border-gray-300 hover:bg-gray-200',
     activeColor: 'bg-gray-700 text-white',
     icon: Info,
     iconColor: 'text-gray-700',
-    codes: [
-      { code: '3-1', label: '建議藥品由中適度監測' },
-      { code: '3-2', label: '建議藥品不良反應監測' },
-      { code: '3-3', label: '建議藥品療效監測' }
-    ]
+    codes: PHARMACY_ADVICE_CATEGORIES.monitoring.codes,
   },
   appropriateness: {
-    label: '4. 用藥適真性',
+    label: PHARMACY_ADVICE_CATEGORIES.appropriateness.label,
     color: 'bg-blue-100 border-blue-300 hover:bg-blue-200',
     activeColor: 'bg-blue-600 text-white',
     icon: CheckCircle2,
     iconColor: 'text-blue-600',
-    codes: [
-      { code: '4-1', label: '病人用藥適從性問題' },
-      { code: '4-2', label: '藥品辨識/自備藥辨識' },
-      { code: '4-3', label: '藥證查核與整合' }
-    ]
-  }
+    codes: PHARMACY_ADVICE_CATEGORIES.appropriateness.codes,
+  },
 };
 
-// A-W 回應代碼（醫師回應）
+// A/W/C/N 回應代碼（醫師回應）— 代碼/標籤來自固定 master data
 const responseCategories = {
   accept: {
-    label: 'Accept 接受',
+    label: PHARMACY_RESPONSE_CODE_CATEGORIES.accept.label,
     color: 'bg-green-100 border-green-300 hover:bg-green-200',
     activeColor: 'bg-green-600 text-white',
     icon: CheckCircle2,
     iconColor: 'text-green-600',
-    codes: [
-      { code: 'A-AC', label: '接受並執行 (Accept and Comply)' },
-      { code: 'A-N', label: '已知悉（備註）(Acknowledge with Note)' },
-      { code: 'A-AS', label: '同意並停藥 (Accept and Stop)' }
-    ]
+    codes: PHARMACY_RESPONSE_CODE_CATEGORIES.accept.codes,
   },
   warning: {
-    label: 'Warning 警示',
+    label: PHARMACY_RESPONSE_CODE_CATEGORIES.warning.label,
     color: 'bg-yellow-100 border-yellow-300 hover:bg-yellow-200',
     activeColor: 'bg-yellow-600 text-white',
     icon: AlertTriangle,
     iconColor: 'text-yellow-600',
-    codes: [
-      { code: 'W-N', label: '已知悉 (Noted)' },
-      { code: 'W-M', label: '監測中 (Monitoring)' },
-      { code: 'W-A', label: '調整劑量 (Adjust)' },
-      { code: 'W-S', label: '停藥 (Stop)' }
-    ]
+    codes: PHARMACY_RESPONSE_CODE_CATEGORIES.warning.codes,
   },
   controversy: {
-    label: 'Controversy 爭議',
+    label: PHARMACY_RESPONSE_CODE_CATEGORIES.controversy.label,
     color: 'bg-blue-100 border-blue-300 hover:bg-blue-200',
     activeColor: 'bg-blue-600 text-white',
     icon: Info,
     iconColor: 'text-blue-600',
-    codes: [
-      { code: 'C-N', label: '已知悉 (Noted)' },
-      { code: 'C-C', label: '繼續使用 (Continue)' },
-      { code: 'C-M', label: '修改處方 (Modify)' }
-    ]
+    codes: PHARMACY_RESPONSE_CODE_CATEGORIES.controversy.codes,
   },
   adverse: {
-    label: 'Adverse 不良回應',
+    label: PHARMACY_RESPONSE_CODE_CATEGORIES.adverse.label,
     color: 'bg-red-100 border-red-300 hover:bg-red-200',
     activeColor: 'bg-red-600 text-white',
     icon: XCircle,
     iconColor: 'text-red-600',
-    codes: [
-      { code: 'N-N', label: '不回應 (No Response)' },
-      { code: 'N-NI', label: '資訊不足 (Not enough Information)' },
-      { code: 'N-R', label: '拒絕建議 (Reject)' }
-    ]
-  }
+    codes: PHARMACY_RESPONSE_CODE_CATEGORIES.adverse.codes,
+  },
 };
 
-export function PharmacistAdviceWidget({ patientId, patientName, linkedMedication, onSendToNotes }: PharmacistAdviceWidgetProps) {
+export function PharmacistAdviceWidget({
+  patientId,
+  patientName,
+  linkedMedication,
+  aiReadiness = null,
+}: PharmacistAdviceWidgetProps) {
   const [adviceInput, setAdviceInput] = useState('');
   const [polishedAdvice, setPolishedAdvice] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<keyof typeof adviceCategories | null>(null);
@@ -149,52 +114,79 @@ export function PharmacistAdviceWidget({ patientId, patientName, linkedMedicatio
   const [selectedResponse, setSelectedResponse] = useState<keyof typeof responseCategories | null>(null);
   const [selectedResponseCode, setSelectedResponseCode] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isPolishing, setIsPolishing] = useState(false);
+  const canPolish = aiReadiness ? aiReadiness.feature_gates.clinical_polish : true;
+  const polishReason = getReadinessReason(aiReadiness, 'clinical_polish');
 
-  const handlePolishAdvice = () => {
+  const handlePolishAdvice = async () => {
     if (!adviceInput.trim()) return;
-    
-    const polished = `Medication Recommendation for ${patientName}
-
-Current Assessment:
-${adviceInput}
-
-Recommendation:
-Based on current clinical status and laboratory findings, recommend adjusting medication regimen accordingly. Close monitoring of therapeutic effects and potential adverse reactions is advised.${linkedMedication ? `\n\nRegarding: ${linkedMedication}` : ''}
-
-Please monitor renal function and adjust doses for renally cleared medications as appropriate.`;
-    
-    setPolishedAdvice(polished);
-  };
-
-  const handleSaveAdvice = () => {
-    if (!polishedAdvice || !selectedCode || !selectedResponseCode) {
-      alert('請先修飾建議內容並選擇分類代碼');
+    if (!canPolish) {
+      toast.error(polishReason);
       return;
     }
-    
-    // 這裡會將建議儲存到資料庫
-    console.log('儲存用藥建議:', {
-      patientId,
-      content: polishedAdvice,
-      category: selectedCategory,
-      code: selectedCode,
-      linkedMedication
-    });
-    
-    if (onSendToNotes) {
-      onSendToNotes(polishedAdvice, selectedCategory!, selectedResponseCode);
+    setIsPolishing(true);
+    try {
+      const result = await polishClinicalText({
+        patientId,
+        content: linkedMedication
+          ? `${adviceInput}\n\nRegarding: ${linkedMedication}`
+          : adviceInput,
+        polishType: 'pharmacy_advice',
+      });
+      setPolishedAdvice(result.polished);
+    } catch {
+      toast.error('AI 修飾失敗，請稍後再試');
+    } finally {
+      setIsPolishing(false);
     }
-    
-    setShowSuccess(true);
-    setTimeout(() => {
-      setShowSuccess(false);
-      setAdviceInput('');
-      setPolishedAdvice('');
-      setSelectedCategory(null);
-      setSelectedCode(null);
-      setSelectedResponse(null);
-      setSelectedResponseCode(null);
-    }, 2000);
+  };
+
+  const handleSaveAdvice = async () => {
+    if (!polishedAdvice || !selectedCode || !selectedResponseCode) {
+      toast.error('請先修飾建議內容並選擇分類代碼');
+      return;
+    }
+
+    if (!selectedCategory) {
+      toast.error('請選擇用藥建議分類');
+      return;
+    }
+    const categoryInfo = adviceCategories[selectedCategory];
+    const codeInfo = categoryInfo.codes.find(c => c.code === selectedCode);
+    if (!codeInfo) {
+      toast.error('建議代碼無效，請重新選擇');
+      return;
+    }
+
+    const contentToSave =
+      selectedResponseCode
+        ? `${polishedAdvice}\n\n【醫師回應代碼】${selectedResponseCode}`
+        : polishedAdvice;
+
+    try {
+      await createAdviceRecord({
+        patientId,
+        adviceCode: selectedCode,
+        adviceLabel: codeInfo.label,
+        category: categoryInfo.label,
+        content: contentToSave,
+        linkedMedications: linkedMedication ? [linkedMedication] : undefined,
+      });
+
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        setAdviceInput('');
+        setPolishedAdvice('');
+        setSelectedCategory(null);
+        setSelectedCode(null);
+        setSelectedResponse(null);
+        setSelectedResponseCode(null);
+      }, 2000);
+    } catch (err) {
+      console.error('儲存用藥建議失敗:', err);
+      toast.error('儲存用藥建議失敗，請稍後再試');
+    }
   };
 
   return (
@@ -207,7 +199,7 @@ Please monitor renal function and adjust doses for renally cleared medications a
               藥師用藥建議
             </CardTitle>
             <CardDescription className="text-[15px] mt-2 text-green-700">
-              撰寫用藥建議並標記分類，系統將自動記錄至統計資料
+              撰寫用藥建議並標記分類，儲存後將自動記錄至統計資料並同步到留言板
             </CardDescription>
           </div>
           {linkedMedication && (
@@ -218,6 +210,11 @@ Please monitor renal function and adjust doses for renally cleared medications a
         </div>
       </CardHeader>
       <CardContent className="space-y-6 pt-6">
+        {!canPolish && (
+          <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {polishReason}
+          </div>
+        )}
         {/* 輸入與修飾區 */}
         <div className="space-y-4">
           <div className="space-y-2">
@@ -228,13 +225,13 @@ Please monitor renal function and adjust doses for renally cleared medications a
               onChange={(e) => setAdviceInput(e.target.value)}
               className="min-h-[120px] border-2 text-[16px]"
             />
-            <Button 
+            <Button
               onClick={handlePolishAdvice}
               className="bg-green-600 hover:bg-green-700"
-              disabled={!adviceInput.trim()}
+              disabled={isPolishing || !adviceInput.trim() || !canPolish}
             >
               <Brain className="mr-2 h-5 w-5" />
-              AI 修飾 & 翻譯成英文
+              {isPolishing ? 'AI 修飾中...' : 'AI 修飾藥師建議'}
             </Button>
           </div>
 
@@ -244,12 +241,12 @@ Please monitor renal function and adjust doses for renally cleared medications a
               <div className="space-y-3">
                 <label className="font-semibold text-[#1a1a1a]">修飾後的用藥建議</label>
                 <div className="bg-[#f8f9fa] border-2 border-green-600 rounded-lg p-4">
-                  <pre className="whitespace-pre-wrap text-[15px] font-mono leading-relaxed">{polishedAdvice}</pre>
+                  <AiMarkdown content={polishedAdvice} className="text-[15px]" />
                 </div>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
+	                <div className="flex gap-2">
+	                  <Button 
+	                    variant="outline" 
+	                    size="sm"
                     onClick={async () => {
                       const success = await copyToClipboard(polishedAdvice);
                       if (success) {
@@ -259,29 +256,13 @@ Please monitor renal function and adjust doses for renally cleared medications a
                       }
                     }}
                   >
-                    <Copy className="mr-2 h-4 w-4" />
-                    複製
-                  </Button>
-                  <Button 
-                    size="sm"
-                    className="bg-[#7f265b] hover:bg-[#6a1f4d]"
-                    onClick={() => {
-                      if (onSendToNotes) {
-                        onSendToNotes(polishedAdvice, '藥師建議', selectedCode || '未分類');
-                        alert('已成功連動到病患留言！');
-                      } else {
-                        alert('已複製到剪貼簿，可手動貼上到病患留言');
-                        copyToClipboard(polishedAdvice);
-                      }
-                    }}
-                  >
-                    <Send className="mr-2 h-4 w-4" />
-                    連動到病患留言
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
+	                    <Copy className="mr-2 h-4 w-4" />
+	                    複製
+	                  </Button>
+	                </div>
+	              </div>
+	            </>
+	          )}
         </div>
 
         {/* 分類選擇區 */}
@@ -605,26 +586,43 @@ Please monitor renal function and adjust doses for renally cleared medications a
                 variant="outline"
                 size="lg"
                 className="h-12"
-                onClick={() => {
-                  if (onSendToNotes) {
-                    onSendToNotes(polishedAdvice, selectedCategory!, selectedResponseCode);
-                    alert('已成功匯入留言板！');
-                  } else {
-                    alert('已複製到剪貼簿，可手動貼上到留言板');
-                    copyToClipboard(polishedAdvice);
-                  }
+                onClick={async () => {
+                  const ok = await copyToClipboard(polishedAdvice);
+                  if (ok) toast.success('已複製到剪貼簿');
+                  else toast.error('複製失敗，請手動複製');
                 }}
               >
-                <Send className="mr-2 h-5 w-5" />
-                匯入留言板
+                <Copy className="mr-2 h-5 w-5" />
+                複製內容
               </Button>
-              <Button 
+              <Button
                 variant="outline"
                 size="lg"
                 className="h-12"
+                onClick={() => {
+                  const exportData = {
+                    patient_id: patientId,
+                    patient_name: patientName,
+                    advice_type: 'pharmacy_advice',
+                    category: selectedCategory,
+                    category_code: selectedCode,
+                    response: selectedResponse,
+                    response_code: selectedResponseCode,
+                    content: polishedAdvice,
+                    linked_medication: linkedMedication,
+                    created_at: new Date().toISOString(),
+                  };
+                  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${patientId}_pharmacy_advice_${new Date().toISOString().slice(0, 10)}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
               >
                 <Download className="mr-2 h-5 w-5" />
-                匯入 HIS
+                匯出 JSON
               </Button>
             </div>
           </>
@@ -639,7 +637,7 @@ Please monitor renal function and adjust doses for renally cleared medications a
                 <div>
                   <p className="font-semibold text-green-900">用藥建議已成功儲存！</p>
                   <p className="text-sm text-green-700">
-                    已記錄至統計資料，可至藥師專區查看分析報告
+                    已記錄至統計資料，並已同步至病患留言板（用藥建議）
                   </p>
                 </div>
               </div>

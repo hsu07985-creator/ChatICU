@@ -1,0 +1,20 @@
+{
+  "assistant_main": "建議繼續使用靜脈注射型鴉片類藥物如Morphine，並考慮合併使用非鴉片類藥物如乙醯氨基酚以減少鴉片類藥物劑量。",
+  "assistant_explanation_lines": 4,
+  "citation_count": 1,
+  "first_citation_title": "Taiwan PAD (pain) 1140131.pdf",
+  "first_citation_page": 5,
+  "first_citation_snippet_count": 3,
+  "evidence_gate": {
+    "passed": true,
+    "reason_code": null,
+    "display_reason": null,
+    "citation_count": 1,
+    "confidence": 0.607,
+    "thresholds": {
+      "min_citations": 0,
+      "min_confidence": 0.0
+    }
+  },
+  "x_request_id": "audit3_chat_20260217T041752Z"
+}

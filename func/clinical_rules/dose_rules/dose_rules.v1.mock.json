@@ -1,0 +1,247 @@
+{
+  "rule_set_id": "dose_rules_icu_v1",
+  "version": "1.0.0",
+  "effective_date": "2026-02-15",
+  "rules": [
+    {
+      "rule_id": "DEX_INFUSION_ADULT_ICU",
+      "drug": {
+        "generic_name": "dexmedetomidine",
+        "aliases": [
+          "precedex",
+          "dexdor"
+        ]
+      },
+      "indication": "icu sedation",
+      "population": {
+        "age_min": 18
+      },
+      "inputs_required": [
+        "weight_kg"
+      ],
+      "formula": {
+        "type": "weight_based_rate",
+        "expression": "weight_kg * dose_mcg_per_kg_hr",
+        "dose_range": {
+          "min": 0.2,
+          "max": 1.4,
+          "unit": "mcg/kg/hr"
+        },
+        "output_unit": "mcg/hr"
+      },
+      "constraints": {
+        "max_absolute_rate": 120.0,
+        "rounding": {
+          "mode": "HALF_UP",
+          "scale": 2
+        }
+      },
+      "adjustments": [
+        {
+          "when": "hepatic_class == 'C'",
+          "factor": 0.7,
+          "note": "Severe hepatic impairment: reduce initial rate."
+        }
+      ],
+      "safety": {
+        "hard_stop_conditions": [
+          "sbp_mmHg < 90",
+          "hr_bpm < 50"
+        ]
+      },
+      "citations": [
+        {
+          "source_file": "rag 文本/2_sedation/Dexmedetomidine_ Drug information - UpToDate 1140201.pdf",
+          "page": 12,
+          "chunk_id": "chunk-mock-dex-001"
+        }
+      ]
+    },
+    {
+      "rule_id": "FENTANYL_INFUSION_ADULT_ICU",
+      "drug": {
+        "generic_name": "fentanyl",
+        "aliases": [
+          "sublimaze"
+        ]
+      },
+      "indication": "icu analgesia",
+      "population": {
+        "age_min": 18
+      },
+      "inputs_required": [
+        "weight_kg"
+      ],
+      "formula": {
+        "type": "weight_based_rate",
+        "expression": "weight_kg * dose_mcg_per_kg_hr",
+        "dose_range": {
+          "min": 0.5,
+          "max": 3.0,
+          "unit": "mcg/kg/hr"
+        },
+        "output_unit": "mcg/hr"
+      },
+      "constraints": {
+        "max_absolute_rate": 250.0,
+        "rounding": {
+          "mode": "HALF_UP",
+          "scale": 2
+        }
+      },
+      "adjustments": [
+        {
+          "when": "crcl_ml_min < 30",
+          "factor": 0.8,
+          "note": "Low renal function: consider lower maintenance rate."
+        }
+      ],
+      "safety": {
+        "hard_stop_conditions": [
+          "rr_bpm < 8"
+        ]
+      },
+      "citations": [
+        {
+          "source_file": "rag 文本/1_analgesic/Fentanyl_ Drug information - UpToDate 1140131.pdf",
+          "page": 4,
+          "chunk_id": "chunk-mock-fen-001"
+        }
+      ]
+    },
+    {
+      "rule_id": "HALOPERIDOL_FIXED_DOSE_DELIRIUM",
+      "drug": {
+        "generic_name": "haloperidol",
+        "aliases": [
+          "haldol"
+        ]
+      },
+      "indication": "delirium agitation",
+      "population": {
+        "age_min": 18
+      },
+      "inputs_required": [],
+      "formula": {
+        "type": "fixed_dose",
+        "target_key": "dose_mg",
+        "default_dose": 1.0,
+        "dose_range": {
+          "min": 0.5,
+          "max": 5.0,
+          "unit": "mg"
+        },
+        "output_unit": "mg"
+      },
+      "constraints": {
+        "rounding": {
+          "mode": "HALF_UP",
+          "scale": 2
+        }
+      },
+      "adjustments": [],
+      "safety": {
+        "hard_stop_conditions": []
+      },
+      "citations": [
+        {
+          "source_file": "rag 文本/5_delirium/Haloperidol_ Drug information - UpToDate 1140310.pdf",
+          "page": 8,
+          "chunk_id": "chunk-mock-hal-001"
+        }
+      ]
+    },
+    {
+      "rule_id": "PROPOFOL_INFUSION_MLHR_ICU",
+      "drug": {
+        "generic_name": "propofol",
+        "aliases": [
+          "diprivan"
+        ]
+      },
+      "indication": "icu sedation",
+      "population": {
+        "age_min": 18
+      },
+      "inputs_required": [
+        "weight_kg"
+      ],
+      "formula": {
+        "type": "infusion_ml_hr_from_mg_kg_hr",
+        "target_key": "dose_mg_per_kg_hr",
+        "default_dose": 1.5,
+        "dose_range": {
+          "min": 0.3,
+          "max": 4.0,
+          "unit": "mg/kg/hr"
+        },
+        "default_concentration_mg_per_ml": 10,
+        "output_unit": "ml/hr"
+      },
+      "constraints": {
+        "max_absolute_rate": 60.0,
+        "rounding": {
+          "mode": "HALF_UP",
+          "scale": 2
+        }
+      },
+      "adjustments": [],
+      "safety": {
+        "hard_stop_conditions": [
+          "sbp_mmHg < 85"
+        ]
+      },
+      "citations": [
+        {
+          "source_file": "rag 文本/2_sedation/Propofol_ Drug information - UpToDate 1140201.pdf",
+          "page": 7,
+          "chunk_id": "chunk-mock-pro-001"
+        }
+      ]
+    },
+    {
+      "rule_id": "MIDAZOLAM_BOLUS_WEIGHT_BASED",
+      "drug": {
+        "generic_name": "midazolam",
+        "aliases": []
+      },
+      "indication": "procedural sedation",
+      "population": {
+        "age_min": 18
+      },
+      "inputs_required": [
+        "weight_kg"
+      ],
+      "formula": {
+        "type": "weight_based_bolus",
+        "target_key": "dose_mg_per_kg",
+        "dose_range": {
+          "min": 0.01,
+          "max": 0.1,
+          "unit": "mg/kg"
+        },
+        "output_unit": "mg"
+      },
+      "constraints": {
+        "max_absolute_rate": 10.0,
+        "rounding": {
+          "mode": "HALF_UP",
+          "scale": 2
+        }
+      },
+      "adjustments": [],
+      "safety": {
+        "hard_stop_conditions": [
+          "rr_bpm < 10"
+        ]
+      },
+      "citations": [
+        {
+          "source_file": "rag 文本/2_sedation/Midazolam_ Drug information - UpToDate 1140201.pdf",
+          "page": 5,
+          "chunk_id": "chunk-mock-mid-001"
+        }
+      ]
+    }
+  ]
+}

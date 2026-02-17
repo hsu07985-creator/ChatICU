@@ -15,6 +15,10 @@ class AISession(Base):
     user_id: Mapped[str] = mapped_column(String(50), index=True)
     patient_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
     title: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    # Compressed summary of older messages for long conversations
+    summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Number of messages already compressed into summary
+    summary_up_to: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

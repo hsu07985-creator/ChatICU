@@ -1,4 +1,4 @@
-import apiClient from '../api-client';
+import apiClient, { ensureData } from '../api-client';
 
 // 類型定義
 export interface Medication {
@@ -45,8 +45,6 @@ export interface MedicationAdministration {
 }
 
 export interface MedicationsResponse {
-  patientId: string;
-  patientName: string;
   medications: Medication[];
   grouped: {
     sedation: Medication[];
@@ -55,7 +53,6 @@ export interface MedicationsResponse {
     other: Medication[];
   };
   interactions: DrugInteraction[];
-  total: number;
 }
 
 export interface DrugInteraction {
@@ -63,8 +60,9 @@ export interface DrugInteraction {
   drug1: string;
   drug2: string;
   severity: 'high' | 'moderate' | 'low';
-  description: string;
-  recommendation: string;
+  mechanism: string;
+  clinicalEffect: string;
+  management: string;
 }
 
 // API 回應類型
@@ -88,7 +86,7 @@ export async function getMedications(
   const response = await apiClient.get<ApiResponse<MedicationsResponse>>(
     `/patients/${patientId}/medications?${params}`
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 // 取得單一用藥詳情
@@ -96,7 +94,7 @@ export async function getMedication(patientId: string, medicationId: string): Pr
   const response = await apiClient.get<ApiResponse<Medication>>(
     `/patients/${patientId}/medications/${medicationId}`
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 // 取得給藥記錄
@@ -112,7 +110,7 @@ export async function getMedicationAdministrations(
   const response = await apiClient.get<ApiResponse<MedicationAdministration[]>>(
     `/patients/${patientId}/medications/${medicationId}/administrations?${params}`
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 
 // 記錄給藥
@@ -126,6 +124,6 @@ export async function recordAdministration(
     `/patients/${patientId}/medications/${medicationId}/administrations/${administrationId}`,
     data
   );
-  return response.data.data!;
+  return ensureData(response.data, 'API contract');
 }
 

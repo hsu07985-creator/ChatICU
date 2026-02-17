@@ -36,3 +36,20 @@ def test_multiple_warnings():
     result = apply_safety_guardrail(content)
     assert result["flagged"] is True
     assert len(result["warnings"]) >= 2
+
+
+def test_pharmacist_role_uses_alternative_warning():
+    """P3-4: Pharmacist role gets '僅供參考' instead of '須經藥師/醫師雙重確認'."""
+    content = "建議給予 heparin 5000 unit IV bolus"
+    result = apply_safety_guardrail(content, user_role="pharmacist")
+    assert result["flagged"] is True
+    assert any("僅供參考" in w for w in result["warnings"])
+    assert all("藥師/醫師雙重確認" not in w for w in result["warnings"])
+
+
+def test_non_pharmacist_role_uses_default_warning():
+    """Non-pharmacist roles still see the default warning."""
+    content = "建議給予 heparin 5000 unit IV bolus"
+    result = apply_safety_guardrail(content, user_role="doctor")
+    assert result["flagged"] is True
+    assert any("藥師/醫師雙重確認" in w for w in result["warnings"])

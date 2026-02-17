@@ -41,6 +41,7 @@ import {
   Search
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '../../lib/api-client';
 
 interface User {
   id: string;
@@ -79,9 +80,9 @@ export function UsersPage() {
     try {
       const data = await getUsers();
       setApiData(data);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('載入用戶列表失敗:', err);
-      setError('無法連線至伺服器，請確認後端服務是否正常運行');
+      setError(getApiErrorMessage(err, '載入用戶列表失敗，請稍後重試'));
     } finally {
       setLoading(false);
     }
@@ -176,8 +177,8 @@ export function UsersPage() {
       });
       // 重新載入數據
       await loadData();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || '建立帳號失敗');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, '建立帳號失敗'));
     } finally {
       setSubmitting(false);
     }
@@ -200,8 +201,8 @@ export function UsersPage() {
       setSelectedUser(null);
       // 重新載入數據
       await loadData();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || '更新帳號失敗');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, '更新帳號失敗'));
     } finally {
       setSubmitting(false);
     }
@@ -217,8 +218,8 @@ export function UsersPage() {
       await updateUserApi(userId, { active: newActive });
       toast.success(`已${newActive ? '啟用' : '停用'}帳號 ${user.username}`);
       await loadData();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || '更新狀態失敗');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, '更新狀態失敗'));
     }
   };
 
@@ -233,8 +234,8 @@ export function UsersPage() {
       await updateUserApi(userId, { active: false });
       toast.success(`已停用帳號 ${user.username}`);
       await loadData();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || '停用帳號失敗');
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, '停用帳號失敗'));
     }
   };
 

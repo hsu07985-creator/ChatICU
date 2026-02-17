@@ -1,0 +1,533 @@
+{
+  "version": "1.0.0",
+  "cases": [
+    {
+      "case_id": "i01",
+      "request": {
+        "drug_list": [
+          "haloperidol",
+          "ziprasidone"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 1,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+        ]
+      }
+    },
+    {
+      "case_id": "i02",
+      "request": {
+        "drug_list": [
+          "ziprasidone",
+          "haloperidol"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 1,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+        ]
+      }
+    },
+    {
+      "case_id": "i03",
+      "request": {
+        "drug_list": [
+          "haldol",
+          "geodon"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 1,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+        ]
+      }
+    },
+    {
+      "case_id": "i04",
+      "request": {
+        "drug_list": [
+          "haldol",
+          "ziprasidone"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 1,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+        ]
+      }
+    },
+    {
+      "case_id": "i05",
+      "request": {
+        "drug_list": [
+          "haloperidol",
+          "geodon"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 1,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+        ]
+      }
+    },
+    {
+      "case_id": "i06",
+      "request": {
+        "drug_list": [
+          "haloperidol",
+          "ziprasidone",
+          "dexmedetomidine"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 1,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+        ]
+      }
+    },
+    {
+      "case_id": "i07",
+      "request": {
+        "drug_list": [
+          "haloperidol",
+          "haloperidol",
+          "ziprasidone"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 1,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+        ]
+      }
+    },
+    {
+      "case_id": "i08",
+      "request": {
+        "drug_list": [
+          "haldol",
+          "geodon",
+          "geodon"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 1,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+        ]
+      }
+    },
+    {
+      "case_id": "i09",
+      "request": {
+        "drug_list": [
+          "dexmedetomidine",
+          "propofol"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "none",
+        "finding_count": 0,
+        "rule_ids": []
+      }
+    },
+    {
+      "case_id": "i10",
+      "request": {
+        "drug_list": [
+          "midazolam",
+          "fentanyl"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "moderate",
+        "finding_count": 1,
+        "rule_ids": [
+          "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+        ]
+      }
+    },
+    {
+      "case_id": "i11",
+      "request": {
+        "drug_list": [
+          "fentanyl",
+          "midazolam"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "moderate",
+        "finding_count": 1,
+        "rule_ids": [
+          "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+        ]
+      }
+    },
+    {
+      "case_id": "i12",
+      "request": {
+        "drug_list": [
+          " MIDAZOLAM ",
+          " FENTANYL "
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "moderate",
+        "finding_count": 1,
+        "rule_ids": [
+          "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+        ]
+      }
+    },
+    {
+      "case_id": "i13",
+      "request": {
+        "drug_list": [
+          "midazolam",
+          "fentanyl",
+          "propofol"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "moderate",
+        "finding_count": 1,
+        "rule_ids": [
+          "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+        ]
+      }
+    },
+    {
+      "case_id": "i14",
+      "request": {
+        "drug_list": [
+          "midazolam",
+          "fentanyl",
+          "midazolam"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "moderate",
+        "finding_count": 1,
+        "rule_ids": [
+          "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+        ]
+      }
+    },
+    {
+      "case_id": "i15",
+      "request": {
+        "drug_list": [
+          "haloperidol",
+          "ziprasidone",
+          "midazolam",
+          "fentanyl"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 2,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+          "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+        ]
+      }
+    },
+    {
+      "case_id": "i16",
+      "request": {
+        "drug_list": [
+          "haldol",
+          "geodon",
+          "midazolam",
+          "fentanyl"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 2,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+          "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+        ]
+      }
+    },
+    {
+      "case_id": "i17",
+      "request": {
+        "drug_list": [
+          "haloperidol",
+          "geodon",
+          "fentanyl"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 1,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+        ]
+      }
+    },
+    {
+      "case_id": "i18",
+      "request": {
+        "drug_list": [
+          "midazolam",
+          "fentanyl",
+          "ziprasidone"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "moderate",
+        "finding_count": 1,
+        "rule_ids": [
+          "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+        ]
+      }
+    },
+    {
+      "case_id": "i19",
+      "request": {
+        "drug_list": [
+          "haloperidol",
+          "ziprasidone",
+          "geodon"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 1,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+        ]
+      }
+    },
+    {
+      "case_id": "i20",
+      "request": {
+        "drug_list": [
+          "midazolam",
+          "fentanyl",
+          "fentanyl"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "moderate",
+        "finding_count": 1,
+        "rule_ids": [
+          "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+        ]
+      }
+    },
+    {
+      "case_id": "i21",
+      "request": {
+        "drug_list": [
+          "haldol",
+          "geodon",
+          "haloperidol",
+          "ziprasidone"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 1,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+        ]
+      }
+    },
+    {
+      "case_id": "i22",
+      "request": {
+        "drug_list": [
+          "fentanyl",
+          "midazolam",
+          "ziprasidone",
+          "haldol",
+          "dexmedetomidine"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 2,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+          "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+        ]
+      }
+    },
+    {
+      "case_id": "i23",
+      "request": {
+        "drug_list": [
+          "haloperidol",
+          "ziprasidone",
+          "midazolam"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 1,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+        ]
+      }
+    },
+    {
+      "case_id": "i24",
+      "request": {
+        "drug_list": [
+          "midazolam",
+          "fentanyl",
+          "haloperidol"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "moderate",
+        "finding_count": 1,
+        "rule_ids": [
+          "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+        ]
+      }
+    },
+    {
+      "case_id": "i25",
+      "request": {
+        "drug_list": [
+          "haloperidol",
+          "ziprasidone",
+          "midazolam",
+          "propofol",
+          "fentanyl"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 2,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+          "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+        ]
+      }
+    },
+    {
+      "case_id": "i26",
+      "request": {
+        "drug_list": [
+          "dexmedetomidine",
+          "haloperidol",
+          "geodon"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 1,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR"
+        ]
+      }
+    },
+    {
+      "case_id": "i27",
+      "request": {
+        "drug_list": [
+          "dexmedetomidine",
+          "midazolam",
+          "fentanyl"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "moderate",
+        "finding_count": 1,
+        "rule_ids": [
+          "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+        ]
+      }
+    },
+    {
+      "case_id": "i28",
+      "request": {
+        "drug_list": [
+          "haloperidol"
+        ]
+      },
+      "expected": {
+        "status": "refused",
+        "error_code": "RULE_OR_INPUT_ERROR"
+      }
+    },
+    {
+      "case_id": "i29",
+      "request": {
+        "drug_list": []
+      },
+      "expected": {
+        "status": "refused",
+        "error_code": "RULE_OR_INPUT_ERROR"
+      }
+    },
+    {
+      "case_id": "i30",
+      "request": {
+        "drug_list": [
+          "midazolam",
+          "fentanyl",
+          "haloperidol",
+          "ziprasidone"
+        ]
+      },
+      "expected": {
+        "status": "ok",
+        "overall_severity": "major",
+        "finding_count": 2,
+        "rule_ids": [
+          "HALOPERIDOL_PLUS_ZIPRASIDONE_MAJOR",
+          "MIDAZOLAM_PLUS_FENTANYL_MODERATE"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+
+> ChatICU_2026_verf_0110_Yu@0.1.0 test:e2e
+> bash ./scripts/e2e/run_managed_e2e.sh --project=chromium --grep @critical
+
+[INTG][E2E] managed run enabled (isolated local stack)
+[INTG][E2E] backend=http://127.0.0.1:18100 frontend=http://127.0.0.1:14173
+[INTG][E2E] database=postgresql+asyncpg://chaticu:chaticu_password@127.0.0.1:5432/chaticu_e2e_managed
+[INTG][E2E] Recreated database: chaticu_e2e_managed owner=chaticu
+[INTG][E2E] backend ready: http://127.0.0.1:18100/health
+[INTG][E2E] frontend ready: http://127.0.0.1:14173
+[INTG][E2E] running playwright test --project=chromium --grep @critical
+
+Running 1 test using 1 worker
+
+(node:4490) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4490) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[INTG][E2E] Starting critical flow journey
+  ✓  1 [chromium] › e2e/critical-journey.spec.js:10:3 › T27 Critical Journey › critical flow @critical: login -> patients -> detail -> ai chat -> logout (10.9s)
+
+  1 passed (12.0s)
+
+To open last HTML report run:
+[36m[39m
+[36m  npx playwright show-report output/playwright/html-report[39m
+[36m[39m
