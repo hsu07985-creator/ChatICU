@@ -20,7 +20,7 @@ Covered Phase-4 risks:
 
 | Epic | Priority | Goal | Risk Covered | Status |
 |---|---|---|---|---|
-| P0-A | P0 | Medication administrations become DB-persisted, queryable, auditable | R-MF-002 | Ready for implementation |
+| P0-A | P0 | Medication administrations become DB-persisted, queryable, auditable | R-MF-002 | In progress (A1 implemented) |
 | P0-B | P0 | Docker default runtime uses `DATA_SOURCE_MODE=db`; json mode explicit only | R-MF-001 | In progress (B1/B2/B3 implemented) |
 
 ## 3) Epic P0-A: Administrations 真實持久化
@@ -46,6 +46,14 @@ Covered Phase-4 risks:
 | P0-A4 | Seed path for offline/dev data so administrations exist deterministically | `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/seeds/seed_data.py`, `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/seeds/validate_datamock.py`, `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/datamock/medications.json` (or new `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/datamock/medicationAdministrations.json`) | P0-A1 | Fresh seed run creates administration rows for active meds in offline mode; validation script catches malformed administration payloads. |
 | P0-A5 | Contract + persistence tests | `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/tests/test_api/test_medications_api.py`, `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend/tests/conftest.py` | P0-A3 | Tests verify update persists via DB query (not same-process memory), and date filter returns expected subset. |
 | P0-A6 | Manual API evidence package for real persistence | `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/reports/operations/manual-api-phase5-administrations-persistence-<timestamp>/` | P0-A3, P0-A4 | Evidence contains: before/after GET, PATCH response, restart, post-restart GET showing unchanged update. |
+
+P0-A implementation progress (this round):
+- [x] P0-A1 completed: added migration + ORM model + relationships for `medication_administrations`.
+- [ ] P0-A2 pending: add explicit response schema for administration payloads.
+- [ ] P0-A3 pending: router switch from synthetic/in-memory to DB CRUD.
+- [ ] P0-A4 pending: seed/validator alignment for offline data path.
+- [ ] P0-A5 pending: persistence-focused tests.
+- [ ] P0-A6 pending: manual API evidence package.
 
 ### 3.3 Data model contract (target)
 
@@ -119,4 +127,13 @@ This backlog slice is complete when:
 
 ## 8) Current Gate
 
-- `Phase 5`: In progress (P0-B1/P0-B2/P0-B3 implemented; P0-A not started, P0-B5 pending).
+- `Phase 5`: In progress (P0-A1 and P0-B1/B2/B3 implemented; P0-A2~A6 and P0-B5 pending).
+
+## 9) Next Steps (A2~A6 + B5)
+
+1. `P0-A2`: define `MedicationAdministrationResponse` schema in `backend/app/schemas/medication.py`.
+2. `P0-A3`: refactor `backend/app/routers/medications.py` to use DB-backed administrations.
+3. `P0-A5`: update/add tests first for persistence semantics (then implement to green).
+4. `P0-A4`: backfill seed and validation path for administration rows in offline mode.
+5. `P0-B5`: produce docker mode regression evidence bundle (`db` default vs `json` override).
+6. `P0-A6`: manual end-to-end persistence evidence (patch, restart, re-query).

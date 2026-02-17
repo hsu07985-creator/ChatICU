@@ -1,6 +1,7 @@
 from app.models.user import User, PasswordHistory
 from app.models.patient import Patient
 from app.models.medication import Medication
+from app.models.medication_administration import MedicationAdministration
 from app.models.lab_data import LabData
 from app.models.vital_sign import VitalSign
 from app.models.ventilator import VentilatorSetting, WeaningAssessment
@@ -18,6 +19,7 @@ __all__ = [
     "PasswordHistory",
     "Patient",
     "Medication",
+    "MedicationAdministration",
     "LabData",
     "VitalSign",
     "VentilatorSetting",

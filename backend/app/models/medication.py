@@ -36,3 +36,8 @@ class Medication(Base):
 
     # Relationships
     patient = relationship("Patient", back_populates="medications")
+    administrations = relationship(
+        "MedicationAdministration",
+        back_populates="medication",
+        cascade="all, delete-orphan",
+    )

@@ -49,6 +49,11 @@ class Patient(Base):
 
     # Relationships
     medications = relationship("Medication", back_populates="patient")
+    medication_administrations = relationship(
+        "MedicationAdministration",
+        back_populates="patient",
+        cascade="all, delete-orphan",
+    )
     lab_data = relationship("LabData", back_populates="patient")
     vital_signs = relationship("VitalSign", back_populates="patient")
     ventilator_settings = relationship("VentilatorSetting", back_populates="patient")
