@@ -1,0 +1,148 @@
+{
+  "medicationAdministrations": [
+    {
+      "id": "adm_med_001_01",
+      "medicationId": "med_001",
+      "patientId": "pat_001",
+      "scheduledTime": "2025-10-17T08:00:00Z",
+      "administeredTime": "2025-10-17T08:06:00Z",
+      "status": "administered",
+      "dose": "2 mg",
+      "route": "IV",
+      "administeredBy": { "id": "usr_001", "name": "王小華" },
+      "notes": "Pain score improved after dose."
+    },
+    {
+      "id": "adm_med_001_02",
+      "medicationId": "med_001",
+      "patientId": "pat_001",
+      "scheduledTime": "2025-10-17T12:00:00Z",
+      "administeredTime": null,
+      "status": "scheduled",
+      "dose": "2 mg",
+      "route": "IV",
+      "administeredBy": null,
+      "notes": null
+    },
+    {
+      "id": "adm_med_002_01",
+      "medicationId": "med_002",
+      "patientId": "pat_001",
+      "scheduledTime": "2025-10-17T08:00:00Z",
+      "administeredTime": "2025-10-17T08:04:00Z",
+      "status": "administered",
+      "dose": "2 mg",
+      "route": "IV",
+      "administeredBy": { "id": "usr_001", "name": "王小華" },
+      "notes": "RASS target achieved."
+    },
+    {
+      "id": "adm_med_003_01",
+      "medicationId": "med_003",
+      "patientId": "pat_001",
+      "scheduledTime": "2025-10-18T09:00:00Z",
+      "administeredTime": "2025-10-18T09:03:00Z",
+      "status": "administered",
+      "dose": "1000 mg",
+      "route": "IV",
+      "administeredBy": { "id": "usr_001", "name": "王小華" },
+      "notes": "Dose infused over 90 minutes."
+    },
+    {
+      "id": "adm_med_004_01",
+      "medicationId": "med_004",
+      "patientId": "pat_002",
+      "scheduledTime": "2025-10-19T06:00:00Z",
+      "administeredTime": "2025-10-19T06:01:00Z",
+      "status": "administered",
+      "dose": "50 mg/hr",
+      "route": "IV infusion",
+      "administeredBy": { "id": "usr_001", "name": "王小華" },
+      "notes": "Continuous infusion started."
+    },
+    {
+      "id": "adm_med_005_01",
+      "medicationId": "med_005",
+      "patientId": "pat_002",
+      "scheduledTime": "2025-10-19T06:10:00Z",
+      "administeredTime": "2025-10-19T06:10:00Z",
+      "status": "administered",
+      "dose": "50 mcg/hr",
+      "route": "IV infusion",
+      "administeredBy": { "id": "usr_001", "name": "王小華" },
+      "notes": "Continuous infusion started."
+    },
+    {
+      "id": "adm_med_006_01",
+      "medicationId": "med_006",
+      "patientId": "pat_002",
+      "scheduledTime": "2025-10-19T06:20:00Z",
+      "administeredTime": "2025-10-19T06:21:00Z",
+      "status": "administered",
+      "dose": "2 mg/hr",
+      "route": "IV infusion",
+      "administeredBy": { "id": "usr_001", "name": "王小華" },
+      "notes": "TOF monitoring started."
+    },
+    {
+      "id": "adm_med_007_01",
+      "medicationId": "med_007",
+      "patientId": "pat_002",
+      "scheduledTime": "2025-10-19T06:30:00Z",
+      "administeredTime": "2025-10-19T06:31:00Z",
+      "status": "administered",
+      "dose": "0.1 mcg/kg/min",
+      "route": "IV infusion",
+      "administeredBy": { "id": "usr_001", "name": "王小華" },
+      "notes": "Titrated to MAP goal."
+    },
+    {
+      "id": "adm_med_008_01",
+      "medicationId": "med_008",
+      "patientId": "pat_003",
+      "scheduledTime": "2025-10-13T07:00:00Z",
+      "administeredTime": "2025-10-13T07:05:00Z",
+      "status": "administered",
+      "dose": "0.5 mcg/kg/hr",
+      "route": "IV infusion",
+      "administeredBy": { "id": "usr_001", "name": "王小華" },
+      "notes": "Light sedation protocol."
+    },
+    {
+      "id": "adm_med_009_01",
+      "medicationId": "med_009",
+      "patientId": "pat_003",
+      "scheduledTime": "2025-10-13T08:00:00Z",
+      "administeredTime": null,
+      "status": "held",
+      "dose": "2 mg",
+      "route": "IV",
+      "administeredBy": null,
+      "notes": "Held due to transient low blood pressure."
+    },
+    {
+      "id": "adm_med_010_01",
+      "medicationId": "med_010",
+      "patientId": "pat_004",
+      "scheduledTime": "2025-10-18T10:00:00Z",
+      "administeredTime": "2025-10-18T10:00:00Z",
+      "status": "administered",
+      "dose": "500 mg",
+      "route": "PO",
+      "administeredBy": { "id": "usr_001", "name": "王小華" },
+      "notes": "Given with sips of water."
+    },
+    {
+      "id": "adm_med_011_01",
+      "medicationId": "med_011",
+      "patientId": "pat_004",
+      "scheduledTime": "2025-10-18T11:00:00Z",
+      "administeredTime": "2025-10-18T11:02:00Z",
+      "status": "administered",
+      "dose": "40 mg",
+      "route": "IV",
+      "administeredBy": { "id": "usr_001", "name": "王小華" },
+      "notes": "Stress ulcer prophylaxis dose given."
+    }
+  ]
+}

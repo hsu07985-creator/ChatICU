@@ -2,8 +2,8 @@
 
 > 專案：前端驅動 API 契約盤點與整合修復  
 > 版本：v1.0  
-> 狀態：`Phase 0/1/2/3/4 完成，Phase 5 進行中（P0-A1/A2/A3 + P0-B1/B2/B3 已實作）`  
-> 最後更新：2026-02-17 13:56 CST  
+> 狀態：`Phase 0/1/2/3/4 完成，Phase 5 進行中（P0-A1/A2/A3/A4 + P0-B1/B2/B3 已實作）`  
+> 最後更新：2026-02-17 14:04 CST  
 > 負責角色：Principal Frontend-Driven API Contract Auditor + Full-Stack Architect + QA Lead
 
 ---
@@ -28,7 +28,7 @@
 | 2 | Contract Matrix | ✅ Completed | FE vs BE 契約比對 | 已完成，見 `reports/phase-2-contract-matrix.md` | 中 |
 | 3 | Field Lineage Matrix | ✅ Completed | 欄位來源分類完成 | 已完成，見 `reports/phase-3-field-lineage-matrix.md` | 中 |
 | 4 | Mock/Fake Risk Register | ✅ Completed | mock/fake 證據與替換計畫 | 已完成，見 `reports/phase-4-mock-fake-risk-register.md` | 中 |
-| 5 | Prioritized Fix Backlog | 🟡 In Progress | P0/P1/P2 修復藍圖 | 已完成：P0 backlog 拆解；P0-A1/A2/A3 + P0-B1/B2/B3 已實作 | 中 |
+| 5 | Prioritized Fix Backlog | 🟡 In Progress | P0/P1/P2 修復藍圖 | 已完成：P0 backlog 拆解；P0-A1/A2/A3/A4 + P0-B1/B2/B3 已實作 | 中 |
 | 6 | Verification Plan | ⬜ Not Started | 可執行驗證命令完整 | 未開始 | 中 |
 
 ---
@@ -171,6 +171,8 @@
 | 016 | 2026-02-17 13:45 | Assistant | 實作 P0-A1：新增 `medication_administrations` migration + ORM model + Patient/Medication relationships，並通過 contract 測試 smoke | 5 | `backend/alembic/versions/007_med_admins.py`, `backend/app/models/medication_administration.py`, `backend/app/models/medication.py`, `backend/app/models/patient.py`, `backend/app/models/__init__.py` | 開始 P0-A2/P0-A3 |
 | 017 | 2026-02-17 13:51 | Assistant | 實作 P0-A2：新增 administration response schema + list/item envelope，並套用於 medications administrations endpoints；`medications_api` 與 `contract` 測試通過 | 5 | `backend/app/schemas/medication.py`, `backend/app/routers/medications.py` | 進入 P0-A3（router DB 化） |
 | 018 | 2026-02-17 13:56 | Assistant | 實作 P0-A3：`medications` administrations 改為 DB 真實讀寫（移除 synthetic/in-memory override），並更新 API 測試改以 seed `medication_administrations` 驗證 | 5 | `backend/app/routers/medications.py`, `backend/tests/test_api/test_medications_api.py` | 進入 P0-A4/P0-A5/P0-B5/P0-A6 |
+| 019 | 2026-02-17 14:01 | Assistant | 建立 GitHub 稽核追蹤 issues（umbrella + P0-A4/A5/A6 + P0-B5）以補齊工作項目追蹤鏈 | 5 | Issues: `#25`, `#26`, `#27`, `#28`, `#29` | 按 issue 順序實作與關閉 |
+| 020 | 2026-02-17 14:04 | Assistant | 實作 P0-A4：新增 `datamock/medicationAdministrations.json`，seed flow 併入 administrations，validator 補結構/關聯檢查，並通過 validator + API contract 測試 | 5 | `datamock/medicationAdministrations.json`, `backend/seeds/seed_data.py`, `backend/seeds/validate_datamock.py`, `docs/operations/json-offline-dev-runbook.md` | 進入 P0-A5 / P0-B5 / P0-A6 |
 
 ---
 
@@ -199,8 +201,8 @@
 
 ## 8) Final Gate（本檔狀態）
 
-目前結論：`Phase 5 In Progress / P0-A1+A2+A3 + P0-B1+B2+B3 implemented`  
-原因：Phase 0~4 已完成；Phase 5 已完成 docker mode 安全化與 administrations 持久化前三步（migration/model + API schema/response contract + router DB 真實讀寫）。  
+目前結論：`Phase 5 In Progress / P0-A1+A2+A3+A4 + P0-B1+B2+B3 implemented`  
+原因：Phase 0~4 已完成；Phase 5 已完成 docker mode 安全化與 administrations 持久化前四步（migration/model + API schema/response contract + router DB 真實讀寫 + seed/validator 對齊）。  
 證據包：
 - `reports/phase-2-contract-matrix.md`
 - `reports/phase-3-field-lineage-matrix.md`
@@ -213,6 +215,11 @@
 - `backend/app/models/medication_administration.py`
 - `backend/app/routers/medications.py`
 - `backend/tests/test_api/test_medications_api.py`
+- `datamock/medicationAdministrations.json`
+- `backend/seeds/seed_data.py`
+- `backend/seeds/validate_datamock.py`
+- `docs/operations/json-offline-dev-runbook.md`
+- `reports/operations/github-issues-phase5-20260217T1404Z.md`
 - `reports/operations/manual-api-phase2-medications-20260217T043002Z/`
 - `reports/operations/manual-api-phase2-vitals-history-20260217T044226Z-with-data/`  
-下一步：實作 P0-A4（seed 對齊）、P0-A5（persistence test 強化）、P0-B5（docker mode regression evidence）、P0-A6（手動 API 持久化證據）。
+下一步：實作 P0-A5（persistence test 強化）、P0-B5（docker mode regression evidence）、P0-A6（手動 API 持久化證據）；並依序關閉 `#27/#29/#28`。

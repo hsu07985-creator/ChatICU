@@ -41,6 +41,15 @@ python -m seeds.validate_datamock
 - 成功時輸出 `Datamock validation passed`
 - 失敗時列出缺欄位/關聯錯誤並以 non-zero exit 結束
 
+目前 validator 會檢查的主要檔案：
+- `datamock/users.json`
+- `datamock/patients.json`
+- `datamock/medications.json`
+- `datamock/medicationAdministrations.json`
+- `datamock/labData.json`
+- `datamock/messages.json`
+- `datamock/drugInteractions.json`
+
 ---
 
 ## 4. 後端啟動（本機）

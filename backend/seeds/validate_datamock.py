@@ -35,6 +35,7 @@ def validate_datamock(*, raise_on_error: bool = False) -> dict[str, int]:
     users_raw = load_json("users.json", required=True)
     patients_raw = load_json("patients.json", required=True)
     meds_raw = load_json("medications.json", required=True)
+    administrations_raw = load_json("medicationAdministrations.json", required=True)
     lab_raw = load_json("labData.json", required=True)
     messages_raw = load_json("messages.json", required=True)
     interaction_raw = load_json("drugInteractions.json", required=True)
@@ -42,6 +43,10 @@ def validate_datamock(*, raise_on_error: bool = False) -> dict[str, int]:
     users = unwrap_list(users_raw, "users")
     patients = unwrap_list(patients_raw, "patients")
     medications = unwrap_list(meds_raw, "medications")
+    medication_administrations = unwrap_list(
+        administrations_raw,
+        "medicationAdministrations",
+    )
     lab_data = unwrap_list(lab_raw, "labData")
 
     _record_errors(
@@ -60,6 +65,12 @@ def validate_datamock(*, raise_on_error: bool = False) -> dict[str, int]:
         medications,
         ("id", "patientId", "name", "status"),
         "medications",
+        errors,
+    )
+    _record_errors(
+        medication_administrations,
+        ("id", "medicationId", "patientId", "scheduledTime", "status"),
+        "medicationAdministrations",
         errors,
     )
     _record_errors(
@@ -137,6 +148,14 @@ def validate_datamock(*, raise_on_error: bool = False) -> dict[str, int]:
 
     user_ids = {str(u.get("id")) for u in users if isinstance(u, dict) and u.get("id")}
     patient_ids = {str(p.get("id")) for p in patients if isinstance(p, dict) and p.get("id")}
+    medication_ids = {
+        str(m.get("id")) for m in medications if isinstance(m, dict) and m.get("id")
+    }
+    medication_patient_map = {
+        str(m.get("id")): str(m.get("patientId"))
+        for m in medications
+        if isinstance(m, dict) and m.get("id") and m.get("patientId")
+    }
 
     for idx, med in enumerate(medications):
         pid = med.get("patientId")
@@ -147,6 +166,33 @@ def validate_datamock(*, raise_on_error: bool = False) -> dict[str, int]:
         pid = item.get("patientId")
         if pid and str(pid) not in patient_ids:
             errors.append(f"labData[{idx}] references unknown patientId '{pid}'")
+
+    for idx, adm in enumerate(medication_administrations):
+        pid = adm.get("patientId")
+        mid = adm.get("medicationId")
+        administered_by = adm.get("administeredBy")
+        if pid and str(pid) not in patient_ids:
+            errors.append(
+                f"medicationAdministrations[{idx}] references unknown patientId '{pid}'"
+            )
+        if mid and str(mid) not in medication_ids:
+            errors.append(
+                f"medicationAdministrations[{idx}] references unknown medicationId '{mid}'"
+            )
+        if mid and pid and str(mid) in medication_patient_map:
+            expected_pid = medication_patient_map[str(mid)]
+            if str(pid) != expected_pid:
+                errors.append(
+                    "medicationAdministrations"
+                    f"[{idx}] patientId '{pid}' mismatches medicationId '{mid}' owner '{expected_pid}'"
+                )
+        if isinstance(administered_by, dict):
+            uid = administered_by.get("id")
+            if uid and str(uid) not in user_ids:
+                errors.append(
+                    "medicationAdministrations"
+                    f"[{idx}] references unknown administeredBy.id '{uid}'"
+                )
 
     for idx, msg in enumerate(patient_messages):
         pid = msg.get("patientId")
@@ -165,6 +211,7 @@ def validate_datamock(*, raise_on_error: bool = False) -> dict[str, int]:
         "users": len(users),
         "patients": len(patients),
         "medications": len(medications),
+        "medicationAdministrations": len(medication_administrations),
         "labData": len(lab_data),
         "patientMessages": len(patient_messages),
         "teamChatMessages": len(team_messages),
@@ -201,4 +248,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

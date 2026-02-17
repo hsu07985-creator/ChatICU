@@ -33,6 +33,13 @@ def parse_datetime(dt_str: Optional[str]) -> Optional[datetime]:
             return datetime.strptime(dt_str, fmt).replace(tzinfo=timezone.utc)
         except ValueError:
             continue
+    try:
+        parsed = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except ValueError:
+        pass
     return None
 
 
@@ -164,6 +171,34 @@ async def seed_medications(session: AsyncSession):
         session.add(med)
     await session.flush()
     print(f"  Added {len(meds_data)} medications")
+
+
+async def seed_medication_administrations(session: AsyncSession):
+    print("Seeding medication administrations...")
+    administrations = unwrap_list(
+        load_json("medicationAdministrations.json"),
+        "medicationAdministrations",
+    )
+    if not administrations:
+        return
+
+    for row in administrations:
+        administration = MedicationAdministration(
+            id=row["id"],
+            medication_id=row["medicationId"],
+            patient_id=row["patientId"],
+            scheduled_time=parse_datetime(row.get("scheduledTime")) or datetime.now(timezone.utc),
+            administered_time=parse_datetime(row.get("administeredTime")),
+            status=row.get("status", "scheduled"),
+            dose=row.get("dose"),
+            route=row.get("route"),
+            administered_by=row.get("administeredBy"),
+            notes=row.get("notes"),
+        )
+        session.add(administration)
+
+    await session.flush()
+    print(f"  Added {len(administrations)} medication administrations")
 
 
 async def seed_lab_data(session: AsyncSession):
@@ -320,6 +355,7 @@ async def main():
             await seed_users(session)
             await seed_patients(session)
             await seed_medications(session)
+            await seed_medication_administrations(session)
             await seed_lab_data(session)
             await seed_messages(session)
             await seed_drug_interactions(session)

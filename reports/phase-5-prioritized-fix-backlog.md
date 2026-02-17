@@ -20,7 +20,7 @@ Covered Phase-4 risks:
 
 | Epic | Priority | Goal | Risk Covered | Status |
 |---|---|---|---|---|
-| P0-A | P0 | Medication administrations become DB-persisted, queryable, auditable | R-MF-002 | In progress (A1/A2/A3 implemented) |
+| P0-A | P0 | Medication administrations become DB-persisted, queryable, auditable | R-MF-002 | In progress (A1/A2/A3/A4 implemented) |
 | P0-B | P0 | Docker default runtime uses `DATA_SOURCE_MODE=db`; json mode explicit only | R-MF-001 | In progress (B1/B2/B3 implemented) |
 
 ## 3) Epic P0-A: Administrations 真實持久化
@@ -50,7 +50,7 @@ P0-A implementation progress (this round):
 - [x] P0-A1 completed: added migration + ORM model + relationships for `medication_administrations`.
 - [x] P0-A2 completed: added explicit response schemas (`MedicationAdministrationResponse` + list/item envelopes) and applied endpoint `response_model` in medication router.
 - [x] P0-A3 completed: `medications` router now reads/writes `medication_administrations` table directly (removed synthetic schedule and in-memory overrides).
-- [ ] P0-A4 pending: seed/validator alignment for offline data path.
+- [x] P0-A4 completed: added `datamock/medicationAdministrations.json`, wired seed ingestion in `backend/seeds/seed_data.py`, and added validator structure/reference checks in `backend/seeds/validate_datamock.py`.
 - [ ] P0-A5 pending: persistence-focused tests.
 - [ ] P0-A6 pending: manual API evidence package.
 
@@ -126,11 +126,19 @@ This backlog slice is complete when:
 
 ## 8) Current Gate
 
-- `Phase 5`: In progress (P0-A1/A2/A3 and P0-B1/B2/B3 implemented; P0-A4~A6 and P0-B5 pending).
+- `Phase 5`: In progress (P0-A1/A2/A3/A4 and P0-B1/B2/B3 implemented; P0-A5/A6 and P0-B5 pending).
 
 ## 9) Next Steps (A2~A6 + B5)
 
-1. `P0-A4`: backfill seed and validation path for administration rows in offline mode.
-2. `P0-A5`: add persistence-focused assertions (DB-backed behavior and date-window coverage).
-3. `P0-B5`: produce docker mode regression evidence bundle (`db` default vs `json` override).
-4. `P0-A6`: manual end-to-end persistence evidence (patch, restart, re-query).
+1. `P0-A5`: add persistence-focused assertions (DB-backed behavior and date-window coverage).
+2. `P0-B5`: produce docker mode regression evidence bundle (`db` default vs `json` override).
+3. `P0-A6`: manual end-to-end persistence evidence (patch, restart, re-query).
+
+## 10) GitHub Issue Traceability
+
+- Umbrella: [#25](https://github.com/ZymoMed/ChatICU_YU/issues/25)
+- P0-A4: [#26](https://github.com/ZymoMed/ChatICU_YU/issues/26)
+- P0-A5: [#27](https://github.com/ZymoMed/ChatICU_YU/issues/27)
+- P0-A6: [#28](https://github.com/ZymoMed/ChatICU_YU/issues/28)
+- P0-B5: [#29](https://github.com/ZymoMed/ChatICU_YU/issues/29)
+- Registry snapshot: `/Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/reports/operations/github-issues-phase5-20260217T1404Z.md`
