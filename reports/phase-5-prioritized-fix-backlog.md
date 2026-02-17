@@ -20,7 +20,7 @@ Covered Phase-4 risks:
 
 | Epic | Priority | Goal | Risk Covered | Status |
 |---|---|---|---|---|
-| P0-A | P0 | Medication administrations become DB-persisted, queryable, auditable | R-MF-002 | In progress (A1/A2/A3/A4 implemented) |
+| P0-A | P0 | Medication administrations become DB-persisted, queryable, auditable | R-MF-002 | In progress (A1/A2/A3/A4/A5 implemented) |
 | P0-B | P0 | Docker default runtime uses `DATA_SOURCE_MODE=db`; json mode explicit only | R-MF-001 | In progress (B1/B2/B3 implemented) |
 
 ## 3) Epic P0-A: Administrations 真實持久化
@@ -51,7 +51,7 @@ P0-A implementation progress (this round):
 - [x] P0-A2 completed: added explicit response schemas (`MedicationAdministrationResponse` + list/item envelopes) and applied endpoint `response_model` in medication router.
 - [x] P0-A3 completed: `medications` router now reads/writes `medication_administrations` table directly (removed synthetic schedule and in-memory overrides).
 - [x] P0-A4 completed: added `datamock/medicationAdministrations.json`, wired seed ingestion in `backend/seeds/seed_data.py`, and added validator structure/reference checks in `backend/seeds/validate_datamock.py`.
-- [ ] P0-A5 pending: persistence-focused tests.
+- [x] P0-A5 completed: added persistence-focused tests in `backend/tests/test_api/test_medications_api.py` (DB query verification and `startDate/endDate` subset assertions).
 - [ ] P0-A6 pending: manual API evidence package.
 
 ### 3.3 Data model contract (target)
@@ -126,13 +126,12 @@ This backlog slice is complete when:
 
 ## 8) Current Gate
 
-- `Phase 5`: In progress (P0-A1/A2/A3/A4 and P0-B1/B2/B3 implemented; P0-A5/A6 and P0-B5 pending).
+- `Phase 5`: In progress (P0-A1/A2/A3/A4/A5 and P0-B1/B2/B3 implemented; P0-A6 and P0-B5 pending).
 
 ## 9) Next Steps (A2~A6 + B5)
 
-1. `P0-A5`: add persistence-focused assertions (DB-backed behavior and date-window coverage).
-2. `P0-B5`: produce docker mode regression evidence bundle (`db` default vs `json` override).
-3. `P0-A6`: manual end-to-end persistence evidence (patch, restart, re-query).
+1. `P0-B5`: produce docker mode regression evidence bundle (`db` default vs `json` override).
+2. `P0-A6`: manual end-to-end persistence evidence (patch, restart, re-query).
 
 ## 10) GitHub Issue Traceability
 
