@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './lib/auth-context';
 import { SidebarProvider } from './components/ui/sidebar';
 import { AppSidebar } from './components/app-sidebar';
@@ -6,26 +7,28 @@ import { SidebarToggle } from './components/sidebar-toggle';
 import { Toaster } from './components/ui/sonner';
 import { ErrorBoundary } from './components/error-boundary';
 
-// Pages
+// Eagerly loaded pages (small, critical path)
 import { LoginPage } from './pages/login';
 import { DashboardPage } from './pages/dashboard';
 import { PatientsPage } from './pages/patients';
-import { PatientDetailPage } from './pages/patient-detail';
-import { ChatPage } from './pages/chat';
 
-// Pharmacy Pages
-import { PharmacyWorkstationPage } from './pages/pharmacy/workstation';
-import { DrugInteractionsPage } from './pages/pharmacy/interactions';
-import { CompatibilityPage } from './pages/pharmacy/compatibility';
-import { DosagePage } from './pages/pharmacy/dosage';
-import { ErrorReportPage } from './pages/pharmacy/error-report';
-import { PharmacyAdviceStatisticsPage } from './pages/pharmacy/advice-statistics';
+// Lazy loaded pages (large or infrequently accessed)
+const PatientDetailPage = lazy(() => import('./pages/patient-detail').then(m => ({ default: m.PatientDetailPage })));
+const ChatPage = lazy(() => import('./pages/chat').then(m => ({ default: m.ChatPage })));
 
-// Admin Pages
-import { AuditPage } from './pages/admin/placeholder';
-import { VectorsPage } from './pages/admin/vectors';
-import { UsersPage } from './pages/admin/users';
-import { AdminStatisticsPage } from './pages/admin/statistics';
+// Pharmacy Pages (lazy)
+const PharmacyWorkstationPage = lazy(() => import('./pages/pharmacy/workstation').then(m => ({ default: m.PharmacyWorkstationPage })));
+const DrugInteractionsPage = lazy(() => import('./pages/pharmacy/interactions').then(m => ({ default: m.DrugInteractionsPage })));
+const CompatibilityPage = lazy(() => import('./pages/pharmacy/compatibility').then(m => ({ default: m.CompatibilityPage })));
+const DosagePage = lazy(() => import('./pages/pharmacy/dosage').then(m => ({ default: m.DosagePage })));
+const ErrorReportPage = lazy(() => import('./pages/pharmacy/error-report').then(m => ({ default: m.ErrorReportPage })));
+const PharmacyAdviceStatisticsPage = lazy(() => import('./pages/pharmacy/advice-statistics').then(m => ({ default: m.PharmacyAdviceStatisticsPage })));
+
+// Admin Pages (lazy)
+const AuditPage = lazy(() => import('./pages/admin/placeholder').then(m => ({ default: m.AuditPage })));
+const VectorsPage = lazy(() => import('./pages/admin/vectors').then(m => ({ default: m.VectorsPage })));
+const UsersPage = lazy(() => import('./pages/admin/users').then(m => ({ default: m.UsersPage })));
+const AdminStatisticsPage = lazy(() => import('./pages/admin/statistics').then(m => ({ default: m.AdminStatisticsPage })));
 
 // Loading 元件
 function LoadingScreen() {
@@ -112,6 +115,7 @@ function AppRoutes() {
   }
 
   return (
+    <Suspense fallback={<LoadingScreen />}>
     <Routes>
       {/* Public Routes */}
       <Route
@@ -269,6 +273,7 @@ function AppRoutes() {
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
+    </Suspense>
   );
 }
 
