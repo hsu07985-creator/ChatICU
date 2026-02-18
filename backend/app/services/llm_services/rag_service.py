@@ -85,22 +85,36 @@ class RAGService:
             "embedding_model": settings.LLM_PROVIDER if settings.OPENAI_API_KEY else "tfidf",
         }
 
+    def reset(self) -> None:
+        """Reset index state (useful for test isolation)."""
+        self.chunks = []
+        self.embeddings = None
+        self.is_indexed = False
+
     def retrieve(self, question: str, top_k: int = 5) -> list[dict]:
         """Find most relevant chunks via cosine similarity."""
         if not self.is_indexed or self.embeddings is None:
             return []
 
+        if len(self.chunks) == 0 or self.embeddings.shape[0] == 0:
+            return []
+
         q_vec = np.array(embed_texts([question])[0], dtype=np.float32)
 
         q_norm = np.linalg.norm(q_vec)
-        if q_norm > 0:
-            q_vec = q_vec / q_norm
+        if q_norm == 0:
+            return []
+        q_vec = q_vec / q_norm
 
         norms = np.linalg.norm(self.embeddings, axis=1, keepdims=True)
         norms = np.where(norms == 0, 1.0, norms)
         normed = self.embeddings / norms
 
         similarities = normed @ q_vec
+
+        if not np.all(np.isfinite(similarities)):
+            similarities = np.nan_to_num(similarities, nan=0.0, posinf=0.0, neginf=0.0)
+
         top_indices = np.argsort(similarities)[::-1][:top_k]
 
         results = []
