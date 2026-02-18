@@ -230,6 +230,41 @@ jobs:
             exit 1
           fi
 
+      - name: Check for orphaned imports in src/imports/
+        run: |
+          set -euo pipefail
+          orphans=0
+          for f in src/imports/*.tsx src/imports/*.ts; do
+            [ -f "$f" ] || continue
+            base=$(basename "$f" .tsx)
+            base=$(basename "$base" .ts)
+            if ! grep -r "$base" src/pages/ src/components/ src/lib/ \
+                 --include="*.tsx" --include="*.ts" -q; then
+              echo "::error::ORPHAN: $f"
+              orphans=$((orphans + 1))
+            fi
+          done
+          [ "$orphans" -eq 0 ] || exit 1
+
+      - name: No markdown in src/
+        run: |
+          set -euo pipefail
+          md_files=$(find src/ -name "*.md" -not -path "*/node_modules/*" 2>/dev/null || true)
+          if [ -n "$md_files" ]; then
+            echo "::error::Markdown files found in src/ — move to docs/"
+            echo "$md_files"
+            exit 1
+          fi
+
+      - name: No archived files tracked
+        run: |
+          tracked=$(git ls-files _archive_candidates/ 2>/dev/null || true)
+          if [ -n "$tracked" ]; then
+            echo "::error::_archive_candidates/ should be in .gitignore"
+            echo "$tracked"
+            exit 1
+          fi
+
   e2e-critical-journey:
     runs-on: ubuntu-latest
     needs: [backend-test, migration-check]

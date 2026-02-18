@@ -1,0 +1,6 @@
+# Gitleaks configuration — ChatICU
+# Exclude detect-secrets baseline (contains hashed_secret entries by design)
+[allowlist]
+  paths = [
+    '''.secrets.baseline''',
+  ]
