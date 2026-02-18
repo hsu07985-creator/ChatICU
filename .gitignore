@@ -35,3 +35,6 @@ ChatICU/
 server/.dart_tool/
 server/build/
 server/.vscode/
+
+# Archived files (restructuring cleanup)
+_archive_candidates/
