@@ -77,6 +77,14 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
   const [nursingOpinion, setNursingOpinion] = useState('');
 
   const symptoms = Array.isArray(patient.symptoms) ? patient.symptoms : [];
+  const summaryFields = [
+    { label: 'Age', value: `${patient.age} years` },
+    { label: 'Gender', value: patient.gender || '-' },
+    { label: 'BMI', value: patient.bmi ? `${patient.bmi} kg/m²` : '-' },
+    { label: 'Height', value: patient.height ? `${patient.height} cm` : '-' },
+    { label: 'Weight', value: patient.weight ? `${patient.weight} kg` : '-' },
+    { label: 'Patient ID', value: patient.id || '-' },
+  ];
   const canSummary = aiReadiness ? aiReadiness.feature_gates.clinical_summary : true;
   const canExplanation = aiReadiness ? aiReadiness.feature_gates.patient_explanation : true;
   const canDecision = aiReadiness ? aiReadiness.feature_gates.decision_support : true;
@@ -88,65 +96,40 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
     <div className="space-y-3">
       <div className="grid gap-3 lg:grid-cols-[1.2fr_1fr]">
         <Card className="overflow-hidden border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100/80">
-          <CardHeader className="border-b border-slate-200/80 bg-white/70 pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle className="text-base tracking-tight text-slate-900">基本資訊 / 症狀 / 入院診斷</CardTitle>
-                <p className="mt-1 text-xs text-slate-500">病例概覽</p>
-              </div>
-              <span className="rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                Overview
-              </span>
-            </div>
+          <CardHeader className="border-b border-slate-200/80 bg-white/70 pb-2">
+            <CardTitle className="text-sm tracking-tight text-slate-900">基本資訊 / 症狀 / 入院診斷</CardTitle>
+            <p className="text-[11px] text-slate-500">病例概覽（高密度）</p>
           </CardHeader>
-          <CardContent className="space-y-3 pt-3">
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
-                <p className="text-[10px] uppercase tracking-wide text-slate-500">Age</p>
-                <p className="mt-0.5 text-sm font-semibold text-slate-900">{patient.age} years</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
-                <p className="text-[10px] uppercase tracking-wide text-slate-500">Gender</p>
-                <p className="mt-0.5 text-sm font-semibold text-slate-900">{patient.gender || '-'}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
-                <p className="text-[10px] uppercase tracking-wide text-slate-500">BMI</p>
-                <p className="mt-0.5 text-sm font-semibold text-slate-900">{patient.bmi ? `${patient.bmi} kg/m²` : '-'}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
-                <p className="text-[10px] uppercase tracking-wide text-slate-500">Height</p>
-                <p className="mt-0.5 text-sm font-semibold text-slate-900">{patient.height ? `${patient.height} cm` : '-'}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
-                <p className="text-[10px] uppercase tracking-wide text-slate-500">Weight</p>
-                <p className="mt-0.5 text-sm font-semibold text-slate-900">{patient.weight ? `${patient.weight} kg` : '-'}</p>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
-                <p className="text-[10px] uppercase tracking-wide text-slate-500">Patient ID</p>
-                <p className="mt-0.5 text-sm font-semibold text-slate-900">{patient.id || '-'}</p>
-              </div>
+          <CardContent className="space-y-2.5 pt-2.5">
+            <div className="grid grid-cols-2 gap-1.5 md:grid-cols-3 xl:grid-cols-6">
+              {summaryFields.map((field) => (
+                <div key={field.label} className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
+                  <p className="text-[10px] uppercase tracking-tight text-slate-500">{field.label}</p>
+                  <p className="mt-0.5 text-[13px] font-semibold leading-tight text-slate-900">{field.value}</p>
+                </div>
+              ))}
             </div>
-            <div className="grid gap-3 lg:grid-cols-[1.2fr_1fr]">
-              <section className="rounded-lg border border-slate-200 bg-white p-3">
-                <p className="text-xs font-semibold tracking-wide text-slate-600">症狀 Symptom</p>
-                <ul className="mt-2 space-y-1.5">
+            <div className="grid gap-2 lg:grid-cols-[1.5fr_1fr]">
+              <section className="rounded-md border border-slate-200 bg-white p-2.5">
+                <p className="text-[11px] font-semibold tracking-wide text-slate-600">症狀 Symptom</p>
+                <ul className="mt-1.5 space-y-1">
                   {symptoms.length > 0 ? (
                     symptoms.map((symptom: string, idx: number) => (
-                      <li key={idx} className="flex items-start gap-2 rounded-md border border-slate-200 bg-slate-50/70 px-2.5 py-1.5">
-                        <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[11px] font-semibold text-slate-700">
+                      <li key={idx} className="grid grid-cols-[18px_1fr] items-start gap-2 rounded-md border border-slate-200 bg-slate-50/70 px-2 py-1">
+                        <span className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-700">
                           {idx + 1}
                         </span>
-                        <span className="text-sm leading-relaxed text-slate-800">{symptom}</span>
+                        <span className="text-[13px] leading-snug text-slate-800">{symptom}</span>
                       </li>
                     ))
                   ) : (
-                    <li className="text-sm text-muted-foreground">尚無症狀記錄</li>
+                    <li className="text-[13px] text-muted-foreground">尚無症狀記錄</li>
                   )}
                 </ul>
               </section>
-              <section className="rounded-lg border border-blue-200/80 bg-gradient-to-br from-blue-50/80 to-white p-3">
-                <p className="text-xs font-semibold tracking-wide text-blue-700">入院診斷</p>
-                <p className="mt-2 text-sm leading-relaxed text-slate-800">{patient.diagnosis || '-'}</p>
+              <section className="rounded-md border border-blue-200/80 bg-gradient-to-br from-blue-50/80 to-white p-2.5">
+                <p className="text-[11px] font-semibold tracking-wide text-blue-700">入院診斷</p>
+                <p className="mt-1.5 text-[13px] leading-snug text-slate-800">{patient.diagnosis || '-'}</p>
               </section>
             </div>
           </CardContent>
