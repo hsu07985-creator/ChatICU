@@ -161,7 +161,7 @@ jobs:
       - name: Verify Alembic migrations apply cleanly
         env:
           DATABASE_URL: "postgresql+asyncpg://chaticu:chaticu_password@localhost:5432/chaticu_migration"
-          JWT_SECRET: "ci-test-secret"
+          JWT_SECRET: "ci-test-secret-do-not-use-in-production"
           SEED_DEFAULT_PASSWORD: "CITestPassword123!"
         run: python -m alembic upgrade head
 
@@ -305,7 +305,7 @@ jobs:
         env:
           DATABASE_URL: "postgresql+asyncpg://chaticu:chaticu_password@localhost:5432/chaticu_e2e"
           REDIS_URL: "redis://localhost:6379/0"
-          JWT_SECRET: "ci-test-secret"
+          JWT_SECRET: "ci-test-secret-do-not-use-in-production"
           SEED_DEFAULT_PASSWORD: "CITestPassword123!"
         run: |
           cd backend
@@ -328,8 +328,9 @@ jobs:
         env:
           DATABASE_URL: "postgresql+asyncpg://chaticu:chaticu_password@localhost:5432/chaticu_e2e"
           REDIS_URL: "redis://localhost:6379/0"
-          JWT_SECRET: "ci-test-secret"
+          JWT_SECRET: "ci-test-secret-do-not-use-in-production"
           SEED_DEFAULT_PASSWORD: "CITestPassword123!"
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           CORS_ORIGINS: '["http://127.0.0.1:4173","http://localhost:4173","http://127.0.0.1:5173","http://localhost:5173","http://127.0.0.1:3000","http://localhost:3000"]'
         run: |
           cd backend
@@ -438,7 +439,7 @@ jobs:
         env:
           DATABASE_URL: "postgresql+asyncpg://chaticu:chaticu_password@localhost:5432/chaticu_e2e_extended"
           REDIS_URL: "redis://localhost:6379/0"
-          JWT_SECRET: "ci-test-secret"
+          JWT_SECRET: "ci-test-secret-do-not-use-in-production"
           SEED_DEFAULT_PASSWORD: "CITestPassword123!"
         run: |
           cd backend
@@ -461,8 +462,9 @@ jobs:
         env:
           DATABASE_URL: "postgresql+asyncpg://chaticu:chaticu_password@localhost:5432/chaticu_e2e_extended"
           REDIS_URL: "redis://localhost:6379/0"
-          JWT_SECRET: "ci-test-secret"
+          JWT_SECRET: "ci-test-secret-do-not-use-in-production"
           SEED_DEFAULT_PASSWORD: "CITestPassword123!"
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           CORS_ORIGINS: '["http://127.0.0.1:4173","http://localhost:4173","http://127.0.0.1:5173","http://localhost:5173","http://127.0.0.1:3000","http://localhost:3000"]'
         run: |
           cd backend
@@ -570,7 +572,7 @@ jobs:
         env:
           DATABASE_URL: "postgresql+asyncpg://chaticu:chaticu_password@localhost:5432/chaticu_dast"
           REDIS_URL: "redis://localhost:6379/0"
-          JWT_SECRET: "ci-test-secret"
+          JWT_SECRET: "ci-test-secret-do-not-use-in-production"
           SEED_DEFAULT_PASSWORD: "CITestPassword123!"
         run: |
           cd backend
@@ -580,7 +582,7 @@ jobs:
         env:
           DATABASE_URL: "postgresql+asyncpg://chaticu:chaticu_password@localhost:5432/chaticu_dast"
           REDIS_URL: "redis://localhost:6379/0"
-          JWT_SECRET: "ci-test-secret"
+          JWT_SECRET: "ci-test-secret-do-not-use-in-production"
           SEED_DEFAULT_PASSWORD: "CITestPassword123!"
         run: |
           cd backend
@@ -806,7 +808,7 @@ jobs:
         run: |
           docker run -d --name chaticu-test \
             -e DATABASE_URL="sqlite+aiosqlite:///./test.db" \
-            -e JWT_SECRET="ci-test-secret" \
+            -e JWT_SECRET="ci-test-secret-do-not-use-in-production" \
             -e REDIS_URL="redis://localhost:6379/0" \
             -e DEBUG="true" \
             chaticu-api:ci
