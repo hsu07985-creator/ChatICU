@@ -28,6 +28,9 @@ htmlcov/
 *.swp
 *.swo
 
+# ─── RAG persisted index (generated binary artifacts) ───
+data/rag_index/
+
 # ─── OS ───
 .DS_Store
 Thumbs.db

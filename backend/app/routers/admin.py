@@ -362,7 +362,7 @@ async def list_vector_databases(
             "documentCount": status.get("total_documents", 0),
             "chunkCount": status.get("total_chunks", 0),
             "status": "active",
-            "embeddingModel": status.get("embedding_model", "tfidf"),
+            "embeddingModel": status.get("embedding_model", "unknown"),
         })
     return success_response(data={"databases": databases})
 
@@ -432,7 +432,7 @@ async def upload_vector_document(
         "documentCount": result.get("total_documents", 0),
         "chunkCount": result.get("total_chunks", 0),
         "status": "active",
-        "embeddingModel": rag_service.get_status().get("embedding_model", "tfidf"),
+        "embeddingModel": rag_service.get_status().get("embedding_model", "unknown"),
     }
 
     await create_audit_log(

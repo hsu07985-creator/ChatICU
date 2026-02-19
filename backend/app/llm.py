@@ -106,6 +106,23 @@ TASK_PROMPTS: dict[str, str] = {
         "Output a structured summary in 300 words or fewer. "
         + _LANG_DIRECTIVE
     ),
+    "contextual_chunk": (
+        "你是 ICU 醫學文獻分析助手。"
+        "給定一份完整文件和其中一個片段，"
+        "請用 1-2 句繁體中文簡要描述該片段在整份文件中的位置與主題。"
+        "重點：該片段屬於哪個章節/主題、涵蓋什麼具體內容。"
+        "只輸出簡要上下文，不要其他文字。"
+    ),
+    "citation_summary": (
+        "你是 ICU 臨床文獻整理助手。將醫療文獻的原文段落精煉為簡潔的參考引述。\n"
+        "輸入包含多個來源文獻及其原文段落。\n"
+        "對每個來源，輸出 JSON 物件包含：\n"
+        '  "summary": 一句話概述該文獻與查詢相關的核心建議（30字內，繁體中文）\n'
+        '  "keyQuote": 原文中最關鍵的一句話（直接引述原文，60字內）\n'
+        '  "relevanceNote": 為什麼這段文獻與查詢相關（15字內）\n'
+        "輸出格式：一個 JSON array，每個元素對應一個來源。\n"
+        "只輸出 JSON，不要其他文字。"
+    ),
 }
 
 
@@ -311,7 +328,7 @@ def _call_openai(
     from openai import OpenAI
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
     response = client.chat.completions.create(
-        model=settings.LLM_MODEL, temperature=temperature, max_tokens=max_tokens,
+        model=settings.LLM_MODEL, max_completion_tokens=max_tokens,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": json.dumps(input_data, ensure_ascii=False, default=str)},
@@ -326,9 +343,12 @@ def _call_openai(
         input_payload=input_data,
         response_payload=response,
     )
+    content = response.choices[0].message.content or ""
+    if not content.strip():
+        return {"status": "error", "content": "Model returned empty response (reasoning token budget may be too low)", "metadata": {}}
     return {
         "status": "success",
-        "content": response.choices[0].message.content,
+        "content": content,
         "metadata": {"model": settings.LLM_MODEL, "usage": {
             "prompt_tokens": response.usage.prompt_tokens,
             "completion_tokens": response.usage.completion_tokens,
@@ -351,7 +371,7 @@ def _call_openai_multi(
     api_messages = [{"role": "system", "content": system_prompt}]
     api_messages.extend(messages)
     response = client.chat.completions.create(
-        model=settings.LLM_MODEL, temperature=temperature, max_tokens=max_tokens,
+        model=settings.LLM_MODEL, max_completion_tokens=max_tokens,
         messages=api_messages,
     )
     _maybe_capture_provider_raw(
@@ -363,9 +383,12 @@ def _call_openai_multi(
         input_payload=messages,
         response_payload=response,
     )
+    content = response.choices[0].message.content or ""
+    if not content.strip():
+        return {"status": "error", "content": "Model returned empty response (reasoning token budget may be too low)", "metadata": {}}
     return {
         "status": "success",
-        "content": response.choices[0].message.content,
+        "content": content,
         "metadata": {"model": settings.LLM_MODEL, "usage": {
             "prompt_tokens": response.usage.prompt_tokens,
             "completion_tokens": response.usage.completion_tokens,
@@ -373,21 +396,154 @@ def _call_openai_multi(
     }
 
 
+def rerank_passages(
+    query: str,
+    passages: List[dict],
+    top_k: int = 5,
+) -> List[dict]:
+    """Rerank retrieved passages using LLM relevance scoring.
+
+    Over-retrieved candidates are scored by GPT-5-mini for query relevance,
+    then sorted by score. Raises on failure — no silent fallback.
+    """
+    if not passages or len(passages) <= top_k:
+        return passages[:top_k]
+
+    if not (settings.OPENAI_API_KEY or "").strip():
+        raise RuntimeError("[RAG][RERANK] OPENAI_API_KEY is not set — cannot rerank")
+
+    # Build scoring prompt — truncate each passage to save tokens
+    numbered = []
+    for i, p in enumerate(passages):
+        excerpt = p.get("text", "")[:300]
+        numbered.append(f"[{i + 1}] {excerpt}")
+    passages_text = "\n".join(numbered)
+
+    scoring_prompt = (
+        "You are a medical relevance scorer for ICU clinical queries.\n"
+        "Score each passage's relevance to the query on a scale of 0-10.\n"
+        "10 = perfectly relevant, 0 = completely irrelevant.\n\n"
+        f"Query: {query}\n\n"
+        f"Passages:\n{passages_text}\n\n"
+        "Return ONLY a JSON array of integer scores, one per passage. "
+        f"Example for {len(passages)} passages: [8, 3, 7, ...]\n"
+        "Do not include any other text."
+    )
+
+    from openai import OpenAI
+    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    response = client.chat.completions.create(
+        model=settings.RAG_RERANK_MODEL,
+        max_completion_tokens=4096,  # reasoning models need ~2-3x headroom for thinking tokens
+        messages=[
+            {"role": "system", "content": "You are a relevance scoring assistant. Return only valid JSON."},
+            {"role": "user", "content": scoring_prompt},
+        ],
+    )
+    raw = (response.choices[0].message.content or "").strip()
+    if not raw:
+        raise ValueError("[RAG][RERANK] Model returned empty response — token budget may be too low")
+
+    # Parse JSON array of scores
+    scores = json.loads(raw)
+    if not isinstance(scores, list) or len(scores) != len(passages):
+        raise ValueError(
+            f"[RAG][RERANK] Score count mismatch: got {len(scores) if isinstance(scores, list) else 0}, "
+            f"expected {len(passages)}"
+        )
+
+    # Attach rerank scores and sort
+    scored = []
+    for p, s in zip(passages, scores):
+        entry = dict(p)
+        entry["rerank_score"] = float(s) if isinstance(s, (int, float)) else 0.0
+        scored.append(entry)
+    scored.sort(key=lambda x: x["rerank_score"], reverse=True)
+
+    logger.info(
+        "[RAG][RERANK] Reranked %d candidates → top-%d (model=%s)",
+        len(passages),
+        top_k,
+        settings.RAG_RERANK_MODEL,
+    )
+    return scored[:top_k]
+
+
+def summarize_citations(
+    question: str,
+    citations: List[dict],
+) -> List[dict]:
+    """Summarize raw citation snippets into structured summaries using LLM.
+
+    Each citation gets: summary (core recommendation), keyQuote (direct quote),
+    relevanceNote (why it's relevant). Raises on failure — no silent fallback.
+    """
+    if not citations:
+        return citations
+
+    if not (settings.OPENAI_API_KEY or "").strip():
+        raise RuntimeError("[RAG][CITATION] OPENAI_API_KEY is not set — cannot summarize citations")
+
+    # Build batch prompt with all citations
+    sources_text = []
+    for i, c in enumerate(citations):
+        source_file = c.get("sourceFile", "unknown")
+        pages = c.get("pages", [])
+        page_str = f"第 {', '.join(str(p) for p in pages)} 頁" if pages else "頁碼不明"
+        # Collect all snippets for this citation
+        all_snippets = c.get("snippets", [])
+        if not all_snippets and c.get("snippet"):
+            all_snippets = [c["snippet"]]
+        snippet_text = "\n".join(all_snippets[:3])  # max 3 snippets per source
+        sources_text.append(
+            f"[來源 {i + 1}] {source_file} ({page_str})\n{snippet_text}"
+        )
+
+    prompt = (
+        f"查詢：{question}\n\n"
+        + "\n\n---\n\n".join(sources_text)
+    )
+
+    from openai import OpenAI
+    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    response = client.chat.completions.create(
+        model=settings.RAG_RERANK_MODEL,  # gpt-5-mini — fast and cheap
+        max_completion_tokens=4096,  # reasoning models need ~2-3x headroom for thinking tokens
+        messages=[
+            {"role": "system", "content": TASK_PROMPTS["citation_summary"]},
+            {"role": "user", "content": prompt},
+        ],
+    )
+    raw = (response.choices[0].message.content or "").strip()
+    if not raw:
+        raise ValueError("[RAG][CITATION] Model returned empty response — token budget may be too low")
+
+    summaries = json.loads(raw)
+    if not isinstance(summaries, list):
+        raise ValueError(f"[RAG][CITATION] Expected JSON array, got {type(summaries).__name__}")
+
+    # Attach summaries to citations
+    result = []
+    for i, c in enumerate(citations):
+        entry = dict(c)
+        if i < len(summaries) and isinstance(summaries[i], dict):
+            entry["summary"] = str(summaries[i].get("summary", ""))
+            entry["keyQuote"] = str(summaries[i].get("keyQuote", ""))
+            entry["relevanceNote"] = str(summaries[i].get("relevanceNote", ""))
+        result.append(entry)
+
+    logger.info(
+        "[RAG][CITATION] Summarized %d citations (model=%s)",
+        len(citations),
+        settings.RAG_RERANK_MODEL,
+    )
+    return result
+
+
 def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Embed texts. Uses OpenAI when API key set, TF-IDF fallback otherwise."""
-    if settings.OPENAI_API_KEY and settings.LLM_PROVIDER == "openai":
-        try:
-            return _embed_openai(texts)
-        except Exception as exc:
-            logger.warning(
-                "[F06] OpenAI embedding failed, falling back to TF-IDF (degraded quality): %s",
-                exc,
-            )
-            return _embed_tfidf(texts)
-    return _embed_tfidf(texts)
-
-
-def _embed_openai(texts: list[str]) -> list[list[float]]:
+    """Embed texts using OpenAI API. Raises if API key is missing or call fails."""
+    if not settings.OPENAI_API_KEY:
+        raise RuntimeError("OPENAI_API_KEY is required for embedding. No fallback available.")
     from openai import OpenAI
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
     batch_size = 100
@@ -399,35 +555,45 @@ def _embed_openai(texts: list[str]) -> list[list[float]]:
     return all_embeddings
 
 
-def _embed_tfidf(texts: list[str]) -> list[list[float]]:
-    """Lightweight local embedding using TF-IDF with hashing (256-d)."""
-    import hashlib
-    import math
+def generate_chunk_context(doc_text: str, chunk_text: str) -> str:
+    """Generate a short contextual prefix for a chunk using LLM.
 
-    # Algorithm constant: changing dim invalidates all existing TF-IDF
-    # embeddings and requires full re-index. Not deployment-configurable. (F14)
-    dim = 256
-    vectors: list[list[float]] = []
+    Used by Contextual Retrieval to situate each chunk within its source
+    document before embedding, improving retrieval accuracy by ~67%.
 
-    for text in texts:
-        vec = [0.0] * dim
-        words = text.lower().split()
-        if not words:
-            vectors.append(vec)
-            continue
-        for word in words:
-            # SHA-256 avoids weak-hash findings while keeping deterministic hashing.
-            h = int(hashlib.sha256(word.encode("utf-8")).hexdigest(), 16)
-            idx = h % dim
-            sign = 1.0 if (h // dim) % 2 == 0 else -1.0
-            vec[idx] += sign
-        # L2 normalize
-        norm = math.sqrt(sum(v * v for v in vec))
-        if norm > 0:
-            vec = [v / norm for v in vec]
-        vectors.append(vec)
+    Args:
+        doc_text: Full (or truncated) source document text.
+        chunk_text: The specific chunk to contextualize.
 
-    return vectors
+    Returns:
+        A 1-2 sentence context string in Traditional Chinese.
+    """
+    if not settings.OPENAI_API_KEY:
+        raise RuntimeError("OPENAI_API_KEY is required for contextual retrieval.")
+    from openai import OpenAI
+    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+
+    system_prompt = TASK_PROMPTS["contextual_chunk"]
+    max_doc = getattr(settings, "RAG_CONTEXTUAL_MAX_DOC_CHARS", 8000)
+    truncated_doc = doc_text[:max_doc]
+    if len(doc_text) > max_doc:
+        truncated_doc += "\n...(文件已截斷)..."
+
+    user_msg = (
+        f"<document>\n{truncated_doc}\n</document>\n\n"
+        f"<chunk>\n{chunk_text}\n</chunk>"
+    )
+
+    model = getattr(settings, "RAG_CONTEXTUAL_MODEL", "gpt-5")
+    response = client.chat.completions.create(
+        model=model,
+        max_completion_tokens=2048,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_msg},
+        ],
+    )
+    return response.choices[0].message.content.strip()
 
 
 def _call_anthropic(

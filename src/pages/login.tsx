@@ -9,42 +9,12 @@ import { Alert, AlertDescription } from '../components/ui/alert';
 
 import svgPaths from '../imports/svg-n38m0xb9r6';
 import imgImage9 from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
-import imgImage10 from 'figma:asset/876ec040af4ae472e932818bce39f20ca0e1e282.png';
 
-// ChatICU Robot Icon Component
+// ChatICU Robot Logo Component
 function ChatICURobot() {
   return (
     <div className="relative w-[280px] h-[280px]">
-      <svg className="w-full h-full" fill="none" viewBox="0 0 388 409">
-        <g opacity="0.93">
-          <path clipRule="evenodd" d={svgPaths.p10aea2c0} fill="white" fillRule="evenodd" opacity="0.93" />
-        </g>
-        <g opacity="0.93">
-          <path clipRule="evenodd" d={svgPaths.p3c20c000} fill="white" fillRule="evenodd" opacity="0.93" />
-        </g>
-        <path clipRule="evenodd" d={svgPaths.p33759e00} fill="#ffd93d" fillRule="evenodd" />
-        <path d={svgPaths.p22ec2800} fill="#1B1633" />
-        <path d={svgPaths.p2fff2000} fill="#1B1633" />
-        <path d={svgPaths.p3f51af00} fill="#1B1633" />
-        <path d={svgPaths.p2b4954f0} fill="#1B1633" />
-        <path d={svgPaths.p1545f800} fill="#1B1633" />
-        <path d={svgPaths.p6dfe180} fill="#1B1633" />
-        <path d={svgPaths.p1de9c700} fill="#1B1633" />
-        <path d={svgPaths.p3353fa80} fill="#1B1633" />
-        <path d={svgPaths.p38c50ff0} fill="#1B1633" />
-        <path d={svgPaths.p3ddea980} fill="#1B1633" />
-        <path d={svgPaths.p35d0f400} fill="#1B1633" />
-        <path d={svgPaths.p2ae5a600} fill="#1B1633" />
-        <path d={svgPaths.p127cb070} fill="#1B1633" />
-        <path d={svgPaths.p38a341c0} fill="#1B1633" />
-        <path d={svgPaths.p341c2000} fill="#B44538" />
-        <path d={svgPaths.pbe49c80} fill="#B44538" />
-        <path d={svgPaths.p19407300} fill="#B44538" />
-        <path d={svgPaths.p122e4b00} fill="#B44538" />
-        <path d={svgPaths.p39676700} fill="#B44538" />
-        <path d={svgPaths.p3498d500} fill="#B44538" />
-        <path d={svgPaths.p2b6fd280} fill="#B44538" />
-      </svg>
+      <img src={imgImage9} alt="ChatICU Robot" className="w-full h-full object-contain" />
     </div>
   );
 }
@@ -106,11 +76,6 @@ export function LoginPage() {
             <ChatICURobot />
           </div>
 
-          {/* ChatICU Logo */}
-          <div className="flex items-center justify-center gap-2">
-            <img src={imgImage10} alt="ChatICU" className="h-8" />
-          </div>
-
           {/* Tagline */}
           <p className="text-[#7f265b] text-2xl font-semibold">
             <span className="font-black">I</span>ntelligent{' '}
@@ -133,7 +98,6 @@ export function LoginPage() {
             <div className="flex justify-center mb-4">
               <img src={imgImage9} alt="ChatICU Robot" className="w-40 h-40 object-contain" />
             </div>
-            <img src={imgImage10} alt="ChatICU" className="h-8 mx-auto" />
           </div>
 
           <div className="space-y-8">

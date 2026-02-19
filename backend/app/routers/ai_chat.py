@@ -28,6 +28,7 @@ from app.llm import (
     RECENT_MSG_WINDOW,
     call_llm,
     call_llm_multi_turn,
+    summarize_citations,
 )
 from app.middleware.auth import get_current_user
 from app.middleware.audit import create_audit_log
@@ -113,7 +114,7 @@ def _evidence_gate_overrides(intent: str) -> Dict[str, Any]:
 
 
 def _ensure_local_rag_index() -> bool:
-    """Best-effort lazy index for local TF-IDF fallback when hybrid RAG is unavailable."""
+    """Best-effort lazy index for local RAG fallback when hybrid RAG is unavailable."""
     global _LOCAL_RAG_INDEX_ATTEMPTED
 
     if rag_service.is_indexed:
@@ -329,7 +330,7 @@ def _extract_page_from_text(text: Any) -> Optional[int]:
         return None
 
 
-_SNIPPET_MAX_CHARS = 500
+_SNIPPET_MAX_CHARS = 1500
 _SNIPPET_SENTENCE_ENDS = re.compile(r"[。！？\n]")
 
 
@@ -730,7 +731,7 @@ async def ai_chat(
         else None
     )
 
-    # RAG-augmented LLM response — try hybrid RAG (func/) first, fallback to TF-IDF
+    # RAG-augmented LLM response — try hybrid RAG (func/) first, fallback to local RAG
     citations = []
     rag_context = ""
     evidence_confidence = None
@@ -760,7 +761,7 @@ async def ai_chat(
         logger.info("[INTG][AI][API] Hybrid RAG returned %d citations", len(citations))
     except Exception as exc:
         logger.warning(
-            "[INTG][AI][API][F07] Hybrid RAG unavailable for ai_chat, falling back to TF-IDF: %s",
+            "[INTG][AI][API][F07] Hybrid RAG unavailable for ai_chat, falling back to local RAG: %s",
             exc,
         )
         if _ensure_local_rag_index():
@@ -865,13 +866,27 @@ async def ai_chat(
             patient_context=patient_context,
         )
 
-        llm_result = await asyncio.to_thread(
+        # Run LLM generation and citation summarization in parallel
+        async def _run_citation_summary() -> List[Dict[str, Any]]:
+            if not settings.RAG_CITATION_SUMMARY_ENABLED or not citations:
+                return citations
+            try:
+                return await asyncio.to_thread(
+                    summarize_citations, req.message, citations,
+                )
+            except Exception as exc:
+                logger.warning("[INTG][AI][API] Citation summary failed, using raw: %s", exc)
+                return citations
+
+        llm_task = asyncio.to_thread(
             call_llm_multi_turn,
             task="rag_generation",
             messages=chat_messages,
             request_id=request_id,
             trace_id=trace_id,
         )
+        citation_task = _run_citation_summary()
+        llm_result, citations = await asyncio.gather(llm_task, citation_task)
 
         llm_status = llm_result.get("status")
         degraded = llm_status != "success"

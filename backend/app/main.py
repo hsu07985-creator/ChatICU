@@ -118,15 +118,27 @@ async def lifespan(app: FastAPI):
             validation_report,
         )
 
-    # Auto-index RAG documents if path is configured
-    if settings.RAG_DOCS_PATH:
+    # Auto-index RAG documents: try persisted → check fingerprint → rebuild if needed
+    if getattr(settings, "RAG_AUTO_INDEX_ON_STARTUP", True):
         from app.services.llm_services.rag_service import rag_service
         try:
-            chunks = rag_service.load_and_chunk(settings.RAG_DOCS_PATH)
-            result = rag_service.index(chunks)
-            print(f"RAG indexed: {result['total_chunks']} chunks from {result.get('total_documents', 0)} documents")
+            if rag_service.load_persisted():
+                if settings.RAG_DOCS_PATH and rag_service._needs_rebuild(settings.RAG_DOCS_PATH):
+                    logger.info("[INTG][RAG] Source documents changed, rebuilding index")
+                    chunks = rag_service.load_and_chunk(settings.RAG_DOCS_PATH)
+                    result = rag_service.index(chunks)
+                    logger.info("[INTG][RAG] Rebuilt index: %d chunks", result["total_chunks"])
+                else:
+                    logger.info("[INTG][RAG] Persisted index is up-to-date (%d chunks)", len(rag_service.chunks))
+            elif settings.RAG_DOCS_PATH:
+                logger.info("[INTG][RAG] Building index from %s", settings.RAG_DOCS_PATH)
+                chunks = rag_service.load_and_chunk(settings.RAG_DOCS_PATH)
+                result = rag_service.index(chunks)
+                logger.info("[INTG][RAG] Built index: %d chunks", result["total_chunks"])
+            else:
+                logger.info("[INTG][RAG] No RAG_DOCS_PATH and no persisted index")
         except Exception as e:
-            print(f"RAG indexing skipped (non-fatal): {e}")
+            logger.warning("[INTG][RAG] Auto-indexing failed (non-fatal): %s", e)
 
     yield
     # Shutdown

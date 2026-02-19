@@ -1,21 +1,39 @@
-"""Text chunker — splits documents into overlapping chunks."""
+"""Text chunker — splits documents into overlapping chunks.
+
+Semantic splitting hierarchy: sections → paragraphs → sentences → characters.
+Default ~800 tokens per chunk with ~128 token overlap for optimal RAG retrieval.
+"""
 
 from __future__ import annotations
+
+import re
+
+# Default chunking parameters (~800 tokens, ~128 token overlap at ~3 chars/token)
+DEFAULT_CHUNK_SIZE = 2400
+DEFAULT_CHUNK_OVERLAP = 384
+
+# Section heading pattern for medical documents (Markdown-style and numbered)
+_SECTION_RE = re.compile(
+    r'\n(?=#{1,4}\s|(?:\d+\.)+\s|第[一二三四五六七八九十百]+[章節條])',
+)
 
 
 def chunk_text(
     text: str,
-    chunk_size: int = 1500,
-    chunk_overlap: int = 200,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
 ) -> list[str]:
-    """Split text into overlapping chunks by character count.
+    """Split text into overlapping chunks using semantic boundaries.
 
-    Uses paragraph boundaries when possible, falls back to
-    sentence/character boundaries for long paragraphs.
+    Splitting hierarchy:
+        1. Section headings (# / ## / numbered)
+        2. Paragraph boundaries (\\n\\n)
+        3. Sentence boundaries (. ! ? 。！？)
+        4. Character fallback
 
     Args:
         text: Full document text.
-        chunk_size: Target characters per chunk (~500 tokens at 3 chars/token).
+        chunk_size: Target characters per chunk (~800 tokens at 3 chars/token).
         chunk_overlap: Overlap characters between consecutive chunks.
 
     Returns:
@@ -24,8 +42,11 @@ def chunk_text(
     if not text.strip():
         return []
 
-    # Split into paragraphs first
-    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+    # Split by section headings first for semantic coherence
+    sections = _SECTION_RE.split(text)
+    paragraphs = []
+    for section in sections:
+        paragraphs.extend(p.strip() for p in section.split("\n\n") if p.strip())
 
     chunks = []
     current_chunk: list[str] = []
@@ -73,8 +94,6 @@ def chunk_text(
 
 def _split_long_text(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
     """Split a long text block by sentence boundaries."""
-    # Try splitting by common sentence endings
-    import re
     sentences = re.split(r'(?<=[.!?。！？])\s+', text)
 
     if len(sentences) <= 1:
@@ -114,7 +133,11 @@ def _split_by_chars(text: str, chunk_size: int, chunk_overlap: int) -> list[str]
     return chunks
 
 
-def chunk_documents(documents: list[dict], chunk_size: int = 1500, chunk_overlap: int = 200) -> list[dict]:
+def chunk_documents(
+    documents: list[dict],
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
+) -> list[dict]:
     """Chunk a list of documents into indexed chunks.
 
     Args:

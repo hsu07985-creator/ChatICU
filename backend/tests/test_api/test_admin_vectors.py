@@ -31,7 +31,7 @@ async def test_admin_vectors_upload_success(client, tmp_path, monkeypatch):
         },
     ) as mock_index, patch(
         "app.services.llm_services.rag_service.rag_service.get_status",
-        return_value={"embedding_model": "tfidf"},
+        return_value={"embedding_model": "text-embedding-3-large"},
     ):
         response = await client.post(
             "/admin/vectors/upload",

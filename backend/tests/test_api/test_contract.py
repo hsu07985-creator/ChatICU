@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from app.config import settings
+from app.middleware.audit import create_audit_log
 from app.models.vital_sign import VitalSign
 
 
@@ -501,9 +502,17 @@ async def test_vital_signs_history_invalid_date_range_returns_400(client):
 @pytest.mark.asyncio
 async def test_audit_logs_support_user_and_date_filters(client):
     """Audit logs API should support user/startDate/endDate filters from frontend."""
-    # Produce at least one audit row for this test user.
-    ai_resp = await client.post("/ai/chat", json={"message": "seed audit"})
-    assert ai_resp.status_code == 200
+    # Seed an audit row directly (avoid calling /ai/chat which triggers LLM chain).
+    from app.database import get_db
+    from app.main import app as _app
+
+    db_gen = _app.dependency_overrides[get_db]()
+    db = await db_gen.__anext__()
+    await create_audit_log(
+        db, user_id="usr_test", user_name="Test Doctor", role="doctor",
+        action="AI 對話", target="seed_session", status="success",
+    )
+    await db.commit()
 
     response = await client.get(
         "/admin/audit-logs",

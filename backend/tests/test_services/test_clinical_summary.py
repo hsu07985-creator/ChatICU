@@ -7,7 +7,7 @@ def test_generate_clinical_summary_success():
     mock_response = {
         "status": "success",
         "content": "Clinical summary for test patient.",
-        "metadata": {"model": "gpt-4o"},
+        "metadata": {"model": "gpt-5"},
     }
     with patch("app.services.llm_services.clinical_summary.call_llm", return_value=mock_response):
         from app.services.llm_services.clinical_summary import generate_clinical_summary

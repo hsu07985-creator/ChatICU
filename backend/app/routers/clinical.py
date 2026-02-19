@@ -353,7 +353,7 @@ async def guideline_interpretation(
                 "category": c.get("topic", ""),
             })
     except Exception as exc:
-        logger.warning("[INTG][AI][API][F07] Hybrid RAG failed for guideline_interpretation, falling back to TF-IDF: %s", exc)
+        logger.warning("[INTG][AI][API][F07] Hybrid RAG failed for guideline_interpretation, falling back to local RAG: %s", exc)
         if rag_service.is_indexed:
             results = rag_service.retrieve(search_query, top_k=5)
             rag_context = "\n\n---\n\n".join([r["text"] for r in results])
@@ -419,7 +419,7 @@ async def multi_agent_decision(
         )
         rag_context = hybrid.get("answer", "")
     except Exception as exc:
-        logger.warning("[INTG][AI][API][F07] Hybrid RAG failed for multi_agent_decision, falling back to TF-IDF: %s", exc)
+        logger.warning("[INTG][AI][API][F07] Hybrid RAG failed for multi_agent_decision, falling back to local RAG: %s", exc)
         if rag_service.is_indexed:
             results = rag_service.retrieve(req.question, top_k=3)
             rag_context = "\n\n---\n\n".join([r["text"] for r in results])

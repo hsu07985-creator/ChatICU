@@ -12,7 +12,7 @@ async def test_clinical_summary(client):
     mock_response = {
         "status": "success",
         "content": "Clinical summary for pat_001.",
-        "metadata": {"model": "gpt-4o"},
+        "metadata": {"model": "gpt-5"},
     }
     with patch("app.routers.clinical.generate_clinical_summary", return_value={"summary": "test", "metadata": {}}):
         response = await client.post("/api/v1/clinical/summary", json={"patient_id": "pat_001"})
@@ -69,7 +69,7 @@ async def test_guideline_interpretation(client):
     mock_response = {
         "status": "success",
         "content": "Based on PADIS guidelines, recommend reducing sedation.",
-        "metadata": {"model": "gpt-4o"},
+        "metadata": {"model": "gpt-5"},
     }
     with patch("app.routers.clinical.call_llm", return_value=mock_response):
         response = await client.post(
@@ -103,7 +103,7 @@ async def test_multi_agent_decision(client):
     mock_response = {
         "status": "success",
         "content": "Recommend switching from Midazolam to Propofol.",
-        "metadata": {"model": "gpt-4o"},
+        "metadata": {"model": "gpt-5"},
     }
     with patch("app.routers.clinical.call_llm", return_value=mock_response):
         response = await client.post(
@@ -220,7 +220,7 @@ async def test_polish_progress_note(client):
     mock_response = {
         "status": "success",
         "content": "Polished progress note content.",
-        "metadata": {"model": "gpt-4o"},
+        "metadata": {"model": "gpt-5"},
     }
     with patch("app.routers.clinical.call_llm", return_value=mock_response):
         response = await client.post(
@@ -247,7 +247,7 @@ async def test_polish_medication_advice(client):
     mock_response = {
         "status": "success",
         "content": "Polished medication advice.",
-        "metadata": {"model": "gpt-4o"},
+        "metadata": {"model": "gpt-5"},
     }
     with patch("app.routers.clinical.call_llm", return_value=mock_response):
         response = await client.post(

@@ -73,22 +73,45 @@ class Settings(BaseSettings):
 
     # LLM (Phase 3)
     LLM_PROVIDER: str = "openai"
-    LLM_MODEL: str = "gpt-4o"
+    LLM_MODEL: str = "gpt-5"
     LLM_TEMPERATURE: float = 0.3
-    LLM_MAX_TOKENS: int = 2048
+    LLM_MAX_TOKENS: int = 8192  # GPT-5 reasoning models use thinking tokens within this budget
     LLM_RECENT_MSG_WINDOW: int = 10   # keep N most recent messages verbatim (F08)
     LLM_COMPRESS_THRESHOLD: int = 20  # trigger compression above this count (F08)
     # Optional audit capture of provider raw payloads (disabled by default).
     LLM_AUDIT_CAPTURE_RAW: bool = False
     LLM_AUDIT_CAPTURE_DIR: str = "reports/operations/llm_raw_capture"
     OPENAI_API_KEY: str = ""
-    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
+    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-large"
     ANTHROPIC_API_KEY: str = ""
 
     # RAG (Phase 3)
     RAG_DOCS_PATH: str = ""
     RAG_MIN_CITATIONS: int = 1
     RAG_MIN_CONFIDENCE: float = 0.55
+
+    # RAG Reranker — LLM-based cross-encoder reranking for improved retrieval
+    RAG_RERANK_ENABLED: bool = True
+    RAG_RERANK_MODEL: str = "gpt-5-mini"
+    RAG_RERANK_CANDIDATES: int = 20  # over-retrieve count before reranking
+
+    # RAG Hybrid Search — combine vector similarity with BM25 keyword matching
+    RAG_HYBRID_ENABLED: bool = True
+    RAG_BM25_WEIGHT: float = 0.3  # BM25 weight (vector weight = 1 - this)
+
+    # RAG Citation Summary — LLM refines raw chunks into structured citations
+    RAG_CITATION_SUMMARY_ENABLED: bool = True
+
+    # RAG Index Persistence — persist embeddings + BM25 to disk
+    RAG_INDEX_DIR: str = ""  # default: backend/data/rag_index/
+    RAG_AUTO_INDEX_ON_STARTUP: bool = True
+
+    # RAG Contextual Retrieval — prepend LLM-generated context to each chunk
+    # before embedding (Anthropic technique, ~67% fewer retrieval failures)
+    RAG_CONTEXTUAL_RETRIEVAL_ENABLED: bool = True
+    RAG_CONTEXTUAL_MODEL: str = "gpt-5"
+    RAG_CONTEXTUAL_MAX_DOC_CHARS: int = 8000  # truncate long docs for context prompt
+    RAG_CONTEXTUAL_WORKERS: int = 8  # parallel LLM calls for context generation
 
     # Evidence RAG microservice (func/) — hybrid RAG, dose calc, interactions
     # Override FUNC_API_URL in containers (e.g. FUNC_API_URL=http://func:8001)

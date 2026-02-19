@@ -86,7 +86,7 @@ async def test_ai_readiness_evidence_down_but_local_rag_available(client, monkey
     assert data["overall_ready"] is False
     assert data["evidence"]["reachable"] is False
     assert data["rag"]["is_indexed"] is True
-    assert data["rag"]["engine"] == "tfidf_fallback"
+    assert data["rag"]["engine"] == "local_rag"
     assert data["feature_gates"]["chat"] is True
     assert data["feature_gates"]["guideline_interpretation"] is True
     assert data["feature_gates"]["dose_calculation"] is False

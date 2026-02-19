@@ -1362,7 +1362,21 @@ export function PatientDetailPage() {
                                                       {' • '}
                                                       相關度 {Number.isFinite(Number(ref.relevance)) ? Number(ref.relevance).toFixed(3) : 'N/A'}
                                                     </p>
-                                                    {Array.isArray(ref.snippets) && ref.snippets.length > 1 ? (
+                                                    {ref.summary ? (
+                                                      <div className="mt-1 space-y-1">
+                                                        <p className="text-[11px] text-[#374151] leading-relaxed">
+                                                          <span className="font-medium text-[#7f265b]">重點：</span>{ref.summary}
+                                                        </p>
+                                                        {ref.keyQuote && (
+                                                          <div className="rounded border border-[#d1d5db] bg-white px-2 py-1.5 text-[11px] leading-relaxed text-[#6b7280] italic">
+                                                            「{ref.keyQuote}」
+                                                          </div>
+                                                        )}
+                                                        {ref.relevanceNote && (
+                                                          <p className="text-[10px] text-[#9ca3af]">{ref.relevanceNote}</p>
+                                                        )}
+                                                      </div>
+                                                    ) : Array.isArray(ref.snippets) && ref.snippets.length > 1 ? (
                                                       <div className="mt-1 space-y-1.5">
                                                         {ref.snippets.map((s, si) => (
                                                           <div key={si} className="rounded border border-[#d1d5db] bg-white p-2 text-[11px] leading-relaxed text-[#374151] whitespace-pre-wrap">

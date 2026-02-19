@@ -7,7 +7,7 @@ Uses SQLite in-memory DB (from conftest) + seeded patient with full
 clinical data (lab, vitals, meds, ventilator).
 
 Run:  cd backend && python3 -m pytest tests/test_e2e_llm.py -v -s
-Cost: ~10 OpenAI API calls per run (gpt-4o)
+Cost: ~10 OpenAI API calls per run (gpt-5)
 """
 
 from __future__ import annotations

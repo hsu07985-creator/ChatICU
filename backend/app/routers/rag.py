@@ -1,4 +1,4 @@
-"""RAG endpoints (Phase 3) — hybrid RAG via func/ with TF-IDF fallback."""
+"""RAG endpoints (Phase 3) — hybrid RAG via func/ with local RAG fallback."""
 
 from __future__ import annotations
 
@@ -95,9 +95,9 @@ async def rag_query(
             "rejected": False,
         })
     except Exception as exc:
-        logger.warning("[INTG][AI][API][F03] Hybrid RAG query failed, falling back to TF-IDF: %s", exc)
+        logger.warning("[INTG][AI][API][F03] Hybrid RAG query failed, falling back to local RAG: %s", exc)
 
-    # Fallback to TF-IDF
+    # Fallback to local RAG
     if not rag_service.is_indexed:
         raise HTTPException(status_code=503, detail="RAG index not ready. Call POST /api/v1/rag/index first.")
     result = rag_service.query(payload.question, top_k=payload.top_k)
@@ -105,7 +105,7 @@ async def rag_query(
     gate = evaluate_evidence_gate(citations=sources, confidence=None)
     metadata = {
         **(result.get("metadata") or {}),
-        "engine": "tfidf_fallback",
+        "engine": "local_rag",
         "confidence": gate["confidence"],
     }
     if not gate["passed"]:
@@ -146,7 +146,7 @@ async def rag_index(
         )
         return success_response(data=result)
     except Exception as exc:
-        logger.warning("[INTG][AI][API][F03] Hybrid RAG ingest failed, falling back to TF-IDF: %s", exc)
+        logger.warning("[INTG][AI][API][F03] Hybrid RAG ingest failed, falling back to local RAG: %s", exc)
 
     docs_path = payload.docs_path if payload else None
     chunks = rag_service.load_and_chunk(docs_path)
@@ -182,9 +182,9 @@ async def rag_status(
             "clinical_rules_loaded": health.get("clinical_rules_loaded", False),
         })
     except Exception as exc:
-        logger.warning("[INTG][AI][API][F03] Evidence health check failed, falling back to TF-IDF status: %s", exc)
+        logger.warning("[INTG][AI][API][F03] Evidence health check failed, falling back to local RAG status: %s", exc)
 
-    # Fallback to TF-IDF status (engine flag reflects degraded state)
+    # Fallback to local RAG status (engine flag reflects degraded state)
     status = rag_service.get_status()
-    status["engine"] = "tfidf_fallback"
+    status["engine"] = "local_rag"
     return success_response(data=status)

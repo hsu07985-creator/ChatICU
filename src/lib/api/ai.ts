@@ -38,6 +38,9 @@ export interface Citation {
   snippetCount?: number;
   sourceFile?: string;
   chunkId?: string | null;
+  summary?: string;
+  keyQuote?: string;
+  relevanceNote?: string;
 }
 
 export interface SuggestedAction {

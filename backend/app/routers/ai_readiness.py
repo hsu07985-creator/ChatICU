@@ -73,7 +73,7 @@ async def ai_readiness(
         rag_status = rag_service.get_status()
         rag_total_chunks = int(rag_status.get("total_chunks", 0) or 0)
         rag_total_documents = int(rag_status.get("total_documents", 0) or 0)
-        engine = "tfidf_fallback"
+        engine = "local_rag"
 
     rag_ready = rag_total_chunks > 0
     knowledge_ready = evidence_reachable or rag_ready
