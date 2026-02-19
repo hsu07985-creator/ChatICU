@@ -22,6 +22,8 @@ backend/.env
 .pytest_cache/
 output/
 playwright-report/
+.playwright-mcp/
+test-results/
 
 # Non-code assets / local tooling
 .claude/
@@ -35,6 +37,14 @@ ChatICU/
 server/.dart_tool/
 server/build/
 server/.vscode/
+
+# Local verification screenshots
+audit-*.png
+verify-*.png
+visual-*.png
+proportion-*.png
+chat-*.png
+pw-verify-*.png
 
 # Archived files (restructuring cleanup)
 _archive_candidates/
