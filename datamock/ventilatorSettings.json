@@ -1,0 +1,72 @@
+{
+  "ventilatorSettings": [
+    {
+      "id": "vent_002_1",
+      "patientId": "pat_002",
+      "timestamp": "2026-02-18T06:00:00Z",
+      "mode": "PRVC",
+      "fio2": 80,
+      "peep": 12,
+      "tidalVolume": 380,
+      "respiratoryRate": 22,
+      "inspiratoryPressure": 28,
+      "pressureSupport": null,
+      "ieRatio": "1:2",
+      "pip": 34,
+      "plateau": 28,
+      "compliance": 18,
+      "resistance": 12
+    },
+    {
+      "id": "vent_002_2",
+      "patientId": "pat_002",
+      "timestamp": "2026-02-17T18:00:00Z",
+      "mode": "PRVC",
+      "fio2": 85,
+      "peep": 14,
+      "tidalVolume": 375,
+      "respiratoryRate": 24,
+      "inspiratoryPressure": 30,
+      "pressureSupport": null,
+      "ieRatio": "1:2",
+      "pip": 36,
+      "plateau": 30,
+      "compliance": 16,
+      "resistance": 13
+    },
+    {
+      "id": "vent_003_1",
+      "patientId": "pat_003",
+      "timestamp": "2026-02-18T06:00:00Z",
+      "mode": "PC-AC",
+      "fio2": 45,
+      "peep": 8,
+      "tidalVolume": 440,
+      "respiratoryRate": 18,
+      "inspiratoryPressure": 16,
+      "pressureSupport": 10,
+      "ieRatio": "1:2",
+      "pip": 26,
+      "plateau": 22,
+      "compliance": 32,
+      "resistance": 8
+    },
+    {
+      "id": "vent_003_2",
+      "patientId": "pat_003",
+      "timestamp": "2026-02-17T18:00:00Z",
+      "mode": "PC-AC",
+      "fio2": 50,
+      "peep": 8,
+      "tidalVolume": 435,
+      "respiratoryRate": 18,
+      "inspiratoryPressure": 16,
+      "pressureSupport": 10,
+      "ieRatio": "1:2",
+      "pip": 27,
+      "plateau": 23,
+      "compliance": 30,
+      "resistance": 9
+    }
+  ]
+}

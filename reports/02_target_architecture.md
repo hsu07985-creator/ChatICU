@@ -1,73 +1,144 @@
-# Phase 2 — Target Architecture Proposal (Dry-run)
+# Phase 2 — Target Architecture & Move Plan
 
-Generated at: 2026-02-16
+**Date:** 2026-02-18
 
-## Target Structure
+---
 
-```text
-/
-├─ backend/                      # Active backend app (FastAPI, DB, AI routers/services)
-│  ├─ app/
-│  │  ├─ routers/                # API boundary (auth, dashboard, chat, clinical, pharmacy, admin)
-│  │  ├─ services/               # Domain/service logic (llm, evidence client, rule engine)
-│  │  ├─ models/                 # SQLAlchemy persistence models
-│  │  ├─ schemas/                # Request/response contracts
-│  │  └─ middleware/             # Auth, audit, rate-limit, observability
-│  ├─ alembic/versions/          # Migration chain
-│  └─ tests/                     # Backend contract/integration tests
-├─ src/                          # Active frontend app (React/Vite)
-│  ├─ pages/                     # Route-level screens
-│  ├─ components/                # Reusable UI + feature components
-│  └─ lib/                       # API clients, auth context, runtime helpers
-├─ e2e/                          # End-to-end scenarios and helpers
-├─ docs/                         # Operational/QA/architecture documentation
-├─ reports/                      # Current-cycle audit and verification outputs
-├─ _archive_candidates/YYYYMMDD/ # Quarantined legacy/unused candidates (no hard delete)
-└─ .github/workflows/            # CI gates
+## Current vs Target Structure
+
+The project already has reasonably clear module boundaries (backend/, src/, func/, datamock/).
+The main issues are **orphaned files at root** and **misplaced docs in src/**.
+
+### Current Problems
+
+1. **Root clutter:** `config.py`, `security_report.json`, `chaticu-dev-skill/`, `.orchestrator/` — orphaned
+2. **Dart Frog legacy:** `server/` — unused backend, confirmed by DEV_START doc
+3. **Frontend orphans:** 12 Figma exports in `src/imports/`, `src/lib/mock-data.ts` (53KB), `ImageWithFallback.tsx`
+4. **Misplaced docs:** 9 markdown files in `src/` that are design docs, not code
+5. **Stale reports:** 12 old orchestrator reports in `reports/`
+6. **Stale patches:** 3 old patches in `patches/`
+
+### Target Architecture (minimal restructuring)
+
+```
+ChatICU_2026_verf_0110_Yu/
+├── backend/                 ← (UNCHANGED) Production FastAPI
+│   ├── app/                 ← routers, models, schemas, services, utils, middleware
+│   ├── alembic/             ← DB migrations
+│   ├── seeds/               ← Data seeding
+│   ├── tests/               ← Backend tests
+│   ├── Dockerfile
+│   └── docker-compose.yml
+├── src/                     ← (CLEANED) Frontend React/TS
+│   ├── assets/
+│   ├── components/          ← ui/, patient/, domain components
+│   ├── hooks/
+│   ├── imports/             ← ONLY svg-n38m0xb9r6.ts (used by login)
+│   ├── lib/                 ← api/, auth-context, api-client, utils
+│   ├── pages/               ← All route pages
+│   └── styles/
+├── func/                    ← (UNCHANGED) Evidence RAG microservice
+├── datamock/                ← (UNCHANGED) JSON seed data
+├── rag 文本/                ← (UNCHANGED) Medical PDFs
+├── e2e/                     ← (UNCHANGED) E2E tests
+├── scripts/                 ← (UNCHANGED) Ops scripts
+├── docs/                    ← (EXPANDED) All documentation
+│   ├── frontend/            ← NEW: relocated from src/*.md
+│   ├── operations/
+│   ├── qa/
+│   ├── release/
+│   └── security/
+├── .github/                 ← (UNCHANGED) CI
+├── reports/                 ← (CLEANED) Only current reports
+│   └── operations/          ← (UNCHANGED)
+├── _archive_candidates/     ← Archive of orphaned items
+│   ├── 20260216/            ← Previous archive (ChatICU prototype)
+│   └── 20260218/            ← NEW: This session's archive
+└── [root configs]           ← package.json, tsconfig, vite.config, etc.
 ```
 
-## Module Boundaries
-- Frontend UI boundary: `src/pages/*` and `src/components/*`.
-- Frontend data boundary: `src/lib/api-client.ts` + `src/lib/api/*`.
-- Backend API boundary: `backend/app/routers/*` mounted by `backend/app/main.py`.
-- Backend domain/service boundary: `backend/app/services/*`.
-- Backend persistence boundary: `backend/app/models/*` + `backend/alembic/versions/*`.
-- AI boundary: `backend/app/llm.py`, `backend/app/services/llm_services/*`, `backend/app/services/evidence_client.py`, AI routers in `clinical.py` and `ai_chat.py`.
+---
 
-## Gate A (Dry-run) — Candidate Safety Checks
+## Move Plan
 
-### Candidate groups with evidence
-1. Legacy backend subtree candidate: `ChatICU/`
-- Evidence:
-  - `TASK_TRACKER.md:89-90` marks `backend/` as the only official backend and `ChatICU/` as archived reference.
-  - No runtime script/CI/docker references to `ChatICU/` in active execution files (`package.json`, `.github/workflows/ci.yml`, `backend/docker-compose.yml`, `playwright.config.js`).
+### Batch 1: Root-level orphans → archive (LOW RISK)
 
-2. Historical generated artifacts candidates
-- `patches/prompt-P00.patch` ... `patches/prompt-P09.patch`
-- `reports/prompt-P00-result.md` ... `reports/prompt-P09-result.md`
-- `reports/final-integration-gate.md`
-- Evidence:
-  - These files are generated deliverables; no active script/test/runtime import chain references.
+| old_path | new_path | reason | confidence | risk |
+|----------|----------|--------|-----------|------|
+| `config.py` | `_archive_candidates/20260218/config.py` | Zero imports in entire codebase; Python 3.10+ syntax incompatible with project 3.9.6 | 99 | low |
+| `security_report.json` | `_archive_candidates/20260218/security_report.json` | One-time scan referencing archived ChatICU/; gitignored | 98 | low |
+| `chaticu-dev-skill/` | `_archive_candidates/20260218/chaticu-dev-skill/` | Skill templates; no runtime imports; gitignored | 98 | low |
+| `.orchestrator/` | `_archive_candidates/20260218/.orchestrator/` | Old orchestrator state; no active references | 98 | low |
+| `__pycache__/` | (DELETE) | Root-level cache from orphaned config.py; gitignored; auto-regenerated | 100 | none |
 
-3. Historical top-level audit notes
-- `AI_AUDIT_REPORT.md`
-- `AI_TASK_TRACKER.md`
-- Evidence:
-  - Not used by build/test/startup scripts.
-  - Mentioned only as documentation context in `docs/system-fix-plan.md`.
+### Batch 2: Frontend orphans → archive (LOW RISK)
 
-### High-risk files (manual review required, no auto-move)
-- Frontend entry/routing:
-  - `src/main.tsx`
-  - `src/App.tsx`
-- Backend entry/router mount:
-  - `backend/app/main.py`
-  - `backend/app/routers/*.py`
-- DB migrations:
-  - `backend/alembic/versions/*.py`
-- CI/deployment:
-  - `.github/workflows/ci.yml`
-  - `backend/docker-compose.yml`
-  - `playwright.config.js`
+| old_path | new_path | reason | confidence | risk |
+|----------|----------|--------|-----------|------|
+| `src/lib/mock-data.ts` | `_archive_candidates/20260218/src-orphans/mock-data.ts` | 53KB; zero .ts/.tsx imports | 99 | low |
+| `src/components/figma/ImageWithFallback.tsx` | `_archive_candidates/20260218/src-orphans/figma/ImageWithFallback.tsx` | Zero component imports | 98 | low |
+| `src/imports/Frame.tsx` | `_archive_candidates/20260218/src-orphans/imports/Frame.tsx` | Orphaned Figma export | 98 | low |
+| `src/imports/IcuAi1.tsx` | `_archive_candidates/20260218/src-orphans/imports/IcuAi1.tsx` | Orphaned Figma export | 98 | low |
+| `src/imports/IcuLogin.tsx` | `_archive_candidates/20260218/src-orphans/imports/IcuLogin.tsx` | Orphaned Figma export | 98 | low |
+| `src/imports/IcuPatientAi11.tsx` | `_archive_candidates/20260218/src-orphans/imports/IcuPatientAi11.tsx` | Orphaned + tsconfig excluded | 99 | low |
+| `src/imports/svg-0tbt4.tsx` | `_archive_candidates/20260218/src-orphans/imports/svg-0tbt4.tsx` | Only used by orphaned IcuAi1 | 98 | low |
+| `src/imports/svg-fx6y5.tsx` | `_archive_candidates/20260218/src-orphans/imports/svg-fx6y5.tsx` | Only used by orphaned IcuPatientAi11 | 98 | low |
+| `src/imports/svg-hnm2h.tsx` | `_archive_candidates/20260218/src-orphans/imports/svg-hnm2h.tsx` | Only used by orphaned Frame | 98 | low |
+| `src/imports/svg-ihon1.tsx` | `_archive_candidates/20260218/src-orphans/imports/svg-ihon1.tsx` | Only used by orphaned Frame | 98 | low |
+| `src/imports/svg-ik76jdycii.ts` | `_archive_candidates/20260218/src-orphans/imports/svg-ik76jdycii.ts` | Only used by orphaned IcuAi1 | 98 | low |
+| `src/imports/svg-n55v8t8hjk.ts` | `_archive_candidates/20260218/src-orphans/imports/svg-n55v8t8hjk.ts` | Zero references anywhere | 99 | low |
+| `src/imports/svg-q8bgnvty5b.ts` | `_archive_candidates/20260218/src-orphans/imports/svg-q8bgnvty5b.ts` | Only used by orphaned IcuPatientAi11 | 98 | low |
+| `src/imports/svg-v1yr43xgtu.ts` | `_archive_candidates/20260218/src-orphans/imports/svg-v1yr43xgtu.ts` | Only used by orphaned Frame | 98 | low |
 
-Gate A status: PASS (all move candidates have evidence; high-risk files are excluded from move plan).
+**KEEP:** `src/imports/svg-n38m0xb9r6.ts` (imported by login.tsx:10)
+
+### Batch 3: Misplaced docs → relocate to docs/frontend/ (LOW RISK)
+
+| old_path | new_path | reason | confidence | risk |
+|----------|----------|--------|-----------|------|
+| `src/SYSTEM_ARCHITECTURE.md` | `docs/frontend/SYSTEM_ARCHITECTURE.md` | Design doc, not code | 95 | low |
+| `src/BUTTON_INTERACTION_FLOW.md` | `docs/frontend/BUTTON_INTERACTION_FLOW.md` | Design doc, not code | 95 | low |
+| `src/COMPLETE_UI_AUDIT.md` | `docs/frontend/COMPLETE_UI_AUDIT.md` | Design doc, not code | 95 | low |
+| `src/FRONTEND_INTERACTION_MAP.md` | `docs/frontend/FRONTEND_INTERACTION_MAP.md` | Design doc, not code | 95 | low |
+| `src/DATA_AUDIT.md` | `docs/frontend/DATA_AUDIT.md` | Design doc, not code | 95 | low |
+| `src/API_SPECIFICATION.md` | `docs/frontend/API_SPECIFICATION.md` | Design doc, not code | 95 | low |
+| `src/README.md` | `docs/frontend/README.md` | src-level readme | 90 | low |
+| `src/Attributions.md` | `docs/frontend/Attributions.md` | Attribution doc | 90 | low |
+| `src/guidelines/Guidelines.md` | `docs/frontend/Guidelines.md` | Guideline doc | 95 | low |
+
+### Batch 4: Stale reports & patches → archive (LOW RISK)
+
+| old_path | new_path | reason | confidence | risk |
+|----------|----------|--------|-----------|------|
+| `patches/` | `_archive_candidates/20260218/patches/` | 3 old orchestrator patches | 95 | low |
+| `reports/prompt-P08-result.md` | `_archive_candidates/20260218/old-reports/prompt-P08-result.md` | Old orchestrator report | 95 | low |
+| `reports/prompt-P09-result.md` | `_archive_candidates/20260218/old-reports/prompt-P09-result.md` | Old orchestrator report | 95 | low |
+| `reports/prompt-P0P1-followup-result.md` | `_archive_candidates/20260218/old-reports/prompt-P0P1-followup-result.md` | Old orchestrator report | 95 | low |
+| `reports/phase-0-project-map.md` | `_archive_candidates/20260218/old-reports/phase-0-project-map.md` | Old analysis report | 95 | low |
+| `reports/phase-1-frontend-requirement-catalog.md` | `_archive_candidates/20260218/old-reports/phase-1-frontend-requirement-catalog.md` | Old analysis | 95 | low |
+| `reports/phase-2-contract-matrix.md` | `_archive_candidates/20260218/old-reports/phase-2-contract-matrix.md` | Old analysis | 95 | low |
+| `reports/phase-3-field-lineage-matrix.md` | `_archive_candidates/20260218/old-reports/phase-3-field-lineage-matrix.md` | Old analysis | 95 | low |
+| `reports/phase-4-mock-fake-risk-register.md` | `_archive_candidates/20260218/old-reports/phase-4-mock-fake-risk-register.md` | Old analysis | 95 | low |
+| `reports/phase-5-prioritized-fix-backlog.md` | `_archive_candidates/20260218/old-reports/phase-5-prioritized-fix-backlog.md` | Old analysis | 95 | low |
+| `reports/final-integration-gate.md` | `_archive_candidates/20260218/old-reports/final-integration-gate.md` | Old gate report | 95 | low |
+| `reports/frontend_api_contract_audit_tracker.md` | `_archive_candidates/20260218/old-reports/frontend_api_contract_audit_tracker.md` | Old tracker | 95 | low |
+| `reports/t27-remediation-task-board.md` | `_archive_candidates/20260218/old-reports/t27-remediation-task-board.md` | Old remediation | 95 | low |
+| `reports/t27-remediation-verification.md` | `_archive_candidates/20260218/old-reports/t27-remediation-verification.md` | Old verification | 95 | low |
+
+### Batch 5: Code fixes (LOW RISK)
+
+| file | action | reason |
+|------|--------|--------|
+| `src/lib/api/health.ts:69` | Fix stale comment referencing `dart_frog dev` | server/ being archived |
+| `tsconfig.json:59` | Remove `src/imports/IcuPatientAi11.tsx` from exclude | File archived, exclude no longer needed |
+| `src/guidelines/` | Remove empty directory after moving Guidelines.md | Clean up |
+| `src/components/figma/` | Remove empty directory after moving ImageWithFallback.tsx | Clean up |
+
+---
+
+## HIGH RISK / HUMAN REVIEW REQUIRED
+
+| Path | Score | Issue | Action Required |
+|------|-------|-------|-----------------|
+| `server/` | 35 | Dart Frog backend. DEV_START doc confirms unused. BUT `server/routes/dashboard/stats.dart` is modified in current branch working tree. May be active reference sync. | **ASK USER before archiving** |
+| `src/hooks/use-api.ts` | 30 | Custom hook; import status unclear | **Verify manually** |

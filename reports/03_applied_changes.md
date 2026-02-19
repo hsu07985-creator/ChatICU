@@ -1,40 +1,64 @@
 # Phase 3 — Applied Changes
 
-Generated at: 2026-02-16 16:03:53
+**Date:** 2026-02-18
 
-## Batch Execution Summary
-- Mode: small-batch move with rollback-safe archive (no permanent delete).
-- Archive root: `_archive_candidates/20260216/`.
-- Total archived files: 100.
-- Archived legacy subtree files (`ChatICU/`): 77.
-- Archived historical patch files (`patches/prompt-P*.patch`): 10.
-- Archived historical phase reports (`reports/prompt-P*`, `final-integration-gate.md`): 11.
-- Archived top-level historical notes: 2 (`AI_AUDIT_REPORT.md`, `AI_TASK_TRACKER.md`).
+---
 
-## Applied Moves
-| Source | Destination | Evidence Class |
-|---|---|---|
-| `ChatICU/` | `_archive_candidates/20260216/ChatICU/` | LEGACY/ORPHAN candidate (non-runtime archived subtree) |
-| `AI_AUDIT_REPORT.md` | `_archive_candidates/20260216/AI_AUDIT_REPORT.md` | ORPHAN candidate (no runtime/build/test reference) |
-| `AI_TASK_TRACKER.md` | `_archive_candidates/20260216/AI_TASK_TRACKER.md` | ORPHAN candidate (no runtime/build/test reference) |
-| `patches/prompt-P00.patch` ... `patches/prompt-P09.patch` | `_archive_candidates/20260216/patches/` | ORPHAN candidate (historical generated patches) |
-| `reports/prompt-P00-result.md` ... `reports/prompt-P09-result.md` + `reports/final-integration-gate.md` | `_archive_candidates/20260216/reports/` | ORPHAN candidate (historical generated reports) |
+## Batch 1: Root-Level Orphans → Archive
 
-## Reference Fix-ups
-- Updated `TASK_TRACKER.md` archived path references to `_archive_candidates/20260216/ChatICU/ARCHIVED.md`.
-- Updated `docs/system-fix-plan.md` `AI_TASK_TRACKER.md` path reference to `_archive_candidates/20260216/AI_TASK_TRACKER.md`.
+| Action | Path | Destination |
+|--------|------|-------------|
+| MOVE | `config.py` | `_archive_candidates/20260218/config.py` |
+| MOVE | `security_report.json` | `_archive_candidates/20260218/security_report.json` |
+| MOVE | `chaticu-dev-skill/` | `_archive_candidates/20260218/chaticu-dev-skill/` |
+| MOVE | `.orchestrator/` | `_archive_candidates/20260218/.orchestrator/` |
+| DELETE | `__pycache__/` | (auto-regenerated; gitignored) |
 
-## Rollback Steps
-```bash
-cd /Users/chun/Desktop/ChatICU_2026_verf_0110_Yu
-mv _archive_candidates/20260216/ChatICU ./ChatICU
-mv _archive_candidates/20260216/AI_AUDIT_REPORT.md ./AI_AUDIT_REPORT.md
-mv _archive_candidates/20260216/AI_TASK_TRACKER.md ./AI_TASK_TRACKER.md
-mv _archive_candidates/20260216/patches/prompt-P*.patch ./patches/
-mv _archive_candidates/20260216/reports/final-integration-gate.md ./reports/
-mv _archive_candidates/20260216/reports/prompt-P*-result.md ./reports/
-```
+## Batch 2: Frontend Orphans → Archive
 
-## Notes
-- No production entrypoints, routers, migrations, CI workflow, or deployment manifests were moved.
-- All candidate files were quarantined (not deleted) per policy.
+| Action | Path | Destination |
+|--------|------|-------------|
+| MOVE | `src/lib/mock-data.ts` (53KB) | `_archive_candidates/20260218/src-orphans/mock-data.ts` |
+| MOVE | `src/components/figma/ImageWithFallback.tsx` | `_archive_candidates/20260218/src-orphans/figma/` |
+| MOVE | `src/hooks/use-api.ts` | `_archive_candidates/20260218/src-orphans/hooks/` |
+| MOVE | 12 Figma exports from `src/imports/` | `_archive_candidates/20260218/src-orphans/imports/` |
+| KEEP | `src/imports/svg-n38m0xb9r6.ts` | (used by login.tsx:10) |
+| RMDIR | `src/components/figma/`, `src/hooks/`, `src/guidelines/` | (empty after moves) |
+
+## Batch 3: Misplaced Docs → docs/frontend/
+
+| Old Path | New Path |
+|----------|----------|
+| `src/SYSTEM_ARCHITECTURE.md` | `docs/frontend/SYSTEM_ARCHITECTURE.md` |
+| `src/BUTTON_INTERACTION_FLOW.md` | `docs/frontend/BUTTON_INTERACTION_FLOW.md` |
+| `src/COMPLETE_UI_AUDIT.md` | `docs/frontend/COMPLETE_UI_AUDIT.md` |
+| `src/FRONTEND_INTERACTION_MAP.md` | `docs/frontend/FRONTEND_INTERACTION_MAP.md` |
+| `src/DATA_AUDIT.md` | `docs/frontend/DATA_AUDIT.md` |
+| `src/API_SPECIFICATION.md` | `docs/frontend/API_SPECIFICATION.md` |
+| `src/README.md` | `docs/frontend/README.md` |
+| `src/Attributions.md` | `docs/frontend/Attributions.md` |
+| `src/guidelines/Guidelines.md` | `docs/frontend/Guidelines.md` |
+
+## Batch 4: Stale Reports & Patches → Archive
+
+- `patches/` (3 files) → `_archive_candidates/20260218/patches/`
+- 12 old orchestrator reports → `_archive_candidates/20260218/old-reports/`
+
+## Batch 5: Code Fixes
+
+| File | Change |
+|------|--------|
+| `src/lib/api/health.ts:69` | `dart_frog dev` → actual FastAPI uvicorn command |
+| `tsconfig.json:59` | Removed `exclude: ["src/imports/IcuPatientAi11.tsx"]` (file archived) |
+
+## Statistics
+
+- Files moved to archive: 30
+- Files relocated (src/ → docs/): 9
+- Empty directories removed: 3
+- Code fixes: 2
+- Net src/ reduction: ~17,000 lines
+
+## Rollback
+
+All files preserved in `_archive_candidates/20260218/`. Full diff: `reports/03_unified_diff.patch` (18,290 lines).

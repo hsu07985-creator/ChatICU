@@ -3,130 +3,944 @@
     {
       "id": "lab_001",
       "patientId": "pat_001",
-      "timestamp": "2025-01-10T08:30:00Z",
+      "timestamp": "2026-02-18T06:30:00Z",
       "biochemistry": {
-        "Na": { "value": 138, "unit": "mmol/L", "referenceRange": "135-145", "isAbnormal": false },
-        "K": { "value": 3.2, "unit": "mmol/L", "referenceRange": "3.5-5.0", "isAbnormal": true },
-        "Cl": { "value": 102, "unit": "mmol/L", "referenceRange": "96-106", "isAbnormal": false },
-        "BUN": { "value": 28, "unit": "mg/dL", "referenceRange": "7-20", "isAbnormal": true },
-        "Scr": { "value": 1.2, "unit": "mg/dL", "referenceRange": "0.7-1.3", "isAbnormal": false },
-        "eGFR": { "value": 58, "unit": "mL/min", "referenceRange": "≥60", "isAbnormal": true },
-        "Glucose": { "value": 145, "unit": "mg/dL", "referenceRange": "70-100", "isAbnormal": true },
-        "Ca": { "value": 8.8, "unit": "mg/dL", "referenceRange": "8.5-10.5", "isAbnormal": false },
-        "Mg": { "value": 1.9, "unit": "mEq/L", "referenceRange": "1.7-2.2", "isAbnormal": false },
-        "Alb": { "value": 3.2, "unit": "g/dL", "referenceRange": "3.5-5.0", "isAbnormal": true }
+        "Na": {
+          "value": 138,
+          "unit": "mmol/L",
+          "referenceRange": "135-145",
+          "isAbnormal": false
+        },
+        "K": {
+          "value": 3.2,
+          "unit": "mmol/L",
+          "referenceRange": "3.5-5.0",
+          "isAbnormal": true
+        },
+        "Cl": {
+          "value": 102,
+          "unit": "mmol/L",
+          "referenceRange": "96-106",
+          "isAbnormal": false
+        },
+        "CO2": {
+          "value": 22,
+          "unit": "mmol/L",
+          "referenceRange": "22-29",
+          "isAbnormal": false
+        },
+        "BUN": {
+          "value": 28,
+          "unit": "mg/dL",
+          "referenceRange": "7-20",
+          "isAbnormal": true
+        },
+        "Scr": {
+          "value": 1.2,
+          "unit": "mg/dL",
+          "referenceRange": "0.7-1.3",
+          "isAbnormal": false
+        },
+        "eGFR": {
+          "value": 58,
+          "unit": "mL/min",
+          "referenceRange": "≥60",
+          "isAbnormal": true
+        },
+        "Glucose": {
+          "value": 145,
+          "unit": "mg/dL",
+          "referenceRange": "70-100",
+          "isAbnormal": true
+        },
+        "Ca": {
+          "value": 8.5,
+          "unit": "mg/dL",
+          "referenceRange": "8.5-10.5",
+          "isAbnormal": false
+        },
+        "Mg": {
+          "value": 1.8,
+          "unit": "mEq/L",
+          "referenceRange": "1.7-2.2",
+          "isAbnormal": false
+        },
+        "Phos": {
+          "value": 3.8,
+          "unit": "mg/dL",
+          "referenceRange": "2.5-4.5",
+          "isAbnormal": false
+        },
+        "Alb": {
+          "value": 3.2,
+          "unit": "g/dL",
+          "referenceRange": "3.5-5.0",
+          "isAbnormal": true
+        },
+        "AST": {
+          "value": 65,
+          "unit": "U/L",
+          "referenceRange": "10-40",
+          "isAbnormal": true
+        },
+        "ALT": {
+          "value": 48,
+          "unit": "U/L",
+          "referenceRange": "7-45",
+          "isAbnormal": true
+        },
+        "TBIL": {
+          "value": 1.4,
+          "unit": "mg/dL",
+          "referenceRange": "0.2-1.2",
+          "isAbnormal": true
+        },
+        "LDH": {
+          "value": 380,
+          "unit": "U/L",
+          "referenceRange": "140-280",
+          "isAbnormal": true
+        }
       },
       "hematology": {
-        "WBC": { "value": 12.5, "unit": "10³/μL", "referenceRange": "4.0-10.0", "isAbnormal": true },
-        "RBC": { "value": 3.8, "unit": "10⁶/μL", "referenceRange": "4.5-5.5", "isAbnormal": true },
-        "Hb": { "value": 10.2, "unit": "g/dL", "referenceRange": "13.5-17.5", "isAbnormal": true },
-        "Hct": { "value": 30.5, "unit": "%", "referenceRange": "40-52", "isAbnormal": true },
-        "PLT": { "value": 185, "unit": "10³/μL", "referenceRange": "150-400", "isAbnormal": false },
-        "Segment": { "value": 78, "unit": "%", "referenceRange": "40-74", "isAbnormal": true },
-        "Lymph": { "value": 16, "unit": "%", "referenceRange": "20-45", "isAbnormal": true }
+        "WBC": {
+          "value": 12.5,
+          "unit": "10³/μL",
+          "referenceRange": "4.0-10.0",
+          "isAbnormal": true
+        },
+        "RBC": {
+          "value": 3.8,
+          "unit": "10⁶/μL",
+          "referenceRange": "4.5-5.5",
+          "isAbnormal": true
+        },
+        "Hb": {
+          "value": 10.2,
+          "unit": "g/dL",
+          "referenceRange": "13.5-17.5",
+          "isAbnormal": true
+        },
+        "Hct": {
+          "value": 30.5,
+          "unit": "%",
+          "referenceRange": "40-52",
+          "isAbnormal": true
+        },
+        "PLT": {
+          "value": 185,
+          "unit": "10³/μL",
+          "referenceRange": "150-400",
+          "isAbnormal": false
+        },
+        "Segment": {
+          "value": 78,
+          "unit": "%",
+          "referenceRange": "40-74",
+          "isAbnormal": true
+        },
+        "Lymph": {
+          "value": 16,
+          "unit": "%",
+          "referenceRange": "20-45",
+          "isAbnormal": true
+        },
+        "Mono": {
+          "value": 6,
+          "unit": "%",
+          "referenceRange": "2-10",
+          "isAbnormal": false
+        }
       },
       "bloodGas": {
-        "pH": { "value": 7.35, "unit": "", "referenceRange": "7.35-7.45", "isAbnormal": false },
-        "PCO2": { "value": 45, "unit": "mmHg", "referenceRange": "35-45", "isAbnormal": false },
-        "PO2": { "value": 85, "unit": "mmHg", "referenceRange": "80-100", "isAbnormal": false },
-        "HCO3": { "value": 23, "unit": "mmol/L", "referenceRange": "22-26", "isAbnormal": false },
-        "Lactate": { "value": 2.5, "unit": "mmol/L", "referenceRange": "<2.0", "isAbnormal": true },
-        "BE": { "value": -1.5, "unit": "mmol/L", "referenceRange": "-2 to +2", "isAbnormal": false }
+        "pH": {
+          "value": 7.35,
+          "unit": "",
+          "referenceRange": "7.35-7.45",
+          "isAbnormal": false
+        },
+        "PCO2": {
+          "value": 45,
+          "unit": "mmHg",
+          "referenceRange": "35-45",
+          "isAbnormal": false
+        },
+        "PO2": {
+          "value": 85,
+          "unit": "mmHg",
+          "referenceRange": "80-100",
+          "isAbnormal": false
+        },
+        "HCO3": {
+          "value": 23,
+          "unit": "mmol/L",
+          "referenceRange": "22-26",
+          "isAbnormal": false
+        },
+        "Lactate": {
+          "value": 2.5,
+          "unit": "mmol/L",
+          "referenceRange": "<2.0",
+          "isAbnormal": true
+        },
+        "BE": {
+          "value": -1.5,
+          "unit": "mmol/L",
+          "referenceRange": "-2 to +2",
+          "isAbnormal": false
+        },
+        "SaO2": {
+          "value": 96.5,
+          "unit": "%",
+          "referenceRange": "95-100",
+          "isAbnormal": false
+        }
       },
       "inflammatory": {
-        "CRP": { "value": 15.2, "unit": "mg/L", "referenceRange": "<5.0", "isAbnormal": true },
-        "PCT": { "value": 2.2, "unit": "ng/mL", "referenceRange": "<0.5", "isAbnormal": true }
+        "CRP": {
+          "value": 15.2,
+          "unit": "mg/L",
+          "referenceRange": "<5.0",
+          "isAbnormal": true
+        },
+        "PCT": {
+          "value": 2.2,
+          "unit": "ng/mL",
+          "referenceRange": "<0.5",
+          "isAbnormal": true
+        },
+        "IL-6": {
+          "value": 48,
+          "unit": "pg/mL",
+          "referenceRange": "<7",
+          "isAbnormal": true
+        }
       },
       "coagulation": {
-        "PT": { "value": 12.5, "unit": "sec", "referenceRange": "9.5-13.5", "isAbnormal": false },
-        "aPTT": { "value": 32, "unit": "sec", "referenceRange": "25-35", "isAbnormal": false },
-        "INR": { "value": 1.1, "unit": "", "referenceRange": "0.8-1.2", "isAbnormal": false }
+        "PT": {
+          "value": 12.5,
+          "unit": "sec",
+          "referenceRange": "9.5-13.5",
+          "isAbnormal": false
+        },
+        "aPTT": {
+          "value": 32,
+          "unit": "sec",
+          "referenceRange": "25-35",
+          "isAbnormal": false
+        },
+        "INR": {
+          "value": 1.1,
+          "unit": "",
+          "referenceRange": "0.8-1.2",
+          "isAbnormal": false
+        },
+        "Fibrinogen": {
+          "value": 4.2,
+          "unit": "g/L",
+          "referenceRange": "2.0-4.0",
+          "isAbnormal": true
+        }
       }
     },
     {
       "id": "lab_002",
       "patientId": "pat_002",
-      "timestamp": "2025-01-10T07:00:00Z",
+      "timestamp": "2026-02-18T07:00:00Z",
       "biochemistry": {
-        "Na": { "value": 142, "unit": "mmol/L", "referenceRange": "135-145", "isAbnormal": false },
-        "K": { "value": 4.5, "unit": "mmol/L", "referenceRange": "3.5-5.0", "isAbnormal": false },
-        "Cl": { "value": 105, "unit": "mmol/L", "referenceRange": "96-106", "isAbnormal": false },
-        "BUN": { "value": 35, "unit": "mg/dL", "referenceRange": "7-20", "isAbnormal": true },
-        "Scr": { "value": 2.1, "unit": "mg/dL", "referenceRange": "0.7-1.3", "isAbnormal": true },
-        "eGFR": { "value": 32, "unit": "mL/min", "referenceRange": "≥60", "isAbnormal": true },
-        "Glucose": { "value": 180, "unit": "mg/dL", "referenceRange": "70-100", "isAbnormal": true }
+        "Na": {
+          "value": 142,
+          "unit": "mmol/L",
+          "referenceRange": "135-145",
+          "isAbnormal": false
+        },
+        "K": {
+          "value": 4.5,
+          "unit": "mmol/L",
+          "referenceRange": "3.5-5.0",
+          "isAbnormal": false
+        },
+        "Cl": {
+          "value": 105,
+          "unit": "mmol/L",
+          "referenceRange": "96-106",
+          "isAbnormal": false
+        },
+        "CO2": {
+          "value": 18,
+          "unit": "mmol/L",
+          "referenceRange": "22-29",
+          "isAbnormal": true
+        },
+        "BUN": {
+          "value": 35,
+          "unit": "mg/dL",
+          "referenceRange": "7-20",
+          "isAbnormal": true
+        },
+        "Scr": {
+          "value": 2.1,
+          "unit": "mg/dL",
+          "referenceRange": "0.7-1.3",
+          "isAbnormal": true
+        },
+        "eGFR": {
+          "value": 32,
+          "unit": "mL/min",
+          "referenceRange": "≥60",
+          "isAbnormal": true
+        },
+        "Glucose": {
+          "value": 180,
+          "unit": "mg/dL",
+          "referenceRange": "70-100",
+          "isAbnormal": true
+        },
+        "Ca": {
+          "value": 7.8,
+          "unit": "mg/dL",
+          "referenceRange": "8.5-10.5",
+          "isAbnormal": true
+        },
+        "Mg": {
+          "value": 1.5,
+          "unit": "mEq/L",
+          "referenceRange": "1.7-2.2",
+          "isAbnormal": true
+        },
+        "Phos": {
+          "value": 2.0,
+          "unit": "mg/dL",
+          "referenceRange": "2.5-4.5",
+          "isAbnormal": true
+        },
+        "Alb": {
+          "value": 2.2,
+          "unit": "g/dL",
+          "referenceRange": "3.5-5.0",
+          "isAbnormal": true
+        },
+        "AST": {
+          "value": 210,
+          "unit": "U/L",
+          "referenceRange": "10-40",
+          "isAbnormal": true
+        },
+        "ALT": {
+          "value": 185,
+          "unit": "U/L",
+          "referenceRange": "7-45",
+          "isAbnormal": true
+        },
+        "TBIL": {
+          "value": 3.2,
+          "unit": "mg/dL",
+          "referenceRange": "0.2-1.2",
+          "isAbnormal": true
+        },
+        "LDH": {
+          "value": 820,
+          "unit": "U/L",
+          "referenceRange": "140-280",
+          "isAbnormal": true
+        },
+        "Troponin-I": {
+          "value": 0.8,
+          "unit": "ng/mL",
+          "referenceRange": "<0.04",
+          "isAbnormal": true
+        }
       },
       "hematology": {
-        "WBC": { "value": 18.5, "unit": "10³/μL", "referenceRange": "4.0-10.0", "isAbnormal": true },
-        "Hb": { "value": 9.5, "unit": "g/dL", "referenceRange": "13.5-17.5", "isAbnormal": true },
-        "PLT": { "value": 95, "unit": "10³/μL", "referenceRange": "150-400", "isAbnormal": true }
+        "WBC": {
+          "value": 18.5,
+          "unit": "10³/μL",
+          "referenceRange": "4.0-10.0",
+          "isAbnormal": true
+        },
+        "RBC": {
+          "value": 3.2,
+          "unit": "10⁶/μL",
+          "referenceRange": "4.5-5.5",
+          "isAbnormal": true
+        },
+        "Hb": {
+          "value": 9.5,
+          "unit": "g/dL",
+          "referenceRange": "13.5-17.5",
+          "isAbnormal": true
+        },
+        "Hct": {
+          "value": 28.0,
+          "unit": "%",
+          "referenceRange": "40-52",
+          "isAbnormal": true
+        },
+        "PLT": {
+          "value": 95,
+          "unit": "10³/μL",
+          "referenceRange": "150-400",
+          "isAbnormal": true
+        },
+        "Segment": {
+          "value": 85,
+          "unit": "%",
+          "referenceRange": "40-74",
+          "isAbnormal": true
+        },
+        "Lymph": {
+          "value": 10,
+          "unit": "%",
+          "referenceRange": "20-45",
+          "isAbnormal": true
+        },
+        "Band": {
+          "value": 5,
+          "unit": "%",
+          "referenceRange": "0-5",
+          "isAbnormal": false
+        }
       },
       "bloodGas": {
-        "pH": { "value": 7.28, "unit": "", "referenceRange": "7.35-7.45", "isAbnormal": true },
-        "PCO2": { "value": 32, "unit": "mmHg", "referenceRange": "35-45", "isAbnormal": true },
-        "Lactate": { "value": 4.5, "unit": "mmol/L", "referenceRange": "<2.0", "isAbnormal": true }
+        "pH": {
+          "value": 7.28,
+          "unit": "",
+          "referenceRange": "7.35-7.45",
+          "isAbnormal": true
+        },
+        "PCO2": {
+          "value": 32,
+          "unit": "mmHg",
+          "referenceRange": "35-45",
+          "isAbnormal": true
+        },
+        "PO2": {
+          "value": 58,
+          "unit": "mmHg",
+          "referenceRange": "80-100",
+          "isAbnormal": true
+        },
+        "HCO3": {
+          "value": 14,
+          "unit": "mmol/L",
+          "referenceRange": "22-26",
+          "isAbnormal": true
+        },
+        "Lactate": {
+          "value": 4.5,
+          "unit": "mmol/L",
+          "referenceRange": "<2.0",
+          "isAbnormal": true
+        },
+        "BE": {
+          "value": -12,
+          "unit": "mmol/L",
+          "referenceRange": "-2 to +2",
+          "isAbnormal": true
+        },
+        "SaO2": {
+          "value": 88.0,
+          "unit": "%",
+          "referenceRange": "95-100",
+          "isAbnormal": true
+        }
       },
       "inflammatory": {
-        "CRP": { "value": 28.5, "unit": "mg/L", "referenceRange": "<5.0", "isAbnormal": true },
-        "PCT": { "value": 8.5, "unit": "ng/mL", "referenceRange": "<0.5", "isAbnormal": true }
+        "CRP": {
+          "value": 28.5,
+          "unit": "mg/L",
+          "referenceRange": "<5.0",
+          "isAbnormal": true
+        },
+        "PCT": {
+          "value": 8.5,
+          "unit": "ng/mL",
+          "referenceRange": "<0.5",
+          "isAbnormal": true
+        },
+        "IL-6": {
+          "value": 320,
+          "unit": "pg/mL",
+          "referenceRange": "<7",
+          "isAbnormal": true
+        }
+      },
+      "coagulation": {
+        "PT": {
+          "value": 18.5,
+          "unit": "sec",
+          "referenceRange": "9.5-13.5",
+          "isAbnormal": true
+        },
+        "aPTT": {
+          "value": 52,
+          "unit": "sec",
+          "referenceRange": "25-35",
+          "isAbnormal": true
+        },
+        "INR": {
+          "value": 1.8,
+          "unit": "",
+          "referenceRange": "0.8-1.2",
+          "isAbnormal": true
+        },
+        "Fibrinogen": {
+          "value": 1.2,
+          "unit": "g/L",
+          "referenceRange": "2.0-4.0",
+          "isAbnormal": true
+        },
+        "D-Dimer": {
+          "value": 8.5,
+          "unit": "mg/L",
+          "referenceRange": "<0.5",
+          "isAbnormal": true
+        }
       }
     },
     {
       "id": "lab_003",
       "patientId": "pat_003",
-      "timestamp": "2025-01-10T07:30:00Z",
+      "timestamp": "2026-02-18T07:30:00Z",
       "biochemistry": {
-        "Na": { "value": 140, "unit": "mmol/L", "referenceRange": "135-145", "isAbnormal": false },
-        "K": { "value": 4.2, "unit": "mmol/L", "referenceRange": "3.5-5.0", "isAbnormal": false },
-        "BUN": { "value": 42, "unit": "mg/dL", "referenceRange": "7-20", "isAbnormal": true },
-        "Scr": { "value": 2.8, "unit": "mg/dL", "referenceRange": "0.7-1.3", "isAbnormal": true },
-        "eGFR": { "value": 32, "unit": "mL/min", "referenceRange": "≥60", "isAbnormal": true },
-        "Glucose": { "value": 125, "unit": "mg/dL", "referenceRange": "70-100", "isAbnormal": true }
+        "Na": {
+          "value": 140,
+          "unit": "mmol/L",
+          "referenceRange": "135-145",
+          "isAbnormal": false
+        },
+        "K": {
+          "value": 5.5,
+          "unit": "mmol/L",
+          "referenceRange": "3.5-5.0",
+          "isAbnormal": true
+        },
+        "Cl": {
+          "value": 108,
+          "unit": "mmol/L",
+          "referenceRange": "96-106",
+          "isAbnormal": true
+        },
+        "CO2": {
+          "value": 16,
+          "unit": "mmol/L",
+          "referenceRange": "22-29",
+          "isAbnormal": true
+        },
+        "BUN": {
+          "value": 52,
+          "unit": "mg/dL",
+          "referenceRange": "7-20",
+          "isAbnormal": true
+        },
+        "Scr": {
+          "value": 3.8,
+          "unit": "mg/dL",
+          "referenceRange": "0.7-1.3",
+          "isAbnormal": true
+        },
+        "eGFR": {
+          "value": 12,
+          "unit": "mL/min",
+          "referenceRange": "≥60",
+          "isAbnormal": true
+        },
+        "Glucose": {
+          "value": 125,
+          "unit": "mg/dL",
+          "referenceRange": "70-100",
+          "isAbnormal": true
+        },
+        "Ca": {
+          "value": 7.6,
+          "unit": "mg/dL",
+          "referenceRange": "8.5-10.5",
+          "isAbnormal": true
+        },
+        "Mg": {
+          "value": 2.6,
+          "unit": "mEq/L",
+          "referenceRange": "1.7-2.2",
+          "isAbnormal": true
+        },
+        "Phos": {
+          "value": 6.2,
+          "unit": "mg/dL",
+          "referenceRange": "2.5-4.5",
+          "isAbnormal": true
+        },
+        "Alb": {
+          "value": 2.8,
+          "unit": "g/dL",
+          "referenceRange": "3.5-5.0",
+          "isAbnormal": true
+        },
+        "AST": {
+          "value": 42,
+          "unit": "U/L",
+          "referenceRange": "10-40",
+          "isAbnormal": true
+        },
+        "ALT": {
+          "value": 38,
+          "unit": "U/L",
+          "referenceRange": "7-45",
+          "isAbnormal": false
+        },
+        "TBIL": {
+          "value": 0.9,
+          "unit": "mg/dL",
+          "referenceRange": "0.2-1.2",
+          "isAbnormal": false
+        },
+        "Uric": {
+          "value": 9.5,
+          "unit": "mg/dL",
+          "referenceRange": "2.5-7.0",
+          "isAbnormal": true
+        }
       },
       "hematology": {
-        "WBC": { "value": 8.5, "unit": "10³/μL", "referenceRange": "4.0-10.0", "isAbnormal": false },
-        "Hb": { "value": 11.2, "unit": "g/dL", "referenceRange": "13.5-17.5", "isAbnormal": true },
-        "PLT": { "value": 220, "unit": "10³/μL", "referenceRange": "150-400", "isAbnormal": false }
+        "WBC": {
+          "value": 8.5,
+          "unit": "10³/μL",
+          "referenceRange": "4.0-10.0",
+          "isAbnormal": false
+        },
+        "RBC": {
+          "value": 3.0,
+          "unit": "10⁶/μL",
+          "referenceRange": "3.8-5.0",
+          "isAbnormal": true
+        },
+        "Hb": {
+          "value": 9.2,
+          "unit": "g/dL",
+          "referenceRange": "11.5-15.5",
+          "isAbnormal": true
+        },
+        "Hct": {
+          "value": 28.5,
+          "unit": "%",
+          "referenceRange": "36-47",
+          "isAbnormal": true
+        },
+        "PLT": {
+          "value": 220,
+          "unit": "10³/μL",
+          "referenceRange": "150-400",
+          "isAbnormal": false
+        },
+        "Segment": {
+          "value": 65,
+          "unit": "%",
+          "referenceRange": "40-74",
+          "isAbnormal": false
+        },
+        "Lymph": {
+          "value": 28,
+          "unit": "%",
+          "referenceRange": "20-45",
+          "isAbnormal": false
+        }
       },
       "bloodGas": {
-        "pH": { "value": 7.38, "unit": "", "referenceRange": "7.35-7.45", "isAbnormal": false },
-        "PCO2": { "value": 42, "unit": "mmHg", "referenceRange": "35-45", "isAbnormal": false },
-        "PO2": { "value": 75, "unit": "mmHg", "referenceRange": "80-100", "isAbnormal": true },
-        "Lactate": { "value": 1.5, "unit": "mmol/L", "referenceRange": "<2.0", "isAbnormal": false }
+        "pH": {
+          "value": 7.3,
+          "unit": "",
+          "referenceRange": "7.35-7.45",
+          "isAbnormal": true
+        },
+        "PCO2": {
+          "value": 34,
+          "unit": "mmHg",
+          "referenceRange": "35-45",
+          "isAbnormal": true
+        },
+        "PO2": {
+          "value": 72,
+          "unit": "mmHg",
+          "referenceRange": "80-100",
+          "isAbnormal": true
+        },
+        "HCO3": {
+          "value": 16,
+          "unit": "mmol/L",
+          "referenceRange": "22-26",
+          "isAbnormal": true
+        },
+        "Lactate": {
+          "value": 1.8,
+          "unit": "mmol/L",
+          "referenceRange": "<2.0",
+          "isAbnormal": false
+        },
+        "BE": {
+          "value": -9.5,
+          "unit": "mmol/L",
+          "referenceRange": "-2 to +2",
+          "isAbnormal": true
+        },
+        "SaO2": {
+          "value": 94.0,
+          "unit": "%",
+          "referenceRange": "95-100",
+          "isAbnormal": true
+        }
       },
       "inflammatory": {
-        "CRP": { "value": 8.2, "unit": "mg/L", "referenceRange": "<5.0", "isAbnormal": true },
-        "PCT": { "value": 0.3, "unit": "ng/mL", "referenceRange": "<0.5", "isAbnormal": false }
+        "CRP": {
+          "value": 8.2,
+          "unit": "mg/L",
+          "referenceRange": "<5.0",
+          "isAbnormal": true
+        },
+        "PCT": {
+          "value": 0.3,
+          "unit": "ng/mL",
+          "referenceRange": "<0.5",
+          "isAbnormal": false
+        }
+      },
+      "coagulation": {
+        "PT": {
+          "value": 13.5,
+          "unit": "sec",
+          "referenceRange": "9.5-13.5",
+          "isAbnormal": false
+        },
+        "aPTT": {
+          "value": 34,
+          "unit": "sec",
+          "referenceRange": "25-35",
+          "isAbnormal": false
+        },
+        "INR": {
+          "value": 1.2,
+          "unit": "",
+          "referenceRange": "0.8-1.2",
+          "isAbnormal": false
+        },
+        "D-Dimer": {
+          "value": 1.2,
+          "unit": "mg/L",
+          "referenceRange": "<0.5",
+          "isAbnormal": true
+        }
       }
     },
     {
       "id": "lab_004",
       "patientId": "pat_004",
-      "timestamp": "2025-01-10T06:00:00Z",
+      "timestamp": "2026-02-18T06:00:00Z",
       "biochemistry": {
-        "Na": { "value": 139, "unit": "mmol/L", "referenceRange": "135-145", "isAbnormal": false },
-        "K": { "value": 4.0, "unit": "mmol/L", "referenceRange": "3.5-5.0", "isAbnormal": false },
-        "BUN": { "value": 15, "unit": "mg/dL", "referenceRange": "7-20", "isAbnormal": false },
-        "Scr": { "value": 0.9, "unit": "mg/dL", "referenceRange": "0.7-1.3", "isAbnormal": false },
-        "eGFR": { "value": 95, "unit": "mL/min", "referenceRange": "≥60", "isAbnormal": false },
-        "Glucose": { "value": 98, "unit": "mg/dL", "referenceRange": "70-100", "isAbnormal": false }
+        "Na": {
+          "value": 139,
+          "unit": "mmol/L",
+          "referenceRange": "135-145",
+          "isAbnormal": false
+        },
+        "K": {
+          "value": 3.8,
+          "unit": "mmol/L",
+          "referenceRange": "3.5-5.0",
+          "isAbnormal": false
+        },
+        "Cl": {
+          "value": 104,
+          "unit": "mmol/L",
+          "referenceRange": "96-106",
+          "isAbnormal": false
+        },
+        "CO2": {
+          "value": 24,
+          "unit": "mmol/L",
+          "referenceRange": "22-29",
+          "isAbnormal": false
+        },
+        "BUN": {
+          "value": 18,
+          "unit": "mg/dL",
+          "referenceRange": "7-20",
+          "isAbnormal": false
+        },
+        "Scr": {
+          "value": 0.9,
+          "unit": "mg/dL",
+          "referenceRange": "0.7-1.3",
+          "isAbnormal": false
+        },
+        "eGFR": {
+          "value": 95,
+          "unit": "mL/min",
+          "referenceRange": "≥60",
+          "isAbnormal": false
+        },
+        "Glucose": {
+          "value": 105,
+          "unit": "mg/dL",
+          "referenceRange": "70-100",
+          "isAbnormal": true
+        },
+        "Ca": {
+          "value": 9.2,
+          "unit": "mg/dL",
+          "referenceRange": "8.5-10.5",
+          "isAbnormal": false
+        },
+        "Mg": {
+          "value": 2.0,
+          "unit": "mEq/L",
+          "referenceRange": "1.7-2.2",
+          "isAbnormal": false
+        },
+        "Alb": {
+          "value": 4.0,
+          "unit": "g/dL",
+          "referenceRange": "3.5-5.0",
+          "isAbnormal": false
+        },
+        "AST": {
+          "value": 28,
+          "unit": "U/L",
+          "referenceRange": "10-40",
+          "isAbnormal": false
+        },
+        "ALT": {
+          "value": 22,
+          "unit": "U/L",
+          "referenceRange": "7-45",
+          "isAbnormal": false
+        },
+        "Osmolality": {
+          "value": 318,
+          "unit": "mOsm/kg",
+          "referenceRange": "280-295",
+          "isAbnormal": true
+        }
       },
       "hematology": {
-        "WBC": { "value": 7.2, "unit": "10³/μL", "referenceRange": "4.0-10.0", "isAbnormal": false },
-        "Hb": { "value": 14.5, "unit": "g/dL", "referenceRange": "13.5-17.5", "isAbnormal": false },
-        "PLT": { "value": 250, "unit": "10³/μL", "referenceRange": "150-400", "isAbnormal": false }
+        "WBC": {
+          "value": 9.5,
+          "unit": "10³/μL",
+          "referenceRange": "4.0-10.0",
+          "isAbnormal": false
+        },
+        "RBC": {
+          "value": 4.8,
+          "unit": "10⁶/μL",
+          "referenceRange": "4.5-5.5",
+          "isAbnormal": false
+        },
+        "Hb": {
+          "value": 14.5,
+          "unit": "g/dL",
+          "referenceRange": "13.5-17.5",
+          "isAbnormal": false
+        },
+        "Hct": {
+          "value": 43.0,
+          "unit": "%",
+          "referenceRange": "40-52",
+          "isAbnormal": false
+        },
+        "PLT": {
+          "value": 250,
+          "unit": "10³/μL",
+          "referenceRange": "150-400",
+          "isAbnormal": false
+        },
+        "Segment": {
+          "value": 68,
+          "unit": "%",
+          "referenceRange": "40-74",
+          "isAbnormal": false
+        },
+        "Lymph": {
+          "value": 26,
+          "unit": "%",
+          "referenceRange": "20-45",
+          "isAbnormal": false
+        }
       },
       "bloodGas": {
-        "pH": { "value": 7.42, "unit": "", "referenceRange": "7.35-7.45", "isAbnormal": false },
-        "PCO2": { "value": 38, "unit": "mmHg", "referenceRange": "35-45", "isAbnormal": false },
-        "PO2": { "value": 92, "unit": "mmHg", "referenceRange": "80-100", "isAbnormal": false },
-        "Lactate": { "value": 1.0, "unit": "mmol/L", "referenceRange": "<2.0", "isAbnormal": false }
+        "pH": {
+          "value": 7.42,
+          "unit": "",
+          "referenceRange": "7.35-7.45",
+          "isAbnormal": false
+        },
+        "PCO2": {
+          "value": 38,
+          "unit": "mmHg",
+          "referenceRange": "35-45",
+          "isAbnormal": false
+        },
+        "PO2": {
+          "value": 92,
+          "unit": "mmHg",
+          "referenceRange": "80-100",
+          "isAbnormal": false
+        },
+        "HCO3": {
+          "value": 24,
+          "unit": "mmol/L",
+          "referenceRange": "22-26",
+          "isAbnormal": false
+        },
+        "Lactate": {
+          "value": 1.0,
+          "unit": "mmol/L",
+          "referenceRange": "<2.0",
+          "isAbnormal": false
+        },
+        "BE": {
+          "value": 0.5,
+          "unit": "mmol/L",
+          "referenceRange": "-2 to +2",
+          "isAbnormal": false
+        }
       },
       "inflammatory": {
-        "CRP": { "value": 2.5, "unit": "mg/L", "referenceRange": "<5.0", "isAbnormal": false },
-        "PCT": { "value": 0.1, "unit": "ng/mL", "referenceRange": "<0.5", "isAbnormal": false }
+        "CRP": {
+          "value": 5.8,
+          "unit": "mg/L",
+          "referenceRange": "<5.0",
+          "isAbnormal": true
+        },
+        "PCT": {
+          "value": 0.12,
+          "unit": "ng/mL",
+          "referenceRange": "<0.5",
+          "isAbnormal": false
+        },
+        "NSE": {
+          "value": 22,
+          "unit": "ng/mL",
+          "referenceRange": "<12",
+          "isAbnormal": true
+        }
+      },
+      "coagulation": {
+        "PT": {
+          "value": 12.0,
+          "unit": "sec",
+          "referenceRange": "9.5-13.5",
+          "isAbnormal": false
+        },
+        "aPTT": {
+          "value": 28,
+          "unit": "sec",
+          "referenceRange": "25-35",
+          "isAbnormal": false
+        },
+        "INR": {
+          "value": 1.05,
+          "unit": "",
+          "referenceRange": "0.8-1.2",
+          "isAbnormal": false
+        }
       }
     }
   ]
 }
-

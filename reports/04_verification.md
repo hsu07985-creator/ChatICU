@@ -1,22 +1,46 @@
 # Phase 4 — Verification
 
-Generated at: 2026-02-16 16:08:40 CST
+**Date:** 2026-02-18
 
-## Verification Matrix
+---
 
-| Command | PASS/FAIL | Key Output |
-|---|---|---|
-| `npm run typecheck` | PASS | `tsc -p tsconfig.json` completed with exit code 0. |
-| `npm run build` | PASS | `vite v6.3.5` build completed; output bundles written to `build/` with exit code 0. |
-| `backend: ./.venv312/bin/pytest tests/test_services/test_safety_guardrail.py tests/test_api/test_contract.py tests/test_api/test_clinical.py -q` | PASS | `42 passed, 1 warning in 19.73s` |
-| `backend startup + smoke: uvicorn app.main:app --port 8100` then `curl /health` and `curl /` | PASS | `HEALTH_RC=0`, `ROOT_RC=0`, response payload includes `"status":"healthy"`; uvicorn log includes `Application startup complete` and 200 for both endpoints. |
-| `frontend startup check: npm run dev -- --host 127.0.0.1 --port 4173` then `curl -I /` | PASS | `VITE v6.3.5 ready`; `HTTP/1.1 200 OK` |
+## Test Results
 
-## Notes
-- Initial backend test command `pytest ...` failed in shell (`command not found: pytest`).
-- Fallback command used project virtualenv executable: `backend/.venv312/bin/pytest ...` (PASS).
-- Initial backend startup probe with fixed short wait failed due startup latency; final probe switched to "wait for ready log" strategy and passed.
+| Check | Command | Result | Notes |
+|-------|---------|--------|-------|
+| TypeScript typecheck | `npx tsc -p tsconfig.json --noEmit` | **PASS** | No errors |
+| Frontend build | `npm run build` | **PASS** | 4 chunks in 1.67s (vendor 178KB, charts 421KB, ui 29KB, index 626KB) |
+| Backend tests | `cd backend && .venv312/bin/python -m pytest tests/ -v --tb=short` | **169 PASS / 1 FAIL / 13 SKIP** | Pre-existing failure: `test_rag_query_not_indexed` (divide-by-zero in matmul — unrelated to our changes) |
 
-## Gate Decision
-- Phase 4 verification: **PASS**
-- No rollback required for this restructuring batch.
+## Verification Details
+
+### TypeScript Typecheck
+- Command: `npx tsc -p tsconfig.json --noEmit`
+- Exit code: 0
+- Output: (none — clean)
+- Confirms: No broken imports from archived files
+
+### Frontend Build
+- Command: `npm run build`
+- Build time: 1.67s
+- Modules transformed: 2,603
+- Output files:
+  - `build/index.html` (0.67 KB)
+  - `build/assets/index-CG8LY2kJ.css` (81.88 KB)
+  - `build/assets/vendor-hLxha9dG.js` (178.39 KB)
+  - `build/assets/charts-hZPl4Q23.js` (420.95 KB)
+  - `build/assets/ui-Bm72U6kh.js` (28.69 KB)
+  - `build/assets/index-DpridL1u.js` (626.23 KB)
+- Note: index chunk > 500KB warning (pre-existing, not caused by our changes)
+
+### Backend Tests
+- Command: `cd backend && .venv312/bin/python -m pytest tests/ -v --tb=short`
+- Duration: 66.58s
+- Results: 169 passed, 1 failed, 13 skipped
+- Failed test: `test_rag_query_not_indexed` — RuntimeWarning: divide by zero in matmul
+  - Root cause: Pre-existing issue in `rag_service.py:103` when no index exists
+  - NOT caused by our restructuring (no backend code was modified)
+
+## Conclusion
+
+All verification checks **PASS** for the restructuring changes. The single test failure is pre-existing and unrelated to our work.

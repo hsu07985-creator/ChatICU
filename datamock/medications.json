@@ -12,12 +12,18 @@
       "frequency": "q4h",
       "route": "IV",
       "prn": true,
-      "indication": "Pain Score: 2/10",
+      "indication": "Pain Score: 3/10",
       "startDate": "2025-10-17",
       "endDate": null,
       "status": "active",
-      "prescribedBy": { "id": "usr_002", "name": "李穎灝" },
-      "warnings": ["併用 Dormicum，需注意呼吸抑制"]
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "併用 Dormicum，需注意呼吸抑制",
+        "eGFR 58，延長監測間隔"
+      ]
     },
     {
       "id": "med_002",
@@ -31,12 +37,17 @@
       "frequency": "q4h",
       "route": "IV",
       "prn": true,
-      "indication": "RASS Score: -2/4",
+      "indication": "RASS Score: -2 (目標 -1 ~ 0)",
       "startDate": "2025-10-17",
       "endDate": null,
       "status": "active",
-      "prescribedBy": { "id": "usr_002", "name": "李穎灝" },
-      "warnings": ["併用 Morphine，需注意呼吸抑制"]
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "併用 Morphine，需注意呼吸抑制"
+      ]
     },
     {
       "id": "med_003",
@@ -50,12 +61,164 @@
       "frequency": "q12h",
       "route": "IV",
       "prn": false,
-      "indication": "MRSA infection suspected",
+      "indication": "MRSA infection suspected — Blood culture pending",
       "startDate": "2025-10-18",
       "endDate": null,
       "status": "active",
-      "prescribedBy": { "id": "usr_002", "name": "李穎灝" },
-      "warnings": ["監測腎功能", "監測 Trough level"]
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "監測腎功能 (eGFR 58)",
+        "監測 Trough level 目標 15-20 mg/L"
+      ]
+    },
+    {
+      "id": "med_012",
+      "patientId": "pat_001",
+      "name": "Meropenem",
+      "genericName": "Meropenem Trihydrate",
+      "category": "antibiotic",
+      "sanCategory": null,
+      "dose": "1000",
+      "unit": "mg",
+      "frequency": "q8h",
+      "route": "IV",
+      "prn": false,
+      "indication": "Severe pneumonia — Penicillin-allergic, 避免 beta-lactam",
+      "startDate": "2026-02-15",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "碳青黴烯類，保留 ESBL/KPC 感染使用",
+        "監測腎功能"
+      ]
+    },
+    {
+      "id": "med_013",
+      "patientId": "pat_001",
+      "name": "Methylprednisolone",
+      "genericName": "Methylprednisolone Sodium Succinate",
+      "category": "corticosteroid",
+      "sanCategory": null,
+      "dose": "40",
+      "unit": "mg",
+      "frequency": "q12h",
+      "route": "IV",
+      "prn": false,
+      "indication": "COVID-19 重度肺炎 — 免疫調節",
+      "startDate": "2026-02-14",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "類固醇使用期間監控血糖",
+        "注意感染風險加劇"
+      ]
+    },
+    {
+      "id": "med_014",
+      "patientId": "pat_001",
+      "name": "Heparin",
+      "genericName": "Unfractionated Heparin",
+      "category": "anticoagulant",
+      "sanCategory": null,
+      "dose": "5000",
+      "unit": "U",
+      "frequency": "q8h",
+      "route": "SC",
+      "prn": false,
+      "indication": "DVT prophylaxis",
+      "startDate": "2025-10-17",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "監測 aPTT 及血小板"
+      ]
+    },
+    {
+      "id": "med_015",
+      "patientId": "pat_001",
+      "name": "KCl 10%",
+      "genericName": "Potassium Chloride",
+      "category": "electrolyte",
+      "sanCategory": null,
+      "dose": "20",
+      "unit": "mEq",
+      "frequency": "q12h",
+      "route": "IV (diluted)",
+      "prn": false,
+      "indication": "低血鉀補充 (K 3.2 mmol/L)",
+      "startDate": "2026-02-18",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "必須稀釋後慢速輸注，勿直接靜脈注射",
+        "心電圖監控"
+      ]
+    },
+    {
+      "id": "med_016",
+      "patientId": "pat_001",
+      "name": "Pantoprazole",
+      "genericName": "Pantoprazole Sodium",
+      "category": "ppi",
+      "sanCategory": null,
+      "dose": "40",
+      "unit": "mg",
+      "frequency": "qd",
+      "route": "IV",
+      "prn": false,
+      "indication": "Stress ulcer prophylaxis",
+      "startDate": "2025-10-17",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": []
+    },
+    {
+      "id": "med_017",
+      "patientId": "pat_001",
+      "name": "Regular Insulin",
+      "genericName": "Human Regular Insulin",
+      "category": "hormone",
+      "sanCategory": null,
+      "dose": "6",
+      "unit": "U",
+      "frequency": "tid ac",
+      "route": "SC",
+      "prn": false,
+      "indication": "血糖控制 (Glucose 145 mg/dL，類固醇使用中)",
+      "startDate": "2026-02-14",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "低血糖風險，q4h 監測血糖",
+        "目標血糖 140-180 mg/dL (ICU)"
+      ]
     },
     {
       "id": "med_004",
@@ -69,12 +232,18 @@
       "frequency": "continuous",
       "route": "IV infusion",
       "prn": false,
-      "indication": "Deep sedation for ARDS",
+      "indication": "Deep sedation for ARDS (RASS target -3 ~ -4)",
       "startDate": "2025-10-19",
       "endDate": null,
       "status": "active",
-      "prescribedBy": { "id": "usr_002", "name": "李穎灝" },
-      "warnings": ["監測 Propofol Infusion Syndrome"]
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "監測 Propofol Infusion Syndrome (TG, 代謝酸中毒)",
+        "不超過 4 mg/kg/hr"
+      ]
     },
     {
       "id": "med_005",
@@ -88,12 +257,17 @@
       "frequency": "continuous",
       "route": "IV infusion",
       "prn": false,
-      "indication": "Pain management",
+      "indication": "Analgesia-first — Pain management for ventilated patient",
       "startDate": "2025-10-19",
       "endDate": null,
       "status": "active",
-      "prescribedBy": { "id": "usr_002", "name": "李穎灝" },
-      "warnings": []
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "監測 CPOT 疼痛評分 q4h"
+      ]
     },
     {
       "id": "med_006",
@@ -107,12 +281,18 @@
       "frequency": "continuous",
       "route": "IV infusion",
       "prn": false,
-      "indication": "ARDS - muscle relaxation",
+      "indication": "ARDS — Muscle relaxation for ventilator synchrony",
       "startDate": "2025-10-19",
       "endDate": null,
       "status": "active",
-      "prescribedBy": { "id": "usr_002", "name": "李穎灝" },
-      "warnings": ["需監測 TOF"]
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "需監測 TOF (Train-of-Four) 維持 1-2/4",
+        "需充分鎮靜鎮痛後再使用"
+      ]
     },
     {
       "id": "med_007",
@@ -121,17 +301,170 @@
       "genericName": "Norepinephrine Bitartrate",
       "category": "vasopressor",
       "sanCategory": null,
-      "dose": "0.1",
+      "dose": "0.15",
       "unit": "mcg/kg/min",
       "frequency": "continuous",
       "route": "IV infusion",
       "prn": false,
-      "indication": "Septic shock - vasopressor support",
+      "indication": "Septic shock — 第一線升壓劑 (MAP 目標 ≥65 mmHg)",
       "startDate": "2025-10-19",
       "endDate": null,
       "status": "active",
-      "prescribedBy": { "id": "usr_002", "name": "李穎灝" },
-      "warnings": ["需使用中央靜脈導管"]
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "需使用中央靜脈導管",
+        "監測末梢循環及乳酸"
+      ]
+    },
+    {
+      "id": "med_018",
+      "patientId": "pat_002",
+      "name": "Vasopressin",
+      "genericName": "Arginine Vasopressin",
+      "category": "vasopressor",
+      "sanCategory": null,
+      "dose": "0.03",
+      "unit": "U/min",
+      "frequency": "continuous",
+      "route": "IV infusion",
+      "prn": false,
+      "indication": "Refractory septic shock — 節省 Norepinephrine 用量",
+      "startDate": "2026-02-16",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "固定劑量，勿調整",
+        "監測 Na 及尿量"
+      ]
+    },
+    {
+      "id": "med_019",
+      "patientId": "pat_002",
+      "name": "Meropenem",
+      "genericName": "Meropenem Trihydrate",
+      "category": "antibiotic",
+      "sanCategory": null,
+      "dose": "500",
+      "unit": "mg",
+      "frequency": "q8h",
+      "route": "IV",
+      "prn": false,
+      "indication": "Severe sepsis — eGFR 32，腎功能調整劑量",
+      "startDate": "2025-10-19",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "eGFR 32 — 劑量已調整",
+        "監測腎功能"
+      ]
+    },
+    {
+      "id": "med_020",
+      "patientId": "pat_002",
+      "name": "Hydrocortisone",
+      "genericName": "Hydrocortisone Sodium Succinate",
+      "category": "corticosteroid",
+      "sanCategory": null,
+      "dose": "200",
+      "unit": "mg/day",
+      "frequency": "continuous",
+      "route": "IV infusion",
+      "prn": false,
+      "indication": "Refractory septic shock — Annane protocol",
+      "startDate": "2026-02-16",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "Norepinephrine ≥0.25 mcg/kg/min 時考慮使用",
+        "監控血糖及感染"
+      ]
+    },
+    {
+      "id": "med_021",
+      "patientId": "pat_002",
+      "name": "Regular Insulin (infusion)",
+      "genericName": "Human Regular Insulin",
+      "category": "hormone",
+      "sanCategory": null,
+      "dose": "4",
+      "unit": "U/hr",
+      "frequency": "continuous",
+      "route": "IV infusion",
+      "prn": false,
+      "indication": "Stress hyperglycemia (Glucose 180 mg/dL) — ICU glycemic protocol",
+      "startDate": "2025-10-19",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "每小時監測血糖",
+        "目標血糖 140-180 mg/dL"
+      ]
+    },
+    {
+      "id": "med_022",
+      "patientId": "pat_002",
+      "name": "Pantoprazole",
+      "genericName": "Pantoprazole Sodium",
+      "category": "ppi",
+      "sanCategory": null,
+      "dose": "40",
+      "unit": "mg",
+      "frequency": "q12h",
+      "route": "IV",
+      "prn": false,
+      "indication": "GI stress ulcer prophylaxis (mechanical ventilation)",
+      "startDate": "2025-10-19",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": []
+    },
+    {
+      "id": "med_023",
+      "patientId": "pat_002",
+      "name": "Albumin 20%",
+      "genericName": "Human Albumin",
+      "category": "colloid",
+      "sanCategory": null,
+      "dose": "100",
+      "unit": "mL",
+      "frequency": "q12h",
+      "route": "IV infusion",
+      "prn": false,
+      "indication": "Hypoalbuminemia (Alb 2.2 g/dL) — 血管張力支持",
+      "startDate": "2026-02-17",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "監測容積狀態",
+        "白蛋白目標 >3.0 g/dL"
+      ]
     },
     {
       "id": "med_008",
@@ -140,17 +473,23 @@
       "genericName": "Dexmedetomidine HCl",
       "category": "sedative",
       "sanCategory": "S",
-      "dose": "0.5",
+      "dose": "0.4",
       "unit": "mcg/kg/hr",
       "frequency": "continuous",
       "route": "IV infusion",
       "prn": false,
-      "indication": "Light sedation",
+      "indication": "Light sedation (RASS target -1 ~ 0) — 腎友好，可促進清醒",
       "startDate": "2025-10-13",
       "endDate": null,
       "status": "active",
-      "prescribedBy": { "id": "usr_002", "name": "黃英哲" },
-      "warnings": ["注意心搏過緩"]
+      "prescribedBy": {
+        "id": "usr_004",
+        "name": "黃英哲"
+      },
+      "warnings": [
+        "注意心搏過緩 (HR<55 bpm 減量)",
+        "監測血壓"
+      ]
     },
     {
       "id": "med_009",
@@ -159,17 +498,172 @@
       "genericName": "Morphine Sulfate",
       "category": "analgesic",
       "sanCategory": "A",
-      "dose": "2",
+      "dose": "1",
       "unit": "mg",
-      "frequency": "q6h",
+      "frequency": "q8h",
       "route": "IV",
       "prn": true,
-      "indication": "Pain management - Adjusted for renal impairment",
+      "indication": "Pain management — eGFR 12，極度腎功能調整劑量",
       "startDate": "2025-10-13",
       "endDate": null,
       "status": "active",
-      "prescribedBy": { "id": "usr_002", "name": "黃英哲" },
-      "warnings": ["腎功能不全，需延長給藥間隔", "監測呼吸狀態"]
+      "prescribedBy": {
+        "id": "usr_004",
+        "name": "黃英哲"
+      },
+      "warnings": [
+        "腎衰竭：活性代謝物 M6G 蓄積風險",
+        "監測呼吸狀態及意識"
+      ]
+    },
+    {
+      "id": "med_024",
+      "patientId": "pat_003",
+      "name": "Furosemide",
+      "genericName": "Furosemide",
+      "category": "diuretic",
+      "sanCategory": null,
+      "dose": "80",
+      "unit": "mg/hr",
+      "frequency": "continuous",
+      "route": "IV infusion",
+      "prn": false,
+      "indication": "Pulmonary edema — 積極利尿 (AKI 非無尿型)",
+      "startDate": "2026-02-16",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_004",
+        "name": "黃英哲"
+      },
+      "warnings": [
+        "監測尿量 q1h (目標 >0.5 mL/kg/hr)",
+        "監測 K+ 防止低血鉀",
+        "Sulfa-allergic — 交叉過敏風險低，觀察"
+      ]
+    },
+    {
+      "id": "med_025",
+      "patientId": "pat_003",
+      "name": "Sodium Bicarbonate 8.4%",
+      "genericName": "Sodium Bicarbonate",
+      "category": "alkalinizer",
+      "sanCategory": null,
+      "dose": "100",
+      "unit": "mEq",
+      "frequency": "q8h",
+      "route": "IV (slow drip)",
+      "prn": false,
+      "indication": "Metabolic acidosis (pH 7.30, HCO3 16 mmol/L, BE -9.5)",
+      "startDate": "2026-02-17",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_004",
+        "name": "黃英哲"
+      },
+      "warnings": [
+        "監測血鈉防止高鈉血症",
+        "CRRT 指徵評估中"
+      ]
+    },
+    {
+      "id": "med_026",
+      "patientId": "pat_003",
+      "name": "Calcium Gluconate 10%",
+      "genericName": "Calcium Gluconate",
+      "category": "electrolyte",
+      "sanCategory": null,
+      "dose": "10",
+      "unit": "mL",
+      "frequency": "q8h",
+      "route": "IV (slow push)",
+      "prn": false,
+      "indication": "Hypocalcemia (Ca 7.6 mg/dL) + 心臟保護 (K 5.5 mmol/L)",
+      "startDate": "2026-02-18",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_004",
+        "name": "黃英哲"
+      },
+      "warnings": [
+        "需心電圖監控",
+        "勿與碳酸氫鈉同管路"
+      ]
+    },
+    {
+      "id": "med_027",
+      "patientId": "pat_003",
+      "name": "Pantoprazole",
+      "genericName": "Pantoprazole Sodium",
+      "category": "ppi",
+      "sanCategory": null,
+      "dose": "40",
+      "unit": "mg",
+      "frequency": "qd",
+      "route": "IV",
+      "prn": false,
+      "indication": "Stress ulcer prophylaxis (mechanical ventilation)",
+      "startDate": "2025-10-13",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_004",
+        "name": "黃英哲"
+      },
+      "warnings": []
+    },
+    {
+      "id": "med_028",
+      "patientId": "pat_003",
+      "name": "Amlodipine",
+      "genericName": "Amlodipine Besylate",
+      "category": "antihypertensive",
+      "sanCategory": null,
+      "dose": "5",
+      "unit": "mg",
+      "frequency": "qd",
+      "route": "PO (via NG tube)",
+      "prn": false,
+      "indication": "Hypertension management (SBP 158 mmHg — 液體過負荷)",
+      "startDate": "2026-02-15",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_004",
+        "name": "黃英哲"
+      },
+      "warnings": [
+        "腎功能不影響劑量調整",
+        "液體移除後重新評估需求"
+      ]
+    },
+    {
+      "id": "med_029",
+      "patientId": "pat_003",
+      "name": "Erythropoietin alfa",
+      "genericName": "Epoetin alfa",
+      "category": "hematopoietic",
+      "sanCategory": null,
+      "dose": "10000",
+      "unit": "U",
+      "frequency": "weekly",
+      "route": "SC",
+      "prn": false,
+      "indication": "Renal anemia (Hb 9.2 g/dL, eGFR 12)",
+      "startDate": "2026-02-11",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_004",
+        "name": "黃英哲"
+      },
+      "warnings": [
+        "監測 Hb 每週",
+        "目標 Hb 10-11.5 g/dL",
+        "血壓可能升高"
+      ]
     },
     {
       "id": "med_010",
@@ -178,17 +672,23 @@
       "genericName": "Acetaminophen",
       "category": "analgesic",
       "sanCategory": null,
-      "dose": "500",
+      "dose": "650",
       "unit": "mg",
       "frequency": "q6h",
-      "route": "PO",
-      "prn": true,
-      "indication": "Pain management",
-      "startDate": "2025-10-18",
+      "route": "IV",
+      "prn": false,
+      "indication": "Pain management — 避免 NSAID (出血/ICP 風險)",
+      "startDate": "2025-10-20",
       "endDate": null,
       "status": "active",
-      "prescribedBy": { "id": "usr_002", "name": "李穎灝" },
-      "warnings": []
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "最大劑量 4g/day",
+        "肝功能監測"
+      ]
     },
     {
       "id": "med_011",
@@ -203,12 +703,165 @@
       "route": "IV",
       "prn": false,
       "indication": "Stress ulcer prophylaxis",
-      "startDate": "2025-10-18",
+      "startDate": "2025-10-20",
       "endDate": null,
       "status": "active",
-      "prescribedBy": { "id": "usr_002", "name": "李穎灝" },
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
       "warnings": []
+    },
+    {
+      "id": "med_030",
+      "patientId": "pat_004",
+      "name": "Mannitol 20%",
+      "genericName": "Mannitol",
+      "category": "osmotic_agent",
+      "sanCategory": null,
+      "dose": "125",
+      "unit": "mL",
+      "frequency": "q8h",
+      "route": "IV (rapid infusion)",
+      "prn": false,
+      "indication": "ICP reduction (目標 ICP <20 mmHg, CPP >60 mmHg)",
+      "startDate": "2025-10-20",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "監測血清滲透壓 (目標 310-320 mOsm/kg)",
+        "當前 318 — 接近上限",
+        "監測尿量及腎功能"
+      ]
+    },
+    {
+      "id": "med_031",
+      "patientId": "pat_004",
+      "name": "Levetiracetam",
+      "genericName": "Levetiracetam",
+      "category": "anticonvulsant",
+      "sanCategory": null,
+      "dose": "1000",
+      "unit": "mg",
+      "frequency": "bid",
+      "route": "IV",
+      "prn": false,
+      "indication": "Seizure prophylaxis post-TBI (Brain Trauma Foundation guidelines)",
+      "startDate": "2025-10-20",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "7 天後重新評估是否繼續預防性使用"
+      ]
+    },
+    {
+      "id": "med_032",
+      "patientId": "pat_004",
+      "name": "Dexamethasone",
+      "genericName": "Dexamethasone Sodium Phosphate",
+      "category": "corticosteroid",
+      "sanCategory": null,
+      "dose": "4",
+      "unit": "mg",
+      "frequency": "q6h",
+      "route": "IV",
+      "prn": false,
+      "indication": "Cerebral edema reduction post-TBI",
+      "startDate": "2025-10-20",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "監控血糖 (Glucose 105 目前略高)",
+        "感染風險增加",
+        "計畫 7 天後 taper"
+      ]
+    },
+    {
+      "id": "med_033",
+      "patientId": "pat_004",
+      "name": "Nimodipine",
+      "genericName": "Nimodipine",
+      "category": "calcium_channel_blocker",
+      "sanCategory": null,
+      "dose": "60",
+      "unit": "mg",
+      "frequency": "q4h",
+      "route": "PO",
+      "prn": false,
+      "indication": "Cerebral vasospasm prevention post-TBI",
+      "startDate": "2025-10-20",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "監測血壓 (SBP 148 目前偏高，維持 CPP)",
+        "勿靜脈注射"
+      ]
+    },
+    {
+      "id": "med_034",
+      "patientId": "pat_004",
+      "name": "Enoxaparin",
+      "genericName": "Enoxaparin Sodium",
+      "category": "anticoagulant",
+      "sanCategory": null,
+      "dose": "40",
+      "unit": "mg",
+      "frequency": "qd",
+      "route": "SC",
+      "prn": false,
+      "indication": "DVT prophylaxis — TBI 穩定後 72 小時開始",
+      "startDate": "2025-10-23",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "確認顱內出血未擴大後使用",
+        "監測 PLT"
+      ]
+    },
+    {
+      "id": "med_035",
+      "patientId": "pat_004",
+      "name": "Lactulose",
+      "genericName": "Lactulose",
+      "category": "laxative",
+      "sanCategory": null,
+      "dose": "20",
+      "unit": "mL",
+      "frequency": "bid",
+      "route": "PO",
+      "prn": false,
+      "indication": "Bowel regimen — 避免用力排便造成 ICP 升高",
+      "startDate": "2025-10-21",
+      "endDate": null,
+      "status": "active",
+      "prescribedBy": {
+        "id": "usr_002",
+        "name": "李穎灝"
+      },
+      "warnings": [
+        "目標每天排便 1-2 次",
+        "監測腹脹"
+      ]
     }
   ]
 }
-

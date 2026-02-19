@@ -1,55 +1,103 @@
-# Phase 1 — Usage Evidence Graph
+# Phase 1 — Dependency Graph & Usage Evidence
 
-Generated at: 2026-02-16 15:59:49
+**Date:** 2026-02-18
 
-## Static Dependency Evidence
-- Frontend entry chain: `src/main.tsx` -> `src/App.tsx` -> `src/pages/*` -> `src/lib/api/*`.
-- Backend entry chain: `backend/app/main.py` -> `backend/app/routers/*` -> `backend/app/services/*` + `backend/app/models/*`.
-- Import evidence computed from local `import/require` (TS/JS) and `from app...`/`import app...` (Python).
+---
 
-## Dynamic Execution Evidence
-- `npm run test:e2e -- --project=chromium --workers=1`
-- `backend/.venv312/bin/python -m pytest backend/tests/test_api -q`
-- `npm run typecheck`
+## Frontend Dependency Graph
 
-## Config and Deployment Evidence
-- CI workflow: `.github/workflows/ci.yml` (contract tests, integration tests, e2e smoke, static guards).
-- Runtime scripts: `package.json` and `backend/pyproject.toml`.
-- Container orchestration: `backend/docker-compose.yml`.
+```
+index.html
+  └─ src/main.tsx
+       ├─ src/index.css
+       ├─ src/styles/globals.css
+       └─ src/App.tsx
+            ├─ react-router-dom (BrowserRouter, Routes, Route)
+            ├─ src/lib/auth-context.tsx (AuthProvider, useAuth)
+            │    └─ src/lib/api/auth.ts → src/lib/api-client.ts (axios)
+            ├─ src/components/ui/sidebar (SidebarProvider)
+            ├─ src/components/app-sidebar.tsx
+            ├─ src/components/sidebar-toggle.tsx
+            ├─ src/components/error-boundary.tsx
+            ├─ src/components/ui/sonner (Toaster)
+            └─ 15 Page Routes:
+                 ├─ /login → src/pages/login.tsx
+                 │    └─ src/imports/svg-n38m0xb9r6.ts ← ONLY used figma import
+                 ├─ /dashboard → src/pages/dashboard.tsx
+                 │    └─ src/lib/api/dashboard.ts
+                 ├─ /patients → src/pages/patients.tsx
+                 │    └─ src/lib/api/patients.ts
+                 ├─ /patient/:id → src/pages/patient-detail.tsx
+                 │    ├─ src/components/lab-data-display.tsx
+                 │    │    └─ src/components/lab-trend-chart.tsx (recharts)
+                 │    ├─ src/components/vital-signs-card.tsx
+                 │    ├─ src/components/medical-records.tsx
+                 │    ├─ src/components/patient/patient-summary-tab.tsx
+                 │    ├─ src/components/pharmacist-advice-widget.tsx
+                 │    └─ src/lib/api/{lab-data,vital-signs,ventilator,medications,messages,ai}.ts
+                 ├─ /chat → src/pages/chat.tsx
+                 │    └─ src/lib/api/team-chat.ts
+                 ├─ /admin/* → src/pages/admin/{placeholder,vectors,users,statistics}.tsx
+                 │    └─ src/lib/api/admin.ts
+                 └─ /pharmacy/* → src/pages/pharmacy/{workstation,interactions,...}.tsx
+                      └─ src/lib/api/pharmacy.ts
+```
 
-## Backend Router Prefix Map
-| Router File | Prefix |
-|---|---|
-| `backend/app/routers/admin.py` | `/admin` |
-| `backend/app/routers/ai_chat.py` | `/ai` |
-| `backend/app/routers/auth.py` | `/auth` |
-| `backend/app/routers/clinical.py` | `/api/v1/clinical` |
-| `backend/app/routers/dashboard.py` | `/dashboard` |
-| `backend/app/routers/lab_data.py` | `/patients/{patient_id}/lab-data` |
-| `backend/app/routers/medications.py` | `/patients/{patient_id}/medications` |
-| `backend/app/routers/messages.py` | `/patients/{patient_id}/messages` |
-| `backend/app/routers/patients.py` | `/patients` |
-| `backend/app/routers/pharmacy.py` | `/pharmacy` |
-| `backend/app/routers/rag.py` | `/api/v1/rag` |
-| `backend/app/routers/rules.py` | `/api/v1/rules` |
-| `backend/app/routers/team_chat.py` | `/team/chat` |
-| `backend/app/routers/ventilator.py` | `/patients/{patient_id}/ventilator` |
-| `backend/app/routers/vital_signs.py` | `/patients/{patient_id}/vital-signs` |
+## Backend Dependency Graph
 
-## Frontend API Client Endpoint Map (sample)
-| API Client File | Endpoints (sample) |
-|---|---|
-| `src/lib/api/admin.ts` | `/admin/audit-logs, /admin/users, /admin/vectors, /admin/vectors/rebuild` |
-| `src/lib/api/ai.ts` | `/ai/chat, /api/v1/clinical/clinical-query, /api/v1/clinical/decision, /api/v1/clinical/dose, /api/v1/clinical/explanation, /api/v1/clinical/guideline, /api/v1/clinical/interactions, /api/v1/clinical/polish, /api/v1/clinical/summary, /api/v1/rag/status` |
-| `src/lib/api/auth.ts` | `/auth/login, /auth/logout, /auth/me, /auth/refresh` |
-| `src/lib/api/dashboard.ts` | `/dashboard/stats` |
-| `src/lib/api/health.ts` | `/health` |
-| `src/lib/api/patients.ts` | `/patients` |
-| `src/lib/api/pharmacy.ts` | `/pharmacy/advice-records, /pharmacy/advice-records/stats, /pharmacy/advice-statistics, /pharmacy/compatibility-favorites, /pharmacy/error-reports` |
-| `src/lib/api/team-chat.ts` | `/team/chat` |
+```
+backend/app/main.py (entry)
+  ├─ config.py (settings)
+  ├─ database.py (get_db, engine, Base)
+  ├─ middleware/auth.py (get_current_user, require_roles)
+  ├─ middleware/audit.py (create_audit_log)
+  ├─ middleware/rate_limit.py (limiter)
+  └─ 16 Routers:
+       ├─ health.py        → /health, /
+       ├─ auth.py           → /auth/* (8 endpoints)
+       ├─ patients.py       → /patients/* (5 endpoints)
+       ├─ lab_data.py       → /lab_data/* (4 endpoints)
+       ├─ vital_signs.py    → /vital_signs/* (3 endpoints)
+       ├─ ventilator.py     → /ventilator/* (5 endpoints)
+       ├─ medications.py    → /medications/* (3 endpoints)
+       ├─ messages.py       → /messages/* (5 endpoints)
+       ├─ team_chat.py      → /team_chat/* (3 endpoints)
+       ├─ dashboard.py      → /dashboard (1 endpoint)
+       ├─ admin.py          → /admin/* (8 endpoints)
+       ├─ pharmacy.py       → /pharmacy/* (10+ endpoints, 4 sub-routers)
+       ├─ clinical.py       → /api/v1/clinical/* (9 endpoints)
+       │    ├─ llm.py (call_llm, call_llm_multi_turn)
+       │    ├─ services/evidence_client.py → HTTP → func/ microservice
+       │    ├─ services/safety_guardrail.py
+       │    └─ services/llm_services/rag_service.py
+       ├─ ai_chat.py        → /api/v1/chat/* (2 endpoints)
+       │    └─ routers/clinical.py (_get_patient_dict)
+       ├─ ai_readiness.py   → /readiness
+       ├─ rag.py             → /api/v1/rag/* (3 endpoints)
+       └─ rules.py           → /rules/* (1 endpoint)
+```
 
-## Data Flow Evidence
-1. UI Trigger: `src/pages/*` and `src/components/*` call `src/lib/api/*.ts` functions.
-2. API Client: `src/lib/api-client.ts` sends HTTP requests with auth token and unified error handling.
-3. Backend Route: `backend/app/main.py` mounts routers from `backend/app/routers/*`.
-4. Service/DB/AI: routers call `backend/app/services/*`, SQLAlchemy models in `backend/app/models/*`, and AI helpers (`backend/app/llm.py`, `backend/app/services/llm_services/*`, `backend/app/services/evidence_client.py`).
+## Cross-System Data Flow
+
+```
+Frontend (src/) ──HTTP──→ Backend (backend/app/) ──HTTP──→ func/ (Evidence RAG)
+                                    │                            │
+                                    ├──SQL──→ PostgreSQL          ├──→ rag 文本/ (PDFs)
+                                    ├──Redis──→ Session/Cache     └──→ evidence_rag_data/ (indices)
+                                    └──API──→ OpenAI/Anthropic
+
+datamock/ ──JSON──→ backend/seeds/ ──→ PostgreSQL (on startup if empty)
+```
+
+## Orphaned Import Chains (No Active Consumer)
+
+```
+src/imports/Frame.tsx ← svg-hnm2h.tsx, svg-ihon1.tsx, svg-v1yr43xgtu.ts
+src/imports/IcuAi1.tsx ← svg-0tbt4.tsx, svg-ik76jdycii.ts
+src/imports/IcuLogin.tsx ← svg-n38m0xb9r6.ts (but login.tsx also imports svg directly)
+src/imports/IcuPatientAi11.tsx ← svg-fx6y5.tsx, svg-q8bgnvty5b.ts (EXCLUDED in tsconfig)
+
+src/lib/mock-data.ts → (53KB, ZERO consumers)
+src/components/figma/ImageWithFallback.tsx → (ZERO consumers)
+config.py (root) → (ZERO consumers, uses Python 3.10+ syntax)
+```

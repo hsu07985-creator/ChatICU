@@ -1,0 +1,100 @@
+{
+  "vitalSigns": [
+    {
+      "id": "vs_001_1", "patientId": "pat_001",
+      "timestamp": "2026-02-17T06:00:00Z",
+      "heartRate": 108, "systolicBP": 88, "diastolicBP": 55, "meanBP": 66,
+      "respiratoryRate": 30, "spo2": 91, "temperature": 38.9
+    },
+    {
+      "id": "vs_001_2", "patientId": "pat_001",
+      "timestamp": "2026-02-17T14:00:00Z",
+      "heartRate": 104, "systolicBP": 92, "diastolicBP": 58, "meanBP": 69,
+      "respiratoryRate": 28, "spo2": 92, "temperature": 38.5
+    },
+    {
+      "id": "vs_001_3", "patientId": "pat_001",
+      "timestamp": "2026-02-17T22:00:00Z",
+      "heartRate": 100, "systolicBP": 95, "diastolicBP": 60, "meanBP": 72,
+      "respiratoryRate": 26, "spo2": 93, "temperature": 38.2
+    },
+    {
+      "id": "vs_001_4", "patientId": "pat_001",
+      "timestamp": "2026-02-18T06:00:00Z",
+      "heartRate": 102, "systolicBP": 90, "diastolicBP": 58, "meanBP": 69,
+      "respiratoryRate": 28, "spo2": 92, "temperature": 38.8
+    },
+    {
+      "id": "vs_002_1", "patientId": "pat_002",
+      "timestamp": "2026-02-17T06:00:00Z",
+      "heartRate": 124, "systolicBP": 78, "diastolicBP": 48, "meanBP": 58,
+      "respiratoryRate": 24, "spo2": 86, "temperature": 39.5
+    },
+    {
+      "id": "vs_002_2", "patientId": "pat_002",
+      "timestamp": "2026-02-17T14:00:00Z",
+      "heartRate": 118, "systolicBP": 82, "diastolicBP": 50, "meanBP": 61,
+      "respiratoryRate": 22, "spo2": 88, "temperature": 39.1
+    },
+    {
+      "id": "vs_002_3", "patientId": "pat_002",
+      "timestamp": "2026-02-17T22:00:00Z",
+      "heartRate": 120, "systolicBP": 80, "diastolicBP": 50, "meanBP": 60,
+      "respiratoryRate": 22, "spo2": 87, "temperature": 39.3
+    },
+    {
+      "id": "vs_002_4", "patientId": "pat_002",
+      "timestamp": "2026-02-18T06:00:00Z",
+      "heartRate": 118, "systolicBP": 82, "diastolicBP": 52, "meanBP": 62,
+      "respiratoryRate": 22, "spo2": 88, "temperature": 39.2
+    },
+    {
+      "id": "vs_003_1", "patientId": "pat_003",
+      "timestamp": "2026-02-17T06:00:00Z",
+      "heartRate": 92, "systolicBP": 162, "diastolicBP": 96, "meanBP": 118,
+      "respiratoryRate": 20, "spo2": 92, "temperature": 37.4
+    },
+    {
+      "id": "vs_003_2", "patientId": "pat_003",
+      "timestamp": "2026-02-17T14:00:00Z",
+      "heartRate": 88, "systolicBP": 155, "diastolicBP": 92, "meanBP": 113,
+      "respiratoryRate": 18, "spo2": 93, "temperature": 37.2
+    },
+    {
+      "id": "vs_003_3", "patientId": "pat_003",
+      "timestamp": "2026-02-17T22:00:00Z",
+      "heartRate": 86, "systolicBP": 160, "diastolicBP": 94, "meanBP": 116,
+      "respiratoryRate": 19, "spo2": 93, "temperature": 37.1
+    },
+    {
+      "id": "vs_003_4", "patientId": "pat_003",
+      "timestamp": "2026-02-18T06:00:00Z",
+      "heartRate": 88, "systolicBP": 158, "diastolicBP": 92, "meanBP": 114,
+      "respiratoryRate": 18, "spo2": 94, "temperature": 37.2
+    },
+    {
+      "id": "vs_004_1", "patientId": "pat_004",
+      "timestamp": "2026-02-17T06:00:00Z",
+      "heartRate": 72, "systolicBP": 150, "diastolicBP": 90, "meanBP": 110,
+      "respiratoryRate": 16, "spo2": 97, "temperature": 37.0
+    },
+    {
+      "id": "vs_004_2", "patientId": "pat_004",
+      "timestamp": "2026-02-17T14:00:00Z",
+      "heartRate": 68, "systolicBP": 145, "diastolicBP": 86, "meanBP": 106,
+      "respiratoryRate": 14, "spo2": 98, "temperature": 36.9
+    },
+    {
+      "id": "vs_004_3", "patientId": "pat_004",
+      "timestamp": "2026-02-17T22:00:00Z",
+      "heartRate": 66, "systolicBP": 148, "diastolicBP": 88, "meanBP": 108,
+      "respiratoryRate": 14, "spo2": 98, "temperature": 36.7
+    },
+    {
+      "id": "vs_004_4", "patientId": "pat_004",
+      "timestamp": "2026-02-18T06:00:00Z",
+      "heartRate": 68, "systolicBP": 148, "diastolicBP": 88, "meanBP": 108,
+      "respiratoryRate": 14, "spo2": 98, "temperature": 36.8
+    }
+  ]
+}
