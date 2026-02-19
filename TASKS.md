@@ -128,8 +128,8 @@
 
 - [x] CI 設置 (`.github/workflows/ci.yml`): 11 jobs — backend-test, frontend-build, backend-lint, security-scan, migration-check, static-integration-guards, dast-scan, reproducibility-report, e2e-critical-journey, e2e-extended-journeys, docker-build
 - [x] **Green Run #1** — run `22177463198` (2026-02-19): 10/10 jobs passed (e2e-extended-journeys: scheduled-only, skipped)
-- [ ] **Green Run #2** — pending
-- [ ] **Green Run #3** — pending
+- [x] **Green Run #2** — run `22177685032` (2026-02-19): 10/10 jobs passed
+- [x] **Green Run #3** — run `22177823663` (2026-02-19): 10/10 jobs passed
 
 ### CI 修正歷程
 1. `9734354` fix(T22): JWT_SECRET ≥32 chars for non-DEBUG mode, package-lock.json sync, E2E AI-chat graceful
