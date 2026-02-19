@@ -1,7 +1,7 @@
 import { MedicalRecords } from '../components/medical-records';
 import { LabTrendChart, LabTrendData } from '../components/lab-trend-chart';
 import { VitalSignCard } from '../components/vital-signs-card';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import {
@@ -66,7 +66,11 @@ import {
   Save,
   History,
   BookOpen,
-  Trash2
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  ChevronRight,
+  ArrowDown
 } from 'lucide-react';
 import { LabDataDisplay } from '../components/lab-data-display';
 
@@ -85,7 +89,7 @@ const defaultLabData: LabData = {
 // 檢驗項目中文名稱對照
 const LAB_CHINESE_NAMES_MAP: Record<string, string> = {
   RespiratoryRate: '呼吸速率', Temperature: '體溫',
-  BloodPressureSystolic: '高血壓', BloodPressureDiastolic: '低血壓',
+  BloodPressureSystolic: '收縮壓 SBP', BloodPressureDiastolic: '舒張壓 DBP',
   HeartRate: '心率', SpO2: '血氧飽和度', EtCO2: '呼氣末二氧化碳',
   CVP: '中心靜脈壓', ICP: '顱內壓', FiO2: '吸入氧濃度',
   PEEP: '呼氣末正壓', TidalVolume: '潮氣量', VentRR: '呼吸器設定呼吸速率',
@@ -149,6 +153,25 @@ const EMPTY_MEDICATION_GROUPS: MedicationGroups = {
   analgesia: [],
   nmb: [],
   other: [],
+};
+
+const MED_CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
+  antibiotic: { label: '抗生素', color: 'bg-amber-100 text-amber-800' },
+  antifungal: { label: '抗黴菌', color: 'bg-amber-100 text-amber-800' },
+  antiviral: { label: '抗病毒', color: 'bg-amber-100 text-amber-800' },
+  vasopressor: { label: '升壓劑', color: 'bg-red-100 text-red-800' },
+  anticoagulant: { label: '抗凝血', color: 'bg-rose-100 text-rose-800' },
+  steroid: { label: '類固醇', color: 'bg-orange-100 text-orange-800' },
+  ppi: { label: 'PPI', color: 'bg-sky-100 text-sky-800' },
+  h2_blocker: { label: 'H2 Blocker', color: 'bg-sky-100 text-sky-800' },
+  diuretic: { label: '利尿劑', color: 'bg-cyan-100 text-cyan-800' },
+  insulin: { label: '胰島素', color: 'bg-teal-100 text-teal-800' },
+  electrolyte: { label: '電解質', color: 'bg-emerald-100 text-emerald-800' },
+  bronchodilator: { label: '支氣管擴張', color: 'bg-indigo-100 text-indigo-800' },
+  antiarrhythmic: { label: '抗心律不整', color: 'bg-pink-100 text-pink-800' },
+  antiepileptic: { label: '抗癲癇', color: 'bg-violet-100 text-violet-800' },
+  laxative: { label: '緩瀉劑', color: 'bg-lime-100 text-lime-800' },
+  antiemetic: { label: '止吐', color: 'bg-green-100 text-green-800' },
 };
 
 function formatAiDegradedReason(reason?: string | null, upstreamStatus?: string | null): string {
@@ -446,8 +469,14 @@ export function PatientDetailPage() {
   const [activeTab, setActiveTab] = useState('chat');
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [expandedExplanations, setExpandedExplanations] = useState<Set<number>>(new Set()); // 追蹤哪些訊息的說明區塊是展開的
-  const [expandedReferences, setExpandedReferences] = useState<Set<number>>(new Set()); // 追蹤哪些訊息的參考依據區塊是展開的
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [expandedExplanations, setExpandedExplanations] = useState<Set<number>>(new Set());
+  const [expandedReferences, setExpandedReferences] = useState<Set<number>>(new Set());
+  const [expandedDataQuality, setExpandedDataQuality] = useState<Set<number>>(new Set());
+  const [disclaimerCollapsed, setDisclaimerCollapsed] = useState(true);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
   // RAG 索引狀態
@@ -621,6 +650,19 @@ export function PatientDetailPage() {
   useEffect(() => {
     refreshAiReadiness();
   }, [refreshAiReadiness]);
+
+  // Auto-scroll to bottom when chat messages update (including during streaming)
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  // Scroll detection: show "jump to latest" button when scrolled up >200px from bottom
+  const handleMessagesScroll = useCallback(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollToBottom(distFromBottom > 200);
+  }, []);
 
   // P3-6: 載入 RAG 索引狀態
   useEffect(() => {
@@ -816,12 +858,20 @@ export function PatientDetailPage() {
     }
 
     const userMessage = chatInput.trim();
+    const nowTime = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
     const messagesWithUser = [
       ...chatMessages,
-      { role: 'user' as const, content: userMessage }
+      { role: 'user' as const, content: userMessage, timestamp: nowTime }
     ];
     setChatMessages(messagesWithUser);
     setChatInput('');
+    // Force clear via DOM ref as safety net (prevents stale textarea state)
+    requestAnimationFrame(() => {
+      if (chatInputRef.current) {
+        chatInputRef.current.value = '';
+        chatInputRef.current.focus();
+      }
+    });
     setIsSending(true);
 
     try {
@@ -869,6 +919,7 @@ export function PatientDetailPage() {
         degradedReason: response.message.degradedReason || null,
         upstreamStatus: response.message.upstreamStatus || null,
         dataFreshness: response.message.dataFreshness || null,
+        timestamp: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
       };
 
       const finalMessages = [
@@ -973,7 +1024,7 @@ export function PatientDetailPage() {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/patients')} className="hover:bg-[#f8f9fa]">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/patients')} className="hover:bg-[#f8f9fa]" title="返回病人清單">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div className="flex items-center gap-4">
@@ -1009,13 +1060,13 @@ export function PatientDetailPage() {
 
       {/* 分頁內容 */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-6 h-16 bg-[#f8f9fa] border-2 border-[#e5e7eb] gap-1 p-1">
-          <TabsTrigger value="chat" className="text-[15px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-lg">
-            <MessageSquare className="mr-2 h-5 w-5" />
+        <TabsList className="grid w-full grid-cols-6 h-[44px] bg-[#f8f9fa] border border-[#e5e7eb] gap-0.5 p-0.5">
+          <TabsTrigger value="chat" className="text-[13px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
+            <MessageSquare className="mr-1.5 h-4 w-4" />
             對話助手
           </TabsTrigger>
-          <TabsTrigger value="messages" className="text-[15px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white relative rounded-lg">
-            <MessagesSquare className="mr-2 h-5 w-5" />
+          <TabsTrigger value="messages" className="text-[13px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white relative rounded-md">
+            <MessagesSquare className="mr-1.5 h-4 w-4" />
             留言板
             {messages.filter(m => !m.isRead).length > 0 && (
               <Badge className="ml-2 bg-[#ff3975] text-white px-2 py-0.5 text-xs">
@@ -1023,71 +1074,81 @@ export function PatientDetailPage() {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="records" className="text-[15px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-lg">
-            <FileText className="mr-2 h-5 w-5" />
+          <TabsTrigger value="records" className="text-[13px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
+            <FileText className="mr-1.5 h-4 w-4" />
             病歷記錄
           </TabsTrigger>
-          <TabsTrigger value="labs" className="text-[15px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-lg">
-            <TestTube className="mr-2 h-5 w-5" />
+          <TabsTrigger value="labs" className="text-[13px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
+            <TestTube className="mr-1.5 h-4 w-4" />
             檢驗數據
           </TabsTrigger>
-          <TabsTrigger value="meds" className="text-[15px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-lg">
-            <Pill className="mr-2 h-5 w-5" />
+          <TabsTrigger value="meds" className="text-[13px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
+            <Pill className="mr-1.5 h-4 w-4" />
             用藥
           </TabsTrigger>
-          <TabsTrigger value="summary" className="text-[15px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-lg">
-            <FileText className="mr-2 h-5 w-5" />
+          <TabsTrigger value="summary" className="text-[13px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
+            <FileText className="mr-1.5 h-4 w-4" />
             病歷摘要
           </TabsTrigger>
         </TabsList>
 
         {/* 對話助手 */}
-        <TabsContent value="chat" className="space-y-4">
-          <div className="grid grid-cols-12 gap-4">
+        <TabsContent value="chat" className="space-y-2">
+          <div className="grid grid-cols-12 gap-2">
             {/* 左側對話記錄列表 */}
             {showSessionList && (
               <div className="col-span-3">
-                <Card className="border-2">
-                  <CardHeader className="bg-[#f8f9fa] border-b-2">
+                <Card className="border">
+                  <CardHeader className="bg-[#f8f9fa] border-b py-1.5 px-3" style={{ paddingBottom: '6px' }}>
                     <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <History className="h-5 w-5 text-[#7f265b]" />
+                      <span className="flex items-center gap-1 text-[12px] font-semibold text-[#374151]">
+                        <History className="h-3.5 w-3.5 text-[#7f265b]" />
                         對話記錄
-                      </CardTitle>
+                      </span>
                       <Button
                         size="sm"
-                        className="bg-[#7f265b] hover:bg-[#631e4d]"
+                        className="h-6 px-2 text-[10px] bg-[#7f265b] hover:bg-[#631e4d]"
                         onClick={() => {
                           setSelectedSession(null);
                           setChatMessages([]);
                           setSessionTitle('');
                         }}
                       >
-                        <Plus className="h-4 w-4 mr-1" />
+                        <Plus className="h-3 w-3 mr-1" />
                         新對話
                       </Button>
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
-                    <ScrollArea className="h-[600px]">
+                    <ScrollArea style={{ height: 'calc(100vh - 220px)', minHeight: '400px' }}>
                       {chatSessions.length === 0 ? (
-                        <div className="p-4 text-center text-muted-foreground">
-                          <p className="text-sm">尚無對話記錄</p>
+                        <div className="p-8 flex flex-col items-center gap-2 text-center text-muted-foreground">
+                          <MessageSquare className="h-10 w-10 text-[#7f265b] opacity-20" />
+                          <p className="text-sm font-medium text-[#6b7280]">尚無對話記錄</p>
+                          <p className="text-xs text-[#9ca3af] leading-relaxed">點擊「新對話」開始<br/>向 AI 詢問照護問題</p>
                         </div>
                       ) : (
                         <div className="space-y-1 p-2">
 	                          {chatSessions.map((session) => (
-	                            <button
+	                            <div
+	                              role="button"
+	                              tabIndex={0}
 	                              key={session.id}
 	                              onClick={async () => {
 	                                setSelectedSession(session);
 	                                setSessionTitle(session.title);
 	                                try {
 		                                  const detail = await fetchChatSessionApi(session.id);
-		                                  setChatMessages((detail.messages || []).map(m => ({
+		                                  setChatMessages((detail.messages || []).map(m => {
+		                                    let ts: string | undefined;
+		                                    if (m.timestamp) {
+		                                      try { ts = new Date(m.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }); } catch { ts = undefined; }
+		                                    }
+		                                    return {
 		                                    role: (m.role === 'assistant' ? 'assistant' : 'user'),
 		                                    content: m.content,
 		                                    explanation: m.explanation || null,
+		                                    timestamp: ts,
 		                                    references: m.citations || [],
 			                                    warnings: m.safetyWarnings || null,
 			                                    requiresExpertReview: m.requiresExpertReview || false,
@@ -1095,13 +1156,14 @@ export function PatientDetailPage() {
 			                                    degradedReason: m.degradedReason || null,
 			                                    upstreamStatus: m.upstreamStatus || null,
 			                                    dataFreshness: m.dataFreshness || null,
-			                                  })));
+			                                  };
+			                                  }));
 			                                } catch {
 	                                  toast.error('載入對話內容失敗');
 	                                  setChatMessages([]);
 	                                }
 	                              }}
-	                              className={`w-full text-left p-3 rounded-lg border-2 transition-all hover:bg-[#f8f9fa] ${
+	                              className={`group w-full text-left px-2.5 py-2 rounded-lg border transition-all hover:bg-[#f8f9fa] ${
 	                                selectedSession?.id === session.id
 	                                  ? 'bg-[#f8f9fa] border-[#7f265b]'
 	                                  : 'border-transparent'
@@ -1109,17 +1171,12 @@ export function PatientDetailPage() {
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-sm text-[#1a1a1a] truncate">
+                                  <p className="font-semibold text-sm text-[#1a1a1a] truncate">
                                     {session.title}
                                   </p>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <Badge variant="outline" className="text-xs">
-                                      {session.sessionDate}
-                                    </Badge>
-                                    <span className="text-xs text-muted-foreground">
-                                      {session.sessionTime}
-                                    </span>
-                                  </div>
+                                  <span className="text-[10px] text-[#b0b0b0] mt-0.5">
+                                    {session.sessionDate === new Date().toISOString().slice(0, 10) ? session.sessionTime : `${session.sessionDate} ${session.sessionTime}`}
+                                  </span>
                                   {session.labDataSnapshot && (
                                     <div className="mt-1 text-xs text-muted-foreground">
                                       K: {formatSnapshotValue(session.labDataSnapshot.K)} • eGFR: {formatSnapshotValue(session.labDataSnapshot.eGFR)}
@@ -1132,14 +1189,14 @@ export function PatientDetailPage() {
 	                                </Badge>
                                   <button
                                     onClick={(e) => handleDeleteSession(e, session.id)}
-                                    className="p-1 rounded hover:bg-red-100 text-muted-foreground hover:text-red-600 transition-colors"
+                                    className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 text-muted-foreground hover:text-red-600"
                                     title="刪除對話"
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </button>
                                 </div>
                               </div>
-                            </button>
+                            </div>
                           ))}
                         </div>
                       )}
@@ -1151,92 +1208,76 @@ export function PatientDetailPage() {
 
             {/* 右側對話區 */}
             <div className={showSessionList ? "col-span-9" : "col-span-12"}>
-              <Card className="border-2">
-                <CardHeader className="bg-[#f8f9fa] border-b-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      {selectedSession ? (
-                        <div>
-                          <CardTitle className="text-xl">{selectedSession.title}</CardTitle>
-                          <CardDescription className="text-[15px] mt-1">
-                            {selectedSession.sessionDate} {selectedSession.sessionTime} • 最後更新：{selectedSession.lastUpdated}
-                          </CardDescription>
-                        </div>
-                      ) : (
-                        <div>
-                          <CardTitle className="text-xl">新對話</CardTitle>
-                          <CardDescription className="text-[15px] mt-1">
-                            與 AI 助手討論病患照護問題
-                          </CardDescription>
-                        </div>
-                      )}
-                    </div>
-	                    <div className="flex items-center gap-2">
+              <Card className="border">
+                <CardHeader className="bg-[#f8f9fa] border-b py-1 px-3" style={{ paddingBottom: '4px' }}>
+                  <div className="flex items-center gap-1.5">
+                    {/* Disclaimer inline */}
+                    {disclaimerCollapsed ? (
+                      <button
+                        onClick={() => setDisclaimerCollapsed(false)}
+                        className="flex items-center gap-1 text-[11px] text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+                      >
+                        <Info className="h-3 w-3" />
+                        <span>AI 僅供參考</span>
+                        <ChevronDown className="h-2.5 w-2.5" />
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-[11px] text-[#6b7280] bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                        <Info className="h-3 w-3 shrink-0 text-amber-600" />
+                        <span>AI 輔助產生，僅供臨床參考，不可取代醫師專業判斷。</span>
+                        <button onClick={() => setDisclaimerCollapsed(true)} className="shrink-0 text-[#9CA3AF] hover:text-[#6B7280]">
+                          <ChevronUp className="h-3 w-3" />
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex-1" />
+                    <div className="flex items-center gap-1">
 	                      {aiReadiness && (
 	                        <Badge
 	                          variant="outline"
-	                          className={
+	                          className={`text-[10px] px-1.5 py-0 ${
 	                            canSendAiChat
 	                              ? 'border-green-300 bg-green-50 text-green-700'
 	                              : 'border-amber-300 bg-amber-50 text-amber-700'
-	                          }
+	                          }`}
 	                        >
 	                          {canSendAiChat ? 'AI 就緒' : 'AI 未就緒'}
 	                        </Badge>
 	                      )}
-	                      <Button
-	                        variant="outline"
-	                        size="sm"
-	                        onClick={refreshAiReadiness}
-	                        disabled={isCheckingAiReadiness}
-	                      >
-	                        <RefreshCw className={`mr-2 h-4 w-4 ${isCheckingAiReadiness ? 'animate-spin' : ''}`} />
-	                        檢查 AI 狀態
+	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-[#6b7280] hover:text-[#7f265b]"
+	                        onClick={refreshAiReadiness} disabled={isCheckingAiReadiness} title="檢查 AI 狀態">
+	                        <Activity className={`h-3 w-3 ${isCheckingAiReadiness ? 'animate-spin' : ''}`} />
 	                      </Button>
-	                      <Button
-	                        variant="outline"
-	                        size="sm"
-	                        onClick={() => loadPatientBundle('refresh')}
-	                        disabled={isRefreshingPatientData}
-	                      >
-	                        <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshingPatientData ? 'animate-spin' : ''}`} />
-	                        更新患者數值
+	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-[#6b7280] hover:text-[#7f265b]"
+	                        onClick={() => loadPatientBundle('refresh')} disabled={isRefreshingPatientData} title="更新患者數值">
+	                        <RefreshCw className={`h-3 w-3 ${isRefreshingPatientData ? 'animate-spin' : ''}`} />
 	                      </Button>
-	                      <Button
-	                        variant="ghost"
-	                        size="sm"
-	                        onClick={() => setShowSessionList(!showSessionList)}
-	                      >
-	                        {showSessionList ? '隱藏' : '顯示'}記錄
+	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-[#6b7280] hover:text-[#7f265b]"
+	                        onClick={() => setShowSessionList(!showSessionList)} title={showSessionList ? '隱藏記錄列表' : '顯示記錄列表'}>
+	                        <History className="h-3 w-3" />
 	                      </Button>
 	                    </div>
                   </div>
-                  {!selectedSession && chatMessages.length > 0 && (
-                    <div className="mt-3">
-                      <label className="text-sm font-medium text-[#1a1a1a]">對話標題（選填）</label>
-                      <input
-                        type="text"
-                        value={sessionTitle}
-                        onChange={(e) => setSessionTitle(e.target.value)}
-                        placeholder="例如：鎮靜深度評估與血鉀討論"
-                        className="mt-1 w-full px-3 py-2 border-2 border-[#e5e7eb] rounded-lg focus:border-[#7f265b] focus:outline-none"
-                      />
-                    </div>
-                  )}
                 </CardHeader>
-                <CardContent className="space-y-4 pt-6">
-                  {/* 免責聲明 banner */}
-                  <div className="text-xs text-[#6b7280] bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    ⚕️ 本對話由 AI 輔助產生，僅供臨床參考，不可取代醫師專業判斷。任何治療決策應以主治醫師評估為準。
-                  </div>
+                <CardContent className="p-0">
+                  <div className="flex flex-col" style={{ height: 'max(calc(100vh - 260px), 480px)' }}>
+                  {/* AI 未就緒 warning */}
                   {!canSendAiChat && (
-                    <div className="text-xs text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
-                      {aiChatGateReason}
+                    <div className="flex-none mx-4 mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 flex items-start gap-2">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium">AI 對話功能暫時無法使用</p>
+                        <p className="text-amber-700 mt-0.5">請聯繫系統管理員或稍後重試。</p>
+                      </div>
                     </div>
                   )}
 
                   {/* 對話區 */}
-                  <div className="border-2 border-[#e5e7eb] rounded-lg p-4 min-h-[500px] max-h-[600px] overflow-y-auto space-y-4 bg-[#f8f9fa]">
+                  <div
+                    ref={messagesContainerRef}
+                    onScroll={handleMessagesScroll}
+                    className="relative flex-1 overflow-y-auto space-y-2 px-4 py-2"
+                  >
                     {chatMessages.length === 0 ? (
                       <div className="text-center text-muted-foreground py-12">
                         <MessageSquare className="h-16 w-16 mx-auto mb-4 text-[#7f265b] opacity-30" />
@@ -1244,180 +1285,198 @@ export function PatientDetailPage() {
                         <p className="text-sm text-[#6b7280] mt-2">可以詢問檢驗數據、用藥建議、治療指引等</p>
                       </div>
                     ) : (
-                      chatMessages.map((msg, idx) => (
-                        <div
-                          key={idx}
-                          className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div
-                            className={`relative max-w-[80%] rounded-lg p-4 space-y-2 ${
-                              msg.role === 'user'
-                                ? 'bg-[#7f265b] text-white shadow-md'
-                                : 'bg-white border-2 border-[#e5e7eb] text-[#1a1a1a] shadow-sm'
-                            }`}
-                          >
-		                            {msg.role === 'assistant' ? (
-		                              <div>
-		                                <AiMarkdown content={msg.content} className="text-[16px] pr-2" />
-				                                {msg.explanation && msg.explanation.trim().length > 0 && (() => {
-				                                  const isExplanationExpanded = expandedExplanations.has(idx);
-				                                  return (
-				                                    <div className="mt-2">
-				                                      <button
-				                                        onClick={() => {
-				                                          setExpandedExplanations((prev) => {
-				                                            const next = new Set(prev);
-				                                            if (isExplanationExpanded) {
-				                                              next.delete(idx);
-				                                            } else {
-				                                              next.add(idx);
-				                                            }
-				                                            return next;
-				                                          });
-				                                        }}
-				                                        className="text-xs text-[#7f265b] hover:text-[#631e4d] font-medium"
-				                                      >
-				                                        {isExplanationExpanded ? '收起說明' : '展開說明'}
-				                                      </button>
-				                                      {isExplanationExpanded && (
-				                                        <div className="mt-1.5 rounded border border-[#d1d5db] bg-[#f8f9fa] p-2.5">
-				                                          <AiMarkdown content={msg.explanation} className="text-[14px]" />
-				                                        </div>
-				                                      )}
-				                                    </div>
-				                                  );
-				                                })()}
-					                                <SafetyWarnings warnings={msg.warnings} />
-				                                {msg.requiresExpertReview && (
-		                                  <div className="mt-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-		                                    此 AI 回覆包含潛在高風險資訊，建議由醫師/藥師覆核後再採用。
-		                                  </div>
-		                                )}
-		                              </div>
-		                            ) : (
-		                              <p className="whitespace-pre-wrap text-[16px] leading-relaxed pr-2">{msg.content}</p>
-		                            )}
-		                            {msg.role === 'assistant' && (() => {
-		                              const references = msg.references || [];
-		                              const freshnessHints = getDisplayFreshnessHints(msg.dataFreshness);
-		                              const isExpanded = expandedReferences.has(idx);
-		                              return (
-		                                <div className="mt-3 pt-3 border-t border-[#e5e7eb] space-y-2">
-		                                  <button
-		                                    onClick={() => {
-	                                      const newExpanded = new Set(expandedReferences);
-	                                      if (isExpanded) {
-	                                        newExpanded.delete(idx);
-                                      } else {
-                                        newExpanded.add(idx);
-                                      }
-                                      setExpandedReferences(newExpanded);
-                                    }}
-	                                    className="w-full text-left hover:bg-[#f8f9fa]/50 rounded p-2 transition-colors"
-	                                  >
-	                                    <div className="flex items-center justify-between gap-2">
-	                                      <div className="flex items-center gap-1">
-	                                        <BookOpen className="h-3 w-3 text-[#7f265b]" />
-	                                        <p className="text-xs font-medium text-[#7f265b]">參考依據</p>
-	                                        <Badge variant="outline" className="ml-1 text-xs bg-white">
-	                                          {references.length}
-	                                        </Badge>
-	                                      </div>
-                                      <div className="flex items-center gap-1 text-xs text-[#7f265b]">
-                                        <span className="font-medium">{isExpanded ? '收起' : '展開'}</span>
-                                        <svg 
-                                          className={`h-3 w-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                                          fill="none" 
-                                          viewBox="0 0 24 24" 
-                                          stroke="currentColor"
-                                        >
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                        </svg>
-                                      </div>
+                      chatMessages.map((msg, idx) => {
+                        const isStreamingThis = isSending && idx === chatMessages.length - 1;
+                        const isWaiting = isStreamingThis && !msg.content;
+                        const displayContent = isStreamingThis && msg.content ? msg.content + '▌' : msg.content;
+                        const references = msg.role === 'assistant' ? (msg.references || []) : [];
+                        const freshnessHints = msg.role === 'assistant' ? getDisplayFreshnessHints(msg.dataFreshness) : [];
+                        const hasDataQuality = msg.role === 'assistant' && (msg.degraded || freshnessHints.length > 0);
+                        const isDetailExpanded = expandedExplanations.has(idx);
+                        const isRefsExpanded = expandedReferences.has(idx);
+                        const isQualityExpanded = expandedDataQuality.has(idx);
+                        const isFirstOfRound = idx > 0 && msg.role === 'user' && chatMessages[idx - 1].role === 'assistant';
+                        return (
+                          <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}${isFirstOfRound ? ' mt-3' : ''}`}>
+                            {msg.role === 'user' ? (
+                              <div className="max-w-[65%] w-fit rounded-2xl px-3.5 py-2 bg-[#7f265b] text-white shadow-sm">
+                                <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{msg.content}</p>
+                                {msg.timestamp && (
+                                  <p className="text-[10px] text-white/50 mt-1 text-right">{msg.timestamp}</p>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="flex items-start gap-0 max-w-[92%]">
+                                {/* Round badge */}
+                                <span className="text-[10px] font-bold text-[#9CA3AF] mt-2.5 mr-1 w-5 text-right shrink-0">
+                                  #{chatMessages.slice(0, idx + 1).filter(m => m.role === 'assistant').length}
+                                </span>
+                              <div className="flex flex-1 min-w-0 rounded-lg bg-white border border-[#E5E7EB] shadow-sm overflow-hidden">
+                                {/* Accent bar — full height via stretch */}
+                                <div className="w-1.5 bg-[#7f265b] shrink-0" />
+                                {/* Content */}
+                                <div className="flex-1 min-w-0 px-3 py-2.5">
+                                  {/* Summary / waiting state */}
+                                  {isWaiting ? (
+                                    <div className="flex items-center gap-1.5 py-1">
+                                      <div className="h-2.5 w-2.5 rounded-full bg-[#7f265b] animate-bounce" style={{ animationDelay: '0ms' }} />
+                                      <div className="h-2.5 w-2.5 rounded-full bg-[#7f265b] animate-bounce" style={{ animationDelay: '160ms' }} />
+                                      <div className="h-2.5 w-2.5 rounded-full bg-[#7f265b] animate-bounce" style={{ animationDelay: '320ms' }} />
                                     </div>
-                                  </button>
-		                                  {isExpanded && (
-		                                    <div className="bg-[#f8f9fa] rounded p-2.5 border border-[#e5e7eb] mt-2">
-		                                      {references.length === 0 ? (
-		                                        <p className="text-xs text-[#6b7280]">
-		                                          本次回答未擷取到可顯示的文獻段落，可改用更具體關鍵詞再詢問。
-		                                        </p>
-		                                      ) : (
-		                                      <ul className="space-y-2">
-		                                        {references.map((ref, refIdx) => (
-		                                          <li key={`${ref.id || 'ref'}-${refIdx}`} className="text-xs text-muted-foreground">
-		                                            <div className="flex items-start gap-1">
-		                                              <span className="text-[#7f265b] mt-0.5">•</span>
-	                                              <div className="flex-1">
-                                                <p className="font-medium text-[#374151]">
-                                                  {ref.title || ref.sourceFile || 'unknown'}
-                                                </p>
-	                                                <p className="text-[11px] text-muted-foreground mt-0.5">
-	                                                  {(ref.sourceFile || ref.source || 'unknown')}
-	                                                  {' • '}
-	                                                  {formatCitationPageText(ref)}
-	                                                  {' • '}
-	                                                  相關度 {Number.isFinite(Number(ref.relevance)) ? Number(ref.relevance).toFixed(3) : 'N/A'}
-	                                                </p>
-	                                                {typeof ref.snippetCount === 'number' && ref.snippetCount > 1 && (
-	                                                  <p className="text-[11px] text-[#6b7280] mt-0.5">已合併 {ref.snippetCount} 段引用</p>
-	                                                )}
-	                                                {ref.snippet && ref.snippet.trim().length > 0 ? (
-	                                                  <div className="mt-1 rounded border border-[#d1d5db] bg-white p-2 text-[11px] leading-relaxed text-[#374151] whitespace-pre-wrap max-h-32 overflow-y-auto">
-	                                                    {compactSnippet(ref.snippet)}
-	                                                  </div>
-	                                                ) : (
-	                                                  <p className="text-[11px] text-[#9ca3af] mt-1">未提供原文段落。</p>
-	                                                )}
-	                                              </div>
-	                                            </div>
-		                                          </li>
-		                                        ))}
-		                                      </ul>
-		                                      )}
-		                                    </div>
-		                                  )}
-		                                  {(msg.degraded || freshnessHints.length > 0) && (
-		                                    <div className="rounded border border-[#d1d5db] bg-[#f9fafb] px-2.5 py-2 text-[11px] text-[#6b7280]">
-		                                      {msg.degraded && (
-		                                        <p>系統狀態：{formatAiDegradedReason(msg.degradedReason, msg.upstreamStatus)}</p>
-		                                      )}
-		                                      {freshnessHints.length > 0 && (
-		                                        <p>資料品質：{freshnessHints.join(' ')}</p>
-		                                      )}
-		                                    </div>
-		                                  )}
-		                                </div>
-		                              );
-		                            })()}
-                            {msg.role === 'assistant' && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="absolute bottom-2 right-2 h-7 w-7 opacity-60 hover:opacity-100 hover:bg-[#f8f9fa]"
-                                onClick={async () => {
-                                  const success = await copyToClipboard(msg.content);
-                                  if (success) {
-                                    toast.success('已複製到剪貼簿');
-                                  } else {
-                                    toast.error('複製失敗，請手動複製');
-                                  }
-                                }}
-                              >
-                                <Copy className="h-4 w-4 text-[#7f265b]" />
-                              </Button>
+                                  ) : (
+                                    <p className="text-[15px] font-medium leading-relaxed text-[#1F2937]">{displayContent}</p>
+                                  )}
+
+                                  {/* Expandable panels — shown after streaming */}
+                                  {!isStreamingThis && (<>
+                                    {/* Detail / explanation panel */}
+                                    {isDetailExpanded && msg.explanation && msg.explanation.trim().length > 0 && (
+                                      <div className="mt-2 rounded-md bg-[#F7F8F9] border border-[#E5E7EB] px-3 py-2.5">
+                                        <AiMarkdown content={msg.explanation} className="text-[13px]" />
+                                        <SafetyWarnings warnings={msg.warnings} />
+                                        {msg.requiresExpertReview && (
+                                          <div className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                                            此回覆包含潛在高風險資訊，建議醫師/藥師覆核。
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {/* References panel */}
+                                    {isRefsExpanded && (
+                                      <div className="mt-2 rounded-md bg-[#f8f9fa] border border-[#e5e7eb] p-2.5">
+                                        {references.length === 0 ? (
+                                          <p className="text-xs text-[#6b7280]">本次回答未擷取到可顯示的文獻段落，可改用更具體關鍵詞再詢問。</p>
+                                        ) : (
+                                          <ul className="space-y-2">
+                                            {references.map((ref, refIdx) => (
+                                              <li key={`${ref.id || 'ref'}-${refIdx}`} className="text-xs text-muted-foreground">
+                                                <div className="flex items-start gap-1">
+                                                  <span className="text-[#7f265b] mt-0.5">•</span>
+                                                  <div className="flex-1">
+                                                    <p className="font-medium text-[#374151]">{ref.title || ref.sourceFile || 'unknown'}</p>
+                                                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                                                      {(ref.sourceFile || ref.source || 'unknown')}
+                                                      {' • '}
+                                                      {formatCitationPageText(ref)}
+                                                      {' • '}
+                                                      相關度 {Number.isFinite(Number(ref.relevance)) ? Number(ref.relevance).toFixed(3) : 'N/A'}
+                                                    </p>
+                                                    {Array.isArray(ref.snippets) && ref.snippets.length > 1 ? (
+                                                      <div className="mt-1 space-y-1.5">
+                                                        {ref.snippets.map((s, si) => (
+                                                          <div key={si} className="rounded border border-[#d1d5db] bg-white p-2 text-[11px] leading-relaxed text-[#374151] whitespace-pre-wrap">
+                                                            <span className="inline-block text-[10px] font-medium text-[#7f265b] mb-0.5">段落 {si + 1}</span>
+                                                            <div>{compactSnippet(s)}</div>
+                                                          </div>
+                                                        ))}
+                                                      </div>
+                                                    ) : ref.snippet && ref.snippet.trim().length > 0 ? (
+                                                      <div className="mt-1 rounded border border-[#d1d5db] bg-white p-2 text-[11px] leading-relaxed text-[#374151] whitespace-pre-wrap max-h-32 overflow-y-auto">
+                                                        {compactSnippet(ref.snippet)}
+                                                      </div>
+                                                    ) : (
+                                                      <p className="text-[11px] text-[#9ca3af] mt-1">未提供原文段落。</p>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {/* Data quality panel */}
+                                    {isQualityExpanded && hasDataQuality && (
+                                      <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 px-2.5 py-2 text-xs text-amber-700 flex items-start gap-1.5">
+                                        <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                                        <div className="space-y-0.5">
+                                          {msg.degraded && <p>系統狀態：{formatAiDegradedReason(msg.degradedReason, msg.upstreamStatus)}</p>}
+                                          {freshnessHints.length > 0 && <p>資料品質：{freshnessHints.join(' ')}</p>}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </>)}
+
+                                  {/* Inline toolbar */}
+                                  {!isStreamingThis && (
+                                    <div className="flex items-center gap-2.5 mt-2 pt-1.5 border-t border-[#F0F0F0] text-[12px] text-[#9CA3AF]">
+                                      {msg.explanation && msg.explanation.trim().length > 0 && (
+                                        <button
+                                          onClick={() => setExpandedExplanations(prev => { const n = new Set(prev); isDetailExpanded ? n.delete(idx) : n.add(idx); return n; })}
+                                          className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
+                                          aria-label={isDetailExpanded ? '收合說明' : '展開說明'}
+                                        >
+                                          {isDetailExpanded ? <><ChevronDown className="h-3 w-3" />收合</> : <><ChevronRight className="h-3 w-3" />詳細</>}
+                                        </button>
+                                      )}
+                                      {references.length > 0 && (
+                                        <button
+                                          onClick={() => setExpandedReferences(prev => { const n = new Set(prev); isRefsExpanded ? n.delete(idx) : n.add(idx); return n; })}
+                                          className="flex items-center gap-0.5 hover:text-[#4B5563] cursor-pointer transition-colors"
+                                          aria-label="參考依據"
+                                        >
+                                          <BookOpen className="h-3 w-3" />
+                                          {references.length}
+                                        </button>
+                                      )}
+                                      {hasDataQuality && (
+                                        <button
+                                          onClick={() => setExpandedDataQuality(prev => { const n = new Set(prev); isQualityExpanded ? n.delete(idx) : n.add(idx); return n; })}
+                                          className="flex items-center gap-0.5 text-amber-500 hover:text-amber-700 transition-colors"
+                                          aria-label="資料品質警告"
+                                        >
+                                          <AlertCircle className="h-3 w-3" />
+                                        </button>
+                                      )}
+                                      {msg.timestamp && (
+                                        <span className="flex items-center gap-0.5 text-[10px]">
+                                          <Clock className="h-3 w-3" />
+                                          {msg.timestamp}
+                                        </span>
+                                      )}
+                                      <div className="flex-1" />
+                                      <button
+                                        onClick={async () => {
+                                          const success = await copyToClipboard(msg.content);
+                                          if (success) toast.success('已複製到剪貼簿');
+                                          else toast.error('複製失敗，請手動複製');
+                                        }}
+                                        className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
+                                        aria-label="複製回覆"
+                                      >
+                                        <Copy className="h-3 w-3" />
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              </div>
                             )}
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
+                    )}
+                    <div ref={messagesEndRef} />
+                    {showScrollToBottom && (
+                      <button
+                        onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                        className="sticky bottom-2 ml-auto flex items-center gap-1 bg-[#7f265b] text-white text-xs rounded-full px-3 py-1.5 shadow-lg hover:bg-[#5f1e45] transition-colors z-10"
+                        aria-label="跳到最新訊息"
+                      >
+                        <ArrowDown className="h-3.5 w-3.5" />
+                        跳到最新
+                      </button>
                     )}
                   </div>
 
                   {/* 輸入區 */}
-                  <div className="space-y-2">
-                    <div className="flex gap-3">
+                  <div className="flex-none px-4 pb-1.5 pt-0 border-t border-[#e5e7eb] bg-white">
+                    <div className="flex gap-2 pt-1.5 items-end">
                       <Textarea
-                        placeholder={canSendAiChat ? "例如：這位病患的鎮靜深度是否適當？" : "AI 功能未就緒，請先修復 readiness 問題"}
+                        ref={chatInputRef}
+                        placeholder={canSendAiChat ? "例如：這位病患的鎮靜深度是否適當？" : "AI 功能未就緒"}
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -1426,15 +1485,28 @@ export function PatientDetailPage() {
                             handleSendMessage();
                           }
                         }}
-                        className="min-h-[80px] border-2 border-[#7f265b] focus:border-[#7f265b] focus:ring-2 focus:ring-[#7f265b]/20 text-[17px]"
+                        className={`min-h-[36px] border text-[13px] focus:ring-2 transition-colors ${
+                          canSendAiChat
+                            ? 'border-[#7f265b] focus:border-[#7f265b] focus:ring-[#7f265b]/20'
+                            : 'border-[#d1d5db] bg-[#f9fafb] text-[#9ca3af] cursor-not-allowed'
+                        }`}
                         disabled={!canSendAiChat}
                       />
-                      <Button onClick={handleSendMessage} size="icon" className="h-[80px] w-[80px] bg-[#7f265b] hover:bg-[#5f1e45]" disabled={isSending || !chatInput.trim() || !canSendAiChat}>
-                        {isSending ? <RefreshCw className="h-6 w-6 animate-spin" /> : <Send className="h-6 w-6" />}
+                      <Button
+                        onClick={handleSendMessage}
+                        size="icon"
+                        className={`h-[36px] w-[36px] shrink-0 transition-colors ${
+                          canSendAiChat
+                            ? 'bg-[#7f265b] hover:bg-[#5f1e45]'
+                            : 'bg-[#d1d5db] cursor-not-allowed'
+                        }`}
+                        disabled={isSending || !chatInput.trim() || !canSendAiChat}>
+                        <Send className={`h-4.5 w-4.5 ${isSending ? 'opacity-40' : ''}`} />
                       </Button>
                     </div>
-                    <p className="text-sm text-[#6b7280]">按 Enter 發送，Shift + Enter 換行</p>
+                    <p className="text-[9px] text-[#d0d0d0] mt-1">Enter 發送 · Shift+Enter 換行</p>
                   </div>
+                  </div>{/* end flex column */}
                 </CardContent>
               </Card>
             </div>
@@ -1447,8 +1519,8 @@ export function PatientDetailPage() {
 
         {/* 留言板 */}
         <TabsContent value="messages" className="space-y-4">
-          <Card className="border-2">
-            <CardHeader className="bg-[#f8f9fa] border-b-2">
+          <Card>
+            <CardHeader className="bg-[#f8f9fa] border-b">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2 text-xl">
@@ -1491,7 +1563,7 @@ export function PatientDetailPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* 新增留言輸入區 */}
-              <div className="space-y-2 p-4 bg-[#f8f9fa] rounded-lg border-2 border-[#e5e7eb]">
+              <div className="space-y-2 p-4 bg-[#f8f9fa] rounded-lg border border-[#e5e7eb]">
                 <div className="flex items-center gap-2">
                   <Send className="h-5 w-5 text-[#7f265b]" />
                   <label className="font-semibold text-[#1a1a1a]">新增留言</label>
@@ -1500,7 +1572,7 @@ export function PatientDetailPage() {
                   placeholder="輸入照護相關訊息或用藥建議..."
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
-                  className="min-h-[80px] border-2 border-[#7f265b] focus:border-[#7f265b] focus:ring-2 focus:ring-[#7f265b]/20 text-[17px]"
+                  className="min-h-[80px] border border-[#7f265b] focus:border-[#7f265b] focus:ring-2 focus:ring-[#7f265b]/20 text-[17px]"
                 />
                 <div className="flex gap-2">
                   <Button
@@ -1545,7 +1617,7 @@ export function PatientDetailPage() {
               <Separator />
 
               {/* 留言列表 */}
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold">團隊留言 ({messages.length})</h3>
                   <div className="flex gap-2">
@@ -1609,12 +1681,12 @@ export function PatientDetailPage() {
                     return (
                       <Card 
                         key={message.id} 
-                        className={`border-2 ${getMessageTypeColor()} ${!message.isRead ? 'shadow-md' : ''}`}
+                        className={`${getMessageTypeColor()} ${!message.isRead ? 'shadow-md' : ''}`}
                       >
-                        <CardHeader className="pb-3">
+                        <CardHeader className="pb-2 pt-3">
                           <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 bg-white rounded-full border-2">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 bg-white rounded-full border">
                                 {getRoleIcon()}
                               </div>
                               <div>
@@ -1677,8 +1749,8 @@ export function PatientDetailPage() {
                             )}
                           </div>
                         </CardHeader>
-                        <CardContent>
-                          <p className="text-[16px] leading-relaxed whitespace-pre-wrap">
+                        <CardContent className="pt-0 pb-3">
+                          <p className="text-[15px] leading-relaxed whitespace-pre-wrap">
                             {message.content}
                           </p>
                         </CardContent>
@@ -1699,14 +1771,15 @@ export function PatientDetailPage() {
         {/* 檢驗數據 */}
         <TabsContent value="labs" className="space-y-4">
           {/* 生命徵象 */}
-          <Card className="border-2">
-            <CardHeader className="min-h-14 bg-[#f8f9fa] border-b-2 py-3">
+          <Card>
+            <CardHeader className="min-h-14 bg-[#f8f9fa] border-b py-3">
               <CardTitle className="flex items-center gap-2 text-xl">
                 <Activity className="h-6 w-6 text-[#7f265b]" />
                 生命徵象 Vital Signs
               </CardTitle>
-              <CardDescription className="mt-1 text-sm">
-                📅 {formatDisplayTimestamp(vitalSigns?.timestamp)}
+              <CardDescription className="mt-1 text-sm flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5" />
+                {formatDisplayTimestamp(vitalSigns?.timestamp)}
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-3">
@@ -1733,7 +1806,7 @@ export function PatientDetailPage() {
                   />
 
                   <VitalSignCard
-                    label="高血壓"
+                    label="收縮壓 SBP"
                     value={systolicBP}
                     unit="mmHg"
                     isAbnormal={isFiniteNumber(systolicBP) && (systolicBP > 140 || systolicBP < 90)}
@@ -1741,7 +1814,7 @@ export function PatientDetailPage() {
                   />
 
                   <VitalSignCard
-                    label="低血壓"
+                    label="舒張壓 DBP"
                     value={diastolicBP}
                     unit="mmHg"
                     isAbnormal={isFiniteNumber(diastolicBP) && (diastolicBP > 90 || diastolicBP < 60)}
@@ -1794,14 +1867,15 @@ export function PatientDetailPage() {
 
           {/* 呼吸器設定 - 僅在插管病人顯示 */}
           {patient.intubated && (
-            <Card className="border-2">
-              <CardHeader className="min-h-14 bg-[#f8f9fa] border-b-2 py-3">
+            <Card>
+              <CardHeader className="min-h-14 bg-[#f8f9fa] border-b py-3">
                 <CardTitle className="flex items-center gap-2 text-xl">
                   <Wind className="h-6 w-6 text-[#7f265b]" />
                   呼吸器設定 Ventilator Settings
                 </CardTitle>
-                <CardDescription className="mt-1 text-sm">
-                  📅 {formatDisplayTimestamp(ventTimestamp)} | Mode: {formatDisplayValue(ventMode)}
+                <CardDescription className="mt-1 text-sm flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {formatDisplayTimestamp(ventTimestamp)} | Mode: {formatDisplayValue(ventMode)}
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-3">
@@ -1911,14 +1985,15 @@ export function PatientDetailPage() {
           )}
 
           {/* 檢驗數據 */}
-          <Card className="border-2">
-            <CardHeader className="min-h-14 bg-[#f8f9fa] border-b-2 py-3">
+          <Card>
+            <CardHeader className="min-h-14 bg-[#f8f9fa] border-b py-3">
               <CardTitle className="flex items-center gap-2 text-xl">
                 <TestTube className="h-6 w-6 text-[#7f265b]" />
                 檢驗數據 Lab Data
               </CardTitle>
-              <CardDescription className="mt-1 text-sm">
-                📅 {formatDisplayTimestamp(labData?.timestamp)}
+              <CardDescription className="mt-1 text-sm flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5" />
+                {formatDisplayTimestamp(labData?.timestamp)}
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-3">
@@ -1943,7 +2018,7 @@ export function PatientDetailPage() {
               {/* S/A/N 藥物 */}
               <div className="grid gap-3 md:grid-cols-3">
                 {/* Pain (A) */}
-                <Card className="border-2 border-[#e5e7eb]">
+                <Card className="border-[#e5e7eb]">
                   <CardHeader className="pb-2 space-y-1">
                     <CardTitle className="text-base leading-tight">Pain 止痛</CardTitle>
                     <CardDescription className="text-sm leading-tight">
@@ -1968,7 +2043,7 @@ export function PatientDetailPage() {
                 </Card>
 
                 {/* Sedation (S) */}
-                <Card className="border-2 border-[#e5e7eb]">
+                <Card className="border-[#e5e7eb]">
                   <CardHeader className="pb-2 space-y-1">
                     <CardTitle className="text-base leading-tight">Sedation 鎮靜</CardTitle>
                     <CardDescription className="text-sm leading-tight">
@@ -1993,7 +2068,7 @@ export function PatientDetailPage() {
                 </Card>
 
                 {/* Neuromuscular Blockade (N) */}
-                <Card className="border-2 border-[#e5e7eb]">
+                <Card className="border-[#e5e7eb]">
                   <CardHeader className="pb-2 space-y-1">
                     <CardTitle className="text-base leading-tight">Neuromuscular Blockade 神經肌肉阻斷</CardTitle>
                     <CardDescription className="text-sm leading-tight">
@@ -2019,7 +2094,7 @@ export function PatientDetailPage() {
               </div>
 
               {/* Other Medications */}
-              <Card className="border-2 border-[#e5e7eb]">
+              <Card className="border-[#e5e7eb]">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base leading-tight">其他藥物 Other Medications</CardTitle>
                 </CardHeader>
@@ -2029,12 +2104,22 @@ export function PatientDetailPage() {
                     <p className="py-3 text-sm text-muted-foreground">無其他藥物</p>
                   ) : (
                     <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                      {otherMedications.map((med) => (
-                        <div key={med.id} className="rounded-md border bg-[rgba(196,196,196,0.15)] px-3 py-2">
-                          <p className="font-medium leading-tight">{formatDisplayValue(med.name)}</p>
-                          <p className="mt-1 text-sm text-muted-foreground">{formatMedicationRegimen(med)}</p>
-                        </div>
-                      ))}
+                      {otherMedications.map((med) => {
+                        const catInfo = MED_CATEGORY_LABELS[med.category];
+                        return (
+                          <div key={med.id} className="rounded-md border bg-[rgba(196,196,196,0.15)] px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium leading-tight">{formatDisplayValue(med.name)}</p>
+                              {catInfo && (
+                                <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 h-4 ${catInfo.color}`}>
+                                  {catInfo.label}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="mt-1 text-sm text-muted-foreground">{formatMedicationRegimen(med)}</p>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>

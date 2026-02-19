@@ -284,22 +284,24 @@ export function ErrorReportPage() {
         </Card>
       )}
 
-      {/* 錯誤類型統計 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>錯誤類型分布</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-2 md:grid-cols-4">
-            {Object.entries(errorTypeCount).map(([type, count]) => (
-              <div key={type} className="p-3 border rounded-lg">
-                <div className="text-sm text-muted-foreground">{type}</div>
-                <div className="text-2xl font-bold mt-1">{count}</div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* 錯誤類型統計 — 有資料時才顯示 */}
+      {Object.keys(errorTypeCount).length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>錯誤類型分布</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-2 md:grid-cols-4">
+              {Object.entries(errorTypeCount).map(([type, count]) => (
+                <div key={type} className="p-3 border rounded-lg">
+                  <div className="text-sm text-muted-foreground">{type}</div>
+                  <div className="text-2xl font-bold mt-1">{count}</div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 回報記錄列表 */}
       <Card>

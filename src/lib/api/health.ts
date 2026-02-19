@@ -66,7 +66,7 @@ export async function validateApiConnection(): Promise<void> {
     console.error(`❌ API 連接失敗`);
     console.error(`   📍 URL: ${result.baseUrl}`);
     console.error(`   💬 錯誤: ${result.message}`);
-    console.error(`   💡 請確認後端服務是否已啟動: cd server && dart_frog dev`);
+    console.error(`   💡 請確認後端服務是否已啟動: cd backend && ./.venv312/bin/python -m uvicorn app.main:app --port 8000`);
   }
 }
 

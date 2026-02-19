@@ -190,7 +190,7 @@ CAM-ICU: Positive / Negative
   return (
     <div className="space-y-6">
       {/* 記錄類型選擇 */}
-      <Card className="border-2 border-[#7f265b]">
+      <Card className="border-[#7f265b]">
         <CardHeader className="bg-[#f8f9fa]">
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-6 w-6 text-[#7f265b]" />
@@ -247,7 +247,7 @@ CAM-ICU: Positive / Negative
           {/* Progress Note 表單 */}
           {recordType === 'progress-note' && (
             <div className="space-y-4">
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-start gap-3 mb-3">
                   <FileText className="h-6 w-6 text-blue-600 mt-1" />
                   <div>
@@ -265,7 +265,7 @@ CAM-ICU: Positive / Negative
                       placeholder="例如：病人今天意識清楚，血壓穩定，繼續使用呼吸器..."
                       value={inputContent}
                       onChange={(e) => setInputContent(e.target.value)}
-                      className="min-h-[150px] mt-2 border-2 border-blue-300"
+                      className="min-h-[150px] mt-2 border border-blue-300"
                     />
                   </div>
                   
@@ -285,7 +285,7 @@ CAM-ICU: Positive / Negative
           {/* 用藥建議表單 */}
           {recordType === 'medication-advice' && (
             <div className="space-y-4">
-              <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <div className="flex items-start gap-3 mb-3">
                   <Pill className="h-6 w-6 text-green-600 mt-1" />
                   <div>
@@ -303,7 +303,7 @@ CAM-ICU: Positive / Negative
                       placeholder="例如：建議調整 Morphine 劑量因為腎功能不全，同時注意監測呼吸抑制..."
                       value={inputContent}
                       onChange={(e) => setInputContent(e.target.value)}
-                      className="min-h-[150px] mt-2 border-2 border-green-300"
+                      className="min-h-[150px] mt-2 border border-green-300"
                     />
                   </div>
                   
@@ -323,7 +323,7 @@ CAM-ICU: Positive / Negative
           {/* 護理記錄表單 */}
           {recordType === 'nursing-record' && (
             <div className="space-y-4">
-              <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4">
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                 <div className="flex items-start gap-3 mb-3">
                   <ClipboardList className="h-6 w-6 text-purple-600 mt-1" />
                   <div>
@@ -341,7 +341,7 @@ CAM-ICU: Positive / Negative
                       setSelectedTemplate(value);
                       applyTemplate(value);
                     }}>
-                      <SelectTrigger className="mt-2 border-2 border-purple-300">
+                      <SelectTrigger className="mt-2 border border-purple-300">
                         <SelectValue placeholder="請選擇記錄模板" />
                       </SelectTrigger>
                       <SelectContent>
@@ -359,7 +359,7 @@ CAM-ICU: Positive / Negative
                       placeholder="填寫護理記錄或使用上方模板..."
                       value={inputContent}
                       onChange={(e) => setInputContent(e.target.value)}
-                      className="min-h-[200px] mt-2 border-2 border-purple-300 font-mono"
+                      className="min-h-[200px] mt-2 border border-purple-300 font-mono"
                     />
                   </div>
                   
@@ -386,7 +386,7 @@ CAM-ICU: Positive / Negative
                   {recordType === 'medication-advice' && '修飾後的用藥建議'}
                   {recordType === 'nursing-record' && '檢查後的護理記錄'}
                 </Label>
-                <div className={`mt-2 p-4 rounded-lg border-2 ${
+                <div className={`mt-2 p-4 rounded-lg border ${
                   recordType === 'progress-note' ? 'bg-blue-50 border-blue-300' :
                   recordType === 'medication-advice' ? 'bg-green-50 border-green-300' :
                   'bg-purple-50 border-purple-300'
@@ -449,7 +449,7 @@ CAM-ICU: Positive / Negative
       </Card>
 
       {/* 歷史記錄 */}
-      <Card className="border-2">
+      <Card>
         <CardHeader className="bg-[#f8f9fa]">
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-6 w-6 text-[#7f265b]" />
@@ -461,13 +461,13 @@ CAM-ICU: Positive / Negative
         </CardHeader>
         <CardContent className="space-y-3">
           {filteredRecords.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <FileText className="h-16 w-16 mx-auto mb-3 opacity-30" />
-              <p>尚無病歷記錄</p>
+            <div className="text-center py-6 text-muted-foreground">
+              <FileText className="h-10 w-10 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">尚無病歷記錄</p>
             </div>
           ) : (
             filteredRecords.map((record) => (
-              <Card key={record.id} className="border-2">
+              <Card key={record.id}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">

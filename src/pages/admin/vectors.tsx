@@ -161,12 +161,12 @@ export function VectorsPage() {
   return (
     <div className="p-6 space-y-6 pl-16">
       <div>
-        <h1 className="text-3xl font-bold text-[#3c7acb]">向量資料庫管理</h1>
+        <h1>向量資料庫管理</h1>
         <p className="text-muted-foreground mt-1">管理 AI 助手的知識庫與文件向量化</p>
       </div>
 
       {/* 文件上傳區 */}
-      <Card className="border-2 border-[#7f265b]">
+      <Card className="border-[#7f265b]">
         <CardHeader className="bg-[#f8f9fa]">
           <CardTitle className="flex items-center gap-2 text-xl">
             <FileUp className="h-6 w-6 text-[#7f265b]" />
@@ -185,7 +185,7 @@ export function VectorsPage() {
               id="database-select"
               value={selectedDatabase}
               onChange={(e) => setSelectedDatabase(e.target.value)}
-              className="w-full px-3 py-2 border-2 border-[#e5e7eb] rounded-lg focus:border-[#7f265b] focus:outline-none text-[16px]"
+              className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg focus:border-[#7f265b] focus:outline-none text-[16px]"
               disabled={isUploading}
             >
               {vectorDatabases.length === 0 ? (
@@ -211,7 +211,7 @@ export function VectorsPage() {
                 accept=".pdf"
                 onChange={handleFileSelect}
                 disabled={isUploading}
-                className="flex-1 border-2 cursor-pointer"
+                className="flex-1 cursor-pointer"
               />
               <Button
                 onClick={handleUpload}
@@ -255,8 +255,8 @@ export function VectorsPage() {
       </Card>
 
       {/* 向量資料庫列表 */}
-      <Card className="border-2">
-        <CardHeader className="bg-[#f8f9fa] border-b-2">
+      <Card>
+        <CardHeader className="bg-[#f8f9fa] border-b">
           <CardTitle className="flex items-center gap-2 text-xl">
             <Database className="h-6 w-6 text-[#7f265b]" />
             向量資料庫清單
@@ -300,15 +300,15 @@ export function VectorsPage() {
                       {getStatusBadge(db.status)}
                     </div>
                     <div className="grid grid-cols-3 gap-4 mt-3">
-                      <div className="bg-white border-2 border-[#e5e7eb] rounded-lg p-3">
+                      <div className="bg-white border border-[#e5e7eb] rounded-lg p-3">
                         <p className="text-xs text-muted-foreground mb-1">文件數量</p>
                         <p className="text-lg font-bold text-[#7f265b]">{db.documentCount}</p>
                       </div>
-                      <div className="bg-white border-2 border-[#e5e7eb] rounded-lg p-3">
+                      <div className="bg-white border border-[#e5e7eb] rounded-lg p-3">
                         <p className="text-xs text-muted-foreground mb-1">切片數量</p>
                         <p className="text-lg font-bold text-[#7f265b]">{db.chunkCount}</p>
                       </div>
-                      <div className="bg-white border-2 border-[#e5e7eb] rounded-lg p-3">
+                      <div className="bg-white border border-[#e5e7eb] rounded-lg p-3">
                         <p className="text-xs text-muted-foreground mb-1">嵌入模型</p>
                         <p className="text-[15px] font-medium text-[#1a1a1a]">{db.embeddingModel}</p>
                       </div>
@@ -329,7 +329,9 @@ export function VectorsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                      className="border-red-500 text-red-500 opacity-50 cursor-not-allowed"
+                      disabled
+                      title="尚未實作"
                     >
                       <Trash2 className="h-4 w-4 mr-1" />
                       清空資料庫

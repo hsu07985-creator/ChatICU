@@ -1,6 +1,6 @@
-import apiClient, { ensureData, tokenManager } from '../api-client';
+import apiClient, { ensureData } from '../api-client';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 // 類型定義
 export interface ChatMessage {
@@ -34,6 +34,7 @@ export interface Citation {
   page?: number | null;
   pages?: number[];
   snippet?: string;
+  snippets?: string[];
   snippetCount?: number;
   sourceFile?: string;
   chunkId?: string | null;
@@ -226,15 +227,14 @@ export async function streamChatMessage(options: StreamChatOptions): Promise<voi
   let streamStarted = false;
   try {
     const requestId = createStreamRequestId();
-    const token = tokenManager.getToken();
     const response = await fetch(`${API_BASE_URL}/ai/chat/stream`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'text/event-stream',
         'X-Request-ID': requestId,
         'X-Trace-ID': requestId,
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({
         message: options.message,

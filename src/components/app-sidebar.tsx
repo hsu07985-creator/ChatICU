@@ -121,16 +121,24 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="p-4 border-b">
-        <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-full bg-[#7f265b] flex items-center justify-center shadow-lg flex-shrink-0">
-            <Activity className="h-7 w-7 text-white" />
+      <SidebarHeader className="border-b overflow-hidden">
+        {isCollapsed ? (
+          <div className="flex items-center justify-center p-2.5">
+            <div className="h-8 w-8 rounded-full bg-[#7f265b] flex items-center justify-center shadow-md">
+              <Activity className="h-4 w-4 text-white" />
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="font-bold text-lg text-[#1a1a1a]">ChatICU</h2>
-            <p className="text-xs text-[#6b7280] truncate">{user?.name} · {user?.unit}</p>
+        ) : (
+          <div className="flex items-center gap-3 p-4">
+            <div className="h-12 w-12 rounded-full bg-[#7f265b] flex items-center justify-center shadow-lg flex-shrink-0">
+              <Activity className="h-7 w-7 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-bold text-lg text-[#1a1a1a]">ChatICU</h2>
+              <p className="text-xs text-[#6b7280] truncate">{user?.name} · {user?.unit}</p>
+            </div>
           </div>
-        </div>
+        )}
       </SidebarHeader>
 
       <SidebarContent>

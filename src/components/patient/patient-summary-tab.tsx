@@ -96,42 +96,50 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
     <div className="space-y-3">
       <div className="grid gap-3 lg:grid-cols-[1.2fr_1fr]">
         <Card className="overflow-hidden border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100/80">
-          <CardHeader className="border-b border-slate-200/80 bg-white/70 pb-2">
-            <CardTitle className="text-sm tracking-tight text-slate-900">基本資訊 / 症狀 / 入院診斷</CardTitle>
-            <p className="text-[11px] text-slate-500">病例概覽（高密度）</p>
+          <CardHeader className="border-b border-slate-200/80 bg-white/70 pb-2.5">
+            <CardTitle className="text-lg font-bold tracking-tight text-slate-900">基本資訊 / 症狀 / 入院診斷</CardTitle>
+            <p className="text-xs text-slate-500">病例概覽（高密度）</p>
           </CardHeader>
-          <CardContent className="space-y-2.5 pt-2.5">
+          <CardContent className="space-y-3 pt-2.5">
             <div className="grid grid-cols-2 gap-1.5 md:grid-cols-3 xl:grid-cols-6">
               {summaryFields.map((field) => (
                 <div key={field.label} className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
-                  <p className="text-[10px] uppercase tracking-tight text-slate-500">{field.label}</p>
-                  <p className="mt-0.5 text-[13px] font-semibold leading-tight text-slate-900">{field.value}</p>
+                  <p className="text-[11px] tracking-tight text-slate-500">{field.label}</p>
+                  <p className="mt-0.5 text-[15px] font-semibold leading-tight text-slate-900">{field.value}</p>
                 </div>
               ))}
             </div>
-            <div className="grid gap-2 lg:grid-cols-[1.5fr_1fr]">
-              <section className="rounded-md border border-slate-200 bg-white p-2.5">
-                <p className="text-[11px] font-semibold tracking-wide text-slate-600">症狀 Symptom</p>
-                <ul className="mt-1.5 space-y-1">
+            <section className="rounded-md border border-slate-200 bg-white p-2.5">
+              <p className="text-[13px] font-semibold tracking-wide text-slate-700">臨床狀態 Clinical Status</p>
+              <div
+                className="mt-2 grid overflow-hidden rounded-md border border-slate-200 bg-white"
+                style={{ gridTemplateColumns: 'minmax(0, 1.7fr) minmax(0, 1fr)' }}
+              >
+                <div className="p-2.5">
+                  <p className="text-[13px] font-semibold tracking-wide text-slate-700">症狀 Symptom</p>
                   {symptoms.length > 0 ? (
-                    symptoms.map((symptom: string, idx: number) => (
-                      <li key={idx} className="grid grid-cols-[18px_1fr] items-start gap-2 rounded-md border border-slate-200 bg-slate-50/70 px-2 py-1">
-                        <span className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-700">
-                          {idx + 1}
-                        </span>
-                        <span className="text-[13px] leading-snug text-slate-800">{symptom}</span>
-                      </li>
-                    ))
+                    <ul className="mt-1.5 overflow-hidden rounded-md border border-slate-200 bg-slate-50/60">
+                      {symptoms.map((symptom: string, idx: number) => (
+                        <li
+                          key={idx}
+                          className="border-b border-slate-200 px-2.5 py-2 text-[15px] leading-snug text-slate-800 last:border-b-0"
+                        >
+                          {symptom}
+                        </li>
+                      ))}
+                    </ul>
                   ) : (
-                    <li className="text-[13px] text-muted-foreground">尚無症狀記錄</li>
+                    <p className="mt-1.5 text-[15px] text-muted-foreground">尚無症狀記錄</p>
                   )}
-                </ul>
-              </section>
-              <section className="rounded-md border border-blue-200/80 bg-gradient-to-br from-blue-50/80 to-white p-2.5">
-                <p className="text-[11px] font-semibold tracking-wide text-blue-700">入院診斷</p>
-                <p className="mt-1.5 text-[13px] leading-snug text-slate-800">{patient.diagnosis || '-'}</p>
-              </section>
-            </div>
+                </div>
+                <div className="border-l border-slate-200 bg-blue-50/40 p-2.5">
+                  <p className="text-[13px] font-semibold tracking-wide text-slate-700">入院診斷</p>
+                  <div className="mt-1.5 rounded-md border border-blue-200/80 bg-white px-2.5 py-2">
+                    <p className="text-[15px] font-semibold leading-snug text-slate-900">{patient.diagnosis || '-'}</p>
+                  </div>
+                </div>
+              </div>
+            </section>
           </CardContent>
         </Card>
 
@@ -148,7 +156,7 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
           <CardContent className="space-y-2 pt-0">
             <Button
               size="sm"
-              className="w-full bg-[#7f265b] hover:bg-[#631e4d] sm:w-auto"
+              className="bg-[#7f265b] hover:bg-[#631e4d] w-auto"
               onClick={async () => {
                 if (!canSummary) {
                   toast.error(summaryReason);
@@ -207,7 +215,7 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
               placeholder="輸入衛教主題，例如：目前使用的藥物有什麼副作用？呼吸器什麼時候可以拔管？"
               value={explanationTopic}
               onChange={(e) => setExplanationTopic(e.target.value)}
-              className="min-h-[64px] border-2 border-blue-200"
+              className="min-h-[64px] border border-blue-200"
             />
             <div className="flex items-center gap-2">
               <label className="text-sm text-blue-700 whitespace-nowrap">說明程度：</label>
@@ -248,7 +256,7 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
               {isGeneratingExplanation ? '生成中...' : '產生衛教說明'}
             </Button>
             {explanationResult && (
-              <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-3">
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
                 <AiMarkdown content={explanationResult} className="text-sm" />
                 <SafetyWarnings warnings={explanationWarnings} />
                 <DataFreshnessHint dataFreshness={explanationFreshness} />
@@ -283,7 +291,7 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
                 placeholder="輸入臨床問題，例如：是否應該從 Midazolam 轉換為 Propofol？腎功能持續下降是否需要 CRRT？"
                 value={decisionQuestion}
                 onChange={(e) => setDecisionQuestion(e.target.value)}
-                className="min-h-[64px] border-2 border-amber-200"
+                className="min-h-[64px] border border-amber-200"
               />
               <button
                 type="button"
@@ -365,7 +373,7 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
                 {isGeneratingDecision ? '分析中...' : '產生決策建議'}
               </Button>
               {decisionResult && (
-                <div className="rounded-lg border-2 border-amber-200 bg-amber-50 p-3">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                   <AiMarkdown content={decisionResult} className="text-sm" />
                   <SafetyWarnings warnings={decisionWarnings} />
                   <DataFreshnessHint dataFreshness={decisionFreshness} />

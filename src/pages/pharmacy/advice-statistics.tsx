@@ -113,7 +113,7 @@ export function PharmacyAdviceStatisticsPage() {
   if (loading) {
     return (
       <div className="p-6">
-        <h1 className="text-3xl font-bold text-[#7f265b] mb-6">用藥建議與統計</h1>
+        <h1>用藥建議與統計</h1>
         <LoadingSpinner text="載入用藥建議記錄中..." />
       </div>
     );
@@ -123,7 +123,7 @@ export function PharmacyAdviceStatisticsPage() {
   if (error) {
     return (
       <div className="p-6">
-        <h1 className="text-3xl font-bold text-[#7f265b] mb-6">用藥建議與統計</h1>
+        <h1>用藥建議與統計</h1>
         <ErrorDisplay
           type="server"
           title="載入失敗"
@@ -138,7 +138,7 @@ export function PharmacyAdviceStatisticsPage() {
     <div className="p-6 space-y-6">
       {/* 標題 */}
       <div>
-        <h1 className="text-3xl font-bold text-[#7f265b]">用藥建議與統計</h1>
+        <h1>用藥建議與統計</h1>
         <p className="text-muted-foreground mt-1">藥師照護介入紀錄與分類統計（四大類 23 細項）</p>
       </div>
 
@@ -182,7 +182,7 @@ export function PharmacyAdviceStatisticsPage() {
 
       {/* 統計摘要卡片 */}
       <div className="grid gap-4 md:grid-cols-5">
-        <Card className="border-2 border-[#7f265b]">
+        <Card className="border-[#7f265b]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">總計</CardTitle>
             <TrendingUp className="h-5 w-5 text-[#7f265b]" />
@@ -246,18 +246,18 @@ export function PharmacyAdviceStatisticsPage() {
         </Card>
       </div>
 
-      {/* 圖表區域 */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* 圓餅圖 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-[#7f265b]" />
-              類別分佈
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {totalAdvices > 0 ? (
+      {/* 圖表區域 — 有資料時才顯示 */}
+      {totalAdvices > 0 && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {/* 圓餅圖 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-[#7f265b]" />
+                類別分佈
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
@@ -278,25 +278,18 @@ export function PharmacyAdviceStatisticsPage() {
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
-            ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                <p>本月尚無建議記錄</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* 長條圖：細項統計 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-[#7f265b]" />
-              細項分析 ({codeStats.length} 項)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {codeStats.length > 0 ? (
+          {/* 長條圖：細項統計 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-[#7f265b]" />
+                細項分析 ({codeStats.length} 項)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={codeStats} layout="horizontal">
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -317,15 +310,10 @@ export function PharmacyAdviceStatisticsPage() {
                   />
                 </BarChart>
               </ResponsiveContainer>
-            ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                <p>本月尚無建議記錄</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* 建議明細清單 */}
       <Card>

@@ -6,7 +6,7 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Label } from '../components/ui/label';
-import { Search, AlertCircle, Pencil, Users, Activity, Pill, MessageSquare, Loader2 } from 'lucide-react';
+import { Search, AlertCircle, Pencil, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { getPatients, Patient, updatePatient } from '../lib/api/patients';
 import { getDashboardStats, DashboardStats } from '../lib/api/dashboard';
@@ -166,99 +166,54 @@ export function DashboardPage() {
   return (
     <div className="p-6 space-y-6 pl-16">
       <div>
-        <h1 className="text-3xl font-bold text-[#3c7acb]">加護病房總覽</h1>
+        <h1>加護病房總覽</h1>
         <p className="text-muted-foreground mt-1">即時病床與病患狀態監控</p>
       </div>
 
-      {/* 統計摘要卡片 */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-2">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">病患總數</p>
-                {statsLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin mt-1 text-muted-foreground" />
-                ) : (
-                  <>
-                    <p className="text-2xl font-bold text-[#1a1a1a]">{stats?.patients?.total ?? '-'}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      插管 {stats?.patients?.intubated ?? 0} · SAN {stats?.patients?.withSAN ?? 0}
-                    </p>
-                  </>
-                )}
-              </div>
-              <div className="h-10 w-10 rounded-full bg-[#7f265b]/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-[#7f265b]" />
+      {/* ICU 指標（水平高密度） */}
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
+          {statsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <div
+                className="grid"
+                style={{ minWidth: '760px', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}
+              >
+                <div className="bg-[#7f265b]/[0.04] px-4 py-4">
+                  <p className="text-xs font-medium text-[#6b7280]">病患總數</p>
+                  <p className="mt-1 text-3xl font-bold leading-none text-[#1a1a1a]">{stats?.patients?.total ?? 0}</p>
+                </div>
+                <div className="border-l border-[#e5e7eb] px-4 py-4">
+                  <p className="text-xs font-medium text-[#6b7280]">插管人數</p>
+                  <p className="mt-1 text-3xl font-bold leading-none text-[#1a1a1a]">{stats?.patients?.intubated ?? 0}</p>
+                </div>
+                <div className="border-l border-[#e5e7eb] px-4 py-4">
+                  <p className="text-xs font-semibold text-blue-700">S 鎮靜</p>
+                  <p className="mt-1 text-3xl font-bold leading-none text-blue-900">
+                    {stats?.patients?.sanByCategory?.sedation ?? 0}
+                  </p>
+                </div>
+                <div className="border-l border-[#e5e7eb] px-4 py-4">
+                  <p className="text-xs font-semibold text-emerald-700">A 止痛</p>
+                  <p className="mt-1 text-3xl font-bold leading-none text-emerald-900">
+                    {stats?.patients?.sanByCategory?.analgesia ?? 0}
+                  </p>
+                </div>
+                <div className="border-l border-[#e5e7eb] px-4 py-4">
+                  <p className="text-xs font-semibold text-violet-700">N 阻斷</p>
+                  <p className="mt-1 text-3xl font-bold leading-none text-violet-900">
+                    {stats?.patients?.sanByCategory?.nmb ?? 0}
+                  </p>
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">警示數量</p>
-                {statsLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin mt-1 text-muted-foreground" />
-                ) : (
-                  <p className="text-2xl font-bold text-[#ff3975]">{stats?.alerts?.total ?? '-'}</p>
-                )}
-              </div>
-              <div className="h-10 w-10 rounded-full bg-[#ff3975]/10 flex items-center justify-center">
-                <AlertCircle className="h-5 w-5 text-[#ff3975]" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">活躍用藥</p>
-                {statsLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin mt-1 text-muted-foreground" />
-                ) : (
-                  <>
-                    <p className="text-2xl font-bold text-[#1a1a1a]">{stats?.medications?.active ?? '-'}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      S {stats?.medications?.sedation ?? 0} · A {stats?.medications?.analgesia ?? 0} · N {stats?.medications?.nmb ?? 0}
-                    </p>
-                  </>
-                )}
-              </div>
-              <div className="h-10 w-10 rounded-full bg-[#3c7acb]/10 flex items-center justify-center">
-                <Pill className="h-5 w-5 text-[#3c7acb]" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">今日訊息</p>
-                {statsLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin mt-1 text-muted-foreground" />
-                ) : (
-                  <>
-                    <p className="text-2xl font-bold text-[#1a1a1a]">{stats?.messages?.today ?? '-'}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      未讀 {stats?.messages?.unread ?? 0}
-                    </p>
-                  </>
-                )}
-              </div>
-              <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                <MessageSquare className="h-5 w-5 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* 搜尋與篩選 */}
       <Card>
@@ -303,7 +258,7 @@ export function DashboardPage() {
             {filteredPatients.map((patient) => (
               <Card
                 key={patient.id}
-                className="group cursor-pointer hover:shadow-xl transition-all duration-200 border-2 hover:border-primary/30 bg-white relative"
+                className="group cursor-pointer hover:shadow-xl transition-all duration-200 hover:border-primary/30 bg-white relative"
                 onClick={() => navigate(`/patient/${patient.id}`)}
               >
                 {/* 編輯按鈕 */}
@@ -376,7 +331,7 @@ export function DashboardPage() {
                   )}
 
                   <div className="text-xs text-muted-foreground pt-2 border-t">
-                    <span>最後更新：{patient.lastUpdate}</span>
+                    <span>最後更新：{new Date(patient.lastUpdate).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
                 </CardContent>
               </Card>

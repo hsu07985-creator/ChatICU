@@ -86,7 +86,7 @@ export function SectionErrorBoundary({
   return (
     <ErrorBoundary
       fallback={
-        <div className="p-4 border-2 border-red-200 bg-red-50 rounded-lg">
+        <div className="p-4 border border-red-200 bg-red-50 rounded-lg">
           <p className="text-red-600 text-center">
             {sectionName}載入失敗，請重新整理頁面
           </p>

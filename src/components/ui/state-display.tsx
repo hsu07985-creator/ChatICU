@@ -34,7 +34,7 @@ interface LoadingCardProps {
 
 export function LoadingCard({ title = '載入中', description, className }: LoadingCardProps) {
   return (
-    <Card className={cn('border-2 border-dashed', className)}>
+    <Card className={cn('border-dashed', className)}>
       <CardContent className="flex flex-col items-center justify-center py-12">
         <div className="relative">
           <div className="w-16 h-16 border-4 border-[#7f265b]/20 rounded-full"></div>
@@ -106,7 +106,7 @@ export function ErrorDisplay({
 
 export function ErrorCard({ type, title, message, onRetry, className }: ErrorDisplayProps) {
   return (
-    <Card className={cn('border-2 border-red-200 bg-red-50/50', className)}>
+    <Card className={cn('border-red-200 bg-red-50/50', className)}>
       <CardContent className="p-0">
         <ErrorDisplay type={type} title={title} message={message} onRetry={onRetry} />
       </CardContent>

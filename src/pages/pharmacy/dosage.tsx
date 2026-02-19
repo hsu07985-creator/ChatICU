@@ -4,7 +4,7 @@ import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
-import { Search, AlertTriangle, Loader2 } from 'lucide-react';
+import { Search, AlertTriangle, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 import { Separator } from '../../components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { toast } from 'sonner';
@@ -20,6 +20,7 @@ export function DosagePage() {
   const [hepaticFunction, setHepaticFunction] = useState('normal');
   const [result, setResult] = useState<DoseCalculateResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [instructionsOpen, setInstructionsOpen] = useState(true);
 
   const handleCalculate = async () => {
     if (!drugName.trim()) {
@@ -267,16 +268,21 @@ export function DosagePage() {
       {/* 使用說明 */}
       {!result && !loading && (
         <Card className="bg-muted/30">
-          <CardHeader>
-            <CardTitle className="text-base">使用說明</CardTitle>
+          <CardHeader className="cursor-pointer select-none" onClick={() => setInstructionsOpen(!instructionsOpen)}>
+            <CardTitle className="text-base flex items-center gap-2">
+              {instructionsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              使用說明
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <p>• 輸入藥品名稱查詢建議劑量（必填）</p>
-            <p>• 提供病患年齡、體重、腎功能與肝功能可獲得個人化建議</p>
-            <p>• 系統使用臨床規則引擎進行 deterministic 計算</p>
-            <p>• 計算結果包含具體劑量、計算步驟、安全警告</p>
-            <p>• 支援 weight-based、fixed-dose、infusion rate 等計算模式</p>
-          </CardContent>
+          {instructionsOpen && (
+            <CardContent className="space-y-2 text-sm pt-0">
+              <p>• 輸入藥品名稱查詢建議劑量（必填）</p>
+              <p>• 提供病患年齡、體重、腎功能與肝功能可獲得個人化建議</p>
+              <p>• 系統使用臨床規則引擎進行 deterministic 計算</p>
+              <p>• 計算結果包含具體劑量、計算步驟、安全警告</p>
+              <p>• 支援 weight-based、fixed-dose、infusion rate 等計算模式</p>
+            </CardContent>
+          )}
         </Card>
       )}
     </div>

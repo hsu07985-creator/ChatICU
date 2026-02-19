@@ -6,7 +6,7 @@ import { cn } from './utils';
 
 export function PatientCardSkeleton() {
   return (
-    <Card className="border-2 border-gray-200">
+    <Card className="border-gray-200">
       <CardContent className="p-4">
         <div className="flex items-center gap-4">
           <Skeleton className="h-12 w-12 rounded-full" />
@@ -38,7 +38,7 @@ export function PatientListSkeleton({ count = 5 }: { count?: number }) {
 
 export function LabDataCardSkeleton() {
   return (
-    <Card className="border-2">
+    <Card>
       <CardHeader className="pb-2">
         <Skeleton className="h-5 w-24" />
       </CardHeader>
@@ -68,7 +68,7 @@ export function LabDataSkeleton() {
 
 export function MedicationCardSkeleton() {
   return (
-    <Card className="border-2">
+    <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <Skeleton className="h-5 w-28" />
@@ -91,7 +91,7 @@ export function MedicationsSkeleton() {
           <MedicationCardSkeleton key={i} />
         ))}
       </div>
-      <Card className="border-2">
+      <Card>
         <CardHeader>
           <Skeleton className="h-5 w-32" />
         </CardHeader>
@@ -111,7 +111,7 @@ export function MedicationsSkeleton() {
 
 export function MessageSkeleton() {
   return (
-    <Card className="border-2">
+    <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center gap-3">
           <Skeleton className="h-10 w-10 rounded-full" />

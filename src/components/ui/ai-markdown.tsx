@@ -7,7 +7,7 @@ import { AlertTriangle } from 'lucide-react';
 export function SafetyWarnings({ warnings }: { warnings?: string[] | null }) {
   if (!warnings || warnings.length === 0) return null;
   return (
-    <div className="mt-3 rounded-lg border-2 border-amber-400 bg-amber-50 p-3">
+    <div className="mt-3 rounded-lg border border-amber-400 bg-amber-50 p-3">
       <div className="flex items-center gap-2 mb-1">
         <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
         <span className="font-semibold text-amber-800 text-sm">安全提醒</span>

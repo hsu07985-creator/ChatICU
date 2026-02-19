@@ -136,8 +136,8 @@ export function ChatPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-[#1a1a1a]">團隊聊天室</h1>
-          <p className="text-[#6b7280] mt-2 text-[16px]">團隊溝通與工作協調</p>
+          <h1>團隊聊天室</h1>
+          <p className="text-muted-foreground mt-1">團隊溝通與工作協調</p>
         </div>
         <div className="flex gap-2">
           {user?.role === 'admin' && (
@@ -154,8 +154,8 @@ export function ChatPage() {
 
       <div className="grid gap-6 md:grid-cols-3">
         {/* 主聊天區 */}
-        <Card className="md:col-span-2 border-2">
-          <CardHeader className="bg-[#f8f9fa] border-b-2 flex flex-row items-center justify-between">
+        <Card className="md:col-span-2">
+          <CardHeader className="bg-[#f8f9fa] border-b flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <MessageSquare className="h-6 w-6 text-[#7f265b]" />
               全體頻道
@@ -229,7 +229,7 @@ export function ChatPage() {
             </ScrollArea>
 
             {/* 輸入區 */}
-            <div className="space-y-2 border-t-2 border-[#e5e7eb] pt-4">
+            <div className="space-y-2 border-t border-[#e5e7eb] pt-4">
               <div className="flex items-center gap-2">
                 <Send className="h-5 w-5 text-[#7f265b]" />
                 <label className="font-semibold text-[#1a1a1a]">發送訊息給團隊</label>
@@ -246,7 +246,7 @@ export function ChatPage() {
                     }
                   }}
                   disabled={sending}
-                  className="min-h-[80px] border-2 border-[#7f265b] focus:border-[#7f265b] focus:ring-2 focus:ring-[#7f265b]/20 text-[17px]"
+                  className="min-h-[80px] border border-[#7f265b] focus:border-[#7f265b] focus:ring-2 focus:ring-[#7f265b]/20 text-[17px]"
                 />
                 <Button
                   onClick={handleSend}
@@ -268,22 +268,23 @@ export function ChatPage() {
 
         {/* 側邊欄 */}
         <div className="space-y-4">
-          {/* 釘選訊息 */}
-          <Card className="border-2">
+          {/* 釘選訊息 — 有釘選時才展開完整內容 */}
+          <Card>
             <CardHeader className="bg-[#f8f9fa]">
               <CardTitle className="flex items-center gap-2">
                 <Pin className="h-5 w-5 text-[#f59e0b]" />
                 釘選訊息
+                {messages.filter(m => m.pinned).length > 0 && (
+                  <Badge className="bg-[#f59e0b] text-white text-xs ml-auto">{messages.filter(m => m.pinned).length}</Badge>
+                )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 pt-4">
-              {messages.filter(m => m.pinned).length === 0 ? (
-                <p className="text-[#6b7280] text-sm text-center py-2">目前沒有釘選訊息</p>
-              ) : (
+            {messages.filter(m => m.pinned).length > 0 && (
+              <CardContent className="space-y-3 pt-4">
                 <ScrollArea className="max-h-[400px]">
                   <div className="space-y-3">
                     {messages.filter(m => m.pinned).map((msg) => (
-                      <div key={msg.id} className="group p-3 bg-white border-2 border-[#f59e0b] rounded-lg relative">
+                      <div key={msg.id} className="group p-3 bg-white border border-[#f59e0b] rounded-lg relative">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -300,8 +301,8 @@ export function ChatPage() {
                     ))}
                   </div>
                 </ScrollArea>
-              )}
-            </CardContent>
+              </CardContent>
+            )}
           </Card>
         </div>
       </div>
@@ -323,7 +324,7 @@ export function ChatPage() {
               placeholder="輸入公告內容..."
               value={announcementContent}
               onChange={(e) => setAnnouncementContent(e.target.value)}
-              className="min-h-[120px] border-2 border-[#f59e0b] focus:border-[#f59e0b] focus:ring-2 focus:ring-[#f59e0b]/20"
+              className="min-h-[120px] border border-[#f59e0b] focus:border-[#f59e0b] focus:ring-2 focus:ring-[#f59e0b]/20"
             />
           </div>
           <DialogFooter>

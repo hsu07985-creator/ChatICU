@@ -4,7 +4,7 @@ import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
-import { Search, Save, CheckCircle2, XCircle, HelpCircle, BookOpen, Loader2, X } from 'lucide-react';
+import { Search, Save, CheckCircle2, XCircle, HelpCircle, BookOpen, Loader2, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Separator } from '../../components/ui/separator';
 import { toast } from 'sonner';
@@ -46,6 +46,7 @@ export function CompatibilityPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [favorites, setFavorites] = useState<FavoriteCompatibilityPair[]>([]);
+  const [instructionsOpen, setInstructionsOpen] = useState(true);
 
   const loadFavorites = async () => {
     try {
@@ -345,16 +346,21 @@ export function CompatibilityPage() {
       {!hasSearched && !loading && (
         <>
           <Card className="bg-muted/30">
-            <CardHeader>
-              <CardTitle className="text-base">使用說明</CardTitle>
+            <CardHeader className="cursor-pointer select-none" onClick={() => setInstructionsOpen(!instructionsOpen)}>
+              <CardTitle className="text-base flex items-center gap-2">
+                {instructionsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                使用說明
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <p>• 輸入兩種藥品名稱進行查詢（必填）</p>
-              <p>• 可選擇特定溶液類型，或選擇「不限定」查詢所有溶液</p>
-              <p>• 相容性資料包含配伍條件（如 pH、濃度、時間限制）</p>
-              <p>• 若資料庫無相關資訊，建議使用分開的輸注管路</p>
-              <p>• 所有資料來源均可追溯，可查閱完整文獻</p>
-            </CardContent>
+            {instructionsOpen && (
+              <CardContent className="space-y-2 text-sm pt-0">
+                <p>• 輸入兩種藥品名稱進行查詢（必填）</p>
+                <p>• 可選擇特定溶液類型，或選擇「不限定」查詢所有溶液</p>
+                <p>• 相容性資料包含配伍條件（如 pH、濃度、時間限制）</p>
+                <p>• 若資料庫無相關資訊，建議使用分開的輸注管路</p>
+                <p>• 所有資料來源均可追溯，可查閱完整文獻</p>
+              </CardContent>
+            )}
           </Card>
 
           <Card>

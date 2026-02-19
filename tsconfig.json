@@ -55,6 +55,5 @@
       "@radix-ui/react-accordion@1.2.3": ["node_modules/@radix-ui/react-accordion"]
     }
   },
-  "include": ["src", "vite.config.ts"],
-  "exclude": ["src/imports/IcuPatientAi11.tsx"]
+  "include": ["src", "vite.config.ts"]
 }

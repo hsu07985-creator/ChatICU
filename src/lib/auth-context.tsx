@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import * as authApi from './api/auth';
-import { tokenManager } from './api-client';
 
 export type UserRole = 'nurse' | 'doctor' | 'admin' | 'pharmacist';
 
@@ -36,10 +35,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 檢查並恢復登入狀態
+  // 檢查並恢復登入狀態（透過 httpOnly cookie）
   const checkAuth = useCallback(async () => {
-    const token = tokenManager.getToken();
-    if (!token) {
+    // Quick check via non-httpOnly indicator cookie
+    if (!authApi.isAuthenticated()) {
       setLoading(false);
       return;
     }
@@ -48,16 +47,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = await authApi.getCurrentUser();
       setUser(currentUser);
     } catch (error) {
-      // Token 無效或過期，嘗試刷新
-      console.warn('Token 驗證失敗，嘗試刷新...');
+      // Cookie 驗證失敗，嘗試刷新（refresh cookie 自動送出）
+      console.warn('Session 驗證失敗，嘗試刷新...');
       try {
         await authApi.refreshToken();
         const currentUser = await authApi.getCurrentUser();
         setUser(currentUser);
       } catch (refreshError) {
-        // 刷新失敗，清除所有 token
-        console.error('Token 刷新失敗，需要重新登入');
-        tokenManager.clearAll();
+        console.error('Session 刷新失敗，需要重新登入');
         setUser(null);
       }
     } finally {

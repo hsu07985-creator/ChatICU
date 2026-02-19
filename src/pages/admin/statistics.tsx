@@ -81,7 +81,7 @@ export function AdminStatisticsPage() {
   if (loading) {
     return (
       <div className="p-6">
-        <h1 className="text-3xl font-bold text-[#3c7acb] mb-6">藥事統計（管理者）</h1>
+        <h1>藥事統計（管理者）</h1>
         <LoadingSpinner text="載入統計資料中..." />
       </div>
     );
@@ -90,7 +90,7 @@ export function AdminStatisticsPage() {
   if (error) {
     return (
       <div className="p-6">
-        <h1 className="text-3xl font-bold text-[#3c7acb] mb-6">藥事統計（管理者）</h1>
+        <h1>藥事統計（管理者）</h1>
         <ErrorDisplay
           type="server"
           title="載入失敗"
@@ -105,7 +105,7 @@ export function AdminStatisticsPage() {
     return (
       <div className="p-6 space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-[#3c7acb]">藥事統計（管理者）</h1>
+          <h1>藥事統計（管理者）</h1>
           <p className="text-muted-foreground mt-1">用藥建議介入紀錄與統計（依月份）</p>
         </div>
 
@@ -138,7 +138,7 @@ export function AdminStatisticsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-[#3c7acb]">藥事統計（管理者）</h1>
+          <h1>藥事統計（管理者）</h1>
           <p className="text-muted-foreground mt-1">用藥建議介入紀錄與統計（依月份）</p>
         </div>
         <div className="w-full max-w-[260px]">
@@ -158,7 +158,7 @@ export function AdminStatisticsPage() {
 
       {/* Summary cards */}
       <div className="grid gap-4 md:grid-cols-5">
-        <Card className="border-2 border-[#7f265b]">
+        <Card className="border-[#7f265b]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">總介入數</CardTitle>
             <TrendingUp className="h-5 w-5 text-[#7f265b]" />

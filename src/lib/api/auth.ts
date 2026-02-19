@@ -1,5 +1,5 @@
 import apiClient, { ensureData, tokenManager } from '../api-client';
-import type { User, UserRole } from '../auth-context';
+import type { User } from '../auth-context';
 
 // API 回應類型
 interface ApiResponse<T> {
@@ -12,36 +12,33 @@ interface LoginResponse {
   user: User;
   token: string;
   refreshToken: string;
-  expiresIn: string;
+  expiresIn: number;
+  passwordExpired?: boolean;
 }
 
 interface RefreshResponse {
   token: string;
   refreshToken: string;
-  expiresIn: string;
+  expiresIn: number;
 }
 
-// 登入
+// 登入 — backend 透過 Set-Cookie 設定 httpOnly JWT cookies
 export async function login(username: string, password: string): Promise<User> {
   const response = await apiClient.post<ApiResponse<LoginResponse>>('/auth/login', {
     username,
     password,
   });
 
-  const { user, token, refreshToken } = ensureData(response.data, 'API contract');
-  tokenManager.setToken(token);
-  tokenManager.setRefreshToken(refreshToken);
-  
+  const { user } = ensureData(response.data, 'API contract');
+  // Tokens are now in httpOnly cookies — clear any legacy localStorage
+  tokenManager.clearAll();
   return user;
 }
 
-// 登出 — send refreshToken so backend can blacklist both tokens
+// 登出 — backend 讀取 cookie 中的 tokens 進行 blacklist
 export async function logout(): Promise<void> {
   try {
-    const currentRefreshToken = tokenManager.getRefreshToken();
-    await apiClient.post('/auth/logout', {
-      refreshToken: currentRefreshToken || undefined,
-    });
+    await apiClient.post('/auth/logout');
   } finally {
     tokenManager.clearAll();
   }
@@ -53,26 +50,14 @@ export async function getCurrentUser(): Promise<User> {
   return ensureData(response.data, 'API contract');
 }
 
-// 刷新 Token
+// 刷新 Token — backend 讀取 cookie 中的 refresh token
 export async function refreshToken(): Promise<RefreshResponse> {
-  const currentRefreshToken = tokenManager.getRefreshToken();
-  if (!currentRefreshToken) {
-    throw new Error('No refresh token available');
-  }
-
-  const response = await apiClient.post<ApiResponse<RefreshResponse>>('/auth/refresh', {
-    refreshToken: currentRefreshToken,
-  });
-
-  const data = ensureData(response.data, 'API contract');
-  tokenManager.setToken(data.token);
-  tokenManager.setRefreshToken(data.refreshToken);
-  
-  return data;
+  const response = await apiClient.post<ApiResponse<RefreshResponse>>('/auth/refresh', {});
+  return ensureData(response.data, 'API contract');
 }
 
-// 檢查是否已登入
+// 檢查是否已登入（透過 non-httpOnly indicator cookie）
 export function isAuthenticated(): boolean {
-  return !!tokenManager.getToken();
+  return tokenManager.isLoggedIn();
 }
 

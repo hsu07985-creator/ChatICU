@@ -12,6 +12,11 @@ export interface DashboardStats {
     intubated: number;
     intubatedBeds: string[];
     withSAN: number;
+    sanByCategory: {
+      sedation: number;
+      analgesia: number;
+      nmb: number;
+    };
   };
   alerts: {
     total: number;
@@ -41,6 +46,11 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       intubated: raw.patients?.intubated ?? 0,
       intubatedBeds: raw.patients?.intubatedBeds ?? [],
       withSAN: raw.patients?.withSAN ?? 0,
+      sanByCategory: {
+        sedation: raw.patients?.sanByCategory?.sedation ?? 0,
+        analgesia: raw.patients?.sanByCategory?.analgesia ?? 0,
+        nmb: raw.patients?.sanByCategory?.nmb ?? 0,
+      },
     },
     alerts: {
       total: raw.alerts?.total ?? 0,

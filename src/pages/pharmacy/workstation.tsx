@@ -506,7 +506,7 @@ export function PharmacyWorkstationPage() {
         {/* 左側：病患與用藥管理 (40%) */}
         <div className="lg:col-span-2 space-y-4">
           {/* 病患選擇 */}
-          <Card className="border-2 border-[#7f265b]">
+          <Card className="border-[#7f265b]">
             <CardHeader className="bg-[#f8f9fa] pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <User className="h-5 w-5 text-[#7f265b]" />
@@ -582,7 +582,7 @@ export function PharmacyWorkstationPage() {
 
           {/* 用藥列表管理 */}
           {selectedPatient && (
-            <Card className="border-2 border-[#7f265b]">
+            <Card className="border-[#7f265b]">
               <CardHeader className="bg-[#f8f9fa] pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-lg">

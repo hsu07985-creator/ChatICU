@@ -82,7 +82,7 @@ export function AuditPage() {
     <div className="p-6 space-y-6 pl-16">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-[#3c7acb]">稽核紀錄</h1>
+          <h1>稽核紀錄</h1>
           <p className="text-muted-foreground mt-1">系統操作與存取記錄查詢</p>
         </div>
         <Button
@@ -135,8 +135,8 @@ export function AuditPage() {
       </div>
 
       {/* 稽核記錄列表 */}
-      <Card className="border-2">
-        <CardHeader className="bg-[#f8f9fa] border-b-2">
+      <Card>
+        <CardHeader className="bg-[#f8f9fa] border-b">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-xl">
@@ -152,7 +152,7 @@ export function AuditPage() {
                 placeholder="搜尋用戶、操作或目標..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="border-2"
+                className="border"
               />
             </div>
           </div>

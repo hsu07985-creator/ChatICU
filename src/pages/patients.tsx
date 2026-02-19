@@ -356,7 +356,7 @@ export function PatientsPage() {
 
           {/* 病人列表 */}
           {!loading && !error && filteredPatients.length > 0 && (
-          <Table>
+          <Table className="compact-table">
             <TableHeader>
               <TableRow>
                 <TableHead>床號</TableHead>
@@ -370,8 +370,8 @@ export function PatientsPage() {
                 <TableHead>呼吸器天數</TableHead>
                 <TableHead>DNR</TableHead>
                 <TableHead>隔離</TableHead>
-                <TableHead>插管狀態</TableHead>
-                <TableHead>留言</TableHead>
+                <TableHead>插管</TableHead>
+                <TableHead className="text-center w-8">留言</TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
             </TableHeader>
@@ -431,14 +431,11 @@ export function PatientsPage() {
                       <Badge variant="outline">未插管</Badge>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     {patient.hasUnreadMessages ? (
-                      <div className="flex items-center gap-1 text-[#ff3975]">
-                        <MessageCircle className="h-4 w-4 fill-current" />
-                        <span className="text-xs">未讀</span>
-                      </div>
+                      <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#ff3975]" title="有未讀留言" />
                     ) : (
-                      <span className="text-xs text-muted-foreground">-</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right">

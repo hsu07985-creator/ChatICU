@@ -1,10 +1,13 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { toast } from 'sonner';
 
-// API 配置 - FastAPI 預設 port 8000（可用 VITE_API_URL 覆蓋）
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// API 配置 — dev 走 Vite proxy（同源），production 可用 VITE_API_URL 覆蓋
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
-// Token 儲存 key
+// Cookie name (non-httpOnly, set by backend — used only for login-state check)
+const COOKIE_LOGGED_IN_KEY = 'chaticu_logged_in';
+
+// Legacy localStorage keys (cleared on first load for migration)
 const TOKEN_KEY = 'chaticu_token';
 const REFRESH_TOKEN_KEY = 'chaticu_refresh_token';
 
@@ -135,36 +138,50 @@ export function getApiErrorMessage(error: unknown, fallback = '操作失敗'): s
   return fallback;
 }
 
-// Token 管理
+// Token 管理 — httpOnly cookie 模式
+// JWT 存在 httpOnly cookie 中（由 backend Set-Cookie），JS 不可直接讀寫。
+// 僅用 non-httpOnly `chaticu_logged_in` cookie 判斷是否已登入。
 export const tokenManager = {
-  getToken: (): string | null => localStorage.getItem(TOKEN_KEY),
-  setToken: (token: string): void => localStorage.setItem(TOKEN_KEY, token),
-  removeToken: (): void => localStorage.removeItem(TOKEN_KEY),
-  
-  getRefreshToken: (): string | null => localStorage.getItem(REFRESH_TOKEN_KEY),
-  setRefreshToken: (token: string): void => localStorage.setItem(REFRESH_TOKEN_KEY, token),
-  removeRefreshToken: (): void => localStorage.removeItem(REFRESH_TOKEN_KEY),
-  
+  /** @deprecated Tokens are now in httpOnly cookies; returns null. */
+  getToken: (): string | null => null,
+  /** @deprecated No-op — tokens set via Set-Cookie by backend. */
+  setToken: (_token: string): void => { /* no-op */ },
+  removeToken: (): void => { /* no-op */ },
+
+  /** @deprecated No-op — refresh token in httpOnly cookie. */
+  getRefreshToken: (): string | null => null,
+  /** @deprecated No-op. */
+  setRefreshToken: (_token: string): void => { /* no-op */ },
+  removeRefreshToken: (): void => { /* no-op */ },
+
+  /** Clear any legacy localStorage remnants and the indicator cookie. */
   clearAll: (): void => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
+    // Also clear the non-httpOnly indicator cookie to prevent auth-check loops
+    document.cookie = `${COOKIE_LOGGED_IN_KEY}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+  },
+
+  /** Check non-httpOnly indicator cookie set by backend. */
+  isLoggedIn: (): boolean => {
+    return document.cookie.split(';').some(c => c.trim().startsWith(`${COOKIE_LOGGED_IN_KEY}=`));
   },
 };
 
-// 建立 Axios instance
+// 建立 Axios instance — withCredentials 讓 httpOnly cookie 隨請求送出
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request 攔截器 - 自動附加 Token
+// Request 攔截器 — 附加 trace headers（token 由 httpOnly cookie 自動隨請求送出）
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const mutableConfig = config as ApiClientConfig;
-    const token = tokenManager.getToken();
     const requestMeta = resolveRequestMeta(mutableConfig);
     mutableConfig.metadata = requestMeta;
 
@@ -173,27 +190,24 @@ apiClient.interceptors.request.use(
       mutableConfig.headers['X-Trace-ID'] = requestMeta.traceId;
     }
 
-    if (token && mutableConfig.headers) {
-      mutableConfig.headers.Authorization = `Bearer ${token}`;
-    }
     return mutableConfig;
   },
   (error) => Promise.reject(error)
 );
 
-// Response 攔截器 - 錯誤處理與 Token 刷新
+// Response 攔截器 — 錯誤處理與 cookie-based refresh
 let isRefreshing = false;
 let failedQueue: Array<{
-  resolve: (token: string) => void;
+  resolve: () => void;
   reject: (error: AxiosError) => void;
 }> = [];
 
-const processQueue = (error: AxiosError | null, token: string | null = null) => {
+const processQueue = (error: AxiosError | null) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
-    } else if (token) {
-      prom.resolve(token);
+    } else {
+      prom.resolve();
     }
   });
   failedQueue = [];
@@ -203,62 +217,46 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as ApiClientConfig;
-    
-    // 處理 401 錯誤 - 嘗試刷新 Token
-    if (error.response?.status === 401 && !originalRequest._retry) {
+
+    // 處理 401 錯誤 — 嘗試透過 httpOnly cookie 刷新
+    // Skip auto-refresh for auth endpoints themselves to prevent loops
+    const requestUrl = originalRequest?.url || '';
+    const isAuthEndpoint = requestUrl.includes('/auth/');
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       if (isRefreshing) {
-        return new Promise((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
-        }).then((token) => {
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-          }
-          return apiClient(originalRequest);
-        });
+        }).then(() => apiClient(originalRequest));
       }
 
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = tokenManager.getRefreshToken();
-      if (refreshToken) {
-        try {
-          const refreshRequestId = createRequestId();
-          const response = await axios.post<ApiResponse<{ token: string; refreshToken: string }>>(
-            `${API_BASE_URL}/auth/refresh`,
-            {
-              refreshToken,
+      try {
+        const refreshRequestId = createRequestId();
+        await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          {},
+          {
+            withCredentials: true,
+            headers: {
+              'X-Request-ID': refreshRequestId,
+              'X-Trace-ID': refreshRequestId,
             },
-            {
-              headers: {
-                'X-Request-ID': refreshRequestId,
-                'X-Trace-ID': refreshRequestId,
-              },
-            }
-          );
-          const refreshData = ensureData(
-            response.data,
-            'auth.refresh token exchange'
-          );
-          const { token: newToken, refreshToken: newRefreshToken } = refreshData;
-          tokenManager.setToken(newToken);
-          tokenManager.setRefreshToken(newRefreshToken);
-          processQueue(null, newToken);
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
           }
-          return apiClient(originalRequest);
-        } catch (refreshError) {
-          processQueue(refreshError as AxiosError, null);
-          tokenManager.clearAll();
-          window.location.href = '/login';
-          return Promise.reject(refreshError);
-        } finally {
-          isRefreshing = false;
-        }
-      } else {
+        );
+        processQueue(null);
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError as AxiosError);
         tokenManager.clearAll();
-        window.location.href = '/login';
+        // Only redirect if not already on the login page (prevents infinite reload loop)
+        if (!window.location.pathname.startsWith('/login')) {
+          window.location.href = '/login';
+        }
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
 

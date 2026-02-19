@@ -5,19 +5,22 @@ import { useSidebar } from './ui/sidebar';
 export function SidebarToggle() {
   const { toggleSidebar, state } = useSidebar();
   const isCollapsed = state === 'collapsed';
+  const leftPosition = isCollapsed
+    ? 'calc(var(--sidebar-width-icon) + 0.75rem)'
+    : 'calc(var(--sidebar-width) - 3rem)';
 
   return (
     <Button
       variant="ghost"
       size="icon"
       onClick={toggleSidebar}
-      className={`fixed top-4 z-50 h-10 w-10 bg-white border border-gray-200 shadow-md hover:bg-[#f8f9fa] hover:border-[#7f265b]/30 transition-all duration-200 rounded-lg ${
-        isCollapsed ? 'left-[3.5rem]' : 'left-[15.5rem]'
-      }`}
+      onMouseUp={(event) => event.currentTarget.blur()}
+      className="fixed top-3 z-50 h-9 w-9 border border-gray-200 bg-white shadow-sm transition-all duration-200 hover:border-[#7f265b]/30 hover:bg-[#f8f9fa]"
+      style={{ left: leftPosition }}
       aria-label={isCollapsed ? '展開側邊欄' : '收起側邊欄'}
       title={isCollapsed ? '展開側邊欄' : '收起側邊欄'}
     >
-      <PanelLeft className="h-5 w-5 text-[#1a1a1a]" />
+      <PanelLeft className="h-4 w-4 text-[#1a1a1a]" />
     </Button>
   );
 }

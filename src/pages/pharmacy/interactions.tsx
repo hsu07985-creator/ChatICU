@@ -1,4 +1,4 @@
-import { Search, Plus, BookOpen, AlertTriangle, AlertCircle, Info, Loader2 } from 'lucide-react';
+import { Search, Plus, BookOpen, AlertTriangle, AlertCircle, Info, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -29,6 +29,7 @@ export function DrugInteractionsPage() {
   const [overallSeverity, setOverallSeverity] = useState<string>('');
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [instructionsOpen, setInstructionsOpen] = useState(true);
 
   const handleSearch = async () => {
     const drugs = [drugA.trim(), drugB.trim()].filter(Boolean);
@@ -281,16 +282,21 @@ export function DrugInteractionsPage() {
       {/* 提示資訊 */}
       {!hasSearched && !loading && (
         <Card className="bg-muted/30">
-          <CardHeader>
-            <CardTitle className="text-base">使用說明</CardTitle>
+          <CardHeader className="cursor-pointer select-none" onClick={() => setInstructionsOpen(!instructionsOpen)}>
+            <CardTitle className="text-base flex items-center gap-2">
+              {instructionsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              使用說明
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <p>• 輸入至少兩種藥品名稱進行交互作用查詢</p>
-            <p>• 支援中英文藥品名稱與常見商品名</p>
-            <p>• 查詢結果包含交互作用類型、嚴重程度與處理建議</p>
-            <p>• 嚴重度分級：contraindicated {'>'} major {'>'} moderate {'>'} minor</p>
-            <p>• 所有結果基於臨床規則引擎，僅供參考</p>
-          </CardContent>
+          {instructionsOpen && (
+            <CardContent className="space-y-2 text-sm pt-0">
+              <p>• 輸入至少兩種藥品名稱進行交互作用查詢</p>
+              <p>• 支援中英文藥品名稱與常見商品名</p>
+              <p>• 查詢結果包含交互作用類型、嚴重程度與處理建議</p>
+              <p>• 嚴重度分級：contraindicated {'>'} major {'>'} moderate {'>'} minor</p>
+              <p>• 所有結果基於臨床規則引擎，僅供參考</p>
+            </CardContent>
+          )}
         </Card>
       )}
     </div>
