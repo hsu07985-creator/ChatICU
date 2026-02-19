@@ -8,7 +8,7 @@
 
 ## 未決項目
 
-- [ ] **T01** server/ 目錄處理 — 封存 Dart Frog 後端
+- [x] **T01** server/ 目錄處理 — 封存 Dart Frog 後端 `1ff8d23`
   - 路徑：`server/`（528 KB，含 lib/、routes/、pubspec.yaml）
   - 現狀：`server/routes/dashboard/stats.dart` 有未提交修改；DEV_START 文件明確標注前端不接 server/
   - 動作：
@@ -21,7 +21,7 @@
 
 ## 既有技術債
 
-- [ ] **T02** RAG 零除錯誤修復
+- [x] **T02** RAG 零除錯誤修復 `18121fd`
   - 檔案：`backend/app/services/llm_services/rag_service.py:103` 附近
   - 問題：RAG index 不存在時，matmul 運算觸發 `RuntimeWarning: divide by zero`，test_rag_query_not_indexed 失敗
   - 動作：
@@ -32,7 +32,7 @@
   - 驗證：`bash scripts/verify_restructure.sh T02`
   - Commit: <!-- hash -->
 
-- [ ] **T03** 前端 index chunk code-splitting（626 KB → < 500 KB）
+- [x] **T03** 前端 index chunk code-splitting（626 KB → 293 KB） `9a7f870`
   - 檔案：`src/pages/patient-detail.tsx`（最大頁面）
   - 問題：Vite 建置產出 `index-*.js` 為 626 KB，超過 500 KB 警告閾值
   - 動作：
@@ -45,14 +45,14 @@
 
 ## CI 防護閘門
 
-- [ ] **T04** .gitignore 更新 — 排除封存目錄
+- [x] **T04** .gitignore 更新 — 排除封存目錄 `1ff8d23`
   - 檔案：`.gitignore`
   - 動作：新增 `_archive_candidates/` 到 `.gitignore`
   - 注意：如果封存檔已被 git track，需先 `git rm -r --cached _archive_candidates/` 再 commit
   - 驗證：`bash scripts/verify_restructure.sh T04`
   - Commit: <!-- hash -->
 
-- [ ] **T05** CI 孤兒偵測閘門
+- [x] **T05** CI 孤兒偵測閘門 `df83af4`
   - 檔案：`.github/workflows/ci.yml`
   - 動作：新增 job step，掃描 `src/imports/` 中未被任何 `src/pages/`、`src/components/`、`src/lib/` 引用的檔案
   - 邏輯：
@@ -75,7 +75,7 @@
   - 驗證：`bash scripts/verify_restructure.sh T05`
   - Commit: <!-- hash -->
 
-- [ ] **T06** CI 文件位置檢查閘門
+- [x] **T06** CI 文件位置檢查閘門 `df83af4`
   - 檔案：`.github/workflows/ci.yml`
   - 動作：新增 job step，檢查 `src/` 下是否有 `.md` 檔案（不應有）
   - 邏輯：
@@ -92,7 +92,7 @@
   - 驗證：`bash scripts/verify_restructure.sh T06`
   - Commit: <!-- hash -->
 
-- [ ] **T07** CI 封存目錄洩漏檢查
+- [x] **T07** CI 封存目錄洩漏檢查 `df83af4`
   - 檔案：`.github/workflows/ci.yml`
   - 動作：新增 job step，確認 `_archive_candidates/` 未被 git track
   - 邏輯：
@@ -111,7 +111,7 @@
 
 ## 收尾
 
-- [ ] **T08** 驗證 Batch 1-5 完整性
+- [x] **T08** 驗證 Batch 1-5 完整性
   - 動作：確認報告中所有已執行的操作仍然正確（無人回退）
     1. 根目錄不存在 `config.py`、`security_report.json`、`chaticu-dev-skill/`、`.orchestrator/`
     2. `src/imports/` 僅剩 `svg-n38m0xb9r6.ts`
@@ -124,9 +124,24 @@
 
 ---
 
+## T22 — CI 3 Consecutive Green Runs
+
+- [x] CI 設置 (`.github/workflows/ci.yml`): 11 jobs — backend-test, frontend-build, backend-lint, security-scan, migration-check, static-integration-guards, dast-scan, reproducibility-report, e2e-critical-journey, e2e-extended-journeys, docker-build
+- [x] **Green Run #1** — run `22177463198` (2026-02-19): 10/10 jobs passed (e2e-extended-journeys: scheduled-only, skipped)
+- [ ] **Green Run #2** — pending
+- [ ] **Green Run #3** — pending
+
+### CI 修正歷程
+1. `9734354` fix(T22): JWT_SECRET ≥32 chars for non-DEBUG mode, package-lock.json sync, E2E AI-chat graceful
+2. `1cf0c95` fix(T22): package.json vite version sync, orphaned Figma imports removed
+3. `708f06f` fix(T22): install ripgrep in CI static-integration-guards
+4. `ed04550` chore(T01+T03): commit pending deletions (server/, patches/, src/ markdown, Figma)
+
+---
+
 ## 最終驗證
-- [ ] `bash scripts/verify_restructure.sh ALL` 全部通過
-- [ ] `npx tsc -p tsconfig.json --noEmit` 零錯誤
-- [ ] `npm run build` 通過且 index chunk < 500 KB
-- [ ] `cd backend && .venv312/bin/python -m pytest tests/ -v --tb=short` — 170/170 PASS
-- [ ] `git status` 無未預期的 untracked 檔案
+- [x] `bash scripts/verify_restructure.sh ALL` 全部通過 — 33 passed, 0 failed, 1 warning
+- [x] `npx tsc -p tsconfig.json --noEmit` 零錯誤
+- [x] `npm run build` 通過且 index chunk 284 KB (< 500 KB)
+- [x] `cd backend && .venv312/bin/python -m pytest tests/ -v --tb=short` — 170+ passed
+- [x] `git status` 僅剩預期的 untracked docs/frontend/ 文件（已遷移但未 commit）
