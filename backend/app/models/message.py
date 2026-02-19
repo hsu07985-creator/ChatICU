@@ -15,7 +15,9 @@ class PatientMessage(Base):
     patient_id: Mapped[str] = mapped_column(
         String(50), ForeignKey("patients.id"), index=True
     )
-    author_id: Mapped[str] = mapped_column(String(50), index=True)
+    author_id: Mapped[str] = mapped_column(
+        String(50), ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    )
     author_name: Mapped[str] = mapped_column(String(100))
     author_role: Mapped[str] = mapped_column(String(20))
     message_type: Mapped[str] = mapped_column(String(30), default="general")

@@ -278,6 +278,67 @@ async def seed_messages(session: AsyncSession):
     print(f"  Added {len(patient_messages)} patient messages, {len(team_messages)} team messages")
 
 
+
+async def seed_vital_signs(session: AsyncSession):
+    print("Seeding vital signs...")
+    raw = load_json("vitalSigns.json", required=False)
+    if not raw:
+        print("  vitalSigns.json not found — skipping")
+        return
+    records = unwrap_list(raw, "vitalSigns")
+    if not records:
+        return
+
+    for v in records:
+        vs = VitalSign(
+            id=v["id"],
+            patient_id=v["patientId"],
+            timestamp=parse_datetime(v.get("timestamp")) or datetime.now(timezone.utc),
+            heart_rate=v.get("heartRate"),
+            systolic_bp=v.get("systolicBP"),
+            diastolic_bp=v.get("diastolicBP"),
+            mean_bp=v.get("meanBP"),
+            respiratory_rate=v.get("respiratoryRate"),
+            spo2=v.get("spo2"),
+            temperature=v.get("temperature"),
+        )
+        session.add(vs)
+    await session.flush()
+    print(f"  Added {len(records)} vital sign records")
+
+
+async def seed_ventilator_settings(session: AsyncSession):
+    print("Seeding ventilator settings...")
+    raw = load_json("ventilatorSettings.json", required=False)
+    if not raw:
+        print("  ventilatorSettings.json not found — skipping")
+        return
+    records = unwrap_list(raw, "ventilatorSettings")
+    if not records:
+        return
+
+    for v in records:
+        vs = VentilatorSetting(
+            id=v["id"],
+            patient_id=v["patientId"],
+            timestamp=parse_datetime(v.get("timestamp")) or datetime.now(timezone.utc),
+            mode=v.get("mode"),
+            fio2=v.get("fio2"),
+            peep=v.get("peep"),
+            tidal_volume=v.get("tidalVolume"),
+            respiratory_rate=v.get("respiratoryRate"),
+            inspiratory_pressure=v.get("inspiratoryPressure"),
+            pressure_support=v.get("pressureSupport"),
+            ie_ratio=v.get("ieRatio"),
+            pip=v.get("pip"),
+            plateau=v.get("plateau"),
+            compliance=v.get("compliance"),
+            resistance=v.get("resistance"),
+        )
+        session.add(vs)
+    await session.flush()
+    print(f"  Added {len(records)} ventilator setting records")
+
 async def seed_drug_interactions(session: AsyncSession):
     print("Seeding drug interactions...")
     raw = load_json("drugInteractions.json")
@@ -357,6 +418,8 @@ async def main():
             await seed_medications(session)
             await seed_medication_administrations(session)
             await seed_lab_data(session)
+            await seed_vital_signs(session)
+            await seed_ventilator_settings(session)
             await seed_messages(session)
             await seed_drug_interactions(session)
             await session.commit()

@@ -1,4 +1,5 @@
 import uuid
+from typing import Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
@@ -15,7 +16,7 @@ from app.utils.response import success_response
 router = APIRouter(tags=["pharmacy"])
 
 
-def _make_pair_key(drug_a: str, drug_b: str, solution: str) -> tuple[str, str, str, str, str]:
+def _make_pair_key(drug_a: str, drug_b: str, solution: str) -> Tuple[str, str, str, str, str]:
     """Return (pair_key, drug_a_disp, drug_b_disp, a_norm, b_norm) for a pair.
 
     pair_key is order-insensitive (sorted by normalized name).

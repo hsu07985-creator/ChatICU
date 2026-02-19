@@ -2,7 +2,10 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from typing import Optional
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
 logger = logging.getLogger("chaticu")
@@ -10,7 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.middleware.auth import get_current_user, get_redis
+from app.middleware.auth import (
+    COOKIE_REFRESH_KEY,
+    clear_auth_cookies,
+    get_current_user,
+    get_redis,
+    set_auth_cookies,
+)
 from app.middleware.audit import create_audit_log
 from app.middleware.rate_limit import limiter
 from app.models.user import User, PasswordHistory
@@ -129,7 +138,7 @@ async def login(
         status="success", ip=request.client.host if request.client else None,
     )
 
-    return success_response(data={
+    body_data = success_response(data={
         "user": {
             "id": user.id,
             "name": user.name,
@@ -142,31 +151,39 @@ async def login(
         "expiresIn": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         "passwordExpired": password_expired,
     })
+    response = JSONResponse(content=body_data)
+    set_auth_cookies(response, access_token, refresh_token)
+    return response
 
 
 @router.post("/logout")
 async def logout(
     request: Request,
-    body: dict = None,
+    body: Optional[dict] = Body(default=None),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     redis_client = await get_redis()
 
-    # Blacklist the current access token
-    auth_header = request.headers.get("authorization", "")
-    token = auth_header.replace("Bearer ", "")
-    if token:
+    # Blacklist access token from cookie or header
+    access_token = request.cookies.get("chaticu_access")
+    if not access_token:
+        auth_header = request.headers.get("authorization", "")
+        access_token = auth_header.replace("Bearer ", "") if auth_header else None
+    if access_token:
         await redis_client.setex(
-            f"blacklist:{token}",
+            f"blacklist:{access_token}",
             settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             "1",
         )
 
-    # Also blacklist the refresh token if provided
-    if body and body.get("refreshToken"):
+    # Blacklist refresh token from cookie or body
+    refresh_tok = request.cookies.get(COOKIE_REFRESH_KEY)
+    if not refresh_tok and body and body.get("refreshToken"):
+        refresh_tok = body["refreshToken"]
+    if refresh_tok:
         await redis_client.setex(
-            f"blacklist:{body['refreshToken']}",
+            f"blacklist:{refresh_tok}",
             settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS * 86400,
             "1",
         )
@@ -177,24 +194,39 @@ async def logout(
         status="success", ip=request.client.host if request.client else None,
     )
 
-    return success_response(message="登出成功")
+    response = JSONResponse(content=success_response(message="登出成功"))
+    clear_auth_cookies(response)
+    return response
 
 
 @router.post("/refresh")
 async def refresh_token(
-    body: RefreshRequest,
+    request: Request,
+    body: Optional[RefreshRequest] = Body(default=None),
     db: AsyncSession = Depends(get_db),
 ):
+    # Accept refresh token from body (API/tests) or cookie (browser)
+    raw_refresh = None
+    if body and body.refreshToken:
+        raw_refresh = body.refreshToken
+    if not raw_refresh:
+        raw_refresh = request.cookies.get(COOKIE_REFRESH_KEY)
+    if not raw_refresh:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No refresh token provided",
+        )
+
     # Check if refresh token is blacklisted
     redis_client = await get_redis()
-    is_blacklisted = await redis_client.get(f"blacklist:{body.refreshToken}")
+    is_blacklisted = await redis_client.get(f"blacklist:{raw_refresh}")
     if is_blacklisted:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token has been revoked",
         )
 
-    payload = decode_token(body.refreshToken)
+    payload = decode_token(raw_refresh)
     if payload is None or payload.get("type") != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -217,16 +249,19 @@ async def refresh_token(
 
     # Refresh token rotation: blacklist the old refresh token
     await redis_client.setex(
-        f"blacklist:{body.refreshToken}",
+        f"blacklist:{raw_refresh}",
         settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         "1",
     )
 
-    return success_response(data={
+    body_data = success_response(data={
         "token": new_access_token,
         "refreshToken": new_refresh_token,
         "expiresIn": settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     })
+    response = JSONResponse(content=body_data)
+    set_auth_cookies(response, new_access_token, new_refresh_token)
+    return response
 
 
 @router.get("/me")

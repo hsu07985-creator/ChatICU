@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,8 +12,12 @@ class ErrorReport(Base):
     __tablename__ = "error_reports"
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
-    patient_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
-    reporter_id: Mapped[str] = mapped_column(String(50), index=True)
+    patient_id: Mapped[Optional[str]] = mapped_column(
+        String(50), ForeignKey("patients.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    reporter_id: Mapped[str] = mapped_column(
+        String(50), ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    )
     reporter_name: Mapped[str] = mapped_column(String(100))
     reporter_role: Mapped[str] = mapped_column(String(20))
     error_type: Mapped[str] = mapped_column(String(50))

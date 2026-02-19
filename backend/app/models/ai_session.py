@@ -12,8 +12,12 @@ class AISession(Base):
     __tablename__ = "ai_sessions"
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
-    user_id: Mapped[str] = mapped_column(String(50), index=True)
-    patient_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
+    user_id: Mapped[str] = mapped_column(
+        String(50), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    patient_id: Mapped[Optional[str]] = mapped_column(
+        String(50), ForeignKey("patients.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     title: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     # Compressed summary of older messages for long conversations
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

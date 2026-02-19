@@ -14,7 +14,7 @@ from app.models.patient import Patient
 from app.models.message import PatientMessage
 from app.models.user import User
 from app.schemas.patient import PatientArchiveUpdate, PatientCreate, PatientUpdate
-from app.utils.response import success_response
+from app.utils.response import escape_like, success_response
 
 router = APIRouter(prefix="/patients", tags=["patients"])
 
@@ -61,6 +61,26 @@ def normalize_patient_id(patient_id: str) -> str:
     return f"pat_{patient_id.zfill(3)}"
 
 
+def verify_patient_access(user: User, patient: "Patient") -> None:
+    """T09: Verify the user has access to this patient's data.
+
+    Raises HTTPException 403 if access is denied.
+    Admin and pharmacist roles have full access.
+    """
+    if user.role in ("admin", "pharmacist"):
+        return
+    has_access = False
+    if user.role == "doctor":
+        if (user.unit and user.unit in (patient.unit or "")) or \
+           (user.name in (patient.attending_physician or "")):
+            has_access = True
+    else:
+        if user.unit and user.unit in (patient.unit or ""):
+            has_access = True
+    if not has_access:
+        raise HTTPException(status_code=403, detail="無權限查看此病患資料")
+
+
 @router.get("")
 async def list_patients(
     page: int = Query(1, ge=1),
@@ -80,21 +100,21 @@ async def list_patients(
         if user.role == "doctor":
             query = query.where(
                 or_(
-                    Patient.unit.ilike(f"%{user.unit}%") if user.unit else False,
-                    Patient.attending_physician.ilike(f"%{user.name}%"),
+                    Patient.unit.ilike(f"%{escape_like(user.unit)}%") if user.unit else False,
+                    Patient.attending_physician.ilike(f"%{escape_like(user.name)}%"),
                 )
             )
         else:
             # Nurses and other roles: see patients in their unit only
             if user.unit:
-                query = query.where(Patient.unit.ilike(f"%{user.unit}%"))
+                query = query.where(Patient.unit.ilike(f"%{escape_like(user.unit)}%"))
 
     if search:
         query = query.where(
             or_(
-                Patient.name.ilike(f"%{search}%"),
-                Patient.bed_number.ilike(f"%{search}%"),
-                Patient.medical_record_number.ilike(f"%{search}%"),
+                Patient.name.ilike(f"%{escape_like(search)}%"),
+                Patient.bed_number.ilike(f"%{escape_like(search)}%"),
+                Patient.medical_record_number.ilike(f"%{escape_like(search)}%"),
             )
         )
     if intubated is not None:
@@ -102,7 +122,7 @@ async def list_patients(
     if criticalStatus:
         query = query.where(Patient.critical_status == criticalStatus)
     if department:
-        query = query.where(Patient.department.ilike(f"%{department}%"))
+        query = query.where(Patient.department.ilike(f"%{escape_like(department)}%"))
 
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
@@ -218,18 +238,7 @@ async def get_patient(
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
-    # T09: Verify the user has access to this patient's data
-    if user.role not in ("admin", "pharmacist"):
-        has_access = False
-        if user.role == "doctor":
-            if (user.unit and user.unit in (patient.unit or "")) or \
-               (user.name in (patient.attending_physician or "")):
-                has_access = True
-        else:
-            if user.unit and user.unit in (patient.unit or ""):
-                has_access = True
-        if not has_access:
-            raise HTTPException(status_code=403, detail="無權限查看此病患資料")
+    verify_patient_access(user, patient)
 
     unread_query = (
         select(func.count(PatientMessage.id))

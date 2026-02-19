@@ -10,7 +10,8 @@ from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log
 from app.models.lab_data import LabData
 from app.models.user import User
-from app.routers.patients import normalize_patient_id
+from app.models.patient import Patient
+from app.routers.patients import normalize_patient_id, verify_patient_access
 from app.schemas.lab_data import LabCorrectionRequest
 from app.utils.response import success_response
 
@@ -38,6 +39,13 @@ async def get_latest_lab_data(
     db: AsyncSession = Depends(get_db),
 ):
     pid = normalize_patient_id(patient_id)
+    # T09: verify patient access
+    pat_result = await db.execute(select(Patient).where(Patient.id == pid))
+    patient = pat_result.scalar_one_or_none()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    verify_patient_access(user, patient)
+
     result = await db.execute(
         select(LabData)
         .where(LabData.patient_id == pid)

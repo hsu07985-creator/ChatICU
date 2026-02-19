@@ -1,7 +1,7 @@
 from typing import Optional, List
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,10 +12,14 @@ class PharmacyAdvice(Base):
     __tablename__ = "pharmacy_advices"
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
-    patient_id: Mapped[str] = mapped_column(String(50), index=True)
+    patient_id: Mapped[str] = mapped_column(
+        String(50), ForeignKey("patients.id", ondelete="CASCADE"), index=True
+    )
     patient_name: Mapped[str] = mapped_column(String(100))
     bed_number: Mapped[str] = mapped_column(String(20))
-    pharmacist_id: Mapped[str] = mapped_column(String(50), index=True)
+    pharmacist_id: Mapped[str] = mapped_column(
+        String(50), ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    )
     pharmacist_name: Mapped[str] = mapped_column(String(100))
     advice_code: Mapped[str] = mapped_column(String(10))  # e.g. '1-4', '2-1'
     advice_label: Mapped[str] = mapped_column(String(200))

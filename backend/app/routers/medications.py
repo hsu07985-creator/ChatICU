@@ -1,5 +1,6 @@
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
@@ -12,7 +13,8 @@ from app.models.medication import Medication
 from app.models.medication_administration import MedicationAdministration
 from app.models.drug_interaction import DrugInteraction
 from app.models.user import User
-from app.routers.patients import normalize_patient_id
+from app.models.patient import Patient
+from app.routers.patients import normalize_patient_id, verify_patient_access
 from app.schemas.medication import (
     MedicationAdministrationItemEnvelope,
     MedicationAdministrationListEnvelope,
@@ -25,7 +27,7 @@ from app.utils.response import success_response
 router = APIRouter(prefix="/patients/{patient_id}/medications", tags=["medications"])
 
 
-def normalize_san_category(raw: str | None) -> str | None:
+def normalize_san_category(raw: Optional[str]) -> Optional[str]:
     if raw is None:
         return None
     normalized = raw.strip().upper()
@@ -95,6 +97,13 @@ async def list_medications(
     db: AsyncSession = Depends(get_db),
 ):
     pid = normalize_patient_id(patient_id)
+    # T09: verify patient access
+    pat_result = await db.execute(select(Patient).where(Patient.id == pid))
+    patient_obj = pat_result.scalar_one_or_none()
+    if not patient_obj:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    verify_patient_access(user, patient_obj)
+
     query = select(Medication).where(Medication.patient_id == pid)
 
     if status_filter and status_filter != "all":
@@ -111,29 +120,27 @@ async def list_medications(
         key = _SAN_KEY_MAP.get(cat, "other")
         grouped[key].append(med_to_dict(med))
 
-    # Find drug interactions for active medications
+    # Find drug interactions for active medications (single batch query)
     active_meds = [m for m in medications if m.status == "active"]
     interactions = []
     if len(active_meds) >= 2:
         med_names = [m.name for m in active_meds]
-        for i in range(len(med_names)):
-            for j in range(i + 1, len(med_names)):
-                int_result = await db.execute(
-                    select(DrugInteraction).where(
-                        ((DrugInteraction.drug1 == med_names[i]) & (DrugInteraction.drug2 == med_names[j]))
-                        | ((DrugInteraction.drug1 == med_names[j]) & (DrugInteraction.drug2 == med_names[i]))
-                    )
-                )
-                for interaction in int_result.scalars():
-                    interactions.append({
-                        "id": interaction.id,
-                        "drug1": interaction.drug1,
-                        "drug2": interaction.drug2,
-                        "severity": interaction.severity,
-                        "mechanism": interaction.mechanism,
-                        "clinicalEffect": interaction.clinical_effect,
-                        "management": interaction.management,
-                    })
+        int_result = await db.execute(
+            select(DrugInteraction).where(
+                (DrugInteraction.drug1.in_(med_names))
+                & (DrugInteraction.drug2.in_(med_names))
+            )
+        )
+        for interaction in int_result.scalars():
+            interactions.append({
+                "id": interaction.id,
+                "drug1": interaction.drug1,
+                "drug2": interaction.drug2,
+                "severity": interaction.severity,
+                "mechanism": interaction.mechanism,
+                "clinicalEffect": interaction.clinical_effect,
+                "management": interaction.management,
+            })
 
     return success_response(data={
         "medications": [med_to_dict(m) for m in medications],
@@ -161,8 +168,8 @@ async def get_medication(
 async def list_medication_administrations(
     patient_id: str,
     medication_id: str,
-    start_date: date | None = Query(None, alias="startDate"),
-    end_date: date | None = Query(None, alias="endDate"),
+    start_date: Optional[date] = Query(None, alias="startDate"),
+    end_date: Optional[date] = Query(None, alias="endDate"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

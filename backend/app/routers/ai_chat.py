@@ -6,8 +6,6 @@ P2-1: Supports multi-turn conversation history with automatic compression.
 - Compression is incremental: new messages merge with existing summary.
 """
 
-from __future__ import annotations
-
 import asyncio
 import json
 import logging
@@ -15,7 +13,7 @@ import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
@@ -44,6 +42,7 @@ from app.utils.data_freshness import build_data_freshness
 from app.utils.evidence_gate import evaluate_evidence_gate
 from app.utils.llm_errors import llm_unavailable_detail
 from app.utils.request_context import evidence_trace_kwargs
+from app.middleware.rate_limit import limiter
 from app.utils.response import success_response
 from pydantic import BaseModel, Field
 
@@ -105,7 +104,7 @@ def _classify_chat_intent(message: str) -> str:
     return "general_qa"
 
 
-def _evidence_gate_overrides(intent: str) -> dict[str, int | float]:
+def _evidence_gate_overrides(intent: str) -> Dict[str, Any]:
     # High-risk recommendation questions keep strict AO-03 thresholds.
     if intent == "recommendation":
         return {}
@@ -123,7 +122,7 @@ def _ensure_local_rag_index() -> bool:
         return rag_service.is_indexed
     _LOCAL_RAG_INDEX_ATTEMPTED = True
 
-    candidates: list[str] = []
+    candidates: List[str] = []
     configured = str(settings.RAG_DOCS_PATH or "").strip()
     if configured:
         candidates.append(configured)
@@ -156,7 +155,7 @@ def _ensure_local_rag_index() -> bool:
     return rag_service.is_indexed
 
 
-def _stability_data_gap_reason(data_freshness: dict | None) -> str | None:
+def _stability_data_gap_reason(data_freshness: Optional[dict]) -> Optional[str]:
     if not isinstance(data_freshness, dict):
         return "缺少病患資料，無法判斷病況穩定性。"
 
@@ -210,14 +209,14 @@ _DETAIL_SECTION_MARKERS = ("【說明/補充】", "【說明】", "說明/補充
 _MCQ_KEYWORDS = ("下列何者", "最適當", "最可能", "何者", "哪一項", "選項")
 
 
-def _strip_markers(text: str, markers: tuple[str, ...]) -> str:
+def _strip_markers(text: str, markers: Tuple[str, ...]) -> str:
     cleaned = text
     for marker in markers:
         cleaned = cleaned.replace(marker, "")
     return cleaned.strip()
 
 
-def _split_first_sentence(text: str) -> tuple[str, str]:
+def _split_first_sentence(text: str) -> Tuple[str, str]:
     normalized = str(text or "").strip()
     if not normalized:
         return "", ""
@@ -274,7 +273,7 @@ def _normalize_main_answer_prefix(main_answer: str, question: str) -> str:
     return stripped or answer
 
 
-def _extract_main_and_explanation(text: str) -> tuple[str, str | None]:
+def _extract_main_and_explanation(text: str) -> tuple[str, Optional[str]]:
     normalized = str(text or "").strip()
     if not normalized:
         return "", None
@@ -308,7 +307,7 @@ def _citation_title(source_file: Any) -> str:
     return source.split("/")[-1] if "/" in source else source
 
 
-def _normalize_page(value: Any) -> int | None:
+def _normalize_page(value: Any) -> Optional[int]:
     if value is None:
         return None
     try:
@@ -317,7 +316,7 @@ def _normalize_page(value: Any) -> int | None:
         return None
 
 
-def _extract_page_from_text(text: Any) -> int | None:
+def _extract_page_from_text(text: Any) -> Optional[int]:
     content = str(text or "")
     if not content:
         return None
@@ -328,6 +327,10 @@ def _extract_page_from_text(text: Any) -> int | None:
         return int(match.group(1))
     except (TypeError, ValueError):
         return None
+
+
+_SNIPPET_MAX_CHARS = 500
+_SNIPPET_SENTENCE_ENDS = re.compile(r"[。！？\n]")
 
 
 def _clean_snippet_text(text: Any) -> str:
@@ -358,10 +361,24 @@ def _clean_snippet_text(text: Any) -> str:
             lines.pop(0)
             continue
         break
-    return "\n".join(lines).strip()
+    result = "\n".join(lines).strip()
+
+    # Trim long chunks at sentence boundary to keep display focused
+    if len(result) > _SNIPPET_MAX_CHARS:
+        window = result[:_SNIPPET_MAX_CHARS]
+        # Find the last sentence-ending character in the trimmed window
+        best_pos = -1
+        for m in _SNIPPET_SENTENCE_ENDS.finditer(window):
+            if m.start() > _SNIPPET_MAX_CHARS // 3:
+                best_pos = m.end()
+        if best_pos > 0:
+            return result[:best_pos].rstrip() + "…"
+        return window.rstrip() + "…"
+
+    return result
 
 
-def _score_snippet_quality(snippet: str, page: int | None, relevance: float) -> float:
+def _score_snippet_quality(snippet: str, page: Optional[int], relevance: float) -> float:
     text = str(snippet or "")
     if not text:
         return -1.0
@@ -379,12 +396,12 @@ def _score_snippet_quality(snippet: str, page: int | None, relevance: float) -> 
 
 
 def _merge_citations_by_source(
-    citations: list[dict[str, Any]],
+    citations: List[Dict[str, Any]],
     *,
     max_sources: int = 4,
-) -> list[dict[str, Any]]:
+) -> List[Dict[str, Any]]:
     """Merge repeated citations from the same source file into one display entry."""
-    merged_by_source: dict[str, dict[str, Any]] = {}
+    merged_by_source: Dict[str, Dict[str, Any]] = {}
 
     for raw in sorted(citations, key=lambda c: float(c.get("relevance", 0) or 0), reverse=True):
         source_file = str(raw.get("sourceFile") or "").strip()
@@ -427,7 +444,7 @@ def _merge_citations_by_source(
                 )
             )
 
-    merged: list[dict[str, Any]] = []
+    merged: List[Dict[str, Any]] = []
     for item in sorted(merged_by_source.values(), key=lambda c: float(c.get("relevance", 0) or 0), reverse=True)[:max_sources]:
         pages = sorted(int(p) for p in item.pop("_pages", set()))
         snippet_candidates = item.pop("_snippet_candidates", [])
@@ -437,15 +454,16 @@ def _merge_citations_by_source(
         item["pages"] = pages
         snippets = [s for _, s in sorted(snippet_candidates, key=lambda x: x[0], reverse=True)]
         item["snippet"] = snippets[0] if snippets else ""
+        item["snippets"] = snippets  # All individual chunk texts, best-scored first
         item["snippetCount"] = len(snippets)
         merged.append(item)
 
     return merged
 
 
-def _build_snippet_fallback_citations(snippets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _build_snippet_fallback_citations(snippets: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Build renderable citations when hybrid response has snippets but no citation objects."""
-    citations: list[dict[str, Any]] = []
+    citations: List[Dict[str, Any]] = []
     for index, snippet in enumerate(snippets):
         if not isinstance(snippet, dict):
             continue
@@ -477,14 +495,14 @@ def _build_snippet_fallback_citations(snippets: list[dict[str, Any]]) -> list[di
 
 
 async def _build_hybrid_citations(
-    raw_citations: list[dict[str, Any]],
+    raw_citations: List[Dict[str, Any]],
     request: Request,
-) -> list[dict[str, Any]]:
+) -> List[Dict[str, Any]]:
     trace_kwargs = evidence_trace_kwargs(request)
 
-    async def _build_one(index: int, raw: dict[str, Any]) -> dict[str, Any]:
+    async def _build_one(index: int, raw: Dict[str, Any]) -> Dict[str, Any]:
         chunk_id = str(raw.get("chunk_id") or "").strip()
-        source_detail: dict[str, Any] = {}
+        source_detail: Dict[str, Any] = {}
         if chunk_id:
             try:
                 source_detail = await asyncio.to_thread(
@@ -639,6 +657,7 @@ async def _maybe_compress_history(
 # ── Main chat endpoint ─────────────────────────────────────────────────
 
 @router.post("/chat")
+@limiter.limit("15/minute")
 async def ai_chat(
     req: AIChatRequest,
     request: Request,
@@ -745,7 +764,17 @@ async def ai_chat(
             exc,
         )
         if _ensure_local_rag_index():
-            sources = rag_service.retrieve(req.message, top_k=3)
+            # Retrieve more candidates then enforce source diversity (max 2 chunks per doc)
+            _raw_sources = rag_service.retrieve(req.message, top_k=8)
+            _source_counts: Dict[str, int] = {}
+            sources = []
+            for _s in _raw_sources:
+                _doc = str(_s.get("doc_id") or "")
+                if _source_counts.get(_doc, 0) < 2:
+                    sources.append(_s)
+                    _source_counts[_doc] = _source_counts.get(_doc, 0) + 1
+                if len(sources) >= 6:
+                    break
             rag_context = "\n\n---\n\n".join([s["text"] for s in sources])
             citations = [
                 {
@@ -774,7 +803,7 @@ async def ai_chat(
         **_evidence_gate_overrides(chat_intent),
     )
     ai_content = ""
-    ai_explanation: str | None = None
+    ai_explanation: Optional[str] = None
     llm_result = {}
     if stability_gap_reason:
         llm_status = "partial_due_to_patient_data"
@@ -961,6 +990,7 @@ async def ai_chat(
 
 
 @router.post("/chat/stream")
+@limiter.limit("15/minute")
 async def ai_chat_stream(
     req: AIChatRequest,
     request: Request,
@@ -1046,7 +1076,7 @@ async def list_sessions(
     sessions = result.scalars().all()
 
     session_ids = [s.id for s in sessions]
-    msg_counts: dict[str, int] = {}
+    msg_counts: Dict[str, int] = {}
     if session_ids:
         counts_result = await db.execute(
             select(AIMessage.session_id, func.count(AIMessage.id))

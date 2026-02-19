@@ -1,11 +1,9 @@
 """Clinical LLM-powered endpoints (Phase 3)."""
 
-from __future__ import annotations
-
 import asyncio
 import logging
 import uuid
-from typing import Any
+from typing import Any, Dict
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -46,6 +44,7 @@ from app.utils.structured_output import (
 )
 from app.utils.llm_errors import llm_unavailable_detail
 from app.utils.request_context import evidence_trace_kwargs
+from app.middleware.rate_limit import limiter
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/api/v1/clinical", tags=["Clinical"])
@@ -73,13 +72,13 @@ async def _deterministic_clinical_query_fallback(
     request: Request,
     *,
     reason: str,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     trace = evidence_trace_kwargs(request)
     request_id = trace.get("request_id") or f"cq_fb_{uuid.uuid4().hex[:8]}"
     resolved_intent = _resolve_deterministic_intent(req)
     patient_context = req.patient_context.model_dump(exclude_none=True) if req.patient_context else None
 
-    result: dict[str, Any] = {
+    result: Dict[str, Any] = {
         "request_id": request_id,
         "intent": resolved_intent,
         "status": "degraded",
@@ -187,7 +186,7 @@ async def _get_patient_dict(patient_id: str, db: AsyncSession) -> dict:
         raise HTTPException(status_code=404, detail=f"Patient {patient_id} not found")
 
     # Base patient fields
-    patient_dict: dict = {
+    patient_dict: Dict[str, Any] = {
         "id": patient.id,
         "name": patient.name,
         "age": patient.age,
@@ -245,6 +244,7 @@ async def _get_patient_dict(patient_id: str, db: AsyncSession) -> dict:
 
 
 @router.post("/summary")
+@limiter.limit("10/minute")
 async def clinical_summary(
     req: SummaryRequest,
     request: Request,
@@ -281,6 +281,7 @@ async def clinical_summary(
 
 
 @router.post("/explanation")
+@limiter.limit("10/minute")
 async def patient_explanation(
     req: ExplanationRequest,
     request: Request,
@@ -324,6 +325,7 @@ async def patient_explanation(
 
 
 @router.post("/guideline")
+@limiter.limit("10/minute")
 async def guideline_interpretation(
     req: GuidelineRequest,
     request: Request,
@@ -397,6 +399,7 @@ async def guideline_interpretation(
 
 
 @router.post("/decision")
+@limiter.limit("5/minute")
 async def multi_agent_decision(
     req: DecisionRequest,
     request: Request,
@@ -463,6 +466,7 @@ async def multi_agent_decision(
 
 
 @router.post("/polish")
+@limiter.limit("15/minute")
 async def polish_clinical_text(
     req: PolishRequest,
     request: Request,
@@ -511,6 +515,7 @@ async def polish_clinical_text(
 # ── P3-1: Dose Calculation ──────────────────────────────────────────────
 
 @router.post("/dose")
+@limiter.limit("10/minute")
 async def dose_calculate(
     req: DoseCalculateRequest,
     request: Request,
@@ -551,6 +556,7 @@ async def dose_calculate(
 # ── P3-2: Drug Interaction Check ────────────────────────────────────────
 
 @router.post("/interactions")
+@limiter.limit("10/minute")
 async def interaction_check(
     req: InteractionCheckRequest,
     request: Request,
@@ -590,6 +596,7 @@ async def interaction_check(
 # ── P3-3: Clinical Query with Intent Routing ────────────────────────────
 
 @router.post("/clinical-query")
+@limiter.limit("10/minute")
 async def clinical_query(
     req: ClinicalQueryRequest,
     request: Request,

@@ -1,6 +1,6 @@
 import time
 import logging
-from typing import Optional
+from typing import Dict, Optional
 
 import redis.asyncio as redis
 from fastapi import Depends, HTTPException, Request, status
@@ -13,8 +13,12 @@ from app.database import get_db
 from app.models.user import User
 from app.utils.security import decode_token
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 logger = logging.getLogger("chaticu")
+
+COOKIE_ACCESS_KEY = "chaticu_access"
+COOKIE_REFRESH_KEY = "chaticu_refresh"
+COOKIE_LOGGED_IN_KEY = "chaticu_logged_in"
 
 _redis_client: Optional[redis.Redis] = None
 
@@ -26,8 +30,8 @@ class _InMemoryRedis:
     """
 
     def __init__(self) -> None:
-        self._store: dict[str, str] = {}
-        self._expires_at: dict[str, int] = {}
+        self._store: Dict[str, str] = {}
+        self._expires_at: Dict[str, int] = {}
 
     def _purge_if_expired(self, key: str) -> None:
         expire_ts = self._expires_at.get(key)
@@ -77,7 +81,12 @@ class _InMemoryRedis:
 async def get_redis() -> redis.Redis:
     global _redis_client
     if _redis_client is None:
-        real_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        redis_kwargs = {"decode_responses": True}
+        if settings.REDIS_URL.startswith("rediss://"):
+            import ssl as _ssl
+            _cert_map = {"required": _ssl.CERT_REQUIRED, "optional": _ssl.CERT_OPTIONAL, "none": _ssl.CERT_NONE}
+            redis_kwargs["ssl_cert_reqs"] = _cert_map.get(settings.REDIS_SSL_CERT_REQS, _ssl.CERT_REQUIRED)
+        real_client = redis.from_url(settings.REDIS_URL, **redis_kwargs)
         try:
             await real_client.ping()
             _redis_client = real_client
@@ -101,11 +110,28 @@ async def get_redis() -> redis.Redis:
     return _redis_client
 
 
+def _extract_token(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials],
+) -> str:
+    """Extract access token from httpOnly cookie (preferred) or Authorization header."""
+    cookie_token = request.cookies.get(COOKIE_ACCESS_KEY)
+    if cookie_token:
+        return cookie_token
+    if credentials:
+        return credentials.credentials
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+    )
+
+
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    token = credentials.credentials
+    token = _extract_token(request, credentials)
 
     # Check if token is blacklisted
     redis_client = await get_redis()
@@ -179,3 +205,44 @@ def require_roles(*roles: str):
             )
         return user
     return role_checker
+
+
+def set_auth_cookies(response, access_token: str, refresh_token: str) -> None:
+    """Set httpOnly JWT cookies on a response object."""
+    secure = not settings.DEBUG and settings.COOKIE_SECURE
+    samesite = settings.COOKIE_SAMESITE
+    response.set_cookie(
+        key=COOKIE_ACCESS_KEY,
+        value=access_token,
+        httponly=True,
+        secure=secure,
+        samesite=samesite,
+        max_age=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+    response.set_cookie(
+        key=COOKIE_REFRESH_KEY,
+        value=refresh_token,
+        httponly=True,
+        secure=secure,
+        samesite=samesite,
+        max_age=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        path="/auth",
+    )
+    # Non-httpOnly indicator so frontend can check login state without /auth/me
+    response.set_cookie(
+        key=COOKIE_LOGGED_IN_KEY,
+        value="1",
+        httponly=False,
+        secure=secure,
+        samesite=samesite,
+        max_age=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        path="/",
+    )
+
+
+def clear_auth_cookies(response) -> None:
+    """Clear all auth cookies."""
+    response.delete_cookie(COOKIE_ACCESS_KEY, path="/")
+    response.delete_cookie(COOKIE_REFRESH_KEY, path="/auth")
+    response.delete_cookie(COOKIE_LOGGED_IN_KEY, path="/")

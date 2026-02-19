@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
@@ -8,7 +9,8 @@ from app.database import get_db
 from app.middleware.auth import get_current_user
 from app.models.vital_sign import VitalSign
 from app.models.user import User
-from app.routers.patients import normalize_patient_id
+from app.models.patient import Patient
+from app.routers.patients import normalize_patient_id, verify_patient_access
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/patients/{patient_id}/vital-signs", tags=["vital-signs"])
@@ -48,6 +50,13 @@ async def get_latest_vital_signs(
     db: AsyncSession = Depends(get_db),
 ):
     pid = normalize_patient_id(patient_id)
+    # T09: verify patient access
+    pat_result = await db.execute(select(Patient).where(Patient.id == pid))
+    patient = pat_result.scalar_one_or_none()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    verify_patient_access(user, patient)
+
     result = await db.execute(
         select(VitalSign)
         .where(VitalSign.patient_id == pid)
@@ -88,8 +97,8 @@ async def get_vital_sign_history(
     patient_id: str,
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
-    start_date: date | None = Query(None, alias="startDate"),
-    end_date: date | None = Query(None, alias="endDate"),
+    start_date: Optional[date] = Query(None, alias="startDate"),
+    end_date: Optional[date] = Query(None, alias="endDate"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

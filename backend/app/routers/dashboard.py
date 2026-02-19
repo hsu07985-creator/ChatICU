@@ -43,6 +43,16 @@ async def get_dashboard_stats(
     )
     with_san = san_patient_result.scalar() or 0
 
+    # Patients with active S/A/N by category
+    san_patient_counts = {"sedation": 0, "analgesia": 0, "nmb": 0}
+    for cat, key in [("S", "sedation"), ("A", "analgesia"), ("N", "nmb")]:
+        cat_patient_result = await db.execute(
+            select(func.count(func.distinct(Medication.patient_id)))
+            .where(Medication.status == "active")
+            .where(Medication.san_category == cat)
+        )
+        san_patient_counts[key] = cat_patient_result.scalar() or 0
+
     # Active medications by SAN category
     san_counts = {"S": 0, "A": 0, "N": 0}
     for cat in ["S", "A", "N"]:
@@ -87,6 +97,7 @@ async def get_dashboard_stats(
             "intubated": intubated_count,
             "intubatedBeds": intubated_beds,
             "withSAN": with_san,
+            "sanByCategory": san_patient_counts,
         },
         "alerts": {
             "total": alert_count,

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -18,7 +18,9 @@ class PharmacyCompatibilityFavorite(Base):
     )
 
     id: Mapped[str] = mapped_column(String(60), primary_key=True)
-    user_id: Mapped[str] = mapped_column(String(50), index=True)
+    user_id: Mapped[str] = mapped_column(
+        String(50), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
     pair_key: Mapped[str] = mapped_column(String(320), index=True)
     drug_a: Mapped[str] = mapped_column(String(200))
     drug_b: Mapped[str] = mapped_column(String(200))

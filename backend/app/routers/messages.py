@@ -39,6 +39,8 @@ async def list_messages(
     patient_id: str,
     unread: bool = Query(None),
     message_type: str = Query(None, alias="type"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(100, ge=1, le=500),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -50,12 +52,16 @@ async def list_messages(
     if message_type:
         query = query.where(PatientMessage.message_type == message_type)
 
-    result = await db.execute(query.order_by(PatientMessage.timestamp.desc()))
+    ordered = query.order_by(PatientMessage.timestamp.desc())
+    offset = (page - 1) * limit
+    result = await db.execute(ordered.offset(offset).limit(limit))
     messages = result.scalars().all()
 
     return success_response(data={
         "messages": [msg_to_dict(m) for m in messages],
         "total": len(messages),
+        "page": page,
+        "limit": limit,
     })
 
 

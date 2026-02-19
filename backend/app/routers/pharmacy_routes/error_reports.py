@@ -12,7 +12,7 @@ from app.middleware.auth import get_current_user, require_roles
 from app.models.error_report import ErrorReport
 from app.models.user import User
 from app.schemas.admin import ErrorReportCreate, ErrorReportUpdate
-from app.utils.response import success_response
+from app.utils.response import escape_like, success_response
 
 router = APIRouter(tags=["pharmacy"])
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ async def list_error_reports(
     if severity:
         query = query.where(ErrorReport.severity == severity)
     if error_type_filter:
-        query = query.where(ErrorReport.error_type.ilike(f"%{error_type_filter}%"))
+        query = query.where(ErrorReport.error_type.ilike(f"%{escape_like(error_type_filter)}%"))
 
     logger.info(
         "[INTG][API][DB] list_error_reports filters page=%s limit=%s status=%s severity=%s type=%s",

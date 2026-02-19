@@ -34,10 +34,10 @@ async def test_mock_auth_client_bypasses_auth_for_legacy_tests(mock_auth_client)
 async def test_real_auth_client_requires_token(real_auth_client):
     """Real-auth fixture should enforce token requirements."""
     response = await real_auth_client.get("/admin/users")
-    assert response.status_code == 403
+    assert response.status_code == 401
     payload = response.json()
     assert payload["success"] is False
-    assert payload["error"] == "FORBIDDEN"
+    assert payload["error"] == "UNAUTHORIZED"
 
 
 @pytest.mark.asyncio

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +10,8 @@ from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log
 from app.models.ventilator import VentilatorSetting, WeaningAssessment
 from app.models.user import User
-from app.routers.patients import normalize_patient_id
+from app.models.patient import Patient
+from app.routers.patients import normalize_patient_id, verify_patient_access
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/patients/{patient_id}/ventilator", tags=["ventilator"])
@@ -65,6 +66,13 @@ async def get_latest_ventilator(
     db: AsyncSession = Depends(get_db),
 ):
     pid = normalize_patient_id(patient_id)
+    # T09: verify patient access
+    pat_result = await db.execute(select(Patient).where(Patient.id == pid))
+    patient = pat_result.scalar_one_or_none()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    verify_patient_access(user, patient)
+
     result = await db.execute(
         select(VentilatorSetting)
         .where(VentilatorSetting.patient_id == pid)

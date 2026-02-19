@@ -1,6 +1,11 @@
 from typing import Any, Optional
 
 
+def escape_like(value: str) -> str:
+    """Escape SQL LIKE wildcard characters in user input."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 def success_response(
     data: Any = None,
     message: Optional[str] = None,

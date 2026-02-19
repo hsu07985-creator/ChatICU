@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timezone
+from typing import Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select
@@ -34,7 +35,7 @@ def advice_to_dict(a: PharmacyAdvice) -> dict:
     }
 
 
-def _parse_month_range(month: str) -> tuple[datetime, datetime]:
+def _parse_month_range(month: str) -> Tuple[datetime, datetime]:
     year, mon = month.split("-")
     year_int, mon_int = int(year), int(mon)
     if not (1 <= mon_int <= 12):

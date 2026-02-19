@@ -23,8 +23,14 @@ class Settings(BaseSettings):
     # Optional override for datamock path (used in json mode tools/seeds)
     DATAMOCK_DIR: str = ""
 
-    # Redis
+    # Redis — use rediss:// for TLS connections
     REDIS_URL: str = "redis://localhost:6379/0"
+    # SSL cert verification: "required" | "optional" | "none" (for self-signed certs)
+    REDIS_SSL_CERT_REQS: str = "required"
+
+    # Auth cookies (httpOnly JWT transport)
+    COOKIE_SECURE: bool = True   # auto-overridden to False when DEBUG=True
+    COOKIE_SAMESITE: str = "lax"
 
     # JWT — JWT_SECRET MUST be set via .env; no usable default.
     JWT_SECRET: str = ""

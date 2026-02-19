@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -16,7 +16,7 @@ class LoginResponse(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refreshToken: str
+    refreshToken: Optional[str] = None
 
 
 class RefreshResponse(BaseModel):

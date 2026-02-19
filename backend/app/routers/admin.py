@@ -4,6 +4,7 @@ import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import func, select
@@ -17,7 +18,7 @@ from app.middleware.audit import create_audit_log
 from app.models.audit_log import AuditLog
 from app.models.user import User, PasswordHistory
 from app.schemas.admin import UserCreate, UserUpdate, UserListResponse
-from app.utils.response import success_response
+from app.utils.response import escape_like, success_response
 from app.utils.security import hash_password
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -65,7 +66,7 @@ def _normalize_upload_filename(raw_filename: str) -> str:
     return filename
 
 
-def _parse_upload_metadata(metadata_raw: str | None) -> dict:
+def _parse_upload_metadata(metadata_raw: Optional[str]) -> dict:
     if not metadata_raw:
         return {}
     try:
@@ -95,9 +96,9 @@ async def list_audit_logs(
     query = select(AuditLog)
 
     if action:
-        query = query.where(AuditLog.action.ilike(f"%{action}%"))
+        query = query.where(AuditLog.action.ilike(f"%{escape_like(action)}%"))
     if user_name_filter:
-        query = query.where(AuditLog.user_name.ilike(f"%{user_name_filter}%"))
+        query = query.where(AuditLog.user_name.ilike(f"%{escape_like(user_name_filter)}%"))
     if user_id_filter:
         query = query.where(AuditLog.user_id == user_id_filter)
     if status_filter:
@@ -180,7 +181,7 @@ async def list_users(
 
     if search:
         query = query.where(
-            User.name.ilike(f"%{search}%") | User.username.ilike(f"%{search}%")
+            User.name.ilike(f"%{escape_like(search)}%") | User.username.ilike(f"%{escape_like(search)}%")
         )
     if role:
         query = query.where(User.role == role)
@@ -371,7 +372,7 @@ async def upload_vector_document(
     request: StarletteRequest,
     file: UploadFile = File(...),
     collection: str = Form("clinical-guidelines"),
-    metadata: str | None = Form(None),
+    metadata: Optional[str] = Form(None),
     user: User = Depends(require_roles("admin")),
     db: AsyncSession = Depends(get_db),
 ):

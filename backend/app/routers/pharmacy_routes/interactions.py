@@ -6,7 +6,7 @@ from app.database import get_db
 from app.middleware.auth import get_current_user
 from app.models.drug_interaction import DrugInteraction, IVCompatibility
 from app.models.user import User
-from app.utils.response import success_response
+from app.utils.response import escape_like, success_response
 
 router = APIRouter(tags=["pharmacy"])
 
@@ -15,24 +15,27 @@ router = APIRouter(tags=["pharmacy"])
 async def search_drug_interactions(
     drugA: str = Query(..., min_length=1),
     drugB: str = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(100, ge=1, le=500),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     query = select(DrugInteraction).where(
         or_(
-            DrugInteraction.drug1.ilike(f"%{drugA}%"),
-            DrugInteraction.drug2.ilike(f"%{drugA}%"),
+            DrugInteraction.drug1.ilike(f"%{escape_like(drugA)}%"),
+            DrugInteraction.drug2.ilike(f"%{escape_like(drugA)}%"),
         )
     )
     if drugB:
         query = query.where(
             or_(
-                DrugInteraction.drug1.ilike(f"%{drugB}%"),
-                DrugInteraction.drug2.ilike(f"%{drugB}%"),
+                DrugInteraction.drug1.ilike(f"%{escape_like(drugB)}%"),
+                DrugInteraction.drug2.ilike(f"%{escape_like(drugB)}%"),
             )
         )
 
-    result = await db.execute(query)
+    offset = (page - 1) * limit
+    result = await db.execute(query.offset(offset).limit(limit))
     interactions = result.scalars().all()
 
     return success_response(data={
@@ -50,6 +53,8 @@ async def search_drug_interactions(
             for i in interactions
         ],
         "total": len(interactions),
+        "page": page,
+        "limit": limit,
     })
 
 
@@ -58,19 +63,22 @@ async def search_iv_compatibility(
     drugA: str = Query(..., min_length=1),
     drugB: str = Query(..., min_length=1),
     solution: str = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(100, ge=1, le=500),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     query = select(IVCompatibility).where(
         or_(
-            IVCompatibility.drug1.ilike(f"%{drugA}%") & IVCompatibility.drug2.ilike(f"%{drugB}%"),
-            IVCompatibility.drug1.ilike(f"%{drugB}%") & IVCompatibility.drug2.ilike(f"%{drugA}%"),
+            IVCompatibility.drug1.ilike(f"%{escape_like(drugA)}%") & IVCompatibility.drug2.ilike(f"%{escape_like(drugB)}%"),
+            IVCompatibility.drug1.ilike(f"%{escape_like(drugB)}%") & IVCompatibility.drug2.ilike(f"%{escape_like(drugA)}%"),
         )
     )
     if solution and solution != "none":
         query = query.where(IVCompatibility.solution == solution)
 
-    result = await db.execute(query)
+    offset = (page - 1) * limit
+    result = await db.execute(query.offset(offset).limit(limit))
     compatibilities = result.scalars().all()
 
     return success_response(data={
@@ -88,4 +96,6 @@ async def search_iv_compatibility(
             for c in compatibilities
         ],
         "total": len(compatibilities),
+        "page": page,
+        "limit": limit,
     })
