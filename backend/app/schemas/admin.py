@@ -105,14 +105,14 @@ class VectorUploadRequest(BaseModel):
 class ErrorReportCreate(BaseModel):
     patientId: Optional[str] = None
     errorType: str = Field(..., min_length=1, max_length=100)
-    severity: str = Field(..., pattern=r"^(low|moderate|high)$")
+    severity: str = Field(..., pattern=r"^(low|moderate|high|critical)$")
     medicationName: Optional[str] = Field(None, max_length=200)
     description: str = Field(..., min_length=1, max_length=5000)
     actionTaken: Optional[str] = Field(None, max_length=5000)
 
 
 class ErrorReportUpdate(BaseModel):
-    status: Optional[str] = Field(None, pattern=r"^(pending|resolved)$")
+    status: Optional[str] = Field(None, pattern=r"^(pending|reviewing|resolved|closed)$")
     resolution: Optional[str] = Field(None, max_length=5000)
 
 

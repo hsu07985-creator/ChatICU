@@ -13,7 +13,7 @@ class PharmacyAdvice(Base):
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
     patient_id: Mapped[str] = mapped_column(
-        String(50), ForeignKey("patients.id", ondelete="CASCADE"), index=True
+        String(50), ForeignKey("patients.id", ondelete="RESTRICT"), index=True
     )
     patient_name: Mapped[str] = mapped_column(String(100))
     bed_number: Mapped[str] = mapped_column(String(20))
@@ -29,4 +29,7 @@ class PharmacyAdvice(Base):
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

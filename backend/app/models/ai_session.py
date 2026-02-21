@@ -13,7 +13,7 @@ class AISession(Base):
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
     user_id: Mapped[str] = mapped_column(
-        String(50), ForeignKey("users.id", ondelete="CASCADE"), index=True
+        String(50), ForeignKey("users.id", ondelete="RESTRICT"), index=True
     )
     patient_id: Mapped[Optional[str]] = mapped_column(
         String(50), ForeignKey("patients.id", ondelete="SET NULL"), nullable=True, index=True

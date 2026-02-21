@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, Integer, String, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, Integer, String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -10,6 +10,11 @@ from app.database import Base
 
 class Patient(Base):
     __tablename__ = "patients"
+    __table_args__ = (
+        CheckConstraint("age >= 0 AND age <= 200", name="ck_patients_age_range"),
+        CheckConstraint("gender IN ('M','F','Other','男','女')", name="ck_patients_gender_valid"),
+        CheckConstraint("ventilator_days >= 0", name="ck_patients_ventilator_days_gte0"),
+    )
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
@@ -45,6 +50,9 @@ class Patient(Base):
     last_update: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
     # Relationships

@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -10,6 +10,10 @@ from app.database import Base
 
 class ErrorReport(Base):
     __tablename__ = "error_reports"
+    __table_args__ = (
+        CheckConstraint("severity IN ('low','moderate','high','critical')", name="ck_error_reports_severity_valid"),
+        CheckConstraint("status IN ('pending','reviewing','resolved','closed')", name="ck_error_reports_status_valid"),
+    )
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
     patient_id: Mapped[Optional[str]] = mapped_column(
@@ -21,7 +25,7 @@ class ErrorReport(Base):
     reporter_name: Mapped[str] = mapped_column(String(100))
     reporter_role: Mapped[str] = mapped_column(String(20))
     error_type: Mapped[str] = mapped_column(String(50))
-    severity: Mapped[str] = mapped_column(String(20))  # low, medium, high, critical
+    severity: Mapped[str] = mapped_column(String(20))  # low, moderate, high, critical
     medication_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     description: Mapped[str] = mapped_column(Text)
     action_taken: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -31,4 +35,7 @@ class ErrorReport(Base):
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

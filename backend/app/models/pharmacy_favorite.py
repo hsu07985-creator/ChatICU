@@ -19,7 +19,7 @@ class PharmacyCompatibilityFavorite(Base):
 
     id: Mapped[str] = mapped_column(String(60), primary_key=True)
     user_id: Mapped[str] = mapped_column(
-        String(50), ForeignKey("users.id", ondelete="CASCADE"), index=True
+        String(50), ForeignKey("users.id", ondelete="RESTRICT"), index=True
     )
     pair_key: Mapped[str] = mapped_column(String(320), index=True)
     drug_a: Mapped[str] = mapped_column(String(200))

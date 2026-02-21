@@ -1,5 +1,7 @@
 from typing import Optional
-from sqlalchemy import Boolean, String, Text
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -16,6 +18,9 @@ class DrugInteraction(Base):
     clinical_effect: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     management: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     references: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class IVCompatibility(Base):
@@ -29,3 +34,6 @@ class IVCompatibility(Base):
     time_stability: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     references: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

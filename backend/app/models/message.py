@@ -13,7 +13,7 @@ class PatientMessage(Base):
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
     patient_id: Mapped[str] = mapped_column(
-        String(50), ForeignKey("patients.id"), index=True
+        String(50), ForeignKey("patients.id", ondelete="RESTRICT"), index=True
     )
     author_id: Mapped[str] = mapped_column(
         String(50), ForeignKey("users.id", ondelete="RESTRICT"), index=True
@@ -29,6 +29,9 @@ class PatientMessage(Base):
     read_by: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of {userId, userName, readAt}
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
     # Relationships

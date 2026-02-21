@@ -13,7 +13,7 @@ class TeamChatMessage(Base):
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
     user_id: Mapped[str] = mapped_column(
-        String(50), ForeignKey("users.id"), index=True
+        String(50), ForeignKey("users.id", ondelete="RESTRICT"), index=True
     )
     user_name: Mapped[str] = mapped_column(String(100))
     user_role: Mapped[str] = mapped_column(String(20))
@@ -24,6 +24,9 @@ class TeamChatMessage(Base):
     pinned_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
     # Relationships
