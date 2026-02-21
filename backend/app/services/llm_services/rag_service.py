@@ -462,6 +462,14 @@ class RAGService:
 
         # ── Vector similarity ──
         q_vec = np.array(embed_texts([question])[0], dtype=np.float32)
+        if self.embeddings.ndim != 2 or self.embeddings.shape[1] != q_vec.shape[0]:
+            logger.error(
+                "[RAG] Embedding dim mismatch (index=%s, query=%s); "
+                "skip local retrieval and rebuild index via POST /api/v1/rag/index",
+                self.embeddings.shape[1] if self.embeddings.ndim == 2 else "unknown",
+                q_vec.shape[0],
+            )
+            return []
 
         q_norm = np.linalg.norm(q_vec)
         if q_norm == 0:

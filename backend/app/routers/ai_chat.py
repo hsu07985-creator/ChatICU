@@ -766,7 +766,15 @@ async def ai_chat(
         )
         if _ensure_local_rag_index():
             # Retrieve more candidates then enforce source diversity (max 2 chunks per doc)
-            _raw_sources = rag_service.retrieve(req.message, top_k=8)
+            try:
+                _raw_sources = rag_service.retrieve(req.message, top_k=8)
+            except Exception as local_rag_exc:
+                logger.error(
+                    "[INTG][AI][API][F07] Local RAG retrieve failed, continuing without citations: %s",
+                    local_rag_exc,
+                    exc_info=True,
+                )
+                _raw_sources = []
             _source_counts: Dict[str, int] = {}
             sources = []
             for _s in _raw_sources:

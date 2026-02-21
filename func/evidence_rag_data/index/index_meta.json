@@ -1,12 +1,11 @@
 {
-  "updated_at": "2026-02-15T10:15:49.807086+00:00",
-  "embedding_signature": "hashing:1024",
-  "embedding_dim": 1024,
+  "updated_at": "2026-02-21T04:03:19.938217+00:00",
+  "embedding_signature": "openai:text-embedding-3-large:max_chars=6000",
+  "embedding_dim": 3072,
   "chunk_count": 2112,
   "vector_stats": {
-    "strategy": "full_reembed",
-    "reused": 0,
-    "embedded": 2112,
-    "reason": "no_reusable_index_or_signature_changed"
+    "strategy": "reorder_only",
+    "reused": 2112,
+    "embedded": 0
   }
 }
