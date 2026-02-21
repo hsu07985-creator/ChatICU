@@ -1489,7 +1489,7 @@ export function PatientDetailPage() {
                     <div className="flex gap-2 pt-1.5 items-end">
                       <Textarea
                         ref={chatInputRef}
-                        placeholder={canSendAiChat ? "" : "AI 功能未就緒"}
+                        placeholder={canSendAiChat ? "例如：這位病患的鎮靜深度是否適當？" : "AI 功能未就緒"}
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         onKeyDown={(e) => {
