@@ -73,6 +73,7 @@ import {
   ArrowDown
 } from 'lucide-react';
 import { LabDataDisplay } from '../components/lab-data-display';
+import chatBotAvatar from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 
 // 預設空的 labData 結構（用於 API 載入前）
 const defaultLabData: LabData = {
@@ -169,7 +170,7 @@ const MED_CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
   electrolyte: { label: '電解質', color: 'bg-emerald-100 text-emerald-800' },
   bronchodilator: { label: '支氣管擴張', color: 'bg-indigo-100 text-indigo-800' },
   antiarrhythmic: { label: '抗心律不整', color: 'bg-pink-100 text-pink-800' },
-  antiepileptic: { label: '抗癲癇', color: 'bg-violet-100 text-violet-800' },
+  antiepileptic: { label: '抗癲癇', color: 'bg-purple-100 text-purple-800' },
   laxative: { label: '緩瀉劑', color: 'bg-lime-100 text-lime-800' },
   antiemetic: { label: '止吐', color: 'bg-green-100 text-green-800' },
 };
@@ -1102,12 +1103,12 @@ export function PatientDetailPage() {
                   <CardHeader className="bg-[#f8f9fa] border-b py-1.5 px-3" style={{ paddingBottom: '6px' }}>
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-1 text-[12px] font-semibold text-[#374151]">
-                        <History className="h-3.5 w-3.5 text-[#7f265b]" />
+                        <History className="h-3.5 w-3.5 text-[#6b7280]" />
                         對話記錄
                       </span>
                       <Button
                         size="sm"
-                        className="h-6 px-2 text-[10px] bg-[#7f265b] hover:bg-[#631e4d]"
+                        className="h-6 px-2 text-[10px] bg-gray-700 hover:bg-gray-700 text-white"
                         onClick={() => {
                           setSelectedSession(null);
                           setChatMessages([]);
@@ -1123,7 +1124,7 @@ export function PatientDetailPage() {
                     <ScrollArea style={{ height: 'calc(100vh - 220px)', minHeight: '400px' }}>
                       {chatSessions.length === 0 ? (
                         <div className="p-8 flex flex-col items-center gap-2 text-center text-muted-foreground">
-                          <MessageSquare className="h-10 w-10 text-[#7f265b] opacity-20" />
+                          <MessageSquare className="h-10 w-10 opacity-30 text-[#9ca3af]" />
                           <p className="text-sm font-medium text-[#6b7280]">尚無對話記錄</p>
                           <p className="text-xs text-[#9ca3af] leading-relaxed">點擊「新對話」開始<br/>向 AI 詢問照護問題</p>
                         </div>
@@ -1165,7 +1166,7 @@ export function PatientDetailPage() {
 	                              }}
 	                              className={`group w-full text-left px-2.5 py-2 rounded-lg border transition-all hover:bg-[#f8f9fa] ${
 	                                selectedSession?.id === session.id
-	                                  ? 'bg-[#f8f9fa] border-[#7f265b]'
+	                                  ? 'bg-[#f8f9fa] border-[#e5e7eb]'
 	                                  : 'border-transparent'
                               }`}
                             >
@@ -1184,7 +1185,7 @@ export function PatientDetailPage() {
                                   )}
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
-	                                <Badge className="bg-[#7f265b] text-white text-xs">
+	                                <Badge className="text-xs bg-gray-100 text-[#374151] border border-[#e5e7eb]">
 	                                  {session.messageCount ?? session.messages.length}
 	                                </Badge>
                                   <button
@@ -1280,7 +1281,7 @@ export function PatientDetailPage() {
                   >
                     {chatMessages.length === 0 ? (
                       <div className="text-center text-muted-foreground py-12">
-                        <MessageSquare className="h-16 w-16 mx-auto mb-4 text-[#7f265b] opacity-30" />
+                        <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-30 text-[#9ca3af]" />
                         <p className="text-[17px] font-medium">開始對話以獲得 AI 協助</p>
                         <p className="text-sm text-[#6b7280] mt-2">可以詢問檢驗數據、用藥建議、治療指引等</p>
                       </div>
@@ -1299,32 +1300,30 @@ export function PatientDetailPage() {
                         return (
                           <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}${isFirstOfRound ? ' mt-3' : ''}`}>
                             {msg.role === 'user' ? (
-                              <div className="max-w-[65%] w-fit rounded-2xl px-3.5 py-2 bg-[#7f265b] text-white shadow-sm">
-                                <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{msg.content}</p>
+                              <div className="max-w-[65%] w-fit rounded-2xl px-4 py-2.5 bg-white border border-[#e5e7eb]">
+                                <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-[#1F2937]">{msg.content}</p>
                                 {msg.timestamp && (
-                                  <p className="text-[10px] text-white/50 mt-1 text-right">{msg.timestamp}</p>
+                                  <p className="text-[11px] text-[#9ca3af] mt-1.5 text-right">{msg.timestamp}</p>
                                 )}
                               </div>
                             ) : (
-                              <div className="flex items-start gap-0 max-w-[92%]">
-                                {/* Round badge */}
-                                <span className="text-[10px] font-bold text-[#9CA3AF] mt-2.5 mr-1 w-5 text-right shrink-0">
-                                  #{chatMessages.slice(0, idx + 1).filter(m => m.role === 'assistant').length}
-                                </span>
-                              <div className="flex flex-1 min-w-0 rounded-lg bg-white border border-[#E5E7EB] shadow-sm overflow-hidden">
-                                {/* Accent bar — full height via stretch */}
-                                <div className="w-1.5 bg-[#7f265b] shrink-0" />
+                              <div className="flex items-start gap-2 max-w-[92%]">
+                                {/* AI avatar */}
+                                <img src={chatBotAvatar} alt="AI" className="h-8 w-8 rounded-full shadow-sm shrink-0 mt-0.5 object-cover" />
+                              <div className="flex flex-1 min-w-0 rounded-2xl bg-white border border-[#e5e7eb] overflow-hidden">
+                                {/* Accent bar */}
+                                <div className="w-[3px] shrink-0 rounded-l-full" style={{ backgroundColor: '#d1d5db' }} />
                                 {/* Content */}
                                 <div className="flex-1 min-w-0 px-3 py-2.5">
                                   {/* Summary / waiting state */}
                                   {isWaiting ? (
                                     <div className="flex items-center gap-1.5 py-1">
-                                      <div className="h-2.5 w-2.5 rounded-full bg-[#7f265b] animate-bounce" style={{ animationDelay: '0ms' }} />
-                                      <div className="h-2.5 w-2.5 rounded-full bg-[#7f265b] animate-bounce" style={{ animationDelay: '160ms' }} />
-                                      <div className="h-2.5 w-2.5 rounded-full bg-[#7f265b] animate-bounce" style={{ animationDelay: '320ms' }} />
+                                      <div className="h-2 w-2 rounded-full animate-bounce" style={{ backgroundColor: '#9ca3af', animationDelay: '0ms' }} />
+                                      <div className="h-2 w-2 rounded-full animate-bounce" style={{ backgroundColor: '#9ca3af', animationDelay: '160ms' }} />
+                                      <div className="h-2 w-2 rounded-full animate-bounce" style={{ backgroundColor: '#9ca3af', animationDelay: '320ms' }} />
                                     </div>
                                   ) : (
-                                    <p className="text-[15px] font-medium leading-relaxed text-[#1F2937]">{displayContent}</p>
+                                    <p className="text-[14px] leading-relaxed text-[#1F2937]">{displayContent}</p>
                                   )}
 
                                   {/* Expandable panels — shown after streaming */}
@@ -1352,7 +1351,7 @@ export function PatientDetailPage() {
                                             {references.map((ref, refIdx) => (
                                               <li key={`${ref.id || 'ref'}-${refIdx}`} className="text-xs text-muted-foreground">
                                                 <div className="flex items-start gap-1">
-                                                  <span className="text-[#7f265b] mt-0.5">•</span>
+                                                  <span className="mt-0.5 text-[#6b7280]">•</span>
                                                   <div className="flex-1">
                                                     <p className="font-medium text-[#374151]">{ref.title || ref.sourceFile || 'unknown'}</p>
                                                     <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -1365,7 +1364,7 @@ export function PatientDetailPage() {
                                                     {ref.summary ? (
                                                       <div className="mt-1 space-y-1">
                                                         <p className="text-[11px] text-[#374151] leading-relaxed">
-                                                          <span className="font-medium text-[#7f265b]">重點：</span>{ref.summary}
+                                                          <span className="font-medium text-[#374151]">重點：</span>{ref.summary}
                                                         </p>
                                                         {ref.keyQuote && (
                                                           <div className="rounded border border-[#d1d5db] bg-white px-2 py-1.5 text-[11px] leading-relaxed text-[#6b7280] italic">
@@ -1380,7 +1379,7 @@ export function PatientDetailPage() {
                                                       <div className="mt-1 space-y-1.5">
                                                         {ref.snippets.map((s, si) => (
                                                           <div key={si} className="rounded border border-[#d1d5db] bg-white p-2 text-[11px] leading-relaxed text-[#374151] whitespace-pre-wrap">
-                                                            <span className="inline-block text-[10px] font-medium text-[#7f265b] mb-0.5">段落 {si + 1}</span>
+                                                            <span className="inline-block text-[10px] font-medium mb-0.5 text-[#6b7280]">段落 {si + 1}</span>
                                                             <div>{compactSnippet(s)}</div>
                                                           </div>
                                                         ))}
@@ -1445,7 +1444,7 @@ export function PatientDetailPage() {
                                         </button>
                                       )}
                                       {msg.timestamp && (
-                                        <span className="flex items-center gap-0.5 text-[10px]">
+                                        <span className="flex items-center gap-0.5 text-[11px] text-[#9ca3af]">
                                           <Clock className="h-3 w-3" />
                                           {msg.timestamp}
                                         </span>
@@ -1476,7 +1475,7 @@ export function PatientDetailPage() {
                     {showScrollToBottom && (
                       <button
                         onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                        className="sticky bottom-2 ml-auto flex items-center gap-1 bg-[#7f265b] text-white text-xs rounded-full px-3 py-1.5 shadow-lg hover:bg-[#5f1e45] transition-colors z-10"
+                        className="sticky bottom-2 ml-auto flex items-center gap-1 text-white text-xs rounded-full px-3 py-1.5 shadow-lg transition-colors z-10 bg-gray-700 hover:bg-gray-700"
                         aria-label="跳到最新訊息"
                       >
                         <ArrowDown className="h-3.5 w-3.5" />
@@ -1490,7 +1489,7 @@ export function PatientDetailPage() {
                     <div className="flex gap-2 pt-1.5 items-end">
                       <Textarea
                         ref={chatInputRef}
-                        placeholder={canSendAiChat ? "例如：這位病患的鎮靜深度是否適當？" : "AI 功能未就緒"}
+                        placeholder={canSendAiChat ? "" : "AI 功能未就緒"}
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -1499,19 +1498,19 @@ export function PatientDetailPage() {
                             handleSendMessage();
                           }
                         }}
-                        className={`min-h-[36px] border text-[13px] focus:ring-2 transition-colors ${
+                        className={`min-h-[36px] border text-[13px] transition-colors rounded-xl ${
                           canSendAiChat
-                            ? 'border-[#7f265b] focus:border-[#7f265b] focus:ring-[#7f265b]/20'
-                            : 'border-[#d1d5db] bg-[#f9fafb] text-[#9ca3af] cursor-not-allowed'
+                            ? 'border-[#e5e7eb]'
+                            : 'border-[#e5e7eb] bg-[#f8f9fa] text-[#9ca3af] cursor-not-allowed'
                         }`}
                         disabled={!canSendAiChat}
                       />
                       <Button
                         onClick={handleSendMessage}
                         size="icon"
-                        className={`h-[36px] w-[36px] shrink-0 transition-colors ${
+                        className={`h-[36px] w-[36px] shrink-0 transition-colors rounded-xl ${
                           canSendAiChat
-                            ? 'bg-[#7f265b] hover:bg-[#5f1e45]'
+                            ? 'bg-gray-700 hover:bg-gray-700'
                             : 'bg-[#d1d5db] cursor-not-allowed'
                         }`}
                         disabled={isSending || !chatInput.trim() || !canSendAiChat}>
