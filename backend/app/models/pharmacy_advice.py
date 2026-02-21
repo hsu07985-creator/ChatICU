@@ -23,7 +23,7 @@ class PharmacyAdvice(Base):
     pharmacist_name: Mapped[str] = mapped_column(String(100))
     advice_code: Mapped[str] = mapped_column(String(10))  # e.g. '1-4', '2-1'
     advice_label: Mapped[str] = mapped_column(String(200))
-    category: Mapped[str] = mapped_column(String(50))  # '1. 建議處方', etc.
+    category: Mapped[str] = mapped_column(String(50), index=True)  # '1. 建議處方', etc.
     content: Mapped[str] = mapped_column(Text)
     linked_medications: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True))

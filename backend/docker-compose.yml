@@ -1,4 +1,4 @@
-# ── Pre-deployment checklist ─────────────────────────────────────────
+# ── ChatICU Production Compose ───────────────────────────────────────
 # Before production use, set in .env or shell environment:
 #   POSTGRES_PASSWORD  — strong random password (>= 20 chars)
 #   JWT_SECRET         — python3 -c "import secrets; print(secrets.token_urlsafe(48))"
@@ -8,7 +8,8 @@
 # ─────────────────────────────────────────────────────────────────────
 
 services:
-  api:
+  chaticu-api:
+    container_name: chaticu-api
     build:
       context: .
       dockerfile: Dockerfile
@@ -21,13 +22,13 @@ services:
     environment:
       - DATA_SOURCE_MODE=${DATA_SOURCE_MODE:-db}
       - DATAMOCK_DIR=/datamock
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-chaticu}:${POSTGRES_PASSWORD:-CHANGE_ME_BEFORE_PRODUCTION}@db:5432/${POSTGRES_DB:-chaticu}
-      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-chaticu}:${POSTGRES_PASSWORD:-CHANGE_ME_BEFORE_PRODUCTION}@chaticu-db:5432/${POSTGRES_DB:-chaticu}
+      - REDIS_URL=redis://chaticu-redis:6379/0
       - RAG_DOCS_PATH=/data/rag_docs
     depends_on:
-      db:
+      chaticu-db:
         condition: service_healthy
-      redis:
+      chaticu-redis:
         condition: service_healthy
     volumes:
       - "../rag 文本:/data/rag_docs:ro"
@@ -36,18 +37,20 @@ services:
 
   # Frontend static server (serves ../build) for local smoke/E2E.
   # For interactive development, use `npm run dev` on the host instead.
-  web:
+  chaticu-web:
+    container_name: chaticu-web
     image: nginx:1.27-alpine
     ports:
       - "3000:80"
     depends_on:
-      - api
+      - chaticu-api
     volumes:
       - "../build:/usr/share/nginx/html:ro"
       - "./nginx.conf:/etc/nginx/conf.d/default.conf:ro"
     restart: unless-stopped
 
-  db:
+  chaticu-db:
+    container_name: chaticu-db
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-chaticu}
@@ -56,7 +59,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - chaticu_pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U chaticu -d chaticu"]
       interval: 5s
@@ -64,12 +67,13 @@ services:
       retries: 5
     restart: unless-stopped
 
-  redis:
+  chaticu-redis:
+    container_name: chaticu-redis
     image: redis:7-alpine
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
+      - chaticu_redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -78,5 +82,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
-  redis_data:
+  chaticu_pgdata:
+  chaticu_redis:

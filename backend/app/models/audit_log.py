@@ -21,7 +21,7 @@ class AuditLog(Base):
     )
     user_name: Mapped[str] = mapped_column(String(100))
     role: Mapped[str] = mapped_column(String(20))
-    action: Mapped[str] = mapped_column(String(100))
+    action: Mapped[str] = mapped_column(String(100), index=True)
     target: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="success")
     ip: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)

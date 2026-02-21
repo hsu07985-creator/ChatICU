@@ -18,7 +18,7 @@ class TeamChatMessage(Base):
     user_name: Mapped[str] = mapped_column(String(100))
     user_role: Mapped[str] = mapped_column(String(20))
     content: Mapped[str] = mapped_column(Text)
-    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     pinned: Mapped[bool] = mapped_column(Boolean, default=False)
     pinned_by: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # {userId, userName}
     pinned_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -19,7 +19,7 @@ class Patient(Base):
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
     bed_number: Mapped[str] = mapped_column(String(20), index=True)
-    medical_record_number: Mapped[str] = mapped_column(String(50), index=True)
+    medical_record_number: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     age: Mapped[int] = mapped_column(Integer)
     gender: Mapped[str] = mapped_column(String(10))
     height: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -36,7 +36,7 @@ class Patient(Base):
     icu_admission_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     ventilator_days: Mapped[int] = mapped_column(Integer, default=0)
     attending_physician: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    department: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    department: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
     # Care unit / ward (used for data-level access control). Separate from department.
     unit: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
     alerts: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of strings
@@ -46,7 +46,7 @@ class Patient(Base):
     code_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     has_dnr: Mapped[bool] = mapped_column(Boolean, default=False)
     is_isolated: Mapped[bool] = mapped_column(Boolean, default=False)
-    archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    archived: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     last_update: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
