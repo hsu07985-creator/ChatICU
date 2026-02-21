@@ -11,7 +11,7 @@
 ## Preconditions
 - Backend service running with PostgreSQL + Redis
 - Frontend service running with `VITE_USE_MOCK=false`
-- Seed data loaded (`admin / CITestPassword123!`)
+- Seed data loaded (`admin / admin` with `SEED_PASSWORD_STRATEGY=username`)
 - Browser cache cleared or private window
 
 ## Test Cases
@@ -28,9 +28,9 @@
 | UAT-T04-008 | Logout | Click `登出` | Redirect to `/login`, protected route inaccessible | Screenshot |
 
 ## Sign-off
-- UAT date:
-- Environment:
-- Executor:
-- Reviewer:
-- Result: Pass / Fail
-- Known issues:
+- UAT date: 2026-02-20
+- Environment: Docker backend (port 8000) + Vite dev (port 3000) + brew PostgreSQL 16 + brew Redis
+- Executor: Claude Code (Playwright MCP automated)
+- Reviewer: _________________ (PM/QA signature)
+- Result: **Pass (8/8)**
+- Known issues: None
