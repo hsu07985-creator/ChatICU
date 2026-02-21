@@ -82,10 +82,13 @@ async def test_422_validation_error_envelope(client):
 @pytest.mark.asyncio
 async def test_503_error_envelope(client):
     """503 must return {success: false, error: 'SERVICE_UNAVAILABLE', message: ...}."""
-    response = await client.post(
-        "/api/v1/rag/query",
-        json={"question": "test"},
-    )
+    # Force local RAG fallback by disabling hybrid evidence_client
+    with patch("app.routers.rag.evidence_client") as mock_ec:
+        mock_ec.query.side_effect = Exception("func/ unavailable in test")
+        response = await client.post(
+            "/api/v1/rag/query",
+            json={"question": "test"},
+        )
     assert response.status_code == 503
     data = response.json()
     assert data["success"] is False

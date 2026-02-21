@@ -45,10 +45,13 @@ async def test_rag_status(client):
 
 @pytest.mark.asyncio
 async def test_rag_query_not_indexed(client):
-    response = await client.post(
-        "/api/v1/rag/query",
-        json={"question": "What is PADIS?"},
-    )
+    # Force local RAG fallback by disabling hybrid evidence_client
+    with patch("app.routers.rag.evidence_client") as mock_ec:
+        mock_ec.query.side_effect = Exception("func/ unavailable in test")
+        response = await client.post(
+            "/api/v1/rag/query",
+            json={"question": "What is PADIS?"},
+        )
     assert response.status_code == 503
 
 
@@ -128,10 +131,13 @@ async def test_rag_query_returns_answer_when_evidence_gate_passes(client):
 
 @pytest.mark.asyncio
 async def test_rag_index_with_empty_dir(client, tmp_path):
-    response = await client.post(
-        "/api/v1/rag/index",
-        json={"docs_path": str(tmp_path)},
-    )
+    # Force local RAG fallback by disabling hybrid evidence_client
+    with patch("app.routers.rag.evidence_client") as mock_ec:
+        mock_ec.ingest.side_effect = Exception("func/ unavailable in test")
+        response = await client.post(
+            "/api/v1/rag/index",
+            json={"docs_path": str(tmp_path)},
+        )
     assert response.status_code == 200
     data = response.json()
     assert data["data"]["total_chunks"] == 0
@@ -151,8 +157,12 @@ async def test_rag_index_and_query(client, tmp_path):
         "metadata": {"model": "test"},
     }
 
-    with patch(_EMBED_PATCH, side_effect=_mock_embed_texts), \
+    # Force local RAG fallback by disabling hybrid evidence_client
+    with patch("app.routers.rag.evidence_client") as mock_ec, \
+         patch(_EMBED_PATCH, side_effect=_mock_embed_texts), \
          patch("app.services.llm_services.rag_service.call_llm", return_value=mock_llm_result):
+        mock_ec.ingest.side_effect = Exception("func/ unavailable in test")
+        mock_ec.query.side_effect = Exception("func/ unavailable in test")
         # Index
         response = await client.post("/api/v1/rag/index", json={"docs_path": str(tmp_path)})
         assert response.status_code == 200
