@@ -33,11 +33,19 @@ async def db_migration_check(db: AsyncSession = Depends(get_db)):
     try:
         result = await db.execute(text(
             "SELECT column_name FROM information_schema.columns "
-            "WHERE table_name = 'users' ORDER BY ordinal_position"
+            "WHERE table_name = 'users' AND table_schema = 'public' ORDER BY ordinal_position"
         ))
-        info["users_columns"] = [r[0] for r in result.fetchall()]
+        info["public_users_columns"] = [r[0] for r in result.fetchall()]
     except Exception as e:
-        info["users_columns_error"] = str(e)
+        info["public_users_columns_error"] = str(e)
+    try:
+        result = await db.execute(text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'users' AND table_schema = 'auth' ORDER BY ordinal_position"
+        ))
+        info["auth_users_columns"] = [r[0] for r in result.fetchall()]
+    except Exception as e:
+        info["auth_users_columns_error"] = str(e)
     try:
         result = await db.execute(text(
             "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename"
