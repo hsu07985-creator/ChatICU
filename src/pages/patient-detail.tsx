@@ -35,6 +35,9 @@ import { LoadingSpinner, ErrorDisplay, EmptyState } from '../components/ui/state
 import { AiMarkdown, SafetyWarnings } from '../components/ui/ai-markdown';
 import { LabDataSkeleton, MedicationsSkeleton, MessageListSkeleton } from '../components/ui/skeletons';
 import { PatientSummaryTab } from '../components/patient/patient-summary-tab';
+import { PatientLabsTab } from '../components/patient/patient-labs-tab';
+import { PatientMedicationsTab } from '../components/patient/patient-medications-tab';
+import { getLatestScores, recordScore, getScoreTrends } from '../lib/api/scores';
 import {
   ArrowLeft,
   Calendar,
@@ -498,6 +501,13 @@ export function PatientDetailPage() {
   const [medicationGroups, setMedicationGroups] = useState<MedicationGroups>(EMPTY_MEDICATION_GROUPS);
   const [medicationsLoading, setMedicationsLoading] = useState(false);
 
+  // 臨床評分狀態
+  const [painScoreValue, setPainScoreValue] = useState<number | null>(null);
+  const [rassScoreValue, setRassScoreValue] = useState<number | null>(null);
+  const [scoreTrendOpen, setScoreTrendOpen] = useState(false);
+  const [scoreTrendType, setScoreTrendType] = useState<'pain' | 'rass'>('pain');
+  const [scoreTrendData, setScoreTrendData] = useState<{ date: string; value: number }[]>([]);
+
   // 留言板狀態
   const [messages, setMessages] = useState<PatientMessage[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
@@ -572,6 +582,15 @@ export function PatientDetailPage() {
       setVitalSigns(vitalSignsResult);
       setVentilator(ventilatorResult);
       setWeaningAssessment(weaningResult);
+
+      // 載入臨床評分
+      try {
+        const latest = await getLatestScores(id);
+        setPainScoreValue(latest.pain?.value ?? null);
+        setRassScoreValue(latest.rass?.value ?? null);
+      } catch {
+        // scores endpoint may not exist yet — ignore
+      }
 
       // 載入對話記錄
       try {
@@ -987,6 +1006,42 @@ export function PatientDetailPage() {
   const painIndication = painMedications[0]?.indication;
   const sedationIndication = sedationMedications[0]?.indication;
   const nmbIndication = nmbMedications[0]?.indication;
+
+  const handleRecordScore = useCallback(async (scoreType: 'pain' | 'rass', value: number) => {
+    if (!id) return;
+    await recordScore(id, { score_type: scoreType, value });
+    if (scoreType === 'pain') setPainScoreValue(value);
+    else setRassScoreValue(value);
+    toast.success(`已記錄 ${scoreType === 'pain' ? 'Pain' : 'RASS'} = ${value}`);
+  }, [id]);
+
+  const handleOpenScoreTrend = useCallback(async (scoreType: 'pain' | 'rass') => {
+    if (!id) return;
+    setScoreTrendType(scoreType);
+    setScoreTrendOpen(true);
+    try {
+      const result = await getScoreTrends(id, scoreType, 72);
+      setScoreTrendData(
+        result.trends.map((t) => ({
+          date: new Date(t.timestamp).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }),
+          value: t.value,
+        }))
+      );
+    } catch {
+      setScoreTrendData([]);
+    }
+  }, [id]);
+
+  const handleRefreshMedications = useCallback(async () => {
+    if (!id) return;
+    setMedicationsLoading(true);
+    try {
+      const result = await medicationsApi.getMedications(id, { status: 'active' });
+      setMedicationGroups(result.grouped || deriveMedicationGroups(result.medications));
+    } catch { /* ignore */ } finally {
+      setMedicationsLoading(false);
+    }
+  }, [id]);
 
   const respiratoryRate = vitalSigns?.respiratoryRate;
   const temperature = vitalSigns?.temperature;
@@ -1782,365 +1837,61 @@ export function PatientDetailPage() {
         </TabsContent>
 
         {/* 檢驗數據 */}
-        <TabsContent value="labs" className="space-y-4">
-          {/* 生命徵象 */}
-          <Card>
-            <CardHeader className="min-h-14 bg-[#f8f9fa] border-b py-3">
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <Activity className="h-6 w-6 text-[#7f265b]" />
-                生命徵象 Vital Signs
-              </CardTitle>
-              <CardDescription className="mt-1 text-sm flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
-                {formatDisplayTimestamp(vitalSigns?.timestamp)}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-3">
-              {vitalSignsLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <LoadingSpinner size="md" text="載入生命徵象..." />
-                </div>
-              ) : (
-                <div className="grid" style={metricGridStyle}>
-                  <VitalSignCard
-                    label="Respiratory Rate"
-                    value={respiratoryRate}
-                    unit="rpm"
-                    isAbnormal={isFiniteNumber(respiratoryRate) && (respiratoryRate > 25 || respiratoryRate < 12)}
-                    onClick={isFiniteNumber(respiratoryRate) ? () => handleVitalSignClick('RespiratoryRate', respiratoryRate, 'rpm', 'vital') : undefined}
-                  />
-
-                  <VitalSignCard
-                    label="Temperature"
-                    value={temperature}
-                    unit="°C"
-                    isAbnormal={isFiniteNumber(temperature) && (temperature > 37.5 || temperature < 36)}
-                    onClick={isFiniteNumber(temperature) ? () => handleVitalSignClick('Temperature', temperature, '°C', 'vital') : undefined}
-                  />
-
-                  <VitalSignCard
-                    label="收縮壓 SBP"
-                    value={systolicBP}
-                    unit="mmHg"
-                    isAbnormal={isFiniteNumber(systolicBP) && (systolicBP > 140 || systolicBP < 90)}
-                    onClick={isFiniteNumber(systolicBP) ? () => handleVitalSignClick('BloodPressureSystolic', systolicBP, 'mmHg', 'vital') : undefined}
-                  />
-
-                  <VitalSignCard
-                    label="舒張壓 DBP"
-                    value={diastolicBP}
-                    unit="mmHg"
-                    isAbnormal={isFiniteNumber(diastolicBP) && (diastolicBP > 90 || diastolicBP < 60)}
-                    onClick={isFiniteNumber(diastolicBP) ? () => handleVitalSignClick('BloodPressureDiastolic', diastolicBP, 'mmHg', 'vital') : undefined}
-                  />
-
-                  <VitalSignCard
-                    label="Heart Rate"
-                    value={heartRate}
-                    unit="bpm"
-                    isAbnormal={isFiniteNumber(heartRate) && (heartRate > 100 || heartRate < 60)}
-                    onClick={isFiniteNumber(heartRate) ? () => handleVitalSignClick('HeartRate', heartRate, 'bpm', 'vital') : undefined}
-                  />
-
-                  <VitalSignCard
-                    label="SpO₂"
-                    value={spo2}
-                    unit="%"
-                    isAbnormal={isFiniteNumber(spo2) && spo2 < 94}
-                    onClick={isFiniteNumber(spo2) ? () => handleVitalSignClick('SpO2', spo2, '%', 'vital') : undefined}
-                  />
-
-                  <VitalSignCard
-                    label="EtCO₂"
-                    value={etco2}
-                    unit="mmHg"
-                    isAbnormal={isFiniteNumber(etco2) && (etco2 > 45 || etco2 < 35)}
-                    onClick={isFiniteNumber(etco2) ? () => handleVitalSignClick('EtCO2', etco2, 'mmHg', 'vital') : undefined}
-                  />
-
-                  <VitalSignCard
-                    label="CVP"
-                    value={cvp}
-                    unit="mmHg"
-                    isAbnormal={isFiniteNumber(cvp) && (cvp > 12 || cvp < 2)}
-                    onClick={isFiniteNumber(cvp) ? () => handleVitalSignClick('CVP', cvp, 'mmHg', 'vital') : undefined}
-                  />
-
-                  <VitalSignCard
-                    label="ICP"
-                    value={icp}
-                    unit="mmHg"
-                    isAbnormal={isFiniteNumber(icp) && icp > 20}
-                    onClick={isFiniteNumber(icp) ? () => handleVitalSignClick('ICP', icp, 'mmHg', 'vital') : undefined}
-                  />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* 呼吸器設定 - 僅在插管病人顯示 */}
-          {patient.intubated && (
-            <Card>
-              <CardHeader className="min-h-14 bg-[#f8f9fa] border-b py-3">
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <Wind className="h-6 w-6 text-[#7f265b]" />
-                  呼吸器設定 Ventilator Settings
-                </CardTitle>
-                <CardDescription className="mt-1 text-sm flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {formatDisplayTimestamp(ventTimestamp)} | Mode: {formatDisplayValue(ventMode)}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-3">
-                {ventilatorLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <LoadingSpinner size="md" text="載入呼吸器設定..." />
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid" style={metricGridStyle}>
-                      <VitalSignCard
-                        label="FiO₂"
-                        value={ventFiO2}
-                        unit="%"
-                        isAbnormal={isFiniteNumber(ventFiO2) && ventFiO2 > 60}
-                        onClick={isFiniteNumber(ventFiO2) ? () => handleVitalSignClick('FiO2', ventFiO2, '%', 'ventilator') : undefined}
-                      />
-                      <VitalSignCard
-                        label="PEEP"
-                        value={ventPeep}
-                        unit="cmH₂O"
-                        isAbnormal={isFiniteNumber(ventPeep) && ventPeep > 12}
-                        onClick={isFiniteNumber(ventPeep) ? () => handleVitalSignClick('PEEP', ventPeep, 'cmH₂O', 'ventilator') : undefined}
-                      />
-                      <VitalSignCard
-                        label="Vt"
-                        value={ventTidalVolume}
-                        unit="mL"
-                        isAbnormal={isFiniteNumber(ventTidalVolume) && ventTidalVolume > 500}
-                        onClick={isFiniteNumber(ventTidalVolume) ? () => handleVitalSignClick('TidalVolume', ventTidalVolume, 'mL', 'ventilator') : undefined}
-                      />
-                      <VitalSignCard
-                        label="RR (Set)"
-                        value={ventRespRate}
-                        unit="/min"
-                        onClick={isFiniteNumber(ventRespRate) ? () => handleVitalSignClick('VentRR', ventRespRate, '/min', 'ventilator') : undefined}
-                      />
-                      <VitalSignCard
-                        label="PIP"
-                        value={ventPip}
-                        unit="cmH₂O"
-                        isAbnormal={isFiniteNumber(ventPip) && ventPip > 30}
-                        onClick={isFiniteNumber(ventPip) ? () => handleVitalSignClick('PIP', ventPip, 'cmH₂O', 'ventilator') : undefined}
-                      />
-                      <VitalSignCard
-                        label="Pplat"
-                        value={ventPlateau}
-                        unit="cmH₂O"
-                        isAbnormal={isFiniteNumber(ventPlateau) && ventPlateau > 30}
-                        onClick={isFiniteNumber(ventPlateau) ? () => handleVitalSignClick('Plateau', ventPlateau, 'cmH₂O', 'ventilator') : undefined}
-                      />
-                      <VitalSignCard
-                        label="Compliance"
-                        value={ventCompliance}
-                        unit="mL/cmH₂O"
-                        isAbnormal={isFiniteNumber(ventCompliance) && ventCompliance < 30}
-                        onClick={isFiniteNumber(ventCompliance) ? () => handleVitalSignClick('Compliance', ventCompliance, 'mL/cmH₂O', 'ventilator') : undefined}
-                      />
-                    </div>
-
-                    {/* 脫機評估 */}
-                    {weaningAssessment && (
-                      <Card className="bg-blue-50 border-blue-200">
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <Stethoscope className="h-5 w-5 text-blue-600" />
-                            脫機評估 Weaning Assessment
-                          </CardTitle>
-                          <CardDescription>
-                            評估時間: {new Date(weaningAssessment.timestamp).toLocaleString('zh-TW')}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="grid gap-4 md:grid-cols-4 mb-4">
-                            <div className="text-center">
-                              <p className="text-sm text-muted-foreground">RSBI</p>
-                              <p className={`text-2xl font-bold ${weaningAssessment.rsbi > 105 ? 'text-red-600' : 'text-green-600'}`}>
-                                {weaningAssessment.rsbi}
-                              </p>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-sm text-muted-foreground">NIF</p>
-                              <p className={`text-2xl font-bold ${weaningAssessment.nif > -25 ? 'text-red-600' : 'text-green-600'}`}>
-                                {weaningAssessment.nif} cmH₂O
-                              </p>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-sm text-muted-foreground">準備度分數</p>
-                              <p className={`text-2xl font-bold ${weaningAssessment.readinessScore >= 70 ? 'text-green-600' : 'text-orange-600'}`}>
-                                {weaningAssessment.readinessScore}%
-                              </p>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-sm text-muted-foreground">建議</p>
-                              <Badge className={weaningAssessment.recommendation.includes('可以') ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}>
-                                {weaningAssessment.recommendation}
-                              </Badge>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* 檢驗數據 */}
-          <Card>
-            <CardHeader className="min-h-14 bg-[#f8f9fa] border-b py-3">
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <TestTube className="h-6 w-6 text-[#7f265b]" />
-                檢驗數據 Lab Data
-              </CardTitle>
-              <CardDescription className="mt-1 text-sm flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
-                {formatDisplayTimestamp(labData?.timestamp)}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-3">
-              <LabDataDisplay labData={labData} patientId={patient.id} />
-            </CardContent>
-          </Card>
-
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertDescription>
-              檢驗數據由管理者上傳與解析，醫護可進行小幅校正並需填寫更動理由。
-            </AlertDescription>
-          </Alert>
-        </TabsContent>
+        {/* 檢驗 + 微生物 */}
+        <PatientLabsTab
+          patientId={patient.id}
+          patientIntubated={!!patient.intubated}
+          labData={labData}
+          vitalSignsLoading={vitalSignsLoading}
+          vitalSignsTimestamp={vitalSigns?.timestamp}
+          respiratoryRate={respiratoryRate}
+          temperature={temperature}
+          systolicBP={systolicBP}
+          diastolicBP={diastolicBP}
+          heartRate={heartRate}
+          spo2={spo2}
+          cvp={cvp}
+          icp={icp}
+          ventilatorLoading={ventilatorLoading}
+          ventTimestamp={ventTimestamp}
+          ventMode={ventMode}
+          ventFiO2={ventFiO2}
+          ventPeep={ventPeep}
+          ventTidalVolume={ventTidalVolume}
+          ventRespRate={ventRespRate}
+          ventPip={ventPip}
+          ventPlateau={ventPlateau}
+          ventCompliance={ventCompliance}
+          weaningAssessment={weaningAssessment}
+          formatDisplayTimestamp={formatDisplayTimestamp}
+          formatDisplayValue={formatDisplayValue}
+          onVitalSignClick={handleVitalSignClick}
+        />
 
         {/* 用藥 */}
-        <TabsContent value="meds" className="space-y-4">
-          {medicationsLoading ? (
-            <MedicationsSkeleton />
-          ) : (
-            <>
-              {/* S/A/N 藥物 */}
-              <div className="grid gap-3 md:grid-cols-3">
-                {/* Pain (A) */}
-                <Card className="border-[#e5e7eb]">
-                  <CardHeader className="pb-2 space-y-1">
-                    <CardTitle className="text-base leading-tight">Pain 止痛</CardTitle>
-                    <CardDescription className="text-sm leading-tight">
-                      {painIndication || 'Pain Score: -'}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="mb-2 text-xs font-medium text-muted-foreground">止痛藥物</p>
-                    {painMedications.length === 0 ? (
-                      <p className="py-3 text-sm text-muted-foreground">無止痛藥物</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {painMedications.map((med) => (
-                          <div key={med.id} className="rounded-md border bg-white px-3 py-2">
-                            <p className="font-medium leading-tight">{formatDisplayValue(med.name)}</p>
-                            <p className="mt-1 text-sm text-muted-foreground">{formatMedicationRegimen(med)}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Sedation (S) */}
-                <Card className="border-[#e5e7eb]">
-                  <CardHeader className="pb-2 space-y-1">
-                    <CardTitle className="text-base leading-tight">Sedation 鎮靜</CardTitle>
-                    <CardDescription className="text-sm leading-tight">
-                      {sedationIndication || 'RASS Score: -'}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="mb-2 text-xs font-medium text-muted-foreground">鎮靜藥物</p>
-                    {sedationMedications.length === 0 ? (
-                      <p className="py-3 text-sm text-muted-foreground">無鎮靜藥物</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {sedationMedications.map((med) => (
-                          <div key={med.id} className="rounded-md border bg-white px-3 py-2">
-                            <p className="font-medium leading-tight">{formatDisplayValue(med.name)}</p>
-                            <p className="mt-1 text-sm text-muted-foreground">{formatMedicationRegimen(med)}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Neuromuscular Blockade (N) */}
-                <Card className="border-[#e5e7eb]">
-                  <CardHeader className="pb-2 space-y-1">
-                    <CardTitle className="text-base leading-tight">Neuromuscular Blockade 神經肌肉阻斷</CardTitle>
-                    <CardDescription className="text-sm leading-tight">
-                      {nmbIndication || '-'}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="mb-2 text-xs font-medium text-muted-foreground">神經肌肉阻斷藥物</p>
-                    {nmbMedications.length === 0 ? (
-                      <p className="py-3 text-sm text-muted-foreground">無神經肌肉阻斷藥物</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {nmbMedications.map((med) => (
-                          <div key={med.id} className="rounded-md border bg-white px-3 py-2">
-                            <p className="font-medium leading-tight">{formatDisplayValue(med.name)}</p>
-                            <p className="mt-1 text-sm text-muted-foreground">{formatMedicationRegimen(med)}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Other Medications */}
-              <Card className="border-[#e5e7eb]">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base leading-tight">其他藥物 Other Medications</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="mb-2 text-xs font-medium text-muted-foreground">其他藥物清單</p>
-                  {otherMedications.length === 0 ? (
-                    <p className="py-3 text-sm text-muted-foreground">無其他藥物</p>
-                  ) : (
-                    <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                      {otherMedications.map((med) => {
-                        const catInfo = MED_CATEGORY_LABELS[med.category];
-                        return (
-                          <div key={med.id} className="rounded-md border bg-[rgba(196,196,196,0.15)] px-3 py-2">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium leading-tight">{formatDisplayValue(med.name)}</p>
-                              {catInfo && (
-                                <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 h-4 ${catInfo.color}`}>
-                                  {catInfo.label}
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="mt-1 text-sm text-muted-foreground">{formatMedicationRegimen(med)}</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </>
-          )}
-
-        </TabsContent>
+        <PatientMedicationsTab
+          patientId={id}
+          userRole={user?.role}
+          medicationsLoading={medicationsLoading}
+          painIndication={painIndication}
+          sedationIndication={sedationIndication}
+          nmbIndication={nmbIndication}
+          painMedications={painMedications}
+          sedationMedications={sedationMedications}
+          nmbMedications={nmbMedications}
+          otherMedications={otherMedications}
+          formatDisplayValue={formatDisplayValue}
+          formatMedicationRegimen={formatMedicationRegimen}
+          painScoreValue={painScoreValue}
+          rassScoreValue={rassScoreValue}
+          onRecordScore={handleRecordScore}
+          onOpenScoreTrend={handleOpenScoreTrend}
+          scoreTrendOpen={scoreTrendOpen}
+          scoreTrendType={scoreTrendType}
+          scoreTrendData={scoreTrendData}
+          onCloseScoreTrend={() => setScoreTrendOpen(false)}
+          onRefreshMedications={handleRefreshMedications}
+        />
 
         {/* 病歷摘要 */}
         <TabsContent value="summary" className="space-y-4">

@@ -65,9 +65,11 @@ from app.routers import (
     medications,
     messages,
     patients,
+    patients_v2,
     pharmacy,
     rag,
     rules,
+    scores,
     team_chat,
     ventilator,
     vital_signs,
@@ -379,3 +381,7 @@ app.include_router(ai_readiness.router)
 app.include_router(rag.router)
 app.include_router(rules.router)
 app.include_router(ai_chat.router)
+
+# Phase 4: V2 endpoints + Clinical Scores
+app.include_router(patients_v2.router)
+app.include_router(scores.router)

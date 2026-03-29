@@ -97,6 +97,19 @@ export async function getMedication(patientId: string, medicationId: string): Pr
   return ensureData(response.data, 'API contract');
 }
 
+// 更新用藥
+export async function updateMedication(
+  patientId: string,
+  medicationId: string,
+  data: Partial<Pick<Medication, 'dose' | 'unit' | 'concentration' | 'concentrationUnit' | 'frequency' | 'route' | 'indication'>>
+): Promise<Medication> {
+  const response = await apiClient.patch<ApiResponse<Medication>>(
+    `/patients/${patientId}/medications/${medicationId}`,
+    data
+  );
+  return ensureData(response.data, 'API contract');
+}
+
 // 取得給藥記錄
 export async function getMedicationAdministrations(
   patientId: string,

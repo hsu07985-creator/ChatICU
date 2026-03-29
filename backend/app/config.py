@@ -113,6 +113,9 @@ class Settings(BaseSettings):
     RAG_CONTEXTUAL_MAX_DOC_CHARS: int = 8000  # truncate long docs for context prompt
     RAG_CONTEXTUAL_WORKERS: int = 8  # parallel LLM calls for context generation
 
+    # Layer2 structured data store (JSONL files)
+    LAYER2_ROOT: str = ""
+
     # Evidence RAG microservice (func/) — hybrid RAG, dose calc, interactions
     # Override FUNC_API_URL in containers (e.g. FUNC_API_URL=http://func:8001)
     FUNC_API_URL: str = "http://127.0.0.1:8001"
