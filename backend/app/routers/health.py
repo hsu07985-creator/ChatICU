@@ -93,6 +93,19 @@ async def run_migration(db: AsyncSession = Depends(get_db)):
     return success_response(data={"results": results})
 
 
+@router.get("/health/users-check")
+async def users_check(db: AsyncSession = Depends(get_db)):
+    """Temporary: list usernames in public.users."""
+    try:
+        result = await db.execute(text(
+            "SELECT username, email, role, active FROM public.users LIMIT 20"
+        ))
+        rows = [{"username": r[0], "email": r[1], "role": r[2], "active": r[3]} for r in result.fetchall()]
+        return success_response(data={"users": rows, "count": len(rows)})
+    except Exception as e:
+        return success_response(data={"error": str(e)})
+
+
 @router.get("/")
 async def root():
     return success_response(data={
