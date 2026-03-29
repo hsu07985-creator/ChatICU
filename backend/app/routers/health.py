@@ -66,24 +66,35 @@ async def run_migration(db: AsyncSession = Depends(get_db)):
         current = [r[0] for r in result.fetchall()]
         results.append(f"current_version: {current}")
 
-        # Directly add updated_at to users if missing
-        result = await db.execute(text(
-            "SELECT 1 FROM information_schema.columns "
-            "WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'updated_at'"
-        ))
-        if result.fetchone() is None:
-            await db.execute(text(
-                "ALTER TABLE users ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT now()"
-            ))
-            await db.commit()
-            results.append("added updated_at to users")
-        else:
-            results.append("updated_at already exists on users")
+        # Add updated_at to all tables that need it
+        tables = [
+            "patients", "medications", "users", "vital_signs", "lab_data",
+            "ventilator_settings", "weaning_assessments", "patient_messages",
+            "team_chat_messages", "pharmacy_advices", "error_reports",
+            "audit_logs", "drug_interactions", "iv_compatibilities",
+        ]
+        for tbl in tables:
+            result = await db.execute(text(
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_schema = 'public' AND table_name = :tbl AND column_name = 'updated_at'"
+            ), {"tbl": tbl})
+            if result.fetchone() is None:
+                try:
+                    await db.execute(text(
+                        f"ALTER TABLE {tbl} ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT now()"
+                    ))
+                    await db.commit()
+                    results.append(f"added updated_at to {tbl}")
+                except Exception as e:
+                    results.append(f"error adding to {tbl}: {str(e)}")
+                    await db.rollback()
+            else:
+                results.append(f"updated_at already exists on {tbl}")
 
         # Update alembic version
         await db.execute(text(
             "UPDATE alembic_version SET version_num = '023_fix_updated_at' "
-            "WHERE version_num = '022_pgvector_rag'"
+            "WHERE version_num IN ('022_pgvector_rag', '023_fix_updated_at')"
         ))
         await db.commit()
         results.append("updated alembic_version to 023")
