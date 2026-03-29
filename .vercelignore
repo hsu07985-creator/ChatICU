@@ -1,0 +1,19 @@
+backend/
+func/
+data/
+datamock/
+docs/
+e2e/
+scripts/
+shared/
+.logs/
+_archive_candidates/
+0_chatICU reference/
+1_藥物＿季/
+2_藥物交互作用＋相容性/
+rag 文本/
+*.png
+*.pyc
+__pycache__/
+.venv/
+node_modules/
