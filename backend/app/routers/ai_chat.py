@@ -113,7 +113,7 @@ def _evidence_gate_overrides(intent: str) -> Dict[str, Any]:
     return {"min_citations": 0, "min_confidence": 0.0}
 
 
-def _ensure_local_rag_index() -> bool:
+async def _ensure_local_rag_index() -> bool:
     """Best-effort lazy index for local RAG fallback when hybrid RAG is unavailable."""
     global _LOCAL_RAG_INDEX_ATTEMPTED
 
@@ -137,7 +137,7 @@ def _ensure_local_rag_index() -> bool:
             if not resolved.exists():
                 continue
             chunks = rag_service.load_and_chunk(str(resolved))
-            result = rag_service.index(chunks)
+            result = await rag_service.index(chunks)
             total_chunks = int(result.get("total_chunks") or 0)
             if total_chunks > 0:
                 logger.info(
@@ -764,7 +764,7 @@ async def ai_chat(
             "[INTG][AI][API][F07] Hybrid RAG unavailable for ai_chat, falling back to local RAG: %s",
             exc,
         )
-        if _ensure_local_rag_index():
+        if await _ensure_local_rag_index():
             # Retrieve more candidates then enforce source diversity (max 2 chunks per doc)
             try:
                 _raw_sources = rag_service.retrieve(req.message, top_k=8)

@@ -415,7 +415,7 @@ async def upload_vector_document(
 
     try:
         chunks = rag_service.load_and_chunk(str(docs_root))
-        result = rag_service.index(chunks)
+        result = await rag_service.index(chunks)
     except Exception as exc:
         logger.exception(
             "[INTG][API][ADMIN] vectors upload reindex failed file=%s collection=%s",
@@ -473,7 +473,7 @@ async def rebuild_vector_index(
         raise HTTPException(status_code=400, detail="RAG_DOCS_PATH not configured")
 
     chunks = rag_service.load_and_chunk(app_settings.RAG_DOCS_PATH)
-    result = rag_service.index(chunks)
+    result = await rag_service.index(chunks)
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,

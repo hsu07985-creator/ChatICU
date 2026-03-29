@@ -122,18 +122,18 @@ async def lifespan(app: FastAPI):
     if getattr(settings, "RAG_AUTO_INDEX_ON_STARTUP", True):
         from app.services.llm_services.rag_service import rag_service
         try:
-            if rag_service.load_persisted():
-                if settings.RAG_DOCS_PATH and rag_service._needs_rebuild(settings.RAG_DOCS_PATH):
+            if await rag_service.load_persisted():
+                if settings.RAG_DOCS_PATH and await rag_service._needs_rebuild(settings.RAG_DOCS_PATH):
                     logger.info("[INTG][RAG] Source documents changed, rebuilding index")
                     chunks = rag_service.load_and_chunk(settings.RAG_DOCS_PATH)
-                    result = rag_service.index(chunks)
+                    result = await rag_service.index(chunks)
                     logger.info("[INTG][RAG] Rebuilt index: %d chunks", result["total_chunks"])
                 else:
                     logger.info("[INTG][RAG] Persisted index is up-to-date (%d chunks)", len(rag_service.chunks))
             elif settings.RAG_DOCS_PATH:
                 logger.info("[INTG][RAG] Building index from %s", settings.RAG_DOCS_PATH)
                 chunks = rag_service.load_and_chunk(settings.RAG_DOCS_PATH)
-                result = rag_service.index(chunks)
+                result = await rag_service.index(chunks)
                 logger.info("[INTG][RAG] Built index: %d chunks", result["total_chunks"])
             else:
                 logger.info("[INTG][RAG] No RAG_DOCS_PATH and no persisted index")

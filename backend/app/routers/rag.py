@@ -150,7 +150,7 @@ async def rag_index(
 
     docs_path = payload.docs_path if payload else None
     chunks = rag_service.load_and_chunk(docs_path)
-    result = rag_service.index(chunks)
+    result = await rag_service.index(chunks)
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,

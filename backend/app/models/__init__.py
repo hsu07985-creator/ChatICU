@@ -13,6 +13,7 @@ from app.models.drug_interaction import DrugInteraction, IVCompatibility
 from app.models.error_report import ErrorReport
 from app.models.pharmacy_advice import PharmacyAdvice
 from app.models.pharmacy_favorite import PharmacyCompatibilityFavorite
+from app.models.rag_chunk import RagChunk
 
 __all__ = [
     "User",
@@ -34,4 +35,5 @@ __all__ = [
     "ErrorReport",
     "PharmacyAdvice",
     "PharmacyCompatibilityFavorite",
+    "RagChunk",
 ]

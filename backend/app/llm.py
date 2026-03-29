@@ -550,7 +550,9 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     all_embeddings: list[list[float]] = []
     for i in range(0, len(texts), batch_size):
         batch = texts[i : i + batch_size]
-        response = client.embeddings.create(model=settings.OPENAI_EMBEDDING_MODEL, input=batch)
+        response = client.embeddings.create(
+            model=settings.OPENAI_EMBEDDING_MODEL, input=batch, dimensions=1536,
+        )
         all_embeddings.extend([item.embedding for item in response.data])
     return all_embeddings
 
