@@ -12,7 +12,7 @@ _archive_candidates/
 1_藥物＿季/
 2_藥物交互作用＋相容性/
 rag 文本/
-*.png
+/*.png
 *.pyc
 __pycache__/
 .venv/
