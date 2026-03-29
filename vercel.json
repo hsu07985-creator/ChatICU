@@ -1,5 +1,32 @@
 {
   "rewrites": [
+    { "source": "/auth/:path*", "destination": "https://chaticu-production.up.railway.app/auth/:path*" },
+    { "source": "/ai/:path*", "destination": "https://chaticu-production.up.railway.app/ai/:path*" },
+    { "source": "/api/:path*", "destination": "https://chaticu-production.up.railway.app/api/:path*" },
+    { "source": "/health/:path*", "destination": "https://chaticu-production.up.railway.app/health/:path*" },
+    { "source": "/team/:path*", "destination": "https://chaticu-production.up.railway.app/team/:path*" },
+    { "source": "/v2/:path*", "destination": "https://chaticu-production.up.railway.app/v2/:path*" },
+    { "source": "/record-templates/:path*", "destination": "https://chaticu-production.up.railway.app/record-templates/:path*" },
+    {
+      "source": "/patients/:path*",
+      "has": [{ "type": "header", "key": "x-request-id" }],
+      "destination": "https://chaticu-production.up.railway.app/patients/:path*"
+    },
+    {
+      "source": "/dashboard/:path*",
+      "has": [{ "type": "header", "key": "x-request-id" }],
+      "destination": "https://chaticu-production.up.railway.app/dashboard/:path*"
+    },
+    {
+      "source": "/admin/:path*",
+      "has": [{ "type": "header", "key": "x-request-id" }],
+      "destination": "https://chaticu-production.up.railway.app/admin/:path*"
+    },
+    {
+      "source": "/pharmacy/:path*",
+      "has": [{ "type": "header", "key": "x-request-id" }],
+      "destination": "https://chaticu-production.up.railway.app/pharmacy/:path*"
+    },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
