@@ -56,6 +56,43 @@ async def db_migration_check(db: AsyncSession = Depends(get_db)):
     return success_response(data=info)
 
 
+@router.post("/health/run-migration")
+async def run_migration(db: AsyncSession = Depends(get_db)):
+    """Temporary: attempt to run pending migrations and return result."""
+    results = []
+    try:
+        # Check current version
+        result = await db.execute(text("SELECT version_num FROM alembic_version"))
+        current = [r[0] for r in result.fetchall()]
+        results.append(f"current_version: {current}")
+
+        # Directly add updated_at to users if missing
+        result = await db.execute(text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'updated_at'"
+        ))
+        if result.fetchone() is None:
+            await db.execute(text(
+                "ALTER TABLE users ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT now()"
+            ))
+            await db.commit()
+            results.append("added updated_at to users")
+        else:
+            results.append("updated_at already exists on users")
+
+        # Update alembic version
+        await db.execute(text(
+            "UPDATE alembic_version SET version_num = '023_fix_updated_at' "
+            "WHERE version_num = '022_pgvector_rag'"
+        ))
+        await db.commit()
+        results.append("updated alembic_version to 023")
+    except Exception as e:
+        results.append(f"error: {str(e)}")
+        results.append(traceback.format_exc()[-500:])
+    return success_response(data={"results": results})
+
+
 @router.get("/")
 async def root():
     return success_response(data={
