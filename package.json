@@ -60,7 +60,7 @@
       },
       "scripts": {
             "dev": "vite",
-            "build": "vite build",
+            "build": "vite build && cp build/index.html build/404.html",
             "typecheck": "tsc -p tsconfig.json",
             "test:e2e": "bash ./scripts/e2e/run_managed_e2e.sh",
             "test:e2e:raw": "playwright test"
