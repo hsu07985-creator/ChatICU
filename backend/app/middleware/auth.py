@@ -209,8 +209,10 @@ def require_roles(*roles: str):
 
 def set_auth_cookies(response, access_token: str, refresh_token: str) -> None:
     """Set httpOnly JWT cookies on a response object."""
-    secure = not settings.DEBUG and settings.COOKIE_SECURE
     samesite = settings.COOKIE_SAMESITE
+    # Always use COOKIE_SECURE setting; DEBUG should not weaken cookie security.
+    # SameSite=None additionally REQUIRES Secure — browsers reject without it.
+    secure = settings.COOKIE_SECURE or samesite.lower() == "none"
     response.set_cookie(
         key=COOKIE_ACCESS_KEY,
         value=access_token,
