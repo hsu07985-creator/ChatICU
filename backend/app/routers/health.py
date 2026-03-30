@@ -50,27 +50,28 @@ async def init_cultures(db: AsyncSession = Depends(get_db)):
         ))
         if exists:
             count = await db.scalar(text("SELECT COUNT(*) FROM culture_results"))
-            return success_response(data={"status": "already_exists", "row_count": count})
-
-        await db.execute(text("""
-            CREATE TABLE culture_results (
-                id VARCHAR(50) PRIMARY KEY,
-                patient_id VARCHAR(50) NOT NULL REFERENCES patients(id) ON DELETE RESTRICT,
-                sheet_number VARCHAR(50) NOT NULL,
-                specimen VARCHAR(100) NOT NULL,
-                specimen_code VARCHAR(20) NOT NULL,
-                department VARCHAR(100) NOT NULL DEFAULT '',
-                collected_at TIMESTAMPTZ,
-                reported_at TIMESTAMPTZ,
-                isolates JSONB,
-                susceptibility JSONB,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            )
-        """))
-        await db.execute(text(
-            "CREATE INDEX IF NOT EXISTS ix_culture_results_patient_id ON culture_results(patient_id)"
-        ))
+            if count > 0:
+                return success_response(data={"status": "already_exists", "row_count": count})
+        else:
+            await db.execute(text("""
+                CREATE TABLE culture_results (
+                    id VARCHAR(50) PRIMARY KEY,
+                    patient_id VARCHAR(50) NOT NULL REFERENCES patients(id) ON DELETE RESTRICT,
+                    sheet_number VARCHAR(50) NOT NULL,
+                    specimen VARCHAR(100) NOT NULL,
+                    specimen_code VARCHAR(20) NOT NULL,
+                    department VARCHAR(100) NOT NULL DEFAULT '',
+                    collected_at TIMESTAMPTZ,
+                    reported_at TIMESTAMPTZ,
+                    isolates JSONB,
+                    susceptibility JSONB,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """))
+            await db.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_culture_results_patient_id ON culture_results(patient_id)"
+            ))
 
         seed_cultures = [
             ("pat_001","M11411L014001","Sputum","SP01","加護病房一","2025-11-10T08:30:00+08:00","2025-11-13T14:00:00+08:00",
