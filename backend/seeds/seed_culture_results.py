@@ -205,7 +205,7 @@ async def main() -> None:
                     VALUES
                         (:id, :patient_id, :sheet_number, :specimen, :specimen_code,
                          :department, :collected_at, :reported_at,
-                         :isolates::jsonb, :susceptibility::jsonb,
+                         CAST(:isolates AS jsonb), CAST(:susceptibility AS jsonb),
                          NOW(), NOW())
                 """),
                 {

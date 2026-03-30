@@ -116,8 +116,8 @@ def upgrade() -> None:
                 "department, collected_at, reported_at, isolates, susceptibility, "
                 "created_at, updated_at) "
                 "VALUES (:id, :pid, :sheet, :spec, :spec_code, :dept, "
-                ":col_at::timestamptz, :rep_at::timestamptz, "
-                ":iso::jsonb, :susc::jsonb, NOW(), NOW())"
+                "CAST(:col_at AS timestamptz), CAST(:rep_at AS timestamptz), "
+                "CAST(:iso AS jsonb), CAST(:susc AS jsonb), NOW(), NOW())"
             ).bindparams(
                 id=cid, pid=pid, sheet=sheet, spec=spec, spec_code=spec_code,
                 dept=dept, col_at=col_at, rep_at=rep_at,

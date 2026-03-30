@@ -191,9 +191,9 @@ async def lifespan(app: FastAPI):
                         "(id,patient_id,sheet_number,specimen,specimen_code,department,"
                         "collected_at,reported_at,isolates,susceptibility,created_at,updated_at) "
                         "VALUES (:id,:pid,:sheet,:spec,:scode,:dept,"
-                        ":col::timestamptz,:rep::timestamptz,:iso::jsonb,:susc::jsonb,NOW(),NOW())"
+                        "CAST(:col_at AS timestamptz),CAST(:rep_at AS timestamptz),CAST(:iso AS jsonb),CAST(:susc AS jsonb),NOW(),NOW())"
                     ).bindparams(id=cid,pid=pid,sheet=sheet,spec=spec,scode=scode,dept=dept,
-                                 col=col,rep=rep,iso=json.dumps(iso),susc=json.dumps(susc)))
+                                 col_at=col,rep_at=rep,iso=json.dumps(iso),susc=json.dumps(susc)))
                 logger.info("[INTG][DB] Seeded %d culture results", len(seed_cultures))
     except Exception as e:
         logger.warning("[INTG][DB] culture_results bootstrap failed (non-fatal): %s", e)
