@@ -83,9 +83,11 @@ async def get_redis() -> redis.Redis:
     if _redis_client is None:
         redis_kwargs = {"decode_responses": True}
         if settings.REDIS_URL.startswith("rediss://"):
-            import ssl as _ssl
-            _cert_map = {"required": _ssl.CERT_REQUIRED, "optional": _ssl.CERT_OPTIONAL, "none": _ssl.CERT_NONE}
-            redis_kwargs["ssl_cert_reqs"] = _cert_map.get(settings.REDIS_SSL_CERT_REQS, _ssl.CERT_REQUIRED)
+            # redis-py SSLConnection expects cert_reqs as a string, not ssl.CERT_* int
+            cert_reqs = settings.REDIS_SSL_CERT_REQS.lower()
+            if cert_reqs not in ("required", "optional", "none"):
+                cert_reqs = "required"
+            redis_kwargs["ssl_cert_reqs"] = cert_reqs
         real_client = redis.from_url(settings.REDIS_URL, **redis_kwargs)
         try:
             await real_client.ping()
