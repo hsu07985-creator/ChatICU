@@ -745,6 +745,42 @@ export function PatientDetailPage() {
     fetchTrend();
   }, [selectedTrendMetric, id]);
 
+  const handleRecordScore = useCallback(async (scoreType: 'pain' | 'rass', value: number) => {
+    if (!id) return;
+    await recordScore(id, { score_type: scoreType, value });
+    if (scoreType === 'pain') setPainScoreValue(value);
+    else setRassScoreValue(value);
+    toast.success(`已記錄 ${scoreType === 'pain' ? 'Pain' : 'RASS'} = ${value}`);
+  }, [id]);
+
+  const handleOpenScoreTrend = useCallback(async (scoreType: 'pain' | 'rass') => {
+    if (!id) return;
+    setScoreTrendType(scoreType);
+    setScoreTrendOpen(true);
+    try {
+      const result = await getScoreTrends(id, scoreType, 72);
+      setScoreTrendData(
+        result.trends.map((t) => ({
+          date: new Date(t.timestamp).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }),
+          value: t.value,
+        }))
+      );
+    } catch {
+      setScoreTrendData([]);
+    }
+  }, [id]);
+
+  const handleRefreshMedications = useCallback(async () => {
+    if (!id) return;
+    setMedicationsLoading(true);
+    try {
+      const result = await medicationsApi.getMedications(id, { status: 'active' });
+      setMedicationGroups(result.grouped || deriveMedicationGroups(result.medications));
+    } catch { /* ignore */ } finally {
+      setMedicationsLoading(false);
+    }
+  }, [id]);
+
   // 發送留言板留言
   const handleSendBoardMessage = async () => {
     if (!messageInput.trim() || !id) return;
@@ -1006,42 +1042,6 @@ export function PatientDetailPage() {
   const painIndication = painMedications[0]?.indication;
   const sedationIndication = sedationMedications[0]?.indication;
   const nmbIndication = nmbMedications[0]?.indication;
-
-  const handleRecordScore = useCallback(async (scoreType: 'pain' | 'rass', value: number) => {
-    if (!id) return;
-    await recordScore(id, { score_type: scoreType, value });
-    if (scoreType === 'pain') setPainScoreValue(value);
-    else setRassScoreValue(value);
-    toast.success(`已記錄 ${scoreType === 'pain' ? 'Pain' : 'RASS'} = ${value}`);
-  }, [id]);
-
-  const handleOpenScoreTrend = useCallback(async (scoreType: 'pain' | 'rass') => {
-    if (!id) return;
-    setScoreTrendType(scoreType);
-    setScoreTrendOpen(true);
-    try {
-      const result = await getScoreTrends(id, scoreType, 72);
-      setScoreTrendData(
-        result.trends.map((t) => ({
-          date: new Date(t.timestamp).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }),
-          value: t.value,
-        }))
-      );
-    } catch {
-      setScoreTrendData([]);
-    }
-  }, [id]);
-
-  const handleRefreshMedications = useCallback(async () => {
-    if (!id) return;
-    setMedicationsLoading(true);
-    try {
-      const result = await medicationsApi.getMedications(id, { status: 'active' });
-      setMedicationGroups(result.grouped || deriveMedicationGroups(result.medications));
-    } catch { /* ignore */ } finally {
-      setMedicationsLoading(false);
-    }
-  }, [id]);
 
   const respiratoryRate = vitalSigns?.respiratoryRate;
   const temperature = vitalSigns?.temperature;
