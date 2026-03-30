@@ -1,7 +1,7 @@
-"""create culture_results table + seed demo data
+"""seed culture_results data (fix JSONB insert from 024)
 
-Revision ID: 024
-Revises: 023
+Revision ID: 025
+Revises: 024
 Create Date: 2026-03-30
 """
 import json
@@ -9,10 +9,9 @@ import uuid
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
-revision = "024"
-down_revision = "023"
+revision = "025"
+down_revision = "024"
 branch_labels = None
 depends_on = None
 
@@ -74,39 +73,10 @@ SEED_CULTURES = [
 
 
 def upgrade() -> None:
-    op.create_table(
-        "culture_results",
-        sa.Column("id", sa.String(50), primary_key=True),
-        sa.Column(
-            "patient_id",
-            sa.String(50),
-            sa.ForeignKey("patients.id", ondelete="RESTRICT"),
-            nullable=False,
-            index=True,
-        ),
-        sa.Column("sheet_number", sa.String(50), nullable=False),
-        sa.Column("specimen", sa.String(100), nullable=False),
-        sa.Column("specimen_code", sa.String(20), nullable=False),
-        sa.Column("department", sa.String(100), nullable=False, server_default=""),
-        sa.Column("collected_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("reported_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("isolates", postgresql.JSONB(), nullable=True),
-        sa.Column("susceptibility", postgresql.JSONB(), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-            nullable=False,
-        ),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-            nullable=False,
-        ),
-    )
+    # Clear any partial data from 024's failed seed attempt
+    op.execute(sa.text("DELETE FROM culture_results"))
 
-    # Seed demo culture data via raw SQL for reliable JSONB handling
+    # Re-seed with proper JSONB casting
     for pid, sheet, spec, spec_code, dept, col_at, rep_at, iso, susc in SEED_CULTURES:
         cid = f"culture_{uuid.uuid4().hex[:12]}"
         op.execute(
@@ -127,4 +97,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("culture_results")
+    op.execute(sa.text("DELETE FROM culture_results"))
