@@ -336,15 +336,12 @@ async def get_cultures(
 ):
     del user
     pid = patient_id.strip()
-    try:
-        result = await db.execute(
-            select(CultureResult)
-            .where(CultureResult.patient_id == pid)
-            .order_by(CultureResult.collected_at.desc())
-        )
-        rows = result.scalars().all()
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"DB query error: {type(exc).__name__}: {exc}")
+    result = await db.execute(
+        select(CultureResult)
+        .where(CultureResult.patient_id == pid)
+        .order_by(CultureResult.collected_at.desc())
+    )
+    rows = result.scalars().all()
     cultures = [
         {
             "sheetNumber": r.sheet_number,
