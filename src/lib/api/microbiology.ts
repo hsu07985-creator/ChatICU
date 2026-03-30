@@ -1,5 +1,4 @@
 import apiClient, { ensureData } from '../api-client';
-import { patientReadApiBase } from './layer2-mode';
 
 export interface CultureIsolate {
   code: string;
@@ -37,7 +36,7 @@ interface ApiResponse<T> {
 
 export async function getCultureSusceptibility(patientId: string): Promise<CultureSusceptibilityData> {
   const response = await apiClient.get<ApiResponse<CultureSusceptibilityData>>(
-    `${patientReadApiBase()}/${patientId}/cultures`
+    `/patients/${patientId}/cultures`
   );
   return ensureData(response.data, 'API contract');
 }

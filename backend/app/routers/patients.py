@@ -11,6 +11,7 @@ from app.database import get_db
 from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log
 from app.models.patient import Patient
+from app.models.culture_result import CultureResult
 from app.models.message import PatientMessage
 from app.models.user import User
 from app.schemas.patient import PatientArchiveUpdate, PatientCreate, PatientUpdate
@@ -325,3 +326,37 @@ async def archive_patient(
     )
 
     return success_response(data=patient_to_dict(patient), message=f"病患{status_text}")
+
+
+@router.get("/{patient_id}/cultures")
+async def get_cultures(
+    patient_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    del user
+    pid = patient_id.strip()
+    result = await db.execute(
+        select(CultureResult)
+        .where(CultureResult.patient_id == pid)
+        .order_by(CultureResult.collected_at.desc())
+    )
+    rows = result.scalars().all()
+    cultures = [
+        {
+            "sheetNumber": r.sheet_number,
+            "specimen": r.specimen,
+            "specimenCode": r.specimen_code,
+            "collectedAt": r.collected_at.isoformat() if r.collected_at else None,
+            "reportedAt": r.reported_at.isoformat() if r.reported_at else None,
+            "department": r.department,
+            "isolates": r.isolates or [],
+            "susceptibility": r.susceptibility or [],
+        }
+        for r in rows
+    ]
+    return success_response(data={
+        "patientId": pid,
+        "cultureCount": len(cultures),
+        "cultures": cultures,
+    })

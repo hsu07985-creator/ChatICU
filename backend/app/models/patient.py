@@ -67,3 +67,4 @@ class Patient(Base):
     ventilator_settings = relationship("VentilatorSetting", back_populates="patient")
     weaning_assessments = relationship("WeaningAssessment", back_populates="patient")
     messages = relationship("PatientMessage", back_populates="patient")
+    culture_results = relationship("CultureResult", back_populates="patient")
