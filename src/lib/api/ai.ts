@@ -598,6 +598,15 @@ export interface InteractionCheckResponse {
     route_dependency?: string;
     discussion?: string;
     footnotes?: string;
+    dependencies?: string[];
+    dependency_types?: string[];
+    interacting_members?: Array<{
+      group_name: string;
+      members: string[];
+      exceptions: string[];
+      exceptions_note: string;
+    }>;
+    pubmed_ids?: string[];
   }>;
   applied_rules: Record<string, unknown>[];
   citations: Record<string, unknown>[];

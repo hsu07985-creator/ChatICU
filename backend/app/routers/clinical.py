@@ -1,6 +1,7 @@
 """Clinical LLM-powered endpoints (Phase 3)."""
 
 import asyncio
+import json
 import logging
 import uuid
 from typing import Any, Dict
@@ -607,6 +608,10 @@ async def interaction_check(
                     "route_dependency": row.route_dependency or "",
                     "discussion": row.discussion or "",
                     "footnotes": row.footnotes or "",
+                    "dependencies": json.loads(row.dependencies) if row.dependencies else [],
+                    "dependency_types": json.loads(row.dependency_types) if row.dependency_types else [],
+                    "interacting_members": json.loads(row.interacting_members) if row.interacting_members else [],
+                    "pubmed_ids": json.loads(row.pubmed_ids) if row.pubmed_ids else [],
                     "source": "database",
                 })
 

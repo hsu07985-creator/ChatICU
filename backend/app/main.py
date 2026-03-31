@@ -264,42 +264,83 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("[INTG][DB] drug_interactions column migration failed (non-fatal): %s", e)
 
-    # Seed ICU drug interactions from DrugData (45 enriched pairs)
+    # Seed drug interactions: count-check → batch seed only if table is empty
     try:
         from app.database import engine as _eng3
         from sqlalchemy import text as _t3
         import json as _json3, hashlib as _hl3
         from pathlib import Path as _P3
-        seed_path = _P3(__file__).resolve().parents[1] / "seeds" / "icu_drug_interactions.json"
-        if seed_path.exists():
-            interactions = _json3.loads(seed_path.read_text("utf-8"))
-            async with _eng3.begin() as conn:
-                await conn.execute(_t3("DELETE FROM drug_interactions WHERE id LIKE 'icu_%'"))
-                inserted = 0
-                for ix in interactions:
-                    _id = "icu_" + _hl3.sha1(f"{ix['drug1']}|{ix['drug2']}".lower().encode()).hexdigest()[:12]
+
+        # Ensure migration-028 columns exist
+        _new_cols_028 = [
+            ("dependencies", "TEXT"), ("dependency_types", "TEXT"),
+            ("interacting_members", "TEXT"), ("pubmed_ids", "TEXT"),
+            ("dedup_key", "VARCHAR(300)"), ("body_hash", "VARCHAR(32)"),
+        ]
+        for _col, _ctype in _new_cols_028:
+            try:
+                async with _eng3.begin() as conn:
                     await conn.execute(_t3(
-                        "INSERT INTO drug_interactions "
-                        "(id, drug1, drug2, severity, mechanism, clinical_effect, management, \"references\", "
-                        "risk_rating, risk_rating_description, severity_label, reliability_rating, "
-                        "route_dependency, discussion, footnotes) "
-                        "SELECT :id, :d1, :d2, :sev, :mech, :ce, :mgmt, :ref, "
-                        ":rr, :rrd, :sl, :rl, :rd, :disc, :fnotes "
-                        "WHERE NOT EXISTS (SELECT 1 FROM drug_interactions WHERE id = :id)"
-                    ).bindparams(
-                        id=_id,
-                        d1=ix["drug1"], d2=ix["drug2"], sev=ix["severity"],
-                        mech=ix.get("mechanism",""), ce=ix.get("clinical_effect",""),
-                        mgmt=ix.get("management",""), ref=ix.get("references",""),
-                        rr=ix.get("risk_rating",""), rrd=ix.get("risk_rating_description",""),
-                        sl=ix.get("severity_label",""), rl=ix.get("reliability_rating",""),
-                        rd=ix.get("route_dependency",""), disc=ix.get("discussion",""),
-                        fnotes=ix.get("footnotes",""),
+                        f"ALTER TABLE drug_interactions ADD COLUMN IF NOT EXISTS {_col} {_ctype}"
                     ))
-                    inserted += 1
-                logger.info("[INTG][DB] Seeded %d ICU drug interactions (enriched)", inserted)
+            except Exception:
+                pass
+
+        async with _eng3.connect() as conn:
+            _count = (await conn.execute(_t3("SELECT COUNT(*) FROM drug_interactions"))).scalar()
+
+        if _count > 100:
+            logger.info("[INTG][DB] drug_interactions already has %d rows, skipping seed", _count)
+        else:
+            # Find best seed file: full (8775) > ICU-only (45)
+            _seeds_dir = _P3(__file__).resolve().parents[1] / "seeds"
+            _full_seed = _seeds_dir / "drug_interactions_full.json"
+            _icu_seed = _seeds_dir / "icu_drug_interactions.json"
+            _seed_path = _full_seed if _full_seed.exists() else (_icu_seed if _icu_seed.exists() else None)
+
+            if _seed_path:
+                _interactions = _json3.loads(_seed_path.read_text("utf-8"))
+                async with _eng3.begin() as conn:
+                    await conn.execute(_t3("DELETE FROM drug_interactions"))
+                    _inserted = 0
+                    for ix in _interactions:
+                        _dk = ix.get("dedup_key", "")
+                        if not _dk:
+                            _dk = "||".join(sorted([ix["drug1"].lower(), ix["drug2"].lower()]))
+                        _id = "ddi_" + _hl3.sha1(_dk.encode()).hexdigest()[:12]
+                        _deps = ix.get("dependencies")
+                        _dtypes = ix.get("dependency_types")
+                        _im = ix.get("interacting_members")
+                        _pm = ix.get("pubmed_ids")
+                        await conn.execute(_t3(
+                            "INSERT INTO drug_interactions "
+                            "(id, drug1, drug2, severity, mechanism, clinical_effect, management, \"references\", "
+                            "risk_rating, risk_rating_description, severity_label, reliability_rating, "
+                            "route_dependency, discussion, footnotes, "
+                            "dependencies, dependency_types, interacting_members, pubmed_ids, dedup_key, body_hash) "
+                            "SELECT :id, :d1, :d2, :sev, :mech, :ce, :mgmt, :ref, "
+                            ":rr, :rrd, :sl, :rl, :rd, :disc, :fnotes, "
+                            ":deps, :dtypes, :im, :pmids, :dk, :bh "
+                            "WHERE NOT EXISTS (SELECT 1 FROM drug_interactions WHERE id = :id)"
+                        ).bindparams(
+                            id=_id,
+                            d1=ix["drug1"], d2=ix["drug2"], sev=ix["severity"],
+                            mech=ix.get("mechanism",""), ce=ix.get("clinical_effect",""),
+                            mgmt=ix.get("management",""), ref=ix.get("references",""),
+                            rr=ix.get("risk_rating",""), rrd=ix.get("risk_rating_description",""),
+                            sl=ix.get("severity_label",""), rl=ix.get("reliability_rating",""),
+                            rd=ix.get("route_dependency",""), disc=ix.get("discussion",""),
+                            fnotes=ix.get("footnotes",""),
+                            deps=_json3.dumps(_deps, ensure_ascii=False) if _deps else None,
+                            dtypes=_json3.dumps(_dtypes, ensure_ascii=False) if _dtypes else None,
+                            im=_json3.dumps(_im, ensure_ascii=False) if _im else None,
+                            pmids=_json3.dumps(_pm, ensure_ascii=False) if _pm else None,
+                            dk=_dk, bh=ix.get("body_hash",""),
+                        ))
+                        _inserted += 1
+                    logger.info("[INTG][DB] Seeded %d drug interactions from %s", _inserted, _seed_path.name)
     except Exception as e:
-        logger.warning("[INTG][DB] ICU drug interactions seed failed (non-fatal): %s", e)
+        logger.warning("[INTG][DB] Drug interactions seed failed (non-fatal): %s", e)
 
     # Auto-index RAG documents: try persisted → check fingerprint → rebuild if needed
     if getattr(settings, "RAG_AUTO_INDEX_ON_STARTUP", True):

@@ -13,6 +13,13 @@ import { copyToClipboard } from '../../lib/clipboard-utils';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
 import { DRUG_LIST } from '../../lib/drug-list';
 
+interface InteractingMemberGroup {
+  group_name: string;
+  members: string[];
+  exceptions: string[];
+  exceptions_note: string;
+}
+
 interface DisplayInteraction {
   id: string;
   drug1: string;
@@ -29,6 +36,10 @@ interface DisplayInteraction {
   routeDependency: string;
   discussion: string;
   footnotes: string;
+  dependencies: string[];
+  dependencyTypes: string[];
+  interactingMembers: InteractingMemberGroup[];
+  pubmedIds: string[];
 }
 
 const RISK_RATING_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
@@ -83,6 +94,10 @@ export function DrugInteractionsPage() {
         routeDependency: f.route_dependency || '',
         discussion: f.discussion || '',
         footnotes: f.footnotes || '',
+        dependencies: f.dependencies || [],
+        dependencyTypes: f.dependency_types || [],
+        interactingMembers: f.interacting_members || [],
+        pubmedIds: f.pubmed_ids || [],
       }));
       setSearchResults(mapped);
     } catch (err) {
@@ -106,6 +121,10 @@ export function DrugInteractionsPage() {
           routeDependency: '',
           discussion: '',
           footnotes: '',
+          dependencies: [],
+          dependencyTypes: [],
+          interactingMembers: [],
+          pubmedIds: [],
         }));
 
         if (mapped.length) {
@@ -377,6 +396,45 @@ export function DrugInteractionsPage() {
                             <span className="font-medium">給藥途徑注意：</span>{interaction.routeDependency}
                           </AlertDescription>
                         </Alert>
+                      )}
+
+                      {/* 依賴條件 */}
+                      {interaction.dependencies.length > 0 && (
+                        <div>
+                          <h4 className="font-medium mb-1 text-sm text-muted-foreground">依賴條件</h4>
+                          <div className="flex flex-wrap gap-1.5">
+                            {interaction.dependencies.map((dep, i) => (
+                              <Badge key={i} variant="outline" className="text-xs bg-slate-50">
+                                {dep}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 交互作用藥物群組 */}
+                      {interaction.interactingMembers.length > 0 && (
+                        <div>
+                          <h4 className="font-medium mb-1.5 text-sm text-muted-foreground">交互作用藥物群組</h4>
+                          <div className="space-y-2">
+                            {interaction.interactingMembers.map((group, i) => (
+                              <div key={i} className="text-sm border rounded-md p-2.5 bg-muted/20">
+                                <span className="font-medium text-foreground/90">{group.group_name}</span>
+                                {group.members.length > 0 && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    成員：{group.members.join('、')}
+                                  </p>
+                                )}
+                                {group.exceptions.length > 0 && (
+                                  <p className="text-xs text-orange-600 mt-1">
+                                    例外：{group.exceptions.join('、')}
+                                    {group.exceptions_note && ` (${group.exceptions_note})`}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
 
                       {/* 交互作用說明 */}
