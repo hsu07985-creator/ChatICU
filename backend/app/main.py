@@ -217,33 +217,33 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("[INTG][DB] Gender fix failed (non-fatal): %s", e)
 
-    # Seed ICU drug interactions from DrugData (182 pairs)
+    # Seed ICU drug interactions from DrugData (38 verified pairs)
     try:
         from app.database import engine as _eng3
         from sqlalchemy import text as _t3
-        async with _eng3.begin() as conn:
-            row = await conn.execute(_t3("SELECT COUNT(*) FROM drug_interactions"))
-            count = row.scalar() or 0
-            if count < 20:  # only seed if table has few records
-                import json as _json3
-                from pathlib import Path as _P3
-                seed_path = _P3(__file__).resolve().parents[1] / "seeds" / "icu_drug_interactions.json"
-                if seed_path.exists():
-                    interactions = _json3.loads(seed_path.read_text("utf-8"))
-                    import hashlib as _hl3
-                    for ix in interactions:
-                        _id = "icu_" + _hl3.sha1(f"{ix['drug1']}|{ix['drug2']}".lower().encode()).hexdigest()[:12]
-                        await conn.execute(_t3(
-                            "INSERT INTO drug_interactions (id, drug1, drug2, severity, mechanism, clinical_effect, management, \"references\") "
-                            "SELECT :id, :d1, :d2, :sev, :mech, :ce, :mgmt, :ref "
-                            "WHERE NOT EXISTS (SELECT 1 FROM drug_interactions WHERE LOWER(drug1)=LOWER(:d1) AND LOWER(drug2)=LOWER(:d2))"
-                        ).bindparams(
-                            id=_id,
-                            d1=ix["drug1"], d2=ix["drug2"], sev=ix["severity"],
-                            mech=ix.get("mechanism",""), ce=ix.get("clinical_effect",""),
-                            mgmt=ix.get("management",""), ref=ix.get("references",""),
-                        ))
-                    logger.info("[INTG][DB] Seeded %d ICU drug interactions", len(interactions))
+        import json as _json3, hashlib as _hl3
+        from pathlib import Path as _P3
+        seed_path = _P3(__file__).resolve().parents[1] / "seeds" / "icu_drug_interactions.json"
+        if seed_path.exists():
+            interactions = _json3.loads(seed_path.read_text("utf-8"))
+            async with _eng3.begin() as conn:
+                # Remove old icu_ seeded records (may contain wrong data from v1.4.0)
+                await conn.execute(_t3("DELETE FROM drug_interactions WHERE id LIKE 'icu_%'"))
+                inserted = 0
+                for ix in interactions:
+                    _id = "icu_" + _hl3.sha1(f"{ix['drug1']}|{ix['drug2']}".lower().encode()).hexdigest()[:12]
+                    await conn.execute(_t3(
+                        "INSERT INTO drug_interactions (id, drug1, drug2, severity, mechanism, clinical_effect, management, \"references\") "
+                        "SELECT :id, :d1, :d2, :sev, :mech, :ce, :mgmt, :ref "
+                        "WHERE NOT EXISTS (SELECT 1 FROM drug_interactions WHERE id = :id)"
+                    ).bindparams(
+                        id=_id,
+                        d1=ix["drug1"], d2=ix["drug2"], sev=ix["severity"],
+                        mech=ix.get("mechanism",""), ce=ix.get("clinical_effect",""),
+                        mgmt=ix.get("management",""), ref=ix.get("references",""),
+                    ))
+                    inserted += 1
+                logger.info("[INTG][DB] Seeded %d ICU drug interactions (replaced old icu_ records)", inserted)
     except Exception as e:
         logger.warning("[INTG][DB] ICU drug interactions seed failed (non-fatal): %s", e)
 
