@@ -230,12 +230,15 @@ async def lifespan(app: FastAPI):
                 seed_path = _P3(__file__).resolve().parents[1] / "seeds" / "icu_drug_interactions.json"
                 if seed_path.exists():
                     interactions = _json3.loads(seed_path.read_text("utf-8"))
+                    import hashlib as _hl3
                     for ix in interactions:
+                        _id = "icu_" + _hl3.sha1(f"{ix['drug1']}|{ix['drug2']}".lower().encode()).hexdigest()[:12]
                         await conn.execute(_t3(
-                            "INSERT INTO drug_interactions (drug1, drug2, severity, mechanism, clinical_effect, management, \"references\") "
-                            "SELECT :d1, :d2, :sev, :mech, :ce, :mgmt, :ref "
+                            "INSERT INTO drug_interactions (id, drug1, drug2, severity, mechanism, clinical_effect, management, \"references\") "
+                            "SELECT :id, :d1, :d2, :sev, :mech, :ce, :mgmt, :ref "
                             "WHERE NOT EXISTS (SELECT 1 FROM drug_interactions WHERE LOWER(drug1)=LOWER(:d1) AND LOWER(drug2)=LOWER(:d2))"
                         ).bindparams(
+                            id=_id,
                             d1=ix["drug1"], d2=ix["drug2"], sev=ix["severity"],
                             mech=ix.get("mechanism",""), ce=ix.get("clinical_effect",""),
                             mgmt=ix.get("management",""), ref=ix.get("references",""),
