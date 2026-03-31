@@ -16,4 +16,10 @@ rag 文本/
 *.pyc
 __pycache__/
 .venv/
+.venv312/
 node_modules/
+output/
+.pre-commit-cache/
+.playwright-mcp/
+rag 文本/
+build/
