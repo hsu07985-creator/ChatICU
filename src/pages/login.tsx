@@ -168,16 +168,34 @@ export function LoginPage() {
                 {loading ? '登入中...' : 'Login'}
               </Button>
 
-              {/* Test Accounts — dev only */}
-              {import.meta.env.DEV && (
-                <div className="text-xs text-[#6b7280] p-4 bg-[#f8f9fa] rounded-md border border-[#e5e7eb]">
-                  <p className="font-semibold text-[#1a1a1a] mb-2">測試帳號：</p>
-                  <p>• 護理師：nurse / nurse</p>
-                  <p>• 醫師：doctor / doctor</p>
-                  <p>• 管理者：admin / admin</p>
-                  <p>• 藥師：pharmacist / pharmacist</p>
+              {/* Demo Quick Login */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-[#e5e7eb]" />
                 </div>
-              )}
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-[#6b7280]">快速登入</span>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-12 border-[#7f265b] text-[#7f265b] hover:bg-[#7f265b]/10 font-semibold"
+                disabled={loading}
+                onClick={async () => {
+                  setError('');
+                  setLoading(true);
+                  const result = await login('admin', 'ChatICU@2026!Secure');
+                  if (result.success) {
+                    navigate('/dashboard');
+                  } else {
+                    setError(result.message || '登入失敗');
+                  }
+                  setLoading(false);
+                }}
+              >
+                {loading ? '登入中...' : 'Demo 管理者登入'}
+              </Button>
             </form>
           </div>
         </div>
