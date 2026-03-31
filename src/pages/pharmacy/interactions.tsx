@@ -283,11 +283,6 @@ export function DrugInteractionsPage() {
                           </CardTitle>
                           <div className="flex flex-wrap items-center gap-2">
                             {getRiskRatingBadge(interaction)}
-                            {interaction.severityLabel && (
-                              <Badge variant="outline" className="gap-1 text-xs">
-                                嚴重度：{interaction.severityLabel}
-                              </Badge>
-                            )}
                           </div>
                         </div>
                         <Button
