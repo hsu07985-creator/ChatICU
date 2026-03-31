@@ -1,1640 +1,344 @@
 [
   {
-    "drug1": "Levetiracetam",
-    "drug2": "DexmedeTOMIDine",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Levetiracetam",
-    "drug2": "DiazePAM",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Levetiracetam",
-    "drug2": "FentaNYL",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Levetiracetam",
-    "drug2": "Haloperidol",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Levetiracetam",
-    "drug2": "Ketamine",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Levetiracetam",
-    "drug2": "LevETIRAcetam",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Levetiracetam",
-    "drug2": "LORazepam",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Levetiracetam",
-    "drug2": "Midazolam",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Levetiracetam",
-    "drug2": "Propofol",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Levetiracetam",
-    "drug2": "Remifentanil",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Ceftriaxone",
-    "drug2": "CefTRIAXone",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "management": "Avoid concomitant use of intravesical BCG and antibiotics, particularly those given via intravenous or oral routes and those with activity against mycobacteria.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Ceftriaxone",
-    "drug2": "Linezolid",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "management": "Avoid concomitant use of intravesical BCG and antibiotics, particularly those given via intravenous or oral routes and those with activity against mycobacteria.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Ceftriaxone",
-    "drug2": "Meropenem",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "management": "Avoid concomitant use of intravesical BCG and antibiotics, particularly those given via intravenous or oral routes and those with activity against mycobacteria.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Ceftriaxone",
-    "drug2": "Piperacillin",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "management": "Avoid concomitant use of intravesical BCG and antibiotics, particularly those given via intravenous or oral routes and those with activity against mycobacteria.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Ceftriaxone",
-    "drug2": "Vancomycin",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Cholera Vaccine.",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Cholera Vaccine.",
-    "management": "Avoid cholera vaccine in patients receiving systemic antibiotics, and within 14 days following the use of oral or parenteral antibiotics.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "FentaNYL",
-    "severity": "contraindicated",
-    "mechanism": "Alcohol (Ethyl) may increase CNS depressant effects of Opioid Agonists.",
-    "clinical_effect": "Alcohol (Ethyl) may increase CNS depressant effects of Opioid Agonists.",
-    "management": "Avoid alcohol consumption during treatment with opioids. Inform patients and caregivers that potentially fatal additive effects may occur if opioids are combined with alcohol. Consider prescribing an opioid reversal agent for the emergency treatment of opioid overdose.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "Remifentanil",
-    "severity": "contraindicated",
-    "mechanism": "Alcohol (Ethyl) may increase CNS depressant effects of Opioid Agonists.",
-    "clinical_effect": "Alcohol (Ethyl) may increase CNS depressant effects of Opioid Agonists.",
-    "management": "Avoid alcohol consumption during treatment with opioids. Inform patients and caregivers that potentially fatal additive effects may occur if opioids are combined with alcohol. Consider prescribing an opioid reversal agent for the emergency treatment of opioid overdose.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "DexmedeTOMIDine",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "DiazePAM",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "Haloperidol",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "Ketamine",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "LevETIRAcetam",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "LORazepam",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "Midazolam",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "Propofol",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "Amiodarone",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "Furosemide",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "HydrALAZINE",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "Labetalol",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "NiCARdipine",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "Nitroglycerin",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "Linezolid",
-    "severity": "contraindicated",
-    "mechanism": "Monoamine Oxidase Inhibitors may increase adverse/toxic effects of Morphine (Systemic).",
-    "clinical_effect": "Monoamine Oxidase Inhibitors may increase adverse/toxic effects of Morphine (Systemic).",
-    "management": "Do not use morphine in patients taking monoamine oxidase inhibitors (MAOIs) or within 14 days of MAOI discontinuation. Morphine prescribing information lists this combination as contraindicated.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Piperacillin",
-    "drug2": "Linezolid",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "management": "Avoid concomitant use of intravesical BCG and antibiotics, particularly those given via intravenous or oral routes and those with activity against mycobacteria.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Piperacillin",
-    "drug2": "Meropenem",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "management": "Avoid concomitant use of intravesical BCG and antibiotics, particularly those given via intravenous or oral routes and those with activity against mycobacteria.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Piperacillin",
-    "drug2": "Piperacillin",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "management": "Avoid concomitant use of intravesical BCG and antibiotics, particularly those given via intravenous or oral routes and those with activity against mycobacteria.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Piperacillin",
-    "drug2": "Vancomycin",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Cholera Vaccine.",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Cholera Vaccine.",
-    "management": "Avoid cholera vaccine in patients receiving systemic antibiotics, and within 14 days following the use of oral or parenteral antibiotics.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Piperacillin",
-    "drug2": "Omeprazole",
-    "severity": "contraindicated",
-    "mechanism": "OAT1/3 Inhibitors may increase serum concentrations of Seladelpar.",
-    "clinical_effect": "OAT1/3 Inhibitors may increase serum concentrations of Seladelpar.",
-    "management": "Avoid concomitant use of seladelpar and OAT1/3 inhibitors.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
     "drug1": "Dopamine",
-    "drug2": "DOPamine",
-    "severity": "contraindicated",
-    "mechanism": "Ergot Derivatives (Vasoconstrictive CYP3A4 Substrates) may increase vasoconstricting effects of Alpha-/Beta-Agonists.",
-    "clinical_effect": "Ergot Derivatives (Vasoconstrictive CYP3A4 Substrates) may increase vasoconstricting effects of Alpha-/Beta-Agonists.",
-    "management": "Avoid concomitant use of these vasoconstricting ergot derivatives with alpha-/beta-agonists, including those used in regional anesthesia, due to a risk of significant blood pressure elevations.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Dopamine",
-    "drug2": "Norepinephrine",
-    "severity": "contraindicated",
-    "mechanism": "Ergot Derivatives (Vasoconstrictive CYP3A4 Substrates) may increase vasoconstricting effects of Alpha-/Beta-Agonists.",
-    "clinical_effect": "Ergot Derivatives (Vasoconstrictive CYP3A4 Substrates) may increase vasoconstricting effects of Alpha-/Beta-Agonists.",
-    "management": "Avoid concomitant use of these vasoconstricting ergot derivatives with alpha-/beta-agonists, including those used in regional anesthesia, due to a risk of significant blood pressure elevations.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Dopamine",
-    "drug2": "DOBUTamine",
-    "severity": "contraindicated",
-    "mechanism": "Kratom may increase adverse/toxic effects of Sympathomimetics.",
-    "clinical_effect": "Kratom may increase adverse/toxic effects of Sympathomimetics.",
-    "management": "Use of kratom together with a sympathomimetic is not recommended. If used concurrently, monitor for increased effects of sympathomimetics (eg, blood pressure, heart rate), seizure, and other signs of toxicity.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Cisatracurium",
-    "drug2": "Cisatracurium",
-    "severity": "contraindicated",
-    "mechanism": "QuiNINE may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents.",
-    "clinical_effect": "QuiNINE may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents.",
-    "management": "Avoid concurrent use of quinine and neuromuscular blockers.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Cisatracurium",
-    "drug2": "Rocuronium",
-    "severity": "contraindicated",
-    "mechanism": "QuiNINE may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents.",
-    "clinical_effect": "QuiNINE may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents.",
-    "management": "Avoid concurrent use of quinine and neuromuscular blockers.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Colistin",
-    "drug2": "CefTRIAXone",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "management": "Avoid concomitant use of intravesical BCG and antibiotics, particularly those given via intravenous or oral routes and those with activity against mycobacteria.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Colistin",
-    "drug2": "Linezolid",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "management": "Avoid concomitant use of intravesical BCG and antibiotics, particularly those given via intravenous or oral routes and those with activity against mycobacteria.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Colistin",
-    "drug2": "Meropenem",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "management": "Avoid concomitant use of intravesical BCG and antibiotics, particularly those given via intravenous or oral routes and those with activity against mycobacteria.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Colistin",
-    "drug2": "Piperacillin",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "management": "Avoid concomitant use of intravesical BCG and antibiotics, particularly those given via intravenous or oral routes and those with activity against mycobacteria.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Colistin",
-    "drug2": "Vancomycin",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Cholera Vaccine.",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Cholera Vaccine.",
-    "management": "Avoid cholera vaccine in patients receiving systemic antibiotics, and within 14 days following the use of oral or parenteral antibiotics.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Linezolid",
-    "drug2": "Linezolid",
-    "severity": "contraindicated",
-    "mechanism": "Monoamine Oxidase Inhibitors may increase adverse/toxic effects of Apraclonidine. Monoamine Oxidase Inhibitors may increase serum concentrations of Apraclonidine.",
-    "clinical_effect": "Monoamine Oxidase Inhibitors may increase adverse/toxic effects of Apraclonidine. Monoamine Oxidase Inhibitors may increase serum concentrations of Apraclonidine.",
-    "management": "Do not use apraclonidine in patients treated with monoamine oxidase inhibitors (MAOIs). Apraclonidine prescribing information lists such use as contraindicated.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Linezolid",
-    "drug2": "Meropenem",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "management": "Avoid concomitant use of intravesical BCG and antibiotics, particularly those given via intravenous or oral routes and those with activity against mycobacteria.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Linezolid",
-    "drug2": "Vancomycin",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Cholera Vaccine.",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Cholera Vaccine.",
-    "management": "Avoid cholera vaccine in patients receiving systemic antibiotics, and within 14 days following the use of oral or parenteral antibiotics.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Linezolid",
-    "drug2": "FentaNYL",
-    "severity": "contraindicated",
-    "mechanism": "Dapoxetine may increase serotonergic effects of Serotonergic Agents (High Risk). This could result in serotonin syndrome.",
-    "clinical_effect": "Dapoxetine may increase serotonergic effects of Serotonergic Agents (High Risk). This could result in serotonin syndrome.",
-    "management": "Do not use serotonergic agents (high risk) with dapoxetine or within 7 days of serotonergic agent discontinuation. Do not use dapoxetine within 14 days of monoamine oxidase inhibitor use. Dapoxetine labeling lists this combination as contraindicated.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Linezolid",
-    "drug2": "Haloperidol",
-    "severity": "contraindicated",
-    "mechanism": "Agents With Seizure Threshold Lowering Potential may increase adverse/toxic effects of Pipamperone. Specifically, the risk of seizures may be increased.",
-    "clinical_effect": "Agents With Seizure Threshold Lowering Potential may increase adverse/toxic effects of Pipamperone. Specifically, the risk of seizures may be increased.",
-    "management": "Avoid coadministration of pipamperone with agents that may lower the seizure threshold, as this may increase the risk of seizures.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amiodarone",
-    "drug2": "Amiodarone",
-    "severity": "contraindicated",
-    "mechanism": "Photosensitizing Agents may increase photosensitizing effects of Aminolevulinic Acid (Systemic).",
-    "clinical_effect": "Photosensitizing Agents may increase photosensitizing effects of Aminolevulinic Acid (Systemic).",
-    "management": "Avoid administration of other photosensitizing agents within 24 hours before or 24 hours after orally administered aminolevulinic acid.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amiodarone",
-    "drug2": "Furosemide",
-    "severity": "contraindicated",
-    "mechanism": "Photosensitizing Agents may increase photosensitizing effects of Aminolevulinic Acid (Systemic).",
-    "clinical_effect": "Photosensitizing Agents may increase photosensitizing effects of Aminolevulinic Acid (Systemic).",
-    "management": "Avoid administration of other photosensitizing agents within 24 hours before or 24 hours after orally administered aminolevulinic acid.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amiodarone",
-    "drug2": "DexmedeTOMIDine",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amiodarone",
-    "drug2": "HydrALAZINE",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amiodarone",
-    "drug2": "Labetalol",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amiodarone",
-    "drug2": "NiCARdipine",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amiodarone",
-    "drug2": "Nitroglycerin",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amiodarone",
-    "drug2": "Propofol",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amiodarone",
-    "drug2": "Remifentanil",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amiodarone",
-    "drug2": "FentaNYL",
-    "severity": "contraindicated",
-    "mechanism": "Bradycardia-Causing Agents may increase bradycardic effects of Landiolol.",
-    "clinical_effect": "Bradycardia-Causing Agents may increase bradycardic effects of Landiolol.",
-    "management": "Avoid concomitant use of landiolol with other agents that cause bradycardia.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amiodarone",
-    "drug2": "Vasopressin",
-    "severity": "contraindicated",
-    "mechanism": "Bradycardia-Causing Agents may increase bradycardic effects of Landiolol.",
-    "clinical_effect": "Bradycardia-Causing Agents may increase bradycardic effects of Landiolol.",
-    "management": "Avoid concomitant use of landiolol with other agents that cause bradycardia.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amiodarone",
-    "drug2": "Haloperidol",
-    "severity": "contraindicated",
-    "mechanism": "Lefamulin may increase QTc-prolonging effects of QT-prolonging CYP3A4 Substrates.",
-    "clinical_effect": "Lefamulin may increase QTc-prolonging effects of QT-prolonging CYP3A4 Substrates.",
-    "management": "Do not use lefamulin tablets with QT-prolonging CYP3A4 substrates. Lefamulin prescribing information lists this combination as contraindicated.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Lorazepam",
-    "drug2": "DexmedeTOMIDine",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Lorazepam",
-    "drug2": "DiazePAM",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Lorazepam",
-    "drug2": "FentaNYL",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Lorazepam",
-    "drug2": "Haloperidol",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Lorazepam",
-    "drug2": "Ketamine",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Lorazepam",
-    "drug2": "LORazepam",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Lorazepam",
-    "drug2": "Midazolam",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Lorazepam",
-    "drug2": "Propofol",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Lorazepam",
-    "drug2": "Remifentanil",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Lorazepam",
-    "drug2": "Phenytoin",
-    "severity": "contraindicated",
-    "mechanism": "MetroNIDAZOLE (Systemic) may increase adverse/toxic effects of Products Containing Propylene Glycol. A disulfiram-like reaction may occur.",
-    "clinical_effect": "MetroNIDAZOLE (Systemic) may increase adverse/toxic effects of Products Containing Propylene Glycol. A disulfiram-like reaction may occur.",
-    "management": "Use of alcohol or propylene glycol with metronidazole or within 3 days after stopping metronidazole is a listed contraindication in the metronidazole prescribing information. The specific concern is that a disulfiram-like reaction could result from coadministration. In contrast, CDC guidelines suggest that refraining from alcohol use while taking metronidazole is unnecessary as evidence currently ",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amikacin",
-    "drug2": "CefTRIAXone",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "management": "Avoid concomitant use of intravesical BCG and antibiotics, particularly those given via intravenous or oral routes and those with activity against mycobacteria.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amikacin",
-    "drug2": "Linezolid",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "management": "Avoid concomitant use of intravesical BCG and antibiotics, particularly those given via intravenous or oral routes and those with activity against mycobacteria.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amikacin",
-    "drug2": "Meropenem",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "management": "Avoid concomitant use of intravesical BCG and antibiotics, particularly those given via intravenous or oral routes and those with activity against mycobacteria.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amikacin",
-    "drug2": "Piperacillin",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "management": "Avoid concomitant use of intravesical BCG and antibiotics, particularly those given via intravenous or oral routes and those with activity against mycobacteria.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amikacin",
-    "drug2": "Vancomycin",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Cholera Vaccine.",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Cholera Vaccine.",
-    "management": "Avoid cholera vaccine in patients receiving systemic antibiotics, and within 14 days following the use of oral or parenteral antibiotics.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Dobutamine",
-    "drug2": "DOBUTamine",
-    "severity": "contraindicated",
-    "mechanism": "Kratom may increase adverse/toxic effects of Sympathomimetics.",
-    "clinical_effect": "Kratom may increase adverse/toxic effects of Sympathomimetics.",
-    "management": "Use of kratom together with a sympathomimetic is not recommended. If used concurrently, monitor for increased effects of sympathomimetics (eg, blood pressure, heart rate), seizure, and other signs of toxicity.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Dobutamine",
-    "drug2": "Norepinephrine",
-    "severity": "contraindicated",
-    "mechanism": "Kratom may increase adverse/toxic effects of Sympathomimetics.",
-    "clinical_effect": "Kratom may increase adverse/toxic effects of Sympathomimetics.",
-    "management": "Use of kratom together with a sympathomimetic is not recommended. If used concurrently, monitor for increased effects of sympathomimetics (eg, blood pressure, heart rate), seizure, and other signs of toxicity.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Diazepam",
-    "drug2": "DexmedeTOMIDine",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Diazepam",
-    "drug2": "DiazePAM",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Diazepam",
-    "drug2": "FentaNYL",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Diazepam",
-    "drug2": "Haloperidol",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Diazepam",
-    "drug2": "Ketamine",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Diazepam",
-    "drug2": "Midazolam",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Diazepam",
-    "drug2": "Propofol",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Diazepam",
-    "drug2": "Remifentanil",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Hydralazine",
-    "drug2": "DexmedeTOMIDine",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Hydralazine",
-    "drug2": "Furosemide",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Hydralazine",
-    "drug2": "HydrALAZINE",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Hydralazine",
-    "drug2": "Labetalol",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Hydralazine",
-    "drug2": "NiCARdipine",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Hydralazine",
-    "drug2": "Nitroglycerin",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Hydralazine",
-    "drug2": "Propofol",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Hydralazine",
-    "drug2": "Remifentanil",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Vancomycin",
-    "drug2": "Meropenem",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Bacillus Calmette Guerin (BCG) (Intravesical).",
-    "management": "Avoid concomitant use of intravesical BCG and antibiotics, particularly those given via intravenous or oral routes and those with activity against mycobacteria.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Vancomycin",
-    "drug2": "Vancomycin",
-    "severity": "contraindicated",
-    "mechanism": "Antibiotics may decrease therapeutic effects of Cholera Vaccine.",
-    "clinical_effect": "Antibiotics may decrease therapeutic effects of Cholera Vaccine.",
-    "management": "Avoid cholera vaccine in patients receiving systemic antibiotics, and within 14 days following the use of oral or parenteral antibiotics.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Fentanyl",
-    "drug2": "FentaNYL",
-    "severity": "contraindicated",
-    "mechanism": "Alcohol (Ethyl) may increase CNS depressant effects of Opioid Agonists.",
-    "clinical_effect": "Alcohol (Ethyl) may increase CNS depressant effects of Opioid Agonists.",
-    "management": "Avoid alcohol consumption during treatment with opioids. Inform patients and caregivers that potentially fatal additive effects may occur if opioids are combined with alcohol. Consider prescribing an opioid reversal agent for the emergency treatment of opioid overdose.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Fentanyl",
-    "drug2": "Remifentanil",
-    "severity": "contraindicated",
-    "mechanism": "Alcohol (Ethyl) may increase CNS depressant effects of Opioid Agonists.",
-    "clinical_effect": "Alcohol (Ethyl) may increase CNS depressant effects of Opioid Agonists.",
-    "management": "Avoid alcohol consumption during treatment with opioids. Inform patients and caregivers that potentially fatal additive effects may occur if opioids are combined with alcohol. Consider prescribing an opioid reversal agent for the emergency treatment of opioid overdose.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Fentanyl",
-    "drug2": "DexmedeTOMIDine",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Fentanyl",
-    "drug2": "Haloperidol",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Fentanyl",
-    "drug2": "Ketamine",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Fentanyl",
-    "drug2": "Midazolam",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Fentanyl",
-    "drug2": "Propofol",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Fentanyl",
-    "drug2": "Labetalol",
-    "severity": "contraindicated",
-    "mechanism": "Bradycardia-Causing Agents may increase arrhythmogenic effects of Fexinidazole.",
-    "clinical_effect": "Bradycardia-Causing Agents may increase arrhythmogenic effects of Fexinidazole.",
-    "management": "Avoid concomitant use of fexinidazole with bradycardia-causing agents. If patients are, or need to be, treated with drugs known to induce bradycardia, either do not initiate therapy with fexinidazole until such drugs are eliminated from the body (allow a washout period of 5 half-lives for such other drugs), or do not start such drugs until fexinidazole is eliminated from the body (allow a washout ",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Fentanyl",
-    "drug2": "Vasopressin",
-    "severity": "contraindicated",
-    "mechanism": "Bradycardia-Causing Agents may increase arrhythmogenic effects of Fexinidazole.",
-    "clinical_effect": "Bradycardia-Causing Agents may increase arrhythmogenic effects of Fexinidazole.",
-    "management": "Avoid concomitant use of fexinidazole with bradycardia-causing agents. If patients are, or need to be, treated with drugs known to induce bradycardia, either do not initiate therapy with fexinidazole until such drugs are eliminated from the body (allow a washout period of 5 half-lives for such other drugs), or do not start such drugs until fexinidazole is eliminated from the body (allow a washout ",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Midazolam",
-    "drug2": "DexmedeTOMIDine",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Midazolam",
-    "drug2": "Haloperidol",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Midazolam",
-    "drug2": "Ketamine",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Midazolam",
-    "drug2": "Midazolam",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Midazolam",
-    "drug2": "Propofol",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Midazolam",
-    "drug2": "Remifentanil",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Dexmedetomidine",
-    "drug2": "DexmedeTOMIDine",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Dexmedetomidine",
-    "drug2": "Haloperidol",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Dexmedetomidine",
-    "drug2": "Ketamine",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Dexmedetomidine",
-    "drug2": "Propofol",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Dexmedetomidine",
-    "drug2": "Remifentanil",
-    "severity": "contraindicated",
-    "mechanism": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "clinical_effect": "Azelastine (Nasal) may increase CNS depressant effects of CNS Depressants.",
-    "management": "Avoid combining nasal azelastine with other CNS depressants due to the potential for enhanced CNS depressant effects.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Dexmedetomidine",
-    "drug2": "Furosemide",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Dexmedetomidine",
-    "drug2": "Labetalol",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Dexmedetomidine",
-    "drug2": "NiCARdipine",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Dexmedetomidine",
-    "drug2": "Nitroglycerin",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Dexmedetomidine",
-    "drug2": "Vasopressin",
-    "severity": "contraindicated",
-    "mechanism": "Bradycardia-Causing Agents may increase arrhythmogenic effects of Fexinidazole.",
-    "clinical_effect": "Bradycardia-Causing Agents may increase arrhythmogenic effects of Fexinidazole.",
-    "management": "Avoid concomitant use of fexinidazole with bradycardia-causing agents. If patients are, or need to be, treated with drugs known to induce bradycardia, either do not initiate therapy with fexinidazole until such drugs are eliminated from the body (allow a washout period of 5 half-lives for such other drugs), or do not start such drugs until fexinidazole is eliminated from the body (allow a washout ",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Nicardipine",
-    "drug2": "Furosemide",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Nicardipine",
-    "drug2": "Labetalol",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Nicardipine",
-    "drug2": "NiCARdipine",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Nicardipine",
-    "drug2": "Nitroglycerin",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Nicardipine",
-    "drug2": "Propofol",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Nicardipine",
-    "drug2": "Remifentanil",
-    "severity": "contraindicated",
-    "mechanism": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "clinical_effect": "Bromperidol may decrease hypotensive effects of Blood Pressure Lowering Agents. Blood Pressure Lowering Agents may increase hypotensive effects of Bromperidol.",
-    "management": "Avoid the concomitant use of bromperidol and blood pressure lowering agents.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "warfarin",
-    "drug2": "Warfarin",
-    "severity": "contraindicated",
-    "mechanism": "Abciximab may increase anticoagulant effects of Vitamin K Antagonists.",
-    "clinical_effect": "Abciximab may increase anticoagulant effects of Vitamin K Antagonists.",
-    "management": "Do not use abciximab in patients treated with vitamin K antagonists (VKAs) or who have received such agents in the past 7 days, unless the prothrombin time is 1.2 times control or less. Abciximab product labeling lists this combination as contraindicated.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "warfarin",
-    "drug2": "Enoxaparin",
-    "severity": "contraindicated",
-    "mechanism": "Alteplase may increase anticoagulant effects of Anticoagulants.",
-    "clinical_effect": "Alteplase may increase anticoagulant effects of Anticoagulants.",
-    "management": "For the treatment of acute ischemic stroke (AIS): avoid use of alteplase in patients with recent receipt of anticoagulants. For patients treated with vitamin K antagonists: avoid alteplase if INR is above 1.7. For patients taking direct factor Xa or thrombin inhibitors: avoid alteplase unless laboratory results (eg, aPTT, INR, platelets, ecarin clotting time, thrombin time, appropriate anti-factor",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "warfarin",
-    "drug2": "Heparin",
-    "severity": "contraindicated",
-    "mechanism": "Alteplase may increase anticoagulant effects of Anticoagulants.",
-    "clinical_effect": "Alteplase may increase anticoagulant effects of Anticoagulants.",
-    "management": "For the treatment of acute ischemic stroke (AIS): avoid use of alteplase in patients with recent receipt of anticoagulants. For patients treated with vitamin K antagonists: avoid alteplase if INR is above 1.7. For patients taking direct factor Xa or thrombin inhibitors: avoid alteplase unless laboratory results (eg, aPTT, INR, platelets, ecarin clotting time, thrombin time, appropriate anti-factor",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Levetiracetam",
-    "drug2": "Phenytoin",
-    "severity": "major",
-    "mechanism": "Mefloquine may decrease therapeutic effects of Antiseizure Agents. Mefloquine may decrease serum concentrations of Antiseizure Agents.",
-    "clinical_effect": "Mefloquine may decrease therapeutic effects of Antiseizure Agents. Mefloquine may decrease serum concentrations of Antiseizure Agents.",
-    "management": "If an antiseizure drug is being used to treat or prevent seizures, avoid using mefloquine when possible, as mefloquine is contraindicated for malaria prophylaxis (not treatment) in persons with a history of seizures. If an antiseizure drug is being used for another indication (eg, treatment of neuropathic pain, mood stabilization, etc.), monitor antiseizure serum concentrations and response to tre",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Ceftriaxone",
-    "drug2": "Calcium Gluconate",
-    "severity": "major",
-    "mechanism": "Calcium Salts (Intravenous) may increase adverse/toxic effects of CefTRIAXone. Ceftriaxone binds to calcium forming an insoluble precipitate.",
-    "clinical_effect": "Calcium Salts (Intravenous) may increase adverse/toxic effects of CefTRIAXone. Ceftriaxone binds to calcium forming an insoluble precipitate.",
-    "management": "Use of ceftriaxone is contraindicated in neonates (28 days of age or younger) who require (or are expected to require) treatment with IV calcium-containing solutions. In other patients, these solutions can be used sequentially if the infusion lines are flushed with a compatible fluid between ceftriaxone and calcium-containing solution infusion.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "Clopidogrel",
-    "severity": "major",
-    "mechanism": "Morphine (Systemic) may decrease antiplatelet effects of Antiplatelet Agents (P2Y12 Inhibitors). Morphine (Systemic) may decrease serum concentrations of Antiplatelet Agents (P2Y12 Inhibitors).",
-    "clinical_effect": "Morphine (Systemic) may decrease antiplatelet effects of Antiplatelet Agents (P2Y12 Inhibitors). Morphine (Systemic) may decrease serum concentrations of Antiplatelet Agents (P2Y12 Inhibitors).",
-    "management": "Morphine may reduce the antiplatelet effects of P2Y12 inhibitors. The clinical risk associated with this interaction has not been fully investigated and may vary with dose, regimen, timing, patient population, concomitant pharmacotherapy, or other factors. Patients with acute coronary syndromes are treated simultaneously with multiple antiplatelet agents (eg, aspirin, glycoprotein Iib/IIIa recepto",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Morphine",
-    "drug2": "Aspirin",
-    "severity": "major",
-    "mechanism": "Drugs that Affect Gallbladder Function may decrease therapeutic effects of Sincalide.",
-    "clinical_effect": "Drugs that Affect Gallbladder Function may decrease therapeutic effects of Sincalide.",
-    "management": "Consider discontinuing drugs that may affect gallbladder motility prior to the use of sincalide to stimulate gallbladder contraction.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Dopamine",
-    "drug2": "Linezolid",
-    "severity": "major",
-    "mechanism": "Monoamine Oxidase Inhibitors may increase hypertensive effects of DOPamine.",
-    "clinical_effect": "Monoamine Oxidase Inhibitors may increase hypertensive effects of DOPamine.",
-    "management": "Initiate dopamine at no greater than one-tenth (1/10) of the usual dose in patients who are taking (or have taken within the last 2 to 3 weeks) monoamine oxidase inhibitors. Monitor for an exaggerated hypertensive response to dopamine.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Colistin",
-    "drug2": "Cisatracurium",
-    "severity": "major",
-    "mechanism": "Colistimethate may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents.",
-    "clinical_effect": "Colistimethate may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents.",
-    "management": "If possible, avoid concomitant use of these products. Monitor for deeper, prolonged neuromuscular-blocking effects (respiratory paralysis) in patients receiving concomitant neuromuscular-blocking agents and colistimethate.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Colistin",
-    "drug2": "Rocuronium",
-    "severity": "major",
-    "mechanism": "Colistimethate may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents.",
-    "clinical_effect": "Colistimethate may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents.",
-    "management": "If possible, avoid concomitant use of these products. Monitor for deeper, prolonged neuromuscular-blocking effects (respiratory paralysis) in patients receiving concomitant neuromuscular-blocking agents and colistimethate.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Linezolid",
-    "drug2": "DOBUTamine",
-    "severity": "major",
-    "mechanism": "Linezolid may increase hypertensive effects of Sympathomimetics.",
-    "clinical_effect": "Linezolid may increase hypertensive effects of Sympathomimetics.",
-    "management": "Consider initial dose reductions of sympathomimetic agents, and closely monitor for enhanced blood pressure elevations, in patients receiving linezolid.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Linezolid",
-    "drug2": "Norepinephrine",
-    "severity": "major",
-    "mechanism": "Linezolid may increase hypertensive effects of Sympathomimetics.",
-    "clinical_effect": "Linezolid may increase hypertensive effects of Sympathomimetics.",
-    "management": "Consider initial dose reductions of sympathomimetic agents, and closely monitor for enhanced blood pressure elevations, in patients receiving linezolid.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amiodarone",
-    "drug2": "Warfarin",
-    "severity": "major",
-    "mechanism": "Amiodarone may increase anticoagulant effects of Vitamin K Antagonists. Amiodarone may increase serum concentrations of Vitamin K Antagonists.",
-    "clinical_effect": "Amiodarone may increase anticoagulant effects of Vitamin K Antagonists. Amiodarone may increase serum concentrations of Vitamin K Antagonists.",
-    "management": "Monitor patients extra closely for evidence of increased anticoagulant effects if amiodarone is initiated/dose increased, or decreased effects if amiodarone is discontinued/dose decreased, though due to the long half-life of amiodarone, any interaction may persist for several days/weeks following any dose decrease or discontinuation. An empiric warfarin dosage reduction of 30% to 50% at the initia",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Diazepam",
-    "drug2": "Amiodarone",
-    "severity": "major",
-    "mechanism": "Fusidic Acid (Systemic) may increase serum concentrations of CYP3A4 Substrates (High risk with Inhibitors).",
-    "clinical_effect": "Fusidic Acid (Systemic) may increase serum concentrations of CYP3A4 Substrates (High risk with Inhibitors).",
-    "management": "Consider avoiding this combination if possible. Monitor patients treated with fusidic acid and these CYP3A4 substrates closely for increased adverse effects during any combined use. Use of such a combination may increase the risk for toxicity from the CYP3A4 substrate.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Diazepam",
-    "drug2": "Atorvastatin",
-    "severity": "major",
-    "mechanism": "Fusidic Acid (Systemic) may increase serum concentrations of CYP3A4 Substrates (High risk with Inhibitors).",
-    "clinical_effect": "Fusidic Acid (Systemic) may increase serum concentrations of CYP3A4 Substrates (High risk with Inhibitors).",
-    "management": "Consider avoiding this combination if possible. Monitor patients treated with fusidic acid and these CYP3A4 substrates closely for increased adverse effects during any combined use. Use of such a combination may increase the risk for toxicity from the CYP3A4 substrate.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Fentanyl",
-    "drug2": "Fluconazole",
-    "severity": "major",
-    "mechanism": "CYP3A4 Inhibitors (Moderate) may increase serum concentrations of FentaNYL.",
-    "clinical_effect": "CYP3A4 Inhibitors (Moderate) may increase serum concentrations of FentaNYL.",
-    "management": "A fentanyl dose reduction should be considered especially when a CYP3A4 inhibitor is added to patients receiving fentanyl until the effects of the combination are known. Monitor for respiratory depression and sedation. Upon discontinuation of a CYP3A4 inhibitor, a fentanyl dose increase may be considered. Monitor for signs and symptoms of withdrawal.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Fentanyl",
-    "drug2": "Atorvastatin",
-    "severity": "major",
-    "mechanism": "Fusidic Acid (Systemic) may increase serum concentrations of CYP3A4 Substrates (High risk with Inhibitors).",
-    "clinical_effect": "Fusidic Acid (Systemic) may increase serum concentrations of CYP3A4 Substrates (High risk with Inhibitors).",
-    "management": "Consider avoiding this combination if possible. Monitor patients treated with fusidic acid and these CYP3A4 substrates closely for increased adverse effects during any combined use. Use of such a combination may increase the risk for toxicity from the CYP3A4 substrate.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Midazolam",
-    "drug2": "Fluconazole",
-    "severity": "major",
-    "mechanism": "CYP3A4 Inhibitors (Moderate) may increase serum concentrations of Midazolam.",
-    "clinical_effect": "CYP3A4 Inhibitors (Moderate) may increase serum concentrations of Midazolam.",
-    "management": "Avoid concomitant use of nasal midazolam and moderate CYP3A4 inhibitors. Consider alternatives to use with oral midazolam whenever possible and consider using lower midazolam doses. Monitor patients closely for increased and prolonged midazolam effects and toxicities (eg, sedation, respiratory depression) if these agents are combined.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Midazolam",
-    "drug2": "Amiodarone",
-    "severity": "major",
-    "mechanism": "Fusidic Acid (Systemic) may increase serum concentrations of CYP3A4 Substrates (High risk with Inhibitors).",
-    "clinical_effect": "Fusidic Acid (Systemic) may increase serum concentrations of CYP3A4 Substrates (High risk with Inhibitors).",
-    "management": "Consider avoiding this combination if possible. Monitor patients treated with fusidic acid and these CYP3A4 substrates closely for increased adverse effects during any combined use. Use of such a combination may increase the risk for toxicity from the CYP3A4 substrate.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Midazolam",
-    "drug2": "Atorvastatin",
-    "severity": "major",
-    "mechanism": "Fusidic Acid (Systemic) may increase serum concentrations of CYP3A4 Substrates (High risk with Inhibitors).",
-    "clinical_effect": "Fusidic Acid (Systemic) may increase serum concentrations of CYP3A4 Substrates (High risk with Inhibitors).",
-    "management": "Consider avoiding this combination if possible. Monitor patients treated with fusidic acid and these CYP3A4 substrates closely for increased adverse effects during any combined use. Use of such a combination may increase the risk for toxicity from the CYP3A4 substrate.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Nicardipine",
-    "drug2": "Aspirin",
-    "severity": "major",
-    "mechanism": "Drugs that Affect Gallbladder Function may decrease therapeutic effects of Sincalide.",
-    "clinical_effect": "Drugs that Affect Gallbladder Function may decrease therapeutic effects of Sincalide.",
-    "management": "Consider discontinuing drugs that may affect gallbladder motility prior to the use of sincalide to stimulate gallbladder contraction.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Nicardipine",
-    "drug2": "FentaNYL",
-    "severity": "major",
-    "mechanism": "Drugs that Affect Gallbladder Function may decrease therapeutic effects of Sincalide.",
-    "clinical_effect": "Drugs that Affect Gallbladder Function may decrease therapeutic effects of Sincalide.",
-    "management": "Consider discontinuing drugs that may affect gallbladder motility prior to the use of sincalide to stimulate gallbladder contraction.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Levetiracetam",
-    "drug2": "Furosemide",
-    "severity": "moderate",
-    "mechanism": "Hyponatremia-Associated Agents may increase hyponatremic effects of Desmopressin.",
-    "clinical_effect": "Hyponatremia-Associated Agents may increase hyponatremic effects of Desmopressin.",
-    "management": "Monitor serum sodium and for signs of water intoxication or hyponatremia more closely in patients receiving concomitant hyponatremia-associated agents with desmopressin.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Levetiracetam",
-    "drug2": "Vasopressin",
-    "severity": "moderate",
-    "mechanism": "Hyponatremia-Associated Agents may increase hyponatremic effects of Desmopressin.",
-    "clinical_effect": "Hyponatremia-Associated Agents may increase hyponatremic effects of Desmopressin.",
-    "management": "Monitor serum sodium and for signs of water intoxication or hyponatremia more closely in patients receiving concomitant hyponatremia-associated agents with desmopressin.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Levetiracetam",
     "drug2": "Metoclopramide",
-    "severity": "moderate",
-    "mechanism": "QT-prolonging Agents (Indeterminate Risk - Caution) may increase QTc-prolonging effects of Haloperidol.",
-    "clinical_effect": "QT-prolonging Agents (Indeterminate Risk - Caution) may increase QTc-prolonging effects of Haloperidol.",
-    "management": "Monitor for QTc interval prolongation and ventricular arrhythmias (including torsades de pointes) when these drugs are combined. Patients with other risk factors (eg, older age, female sex, bradycardia, hypokalemia, hypomagnesemia, heart disease, and higher drug concentrations) are likely at greater risk for these potentially life-threatening toxicities.",
-    "references": "MICROMEDEX DrugDex"
+    "severity": "contraindicated",
+    "mechanism": "Metoclopramide may decrease therapeutic effects of Anti-Parkinson Agents (Dopamine Agonist).",
+    "clinical_effect": "Metoclopramide may decrease therapeutic effects of Anti-Parkinson Agents (Dopamine Agonist).",
+    "management": "Avoid use of metoclopramide in patients being treated with anti-Parkinson agents. Such combined use could result in worsening of signs and symptoms. Anti-Parkinson Agents (Dopamine Agonist) Interacting Members Amantadine, Apomorphine, Bromocriptine, Foslevodopa, Levodopa, Levodopa (Oral Inhalation), Lisuride, Pergolide, Piribedil, Pramipexole, ROPINIRole, Rotigotine",
+    "references": "MICROMEDEX DrugDex (Risk X)"
   },
   {
-    "drug1": "Levetiracetam",
+    "drug1": "Norepinephrine",
+    "drug2": "Epinephrine",
+    "severity": "contraindicated",
+    "mechanism": "Serotonin/Norepinephrine Reuptake Inhibitor may increase adverse/toxic effects of Epinephrine (Racemic).",
+    "clinical_effect": "Serotonin/Norepinephrine Reuptake Inhibitor may increase adverse/toxic effects of Epinephrine (Racemic).",
+    "management": "Do not use the aluminum potassium/epinephrine-impregnated dental device in patients taking antidepressants. Labeling for the aluminum potassium/epinephrine-impregnated dental device lists this combination as contraindicated. Serotonin/Norepinephrine Reuptake Inhibitor Interacting Members Desvenlafaxine, DULoxetine, Levomilnacipran, Milnacipran, Venlafaxine",
+    "references": "MICROMEDEX DrugDex (Risk X)"
+  },
+  {
+    "drug1": "Norepinephrine",
+    "drug2": "Linezolid",
+    "severity": "contraindicated",
+    "mechanism": "Linezolid may increase serotonergic effects of Serotonin/Norepinephrine Reuptake Inhibitor. This could result in serotonin syndrome.",
+    "clinical_effect": "Linezolid may increase serotonergic effects of Serotonin/Norepinephrine Reuptake Inhibitor. This could result in serotonin syndrome.",
+    "management": "Do not initiate serotonin/norepinephrine reuptake inhibitors (SNRIs) in patients treated with linezolid. Prescribing information for most SNRIs list this combination as contraindicated. If a patient already receiving SNRI therapy requires urgent treatment with linezolid, and no acceptable alternatives are available, and the potential benefits of linezolid outweigh the risks of serotonin syndrome/serotonin toxicity (SS/ST) in a particular patient, SNRI therapy should be stopped promptly upon init",
+    "references": "MICROMEDEX DrugDex (Risk X)"
+  },
+  {
+    "drug1": "Sodium",
+    "drug2": "Amiodarone",
+    "severity": "contraindicated",
+    "mechanism": "Amiodarone may decrease therapeutic effects of Sodium Iodide I131.",
+    "clinical_effect": "Amiodarone may decrease therapeutic effects of Sodium Iodide I131.",
+    "management": "Discontinue amiodarone at least 6 months before sodium iodide I-131 administration, and avoid concurrent use. This combination may result in decreased uptake and effectiveness of sodium iodide I-131.",
+    "references": "MICROMEDEX DrugDex (Risk X)"
+  },
+  {
+    "drug1": "Haloperidol",
+    "drug2": "Amiodarone",
+    "severity": "major",
+    "mechanism": "Amiodarone may increase QTc-prolonging effects of Haloperidol.",
+    "clinical_effect": "Amiodarone may increase QTc-prolonging effects of Haloperidol.",
+    "management": "Consider alternatives to this combination. If use is necessary, monitor for QTc interval prolongation and arrhythmias (including torsades de pointes). Patients with other risk factors (eg, older age, female sex, bradycardia, hypokalemia, hypomagnesemia, heart disease, and higher drug concentrations) or those using IV haloperidol are likely at greater risk for these potentially life-threatening toxicities.",
+    "references": "MICROMEDEX DrugDex (Risk D)"
+  },
+  {
+    "drug1": "Linezolid",
+    "drug2": "Fentanyl",
+    "severity": "major",
+    "mechanism": "FentaNYL may increase serotonergic effects of Linezolid. This could result in serotonin syndrome.",
+    "clinical_effect": "FentaNYL may increase serotonergic effects of Linezolid. This could result in serotonin syndrome.",
+    "management": "Consider alternatives to the coadministration of fentanyl and linezolid when possible, as product labeling states the concomitant use of fentanyl with MAOIs such as linezolid, or use of such as agents within 14 days is not recommended. If combined use is necessary, monitor for signs and symptoms of serotonin syndrome/serotonin toxicity (eg, hyperreflexia, clonus, hyperthermia, diaphoresis, tremor, autonomic instability, mental status changes). Patients with other risk factors (eg, higher drug co",
+    "references": "MICROMEDEX DrugDex (Risk D)"
+  },
+  {
+    "drug1": "Methadone",
+    "drug2": "Amiodarone",
+    "severity": "major",
+    "mechanism": "Amiodarone may increase QTc-prolonging effects of Methadone.",
+    "clinical_effect": "Amiodarone may increase QTc-prolonging effects of Methadone.",
+    "management": "Consider alternatives to this combination. If use is necessary, monitor for QTc interval prolongation and arrhythmias (including torsades de pointes). Patients with other risk factors (eg, older age, female sex, bradycardia, hypokalemia, hypomagnesemia, heart disease, and higher drug concentrations) are likely at greater risk for these potentially life-threatening toxicities.",
+    "references": "MICROMEDEX DrugDex (Risk D)"
+  },
+  {
+    "drug1": "Methadone",
+    "drug2": "Haloperidol",
+    "severity": "major",
+    "mechanism": "Haloperidol may increase QTc-prolonging effects of Methadone. Haloperidol may increase CNS depressant effects of Methadone.",
+    "clinical_effect": "Haloperidol may increase QTc-prolonging effects of Methadone. Haloperidol may increase CNS depressant effects of Methadone.",
+    "management": "Consider alternatives to this combination.If use is necessary, monitor for QTc interval prolongation and arrhythmias (including torsades de pointes). Patients with other risk factors (eg, older age, female sex, bradycardia, hypokalemia, hypomagnesemia, heart disease, and higher drug concentrations) or those taking IV haloperidol are likely at greater risk for these potentially life-threatening toxicities. Limit dosages and durations to the minimum required and monitorclosely for signs of respira",
+    "references": "MICROMEDEX DrugDex (Risk D)"
+  },
+  {
+    "drug1": "Phenytoin",
+    "drug2": "Calcium",
+    "severity": "major",
+    "mechanism": "Calcium Channel Blockers (Nondihydropyridine) may increase serum concentrations of Fosphenytoin-Phenytoin. Fosphenytoin-Phenytoin may decrease serum concentrations of Calcium Channel Blockers (Nondihydropyridine).",
+    "clinical_effect": "Calcium Channel Blockers (Nondihydropyridine) may increase serum concentrations of Fosphenytoin-Phenytoin. Fosphenytoin-Phenytoin may decrease serum concentrations of Calcium Channel Blockers (Nondihydropyridine).",
+    "management": "Consider alternatives to this combination when possible. If combined, monitor for increased phenytoin concentrations and toxicities and monitor for decreased calcium channel blocker efficacy. Calcium Channel Blockers (Nondihydropyridine) Interacting Members DilTIAZem, Verapamil Fosphenytoin-Phenytoin Interacting Members Fosphenytoin, Phenytoin",
+    "references": "MICROMEDEX DrugDex (Risk D)"
+  },
+  {
+    "drug1": "Potassium",
+    "drug2": "Digoxin",
+    "severity": "major",
+    "mechanism": "Digoxin may increase hyperkalemic effects of Potassium Phosphate.",
+    "clinical_effect": "Digoxin may increase hyperkalemic effects of Potassium Phosphate.",
+    "management": "Avoid coadministration of potassium phosphate and digoxin due to the risk of severe and potentially fatal hyperkalemia. This risk is increased in patients with other risk factors, such as renal impairment. If coadministration is required, monitor serum potassium concentrations closely.",
+    "references": "MICROMEDEX DrugDex (Risk D)"
+  },
+  {
+    "drug1": "Propofol",
+    "drug2": "Fentanyl",
+    "severity": "major",
+    "mechanism": "Propofol may increase CNS depressant effects of FentaNYL.",
+    "clinical_effect": "Propofol may increase CNS depressant effects of FentaNYL.",
+    "management": "Consider alternatives to this combination when possible. If this combination is used, monitor more closely for bradycardia, apnea, and other indications of excessive CNS depression. Propofol induction dose requirements may be reduced. Limit doses and duration of each drug as much as possible. Pediatric patients may be at particularly high risk for bradycardia.",
+    "references": "MICROMEDEX DrugDex (Risk D)"
+  },
+  {
+    "drug1": "Sodium",
+    "drug2": "Insulin",
+    "severity": "major",
+    "mechanism": "Sodium-Glucose Cotransporter 2 (SGLT2) Inhibitors may increase hypoglycemic effects of Insulin.",
+    "clinical_effect": "Sodium-Glucose Cotransporter 2 (SGLT2) Inhibitors may increase hypoglycemic effects of Insulin.",
+    "management": "Consider a decrease in insulin dose when initiating therapy with a sodium-glucose cotransporter 2 inhibitor and monitor patients for hypoglycemia. Insulin Interacting Members Insulin (Oral Inhalation), Insulin Aspart, Insulin Degludec, Insulin Detemir, Insulin Glargine, Insulin Glulisine, Insulin Icodec, Insulin Lispro, Insulin NPH, Insulin Regular Sodium-Glucose Cotransporter 2 (SGLT2) Inhibitors Interacting Members Bexagliflozin, Canagliflozin, Dapagliflozin, Empagliflozin, Enavogliflozin, Ert",
+    "references": "MICROMEDEX DrugDex (Risk D)"
+  },
+  {
+    "drug1": "Sucralfate",
+    "drug2": "Digoxin",
+    "severity": "major",
+    "mechanism": "Sucralfate may decrease serum concentrations of Digoxin. Specifically, sucralfate may decrease the absorption of digoxin.",
+    "clinical_effect": "Sucralfate may decrease serum concentrations of Digoxin. Specifically, sucralfate may decrease the absorption of digoxin.",
+    "management": "Administer digoxin at least 2 hours before sucralfate. Concomitant administration should be avoided. Monitor for decreased digoxin levels/effects with initiation of sucralfate therapy. Monitor for increased digoxin levels/effects with discontinuation of sucralfate therapy.",
+    "references": "MICROMEDEX DrugDex (Risk D)"
+  },
+  {
+    "drug1": "Sucralfate",
+    "drug2": "Furosemide",
+    "severity": "major",
+    "mechanism": "Sucralfate may decrease serum concentrations of Furosemide. Sucralfate may impair the absorption of furosemide.",
+    "clinical_effect": "Sucralfate may decrease serum concentrations of Furosemide. Sucralfate may impair the absorption of furosemide.",
+    "management": "Separate orally administered furosemide from sucralfate administration by at least 2 hours.",
+    "references": "MICROMEDEX DrugDex (Risk D)"
+  },
+  {
+    "drug1": "Warfarin",
+    "drug2": "Sodium",
+    "severity": "major",
+    "mechanism": "Sodium Zirconium Cyclosilicate may increase serum concentrations of Warfarin.",
+    "clinical_effect": "Sodium Zirconium Cyclosilicate may increase serum concentrations of Warfarin.",
+    "management": "Separate the administration of sodium zirconium cyclosilicate and warfarin by at least 2 hours. If simultaneous administration is required, monitor for signs and symptoms of warfarin toxicity (eg, elevated INR, bleeding).",
+    "references": "MICROMEDEX DrugDex (Risk D)"
+  },
+  {
+    "drug1": "Amphotericin",
+    "drug2": "Vancomycin",
+    "severity": "moderate",
+    "mechanism": "Vancomycin may increase nephrotoxic effects of Amphotericin B.",
+    "clinical_effect": "Vancomycin may increase nephrotoxic effects of Amphotericin B.",
+    "management": "If coadministration of vancomycin and amphotericin B is required, use caution and monitor renal function closely due to the increased risk of drug-induced nephrotoxicity. Amphotericin B Interacting Members Amphotericin B (Lipid Complex), Amphotericin B (Liposomal), Amphotericin B Deoxycholate",
+    "references": "MICROMEDEX DrugDex (Risk C)"
+  },
+  {
+    "drug1": "Calcium",
     "drug2": "Amiodarone",
     "severity": "moderate",
-    "mechanism": "QT-prolonging Agents (Indeterminate Risk - Caution) may increase QTc-prolonging effects of QT-prolonging Agents (Highest Risk).",
-    "clinical_effect": "QT-prolonging Agents (Indeterminate Risk - Caution) may increase QTc-prolonging effects of QT-prolonging Agents (Highest Risk).",
-    "management": "Monitor for QTc interval prolongation and ventricular arrhythmias (including torsades de pointes) when these drugs are combined. Patients with other risk factors (eg, older age, female sex, bradycardia, hypokalemia, hypomagnesemia, heart disease, and higher drug concentrations) are likely at greater risk for these potentially life-threatening toxicities.",
-    "references": "MICROMEDEX DrugDex"
+    "mechanism": "Calcium Channel Blockers (Nondihydropyridine) may increase bradycardic effects of Amiodarone. Sinus arrest has been reported.",
+    "clinical_effect": "Calcium Channel Blockers (Nondihydropyridine) may increase bradycardic effects of Amiodarone. Sinus arrest has been reported.",
+    "management": "Monitor increased effects and toxicities (eg, bradycardia, sinus arrest, decreased cardiac output) if amiodarone is combined with a nondihydropyridine calcium channel blocker (ie, diltiazem, verapamil). Calcium Channel Blockers (Nondihydropyridine) Interacting Members DilTIAZem, Verapamil",
+    "references": "MICROMEDEX DrugDex (Risk C)"
   },
   {
-    "drug1": "Piperacillin",
-    "drug2": "Furosemide",
+    "drug1": "Calcium",
+    "drug2": "Aspirin",
     "severity": "moderate",
-    "mechanism": "Piperacillin may increase hypokalemic effects of Diuretics.",
-    "clinical_effect": "Piperacillin may increase hypokalemic effects of Diuretics.",
-    "management": "Consider monitoring serum potassium in patients treated with piperacillin and diuretics, as they may be at increased risk of hypokalemia.",
-    "references": "MICROMEDEX DrugDex"
+    "mechanism": "Calcium Channel Blockers (Nondihydropyridine) may increase antiplatelet effects of Aspirin.",
+    "clinical_effect": "Calcium Channel Blockers (Nondihydropyridine) may increase antiplatelet effects of Aspirin.",
+    "management": "Monitor for increased antiplatelet effects of aspirin (eg, increased bruising or bleeding) if combined with nondihydropyridine calcium channel blockers. Calcium Channel Blockers (Nondihydropyridine) Interacting Members DilTIAZem, Verapamil",
+    "references": "MICROMEDEX DrugDex (Risk C)"
   },
   {
-    "drug1": "Dopamine",
-    "drug2": "Phenytoin",
+    "drug1": "Calcium",
+    "drug2": "Magnesium",
     "severity": "moderate",
-    "mechanism": "DOPamine may increase hypotensive effects of Fosphenytoin-Phenytoin.",
-    "clinical_effect": "DOPamine may increase hypotensive effects of Fosphenytoin-Phenytoin.",
-    "management": "Consider monitoring for decreased blood pressure in patients receiving intravenous phenytoin. Hemodynamically unstable patients, including those requiring dopamine to maintain adequate blood pressure, are at elevated risk.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Cisatracurium",
-    "drug2": "NiCARdipine",
-    "severity": "moderate",
-    "mechanism": "Calcium Channel Blockers may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents (Nondepolarizing).",
-    "clinical_effect": "Calcium Channel Blockers may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents (Nondepolarizing).",
-    "management": "Monitor for reduced onset time, and enhanced or prolonged effects of nondepolarizing neuromuscular blockers in patients receiving calcium channel blockers.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Cisatracurium",
-    "drug2": "Phenytoin",
-    "severity": "moderate",
-    "mechanism": "Fosphenytoin-Phenytoin may decrease neuromuscular-blocking effects of Neuromuscular-Blocking Agents (Nondepolarizing). Specifically, this effect is observed with chronic phenytoin administration. Fosphenytoin-Phenytoin may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents (Nondepolarizing). Specifically, this effects is observed with acute/short term phenytoin administration",
-    "clinical_effect": "Fosphenytoin-Phenytoin may decrease neuromuscular-blocking effects of Neuromuscular-Blocking Agents (Nondepolarizing). Specifically, this effect is observed with chronic phenytoin administration. Fosphenytoin-Phenytoin may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents (Nondepolarizing). Specifically, this effects is observed with acute/short term phenytoin administration",
-    "management": "Monitor phenytoin-treated patients closely for altered response to neuromuscular-blocking agents. Patients receiving chronic phenytoin therapy (taking for more than 7 to 14 days) are expected to experience a diminished neuromuscular-blocking agent response. Patients should be monitored for more rapid recovery from neuromuscular blockade than expected, and neuromuscular blocker infusion rate requir",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Cisatracurium",
-    "drug2": "Furosemide",
-    "severity": "moderate",
-    "mechanism": "Loop Diuretics may decrease neuromuscular-blocking effects of Neuromuscular-Blocking Agents. Loop Diuretics may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents.",
-    "clinical_effect": "Loop Diuretics may decrease neuromuscular-blocking effects of Neuromuscular-Blocking Agents. Loop Diuretics may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents.",
-    "management": "Be aware that the therapeutic effects of neuromuscular blockers may be altered by coadministration of loop diuretics. Both increased and decreased effects of neuromuscular blocking agents have been observed.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Cisatracurium",
-    "drug2": "Magnesium Sulfate",
-    "severity": "moderate",
-    "mechanism": "Magnesium Salts may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents.",
-    "clinical_effect": "Magnesium Salts may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents.",
-    "management": "Monitor for enhanced or prolonged effects of neuromuscular blocking agents in patients receiving magnesium supplementation. High-risk patients include those with elevated serum magnesium concentrations or renal impairment and those receiving parenteral magnesium.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amiodarone",
-    "drug2": "Atorvastatin",
-    "severity": "moderate",
-    "mechanism": "Clofazimine may increase serum concentrations of CYP3A4 Substrates (High risk with Inhibitors).",
-    "clinical_effect": "Clofazimine may increase serum concentrations of CYP3A4 Substrates (High risk with Inhibitors).",
-    "management": "Monitor for increased toxicities/effects of CYP3A4 substrates if combined with clofazimine.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amiodarone",
-    "drug2": "Phenytoin",
-    "severity": "moderate",
-    "mechanism": "CYP3A4 Inducers (Strong) may decrease active metabolite exposure of Amiodarone. CYP3A4 Inducers (Strong) may decrease serum concentrations of Amiodarone.",
-    "clinical_effect": "CYP3A4 Inducers (Strong) may decrease active metabolite exposure of Amiodarone. CYP3A4 Inducers (Strong) may decrease serum concentrations of Amiodarone.",
-    "management": "Monitor for reduced amiodarone concentrations and effectiveness if combined with strong CYP3A4 inducers. Amiodarone dose increases may be required to maintain therapeutic effects. Maximal reductions in amiodarone exposure are expected to occur after multiple doses of the strong CYP3A4 inducer have been administered, within days to weeks of initiation. Induction effects may also persist for days to",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Amiodarone",
-    "drug2": "Fluconazole",
-    "severity": "moderate",
-    "mechanism": "CYP3A4 Inhibitors (Moderate) may increase serum concentrations of Amiodarone.",
-    "clinical_effect": "CYP3A4 Inhibitors (Moderate) may increase serum concentrations of Amiodarone.",
-    "management": "Monitor for increased amiodarone concentrations and toxicities if combined with moderate CYP3A4 inhibitors.",
-    "references": "MICROMEDEX DrugDex"
+    "mechanism": "Magnesium Sulfate may increase adverse/toxic effects of Calcium Channel Blockers (Dihydropyridine). Specifically, the risk of hypotension or muscle weakness may be increased.",
+    "clinical_effect": "Magnesium Sulfate may increase adverse/toxic effects of Calcium Channel Blockers (Dihydropyridine). Specifically, the risk of hypotension or muscle weakness may be increased.",
+    "management": "Monitor carefully for hypotension or muscle weakness in patients receiving dihydropyridine calcium channel blockers and magnesium sulfate. Pregnant patients and those receiving parenteral magnesium sulfate are at higher risk. Rare cases of muscular paralysis have been reported in pregnant patients receiving oral nifedipine and parenteral magnesium for the treatment of pre-eclampsia. Calcium Channel Blockers (Dihydropyridine) Interacting Members AmLODIPine, Barnidipine, Benidipine, Cilnidipine, C",
+    "references": "MICROMEDEX DrugDex (Risk C)"
   },
   {
     "drug1": "Dobutamine",
-    "drug2": "Labetalol",
-    "severity": "moderate",
-    "mechanism": "Beta-Blockers may decrease therapeutic effects of DOBUTamine.",
-    "clinical_effect": "Beta-Blockers may decrease therapeutic effects of DOBUTamine.",
-    "management": "Monitor for reduced dobutamine efficacy if used in patients taking, or who have recently taken, beta-blockers. Consider avoiding this combination when possible.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Dobutamine",
-    "drug2": "Calcium Gluconate",
+    "drug2": "Calcium",
     "severity": "moderate",
     "mechanism": "Calcium Salts may decrease therapeutic effects of DOBUTamine.",
     "clinical_effect": "Calcium Salts may decrease therapeutic effects of DOBUTamine.",
-    "management": "Monitor for decreased therapeutic effects of dobutamine (specifically cardiac output) if a calcium supplement (especially IV) is initiated/dose increased.",
-    "references": "MICROMEDEX DrugDex"
+    "management": "Monitor for decreased therapeutic effects of dobutamine (specifically cardiac output) if a calcium supplement (especially IV) is initiated/dose increased. Calcium Salts Interacting Members Calcium Acetate, Calcium Carbonate, Calcium Chloride, Calcium Citrate, Calcium Glubionate, Calcium Glubionate and Calcium Lactobionate, Calcium Gluconate, Calcium Lactate, Calcium Sodium Hydrogen Citrate, Coral, Dolomite, Polycarbophil, Shark Cartilage Extract",
+    "references": "MICROMEDEX DrugDex (Risk C)"
   },
   {
-    "drug1": "Diazepam",
-    "drug2": "Fluconazole",
+    "drug1": "Ephedrine",
+    "drug2": "Dexamethasone",
     "severity": "moderate",
-    "mechanism": "CYP2C19 Inhibitors (Strong) may increase serum concentrations of DiazePAM.",
-    "clinical_effect": "CYP2C19 Inhibitors (Strong) may increase serum concentrations of DiazePAM.",
-    "management": "Monitor for increased and prolonged diazepam effects and toxicities (eg, somnolence, sedation) if combined with strong CYP2C19 inhibitors. Lorazepam and oxazepam do not rely on CYP metabolic pathways and may be acceptable alternatives to diazepam.",
-    "references": "MICROMEDEX DrugDex"
+    "mechanism": "EPHEDrine (Systemic) may decrease serum concentrations of DexAMETHasone (Systemic).",
+    "clinical_effect": "EPHEDrine (Systemic) may decrease serum concentrations of DexAMETHasone (Systemic).",
+    "management": "Monitor for loss of dexamethasone therapeutic effects and consider dexamethasone dose increases when combined with ephedrine.",
+    "references": "MICROMEDEX DrugDex (Risk C)"
   },
   {
-    "drug1": "Diazepam",
+    "drug1": "Heparin",
+    "drug2": "Aspirin",
+    "severity": "moderate",
+    "mechanism": "Aspirin may increase anticoagulant effects of Heparins (Low Molecular Weight).",
+    "clinical_effect": "Aspirin may increase anticoagulant effects of Heparins (Low Molecular Weight).",
+    "management": "Although the concomitant use of aspirin and low molecular weight heparin (LMWH) is indicated in a variety of clinical scenarios (eg, acute coronary syndromes, revascularization procedures, ST-elevation MI), concomitant therapy may increase the risk for bleeding. Monitor patients for signs and symptoms of bleeding during coadministration. Heparins (Low Molecular Weight) Interacting Members Bemiparin, Certoparin, Dalteparin, Enoxaparin, Nadroparin, Tinzaparin",
+    "references": "MICROMEDEX DrugDex (Risk C)"
+  },
+  {
+    "drug1": "Heparin",
+    "drug2": "Potassium",
+    "severity": "moderate",
+    "mechanism": "Heparins (Low Molecular Weight) may increase hyperkalemic effects of Potassium Salts.",
+    "clinical_effect": "Heparins (Low Molecular Weight) may increase hyperkalemic effects of Potassium Salts.",
+    "management": "Monitor serum potassium concentrations closely in patients receiving potassium salts in combination with low molecular weight heparins. Heparins (Low Molecular Weight) Interacting Members Bemiparin, Certoparin, Dalteparin, Enoxaparin, Nadroparin, Tinzaparin Potassium Salts Interacting Members Potassium Acetate, Potassium Chloride, Potassium Citrate, Potassium Gluconate, Potassium Iodate, Potassium Iodide, Potassium Phosphate",
+    "references": "MICROMEDEX DrugDex (Risk C)"
+  },
+  {
+    "drug1": "Lidocaine",
+    "drug2": "Amiodarone",
+    "severity": "moderate",
+    "mechanism": "Amiodarone may increase serum concentrations of Lidocaine (Systemic).",
+    "clinical_effect": "Amiodarone may increase serum concentrations of Lidocaine (Systemic).",
+    "management": "Monitor for increased serum concentrations/toxicity (eg, bradycardia, seizure) of lidocaine if amiodarone is initiated/dose increased. Monitor for decreased serum concentrations/effects of lidocaine if amiodarone is discontinued/dose decreased. Amiodarone doses less than 400 mg/day may be of limited concern. Larger doses (eg, 1200 mg/day) may cause significant changes in lidocaine pharmacokinetics.",
+    "references": "MICROMEDEX DrugDex (Risk C)"
+  },
+  {
+    "drug1": "Metoclopramide",
+    "drug2": "Diazepam",
+    "severity": "moderate",
+    "mechanism": "Metoclopramide may increase CNS depressant effects of DiazePAM. Metoclopramide may increase serum concentrations of DiazePAM.",
+    "clinical_effect": "Metoclopramide may increase CNS depressant effects of DiazePAM. Metoclopramide may increase serum concentrations of DiazePAM.",
+    "management": "Monitor patients for increased CNS depressant effects (eg, somnolence, drowsiness) if metoclopramide is combined with diazepam. Consider avoiding metoclopramide or diazepam, depending on the importance of the drug to the patient.",
+    "references": "MICROMEDEX DrugDex (Risk C)"
+  },
+  {
+    "drug1": "Norepinephrine",
+    "drug2": "Aspirin",
+    "severity": "moderate",
+    "mechanism": "Serotonin/Norepinephrine Reuptake Inhibitor may increase antiplatelet effects of Aspirin.",
+    "clinical_effect": "Serotonin/Norepinephrine Reuptake Inhibitor may increase antiplatelet effects of Aspirin.",
+    "management": "Monitor for increased risk of bleeding during concomitant serotonin/norepinephrine reuptake inhibitor (SNRI) and aspirin use. Serotonin/Norepinephrine Reuptake Inhibitor Interacting Members Desvenlafaxine, DULoxetine, Levomilnacipran, Milnacipran, Venlafaxine",
+    "references": "MICROMEDEX DrugDex (Risk C)"
+  },
+  {
+    "drug1": "Norepinephrine",
+    "drug2": "Fentanyl",
+    "severity": "moderate",
+    "mechanism": "FentaNYL may increase serotonergic effects of Serotonin/Norepinephrine Reuptake Inhibitor. This could result in serotonin syndrome.",
+    "clinical_effect": "FentaNYL may increase serotonergic effects of Serotonin/Norepinephrine Reuptake Inhibitor. This could result in serotonin syndrome.",
+    "management": "Monitor closely for signs and symptoms of serotonin syndrome/serotonin toxicity (eg, hyperreflexia, clonus, hyperthermia, diaphoresis, tremor, autonomic instability, mental status changes) when fentanyl and serotonin/norepinephrine reuptake inhibitors are combined. Consider alternatives in patients with other risk factors (eg, higher drug concentrations/doses, greater numbers of serotonergic agents) who are likely at an even greater risk for these potentially life-threatening toxicities. Seroton",
+    "references": "MICROMEDEX DrugDex (Risk C)"
+  },
+  {
+    "drug1": "Phenytoin",
+    "drug2": "Acetaminophen",
+    "severity": "moderate",
+    "mechanism": "Fosphenytoin-Phenytoin may decrease serum concentrations of Acetaminophen. Specifically, serum concentrations of acetaminophen may be decreased (leading to decreased efficacy), but the formation of the toxic N-acetyl-p-benzoquinone imine (NAPQI) metabolite may be increased (leading to increased hepatotoxicity).",
+    "clinical_effect": "Fosphenytoin-Phenytoin may decrease serum concentrations of Acetaminophen. Specifically, serum concentrations of acetaminophen may be decreased (leading to decreased efficacy), but the formation of the toxic N-acetyl-p-benzoquinone imine (NAPQI) metabolite may be increased (leading to increased hepatotoxicity).",
+    "management": "Monitor for acetaminophen induced hepatotoxicity if a large dose (or long term use) of acetaminophen is used in a patient taking phenytoin or fosphenytoin. Decreased effects of acetaminophen may also be seen. Fosphenytoin-Phenytoin Interacting Members Fosphenytoin, Phenytoin",
+    "references": "MICROMEDEX DrugDex (Risk C)"
+  },
+  {
+    "drug1": "Phenytoin",
+    "drug2": "Amiodarone",
+    "severity": "moderate",
+    "mechanism": "Fosphenytoin-Phenytoin may decrease serum concentrations of Amiodarone. Amiodarone may increase serum concentrations of Fosphenytoin-Phenytoin.",
+    "clinical_effect": "Fosphenytoin-Phenytoin may decrease serum concentrations of Amiodarone. Amiodarone may increase serum concentrations of Fosphenytoin-Phenytoin.",
+    "management": "Monitor for increased serum concentrations and toxicity of phenytoin if amiodarone is initiated or dose increased, and decreased serum concentrations and effects if amiodarone is discontinued or dose decreased. Monitor for decreased amiodarone serum concentrations and effects if phenytoin is initiated or dose increased, and increased serum concentrations and effects if phenytoin is discontinued or dose decreased. Maximal reductions in amiodarone exposure are expected to occur after multiple dose",
+    "references": "MICROMEDEX DrugDex (Risk C)"
+  },
+  {
+    "drug1": "Phenytoin",
+    "drug2": "Diazepam",
+    "severity": "moderate",
+    "mechanism": "Fosphenytoin-Phenytoin may decrease serum concentrations of DiazePAM. DiazePAM may increase serum concentrations of Fosphenytoin-Phenytoin.",
+    "clinical_effect": "Fosphenytoin-Phenytoin may decrease serum concentrations of DiazePAM. DiazePAM may increase serum concentrations of Fosphenytoin-Phenytoin.",
+    "management": "Monitor for reduced diazepam efficacy if combined with fosphenytoin or phenytoin. Additionally, consider monitoring for increased phenytoin serum concentrations and effects when combined with diazepam. Fosphenytoin-Phenytoin Interacting Members Fosphenytoin, Phenytoin",
+    "references": "MICROMEDEX DrugDex (Risk C)"
+  },
+  {
+    "drug1": "Phenytoin",
+    "drug2": "Dopamine",
+    "severity": "moderate",
+    "mechanism": "DOPamine may increase hypotensive effects of Fosphenytoin-Phenytoin.",
+    "clinical_effect": "DOPamine may increase hypotensive effects of Fosphenytoin-Phenytoin.",
+    "management": "Consider monitoring for decreased blood pressure in patients receiving intravenous phenytoin. Hemodynamically unstable patients, including those requiring dopamine to maintain adequate blood pressure, are at elevated risk. Fosphenytoin-Phenytoin Interacting Members Fosphenytoin, Phenytoin",
+    "references": "MICROMEDEX DrugDex (Risk C)"
+  },
+  {
+    "drug1": "Phenytoin",
+    "drug2": "Levetiracetam",
+    "severity": "moderate",
+    "mechanism": "Fosphenytoin-Phenytoin may decrease serum concentrations of LevETIRAcetam.",
+    "clinical_effect": "Fosphenytoin-Phenytoin may decrease serum concentrations of LevETIRAcetam.",
+    "management": "Monitor closely for evidence of reduced levetiracetam concentrations or effectiveness. Fosphenytoin-Phenytoin Interacting Members Fosphenytoin, Phenytoin",
+    "references": "MICROMEDEX DrugDex (Risk C)"
+  },
+  {
+    "drug1": "Propofol",
+    "drug2": "Alfentanil",
+    "severity": "moderate",
+    "mechanism": "ALfentanil may increase adverse/toxic effects of Propofol. Specifically the development of opisthotonus (severe hyperextension and spasticity resulting in arching or bridging position) and/or tonic clonic seizures.",
+    "clinical_effect": "ALfentanil may increase adverse/toxic effects of Propofol. Specifically the development of opisthotonus (severe hyperextension and spasticity resulting in arching or bridging position) and/or tonic clonic seizures.",
+    "management": "Monitor for increased toxic effects of propofol if coadministered with alfentanil.",
+    "references": "MICROMEDEX DrugDex (Risk C)"
+  },
+  {
+    "drug1": "Propofol",
+    "drug2": "Ephedrine",
+    "severity": "moderate",
+    "mechanism": "Propofol may increase therapeutic effects of EPHEDrine (Systemic).",
+    "clinical_effect": "Propofol may increase therapeutic effects of EPHEDrine (Systemic).",
+    "management": "Monitor closely for evidence of exessive blood pressure increase with this combination.",
+    "references": "MICROMEDEX DrugDex (Risk C)"
+  },
+  {
+    "drug1": "Rocuronium",
+    "drug2": "Ephedrine",
+    "severity": "moderate",
+    "mechanism": "EPHEDrine (Systemic) may increase therapeutic effects of Rocuronium.",
+    "clinical_effect": "EPHEDrine (Systemic) may increase therapeutic effects of Rocuronium.",
+    "management": "Monitor closely for a more rapid clinical response to rocuronium in patients who receive ephedrine.",
+    "references": "MICROMEDEX DrugDex (Risk C)"
+  },
+  {
+    "drug1": "Sucralfate",
     "drug2": "Phenytoin",
     "severity": "moderate",
-    "mechanism": "CYP3A4 Inducers (Strong) may decrease serum concentrations of DiazePAM.",
-    "clinical_effect": "CYP3A4 Inducers (Strong) may decrease serum concentrations of DiazePAM.",
-    "management": "Monitor for reduced diazepam efficacy if combined with strong CYP3A4 inducers.",
-    "references": "MICROMEDEX DrugDex"
+    "mechanism": "Sucralfate may decrease serum concentrations of Phenytoin.",
+    "clinical_effect": "Sucralfate may decrease serum concentrations of Phenytoin.",
+    "management": "Consider monitoring phenytoin concentrations more closely when starting or stopping sucralfate therapy.",
+    "references": "MICROMEDEX DrugDex (Risk C)"
   },
   {
-    "drug1": "Diazepam",
-    "drug2": "Clopidogrel",
+    "drug1": "Ticagrelor",
+    "drug2": "Digoxin",
     "severity": "moderate",
-    "mechanism": "Lumacaftor and Ivacaftor may decrease serum concentrations of CYP2C19 Substrates (High risk with Inducers).",
-    "clinical_effect": "Lumacaftor and Ivacaftor may decrease serum concentrations of CYP2C19 Substrates (High risk with Inducers).",
-    "management": "Monitor clinical response to any CYP2C19 substrates closely when used with lumacaftor/ivacaftor. Drugs inactivated by CYP2C19 may have decreased effectiveness, while any drugs activated by CYP2C19 may exhibit increased effects or toxicity.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Diazepam",
-    "drug2": "Omeprazole",
-    "severity": "moderate",
-    "mechanism": "Lumacaftor and Ivacaftor may decrease serum concentrations of CYP2C19 Substrates (High risk with Inducers).",
-    "clinical_effect": "Lumacaftor and Ivacaftor may decrease serum concentrations of CYP2C19 Substrates (High risk with Inducers).",
-    "management": "Monitor clinical response to any CYP2C19 substrates closely when used with lumacaftor/ivacaftor. Drugs inactivated by CYP2C19 may have decreased effectiveness, while any drugs activated by CYP2C19 may exhibit increased effects or toxicity.",
-    "references": "MICROMEDEX DrugDex"
+    "mechanism": "Ticagrelor may increase serum concentrations of Digoxin.",
+    "clinical_effect": "Ticagrelor may increase serum concentrations of Digoxin.",
+    "management": "Monitor for increased digoxin concentrations and effects in patients receiving ticagrelor.",
+    "references": "MICROMEDEX DrugDex (Risk C)"
   },
   {
     "drug1": "Vancomycin",
-    "drug2": "Furosemide",
-    "severity": "moderate",
-    "mechanism": "Loop Diuretics may increase nephrotoxic effects of Vancomycin.",
-    "clinical_effect": "Loop Diuretics may increase nephrotoxic effects of Vancomycin.",
-    "management": "Monitor for nephrotoxic effects of vancomycin if a loop diuretic is initiated or the dose is increased. Vancomycin labeling recommends increased monitoring of renal function with concurrent use of other potentially nephrotoxic medications.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Vancomycin",
-    "drug2": "Cisatracurium",
-    "severity": "moderate",
-    "mechanism": "Vancomycin may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents.",
-    "clinical_effect": "Vancomycin may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents.",
-    "management": "Monitor for increased and/or prolonged therapeutic effects of neuromuscular-blocking agents (NMB), specifically respiratory depression, if combined with vancomycin.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Vancomycin",
-    "drug2": "Rocuronium",
-    "severity": "moderate",
-    "mechanism": "Vancomycin may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents.",
-    "clinical_effect": "Vancomycin may increase neuromuscular-blocking effects of Neuromuscular-Blocking Agents.",
-    "management": "Monitor for increased and/or prolonged therapeutic effects of neuromuscular-blocking agents (NMB), specifically respiratory depression, if combined with vancomycin.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Fentanyl",
-    "drug2": "Clopidogrel",
-    "severity": "moderate",
-    "mechanism": "FentaNYL may decrease antiplatelet effects of Antiplatelet Agents (P2Y12 Inhibitors). FentaNYL may decrease serum concentrations of Antiplatelet Agents (P2Y12 Inhibitors).",
-    "clinical_effect": "FentaNYL may decrease antiplatelet effects of Antiplatelet Agents (P2Y12 Inhibitors). FentaNYL may decrease serum concentrations of Antiplatelet Agents (P2Y12 Inhibitors).",
-    "management": "The clinical risk associated with this interaction has not been fully investigated and may vary with dose, regimen, timing, patient population, concomitant pharmacotherapy, or other factors. Monitor patients with acute coronary syndromes who are treated simultaneously with multiple antiplatelet agents (eg, aspirin, glycoprotein IIb/IIIa receptor antagonists) and/or an anticoagulant (eg, bivalirudi",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Fentanyl",
-    "drug2": "Phenytoin",
-    "severity": "moderate",
-    "mechanism": "CYP3A4 Inducers (Strong) may decrease serum concentrations of FentaNYL.",
-    "clinical_effect": "CYP3A4 Inducers (Strong) may decrease serum concentrations of FentaNYL.",
-    "management": "Monitor patient closely for evidence of reduced analgesic effects and/or emergence of possible withdrawal signs/symptoms if fentanyl is used together with a strong CYP3A4 inducer, particularly if the CYP3A4 inducer is initiated in a patient previously stable on fentanyl. Caution is also warranted if a patient who had been maintained on this combination discontinues the strong CYP3A4 inducer, as fe",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Midazolam",
-    "drug2": "Phenytoin",
-    "severity": "moderate",
-    "mechanism": "Aldesleukin may increase serum concentrations of CYP Substrates (Narrow Therapeutic Index/Sensitive with Inhibitors).",
-    "clinical_effect": "Aldesleukin may increase serum concentrations of CYP Substrates (Narrow Therapeutic Index/Sensitive with Inhibitors).",
-    "management": "Monitor for increased concentrations and effects of these narrow therapeutic index/sensitive CYP substrates when combined with aldesleukin.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Midazolam",
-    "drug2": "Warfarin",
-    "severity": "moderate",
-    "mechanism": "Aldesleukin may increase serum concentrations of CYP Substrates (Narrow Therapeutic Index/Sensitive with Inhibitors).",
-    "clinical_effect": "Aldesleukin may increase serum concentrations of CYP Substrates (Narrow Therapeutic Index/Sensitive with Inhibitors).",
-    "management": "Monitor for increased concentrations and effects of these narrow therapeutic index/sensitive CYP substrates when combined with aldesleukin.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "Nicardipine",
-    "drug2": "Phenytoin",
-    "severity": "moderate",
-    "mechanism": "CYP3A4 Inducers (Strong) may decrease serum concentrations of NiCARdipine.",
-    "clinical_effect": "CYP3A4 Inducers (Strong) may decrease serum concentrations of NiCARdipine.",
-    "management": "Monitor for reduced nicardipine efficacy when combined with strong CYP3A4 inducers.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "warfarin",
-    "drug2": "Phenytoin",
-    "severity": "moderate",
-    "mechanism": "Acoramidis may increase serum concentrations of CYP2C9 Substrates (Narrow Therapeutic Index/Sensitive with Inhibitors).",
-    "clinical_effect": "Acoramidis may increase serum concentrations of CYP2C9 Substrates (Narrow Therapeutic Index/Sensitive with Inhibitors).",
-    "management": "Monitor for increased effects and toxicities of these CYP2C9 narrow therapeutic index/sensitive substrates when combined with acoramidis.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "warfarin",
-    "drug2": "CefTRIAXone",
-    "severity": "moderate",
-    "mechanism": "Cephalosporins may increase anticoagulant effects of Vitamin K Antagonists.",
-    "clinical_effect": "Cephalosporins may increase anticoagulant effects of Vitamin K Antagonists.",
-    "management": "Monitor for elevated INR and bleeding if a vitamin K antagonist is used in combination with cephalosporins. Cephalosporins that have an NMTT (1-MTT) side chain in their chemical structure may pose the greatest risk of interaction.",
-    "references": "MICROMEDEX DrugDex"
-  },
-  {
-    "drug1": "warfarin",
     "drug2": "Piperacillin",
     "severity": "moderate",
-    "mechanism": "Penicillins may increase anticoagulant effects of Vitamin K Antagonists.",
-    "clinical_effect": "Penicillins may increase anticoagulant effects of Vitamin K Antagonists.",
-    "management": "Monitor anticoagulation status more closely in vitamin K antagonist-treated patients both during concurrent use of a penicillin antibiotic and for at least several days after cessation of the antibiotic. Similarly, advise patients to pay particularly close attention to any signs or symptoms of bleeding. Penicillin antibiotics with a broader spectrum of activity (especially including those with a c",
-    "references": "MICROMEDEX DrugDex"
+    "mechanism": "Piperacillin may increase nephrotoxic effects of Vancomycin.",
+    "clinical_effect": "Piperacillin may increase nephrotoxic effects of Vancomycin.",
+    "management": "Consider monitoring patients closely for evidence of acute kidney injury if using this combination.",
+    "references": "MICROMEDEX DrugDex (Risk C)"
   }
 ]
