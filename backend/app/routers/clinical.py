@@ -556,7 +556,7 @@ async def dose_calculate(
 # ── P3-2: Drug Interaction Check ────────────────────────────────────────
 
 @router.post("/interactions")
-@limiter.limit("10/minute")
+@limiter.limit("60/minute")
 async def interaction_check(
     req: InteractionCheckRequest,
     request: Request,
@@ -600,6 +600,13 @@ async def interaction_check(
                     "clinical_effect": row.clinical_effect or "",
                     "recommended_action": row.management or "",
                     "dose_adjustment_hint": row.references or "",
+                    "risk_rating": row.risk_rating or "",
+                    "risk_rating_description": row.risk_rating_description or "",
+                    "severity_label": row.severity_label or "",
+                    "reliability_rating": row.reliability_rating or "",
+                    "route_dependency": row.route_dependency or "",
+                    "discussion": row.discussion or "",
+                    "footnotes": row.footnotes or "",
                     "source": "database",
                 })
 

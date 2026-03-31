@@ -591,6 +591,13 @@ export interface InteractionCheckResponse {
     recommended_action?: string;
     dose_adjustment_hint?: string;
     monitoring?: string[];
+    risk_rating?: string;
+    risk_rating_description?: string;
+    severity_label?: string;
+    reliability_rating?: string;
+    route_dependency?: string;
+    discussion?: string;
+    footnotes?: string;
   }>;
   applied_rules: Record<string, unknown>[];
   citations: Record<string, unknown>[];

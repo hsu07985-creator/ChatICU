@@ -120,6 +120,28 @@ async def lifespan(app: FastAPI):
             validation_report,
         )
 
+    # Ensure updated_at column exists on all tables that need it (model vs DB drift)
+    try:
+        from app.database import engine as _eng_ua
+        from sqlalchemy import text as _t_ua
+        _tables_needing_updated_at = [
+            "users", "audit_logs", "patients", "medications", "lab_data",
+            "vital_signs", "ventilator_settings", "ventilator_modes",
+            "messages", "chat_messages", "drug_interactions", "iv_compatibilities",
+            "pharmacy_advices", "ai_sessions", "medication_administrations",
+            "error_reports", "record_templates",
+        ]
+        for tbl in _tables_needing_updated_at:
+            try:
+                async with _eng_ua.begin() as conn:
+                    await conn.execute(_t_ua(
+                        f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()"
+                    ))
+            except Exception:
+                pass  # Table doesn't exist
+    except Exception as e:
+        logger.warning("[INTG][DB] updated_at column check failed (non-fatal): %s", e)
+
     # Ensure culture_results table exists (Alembic chain may skip 024/025)
     try:
         from app.database import engine
@@ -217,7 +239,32 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("[INTG][DB] Gender fix failed (non-fatal): %s", e)
 
-    # Seed ICU drug interactions from DrugData (38 verified pairs)
+    # Add enrichment columns to drug_interactions (migration 027 fallback)
+    try:
+        from app.database import engine as _eng_027
+        from sqlalchemy import text as _t_027
+        new_cols = [
+            ("risk_rating", "VARCHAR(2)"),
+            ("risk_rating_description", "VARCHAR(100)"),
+            ("severity_label", "VARCHAR(30)"),
+            ("reliability_rating", "VARCHAR(30)"),
+            ("route_dependency", "TEXT"),
+            ("discussion", "TEXT"),
+            ("footnotes", "TEXT"),
+        ]
+        async with _eng_027.begin() as conn:
+            for col_name, col_type in new_cols:
+                try:
+                    await conn.execute(_t_027(
+                        f"ALTER TABLE drug_interactions ADD COLUMN {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass  # Column already exists
+        logger.info("[INTG][DB] drug_interactions enrichment columns ensured (migration 027 fallback)")
+    except Exception as e:
+        logger.warning("[INTG][DB] drug_interactions column migration failed (non-fatal): %s", e)
+
+    # Seed ICU drug interactions from DrugData (45 enriched pairs)
     try:
         from app.database import engine as _eng3
         from sqlalchemy import text as _t3
@@ -227,23 +274,30 @@ async def lifespan(app: FastAPI):
         if seed_path.exists():
             interactions = _json3.loads(seed_path.read_text("utf-8"))
             async with _eng3.begin() as conn:
-                # Remove old icu_ seeded records (may contain wrong data from v1.4.0)
                 await conn.execute(_t3("DELETE FROM drug_interactions WHERE id LIKE 'icu_%'"))
                 inserted = 0
                 for ix in interactions:
                     _id = "icu_" + _hl3.sha1(f"{ix['drug1']}|{ix['drug2']}".lower().encode()).hexdigest()[:12]
                     await conn.execute(_t3(
-                        "INSERT INTO drug_interactions (id, drug1, drug2, severity, mechanism, clinical_effect, management, \"references\") "
-                        "SELECT :id, :d1, :d2, :sev, :mech, :ce, :mgmt, :ref "
+                        "INSERT INTO drug_interactions "
+                        "(id, drug1, drug2, severity, mechanism, clinical_effect, management, \"references\", "
+                        "risk_rating, risk_rating_description, severity_label, reliability_rating, "
+                        "route_dependency, discussion, footnotes) "
+                        "SELECT :id, :d1, :d2, :sev, :mech, :ce, :mgmt, :ref, "
+                        ":rr, :rrd, :sl, :rl, :rd, :disc, :fnotes "
                         "WHERE NOT EXISTS (SELECT 1 FROM drug_interactions WHERE id = :id)"
                     ).bindparams(
                         id=_id,
                         d1=ix["drug1"], d2=ix["drug2"], sev=ix["severity"],
                         mech=ix.get("mechanism",""), ce=ix.get("clinical_effect",""),
                         mgmt=ix.get("management",""), ref=ix.get("references",""),
+                        rr=ix.get("risk_rating",""), rrd=ix.get("risk_rating_description",""),
+                        sl=ix.get("severity_label",""), rl=ix.get("reliability_rating",""),
+                        rd=ix.get("route_dependency",""), disc=ix.get("discussion",""),
+                        fnotes=ix.get("footnotes",""),
                     ))
                     inserted += 1
-                logger.info("[INTG][DB] Seeded %d ICU drug interactions (replaced old icu_ records)", inserted)
+                logger.info("[INTG][DB] Seeded %d ICU drug interactions (enriched)", inserted)
     except Exception as e:
         logger.warning("[INTG][DB] ICU drug interactions seed failed (non-fatal): %s", e)
 

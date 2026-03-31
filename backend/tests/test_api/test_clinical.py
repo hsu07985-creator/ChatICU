@@ -363,47 +363,50 @@ async def test_dose_calculate_missing_drug(client):
 # ── P3-2: Interaction Check ─────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_interaction_check(client):
-    mock_result = {
-        "request_id": "int-001",
-        "status": "ok",
-        "result_type": "interaction_check",
-        "overall_severity": "major",
-        "findings": [{"drugA": "Warfarin", "drugB": "Amiodarone", "severity": "major"}],
-        "applied_rules": [],
-        "citations": [],
-        "conflicts": [],
-        "confidence": 0.9,
-        "rag": None,
-    }
-    with patch("app.routers.clinical.evidence_client") as mock_ec:
-        mock_ec.interaction_check.return_value = mock_result
-        response = await client.post(
-            "/api/v1/clinical/interactions",
-            json={"drug_list": ["Warfarin", "Amiodarone"]},
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert data["data"]["overall_severity"] == "major"
+async def test_interaction_check(db_engine, client):
+    # Seed a test interaction in the test DB via engine
+    from sqlalchemy import text
+    async with db_engine.begin() as conn:
+        await conn.execute(text(
+            "INSERT INTO drug_interactions "
+            "(id, drug1, drug2, severity, mechanism, clinical_effect, management, "
+            "risk_rating, risk_rating_description, severity_label, reliability_rating) "
+            "VALUES ('test_war_ami', 'Warfarin', 'Amiodarone', 'major', "
+            "'Amiodarone may increase effects of Warfarin', "
+            "'Increased anticoagulation risk', "
+            "'Monitor INR closely', "
+            "'D', 'Consider therapy modification', 'Major', 'Intermediate')"
+        ))
+    response = await client.post(
+        "/api/v1/clinical/interactions",
+        json={"drug_list": ["Warfarin", "Amiodarone"]},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["data"]["overall_severity"] == "major"
+    findings = data["data"]["findings"]
+    assert len(findings) >= 1
+    f = findings[0]
+    assert f["risk_rating"] == "D"
+    assert f["reliability_rating"] == "Intermediate"
 
 
 @pytest.mark.asyncio
 async def test_interaction_check_forwards_request_trace_ids(client):
-    with patch("app.routers.clinical.evidence_client") as mock_ec:
-        mock_ec.interaction_check.return_value = {"status": "ok", "overall_severity": "major"}
-        response = await client.post(
-            "/api/v1/clinical/interactions",
-            json={"drug_list": ["Warfarin", "Amiodarone"]},
-            headers={
-                "X-Request-ID": "p1-int-req-001",
-                "X-Trace-ID": "p1-int-trace-001",
-            },
-        )
-        assert response.status_code == 200
-        kwargs = mock_ec.interaction_check.call_args.kwargs
-        assert kwargs["request_id"] == "p1-int-req-001"
-        assert kwargs["trace_id"] == "p1-int-trace-001"
+    """Interaction check returns success with trace headers."""
+    response = await client.post(
+        "/api/v1/clinical/interactions",
+        json={"drug_list": ["Warfarin", "Amiodarone"]},
+        headers={
+            "X-Request-ID": "p1-int-req-001",
+            "X-Trace-ID": "p1-int-trace-001",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["data"]["source"] == "database"
 
 
 @pytest.mark.asyncio

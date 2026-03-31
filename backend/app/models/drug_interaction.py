@@ -18,6 +18,13 @@ class DrugInteraction(Base):
     clinical_effect: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     management: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     references: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    risk_rating: Mapped[Optional[str]] = mapped_column(String(2), nullable=True)  # X, D, C, B, A
+    risk_rating_description: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    severity_label: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)  # Major, Moderate, Minor
+    reliability_rating: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)  # Highest, Intermediate, etc.
+    route_dependency: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    discussion: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    footnotes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

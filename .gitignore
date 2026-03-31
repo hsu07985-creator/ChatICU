@@ -56,3 +56,4 @@ fix/
 
 # Archived files (restructuring cleanup)
 _archive_candidates/
+.vercel
