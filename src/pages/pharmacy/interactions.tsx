@@ -1,11 +1,10 @@
-import { Search, Plus, BookOpen, AlertTriangle, AlertCircle, Info, Loader2, ChevronDown, ChevronRight, ShieldAlert, FlaskConical, Route, FileText, BookMarked, ExternalLink } from 'lucide-react';
+import { Search, Plus, BookOpen, AlertTriangle, AlertCircle, Info, Loader2, ShieldAlert, Route } from 'lucide-react';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Separator } from '../../components/ui/separator';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import { toast } from 'sonner';
 import { checkInteractions, type InteractionCheckResponse } from '../../lib/api/ai';
 import { getDrugInteractions } from '../../lib/api/pharmacy';
@@ -50,12 +49,6 @@ const RISK_RATING_CONFIG: Record<string, { label: string; color: string; bgColor
   A: { label: 'Risk A 無交互作用', color: 'text-gray-700', bgColor: 'bg-gray-100 border-gray-300' },
 };
 
-const RELIABILITY_CONFIG: Record<string, { label: string; color: string }> = {
-  Highest: { label: '最高', color: 'bg-red-50 text-red-700 border-red-200' },
-  Intermediate: { label: '中等', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-  'Intermediate-Low': { label: '中低', color: 'bg-orange-50 text-orange-700 border-orange-200' },
-  Lowest: { label: '最低', color: 'bg-gray-50 text-gray-600 border-gray-200' },
-};
 
 export function DrugInteractionsPage() {
   const [drugA, setDrugA] = useState('');
@@ -64,7 +57,7 @@ export function DrugInteractionsPage() {
   const [overallSeverity, setOverallSeverity] = useState<string>('');
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [instructionsOpen, setInstructionsOpen] = useState(true);
+
 
   const handleSearch = async () => {
     const drugs = [drugA.trim(), drugB.trim()].filter(Boolean);
@@ -105,7 +98,7 @@ export function DrugInteractionsPage() {
       try {
         const resp = await getDrugInteractions({ drugA: drugs[0], drugB: drugs[1] });
         const rows = resp.interactions || [];
-        const mapped: DisplayInteraction[] = rows.map((r, idx) => ({
+        const mapped: DisplayInteraction[] = rows.map((r: any, idx: number) => ({
           id: r.id || `db-int-${idx}`,
           drug1: r.drug1 || drugs[0],
           drug2: r.drug2 || drugs[1],
@@ -114,17 +107,17 @@ export function DrugInteractionsPage() {
           clinicalEffect: r.clinicalEffect || '',
           management: r.management || '',
           references: r.references || '',
-          riskRating: '',
-          riskRatingDescription: '',
-          severityLabel: '',
-          reliabilityRating: '',
-          routeDependency: '',
-          discussion: '',
-          footnotes: '',
-          dependencies: [],
-          dependencyTypes: [],
-          interactingMembers: [],
-          pubmedIds: [],
+          riskRating: r.riskRating || '',
+          riskRatingDescription: r.riskRatingDescription || '',
+          severityLabel: r.severityLabel || '',
+          reliabilityRating: r.reliabilityRating || '',
+          routeDependency: r.routeDependency || '',
+          discussion: r.discussion || '',
+          footnotes: r.footnotes || '',
+          dependencies: r.dependencies || [],
+          dependencyTypes: r.dependencyTypes || [],
+          interactingMembers: r.interactingMembers || [],
+          pubmedIds: r.pubmedIds || [],
         }));
 
         if (mapped.length) {
@@ -196,85 +189,6 @@ export function DrugInteractionsPage() {
       default:
         return null;
     }
-  };
-
-  const getReliabilityBadge = (rating: string) => {
-    if (!rating) return null;
-    const config = RELIABILITY_CONFIG[rating] || { label: rating, color: 'bg-gray-50 text-gray-600 border-gray-200' };
-    return (
-      <Badge variant="outline" className={`gap-1 border ${config.color} text-xs`}>
-        <FlaskConical className="h-3 w-3" />
-        證據：{config.label}
-      </Badge>
-    );
-  };
-
-  /** Format discussion text: split into paragraphs, convert inline citation numbers to superscript */
-  const formatDiscussion = (text: string) => {
-    // Split on double-newline or sentence-ending patterns before "A review", "In another", "Combined", "In contrast", "Similarly", "While"
-    const paragraphs = text
-      .split(/\n\n+/)
-      .flatMap(p => p.split(/(?<=\.(?:\d+)?)\s+(?=(?:A review|An analysis|In another|Combined use|In contrast|Similarly|While the|The use of|However)\b)/))
-      .filter(s => s.trim());
-
-    return paragraphs.map((para, i) => {
-      // Convert inline citation numbers like ".1 " or ",2 " or " 3," to superscript
-      const parts = para.split(/(\.\d+(?:,\d+)*(?=\s|$|\.)|\b(\d+(?:,\d+)*)\b(?=\s+In\b|\s+An\b|\s+A\b|\s+The\b|\s+While\b|\s+Combined\b|\s+Similarly\b))/g);
-      return (
-        <p key={i} className="text-sm leading-relaxed text-foreground/90">
-          {parts.map((part, j) => {
-            if (!part) return null;
-            // Match citation-like patterns: .1 or .6,7 or .9,10,11
-            if (/^\.\d+(,\d+)*$/.test(part)) {
-              const nums = part.slice(1); // remove leading dot
-              return <span key={j}>.<sup className="text-blue-600 font-medium">{nums}</sup></span>;
-            }
-            return <span key={j}>{part}</span>;
-          })}
-        </p>
-      );
-    });
-  };
-
-  /** Parse a single footnote line and make PubMed IDs clickable */
-  const formatFootnote = (line: string, index: number) => {
-    // Extract leading number
-    const numMatch = line.match(/^(\d+)\.\s*/);
-    const num = numMatch ? numMatch[1] : String(index + 1);
-    const rest = numMatch ? line.slice(numMatch[0].length) : line;
-
-    // Make PubMed IDs clickable
-    const pubmedMatch = rest.match(/\[PubMed\s+(\d+)\]/);
-    if (pubmedMatch) {
-      const before = rest.slice(0, pubmedMatch.index);
-      const pmid = pubmedMatch[1];
-      const after = rest.slice((pubmedMatch.index || 0) + pubmedMatch[0].length);
-      return (
-        <li key={index} className="flex gap-2 py-1.5 border-b border-muted/60 last:border-0">
-          <span className="text-xs font-mono text-muted-foreground w-6 shrink-0 text-right pt-0.5">{num}.</span>
-          <span className="text-xs leading-relaxed text-foreground/80">
-            {before}
-            <a
-              href={`https://pubmed.ncbi.nlm.nih.gov/${pmid}/`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-0.5 text-blue-600 hover:text-blue-800 hover:underline font-medium"
-            >
-              PubMed {pmid}
-              <ExternalLink className="h-2.5 w-2.5" />
-            </a>
-            {after}
-          </span>
-        </li>
-      );
-    }
-
-    return (
-      <li key={index} className="flex gap-2 py-1.5 border-b border-muted/60 last:border-0">
-        <span className="text-xs font-mono text-muted-foreground w-6 shrink-0 text-right pt-0.5">{num}.</span>
-        <span className="text-xs leading-relaxed text-foreground/80">{rest}</span>
-      </li>
-    );
   };
 
   return (
@@ -374,7 +288,6 @@ export function DrugInteractionsPage() {
                                 嚴重度：{interaction.severityLabel}
                               </Badge>
                             )}
-                            {getReliabilityBadge(interaction.reliabilityRating)}
                           </div>
                         </div>
                         <Button
@@ -459,48 +372,6 @@ export function DrugInteractionsPage() {
                         </>
                       )}
 
-                      {/* Tabs: 文獻回顧 + 參考文獻 */}
-                      {(interaction.discussion || interaction.footnotes) && (
-                        <>
-                          <Separator />
-                          <Tabs defaultValue="discussion" className="w-full">
-                            <TabsList className="w-full">
-                              {interaction.discussion && (
-                                <TabsTrigger value="discussion" className="gap-1.5 text-xs">
-                                  <FileText className="h-3.5 w-3.5" />
-                                  文獻回顧與臨床證據
-                                </TabsTrigger>
-                              )}
-                              {interaction.footnotes && (
-                                <TabsTrigger value="footnotes" className="gap-1.5 text-xs">
-                                  <BookMarked className="h-3.5 w-3.5" />
-                                  參考文獻 ({interaction.footnotes.split('\n').filter(Boolean).length} 篇)
-                                </TabsTrigger>
-                              )}
-                            </TabsList>
-
-                            {interaction.discussion && (
-                              <TabsContent value="discussion">
-                                <div className="p-4 bg-muted/30 rounded-lg border space-y-3 mt-1">
-                                  {formatDiscussion(interaction.discussion)}
-                                </div>
-                              </TabsContent>
-                            )}
-
-                            {interaction.footnotes && (
-                              <TabsContent value="footnotes">
-                                <div className="p-4 bg-muted/30 rounded-lg border mt-1">
-                                  <ol className="list-none m-0 p-0">
-                                    {interaction.footnotes.split('\n').filter(Boolean).map((ref, i) =>
-                                      formatFootnote(ref, i)
-                                    )}
-                                  </ol>
-                                </div>
-                              </TabsContent>
-                            )}
-                          </Tabs>
-                        </>
-                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -517,27 +388,6 @@ export function DrugInteractionsPage() {
         </div>
       )}
 
-      {/* 提示資訊 */}
-      {!hasSearched && !loading && (
-        <Card className="bg-muted/30">
-          <CardHeader className="cursor-pointer select-none" onClick={() => setInstructionsOpen(!instructionsOpen)}>
-            <CardTitle className="text-base flex items-center gap-2">
-              {instructionsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              使用說明
-            </CardTitle>
-          </CardHeader>
-          {instructionsOpen && (
-            <CardContent className="space-y-2 text-sm pt-0">
-              <p>• 輸入至少兩種藥品名稱進行交互作用查詢</p>
-              <p>• 支援中英文藥品名稱與常見商品名</p>
-              <p>• 查詢結果包含交互作用類型、嚴重程度與處理建議</p>
-              <p>• Risk Rating 分級：X（避免併用）{'>'} D（考慮調整）{'>'} C（監測治療）{'>'} B（不需處置）</p>
-              <p>• 點擊「文獻回顧」和「參考文獻」可展開查看詳細臨床證據</p>
-              <p>• 所有結果基於 MICROMEDEX DrugDex 資料庫，僅供參考</p>
-            </CardContent>
-          )}
-        </Card>
-      )}
     </div>
   );
 }

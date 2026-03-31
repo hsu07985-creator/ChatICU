@@ -143,6 +143,22 @@ export interface DrugInteractionSearchItem {
   clinicalEffect: string;
   management: string;
   references: string;
+  riskRating?: string;
+  riskRatingDescription?: string;
+  severityLabel?: string;
+  reliabilityRating?: string;
+  routeDependency?: string;
+  discussion?: string;
+  footnotes?: string;
+  dependencies?: string[];
+  dependencyTypes?: string[];
+  interactingMembers?: Array<{
+    group_name: string;
+    members: string[];
+    exceptions: string[];
+    exceptions_note: string;
+  }>;
+  pubmedIds?: string[];
 }
 
 export interface DrugInteractionSearchResponse {

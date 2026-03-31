@@ -38,6 +38,16 @@ async def search_drug_interactions(
     result = await db.execute(query.offset(offset).limit(limit))
     interactions = result.scalars().all()
 
+    import json as _json
+
+    def _parse_json_field(val: str) -> list:
+        if not val:
+            return []
+        try:
+            return _json.loads(val)
+        except Exception:
+            return []
+
     return success_response(data={
         "interactions": [
             {
@@ -49,6 +59,17 @@ async def search_drug_interactions(
                 "clinicalEffect": i.clinical_effect,
                 "management": i.management,
                 "references": i.references,
+                "riskRating": i.risk_rating,
+                "riskRatingDescription": i.risk_rating_description,
+                "severityLabel": i.severity_label,
+                "reliabilityRating": i.reliability_rating,
+                "routeDependency": i.route_dependency,
+                "discussion": i.discussion,
+                "footnotes": i.footnotes,
+                "dependencies": _parse_json_field(i.dependencies),
+                "dependencyTypes": _parse_json_field(i.dependency_types),
+                "interactingMembers": _parse_json_field(i.interacting_members),
+                "pubmedIds": _parse_json_field(i.pubmed_ids),
             }
             for i in interactions
         ],
