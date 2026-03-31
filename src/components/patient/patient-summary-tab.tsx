@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import {
   getClinicalSummary,
-  getPatientExplanation,
-  getGuidelineInterpretation,
   getDecisionSupport,
   getReadinessReason,
   type AIReadiness,
@@ -18,8 +16,6 @@ import { AiMarkdown, SafetyWarnings } from '../ui/ai-markdown';
 import {
   FileText,
   Sparkles,
-  BookOpen,
-  Search,
   Shield,
   Copy,
   ChevronDown,
@@ -62,17 +58,6 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
   const [summaryWarnings, setSummaryWarnings] = useState<string[] | null>(null);
   const [summaryFreshness, setSummaryFreshness] = useState<DataFreshness | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-  const [explanationTopic, setExplanationTopic] = useState('');
-  const [explanationResult, setExplanationResult] = useState('');
-  const [explanationWarnings, setExplanationWarnings] = useState<string[] | null>(null);
-  const [explanationFreshness, setExplanationFreshness] = useState<DataFreshness | null>(null);
-  const [isGeneratingExplanation, setIsGeneratingExplanation] = useState(false);
-  const [readingLevel, setReadingLevel] = useState<'simple' | 'moderate' | 'detailed'>('moderate');
-  const [guidelineScenario, setGuidelineScenario] = useState('');
-  const [guidelineResult, setGuidelineResult] = useState('');
-  const [guidelineWarnings, setGuidelineWarnings] = useState<string[] | null>(null);
-  const [guidelineFreshness, setGuidelineFreshness] = useState<DataFreshness | null>(null);
-  const [isGeneratingGuideline, setIsGeneratingGuideline] = useState(false);
   const [decisionQuestion, setDecisionQuestion] = useState('');
   const [decisionResult, setDecisionResult] = useState('');
   const [decisionWarnings, setDecisionWarnings] = useState<string[] | null>(null);
@@ -93,10 +78,8 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
     { label: 'Patient ID', value: patient.id || '-' },
   ];
   const canSummary = aiReadiness ? aiReadiness.feature_gates.clinical_summary : true;
-  const canExplanation = aiReadiness ? aiReadiness.feature_gates.patient_explanation : true;
   const canDecision = aiReadiness ? aiReadiness.feature_gates.decision_support : true;
   const summaryReason = getReadinessReason(aiReadiness, 'clinical_summary');
-  const explanationReason = getReadinessReason(aiReadiness, 'patient_explanation');
   const decisionReason = getReadinessReason(aiReadiness, 'decision_support');
 
   return (
@@ -208,145 +191,8 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
         </Card>
       </div>
 
-      <div className={`grid gap-3 ${userRole === 'doctor' || userRole === 'admin' ? 'xl:grid-cols-2' : ''}`}>
-        <Card className="border border-blue-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <BookOpen className="h-4 w-4 text-blue-600" />
-              衛教說明產生器
-            </CardTitle>
-            <CardDescription className="text-xs">將複雜的臨床資訊轉換為簡單易懂的病患/家屬說明</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2 pt-0">
-            <Textarea
-              placeholder="輸入衛教主題，例如：目前使用的藥物有什麼副作用？呼吸器什麼時候可以拔管？"
-              value={explanationTopic}
-              onChange={(e) => setExplanationTopic(e.target.value)}
-              className="min-h-[64px] border border-blue-200"
-            />
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-blue-700 whitespace-nowrap">說明程度：</label>
-              <select
-                value={readingLevel}
-                onChange={(e) => setReadingLevel(e.target.value as 'simple' | 'moderate' | 'detailed')}
-                className="border border-blue-200 rounded px-2 py-1 text-sm bg-white"
-              >
-                <option value="simple">簡單（一般民眾）</option>
-                <option value="moderate">中等（預設）</option>
-                <option value="detailed">詳細（有醫學背景）</option>
-              </select>
-            </div>
-            <Button
-              size="sm"
-              onClick={async () => {
-                if (!explanationTopic.trim()) return;
-                if (!canExplanation) {
-                  toast.error(explanationReason);
-                  return;
-                }
-                setIsGeneratingExplanation(true);
-                try {
-                  const result = await getPatientExplanation(patient.id, explanationTopic, readingLevel);
-                  setExplanationResult(result.explanation);
-                  setExplanationWarnings(result.safetyWarnings || null);
-                  setExplanationFreshness(result.dataFreshness || null);
-                } catch {
-                  toast.error('衛教說明生成失敗');
-                } finally {
-                  setIsGeneratingExplanation(false);
-                }
-              }}
-              className="bg-blue-600 hover:bg-blue-700"
-              disabled={isGeneratingExplanation || !explanationTopic.trim() || !canExplanation}
-            >
-              <BookOpen className="mr-2 h-4 w-4" />
-              {isGeneratingExplanation ? '生成中...' : '產生衛教說明'}
-            </Button>
-            {explanationResult && (
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-                <AiMarkdown content={explanationResult} className="text-sm" />
-                <SafetyWarnings warnings={explanationWarnings} />
-                <DataFreshnessHint dataFreshness={explanationFreshness} />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2"
-                  onClick={async () => {
-                    const ok = await copyToClipboard(explanationResult);
-                    ok ? toast.success('已複製') : toast.error('複製失敗');
-                  }}
-                >
-                  <Copy className="mr-1 h-3 w-3" /> 複製
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border border-emerald-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Search className="h-4 w-4 text-emerald-600" />
-              臨床指引查詢
-            </CardTitle>
-            <CardDescription className="text-xs">
-              依據 RAG 知識庫查詢臨床指引建議，支援藥物、治療方案等主題
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2 pt-0">
-            <Textarea
-              placeholder="輸入臨床情境，例如：ICU 病患使用 Meropenem 的劑量建議？ARDS 的肺保護性通氣策略？"
-              value={guidelineScenario}
-              onChange={(e) => setGuidelineScenario(e.target.value)}
-              className="min-h-[64px] border border-emerald-200"
-            />
-            <Button
-              size="sm"
-              onClick={async () => {
-                if (!guidelineScenario.trim()) return;
-                setIsGeneratingGuideline(true);
-                try {
-                  const result = await getGuidelineInterpretation({
-                    patientId: patient.id,
-                    scenario: guidelineScenario,
-                  });
-                  setGuidelineResult(result.interpretation);
-                  setGuidelineWarnings(result.safetyWarnings || null);
-                  setGuidelineFreshness(result.dataFreshness || null);
-                } catch {
-                  toast.error('指引查詢失敗，請稍後再試');
-                } finally {
-                  setIsGeneratingGuideline(false);
-                }
-              }}
-              className="bg-emerald-600 hover:bg-emerald-700"
-              disabled={isGeneratingGuideline || !guidelineScenario.trim()}
-            >
-              <Search className="mr-2 h-4 w-4" />
-              {isGeneratingGuideline ? '查詢中...' : '查詢臨床指引'}
-            </Button>
-            {guidelineResult && (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                <AiMarkdown content={guidelineResult} className="text-sm" />
-                <SafetyWarnings warnings={guidelineWarnings} />
-                <DataFreshnessHint dataFreshness={guidelineFreshness} />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2"
-                  onClick={async () => {
-                    const ok = await copyToClipboard(guidelineResult);
-                    ok ? toast.success('已複製') : toast.error('複製失敗');
-                  }}
-                >
-                  <Copy className="mr-1 h-3 w-3" /> 複製
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {(userRole === 'doctor' || userRole === 'admin') && (
+      {(userRole === 'doctor' || userRole === 'admin') && (
+        <div>
           <Card className="border border-amber-200">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
@@ -462,8 +308,8 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
               )}
             </CardContent>
           </Card>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
