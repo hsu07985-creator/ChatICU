@@ -1,7 +1,6 @@
 import { Search, Plus, BookOpen, AlertTriangle, AlertCircle, Info, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
-import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
@@ -10,6 +9,8 @@ import { toast } from 'sonner';
 import { checkInteractions, type InteractionCheckResponse } from '../../lib/api/ai';
 import { getDrugInteractions } from '../../lib/api/pharmacy';
 import { copyToClipboard } from '../../lib/clipboard-utils';
+import { DrugCombobox } from '../../components/ui/drug-combobox';
+import { DRUG_LIST } from '../../lib/drug-list';
 
 interface DisplayInteraction {
   id: string;
@@ -143,20 +144,20 @@ export function DrugInteractionsPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <label className="text-sm font-medium">藥品 A *</label>
-              <Input
-                placeholder="例：Propofol"
+              <DrugCombobox
                 value={drugA}
-                onChange={(e) => setDrugA(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                onValueChange={setDrugA}
+                placeholder="選擇藥品 A..."
+                drugList={DRUG_LIST}
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">藥品 B *</label>
-              <Input
-                placeholder="例：Fentanyl"
+              <DrugCombobox
                 value={drugB}
-                onChange={(e) => setDrugB(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                onValueChange={setDrugB}
+                placeholder="選擇藥品 B..."
+                drugList={DRUG_LIST}
               />
             </div>
           </div>
