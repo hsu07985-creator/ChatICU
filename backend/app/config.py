@@ -6,7 +6,7 @@ from typing import List, Literal
 class Settings(BaseSettings):
     # Application
     APP_NAME: str = "ChatICU API"
-    APP_VERSION: str = "1.2.0"
+    APP_VERSION: str = "1.3.0"
     DEBUG: bool = False
 
     # Server

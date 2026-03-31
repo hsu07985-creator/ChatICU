@@ -198,6 +198,25 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("[INTG][DB] culture_results bootstrap failed (non-fatal): %s", e)
 
+    # Fix swapped gender for pat_002/pat_003 (migration 026 fallback)
+    try:
+        from app.database import engine as _eng2
+        from sqlalchemy import text as _t2
+        async with _eng2.begin() as conn:
+            # pat_002 (林小姐) should be 女
+            await conn.execute(_t2(
+                "UPDATE patients SET gender = '女' "
+                "WHERE id = 'pat_002' AND gender = '男'"
+            ))
+            # pat_003 (林先生) should be 男
+            await conn.execute(_t2(
+                "UPDATE patients SET gender = '男' "
+                "WHERE id = 'pat_003' AND gender = '女'"
+            ))
+            logger.info("[INTG][DB] Gender fix applied for pat_002/pat_003 (migration 026 fallback)")
+    except Exception as e:
+        logger.warning("[INTG][DB] Gender fix failed (non-fatal): %s", e)
+
     # Auto-index RAG documents: try persisted → check fingerprint → rebuild if needed
     if getattr(settings, "RAG_AUTO_INDEX_ON_STARTUP", True):
         from app.services.llm_services.rag_service import rag_service
