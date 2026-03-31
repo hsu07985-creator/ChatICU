@@ -217,6 +217,33 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("[INTG][DB] Gender fix failed (non-fatal): %s", e)
 
+    # Seed ICU drug interactions from DrugData (182 pairs)
+    try:
+        from app.database import engine as _eng3
+        from sqlalchemy import text as _t3
+        async with _eng3.begin() as conn:
+            row = await conn.execute(_t3("SELECT COUNT(*) FROM drug_interactions"))
+            count = row.scalar() or 0
+            if count < 20:  # only seed if table has few records
+                import json as _json3
+                from pathlib import Path as _P3
+                seed_path = _P3(__file__).resolve().parents[1] / "seeds" / "icu_drug_interactions.json"
+                if seed_path.exists():
+                    interactions = _json3.loads(seed_path.read_text("utf-8"))
+                    for ix in interactions:
+                        await conn.execute(_t3(
+                            "INSERT INTO drug_interactions (drug1, drug2, severity, mechanism, clinical_effect, management, \"references\") "
+                            "SELECT :d1, :d2, :sev, :mech, :ce, :mgmt, :ref "
+                            "WHERE NOT EXISTS (SELECT 1 FROM drug_interactions WHERE LOWER(drug1)=LOWER(:d1) AND LOWER(drug2)=LOWER(:d2))"
+                        ).bindparams(
+                            d1=ix["drug1"], d2=ix["drug2"], sev=ix["severity"],
+                            mech=ix.get("mechanism",""), ce=ix.get("clinical_effect",""),
+                            mgmt=ix.get("management",""), ref=ix.get("references",""),
+                        ))
+                    logger.info("[INTG][DB] Seeded %d ICU drug interactions", len(interactions))
+    except Exception as e:
+        logger.warning("[INTG][DB] ICU drug interactions seed failed (non-fatal): %s", e)
+
     # Auto-index RAG documents: try persisted → check fingerprint → rebuild if needed
     if getattr(settings, "RAG_AUTO_INDEX_ON_STARTUP", True):
         from app.services.llm_services.rag_service import rag_service

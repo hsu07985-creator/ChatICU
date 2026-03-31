@@ -563,8 +563,12 @@ async def interaction_check(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Check drug-drug interactions via the Evidence RAG rule engine."""
+    """Check drug-drug interactions via Evidence RAG → DrugGraph → DB fallback."""
     pc = req.patient_context.model_dump(exclude_none=True) if req.patient_context else None
+    source_used = "evidence_engine"
+    result = None
+
+    # 1. Try Evidence RAG engine (func/ microservice)
     try:
         result = await asyncio.to_thread(
             evidence_client.interaction_check,
@@ -572,22 +576,104 @@ async def interaction_check(
             patient_context=pc,
             **evidence_trace_kwargs(request),
         )
-    except httpx.ConnectError:
-        raise HTTPException(
-            status_code=503,
-            detail="Evidence engine service unavailable. Please start the func/ service and try again.",
-        )
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Evidence engine error: upstream returned {e.response.status_code}",
-        )
+    except (httpx.ConnectError, httpx.HTTPStatusError, Exception) as exc:
+        logger.info("[INTG][CLINICAL] Evidence engine unavailable (%s), trying DrugGraph", type(exc).__name__)
+
+    # 2. Fallback: DrugGraph bridge (local graph with 352 drugs / 1145 interactions)
+    if result is None:
+        from app.services.drug_graph_bridge import drug_graph_bridge
+        drugs = req.drug_list[:10]
+        graph_findings: list = []
+        severity_rank = {"contraindicated": 5, "major": 4, "moderate": 3, "minor": 2, "unknown": 1}
+        max_severity = "none"
+
+        # Check all drug pairs
+        for i in range(len(drugs)):
+            for j in range(i + 1, len(drugs)):
+                rows = await asyncio.to_thread(
+                    drug_graph_bridge.search_interactions,
+                    drug_a=drugs[i], drug_b=drugs[j], page=1, limit=50,
+                )
+                for row in rows:
+                    sev = row.get("severity", "unknown")
+                    if severity_rank.get(sev, 0) > severity_rank.get(max_severity, 0):
+                        max_severity = sev
+                    graph_findings.append({
+                        "drug_a": row.get("drug1", drugs[i]),
+                        "drug_b": row.get("drug2", drugs[j]),
+                        "severity": sev,
+                        "mechanism": row.get("mechanism", ""),
+                        "clinical_effect": row.get("clinicalEffect", ""),
+                        "recommended_action": row.get("management", ""),
+                        "dose_adjustment_hint": row.get("references", ""),
+                        "source": "drug_graph",
+                        "riskLevel": row.get("riskLevel", ""),
+                    })
+
+        if graph_findings:
+            result = {
+                "overall_severity": max_severity,
+                "findings": graph_findings,
+                "source": "drug_graph",
+            }
+            source_used = "drug_graph"
+
+    # 3. Fallback: database (seed data)
+    if result is None:
+        from sqlalchemy import or_
+        from app.models.drug_interaction import DrugInteraction
+        drugs = req.drug_list[:10]
+        db_findings: list = []
+        severity_rank_db = {"major": 4, "moderate": 3, "minor": 2}
+        max_sev_db = "none"
+
+        for i in range(len(drugs)):
+            for j in range(i + 1, len(drugs)):
+                da, db_ = drugs[i], drugs[j]
+                from app.utils.response import escape_like
+                query = select(DrugInteraction).where(
+                    or_(
+                        DrugInteraction.drug1.ilike(f"%{escape_like(da)}%"),
+                        DrugInteraction.drug2.ilike(f"%{escape_like(da)}%"),
+                    )
+                ).where(
+                    or_(
+                        DrugInteraction.drug1.ilike(f"%{escape_like(db_)}%"),
+                        DrugInteraction.drug2.ilike(f"%{escape_like(db_)}%"),
+                    )
+                )
+                rows_result = await db.execute(query.limit(50))
+                for row in rows_result.scalars().all():
+                    sev = row.severity or "unknown"
+                    if severity_rank_db.get(sev, 0) > severity_rank_db.get(max_sev_db, 0):
+                        max_sev_db = sev
+                    db_findings.append({
+                        "drug_a": row.drug1,
+                        "drug_b": row.drug2,
+                        "severity": sev,
+                        "mechanism": row.mechanism or "",
+                        "clinical_effect": row.clinical_effect or "",
+                        "recommended_action": row.management or "",
+                        "dose_adjustment_hint": row.references or "",
+                        "source": "database",
+                    })
+
+        result = {
+            "overall_severity": max_sev_db,
+            "findings": db_findings,
+            "source": "database",
+        }
+        source_used = "database"
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="交互作用查詢", target=",".join(req.drug_list[:5]), status="success",
         ip=request.client.host if request.client else None,
-        details={"drug_count": len(req.drug_list), "overall_severity": result.get("overall_severity")},
+        details={
+            "drug_count": len(req.drug_list),
+            "overall_severity": result.get("overall_severity"),
+            "source": source_used,
+        },
     )
 
     return success_response(data=result)

@@ -113,6 +113,15 @@ class Settings(BaseSettings):
     RAG_CONTEXTUAL_MAX_DOC_CHARS: int = 8000  # truncate long docs for context prompt
     RAG_CONTEXTUAL_WORKERS: int = 8  # parallel LLM calls for context generation
 
+    # Drug Interaction Graph (local DrugData)
+    DRUG_GRAPH_ENABLED: bool = True
+    DRUG_GRAPH_SCRIPT_PATH: str = str(
+        Path(__file__).resolve().parents[2] / "data" / "drug_interactions" / "DrugData" / "drug_graph_rag.py"
+    )
+    DRUG_GRAPH_DATA_ROOT: str = str(
+        Path(__file__).resolve().parents[2] / "data" / "drug_interactions" / "DrugData"
+    )
+
     # Layer2 structured data store (JSONL files)
     LAYER2_ROOT: str = ""
 
