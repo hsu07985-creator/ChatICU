@@ -1,16 +1,8 @@
-import { forwardRef, useState } from 'react';
-import { Check, ChevronsUpDown, X } from 'lucide-react';
+import { forwardRef, useMemo, useState } from 'react';
+import { Check, ChevronsUpDown, X, Search } from 'lucide-react';
 import { cn } from './utils';
 import { buttonVariants } from './button';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from './command';
 
 interface DrugComboboxProps {
   value: string;
@@ -19,6 +11,8 @@ interface DrugComboboxProps {
   drugList: string[];
   disabled?: boolean;
 }
+
+const MAX_DISPLAY = 50;
 
 const TriggerButton = forwardRef<
   HTMLButtonElement,
@@ -46,9 +40,37 @@ export function DrugCombobox({
   disabled,
 }: DrugComboboxProps) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    const startsWith: string[] = [];
+    const contains: string[] = [];
+    for (const drug of drugList) {
+      const lower = drug.toLowerCase();
+      if (lower.startsWith(q)) {
+        startsWith.push(drug);
+      } else if (lower.includes(q)) {
+        contains.push(drug);
+      }
+      if (startsWith.length + contains.length >= MAX_DISPLAY) break;
+    }
+    return [...startsWith, ...contains].slice(0, MAX_DISPLAY);
+  }, [search, drugList]);
+
+  const totalMatches = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return 0;
+    let count = 0;
+    for (const drug of drugList) {
+      if (drug.toLowerCase().includes(q)) count++;
+    }
+    return count;
+  }, [search, drugList]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(''); }}>
       <PopoverTrigger asChild>
         <TriggerButton
           role="combobox"
@@ -72,41 +94,91 @@ export function DrugCombobox({
         </TriggerButton>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[--radix-popover-trigger-width] max-h-[300px] overflow-hidden p-0"
+        className="w-[--radix-popover-trigger-width] max-h-[340px] overflow-hidden p-0"
         align="start"
         side="bottom"
         sideOffset={4}
         collisionPadding={8}
       >
-        <Command>
-          <CommandInput placeholder="輸入藥品名稱篩選..." />
-          <CommandList style={{ maxHeight: 240, overflowY: 'auto' }}>
-            <CommandEmpty>找不到符合的藥品</CommandEmpty>
-            <CommandGroup>
-              {drugList.map((drug) => (
-                <CommandItem
+        {/* Search input */}
+        <div className="flex h-9 items-center gap-2 border-b px-3">
+          <Search className="size-4 shrink-0 opacity-50" />
+          <input
+            className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            placeholder="輸入藥品名稱篩選..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            autoFocus
+          />
+          {search && (
+            <X
+              className="size-3.5 shrink-0 opacity-50 hover:opacity-100 cursor-pointer"
+              onClick={() => setSearch('')}
+            />
+          )}
+        </div>
+
+        {/* Results */}
+        <div className="max-h-[260px] overflow-y-auto scroll-py-1 p-1">
+          {!search.trim() ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              請輸入藥品名稱開始搜尋
+            </p>
+          ) : filtered.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              找不到符合的藥品
+            </p>
+          ) : (
+            <>
+              {filtered.map((drug) => (
+                <button
                   key={drug}
-                  value={drug}
-                  onSelect={(selected) => {
-                    onValueChange(selected === value ? '' : selected);
+                  type="button"
+                  className={cn(
+                    'relative flex w-full cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none',
+                    'hover:bg-accent hover:text-accent-foreground',
+                    value?.toLowerCase() === drug.toLowerCase() && 'bg-accent',
+                  )}
+                  onClick={() => {
+                    onValueChange(drug === value ? '' : drug);
                     setOpen(false);
+                    setSearch('');
                   }}
                 >
                   <Check
                     className={cn(
-                      'mr-2 h-4 w-4',
+                      'mr-1 h-4 w-4 shrink-0',
                       value?.toLowerCase() === drug.toLowerCase()
                         ? 'opacity-100'
                         : 'opacity-0',
                     )}
                   />
-                  {drug}
-                </CommandItem>
+                  <HighlightMatch text={drug} query={search.trim()} />
+                </button>
               ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
+              {totalMatches > MAX_DISPLAY && (
+                <p className="py-2 text-center text-xs text-muted-foreground">
+                  顯示前 {MAX_DISPLAY} 筆，共 {totalMatches} 筆符合，請輸入更多字元縮小範圍
+                </p>
+              )}
+            </>
+          )}
+        </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+/** Highlight the matching substring in the drug name */
+function HighlightMatch({ text, query }: { text: string; query: string }) {
+  if (!query) return <span>{text}</span>;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return <span>{text}</span>;
+  return (
+    <span>
+      {text.slice(0, idx)}
+      <span className="font-semibold text-foreground">{text.slice(idx, idx + query.length)}</span>
+      {text.slice(idx + query.length)}
+    </span>
   );
 }
