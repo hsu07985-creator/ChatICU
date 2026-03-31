@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   getClinicalSummary,
   getPatientExplanation,
+  getGuidelineInterpretation,
   getDecisionSupport,
   getReadinessReason,
   type AIReadiness,
@@ -18,6 +19,7 @@ import {
   FileText,
   Sparkles,
   BookOpen,
+  Search,
   Shield,
   Copy,
   ChevronDown,
@@ -66,6 +68,11 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
   const [explanationFreshness, setExplanationFreshness] = useState<DataFreshness | null>(null);
   const [isGeneratingExplanation, setIsGeneratingExplanation] = useState(false);
   const [readingLevel, setReadingLevel] = useState<'simple' | 'moderate' | 'detailed'>('moderate');
+  const [guidelineScenario, setGuidelineScenario] = useState('');
+  const [guidelineResult, setGuidelineResult] = useState('');
+  const [guidelineWarnings, setGuidelineWarnings] = useState<string[] | null>(null);
+  const [guidelineFreshness, setGuidelineFreshness] = useState<DataFreshness | null>(null);
+  const [isGeneratingGuideline, setIsGeneratingGuideline] = useState(false);
   const [decisionQuestion, setDecisionQuestion] = useState('');
   const [decisionResult, setDecisionResult] = useState('');
   const [decisionWarnings, setDecisionWarnings] = useState<string[] | null>(null);
@@ -266,6 +273,69 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
                   className="mt-2"
                   onClick={async () => {
                     const ok = await copyToClipboard(explanationResult);
+                    ok ? toast.success('已複製') : toast.error('複製失敗');
+                  }}
+                >
+                  <Copy className="mr-1 h-3 w-3" /> 複製
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border border-emerald-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Search className="h-4 w-4 text-emerald-600" />
+              臨床指引查詢
+            </CardTitle>
+            <CardDescription className="text-xs">
+              依據 RAG 知識庫查詢臨床指引建議，支援藥物、治療方案等主題
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 pt-0">
+            <Textarea
+              placeholder="輸入臨床情境，例如：ICU 病患使用 Meropenem 的劑量建議？ARDS 的肺保護性通氣策略？"
+              value={guidelineScenario}
+              onChange={(e) => setGuidelineScenario(e.target.value)}
+              className="min-h-[64px] border border-emerald-200"
+            />
+            <Button
+              size="sm"
+              onClick={async () => {
+                if (!guidelineScenario.trim()) return;
+                setIsGeneratingGuideline(true);
+                try {
+                  const result = await getGuidelineInterpretation({
+                    patientId: patient.id,
+                    scenario: guidelineScenario,
+                  });
+                  setGuidelineResult(result.interpretation);
+                  setGuidelineWarnings(result.safetyWarnings || null);
+                  setGuidelineFreshness(result.dataFreshness || null);
+                } catch {
+                  toast.error('指引查詢失敗，請稍後再試');
+                } finally {
+                  setIsGeneratingGuideline(false);
+                }
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700"
+              disabled={isGeneratingGuideline || !guidelineScenario.trim()}
+            >
+              <Search className="mr-2 h-4 w-4" />
+              {isGeneratingGuideline ? '查詢中...' : '查詢臨床指引'}
+            </Button>
+            {guidelineResult && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                <AiMarkdown content={guidelineResult} className="text-sm" />
+                <SafetyWarnings warnings={guidelineWarnings} />
+                <DataFreshnessHint dataFreshness={guidelineFreshness} />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={async () => {
+                    const ok = await copyToClipboard(guidelineResult);
                     ok ? toast.success('已複製') : toast.error('複製失敗');
                   }}
                 >

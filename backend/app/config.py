@@ -30,7 +30,7 @@ class Settings(BaseSettings):
 
     # Auth cookies (httpOnly JWT transport)
     COOKIE_SECURE: bool = True   # auto-overridden to False when DEBUG=True
-    COOKIE_SAMESITE: str = "lax"
+    COOKIE_SAMESITE: str = "none"
 
     # JWT — JWT_SECRET MUST be set via .env; no usable default.
     JWT_SECRET: str = ""

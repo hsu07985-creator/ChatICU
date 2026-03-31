@@ -231,7 +231,7 @@ def set_auth_cookies(response, access_token: str, refresh_token: str) -> None:
         secure=secure,
         samesite=samesite,
         max_age=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS * 86400,
-        path="/auth",
+        path="/",
     )
     # Non-httpOnly indicator so frontend can check login state without /auth/me
     response.set_cookie(
@@ -248,5 +248,5 @@ def set_auth_cookies(response, access_token: str, refresh_token: str) -> None:
 def clear_auth_cookies(response) -> None:
     """Clear all auth cookies."""
     response.delete_cookie(COOKIE_ACCESS_KEY, path="/")
-    response.delete_cookie(COOKIE_REFRESH_KEY, path="/auth")
+    response.delete_cookie(COOKIE_REFRESH_KEY, path="/")
     response.delete_cookie(COOKIE_LOGGED_IN_KEY, path="/")

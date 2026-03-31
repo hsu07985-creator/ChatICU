@@ -126,6 +126,8 @@ export function LoginPage() {
                   placeholder="請輸入帳號"
                   className="h-12 border-[#e5e7eb] bg-white"
                   required
+                  minLength={1}
+                  autoComplete="username"
                 />
               </div>
 
@@ -142,6 +144,8 @@ export function LoginPage() {
                   placeholder="請輸入密碼"
                   className="h-12 border-[#e5e7eb] bg-white"
                   required
+                  minLength={1}
+                  autoComplete="current-password"
                 />
 
                 {/* Spacer */}

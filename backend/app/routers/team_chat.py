@@ -83,7 +83,7 @@ async def send_team_chat(
         action="發送團隊訊息", target=msg.id, status="success",
         ip=request.client.host if request.client else None,
     )
-    await db.flush()
+    await db.commit()
 
     return success_response(data=chat_to_dict(msg), message="訊息已發送")
 
@@ -117,6 +117,8 @@ async def toggle_pin_message(
         action=action_text, target=message_id, status="success",
         ip=request.client.host if request.client else None,
     )
+
+    await db.commit()
 
     action = "已置頂" if msg.pinned else "已取消置頂"
     return success_response(data=chat_to_dict(msg), message=f"訊息{action}")
