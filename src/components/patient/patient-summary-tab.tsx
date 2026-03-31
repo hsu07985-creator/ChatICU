@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   getClinicalSummary,
-  getDecisionSupport,
   getReadinessReason,
   type AIReadiness,
   type DataFreshness,
@@ -10,15 +9,11 @@ import {
 import { copyToClipboard } from '../../lib/clipboard-utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Textarea } from '../ui/textarea';
 import { AiMarkdown, SafetyWarnings } from '../ui/ai-markdown';
 import {
   FileText,
   Sparkles,
-  Shield,
   Copy,
-  ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -53,20 +48,11 @@ function DataFreshnessHint({ dataFreshness }: { dataFreshness?: DataFreshness | 
   );
 }
 
-export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }: PatientSummaryTabProps) {
+export function PatientSummaryTab({ patient, aiReadiness }: PatientSummaryTabProps) {
   const [aiSummary, setAiSummary] = useState('');
   const [summaryWarnings, setSummaryWarnings] = useState<string[] | null>(null);
   const [summaryFreshness, setSummaryFreshness] = useState<DataFreshness | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-  const [decisionQuestion, setDecisionQuestion] = useState('');
-  const [decisionResult, setDecisionResult] = useState('');
-  const [decisionWarnings, setDecisionWarnings] = useState<string[] | null>(null);
-  const [decisionFreshness, setDecisionFreshness] = useState<DataFreshness | null>(null);
-  const [isGeneratingDecision, setIsGeneratingDecision] = useState(false);
-  const [showAssessments, setShowAssessments] = useState(false);
-  const [nephrologistOpinion, setNephrologistOpinion] = useState('');
-  const [pharmacistOpinion, setPharmacistOpinion] = useState('');
-  const [nursingOpinion, setNursingOpinion] = useState('');
 
   const symptoms = Array.isArray(patient.symptoms) ? patient.symptoms : [];
   const summaryFields = [
@@ -78,9 +64,7 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
     { label: 'Patient ID', value: patient.id || '-' },
   ];
   const canSummary = aiReadiness ? aiReadiness.feature_gates.clinical_summary : true;
-  const canDecision = aiReadiness ? aiReadiness.feature_gates.decision_support : true;
   const summaryReason = getReadinessReason(aiReadiness, 'clinical_summary');
-  const decisionReason = getReadinessReason(aiReadiness, 'decision_support');
 
   return (
     <div className="space-y-3">
@@ -190,126 +174,6 @@ export function PatientSummaryTab({ patient, userRole, ragStatus, aiReadiness }:
           </CardContent>
         </Card>
       </div>
-
-      {(userRole === 'doctor' || userRole === 'admin') && (
-        <div>
-          <Card className="border border-amber-200">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Shield className="h-4 w-4 text-amber-600" />
-                多角色決策支援
-                <Badge variant="outline" className="text-xs border-amber-400 text-amber-600">醫師專用</Badge>
-              </CardTitle>
-              <CardDescription className="text-xs">整合多科別評估意見，產生統合性臨床建議</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 pt-0">
-              <Textarea
-                placeholder="輸入臨床問題，例如：是否應該從 Midazolam 轉換為 Propofol？腎功能持續下降是否需要 CRRT？"
-                value={decisionQuestion}
-                onChange={(e) => setDecisionQuestion(e.target.value)}
-                className="min-h-[64px] border border-amber-200"
-              />
-              <button
-                type="button"
-                onClick={() => setShowAssessments(!showAssessments)}
-                className="flex items-center gap-1 text-sm text-amber-700 hover:text-amber-900"
-              >
-                <ChevronDown className={`h-4 w-4 transition-transform ${showAssessments ? 'rotate-180' : ''}`} />
-                多科別評估意見（選填）
-              </button>
-              {showAssessments && (
-                <div className="space-y-2 pl-2 border-l-2 border-amber-200">
-                  <div>
-                    <label className="text-xs text-amber-700 font-medium">腎臟科意見（選填）</label>
-                    <Textarea
-                      placeholder="例如：eGFR 持續下降至 28，建議評估 CRRT 時機"
-                      value={nephrologistOpinion}
-                      onChange={(e) => setNephrologistOpinion(e.target.value)}
-                      className="min-h-[44px] border border-amber-200 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-amber-700 font-medium">藥師意見（選填）</label>
-                    <Textarea
-                      placeholder="例如：Meropenem 需根據腎功能調整劑量，建議 0.5g Q8H"
-                      value={pharmacistOpinion}
-                      onChange={(e) => setPharmacistOpinion(e.target.value)}
-                      className="min-h-[44px] border border-amber-200 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-amber-700 font-medium">護理觀點（選填）</label>
-                    <Textarea
-                      placeholder="例如：病人躁動頻繁，RASS -1 到 +2 波動，翻身時 SpO2 會掉到 88%"
-                      value={nursingOpinion}
-                      onChange={(e) => setNursingOpinion(e.target.value)}
-                      className="min-h-[44px] border border-amber-200 text-sm"
-                    />
-                  </div>
-                </div>
-              )}
-              <Button
-                size="sm"
-                onClick={async () => {
-                  if (!decisionQuestion.trim()) return;
-                  if (!canDecision) {
-                    toast.error(decisionReason);
-                    return;
-                  }
-                  setIsGeneratingDecision(true);
-                  try {
-                    const assessments: Array<Record<string, unknown>> = [];
-                    if (nephrologistOpinion.trim()) {
-                      assessments.push({ agent: 'nephrologist', opinion: nephrologistOpinion.trim() });
-                    }
-                    if (pharmacistOpinion.trim()) {
-                      assessments.push({ agent: 'pharmacist', opinion: pharmacistOpinion.trim() });
-                    }
-                    if (nursingOpinion.trim()) {
-                      assessments.push({ agent: 'nurse', opinion: nursingOpinion.trim() });
-                    }
-                    const result = await getDecisionSupport({
-                      patientId: patient.id,
-                      question: decisionQuestion,
-                      assessments: assessments.length > 0 ? assessments : undefined,
-                    });
-                    setDecisionResult(result.recommendation);
-                    setDecisionWarnings(result.safetyWarnings || null);
-                    setDecisionFreshness(result.dataFreshness || null);
-                  } catch {
-                    toast.error('決策支援生成失敗');
-                  } finally {
-                    setIsGeneratingDecision(false);
-                  }
-                }}
-                className="bg-amber-600 hover:bg-amber-700"
-                disabled={isGeneratingDecision || !decisionQuestion.trim() || !canDecision}
-              >
-                <Shield className="mr-2 h-4 w-4" />
-                {isGeneratingDecision ? '分析中...' : '產生決策建議'}
-              </Button>
-              {decisionResult && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                  <AiMarkdown content={decisionResult} className="text-sm" />
-                  <SafetyWarnings warnings={decisionWarnings} />
-                  <DataFreshnessHint dataFreshness={decisionFreshness} />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                    onClick={async () => {
-                      const ok = await copyToClipboard(decisionResult);
-                      ok ? toast.success('已複製') : toast.error('複製失敗');
-                    }}
-                  >
-                    <Copy className="mr-1 h-3 w-3" /> 複製
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   );
 }
