@@ -1,13 +1,16 @@
-import { Search, Plus, BookOpen, AlertTriangle, AlertCircle, Info, Loader2, ShieldAlert, Route, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Search, Plus, BookOpen, AlertTriangle, AlertCircle, Info, Loader2, ShieldAlert, Route, X, User } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Separator } from '../../components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { toast } from 'sonner';
 import { checkInteractions, type InteractionCheckResponse } from '../../lib/api/ai';
 import { getDrugInteractions } from '../../lib/api/pharmacy';
+import { getPatients, type Patient } from '../../lib/api/patients';
+import { getMedications } from '../../lib/api/medications';
 import { copyToClipboard } from '../../lib/clipboard-utils';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
 import { DRUG_LIST, hasInteractionData } from '../../lib/drug-list';
@@ -51,12 +54,88 @@ const RISK_RATING_CONFIG: Record<string, { label: string; color: string; bgColor
 
 const MIN_DRUGS = 2;
 
+// Pre-compute alpha-only lowercase for Tall Man Lettering matching
+const DRUG_LIST_ALPHA = DRUG_LIST.map(d => ({ original: d, alpha: d.replace(/[^a-zA-Z]/g, '').toLowerCase() }));
+
+function matchDrugName(medName: string): string | null {
+  const lower = medName.toLowerCase();
+  // 1. Exact match
+  const exact = DRUG_LIST.find(d => d.toLowerCase() === lower);
+  if (exact) return exact;
+  // 2. Alpha-only match (handles Tall Man Lettering: "Fentanyl" → "FentaNYL")
+  const alpha = medName.replace(/[^a-zA-Z]/g, '').toLowerCase();
+  const found = DRUG_LIST_ALPHA.find(d => d.alpha === alpha);
+  if (found) return found.original;
+  // 3. First word prefix match (handles "Acetaminophen 500mg" → "Acetaminophen")
+  const firstWord = lower.split(/[\s(,/]/)[0];
+  if (firstWord.length >= 3) {
+    const fw = firstWord.replace(/[^a-z]/g, '');
+    const prefixMatch = DRUG_LIST_ALPHA.find(d => d.alpha.startsWith(fw));
+    if (prefixMatch) return prefixMatch.original;
+  }
+  return null;
+}
+
 export function DrugInteractionsPage() {
   const [drugs, setDrugs] = useState<string[]>(['', '']);
   const [searchResults, setSearchResults] = useState<DisplayInteraction[]>([]);
   const [overallSeverity, setOverallSeverity] = useState<string>('');
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Patient selector state
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [patientsLoading, setPatientsLoading] = useState(false);
+  const [selectedPatientId, setSelectedPatientId] = useState<string>('');
+  const [medsLoading, setMedsLoading] = useState(false);
+
+  // Load patient list on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setPatientsLoading(true);
+      try {
+        const res = await getPatients({ limit: 200 });
+        if (!cancelled) setPatients(res.patients);
+      } catch {
+        if (!cancelled) toast.error('無法載入病患列表');
+      } finally {
+        if (!cancelled) setPatientsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // When patient is selected, load their active medications
+  const handlePatientSelect = useCallback(async (patientId: string) => {
+    setSelectedPatientId(patientId);
+    if (!patientId) return;
+
+    setMedsLoading(true);
+    try {
+      const resp = await getMedications(patientId, { status: 'active', limit: 200 });
+      const allMeds = resp.medications || [];
+      const names = [...new Set(allMeds.map(m => m.name).filter(Boolean))];
+      const matched = [...new Set(names.map(matchDrugName).filter((v): v is string => v !== null))];
+
+      if (matched.length === 0) {
+        toast('該病患目前無可比對的用藥');
+        return;
+      }
+
+      const newDrugs = matched.length >= MIN_DRUGS
+        ? matched
+        : [...matched, ...Array(MIN_DRUGS - matched.length).fill('')];
+      setDrugs(newDrugs);
+      setSearchResults([]);
+      setHasSearched(false);
+      toast.success(`已載入 ${matched.length} 種用藥`);
+    } catch {
+      toast.error('載入病患用藥失敗');
+    } finally {
+      setMedsLoading(false);
+    }
+  }, []);
 
   const updateDrug = (index: number, value: string) => {
     setDrugs(prev => prev.map((d, i) => i === index ? value : d));
@@ -314,6 +393,52 @@ export function DrugInteractionsPage() {
           <CardDescription>選擇至少兩種藥品，系統將自動比對所有兩兩組合的交互作用</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* 病患選擇（可選） */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium w-16 shrink-0">
+              <User className="inline h-3.5 w-3.5 mr-1" />
+              病患
+            </label>
+            <div className="flex-1">
+              <Select value={selectedPatientId} onValueChange={handlePatientSelect} disabled={patientsLoading}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder={patientsLoading ? '載入中...' : '選擇病患自動帶入用藥（可選）'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {patients.map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.bedNumber} — {p.name}（{p.medicalRecordNumber}）
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedPatientId && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0 h-9 w-9 text-muted-foreground hover:text-destructive"
+                onClick={() => {
+                  setSelectedPatientId('');
+                  setDrugs(['', '']);
+                  setSearchResults([]);
+                  setHasSearched(false);
+                }}
+                aria-label="清除病患選擇"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          {medsLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              載入病患用藥中...
+            </div>
+          )}
+
+          <Separator />
+
           <div className="space-y-3">
             {drugs.map((drug, index) => (
               <div key={index} className="flex items-center gap-2">
@@ -376,6 +501,7 @@ export function DrugInteractionsPage() {
                 setDrugs(['', '']);
                 setSearchResults([]);
                 setHasSearched(false);
+                setSelectedPatientId('');
               }}
             >
               清除
