@@ -294,6 +294,62 @@ export async function getAdviceRecordStats(params?: { month?: string }): Promise
   return ensureData(response.data, 'API contract');
 }
 
+// ========== PAD 劑量計算 ==========
+
+export interface PadDrugInfo {
+  key: string;
+  label: string;
+  concentration: number;
+  concentration_unit: string;
+  dose_unit: string;
+  dose_range: string;
+  weight_basis: string;
+}
+
+export interface PadDrugsResponse {
+  drugs: PadDrugInfo[];
+}
+
+export async function getPadDrugs(): Promise<PadDrugsResponse> {
+  const response = await apiClient.get<ApiResponse<PadDrugsResponse>>(
+    '/pharmacy/pad-drugs'
+  );
+  return ensureData(response.data, 'API contract');
+}
+
+export interface PadCalculateRequest {
+  drug: string;
+  weight_kg: number;
+  target_dose_per_kg_hr: number;
+  concentration: number;
+  sex?: string;
+  height_cm?: number;
+}
+
+export interface PadCalculateResult {
+  drug: string;
+  BMI?: number;
+  IBW_kg?: number;
+  AdjBW_kg?: number;
+  pct_IBW?: number;
+  is_obese?: boolean;
+  weight_basis: string;
+  dosing_weight_kg: number;
+  dose_per_hr: number;
+  rate_ml_hr: number;
+  concentration: string;
+  note?: string;
+  steps: string[];
+}
+
+export async function padCalculate(data: PadCalculateRequest): Promise<PadCalculateResult> {
+  const response = await apiClient.post<ApiResponse<PadCalculateResult>>(
+    '/pharmacy/pad-calculate',
+    data
+  );
+  return ensureData(response.data, 'API contract');
+}
+
 // 導出所有 API 函數
 export const pharmacyApi = {
   getErrorReports,

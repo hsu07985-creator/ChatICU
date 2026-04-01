@@ -494,45 +494,6 @@ export function CompatibilityPage() {
                 </>
               )}
 
-              {/* 詳細相容列表 */}
-              {matrixResults.filter(r => r.status === 'C').length > 0 && (
-                <>
-                  <h2>相容組合</h2>
-                  <div className="grid gap-3">
-                    {matrixResults.filter(r => r.status === 'C').map((r, i) => (
-                      <Card key={i} className="border-green-200">
-                        <CardContent className="py-3 flex items-center gap-3">
-                          <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
-                          <div>
-                            <span className="font-medium">{r.drugA} + {r.drugB}</span>
-                            <Badge variant="outline" className="ml-2 text-xs border-green-300 text-green-700">相容</Badge>
-                            {r.notes && <p className="text-sm text-muted-foreground mt-0.5">{r.notes}</p>}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* 無資料列表 */}
-              {matrixResults.filter(r => r.status === '-').length > 0 && (
-                <>
-                  <h2>無資料組合</h2>
-                  <Alert>
-                    <HelpCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      以下組合尚無 Y-Site 相容性資料，建議使用分開的輸注管路或諮詢藥劑部門：
-                      <ul className="mt-1 list-disc ml-5 space-y-0.5">
-                        {matrixResults.filter(r => r.status === '-').map((r, i) => (
-                          <li key={i}>{r.drugA} + {r.drugB}</li>
-                        ))}
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                </>
-              )}
-
               <p className="text-xs text-muted-foreground">資料來源：陽明院區 Y-site compatibility 資料整理（8 科 ICU）</p>
             </>
           )}

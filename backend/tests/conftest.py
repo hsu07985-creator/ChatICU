@@ -64,7 +64,7 @@ async def seeded_db(db_session):
     )
     patient = Patient(
         id="pat_001",
-        name="張三",
+        name="許先生",
         bed_number="I-1",
         medical_record_number="123456",
         age=65,

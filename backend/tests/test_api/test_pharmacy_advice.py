@@ -31,7 +31,7 @@ async def test_create_advice_record(client):
     assert data["success"] is True
     record = data["data"]
     assert record["patientId"] == "pat_001"
-    assert record["patientName"] == "張三"
+    assert record["patientName"] == "許先生"
     assert record["bedNumber"] == "I-1"
     assert record["adviceCode"] == "1-4"
     assert record["adviceLabel"] == "用藥劑量/頻次問題"

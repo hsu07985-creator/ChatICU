@@ -49,7 +49,7 @@ async def test_ai_chat_with_patient_context(client):
     assert last_msg["role"] == "user"
     assert "病患資料" in last_msg["content"]
     assert "pat_001" in last_msg["content"]
-    assert "張三" in last_msg["content"]
+    assert "許先生" in last_msg["content"]
     assert "What is the patient status?" in last_msg["content"]
 
 

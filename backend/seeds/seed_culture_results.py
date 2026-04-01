@@ -14,7 +14,7 @@ from sqlalchemy.orm import sessionmaker
 from app.config import settings
 
 CULTURES = [
-    # pat_001 張三 — 重度肺炎: sputum cultures with S. maltophilia
+    # pat_001 許先生 — 重度肺炎: sputum cultures with S. maltophilia
     {
         "patient_id": "pat_001",
         "sheet_number": "M11411L014001",
@@ -67,7 +67,7 @@ CULTURES = [
         "isolates": [],
         "susceptibility": [],
     },
-    # pat_002 李四 — 敗血性休克: blood + urine cultures
+    # pat_002 林小姐 — 敗血性休克: blood + urine cultures
     {
         "patient_id": "pat_002",
         "sheet_number": "M11411L020001",
@@ -115,7 +115,7 @@ CULTURES = [
         "isolates": [],
         "susceptibility": [],
     },
-    # pat_003 王五 — 急性腎衰竭: urine culture with Candida
+    # pat_003 陳女士 — 急性腎衰竭: urine culture with Candida
     {
         "patient_id": "pat_003",
         "sheet_number": "M11411L025001",
@@ -153,7 +153,7 @@ CULTURES = [
         "isolates": [],
         "susceptibility": [],
     },
-    # pat_004 趙六 — 創傷性腦損傷: wound + CSF cultures
+    # pat_004 黃先生 — 創傷性腦損傷: wound + CSF cultures
     {
         "patient_id": "pat_004",
         "sheet_number": "M11411L030001",
