@@ -92,6 +92,8 @@ export function DosagePage() {
     }
   }, [patients]);
 
+  const isFixedDose = drugInfo?.weight_basis === 'fixed';
+
   const handleCalculate = async () => {
     if (!selectedDrug) {
       toast.error('請選擇藥品');
@@ -101,11 +103,11 @@ export function DosagePage() {
       toast.error('請輸入體重');
       return;
     }
-    if (!targetDose || parseFloat(targetDose) < 0) {
+    if (!isFixedDose && (!targetDose || parseFloat(targetDose) < 0)) {
       toast.error('請輸入目標劑量');
       return;
     }
-    if (!concentration || parseFloat(concentration) <= 0) {
+    if (!isFixedDose && (!concentration || parseFloat(concentration) <= 0)) {
       toast.error('請輸入藥物濃度');
       return;
     }
@@ -115,9 +117,9 @@ export function DosagePage() {
       const res = await padCalculate({
         drug: selectedDrug,
         weight_kg: parseFloat(weight),
-        target_dose_per_kg_hr: parseFloat(targetDose),
-        concentration: parseFloat(concentration),
-        sex: sex || undefined,
+        target_dose_per_kg_hr: isFixedDose ? 0 : parseFloat(targetDose),
+        concentration: isFixedDose ? (drugInfo?.concentration || 1) : parseFloat(concentration),
+        sex: (sex && sex !== 'none') ? sex : undefined,
         height_cm: height ? parseFloat(height) : undefined,
       });
       setResult(res);
@@ -200,27 +202,6 @@ export function DosagePage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">
-                目標劑量 *
-                {drugInfo && (
-                  <span className="text-muted-foreground font-normal ml-1">
-                    ({drugInfo.dose_unit}，範圍：{drugInfo.dose_range})
-                  </span>
-                )}
-              </label>
-              <Input
-                type="number"
-                step="any"
-                placeholder={drugInfo ? `例：${drugInfo.dose_range.split('–')[0]}` : '選擇藥品後顯示'}
-                value={targetDose}
-                onChange={(e) => setTargetDose(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* 體重 / 濃度 */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
               <label className="text-sm font-medium">體重 (kg) *</label>
               <Input
                 type="number"
@@ -229,24 +210,56 @@ export function DosagePage() {
                 onChange={(e) => setWeight(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                濃度 *
-                {drugInfo && (
-                  <span className="text-muted-foreground font-normal ml-1">
-                    ({drugInfo.concentration_unit})
-                  </span>
-                )}
-              </label>
-              <Input
-                type="number"
-                step="any"
-                placeholder={drugInfo ? String(drugInfo.concentration) : ''}
-                value={concentration}
-                onChange={(e) => setConcentration(e.target.value)}
-              />
-            </div>
           </div>
+
+          {isFixedDose && drugInfo && (
+            <Alert>
+              <AlertDescription>
+                <strong>{drugInfo.label}</strong> 為固定劑量藥物（非體重依賴），建議劑量：{drugInfo.dose_range}。
+                不需輸入目標劑量與濃度。
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* 目標劑量 / 濃度 — 僅 weight-based 藥物需要 */}
+          {!isFixedDose && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  目標劑量 *
+                  {drugInfo && (
+                    <span className="text-muted-foreground font-normal ml-1">
+                      ({drugInfo.dose_unit}，範圍：{drugInfo.dose_range})
+                    </span>
+                  )}
+                </label>
+                <Input
+                  type="number"
+                  step="any"
+                  placeholder={drugInfo ? `例：${drugInfo.dose_range.split('–')[0]}` : '選擇藥品後顯示'}
+                  value={targetDose}
+                  onChange={(e) => setTargetDose(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  濃度 *
+                  {drugInfo && (
+                    <span className="text-muted-foreground font-normal ml-1">
+                      ({drugInfo.concentration_unit})
+                    </span>
+                  )}
+                </label>
+                <Input
+                  type="number"
+                  step="any"
+                  placeholder={drugInfo ? String(drugInfo.concentration) : ''}
+                  value={concentration}
+                  onChange={(e) => setConcentration(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
 
           {/* 身高 / 性別 (可選，肥胖調整用) */}
           <div className="grid gap-4 md:grid-cols-2">
@@ -260,6 +273,7 @@ export function DosagePage() {
                   <SelectValue placeholder="未指定" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none">未指定</SelectItem>
                   <SelectItem value="male">男</SelectItem>
                   <SelectItem value="female">女</SelectItem>
                 </SelectContent>
@@ -293,11 +307,24 @@ export function DosagePage() {
       {/* 結果 */}
       {result && (
         <div className="space-y-4">
-          {result.note && !result.rate_ml_hr ? (
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>{result.note}</AlertDescription>
-            </Alert>
+          {result.note && result.rate_ml_hr === 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>{drugInfo?.label || result.drug}</CardTitle>
+                <CardDescription>固定劑量藥物</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>{result.note}</AlertDescription>
+                </Alert>
+                {result.steps.length > 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    {result.steps.map((s, i) => <p key={i}>{s}</p>)}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           ) : (
             <>
               <Card>

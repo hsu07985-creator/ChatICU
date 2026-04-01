@@ -205,9 +205,9 @@ def _pad_calculate(req: PadCalculateRequest) -> PadCalculateResponse:
                 dosing_weight = weight_info["AdjBW_kg"]
                 weight_basis = "AdjBW (肥胖調整)"
                 steps.append(f"肥胖 (%IBW > 120%)，{drug_lower} 使用 AdjBW = {dosing_weight} kg")
-        elif req.weight_kg < weight_info.get("IBW_kg", req.weight_kg):
-            weight_basis = "TBW (體重低於 IBW)"
-            steps.append("體重低於 IBW，使用實際體重 (TBW)")
+        elif weight_info["pct_IBW"] < 90:
+            weight_basis = "TBW (體重偏低)"
+            steps.append(f"體重偏低 (%IBW={weight_info['pct_IBW']}% < 90%)，使用實際體重 (TBW)")
         else:
             steps.append("非肥胖，使用實際體重 (TBW)")
     else:
