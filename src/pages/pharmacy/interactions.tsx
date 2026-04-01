@@ -95,7 +95,7 @@ export function DrugInteractionsPage() {
     (async () => {
       setPatientsLoading(true);
       try {
-        const res = await getPatients({ limit: 200 });
+        const res = await getPatients({ limit: 100 });
         if (!cancelled) setPatients(res.patients);
       } catch {
         if (!cancelled) toast.error('無法載入病患列表');
