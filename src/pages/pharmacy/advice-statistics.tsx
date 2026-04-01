@@ -454,27 +454,25 @@ export function PharmacyAdviceStatisticsPage() {
             </Card>
           </div>
 
-          {/* Row 2: 水平長條圖 — 細項分析 */}
+          {/* Row 2: 直方圖 — 細項分析 */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">細項分析（{barData.length} 項）</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={Math.max(200, barData.length * 40 + 40)}>
-                <BarChart data={barData} layout="vertical" margin={{ top: 5, right: 40, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+              <ResponsiveContainer width="100%" height={340}>
+                <BarChart data={barData} margin={{ top: 20, right: 20, left: 0, bottom: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                   <XAxis
-                    type="number"
-                    allowDecimals={false}
+                    dataKey="code"
                     stroke="#6b7280"
                     tick={{ fontSize: 11 }}
                     axisLine={false}
                     tickLine={false}
+                    interval={0}
                   />
                   <YAxis
-                    type="category"
-                    dataKey="fullLabel"
-                    width={260}
+                    allowDecimals={false}
                     stroke="#6b7280"
                     tick={{ fontSize: 11 }}
                     axisLine={false}
@@ -483,9 +481,9 @@ export function PharmacyAdviceStatisticsPage() {
                   <Tooltip content={renderBarTooltip} />
                   <Bar
                     dataKey="count"
-                    radius={[0, 6, 6, 0]}
-                    barSize={24}
-                    label={{ position: 'right', fontSize: 13, fontWeight: 700 }}
+                    radius={[6, 6, 0, 0]}
+                    barSize={32}
+                    label={{ position: 'top', fontSize: 13, fontWeight: 700 }}
                   >
                     {barData.map((entry, i) => (
                       <Cell key={i} fill={entry.color} />
