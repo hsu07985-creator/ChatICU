@@ -238,11 +238,11 @@ export function DosagePage() {
                   目標劑量 *
                   {drugInfo && <span className="text-muted-foreground font-normal ml-0.5 text-[10px]">({drugInfo.dose_unit})</span>}
                 </label>
-                <Input type="number" step="any" className={`h-9 ${isDoseOutOfRange ? 'border-amber-500 focus-visible:ring-amber-500' : ''}`}
+                <Input type="number" step="any" className={`h-9 ${isDoseOutOfRange ? 'border-red-500 border-2 focus-visible:ring-red-500' : ''}`}
                   placeholder={drugInfo ? drugInfo.dose_range : ''} value={targetDose} onChange={(e) => setTargetDose(e.target.value)} />
                 {isDoseOutOfRange && doseRange && (
-                  <p className="text-[10px] text-amber-600 flex items-center gap-0.5">
-                    <AlertTriangle className="h-2.5 w-2.5 shrink-0" />超出範圍 {doseRange[0]}–{doseRange[1]}
+                  <p className="text-xs text-red-600 font-medium flex items-center gap-1">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />超出建議範圍 {doseRange[0]}–{doseRange[1]} {drugInfo?.dose_unit}
                   </p>
                 )}
               </div>
@@ -251,11 +251,11 @@ export function DosagePage() {
                   濃度 *
                   {drugInfo && <span className="text-muted-foreground font-normal ml-0.5 text-[10px]">({drugInfo.concentration_unit})</span>}
                 </label>
-                <Input type="number" step="any" className={`h-9 ${isConcentrationChanged ? 'border-amber-500 focus-visible:ring-amber-500' : ''}`}
+                <Input type="number" step="any" className={`h-9 ${isConcentrationChanged ? 'border-red-500 border-2 focus-visible:ring-red-500' : ''}`}
                   placeholder={drugInfo ? String(drugInfo.concentration) : ''} value={concentration} onChange={(e) => setConcentration(e.target.value)} />
                 {isConcentrationChanged && drugInfo && (
-                  <p className="text-[10px] text-amber-600 flex items-center gap-0.5">
-                    <AlertTriangle className="h-2.5 w-2.5 shrink-0" />預設 {drugInfo.concentration}
+                  <p className="text-xs text-red-600 font-medium flex items-center gap-1">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />與預設濃度不同（預設 {drugInfo.concentration} {drugInfo.concentration_unit}）
                   </p>
                 )}
               </div>
@@ -375,12 +375,16 @@ export function DosagePage() {
                     </div>
                   </div>
 
-                  {/* Body weight analysis (compact row) */}
+                  {/* Body weight analysis — only show weights relevant to dosing basis */}
                   {result.BMI != null && (
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs px-1">
                       <span><span className="text-muted-foreground">BMI</span> <span className="font-medium">{result.BMI}</span></span>
-                      <span><span className="text-muted-foreground">IBW</span> <span className="font-medium">{result.IBW_kg} kg</span></span>
-                      <span><span className="text-muted-foreground">AdjBW</span> <span className="font-medium">{result.AdjBW_kg} kg</span></span>
+                      {result.weight_basis.includes('IBW') && !result.weight_basis.includes('Adj') && (
+                        <span><span className="text-muted-foreground">IBW</span> <span className="font-medium">{result.IBW_kg} kg</span></span>
+                      )}
+                      {result.weight_basis.includes('AdjBW') && (
+                        <span><span className="text-muted-foreground">AdjBW</span> <span className="font-medium">{result.AdjBW_kg} kg</span></span>
+                      )}
                       <span>
                         <span className="text-muted-foreground">%IBW</span>{' '}
                         <span className="font-medium">{result.pct_IBW}%</span>
