@@ -44,7 +44,7 @@ export function PharmacyAdviceStatisticsPage() {
     (async () => {
       setPatientsLoading(true);
       try {
-        const res = await getPatients({ limit: 200 });
+        const res = await getPatients({ limit: 100 });
         if (!cancelled) setPatients(res.patients);
       } catch {
         if (!cancelled) toast.error('載入病患清單失敗');
