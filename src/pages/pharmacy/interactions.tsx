@@ -1,5 +1,5 @@
 import { Search, Plus, BookOpen, AlertTriangle, AlertCircle, Info, Loader2, ShieldAlert, Route, X } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -241,6 +241,65 @@ export function DrugInteractionsPage() {
   const filledCount = drugs.filter(d => d.trim()).length;
   const pairCount = filledCount >= 2 ? (filledCount * (filledCount - 1)) / 2 : 0;
 
+  // ── 摘要計算 ──
+  const summary = useMemo(() => {
+    if (searchResults.length === 0) return null;
+    const validDrugs = drugs.map(d => d.trim()).filter(Boolean);
+
+    // 風險分佈
+    const riskCounts: Record<string, number> = {};
+    for (const r of searchResults) {
+      const rr = r.riskRating || '?';
+      riskCounts[rr] = (riskCounts[rr] || 0) + 1;
+    }
+
+    // 最高風險
+    const riskOrder = ['X', 'D', 'C', 'B', 'A'];
+    const highestRisk = riskOrder.find(r => riskCounts[r]) || '?';
+
+    // 配對速查 — 用輸入的藥物名合併同對、取最高風險
+    const pairMap = new Map<string, { a: string; b: string; risk: string; count: number }>();
+    for (const item of searchResults) {
+      const d1l = (item.drug1 || '').toLowerCase();
+      const d2l = (item.drug2 || '').toLowerCase();
+      // 建 side1 / side2 名稱集合
+      const side1: string[] = [d1l];
+      const side2: string[] = [d2l];
+      for (const g of item.interactingMembers) {
+        const gn = (g.group_name || '').toLowerCase();
+        const ms = g.members.map(m => m.toLowerCase());
+        if (gn === d1l) side1.push(...ms);
+        else if (gn === d2l) side2.push(...ms);
+      }
+      // 找出匹配的輸入藥物
+      let matchA = '';
+      let matchB = '';
+      for (const drug of validDrugs) {
+        const dl = drug.toLowerCase();
+        if (!matchA && side1.some(n => n.includes(dl) || dl.includes(n))) matchA = drug;
+        if (!matchB && side2.some(n => n.includes(dl) || dl.includes(n))) matchB = drug;
+      }
+      if (!matchA || !matchB || matchA.toLowerCase() === matchB.toLowerCase()) continue;
+      const [sortedA, sortedB] = [matchA, matchB].sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase()));
+      const key = `${sortedA.toLowerCase()}|${sortedB.toLowerCase()}`;
+      const existing = pairMap.get(key);
+      const ro: Record<string, number> = { X: 0, D: 1, C: 2, B: 3, A: 4 };
+      const curRisk = ro[item.riskRating] ?? 5;
+      if (!existing) {
+        pairMap.set(key, { a: sortedA, b: sortedB, risk: item.riskRating || '?', count: 1 });
+      } else {
+        existing.count++;
+        if (curRisk < (ro[existing.risk] ?? 5)) existing.risk = item.riskRating;
+      }
+    }
+    const pairs = [...pairMap.values()].sort((a, b) => {
+      const ro: Record<string, number> = { X: 0, D: 1, C: 2, B: 3, A: 4 };
+      return (ro[a.risk] ?? 5) - (ro[b.risk] ?? 5);
+    });
+
+    return { riskCounts, highestRisk, pairs };
+  }, [searchResults, drugs]);
+
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -338,12 +397,88 @@ export function DrugInteractionsPage() {
             </Alert>
           ) : (
             <>
-              <div className="flex items-center justify-between">
-                <h2>查詢結果</h2>
-                <span className="text-sm text-muted-foreground">
-                  查詢 {filledCount} 種藥品，找到 {searchResults.length} 筆交互作用
-                </span>
-              </div>
+              {/* 摘要卡片 */}
+              {summary && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <ShieldAlert className="h-5 w-5" />
+                        查詢摘要
+                      </CardTitle>
+                      <span className="text-sm text-muted-foreground">
+                        查詢 {filledCount} 種藥品，找到 {searchResults.length} 筆交互作用
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* 整體風險 */}
+                    {RISK_RATING_CONFIG[summary.highestRisk] && (
+                      <Alert className={`border ${RISK_RATING_CONFIG[summary.highestRisk].bgColor}`}>
+                        <ShieldAlert className={`h-4 w-4 ${RISK_RATING_CONFIG[summary.highestRisk].color}`} />
+                        <AlertDescription className={RISK_RATING_CONFIG[summary.highestRisk].color}>
+                          <span className="font-semibold">整體最高風險：{RISK_RATING_CONFIG[summary.highestRisk].label}</span>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {/* 風險分佈 */}
+                    <div>
+                      <h4 className="font-medium mb-1.5 text-sm text-muted-foreground">風險分佈</h4>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                        {(['X', 'D', 'C', 'B', 'A'] as const).map(r => {
+                          const count = summary.riskCounts[r];
+                          if (!count) return null;
+                          const cfg = RISK_RATING_CONFIG[r];
+                          return (
+                            <span key={r} className={cfg?.color || ''}>
+                              {cfg?.label || `Risk ${r}`}：{count} 筆
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 配對速查 */}
+                    {summary.pairs.length > 0 && (
+                      <div>
+                        <h4 className="font-medium mb-1.5 text-sm text-muted-foreground">配對速查</h4>
+                        <div className="border rounded-md overflow-hidden">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b bg-muted/40">
+                                <th className="text-left px-3 py-1.5 font-medium">藥物配對</th>
+                                <th className="text-left px-3 py-1.5 font-medium">最高風險</th>
+                                <th className="text-right px-3 py-1.5 font-medium">筆數</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {summary.pairs.map((p, i) => {
+                                const cfg = RISK_RATING_CONFIG[p.risk];
+                                return (
+                                  <tr key={i} className="border-b last:border-0">
+                                    <td className="px-3 py-1.5">{p.a} ↔ {p.b}</td>
+                                    <td className="px-3 py-1.5">
+                                      {cfg ? (
+                                        <span className={`font-medium ${cfg.color}`}>{cfg.label}</span>
+                                      ) : (
+                                        <span className="text-muted-foreground">—</span>
+                                      )}
+                                    </td>
+                                    <td className="px-3 py-1.5 text-right text-muted-foreground">{p.count}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              <h2>詳細交互作用</h2>
 
               <div className="grid gap-4">
                 {searchResults.map((interaction) => (
