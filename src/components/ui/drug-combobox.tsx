@@ -10,6 +10,8 @@ interface DrugComboboxProps {
   placeholder?: string;
   drugList: string[];
   disabled?: boolean;
+  /** Optional function to check if a drug has interaction data */
+  checkHasData?: (drug: string) => boolean;
 }
 
 const MAX_DISPLAY = 50;
@@ -38,6 +40,7 @@ export function DrugCombobox({
   placeholder = '選擇藥品...',
   drugList,
   disabled,
+  checkHasData,
 }: DrugComboboxProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -130,32 +133,41 @@ export function DrugCombobox({
             </p>
           ) : (
             <>
-              {filtered.map((drug) => (
-                <button
-                  key={drug}
-                  type="button"
-                  className={cn(
-                    'relative flex w-full cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none',
-                    'hover:bg-accent hover:text-accent-foreground',
-                    value?.toLowerCase() === drug.toLowerCase() && 'bg-accent',
-                  )}
-                  onClick={() => {
-                    onValueChange(drug === value ? '' : drug);
-                    setOpen(false);
-                    setSearch('');
-                  }}
-                >
-                  <Check
+              {filtered.map((drug) => {
+                const noData = checkHasData ? !checkHasData(drug) : false;
+                return (
+                  <button
+                    key={drug}
+                    type="button"
                     className={cn(
-                      'mr-1 h-4 w-4 shrink-0',
-                      value?.toLowerCase() === drug.toLowerCase()
-                        ? 'opacity-100'
-                        : 'opacity-0',
+                      'relative flex w-full cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none',
+                      'hover:bg-accent hover:text-accent-foreground',
+                      value?.toLowerCase() === drug.toLowerCase() && 'bg-accent',
+                      noData && 'opacity-60',
                     )}
-                  />
-                  <HighlightMatch text={drug} query={search.trim()} />
-                </button>
-              ))}
+                    onClick={() => {
+                      onValueChange(drug === value ? '' : drug);
+                      setOpen(false);
+                      setSearch('');
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        'mr-1 h-4 w-4 shrink-0',
+                        value?.toLowerCase() === drug.toLowerCase()
+                          ? 'opacity-100'
+                          : 'opacity-0',
+                      )}
+                    />
+                    <HighlightMatch text={drug} query={search.trim()} />
+                    {noData && (
+                      <span className="ml-auto shrink-0 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                        尚未有資料
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
               {totalMatches > MAX_DISPLAY && (
                 <p className="py-2 text-center text-xs text-muted-foreground">
                   顯示前 {MAX_DISPLAY} 筆，共 {totalMatches} 筆符合，請輸入更多字元縮小範圍
