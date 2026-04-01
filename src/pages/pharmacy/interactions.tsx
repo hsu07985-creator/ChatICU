@@ -1,4 +1,4 @@
-import { Search, Plus, BookOpen, AlertTriangle, AlertCircle, Info, Loader2, ShieldAlert, Route } from 'lucide-react';
+import { Search, Plus, BookOpen, AlertTriangle, AlertCircle, Info, Loader2, ShieldAlert, Route, X } from 'lucide-react';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -49,63 +49,89 @@ const RISK_RATING_CONFIG: Record<string, { label: string; color: string; bgColor
   A: { label: 'Risk A 無交互作用', color: 'text-gray-700', bgColor: 'bg-gray-100 border-gray-300' },
 };
 
+const MIN_DRUGS = 2;
 
 export function DrugInteractionsPage() {
-  const [drugA, setDrugA] = useState('');
-  const [drugB, setDrugB] = useState('');
+  const [drugs, setDrugs] = useState<string[]>(['', '']);
   const [searchResults, setSearchResults] = useState<DisplayInteraction[]>([]);
   const [overallSeverity, setOverallSeverity] = useState<string>('');
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const updateDrug = (index: number, value: string) => {
+    setDrugs(prev => prev.map((d, i) => i === index ? value : d));
+  };
+
+  const addDrug = () => {
+    setDrugs(prev => [...prev, '']);
+  };
+
+  const removeDrug = (index: number) => {
+    if (drugs.length > MIN_DRUGS) {
+      setDrugs(prev => prev.filter((_, i) => i !== index));
+    }
+  };
 
   const handleSearch = async () => {
-    const drugs = [drugA.trim(), drugB.trim()].filter(Boolean);
-    if (drugs.length < 2) {
-      toast.error('請至少輸入兩種藥品名稱');
+    const validDrugs = [...new Set(drugs.map(d => d.trim()).filter(Boolean))];
+    if (validDrugs.length < 2) {
+      toast.error('請至少選擇兩種不同的藥品');
       return;
     }
 
     setLoading(true);
     setHasSearched(true);
 
-    // Helper: query local DB for drug interactions
+    // Helper: query local DB for all pairwise combinations
     const queryDatabase = async () => {
-      const resp = await getDrugInteractions({ drugA: drugs[0], drugB: drugs[1] });
-      const rows = resp.interactions || [];
-      return rows.map((r: any, idx: number) => ({
-        id: r.id || `db-int-${idx}`,
-        drug1: r.drug1 || drugs[0],
-        drug2: r.drug2 || drugs[1],
-        severity: mapSeverity(r.severity || ''),
-        mechanism: r.mechanism || '',
-        clinicalEffect: r.clinicalEffect || '',
-        management: r.management || '',
-        references: r.references || '',
-        riskRating: r.riskRating || '',
-        riskRatingDescription: r.riskRatingDescription || '',
-        severityLabel: r.severityLabel || '',
-        reliabilityRating: r.reliabilityRating || '',
-        routeDependency: r.routeDependency || '',
-        discussion: r.discussion || '',
-        footnotes: r.footnotes || '',
-        dependencies: r.dependencies || [],
-        dependencyTypes: r.dependencyTypes || [],
-        interactingMembers: r.interactingMembers || [],
-        pubmedIds: r.pubmedIds || [],
-      } as DisplayInteraction));
+      const allResults: DisplayInteraction[] = [];
+      for (let i = 0; i < validDrugs.length; i++) {
+        for (let j = i + 1; j < validDrugs.length; j++) {
+          try {
+            const resp = await getDrugInteractions({ drugA: validDrugs[i], drugB: validDrugs[j] });
+            const rows = resp.interactions || [];
+            for (let idx = 0; idx < rows.length; idx++) {
+              const r = rows[idx] as any;
+              allResults.push({
+                id: r.id || `db-int-${i}-${j}-${idx}`,
+                drug1: r.drug1 || validDrugs[i],
+                drug2: r.drug2 || validDrugs[j],
+                severity: mapSeverity(r.severity || ''),
+                mechanism: r.mechanism || '',
+                clinicalEffect: r.clinicalEffect || '',
+                management: r.management || '',
+                references: r.references || '',
+                riskRating: r.riskRating || '',
+                riskRatingDescription: r.riskRatingDescription || '',
+                severityLabel: r.severityLabel || '',
+                reliabilityRating: r.reliabilityRating || '',
+                routeDependency: r.routeDependency || '',
+                discussion: r.discussion || '',
+                footnotes: r.footnotes || '',
+                dependencies: r.dependencies || [],
+                dependencyTypes: r.dependencyTypes || [],
+                interactingMembers: r.interactingMembers || [],
+                pubmedIds: r.pubmedIds || [],
+              });
+            }
+          } catch {
+            // Skip failed individual pair queries
+          }
+        }
+      }
+      return allResults;
     };
 
     try {
-      const result: InteractionCheckResponse = await checkInteractions({ drugList: drugs }, { suppressErrorToast: true });
+      const result: InteractionCheckResponse = await checkInteractions({ drugList: validDrugs }, { suppressErrorToast: true });
       const aiFindings = result.findings || [];
 
       if (aiFindings.length > 0) {
         setOverallSeverity(result.overall_severity || 'none');
         const mapped: DisplayInteraction[] = aiFindings.map((f, idx) => ({
           id: `int-${idx}`,
-          drug1: f.drugA || f.drug_a || drugs[0],
-          drug2: f.drugB || f.drug_b || drugs[1],
+          drug1: f.drugA || f.drug_a || validDrugs[0],
+          drug2: f.drugB || f.drug_b || validDrugs[1],
           severity: mapSeverity(f.severity),
           mechanism: f.mechanism || '',
           clinicalEffect: f.clinical_effect || '',
@@ -123,6 +149,9 @@ export function DrugInteractionsPage() {
           interactingMembers: f.interacting_members || [],
           pubmedIds: f.pubmed_ids || [],
         }));
+        // Sort by risk rating: X > D > C > B > A
+        const riskOrder: Record<string, number> = { X: 0, D: 1, C: 2, B: 3, A: 4 };
+        mapped.sort((a, b) => (riskOrder[a.riskRating] ?? 5) - (riskOrder[b.riskRating] ?? 5));
         setSearchResults(mapped);
       } else {
         // AI returned no findings — fallback to DB
@@ -184,7 +213,6 @@ export function DrugInteractionsPage() {
   const getRiskRatingBadge = (interaction: DisplayInteraction) => {
     const rr = interaction.riskRating;
     if (!rr) {
-      // Fallback to old severity badge
       return getSeverityBadge(interaction.severity);
     }
     const config = RISK_RATING_CONFIG[rr];
@@ -210,6 +238,9 @@ export function DrugInteractionsPage() {
     }
   };
 
+  const filledCount = drugs.filter(d => d.trim()).length;
+  const pairCount = filledCount >= 2 ? (filledCount * (filledCount - 1)) / 2 : 0;
+
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -221,30 +252,55 @@ export function DrugInteractionsPage() {
       <Card>
         <CardHeader>
           <CardTitle>藥品選擇</CardTitle>
-          <CardDescription>輸入至少兩種藥品名稱查詢交互作用</CardDescription>
+          <CardDescription>選擇至少兩種藥品，系統將自動比對所有兩兩組合的交互作用</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">藥品 A *</label>
-              <DrugCombobox
-                value={drugA}
-                onValueChange={setDrugA}
-                placeholder="選擇藥品 A..."
-                drugList={DRUG_LIST}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">藥品 B *</label>
-              <DrugCombobox
-                value={drugB}
-                onValueChange={setDrugB}
-                placeholder="選擇藥品 B..."
-                drugList={DRUG_LIST}
-              />
-            </div>
+          <div className="space-y-3">
+            {drugs.map((drug, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <label className="text-sm font-medium w-16 shrink-0">藥品 {index + 1}</label>
+                <div className="flex-1">
+                  <DrugCombobox
+                    value={drug}
+                    onValueChange={(val) => updateDrug(index, val)}
+                    placeholder={`選擇藥品 ${index + 1}...`}
+                    drugList={DRUG_LIST}
+                  />
+                </div>
+                {drugs.length > MIN_DRUGS && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 h-9 w-9 text-muted-foreground hover:text-destructive"
+                    onClick={() => removeDrug(index)}
+                    aria-label={`移除藥品 ${index + 1}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
           </div>
 
+          {/* 新增藥物按鈕 + 提示 */}
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={addDrug}
+            >
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              新增藥物
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              已選 {drugs.length} 種藥品
+              {pairCount > 0 && `，將比對 ${pairCount} 對組合`}
+            </span>
+          </div>
+
+          <Separator />
+
+          {/* 操作按鈕 */}
           <div className="flex gap-2">
             <Button onClick={handleSearch} disabled={loading}>
               {loading ? (
@@ -257,13 +313,11 @@ export function DrugInteractionsPage() {
             <Button
               variant="outline"
               onClick={() => {
-                setDrugA('');
-                setDrugB('');
+                setDrugs(['', '']);
                 setSearchResults([]);
                 setHasSearched(false);
               }}
             >
-              <Plus className="mr-2 h-4 w-4" />
               清除
             </Button>
           </div>
@@ -287,7 +341,7 @@ export function DrugInteractionsPage() {
               <div className="flex items-center justify-between">
                 <h2>查詢結果</h2>
                 <span className="text-sm text-muted-foreground">
-                  找到 {searchResults.length} 筆交互作用
+                  查詢 {filledCount} 種藥品，找到 {searchResults.length} 筆交互作用
                 </span>
               </div>
 
