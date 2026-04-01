@@ -10,7 +10,7 @@ import { checkInteractions, type InteractionCheckResponse } from '../../lib/api/
 import { getDrugInteractions } from '../../lib/api/pharmacy';
 import { copyToClipboard } from '../../lib/clipboard-utils';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
-import { DRUG_LIST } from '../../lib/drug-list';
+import { DRUG_LIST, hasInteractionData } from '../../lib/drug-list';
 
 interface InteractingMemberGroup {
   group_name: string;
@@ -324,6 +324,7 @@ export function DrugInteractionsPage() {
                     onValueChange={(val) => updateDrug(index, val)}
                     placeholder={`選擇藥品 ${index + 1}...`}
                     drugList={DRUG_LIST}
+                    checkHasData={hasInteractionData}
                   />
                 </div>
                 {drugs.length > MIN_DRUGS && (
