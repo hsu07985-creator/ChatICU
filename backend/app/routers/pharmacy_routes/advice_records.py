@@ -162,11 +162,31 @@ async def get_advice_record_stats(
     ]
     by_pharm.sort(key=lambda x: x["count"], reverse=True)
 
+    # acceptance stats
+    accept_query = select(PharmacyAdvice.accepted, func.count(PharmacyAdvice.id))
+    if filters:
+        for flt in filters:
+            accept_query = accept_query.where(flt)
+    accept_result = await db.execute(accept_query.group_by(PharmacyAdvice.accepted))
+    accept_map: dict = {}
+    for val, cnt in accept_result.all():
+        if val is True:
+            accept_map["accepted"] = int(cnt)
+        elif val is False:
+            accept_map["rejected"] = int(cnt)
+        else:
+            accept_map["pending"] = int(cnt)
+
     return success_response(data={
         "total": total,
         "byCategory": by_cat,
         "byCode": by_code,
         "byPharmacist": by_pharm,
+        "byAcceptance": {
+            "accepted": accept_map.get("accepted", 0),
+            "rejected": accept_map.get("rejected", 0),
+            "pending": accept_map.get("pending", 0),
+        },
     })
 
 

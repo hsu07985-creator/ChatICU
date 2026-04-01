@@ -286,6 +286,7 @@ export interface AdviceRecordStats {
   byCategory: Array<{ category: string; count: number }>;
   byCode: Array<{ code: string; label: string; category: string; count: number }>;
   byPharmacist: Array<{ pharmacistName: string; count: number }>;
+  byAcceptance?: { accepted: number; rejected: number; pending: number };
 }
 
 export async function getAdviceRecordStats(params?: { month?: string }): Promise<AdviceRecordStats> {

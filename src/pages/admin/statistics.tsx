@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../..
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Badge } from '../../components/ui/badge';
 import { LoadingSpinner, ErrorDisplay, EmptyState } from '../../components/ui/state-display';
-import { BarChart3, TrendingUp, Tag, User as UserIcon } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { BarChart3, TrendingUp, Tag, User as UserIcon, CircleDot, CheckCircle2, XCircle } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
 import { getAdviceRecordStats, type AdviceRecordStats } from '../../lib/api/pharmacy';
 import { PHARMACY_ADVICE_CATEGORIES, PHARMACY_ADVICE_CATEGORY_COLORS } from '../../lib/pharmacy-master-data';
 
@@ -68,6 +68,7 @@ export function AdminStatisticsPage() {
     const rows = [...(stats?.byCode || [])];
     rows.sort((a, b) => b.count - a.count);
     return rows.slice(0, 10).map((r) => ({
+      code: r.code,
       name: `${r.code} ${r.label}`,
       count: r.count,
       color: PHARMACY_ADVICE_CATEGORY_COLORS[r.category] || '#999',
@@ -187,30 +188,83 @@ export function AdminStatisticsPage() {
         ))}
       </div>
 
-      {/* Category chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-[#7f265b]" />
-            類別分佈
-          </CardTitle>
-          <CardDescription>四大類介入數量</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={categoryChartData} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="category" tick={{ fontSize: 12 }} angle={-10} textAnchor="end" interval={0} height={60} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Bar dataKey="count" radius={[4, 4, 0, 0]} fill="#7f265b" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      {/* Category chart + acceptance rate */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-[#7f265b]" />
+              類別分佈
+            </CardTitle>
+            <CardDescription>四大類介入數量</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={categoryChartData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis dataKey="category" tick={{ fontSize: 11 }} interval={0} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} axisLine={false} tickLine={false} />
+                <Tooltip />
+                <Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={48} label={{ position: 'top', fontSize: 13, fontWeight: 700 }}>
+                  {categoryChartData.map((entry, i) => (
+                    <Cell key={i} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Acceptance rate */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CircleDot className="h-5 w-5 text-[#7f265b]" />
+              醫師回應統計
+            </CardTitle>
+            <CardDescription>本月建議接受率</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const acc = stats.byAcceptance || { accepted: 0, rejected: 0, pending: 0 };
+              const rate = stats.total > 0 ? Math.round((acc.accepted / stats.total) * 100) : 0;
+              return (
+                <div className="flex flex-col items-center">
+                  <div className="relative w-32 h-32 mb-3">
+                    <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+                      <circle cx="60" cy="60" r="50" fill="none" stroke="#e5e7eb" strokeWidth="10" />
+                      <circle cx="60" cy="60" r="50" fill="none" stroke="#16a34a" strokeWidth="10"
+                        strokeDasharray={`${rate * 3.14} ${314 - rate * 3.14}`}
+                        strokeLinecap="round" />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-3xl font-bold text-[#16a34a]">{rate}%</span>
+                      <span className="text-[10px] text-muted-foreground">接受率</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 w-full text-center">
+                    <div className="rounded-lg bg-green-50 border border-green-200 py-2">
+                      <div className="text-lg font-bold text-green-700">{acc.accepted}</div>
+                      <div className="text-[10px] text-green-600">已接受</div>
+                    </div>
+                    <div className="rounded-lg bg-red-50 border border-red-200 py-2">
+                      <div className="text-lg font-bold text-red-700">{acc.rejected}</div>
+                      <div className="text-[10px] text-red-600">未接受</div>
+                    </div>
+                    <div className="rounded-lg bg-gray-50 border border-gray-200 py-2">
+                      <div className="text-lg font-bold text-gray-600">{acc.pending}</div>
+                      <div className="text-[10px] text-gray-500">未填</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Top codes */}
+        {/* Top codes — vertical histogram */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -224,12 +278,27 @@ export function AdminStatisticsPage() {
               <EmptyState icon={Tag} title="尚無代碼統計" description="建立用藥建議介入記錄後會自動統計。" />
             ) : (
               <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={topCodes} layout="vertical" margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis type="number" tick={{ fontSize: 12 }} />
-                  <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="#7f265b" />
+                <BarChart data={topCodes} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                  <XAxis dataKey="code" tick={{ fontSize: 11 }} interval={0} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    content={({ active, payload }: { active?: boolean; payload?: Array<{ payload?: typeof topCodes[number] }> }) => {
+                      if (!active || !payload?.[0]?.payload) return null;
+                      const d = payload[0].payload;
+                      return (
+                        <div className="bg-white border rounded-lg shadow-lg p-3 text-sm">
+                          <p className="font-semibold">{d.name}</p>
+                          <p className="font-bold mt-1">{d.count} 筆</p>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={32} label={{ position: 'top', fontSize: 13, fontWeight: 700 }}>
+                    {topCodes.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}
