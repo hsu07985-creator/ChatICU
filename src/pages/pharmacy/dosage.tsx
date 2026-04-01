@@ -6,7 +6,7 @@ import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Separator } from '../../components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Calculator, Loader2, AlertTriangle, ChevronDown, ChevronRight, User, X, RotateCcw } from 'lucide-react';
+import { Calculator, Loader2, AlertTriangle, User, X, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { padCalculate, getPadDrugs, type PadDrugInfo, type PadCalculateResult } from '../../lib/api/pharmacy';
 import { getPatients, type Patient } from '../../lib/api/patients';
@@ -44,7 +44,6 @@ export function DosagePage() {
   // Result
   const [result, setResult] = useState<PadCalculateResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [instructionsOpen, setInstructionsOpen] = useState(true);
 
   // Selected drug info helper
   const drugInfo = padDrugs.find(d => d.key === selectedDrug);
@@ -483,12 +482,6 @@ export function DosagePage() {
                 </CardContent>
               </Card>
 
-              <Alert>
-                <AlertDescription>
-                  <strong>免責聲明：</strong>
-                  以上劑量建議由 PAD guideline 規則引擎計算，僅供參考。實際使用時應依據完整的臨床評估、藥品仿單與最新文獻進行調整。
-                </AlertDescription>
-              </Alert>
             </>
           )}
         </div>
@@ -501,28 +494,6 @@ export function DosagePage() {
         </div>
       )}
 
-      {/* 使用說明 */}
-      {!result && !loading && (
-        <Card className="bg-muted/30">
-          <CardHeader className="cursor-pointer select-none" onClick={() => setInstructionsOpen(!instructionsOpen)}>
-            <CardTitle className="text-base flex items-center gap-2">
-              {instructionsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              使用說明
-            </CardTitle>
-          </CardHeader>
-          {instructionsOpen && (
-            <CardContent className="space-y-2 text-sm pt-0">
-              <p>• 支援 9 種 ICU PAD 藥物：Cisatracurium, Rocuronium, Fentanyl, Morphine, Dexmedetomidine, Propofol, Midazolam, Lorazepam, Haloperidol</p>
-              <p>• 選擇藥品後系統自動帶入預設濃度，輸入體重與目標劑量即可計算</p>
-              <p>• 可選擇病患自動帶入體重、性別、身高</p>
-              <p>• 提供性別與身高時，系統會進行肥胖體重調整（Devine IBW/AdjBW）</p>
-              <p>• 肥胖判定：%IBW &gt; 120%，親水性藥物使用 IBW，親脂性藥物使用 AdjBW</p>
-              <p>• 計算公式：輸注速率 (ml/hr) = (計算體重 × 目標劑量) ÷ 濃度</p>
-              <p>• 目標劑量超出建議範圍或濃度偏離預設值時，會以黃色框線提示</p>
-            </CardContent>
-          )}
-        </Card>
-      )}
     </div>
   );
 }
