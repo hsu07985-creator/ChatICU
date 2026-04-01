@@ -6,7 +6,7 @@ import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Separator } from '../../components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Calculator, Loader2, AlertTriangle, User, X, RotateCcw } from 'lucide-react';
+import { Calculator, Loader2, AlertTriangle, User, X, RotateCcw, ChevronRight, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { padCalculate, getPadDrugs, type PadDrugInfo, type PadCalculateResult } from '../../lib/api/pharmacy';
 import { getPatients, type Patient } from '../../lib/api/patients';
@@ -44,6 +44,7 @@ export function DosagePage() {
   // Result
   const [result, setResult] = useState<PadCalculateResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [stepsOpen, setStepsOpen] = useState(false);
 
   // Selected drug info helper
   const drugInfo = padDrugs.find(d => d.key === selectedDrug);
@@ -87,11 +88,12 @@ export function DosagePage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Fix #1: Drug switch always clears target dose + result
+  // Drug switch always clears target dose + result
   const handleDrugChange = useCallback((drugKey: string) => {
     setSelectedDrug(drugKey);
     setTargetDose('');
     setResult(null);
+    setStepsOpen(false);
     const info = padDrugs.find(d => d.key === drugKey);
     if (info) {
       setConcentration(String(info.concentration));
@@ -112,7 +114,7 @@ export function DosagePage() {
     }
   }, [patients]);
 
-  // Fix #5: Reset all fields
+  // Reset all fields
   const handleReset = useCallback(() => {
     setSelectedDrug('');
     setWeight('');
@@ -122,27 +124,16 @@ export function DosagePage() {
     setHeight('');
     setSelectedPatientId('');
     setResult(null);
+    setStepsOpen(false);
   }, []);
 
   const isFixedDose = drugInfo?.weight_basis === 'fixed';
 
   const handleCalculate = async () => {
-    if (!selectedDrug) {
-      toast.error('請選擇藥品');
-      return;
-    }
-    if (!weight || parseFloat(weight) <= 0) {
-      toast.error('請輸入體重');
-      return;
-    }
-    if (!isFixedDose && (!targetDose || parseFloat(targetDose) < 0)) {
-      toast.error('請輸入目標劑量');
-      return;
-    }
-    if (!isFixedDose && (!concentration || parseFloat(concentration) <= 0)) {
-      toast.error('請輸入藥物濃度');
-      return;
-    }
+    if (!selectedDrug) { toast.error('請選擇藥品'); return; }
+    if (!weight || parseFloat(weight) <= 0) { toast.error('請輸入體重'); return; }
+    if (!isFixedDose && (!targetDose || parseFloat(targetDose) < 0)) { toast.error('請輸入目標劑量'); return; }
+    if (!isFixedDose && (!concentration || parseFloat(concentration) <= 0)) { toast.error('請輸入藥物濃度'); return; }
 
     setLoading(true);
     try {
@@ -155,6 +146,7 @@ export function DosagePage() {
         height_cm: height ? parseFloat(height) : undefined,
       });
       setResult(res);
+      setStepsOpen(false);
     } catch (err) {
       console.error('PAD 劑量計算失敗:', err);
       if (isAxiosError(err)) {
@@ -168,332 +160,270 @@ export function DosagePage() {
     }
   };
 
+  const doseUnitShort = drugInfo?.dose_unit?.replace('/kg/hr', '/hr') || '/hr';
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-4">
       <div>
         <h1>劑量計算與建議</h1>
-        <p className="text-muted-foreground mt-1">ICU PAD 藥物輸注速率計算（含肥胖體重調整）</p>
+        <p className="text-muted-foreground text-sm mt-0.5">ICU PAD 藥物輸注速率計算（含肥胖體重調整）</p>
       </div>
 
-      {/* 輸入區 */}
       <Card>
-        <CardHeader>
-          <CardTitle>PAD 藥物劑量計算</CardTitle>
-          <CardDescription>選擇藥品、輸入體重與目標劑量，系統自動計算輸注速率 (ml/hr)</CardDescription>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">PAD 藥物劑量計算</CardTitle>
+          <CardDescription className="text-xs">選擇藥品、輸入體重與目標劑量，系統自動計算輸注速率 (ml/hr)</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* 病患選擇器 */}
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium w-20 shrink-0">
-              <User className="inline h-3.5 w-3.5 mr-1" />
-              病患
-            </label>
-            <div className="flex-1">
-              <Select value={selectedPatientId} onValueChange={handlePatientSelect} disabled={patientsLoading}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder={patientsLoading ? '載入中...' : '選擇病患帶入體重/身高（可選）'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {patients.map(p => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.bedNumber} — {p.name}（{p.medicalRecordNumber}）
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {selectedPatientId && (
-              <Button
-                variant="ghost" size="icon"
-                className="shrink-0 h-9 w-9 text-muted-foreground hover:text-destructive"
-                onClick={() => setSelectedPatientId('')}
-                aria-label="清除病患選擇"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-
-          <Separator />
-
-          {/* 藥品選擇 */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">藥品 *</label>
+        <CardContent className="space-y-3">
+          {/* Row 1: Drug + Weight + Patient (3-col desktop) */}
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium">藥品 *</label>
               <Select value={selectedDrug} onValueChange={handleDrugChange} disabled={drugsLoading}>
-                <SelectTrigger>
-                  <SelectValue placeholder={drugsLoading ? '載入藥品...' : '選擇 PAD 藥品'} />
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder={drugsLoading ? '載入中...' : '選擇 PAD 藥品'} />
                 </SelectTrigger>
                 <SelectContent>
                   {padDrugs.map(d => (
-                    <SelectItem key={d.key} value={d.key}>
-                      {d.label}
-                    </SelectItem>
+                    <SelectItem key={d.key} value={d.key}>{d.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">體重 (kg) *</label>
-              <Input
-                type="number"
-                placeholder="例：70"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-              />
+            <div className="space-y-1">
+              <label className="text-xs font-medium">體重 (kg) *</label>
+              <Input type="number" className="h-9" placeholder="例：70" value={weight} onChange={(e) => setWeight(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">
+                <User className="inline h-3 w-3 mr-0.5" />病患（可選）
+              </label>
+              <div className="flex gap-1">
+                <Select value={selectedPatientId} onValueChange={handlePatientSelect} disabled={patientsLoading}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder={patientsLoading ? '載入...' : '帶入體重/身高'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {patients.map(p => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.bedNumber} — {p.name}（{p.medicalRecordNumber}）
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedPatientId && (
+                  <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9 text-muted-foreground hover:text-destructive"
+                    onClick={() => setSelectedPatientId('')} aria-label="清除病患">
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
+          {/* Fixed dose alert */}
           {isFixedDose && drugInfo && (
-            <Alert>
-              <AlertDescription>
-                <strong>{drugInfo.label}</strong> 為固定劑量藥物（非體重依賴），建議劑量：{drugInfo.dose_range}。
-                不需輸入目標劑量與濃度。
+            <Alert className="py-2">
+              <AlertDescription className="text-xs">
+                <strong>{drugInfo.label}</strong> 為固定劑量藥物（非體重依賴），建議劑量：{drugInfo.dose_range}。不需輸入目標劑量與濃度。
               </AlertDescription>
             </Alert>
           )}
 
-          {/* 目標劑量 / 濃度 — 僅 weight-based 藥物需要 */}
+          {/* Row 2: Target dose + Concentration + Sex + Height (4-col desktop) */}
           {!isFixedDose && (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
+            <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">
                   目標劑量 *
-                  {drugInfo && (
-                    <span className="text-muted-foreground font-normal ml-1">
-                      ({drugInfo.dose_unit}，範圍：{drugInfo.dose_range})
-                    </span>
-                  )}
+                  {drugInfo && <span className="text-muted-foreground font-normal ml-0.5 text-[10px]">({drugInfo.dose_unit})</span>}
                 </label>
-                <Input
-                  type="number"
-                  step="any"
-                  placeholder={drugInfo ? `例：${drugInfo.dose_range.split('–')[0]}` : '選擇藥品後顯示'}
-                  value={targetDose}
-                  onChange={(e) => setTargetDose(e.target.value)}
-                  className={isDoseOutOfRange ? 'border-amber-500 focus-visible:ring-amber-500' : ''}
-                />
-                {/* Fix #2: Out-of-range warning */}
+                <Input type="number" step="any" className={`h-9 ${isDoseOutOfRange ? 'border-amber-500 focus-visible:ring-amber-500' : ''}`}
+                  placeholder={drugInfo ? drugInfo.dose_range : ''} value={targetDose} onChange={(e) => setTargetDose(e.target.value)} />
                 {isDoseOutOfRange && doseRange && (
-                  <p className="text-xs text-amber-600 flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    超出建議範圍（{doseRange[0]}–{doseRange[1]} {drugInfo?.dose_unit}），請確認劑量
+                  <p className="text-[10px] text-amber-600 flex items-center gap-0.5">
+                    <AlertTriangle className="h-2.5 w-2.5 shrink-0" />超出範圍 {doseRange[0]}–{doseRange[1]}
                   </p>
                 )}
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">
                   濃度 *
-                  {drugInfo && (
-                    <span className="text-muted-foreground font-normal ml-1">
-                      ({drugInfo.concentration_unit})
-                    </span>
-                  )}
+                  {drugInfo && <span className="text-muted-foreground font-normal ml-0.5 text-[10px]">({drugInfo.concentration_unit})</span>}
                 </label>
-                <Input
-                  type="number"
-                  step="any"
-                  placeholder={drugInfo ? String(drugInfo.concentration) : ''}
-                  value={concentration}
-                  onChange={(e) => setConcentration(e.target.value)}
-                  className={isConcentrationChanged ? 'border-amber-500 focus-visible:ring-amber-500' : ''}
-                />
-                {/* Fix #4: Concentration deviation hint */}
+                <Input type="number" step="any" className={`h-9 ${isConcentrationChanged ? 'border-amber-500 focus-visible:ring-amber-500' : ''}`}
+                  placeholder={drugInfo ? String(drugInfo.concentration) : ''} value={concentration} onChange={(e) => setConcentration(e.target.value)} />
                 {isConcentrationChanged && drugInfo && (
-                  <p className="text-xs text-amber-600 flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    已偏離 PAD 預設濃度（{drugInfo.concentration} {drugInfo.concentration_unit}）
+                  <p className="text-[10px] text-amber-600 flex items-center gap-0.5">
+                    <AlertTriangle className="h-2.5 w-2.5 shrink-0" />預設 {drugInfo.concentration}
                   </p>
                 )}
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">性別</label>
+                <Select value={sex} onValueChange={setSex}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="未指定" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">未指定</SelectItem>
+                    <SelectItem value="male">男</SelectItem>
+                    <SelectItem value="female">女</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">身高 (cm)</label>
+                <Input type="number" className="h-9" placeholder="例：170" value={height} onChange={(e) => setHeight(e.target.value)} />
               </div>
             </div>
           )}
 
-          {/* 身高 / 性別 (可選，肥胖調整用) */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                性別
-                <span className="text-muted-foreground font-normal ml-1">(可選，肥胖調整用)</span>
-              </label>
-              <Select value={sex} onValueChange={setSex}>
-                <SelectTrigger>
-                  <SelectValue placeholder="未指定" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">未指定</SelectItem>
-                  <SelectItem value="male">男</SelectItem>
-                  <SelectItem value="female">女</SelectItem>
-                </SelectContent>
-              </Select>
+          {/* Sex/Height for fixed-dose drugs (still useful for record) */}
+          {isFixedDose && (
+            <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">性別</label>
+                <Select value={sex} onValueChange={setSex}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="未指定" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">未指定</SelectItem>
+                    <SelectItem value="male">男</SelectItem>
+                    <SelectItem value="female">女</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">身高 (cm)</label>
+                <Input type="number" className="h-9" placeholder="例：170" value={height} onChange={(e) => setHeight(e.target.value)} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                身高 (cm)
-                <span className="text-muted-foreground font-normal ml-1">(可選，肥胖調整用)</span>
-              </label>
-              <Input
-                type="number"
-                placeholder="例：170"
-                value={height}
-                onChange={(e) => setHeight(e.target.value)}
-              />
-            </div>
-          </div>
+          )}
 
-          {/* Fix #5: Reset + Calculate buttons */}
-          <div className="flex gap-2">
-            <Button onClick={handleCalculate} disabled={loading}>
-              {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Calculator className="mr-2 h-4 w-4" />
-              )}
+          {/* Buttons */}
+          <div className="flex gap-2 pt-1">
+            <Button size="sm" onClick={handleCalculate} disabled={loading}>
+              {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Calculator className="mr-1.5 h-3.5 w-3.5" />}
               計算輸注速率
             </Button>
             {(selectedDrug || weight || targetDose || concentration || sex || height) && (
-              <Button variant="outline" onClick={handleReset}>
-                <RotateCcw className="mr-2 h-4 w-4" />
-                清除全部
+              <Button variant="outline" size="sm" onClick={handleReset}>
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />清除全部
               </Button>
             )}
           </div>
-        </CardContent>
-      </Card>
 
-      {/* 結果 */}
-      {result && (
-        <div className="space-y-4">
-          {result.note && result.rate_ml_hr === 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>{drugInfo?.label || result.drug}</CardTitle>
-                <CardDescription>固定劑量藥物</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>{result.note}</AlertDescription>
-                </Alert>
-                {result.steps.length > 0 && (
-                  <div className="text-sm text-muted-foreground">
-                    {result.steps.map((s, i) => <p key={i}>{s}</p>)}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ) : (
+          {/* ─── Result (inline, same card) ─── */}
+          {loading && (
+            <div className="text-center py-6">
+              <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-[#7f265b]" />
+              <p className="text-xs text-muted-foreground">計算中...</p>
+            </div>
+          )}
+
+          {result && (
             <>
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>{drugInfo?.label || result.drug}</CardTitle>
-                    <Badge variant="default" className="text-base px-3 py-1">
-                      {result.rate_ml_hr} ml/hr
-                    </Badge>
-                  </div>
-                  <CardDescription>
-                    體重基礎：{result.weight_basis}（計算體重 {result.dosing_weight_kg} kg）
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Fix #7: Rate more prominent — dedicated hero section */}
-                  <div className="p-4 bg-[#7f265b]/10 border border-[#7f265b]/20 rounded-lg text-center">
-                    <p className="text-xs text-muted-foreground mb-1">建議輸注速率</p>
-                    <p className="text-4xl font-bold text-[#7f265b]">{result.rate_ml_hr}</p>
-                    <p className="text-sm font-medium text-[#7f265b]/80">ml/hr</p>
-                  </div>
+              <Separator />
 
-                  {/* 次要結果 */}
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="p-3 bg-muted rounded-lg text-center">
-                      <p className="text-xs text-muted-foreground">每小時劑量</p>
-                      <p className="text-xl font-bold">{result.dose_per_hr}</p>
-                      <p className="text-xs text-muted-foreground">{drugInfo?.dose_unit?.replace('/kg/hr', '/hr') || '/hr'}</p>
-                    </div>
-                    <div className="p-3 bg-muted rounded-lg text-center">
-                      <p className="text-xs text-muted-foreground">藥物濃度</p>
-                      <p className="text-xl font-bold">{result.concentration.split(' ')[0]}</p>
-                      <p className="text-xs text-muted-foreground">{result.concentration.split(' ').slice(1).join(' ')}</p>
-                    </div>
+              {/* Fixed-dose result */}
+              {result.note && result.rate_ml_hr === 0 ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{drugInfo?.label || result.drug}</span>
+                    <Badge variant="secondary" className="text-xs">固定劑量</Badge>
                   </div>
-
-                  {/* 體重分析 */}
-                  {result.BMI != null && (
-                    <>
-                      <Separator />
+                  <Alert className="py-2">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    <AlertDescription className="text-xs">{result.note}</AlertDescription>
+                  </Alert>
+                  {result.steps.length > 0 && (
+                    <p className="text-xs text-muted-foreground">{result.steps[0]}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Header: drug name + rate hero + secondary stats */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    {/* Rate hero */}
+                    <div className="flex items-center gap-3 px-4 py-3 bg-[#7f265b]/10 border border-[#7f265b]/20 rounded-lg">
                       <div>
-                        <h3 className="font-medium mb-2">體重分析</h3>
-                        <div className="grid gap-2 sm:grid-cols-4 text-sm">
-                          <div className="flex justify-between sm:block">
-                            <span className="text-muted-foreground">BMI</span>
-                            <span className="font-medium sm:block">{result.BMI}</span>
-                          </div>
-                          <div className="flex justify-between sm:block">
-                            <span className="text-muted-foreground">IBW</span>
-                            <span className="font-medium sm:block">{result.IBW_kg} kg</span>
-                          </div>
-                          <div className="flex justify-between sm:block">
-                            <span className="text-muted-foreground">AdjBW</span>
-                            <span className="font-medium sm:block">{result.AdjBW_kg} kg</span>
-                          </div>
-                          <div className="flex justify-between sm:block">
-                            <span className="text-muted-foreground">%IBW</span>
-                            <span className="font-medium sm:block">
-                              {result.pct_IBW}%
-                              {/* Fix #8: Badges for both obese and underweight */}
-                              {result.is_obese && (
-                                <Badge variant="destructive" className="ml-1 text-xs">肥胖</Badge>
-                              )}
-                              {!result.is_obese && result.pct_IBW != null && result.pct_IBW < 90 && (
-                                <Badge className="ml-1 text-xs bg-amber-500 hover:bg-amber-600">體重偏低</Badge>
-                              )}
-                            </span>
-                          </div>
+                        <p className="text-[10px] text-muted-foreground leading-tight">輸注速率</p>
+                        <p className="text-3xl font-bold text-[#7f265b] leading-none">{result.rate_ml_hr}</p>
+                        <p className="text-xs font-medium text-[#7f265b]/70">ml/hr</p>
+                      </div>
+                    </div>
+                    {/* Drug info + secondary */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-sm">{drugInfo?.label || result.drug}</span>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">{result.weight_basis}</Badge>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <span className="text-muted-foreground">計算體重</span>
+                          <p className="font-medium">{result.dosing_weight_kg} kg</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">每小時劑量</span>
+                          <p className="font-medium">{result.dose_per_hr} {doseUnitShort}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">濃度</span>
+                          <p className="font-medium">{result.concentration}</p>
                         </div>
                       </div>
-                    </>
+                    </div>
+                  </div>
+
+                  {/* Body weight analysis (compact row) */}
+                  {result.BMI != null && (
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs px-1">
+                      <span><span className="text-muted-foreground">BMI</span> <span className="font-medium">{result.BMI}</span></span>
+                      <span><span className="text-muted-foreground">IBW</span> <span className="font-medium">{result.IBW_kg} kg</span></span>
+                      <span><span className="text-muted-foreground">AdjBW</span> <span className="font-medium">{result.AdjBW_kg} kg</span></span>
+                      <span>
+                        <span className="text-muted-foreground">%IBW</span>{' '}
+                        <span className="font-medium">{result.pct_IBW}%</span>
+                        {result.is_obese && <Badge variant="destructive" className="ml-1 text-[10px] px-1 py-0">肥胖</Badge>}
+                        {!result.is_obese && result.pct_IBW != null && result.pct_IBW < 90 && (
+                          <Badge className="ml-1 text-[10px] px-1 py-0 bg-amber-500 hover:bg-amber-600">體重偏低</Badge>
+                        )}
+                      </span>
+                    </div>
                   )}
 
-                  {/* 計算步驟 */}
+                  {/* Calculation steps (collapsible) */}
                   {result.steps.length > 0 && (
-                    <>
-                      <Separator />
-                      <div>
-                        <h3 className="font-medium mb-2">計算步驟</h3>
-                        <ol className="list-decimal list-inside space-y-1 text-sm">
+                    <div>
+                      <button
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        onClick={() => setStepsOpen(!stepsOpen)}
+                      >
+                        {stepsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                        計算步驟
+                      </button>
+                      {stepsOpen && (
+                        <ol className="list-decimal list-inside space-y-0.5 text-xs text-muted-foreground mt-1.5 pl-1">
                           {result.steps.map((step, idx) => (
                             <li key={idx}>{step}</li>
                           ))}
                         </ol>
-                      </div>
-                    </>
+                      )}
+                    </div>
                   )}
 
                   {result.note && (
-                    <>
-                      <Separator />
-                      <div className="flex items-start gap-2 text-sm">
-                        <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                        <span>{result.note}</span>
-                      </div>
-                    </>
+                    <div className="flex items-start gap-1.5 text-xs">
+                      <AlertTriangle className="h-3 w-3 text-amber-500 mt-0.5 shrink-0" />
+                      <span className="text-muted-foreground">{result.note}</span>
+                    </div>
                   )}
-                </CardContent>
-              </Card>
-
+                </div>
+              )}
             </>
           )}
-        </div>
-      )}
-
-      {loading && (
-        <div className="text-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-[#7f265b]" />
-          <p className="text-muted-foreground">計算中...</p>
-        </div>
-      )}
-
+        </CardContent>
+      </Card>
     </div>
   );
 }
