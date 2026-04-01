@@ -24,7 +24,7 @@
     },
     {
       "id": "usr_003",
-      "name": "張管理者",
+      "name": "余管理者",
       "username": "admin",
       "email": "admin@hospital.com",
       "role": "admin",

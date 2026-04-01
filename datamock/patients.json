@@ -2,7 +2,7 @@
   "patients": [
     {
       "id": "pat_001",
-      "name": "張三",
+      "name": "許先生",
       "bedNumber": "I-1",
       "medicalRecordNumber": "123456",
       "age": 65,
@@ -48,7 +48,7 @@
     },
     {
       "id": "pat_002",
-      "name": "李四",
+      "name": "林小姐",
       "bedNumber": "I-2",
       "medicalRecordNumber": "123457",
       "age": 58,
@@ -94,7 +94,7 @@
     },
     {
       "id": "pat_003",
-      "name": "王五",
+      "name": "陳女士",
       "bedNumber": "I-3",
       "medicalRecordNumber": "123458",
       "age": 72,
@@ -140,7 +140,7 @@
     },
     {
       "id": "pat_004",
-      "name": "趙六",
+      "name": "黃先生",
       "bedNumber": "I-4",
       "medicalRecordNumber": "123459",
       "age": 45,

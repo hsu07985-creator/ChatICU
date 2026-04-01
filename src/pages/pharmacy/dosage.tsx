@@ -1,122 +1,227 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
-import { Search, AlertTriangle, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 import { Separator } from '../../components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Calculator, Loader2, AlertTriangle, ChevronDown, ChevronRight, User, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { calculateDose, type DoseCalculateResponse } from '../../lib/api/ai';
+import { padCalculate, getPadDrugs, type PadDrugInfo, type PadCalculateResult } from '../../lib/api/pharmacy';
+import { getPatients, type Patient } from '../../lib/api/patients';
 import { isAxiosError } from 'axios';
 
 export function DosagePage() {
-  const [drugName, setDrugName] = useState('');
-  const [indication, setIndication] = useState('');
-  const [age, setAge] = useState('');
+  // Drug catalog
+  const [padDrugs, setPadDrugs] = useState<PadDrugInfo[]>([]);
+  const [drugsLoading, setDrugsLoading] = useState(false);
+
+  // Patient selector
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [patientsLoading, setPatientsLoading] = useState(false);
+  const [selectedPatientId, setSelectedPatientId] = useState('');
+
+  // Input
+  const [selectedDrug, setSelectedDrug] = useState('');
   const [weight, setWeight] = useState('');
-  const [egfr, setEgfr] = useState('');
-  const [hepaticFunction, setHepaticFunction] = useState('normal');
-  const [result, setResult] = useState<DoseCalculateResponse | null>(null);
+  const [targetDose, setTargetDose] = useState('');
+  const [concentration, setConcentration] = useState('');
+  const [sex, setSex] = useState('');
+  const [height, setHeight] = useState('');
+
+  // Result
+  const [result, setResult] = useState<PadCalculateResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [instructionsOpen, setInstructionsOpen] = useState(true);
 
+  // Selected drug info helper
+  const drugInfo = padDrugs.find(d => d.key === selectedDrug);
+
+  // Load PAD drugs + patients on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setDrugsLoading(true);
+      try {
+        const res = await getPadDrugs();
+        if (!cancelled) setPadDrugs(res.drugs);
+      } catch {
+        // Use hardcoded fallback
+        if (!cancelled) setPadDrugs([]);
+      } finally {
+        if (!cancelled) setDrugsLoading(false);
+      }
+    })();
+    (async () => {
+      setPatientsLoading(true);
+      try {
+        const res = await getPatients({ limit: 100 });
+        if (!cancelled) setPatients(res.patients);
+      } catch {
+        if (!cancelled) toast.error('無法載入病患列表');
+      } finally {
+        if (!cancelled) setPatientsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // When drug changes, fill default concentration
+  const handleDrugChange = useCallback((drugKey: string) => {
+    setSelectedDrug(drugKey);
+    const info = padDrugs.find(d => d.key === drugKey);
+    if (info) {
+      setConcentration(String(info.concentration));
+      setTargetDose('');
+    }
+    setResult(null);
+  }, [padDrugs]);
+
+  // When patient selected, fill weight/sex/height
+  const handlePatientSelect = useCallback((patientId: string) => {
+    setSelectedPatientId(patientId);
+    if (!patientId) return;
+    const p = patients.find(pt => pt.id === patientId);
+    if (p) {
+      if (p.weight) setWeight(String(p.weight));
+      if (p.height) setHeight(String(p.height));
+      if (p.gender === '男') setSex('male');
+      else if (p.gender === '女') setSex('female');
+      toast.success(`已帶入 ${p.name} 的基本資料`);
+    }
+  }, [patients]);
+
   const handleCalculate = async () => {
-    if (!drugName.trim()) {
-      toast.error('請輸入藥品名稱');
+    if (!selectedDrug) {
+      toast.error('請選擇藥品');
+      return;
+    }
+    if (!weight || parseFloat(weight) <= 0) {
+      toast.error('請輸入體重');
+      return;
+    }
+    if (!targetDose || parseFloat(targetDose) < 0) {
+      toast.error('請輸入目標劑量');
+      return;
+    }
+    if (!concentration || parseFloat(concentration) <= 0) {
+      toast.error('請輸入藥物濃度');
       return;
     }
 
     setLoading(true);
     try {
-      const hepaticMap: Record<string, string> = {
-        normal: '',
-        mild: 'child_pugh_a',
-        moderate: 'child_pugh_b',
-        severe: 'child_pugh_c',
-      };
-
-      const res = await calculateDose({
-        drug: drugName.trim(),
-        indication: indication.trim() || undefined,
-        patientContext: {
-          age_years: age ? parseFloat(age) : undefined,
-          weight_kg: weight ? parseFloat(weight) : undefined,
-          crcl_ml_min: egfr ? parseFloat(egfr) : undefined,
-          hepatic_class: hepaticMap[hepaticFunction] || undefined,
-        },
-      }, { suppressErrorToast: true });
+      const res = await padCalculate({
+        drug: selectedDrug,
+        weight_kg: parseFloat(weight),
+        target_dose_per_kg_hr: parseFloat(targetDose),
+        concentration: parseFloat(concentration),
+        sex: sex || undefined,
+        height_cm: height ? parseFloat(height) : undefined,
+      });
       setResult(res);
     } catch (err) {
-      console.error('劑量計算失敗:', err);
+      console.error('PAD 劑量計算失敗:', err);
       if (isAxiosError(err)) {
-        const status = err.response?.status;
-        const serverMessage = String((err.response?.data as Record<string, unknown>)?.message || '');
-        if (status === 503 && serverMessage.includes('Evidence engine service unavailable')) {
-          toast.error('劑量引擎不可用（請啟動 func/ 服務）');
-        } else if (serverMessage) {
-          toast.error(serverMessage);
-        } else {
-          toast.error('劑量計算失敗，請稍後再試');
-        }
+        const msg = String((err.response?.data as Record<string, unknown>)?.message || '');
+        toast.error(msg || '劑量計算失敗');
       } else {
-        toast.error('劑量計算失敗，請稍後再試');
+        toast.error('劑量計算失敗');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const formatComputedValues = (values: Record<string, unknown>): string[] => {
-    return Object.entries(values).map(([k, v]) => `${k}: ${v}`);
-  };
-
   return (
     <div className="p-6 space-y-6">
       <div>
         <h1>劑量計算與建議</h1>
-        <p className="text-muted-foreground mt-1">查詢藥品建議劑量並根據病患狀況調整</p>
+        <p className="text-muted-foreground mt-1">ICU PAD 藥物輸注速率計算（含肥胖體重調整）</p>
       </div>
 
       {/* 輸入區 */}
       <Card>
         <CardHeader>
-          <CardTitle>病患資訊與藥品查詢</CardTitle>
-          <CardDescription>輸入病患基本參數與藥品名稱</CardDescription>
+          <CardTitle>PAD 藥物劑量計算</CardTitle>
+          <CardDescription>選擇藥品、輸入體重與目標劑量，系統自動計算輸注速率 (ml/hr)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* 病患選擇器 */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium w-20 shrink-0">
+              <User className="inline h-3.5 w-3.5 mr-1" />
+              病患
+            </label>
+            <div className="flex-1">
+              <Select value={selectedPatientId} onValueChange={handlePatientSelect} disabled={patientsLoading}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder={patientsLoading ? '載入中...' : '選擇病患帶入體重/身高（可選）'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {patients.map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.bedNumber} — {p.name}（{p.medicalRecordNumber}）
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedPatientId && (
+              <Button
+                variant="ghost" size="icon"
+                className="shrink-0 h-9 w-9 text-muted-foreground hover:text-destructive"
+                onClick={() => setSelectedPatientId('')}
+                aria-label="清除病患選擇"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* 藥品選擇 */}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">藥品名稱 *</label>
-              <Input
-                placeholder="例：Norepinephrine"
-                value={drugName}
-                onChange={(e) => setDrugName(e.target.value)}
-              />
+              <label className="text-sm font-medium">藥品 *</label>
+              <Select value={selectedDrug} onValueChange={handleDrugChange} disabled={drugsLoading}>
+                <SelectTrigger>
+                  <SelectValue placeholder={drugsLoading ? '載入藥品...' : '選擇 PAD 藥品'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {padDrugs.map(d => (
+                    <SelectItem key={d.key} value={d.key}>
+                      {d.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">適應症</label>
+              <label className="text-sm font-medium">
+                目標劑量 *
+                {drugInfo && (
+                  <span className="text-muted-foreground font-normal ml-1">
+                    ({drugInfo.dose_unit}，範圍：{drugInfo.dose_range})
+                  </span>
+                )}
+              </label>
               <Input
-                placeholder="例：septic shock"
-                value={indication}
-                onChange={(e) => setIndication(e.target.value)}
+                type="number"
+                step="any"
+                placeholder={drugInfo ? `例：${drugInfo.dose_range.split('–')[0]}` : '選擇藥品後顯示'}
+                value={targetDose}
+                onChange={(e) => setTargetDose(e.target.value)}
               />
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-4">
+          {/* 體重 / 濃度 */}
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">年齡（歲）</label>
-              <Input
-                type="number"
-                placeholder="例：65"
-                value={age}
-                onChange={(e) => setAge(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">體重（kg）</label>
+              <label className="text-sm font-medium">體重 (kg) *</label>
               <Input
                 type="number"
                 placeholder="例：70"
@@ -125,27 +230,52 @@ export function DosagePage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">CrCl (mL/min)</label>
+              <label className="text-sm font-medium">
+                濃度 *
+                {drugInfo && (
+                  <span className="text-muted-foreground font-normal ml-1">
+                    ({drugInfo.concentration_unit})
+                  </span>
+                )}
+              </label>
               <Input
                 type="number"
-                placeholder="例：45"
-                value={egfr}
-                onChange={(e) => setEgfr(e.target.value)}
+                step="any"
+                placeholder={drugInfo ? String(drugInfo.concentration) : ''}
+                value={concentration}
+                onChange={(e) => setConcentration(e.target.value)}
               />
             </div>
+          </div>
+
+          {/* 身高 / 性別 (可選，肥胖調整用) */}
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">肝功能</label>
-              <Select value={hepaticFunction} onValueChange={setHepaticFunction}>
+              <label className="text-sm font-medium">
+                性別
+                <span className="text-muted-foreground font-normal ml-1">(可選，肥胖調整用)</span>
+              </label>
+              <Select value={sex} onValueChange={setSex}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="未指定" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="normal">正常</SelectItem>
-                  <SelectItem value="mild">Child-Pugh A</SelectItem>
-                  <SelectItem value="moderate">Child-Pugh B</SelectItem>
-                  <SelectItem value="severe">Child-Pugh C</SelectItem>
+                  <SelectItem value="male">男</SelectItem>
+                  <SelectItem value="female">女</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                身高 (cm)
+                <span className="text-muted-foreground font-normal ml-1">(可選，肥胖調整用)</span>
+              </label>
+              <Input
+                type="number"
+                placeholder="例：170"
+                value={height}
+                onChange={(e) => setHeight(e.target.value)}
+              />
             </div>
           </div>
 
@@ -153,108 +283,123 @@ export function DosagePage() {
             {loading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <Search className="mr-2 h-4 w-4" />
+              <Calculator className="mr-2 h-4 w-4" />
             )}
-            計算劑量
+            計算輸注速率
           </Button>
         </CardContent>
       </Card>
 
-      {/* 結果顯示 */}
+      {/* 結果 */}
       {result && (
         <div className="space-y-4">
-          <h2>劑量建議</h2>
-
-          {result.status === 'refused' && (
-            <Alert variant="destructive">
+          {result.note && !result.rate_ml_hr ? (
+            <Alert>
               <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                {result.message || '無法計算劑量，請檢查輸入參數。'}
-              </AlertDescription>
+              <AlertDescription>{result.note}</AlertDescription>
             </Alert>
-          )}
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>{result.drug || drugName}</CardTitle>
-                <Badge variant={result.status === 'ok' ? 'default' : 'destructive'}>
-                  信心度：{(result.confidence * 100).toFixed(0)}%
-                </Badge>
-              </div>
-              <CardDescription>
-                {result.result_type === 'dose_calculation' ? '規則引擎計算結果' : result.result_type}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* 計算結果 */}
-              {Object.keys(result.computed_values).length > 0 && (
-                <div>
-                  <h3 className="font-medium mb-2">計算結果</h3>
-                  <div className="p-3 bg-muted rounded-lg space-y-1">
-                    {formatComputedValues(result.computed_values).map((line, idx) => (
-                      <p key={idx} className="font-mono text-sm">{line}</p>
-                    ))}
+          ) : (
+            <>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>{drugInfo?.label || result.drug}</CardTitle>
+                    <Badge variant="default" className="text-base px-3 py-1">
+                      {result.rate_ml_hr} ml/hr
+                    </Badge>
                   </div>
-                </div>
-              )}
-
-              {/* 計算步驟 */}
-              {result.calculation_steps.length > 0 && (
-                <>
-                  <Separator />
-                  <div>
-                    <h3 className="font-medium mb-2">計算步驟</h3>
-                    <ol className="list-decimal list-inside space-y-1 text-sm">
-                      {result.calculation_steps.map((step, idx) => (
-                        <li key={idx}>{step}</li>
-                      ))}
-                    </ol>
+                  <CardDescription>
+                    體重基礎：{result.weight_basis}（計算體重 {result.dosing_weight_kg} kg）
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* 主要結果 */}
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="p-3 bg-muted rounded-lg text-center">
+                      <p className="text-xs text-muted-foreground">輸注速率</p>
+                      <p className="text-2xl font-bold text-[#7f265b]">{result.rate_ml_hr}</p>
+                      <p className="text-xs text-muted-foreground">ml/hr</p>
+                    </div>
+                    <div className="p-3 bg-muted rounded-lg text-center">
+                      <p className="text-xs text-muted-foreground">每小時劑量</p>
+                      <p className="text-2xl font-bold">{result.dose_per_hr}</p>
+                      <p className="text-xs text-muted-foreground">{drugInfo?.dose_unit?.replace('/kg/hr', '/hr') || '/hr'}</p>
+                    </div>
+                    <div className="p-3 bg-muted rounded-lg text-center">
+                      <p className="text-xs text-muted-foreground">藥物濃度</p>
+                      <p className="text-2xl font-bold">{result.concentration.split(' ')[0]}</p>
+                      <p className="text-xs text-muted-foreground">{result.concentration.split(' ').slice(1).join(' ')}</p>
+                    </div>
                   </div>
-                </>
-              )}
 
-              {/* 安全警告 */}
-              {result.safety_warnings.length > 0 && (
-                <>
-                  <Separator />
-                  <div>
-                    <h3 className="font-medium mb-2">安全警告</h3>
-                    <div className="space-y-2">
-                      {result.safety_warnings.map((warning, idx) => (
-                        <div key={idx} className="flex items-start gap-2 text-sm">
-                          <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                          <span>{warning}</span>
+                  {/* 體重分析 */}
+                  {result.BMI != null && (
+                    <>
+                      <Separator />
+                      <div>
+                        <h3 className="font-medium mb-2">體重分析</h3>
+                        <div className="grid gap-2 sm:grid-cols-4 text-sm">
+                          <div className="flex justify-between sm:block">
+                            <span className="text-muted-foreground">BMI</span>
+                            <span className="font-medium sm:block">{result.BMI}</span>
+                          </div>
+                          <div className="flex justify-between sm:block">
+                            <span className="text-muted-foreground">IBW</span>
+                            <span className="font-medium sm:block">{result.IBW_kg} kg</span>
+                          </div>
+                          <div className="flex justify-between sm:block">
+                            <span className="text-muted-foreground">AdjBW</span>
+                            <span className="font-medium sm:block">{result.AdjBW_kg} kg</span>
+                          </div>
+                          <div className="flex justify-between sm:block">
+                            <span className="text-muted-foreground">%IBW</span>
+                            <span className="font-medium sm:block">
+                              {result.pct_IBW}%
+                              {result.is_obese && (
+                                <Badge variant="destructive" className="ml-1 text-xs">肥胖</Badge>
+                              )}
+                            </span>
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
+                      </div>
+                    </>
+                  )}
 
-              {/* 引用規則 */}
-              {result.applied_rules.length > 0 && (
-                <>
-                  <Separator />
-                  <div>
-                    <h3 className="font-medium mb-2">應用規則</h3>
-                    <div className="space-y-1 text-sm text-muted-foreground">
-                      {result.applied_rules.map((rule, idx) => (
-                        <p key={idx}>{JSON.stringify(rule)}</p>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                  {/* 計算步驟 */}
+                  {result.steps.length > 0 && (
+                    <>
+                      <Separator />
+                      <div>
+                        <h3 className="font-medium mb-2">計算步驟</h3>
+                        <ol className="list-decimal list-inside space-y-1 text-sm">
+                          {result.steps.map((step, idx) => (
+                            <li key={idx}>{step}</li>
+                          ))}
+                        </ol>
+                      </div>
+                    </>
+                  )}
 
-          <Alert>
-            <AlertDescription>
-              <strong>免責聲明：</strong>
-              以上劑量建議由規則引擎計算，僅供參考。實際使用時應依據完整的臨床評估、藥品仿單與最新文獻進行調整。
-            </AlertDescription>
-          </Alert>
+                  {result.note && (
+                    <>
+                      <Separator />
+                      <div className="flex items-start gap-2 text-sm">
+                        <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                        <span>{result.note}</span>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Alert>
+                <AlertDescription>
+                  <strong>免責聲明：</strong>
+                  以上劑量建議由 PAD guideline 規則引擎計算，僅供參考。實際使用時應依據完整的臨床評估、藥品仿單與最新文獻進行調整。
+                </AlertDescription>
+              </Alert>
+            </>
+          )}
         </div>
       )}
 
@@ -276,11 +421,12 @@ export function DosagePage() {
           </CardHeader>
           {instructionsOpen && (
             <CardContent className="space-y-2 text-sm pt-0">
-              <p>• 輸入藥品名稱查詢建議劑量（必填）</p>
-              <p>• 提供病患年齡、體重、腎功能與肝功能可獲得個人化建議</p>
-              <p>• 系統使用臨床規則引擎進行 deterministic 計算</p>
-              <p>• 計算結果包含具體劑量、計算步驟、安全警告</p>
-              <p>• 支援 weight-based、fixed-dose、infusion rate 等計算模式</p>
+              <p>• 支援 9 種 ICU PAD 藥物：Cisatracurium, Rocuronium, Fentanyl, Morphine, Dexmedetomidine, Propofol, Midazolam, Lorazepam, Haloperidol</p>
+              <p>• 選擇藥品後系統自動帶入預設濃度，輸入體重與目標劑量即可計算</p>
+              <p>• 可選擇病患自動帶入體重、性別、身高</p>
+              <p>• 提供性別與身高時，系統會進行肥胖體重調整（Devine IBW/AdjBW）</p>
+              <p>• 肥胖判定：%IBW &gt; 120%，親水性藥物使用 IBW，親脂性藥物使用 AdjBW</p>
+              <p>• 計算公式：輸注速率 (ml/hr) = (計算體重 × 目標劑量) ÷ 濃度</p>
             </CardContent>
           )}
         </Card>
