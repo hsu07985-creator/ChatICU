@@ -238,6 +238,7 @@ export interface PharmacyAdviceRecord {
   pharmacistName: string;
   timestamp: string;
   linkedMedications?: string[];
+  accepted?: boolean | null;
 }
 
 export interface AdviceRecordsResponse {
@@ -267,6 +268,7 @@ export interface CreateAdviceRecordData {
   category: string;
   content: string;
   linkedMedications?: string[];
+  accepted?: boolean;
 }
 
 export async function createAdviceRecord(data: CreateAdviceRecordData): Promise<PharmacyAdviceRecord> {

@@ -11,53 +11,58 @@ export interface AdviceCategoryItem {
   codes: AdviceCodeItem[];
 }
 
-// Pharmacist care intervention codes (4 categories, 23 sub-codes) — fixed master data.
+// 臨床藥事照護介入類別（4大類 23小項）— 依健保 VPN 登錄附件4。
+// 項目 10-13 同時屬於「建議處方」和「主動建議」。
 export const PHARMACY_ADVICE_CATEGORIES: Record<string, AdviceCategoryItem> = {
   prescription: {
     key: 'prescription',
     label: '1. 建議處方',
     codes: [
-      { code: '1-1', label: '建議更適當用藥/配方組成' },
-      { code: '1-2', label: '用藥途徑或劑型問題' },
-      { code: '1-3', label: '用藥期間/數量問題（包含停藥）' },
-      { code: '1-4', label: '用藥劑量/頻次問題' },
-      { code: '1-5', label: '不符健保給付規定' },
-      { code: '1-6', label: '其他' },
+      { code: '1-1', label: '給藥問題(速率、輸注方式、濃度或稀釋液)' },
+      { code: '1-2', label: '適應症問題' },
+      { code: '1-3', label: '用藥禁忌問題(包括過敏史)' },
+      { code: '1-4', label: '藥品併用問題' },
+      { code: '1-5', label: '藥品交互作用' },
+      { code: '1-6', label: '疑似藥品不良反應' },
       { code: '1-7', label: '藥品相容性問題' },
-      { code: '1-8', label: '疑似藥品不良反應' },
-      { code: '1-9', label: '藥品交互作用' },
-      { code: '1-10', label: '藥品併用問題' },
-      { code: '1-11', label: '用藥替急問題（包括過敏史）' },
-      { code: '1-12', label: '適應症問題' },
-      { code: '1-13', label: '給藥問題（途徑、輸注方式、濃度或稀釋液）' },
+      { code: '1-8', label: '其他' },
+      { code: '1-9', label: '不符健保給付規定' },
+      { code: '1-10', label: '用藥劑量/頻次問題' },
+      { code: '1-11', label: '用藥期間/數量問題(包含停藥)' },
+      { code: '1-12', label: '用藥途徑或劑型問題' },
+      { code: '1-13', label: '建議更適當用藥/配方組成' },
     ],
   },
   proactive: {
     key: 'proactive',
     label: '2. 主動建議',
     codes: [
-      { code: '2-1', label: '建議靜脈營養配方' },
-      { code: '2-2', label: '建議藥物治療療程' },
-      { code: '2-3', label: '建議用藥/建議增加用藥' },
-      { code: '2-4', label: '藥品不良反應評估' },
+      { code: '2-1', label: '用藥劑量/頻次問題' },
+      { code: '2-2', label: '用藥期間/數量問題(包含停藥)' },
+      { code: '2-3', label: '用藥途徑或劑型問題' },
+      { code: '2-4', label: '建議更適當用藥/配方組成' },
+      { code: '2-5', label: '藥品不良反應評估' },
+      { code: '2-6', label: '建議用藥/建議增加用藥' },
+      { code: '2-7', label: '建議藥物治療療程' },
+      { code: '2-8', label: '建議靜脈營養配方' },
     ],
   },
   monitoring: {
     key: 'monitoring',
     label: '3. 建議監測',
     codes: [
-      { code: '3-1', label: '建議藥品濃度監測' },
+      { code: '3-1', label: '建議藥品療效監測' },
       { code: '3-2', label: '建議藥品不良反應監測' },
-      { code: '3-3', label: '建議藥品療效監測' },
+      { code: '3-3', label: '建議藥品血中濃度監測' },
     ],
   },
-  appropriateness: {
-    key: 'appropriateness',
-    label: '4. 用藥適從性',
+  continuity: {
+    key: 'continuity',
+    label: '4. 用藥連貫性',
     codes: [
-      { code: '4-1', label: '病人用藥適從性問題' },
+      { code: '4-1', label: '藥歷審核與整合' },
       { code: '4-2', label: '藥品辨識/自備藥辨識' },
-      { code: '4-3', label: '藥歷查核與整合' },
+      { code: '4-3', label: '病人用藥遵從性問題' },
     ],
   },
 };
@@ -66,7 +71,7 @@ export const PHARMACY_ADVICE_CATEGORY_COLORS: Record<string, string> = {
   '1. 建議處方': '#7f265b',
   '2. 主動建議': '#f59e0b',
   '3. 建議監測': '#1a1a1a',
-  '4. 用藥適從性': '#3b82f6',
+  '4. 用藥連貫性': '#3b82f6',
 };
 
 export function getAdviceCodeInfo(code: string): { category: string; label: string } | null {

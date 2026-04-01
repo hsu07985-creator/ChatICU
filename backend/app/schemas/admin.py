@@ -118,7 +118,9 @@ class ErrorReportUpdate(BaseModel):
 
 _ADVICE_CODE_RE = re.compile(r"^\d{1,2}-\d{1,2}$")
 _ADVICE_CATEGORIES = {
-    "1. 建議處方", "2. 主動建議", "3. 建議監測", "4. 用藥適從性",
+    "1. 建議處方", "2. 主動建議", "3. 建議監測", "4. 用藥連貫性",
+    # legacy alias
+    "4. 用藥適從性",
 }
 
 
@@ -129,6 +131,7 @@ class AdviceRecordCreate(BaseModel):
     category: str = Field(..., min_length=1, max_length=50)
     content: str = Field(..., min_length=1, max_length=5000)
     linkedMedications: Optional[List[str]] = None
+    accepted: Optional[bool] = None
 
     @field_validator("adviceCode")
     @classmethod

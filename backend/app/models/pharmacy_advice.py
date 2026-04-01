@@ -1,7 +1,7 @@
 from typing import Optional, List
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,6 +26,7 @@ class PharmacyAdvice(Base):
     category: Mapped[str] = mapped_column(String(50), index=True)  # '1. 建議處方', etc.
     content: Mapped[str] = mapped_column(Text)
     linked_medications: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    accepted: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

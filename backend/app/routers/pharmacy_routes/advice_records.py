@@ -32,6 +32,7 @@ def advice_to_dict(a: PharmacyAdvice) -> dict:
         "pharmacistName": a.pharmacist_name,
         "timestamp": a.timestamp.isoformat() if a.timestamp else None,
         "linkedMedications": a.linked_medications or [],
+        "accepted": a.accepted,
     }
 
 
@@ -193,6 +194,7 @@ async def create_advice_record(
         category=body.category,
         content=body.content,
         linked_medications=body.linkedMedications,
+        accepted=body.accepted,
         timestamp=datetime.now(timezone.utc),
     )
     db.add(advice)
