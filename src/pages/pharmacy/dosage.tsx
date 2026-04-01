@@ -175,25 +175,8 @@ export function DosagePage() {
           <CardDescription className="text-xs">選擇藥品、輸入體重與目標劑量，系統自動計算輸注速率 (ml/hr)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {/* Row 1: Drug + Weight + Patient (3-col desktop) */}
+          {/* Row 1: Patient + Drug + Weight (3-col desktop) */}
           <div className="grid gap-3 md:grid-cols-3">
-            <div className="space-y-1">
-              <label className="text-xs font-medium">藥品 *</label>
-              <Select value={selectedDrug} onValueChange={handleDrugChange} disabled={drugsLoading}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder={drugsLoading ? '載入中...' : '選擇 PAD 藥品'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {padDrugs.map(d => (
-                    <SelectItem key={d.key} value={d.key}>{d.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium">體重 (kg) *</label>
-              <Input type="number" className="h-9" placeholder="例：70" value={weight} onChange={(e) => setWeight(e.target.value)} />
-            </div>
             <div className="space-y-1">
               <label className="text-xs font-medium">
                 <User className="inline h-3 w-3 mr-0.5" />病患（可選）
@@ -201,7 +184,7 @@ export function DosagePage() {
               <div className="flex gap-1">
                 <Select value={selectedPatientId} onValueChange={handlePatientSelect} disabled={patientsLoading}>
                   <SelectTrigger className="h-9">
-                    <SelectValue placeholder={patientsLoading ? '載入...' : '帶入體重/身高'} />
+                    <SelectValue placeholder={patientsLoading ? '載入...' : '選擇病患帶入體重/身高'} />
                   </SelectTrigger>
                   <SelectContent>
                     {patients.map(p => (
@@ -218,6 +201,23 @@ export function DosagePage() {
                   </Button>
                 )}
               </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">藥品 *</label>
+              <Select value={selectedDrug} onValueChange={handleDrugChange} disabled={drugsLoading}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder={drugsLoading ? '載入中...' : '選擇 PAD 藥品'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {padDrugs.map(d => (
+                    <SelectItem key={d.key} value={d.key}>{d.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">體重 (kg) *</label>
+              <Input type="number" className="h-9" placeholder="例：70" value={weight} onChange={(e) => setWeight(e.target.value)} />
             </div>
           </div>
 
