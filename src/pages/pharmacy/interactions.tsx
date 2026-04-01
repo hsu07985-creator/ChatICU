@@ -68,67 +68,86 @@ export function DrugInteractionsPage() {
 
     setLoading(true);
     setHasSearched(true);
+
+    // Helper: query local DB for drug interactions
+    const queryDatabase = async () => {
+      const resp = await getDrugInteractions({ drugA: drugs[0], drugB: drugs[1] });
+      const rows = resp.interactions || [];
+      return rows.map((r: any, idx: number) => ({
+        id: r.id || `db-int-${idx}`,
+        drug1: r.drug1 || drugs[0],
+        drug2: r.drug2 || drugs[1],
+        severity: mapSeverity(r.severity || ''),
+        mechanism: r.mechanism || '',
+        clinicalEffect: r.clinicalEffect || '',
+        management: r.management || '',
+        references: r.references || '',
+        riskRating: r.riskRating || '',
+        riskRatingDescription: r.riskRatingDescription || '',
+        severityLabel: r.severityLabel || '',
+        reliabilityRating: r.reliabilityRating || '',
+        routeDependency: r.routeDependency || '',
+        discussion: r.discussion || '',
+        footnotes: r.footnotes || '',
+        dependencies: r.dependencies || [],
+        dependencyTypes: r.dependencyTypes || [],
+        interactingMembers: r.interactingMembers || [],
+        pubmedIds: r.pubmedIds || [],
+      } as DisplayInteraction));
+    };
+
     try {
       const result: InteractionCheckResponse = await checkInteractions({ drugList: drugs }, { suppressErrorToast: true });
-      setOverallSeverity(result.overall_severity || 'none');
-      const mapped: DisplayInteraction[] = (result.findings || []).map((f, idx) => ({
-        id: `int-${idx}`,
-        drug1: f.drugA || f.drug_a || drugs[0],
-        drug2: f.drugB || f.drug_b || drugs[1],
-        severity: mapSeverity(f.severity),
-        mechanism: f.mechanism || '',
-        clinicalEffect: f.clinical_effect || '',
-        management: f.recommended_action || '',
-        references: f.dose_adjustment_hint || '',
-        riskRating: f.risk_rating || '',
-        riskRatingDescription: f.risk_rating_description || '',
-        severityLabel: f.severity_label || '',
-        reliabilityRating: f.reliability_rating || '',
-        routeDependency: f.route_dependency || '',
-        discussion: f.discussion || '',
-        footnotes: f.footnotes || '',
-        dependencies: f.dependencies || [],
-        dependencyTypes: f.dependency_types || [],
-        interactingMembers: f.interacting_members || [],
-        pubmedIds: f.pubmed_ids || [],
-      }));
-      setSearchResults(mapped);
-    } catch (err) {
-      console.error('查詢交互作用失敗:', err);
-      try {
-        const resp = await getDrugInteractions({ drugA: drugs[0], drugB: drugs[1] });
-        const rows = resp.interactions || [];
-        const mapped: DisplayInteraction[] = rows.map((r: any, idx: number) => ({
-          id: r.id || `db-int-${idx}`,
-          drug1: r.drug1 || drugs[0],
-          drug2: r.drug2 || drugs[1],
-          severity: mapSeverity(r.severity || ''),
-          mechanism: r.mechanism || '',
-          clinicalEffect: r.clinicalEffect || '',
-          management: r.management || '',
-          references: r.references || '',
-          riskRating: r.riskRating || '',
-          riskRatingDescription: r.riskRatingDescription || '',
-          severityLabel: r.severityLabel || '',
-          reliabilityRating: r.reliabilityRating || '',
-          routeDependency: r.routeDependency || '',
-          discussion: r.discussion || '',
-          footnotes: r.footnotes || '',
-          dependencies: r.dependencies || [],
-          dependencyTypes: r.dependencyTypes || [],
-          interactingMembers: r.interactingMembers || [],
-          pubmedIds: r.pubmedIds || [],
-        }));
+      const aiFindings = result.findings || [];
 
-        if (mapped.length) {
+      if (aiFindings.length > 0) {
+        setOverallSeverity(result.overall_severity || 'none');
+        const mapped: DisplayInteraction[] = aiFindings.map((f, idx) => ({
+          id: `int-${idx}`,
+          drug1: f.drugA || f.drug_a || drugs[0],
+          drug2: f.drugB || f.drug_b || drugs[1],
+          severity: mapSeverity(f.severity),
+          mechanism: f.mechanism || '',
+          clinicalEffect: f.clinical_effect || '',
+          management: f.recommended_action || '',
+          references: f.dose_adjustment_hint || '',
+          riskRating: f.risk_rating || '',
+          riskRatingDescription: f.risk_rating_description || '',
+          severityLabel: f.severity_label || '',
+          reliabilityRating: f.reliability_rating || '',
+          routeDependency: f.route_dependency || '',
+          discussion: f.discussion || '',
+          footnotes: f.footnotes || '',
+          dependencies: f.dependencies || [],
+          dependencyTypes: f.dependency_types || [],
+          interactingMembers: f.interacting_members || [],
+          pubmedIds: f.pubmed_ids || [],
+        }));
+        setSearchResults(mapped);
+      } else {
+        // AI returned no findings — fallback to DB
+        const dbResults = await queryDatabase();
+        if (dbResults.length) {
           const rank: Record<string, number> = { low: 1, medium: 2, high: 3 };
-          const max = mapped.reduce((acc, it) => (rank[it.severity] > rank[acc] ? it.severity : acc), 'low');
+          const max = dbResults.reduce((acc: string, it: DisplayInteraction) => (rank[it.severity] > rank[acc] ? it.severity : acc), 'low');
           setOverallSeverity(max);
         } else {
           setOverallSeverity('none');
         }
-        setSearchResults(mapped);
-        toast.message('已改用本地資料庫查詢（Evidence 引擎未啟動）');
+        setSearchResults(dbResults);
+      }
+    } catch (err) {
+      console.error('查詢交互作用失敗:', err);
+      try {
+        const dbResults = await queryDatabase();
+        if (dbResults.length) {
+          const rank: Record<string, number> = { low: 1, medium: 2, high: 3 };
+          const max = dbResults.reduce((acc: string, it: DisplayInteraction) => (rank[it.severity] > rank[acc] ? it.severity : acc), 'low');
+          setOverallSeverity(max);
+        } else {
+          setOverallSeverity('none');
+        }
+        setSearchResults(dbResults);
       } catch (fallbackErr) {
         console.error('DB fallback 查詢交互作用失敗:', fallbackErr);
         toast.error('查詢失敗，請確認後端服務是否正常運行');
