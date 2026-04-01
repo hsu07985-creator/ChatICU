@@ -1,214 +1,350 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
-import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
-import { Search, Save, CheckCircle2, XCircle, HelpCircle, BookOpen, Loader2, X, ChevronDown, ChevronRight } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Separator } from '../../components/ui/separator';
+import { Search, Plus, CheckCircle2, XCircle, HelpCircle, Loader2, X, User } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { toast } from 'sonner';
-import { useAuth } from '../../lib/auth-context';
-import { copyToClipboard } from '../../lib/clipboard-utils';
-import { IV_COMPATIBILITY_SOLUTIONS } from '../../lib/pharmacy-master-data';
-import {
-  createCompatibilityFavorite,
-  deleteCompatibilityFavorite,
-  getCompatibilityFavorites,
-  getIVCompatibility,
-} from '../../lib/api/pharmacy';
+import { getIVCompatibility } from '../../lib/api/pharmacy';
+import { getPatients, type Patient } from '../../lib/api/patients';
+import { getMedications } from '../../lib/api/medications';
+import { DrugCombobox } from '../../components/ui/drug-combobox';
 
-interface IVCompatibility {
-  id: string;
-  drug1: string;
-  drug2: string;
-  solution: string;
-  compatible: boolean;
-  timeStability?: string;
-  notes?: string;
-  references?: string;
+/**
+ * Y-Site 相容性藥品清單 — 52 drugs from icu_y_site_compatibility_v2_lookup.json
+ * 8 ICU specialty sheets, deduplicated.
+ */
+const IV_DRUG_LIST: string[] = [
+  "Acetylcysteine",
+  "Adenosine",
+  "Alanyl Glutamine",
+  "Albumin",
+  "Alprostadil",
+  "Alteplase",
+  "Amiodarone HCl",
+  "Ascorbic Acid",
+  "Bumetanide",
+  "Calcium Gluconate",
+  "Cisatracurium besylate",
+  "Cyclosporine",
+  "Desmopressin Acetate",
+  "Dexmedetomidine HCl",
+  "Digoxin",
+  "Diltiazem HCl",
+  "Dobutamine HCl",
+  "Dopamine HCl",
+  "Epinephrine HCl",
+  "Fentanyl Citrate",
+  "Heparin sodium",
+  "Hydrocortisone Sodium Succinate",
+  "Immune Globulin, Human",
+  "Insulin Regular",
+  "Isoproterenol HCl",
+  "KCl",
+  "Ketamine HCl",
+  "Ketorolac Tromethamine",
+  "Labetalol HCl",
+  "Levetiracetam",
+  "Lidocaine HCl",
+  "Lorazepam",
+  "Mannitol",
+  "Methylprednisolone Sodium Succinate",
+  "MgSO4",
+  "Midazolam HCl",
+  "NaHCO3",
+  "Nicardipine HCl",
+  "Nitroglycerin",
+  "Norepinephrine bitartrate",
+  "Propofol",
+  "Somatostatin Acetate",
+  "Thiamine HCl",
+  "Thiamylal Sodium",
+  "Tramadol HCl",
+  "Tranexamic Acid",
+  "Urokinase",
+  "Valproate Sodium",
+  "Vasopressin",
+  "ZnSO4",
+];
+
+// Pre-compute alpha-only lowercase for fuzzy matching patient meds → IV_DRUG_LIST
+const IV_DRUG_ALPHA = IV_DRUG_LIST.map(d => ({
+  original: d,
+  alpha: d.replace(/[^a-zA-Z]/g, '').toLowerCase(),
+}));
+
+function matchIVDrug(medName: string): string | null {
+  const lower = medName.toLowerCase();
+  const exact = IV_DRUG_LIST.find(d => d.toLowerCase() === lower);
+  if (exact) return exact;
+  const alpha = medName.replace(/[^a-zA-Z]/g, '').toLowerCase();
+  const found = IV_DRUG_ALPHA.find(d => d.alpha === alpha);
+  if (found) return found.original;
+  // First word prefix (e.g., "Fentanyl 50mcg" → "Fentanyl Citrate")
+  const firstWord = lower.split(/[\s(,/]/)[0].replace(/[^a-z]/g, '');
+  if (firstWord.length >= 4) {
+    const prefixMatch = IV_DRUG_ALPHA.find(d => d.alpha.startsWith(firstWord));
+    if (prefixMatch) return prefixMatch.original;
+  }
+  return null;
 }
 
-interface FavoriteCompatibilityPair {
-  id: string;
+type CompatStatus = 'C' | 'I' | '-' | '?';
+
+interface MatrixCell {
   drugA: string;
   drugB: string;
-  solution: string; // 'none' | 'NS' | 'D5W' | ...
-  createdAt: string;
+  status: CompatStatus;
+  notes?: string;
 }
 
+const STATUS_CONFIG: Record<CompatStatus, { label: string; short: string; color: string; bg: string }> = {
+  C: { label: '相容 (Compatible)', short: 'C', color: 'text-green-700', bg: 'bg-green-100 border-green-300' },
+  I: { label: '不相容 (Incompatible)', short: 'I', color: 'text-red-700', bg: 'bg-red-100 border-red-300' },
+  '-': { label: '無資料', short: '-', color: 'text-gray-500', bg: 'bg-gray-50 border-gray-200' },
+  '?': { label: '查詢中', short: '?', color: 'text-gray-400', bg: 'bg-gray-50 border-gray-200' },
+};
+
+const MIN_DRUGS = 2;
+
 export function CompatibilityPage() {
-  const { user } = useAuth();
-  const [drugA, setDrugA] = useState('');
-  const [drugB, setDrugB] = useState('');
-  const [solution, setSolution] = useState('');
-  const [searchResults, setSearchResults] = useState<IVCompatibility[]>([]);
+  const [drugs, setDrugs] = useState<string[]>(['', '']);
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [favorites, setFavorites] = useState<FavoriteCompatibilityPair[]>([]);
-  const [instructionsOpen, setInstructionsOpen] = useState(true);
+  const [matrixResults, setMatrixResults] = useState<MatrixCell[]>([]);
 
-  const loadFavorites = async () => {
-    try {
-      const resp = await getCompatibilityFavorites();
-      setFavorites(resp.favorites || []);
-    } catch (err) {
-      console.error('載入常用組合失敗:', err);
-      setFavorites([]);
-    }
-  };
+  // Patient selector
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [patientsLoading, setPatientsLoading] = useState(false);
+  const [selectedPatientId, setSelectedPatientId] = useState<string>('');
+  const [medsLoading, setMedsLoading] = useState(false);
 
+  // Load patients on mount
   useEffect(() => {
-    loadFavorites();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+    let cancelled = false;
+    (async () => {
+      setPatientsLoading(true);
+      try {
+        const res = await getPatients({ limit: 100 });
+        if (!cancelled) setPatients(res.patients);
+      } catch {
+        if (!cancelled) toast.error('無法載入病患列表');
+      } finally {
+        if (!cancelled) setPatientsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
-  const normalizeSolution = (value: string): string => {
-    if (!value) return 'none';
-    return value;
-  };
-
-  const handleAddFavorite = async () => {
-    const a = drugA.trim();
-    const b = drugB.trim();
-    if (!a || !b) {
-      toast.error('請先輸入兩種藥品名稱');
-      return;
-    }
-
-    const sol = normalizeSolution(solution);
+  const handlePatientSelect = useCallback(async (patientId: string) => {
+    setSelectedPatientId(patientId);
+    if (!patientId) return;
+    setMedsLoading(true);
     try {
-      const created = await createCompatibilityFavorite({ drugA: a, drugB: b, solution: sol });
-      const existed = favorites.some((f) => f.id === created.id);
-      const next = existed ? favorites : [created, ...favorites];
-      setFavorites(next);
-      toast.success(existed ? '此組合已在常用清單' : '已加入常用組合（雲端同步）');
-    } catch (err) {
-      console.error('加入常用組合失敗:', err);
-      toast.error('加入失敗，請稍後再試');
+      const resp = await getMedications(patientId, { status: 'active', limit: 100 });
+      const allMeds = resp.medications || [];
+      const names = [...new Set(allMeds.map(m => m.name).filter(Boolean))];
+      const matched = [...new Set(names.map(matchIVDrug).filter((v): v is string => v !== null))];
+
+      if (matched.length === 0) {
+        toast('該病患目前無可比對的 IV 用藥');
+        return;
+      }
+      const newDrugs = matched.length >= MIN_DRUGS
+        ? matched
+        : [...matched, ...Array(MIN_DRUGS - matched.length).fill('')];
+      setDrugs(newDrugs);
+      setMatrixResults([]);
+      setHasSearched(false);
+      toast.success(`已載入 ${matched.length} 種 IV 用藥`);
+    } catch {
+      toast.error('載入病患用藥失敗');
+    } finally {
+      setMedsLoading(false);
     }
+  }, []);
+
+  const updateDrug = (index: number, value: string) => {
+    setDrugs(prev => prev.map((d, i) => i === index ? value : d));
   };
 
-  const handleRemoveFavorite = async (id: string) => {
-    try {
-      await deleteCompatibilityFavorite(id);
-      setFavorites(favorites.filter((f) => f.id !== id));
-      toast.success('已移除常用組合');
-    } catch (err) {
-      console.error('移除常用組合失敗:', err);
-      toast.error('移除失敗，請稍後再試');
-    }
-  };
+  const addDrug = () => setDrugs(prev => [...prev, '']);
 
-  const handleViewReference = async (ref?: string) => {
-    const trimmed = String(ref || '').trim();
-    if (!trimmed) {
-      toast.message('此筆資料未提供文獻來源');
-      return;
+  const removeDrug = (index: number) => {
+    if (drugs.length > MIN_DRUGS) {
+      setDrugs(prev => prev.filter((_, i) => i !== index));
     }
-    if (/^https?:\/\//i.test(trimmed)) {
-      window.open(trimmed, '_blank', 'noopener,noreferrer');
-      return;
-    }
-    const ok = await copyToClipboard(trimmed);
-    if (ok) toast.success('已複製文獻來源到剪貼簿');
-    else toast.message(`資料來源：${trimmed}`);
   };
 
   const handleSearch = async () => {
-    if (!drugA.trim() || !drugB.trim()) {
-      setSearchResults([]);
-      setHasSearched(false);
+    const validDrugs = [...new Set(drugs.map(d => d.trim()).filter(Boolean))];
+    if (validDrugs.length < 2) {
+      toast.error('請至少選擇兩種不同的藥品');
       return;
     }
 
     setLoading(true);
     setHasSearched(true);
-    try {
-      const params: { drugA: string; drugB: string; solution?: string } = {
-        drugA: drugA.trim(),
-        drugB: drugB.trim(),
-      };
-      if (solution && solution !== 'none') {
-        params.solution = solution;
+    const results: MatrixCell[] = [];
+
+    for (let i = 0; i < validDrugs.length; i++) {
+      for (let j = i + 1; j < validDrugs.length; j++) {
+        try {
+          const resp = await getIVCompatibility({ drugA: validDrugs[i], drugB: validDrugs[j] });
+          const rows = resp.compatibilities || [];
+          if (rows.length > 0) {
+            results.push({
+              drugA: validDrugs[i],
+              drugB: validDrugs[j],
+              status: rows[0].compatible ? 'C' : 'I',
+              notes: rows[0].notes || undefined,
+            });
+          } else {
+            results.push({ drugA: validDrugs[i], drugB: validDrugs[j], status: '-' });
+          }
+        } catch {
+          results.push({ drugA: validDrugs[i], drugB: validDrugs[j], status: '-' });
+        }
       }
-
-      const response = await getIVCompatibility(params);
-      setSearchResults(response.compatibilities || []);
-    } catch (err) {
-      console.error('查詢相容性失敗:', err);
-      toast.error('查詢失敗，請確認後端服務是否正常運行');
-      setSearchResults([]);
-    } finally {
-      setLoading(false);
     }
+
+    setMatrixResults(results);
+    setLoading(false);
   };
 
-  const getCompatibilityIcon = (compatible: boolean) => {
-    if (compatible) {
-      return (
-        <div className="flex items-center gap-2 text-green-600">
-          <CheckCircle2 className="h-5 w-5" />
-          <span className="font-medium">相容</span>
-        </div>
-      );
-    } else {
-      return (
-        <div className="flex items-center gap-2 text-destructive">
-          <XCircle className="h-5 w-5" />
-          <span className="font-medium">不相容</span>
-        </div>
-      );
+  const filledCount = drugs.filter(d => d.trim()).length;
+  const pairCount = filledCount >= 2 ? (filledCount * (filledCount - 1)) / 2 : 0;
+
+  // Summary counts
+  const summary = useMemo(() => {
+    if (matrixResults.length === 0) return null;
+    const counts = { C: 0, I: 0, '-': 0 };
+    for (const r of matrixResults) {
+      if (r.status in counts) counts[r.status as keyof typeof counts]++;
     }
-  };
+    return counts;
+  }, [matrixResults]);
+
+  // Build matrix grid for display
+  const validDrugs = useMemo(() =>
+    [...new Set(drugs.map(d => d.trim()).filter(Boolean))],
+    [drugs]
+  );
+
+  const getCell = useCallback((a: string, b: string): CompatStatus => {
+    const cell = matrixResults.find(
+      r => (r.drugA === a && r.drugB === b) || (r.drugA === b && r.drugB === a)
+    );
+    return cell?.status || '?';
+  }, [matrixResults]);
+
+  const getCellNotes = useCallback((a: string, b: string): string | undefined => {
+    const cell = matrixResults.find(
+      r => (r.drugA === a && r.drugB === b) || (r.drugA === b && r.drugB === a)
+    );
+    return cell?.notes;
+  }, [matrixResults]);
 
   return (
     <div className="p-6 space-y-6">
       <div>
         <h1>相容性檢核</h1>
-        <p className="text-muted-foreground mt-1">檢查靜脈輸注藥物的配伍相容性</p>
+        <p className="text-muted-foreground mt-1">Y-Site 靜脈輸注藥物配伍相容性查詢（支援多藥品矩陣）</p>
       </div>
 
       {/* 搜尋區 */}
       <Card>
         <CardHeader>
-          <CardTitle>藥品與溶液選擇</CardTitle>
-          <CardDescription>輸入藥品名稱與溶液類型</CardDescription>
+          <CardTitle>藥品選擇</CardTitle>
+          <CardDescription>選擇至少兩種 IV 藥品，系統將查詢所有兩兩組合的 Y-Site 相容性</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">藥品 A *</label>
-              <Input
-                placeholder="例：Propofol"
-                value={drugA}
-                onChange={(e) => setDrugA(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">藥品 B *</label>
-              <Input
-                placeholder="例：Fentanyl"
-                value={drugB}
-                onChange={(e) => setDrugB(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">溶液（可選）</label>
-              <Select value={solution} onValueChange={setSolution}>
-                <SelectTrigger>
-                  <SelectValue placeholder="選擇溶液" />
+          {/* 病患選擇器 */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium w-16 shrink-0">
+              <User className="inline h-3.5 w-3.5 mr-1" />
+              病患
+            </label>
+            <div className="flex-1">
+              <Select value={selectedPatientId} onValueChange={handlePatientSelect} disabled={patientsLoading}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder={patientsLoading ? '載入中...' : '選擇病患自動帶入 IV 用藥（可選）'} />
                 </SelectTrigger>
                 <SelectContent>
-                  {IV_COMPATIBILITY_SOLUTIONS.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  {patients.map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.bedNumber} — {p.name}（{p.medicalRecordNumber}）
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+            {selectedPatientId && (
+              <Button
+                variant="ghost" size="icon"
+                className="shrink-0 h-9 w-9 text-muted-foreground hover:text-destructive"
+                onClick={() => {
+                  setSelectedPatientId('');
+                  setDrugs(['', '']);
+                  setMatrixResults([]);
+                  setHasSearched(false);
+                }}
+                aria-label="清除病患選擇"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
+          {medsLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              載入病患用藥中...
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Drug inputs */}
+          <div className="space-y-3">
+            {drugs.map((drug, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <label className="text-sm font-medium w-16 shrink-0">藥品 {index + 1}</label>
+                <div className="flex-1">
+                  <DrugCombobox
+                    value={drug}
+                    onValueChange={(val) => updateDrug(index, val)}
+                    placeholder={`選擇 IV 藥品 ${index + 1}...`}
+                    drugList={IV_DRUG_LIST}
+                  />
+                </div>
+                {drugs.length > MIN_DRUGS && (
+                  <Button
+                    variant="ghost" size="icon"
+                    className="shrink-0 h-9 w-9 text-muted-foreground hover:text-destructive"
+                    onClick={() => removeDrug(index)}
+                    aria-label={`移除藥品 ${index + 1}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={addDrug}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              新增藥物
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              已選 {filledCount} 種藥品
+              {pairCount > 0 && `，將比對 ${pairCount} 對組合`}
+            </span>
+          </div>
+
+          <Separator />
 
           <div className="flex gap-2">
             <Button onClick={handleSearch} disabled={loading}>
@@ -221,11 +357,14 @@ export function CompatibilityPage() {
             </Button>
             <Button
               variant="outline"
-              onClick={handleAddFavorite}
-              disabled={loading || !drugA.trim() || !drugB.trim()}
+              onClick={() => {
+                setDrugs(['', '']);
+                setMatrixResults([]);
+                setHasSearched(false);
+                setSelectedPatientId('');
+              }}
             >
-              <Save className="mr-2 h-4 w-4" />
-              加入常用組合
+              清除
             </Button>
           </div>
         </CardContent>
@@ -234,102 +373,167 @@ export function CompatibilityPage() {
       {/* 查詢結果 */}
       {hasSearched && !loading && (
         <div className="space-y-4">
-          {searchResults.length === 0 ? (
-            <Alert variant="destructive">
+          {matrixResults.length === 0 ? (
+            <Alert>
               <HelpCircle className="h-4 w-4" />
-              <AlertDescription>
-                <strong>資料不足</strong>
-                <br />
-                未找到相關的配伍相容性資料。建議：
-                <ul className="mt-2 ml-4 list-disc space-y-1">
-                  <li>使用分開的輸注管路</li>
-                  <li>諮詢藥劑部門或查閱完整文獻</li>
-                  <li>若必須併用，建議先進行體外相容性測試</li>
-                </ul>
-              </AlertDescription>
+              <AlertDescription>未找到相關的 Y-Site 相容性資料。建議使用分開的輸注管路。</AlertDescription>
             </Alert>
           ) : (
             <>
-              <div className="flex items-center justify-between">
-                <h2>查詢結果</h2>
-                <span className="text-sm text-muted-foreground">
-                  找到 {searchResults.length} 筆資料
-                </span>
-              </div>
-
-              <div className="grid gap-4">
-                {searchResults.map((comp) => (
-                  <Card key={comp.id} className={comp.compatible ? 'border-green-200' : 'border-destructive'}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                          <CardTitle>
-                            {comp.drug1} + {comp.drug2}
-                          </CardTitle>
-                          <div className="flex items-center gap-3">
-                            {getCompatibilityIcon(comp.compatible)}
-                            {comp.solution && (
-                              <Badge variant="outline">溶液：{comp.solution}</Badge>
-                            )}
-                          </div>
-                        </div>
+              {/* 摘要 */}
+              {summary && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle>查詢摘要</CardTitle>
+                      <span className="text-sm text-muted-foreground">
+                        {filledCount} 種藥品，{matrixResults.length} 對組合
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <span>相容：<strong>{summary.C}</strong> 對</span>
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {comp.notes && (
-                        <>
-                          <div>
-                            <h4 className="font-medium mb-2">相容條件</h4>
-                            <Alert className={comp.compatible ? 'bg-green-50 border-green-200' : ''}>
-                              <AlertDescription>{comp.notes}</AlertDescription>
-                            </Alert>
-                          </div>
-                          <Separator />
-                        </>
-                      )}
-
-                      {comp.timeStability && (
-                        <>
-                          <div>
-                            <h4 className="font-medium mb-2">穩定性</h4>
-                            <p className="text-sm">{comp.timeStability}</p>
-                          </div>
-                          <Separator />
-                        </>
-                      )}
-
-                      {!comp.compatible && (
-                        <>
-                          <div>
-                            <h4 className="font-medium mb-2 text-destructive">注意事項</h4>
-                            <Alert variant="destructive">
-                              <AlertDescription>
-                                此組合不相容，請勿混合或並行輸注。建議使用不同的輸注管路，並在兩者之間以生理食鹽水沖洗。
-                              </AlertDescription>
-                            </Alert>
-                          </div>
-                          <Separator />
-                        </>
-                      )}
-
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-muted-foreground">資料來源：</span>
-                          <span className="font-medium">{comp.references || '—'}</span>
-                        </div>
-                        <Button
-                          variant="link"
-                          size="sm"
-                          onClick={() => handleViewReference(comp.references)}
-                        >
-                          查看完整文獻 →
-                        </Button>
+                      <div className="flex items-center gap-2">
+                        <XCircle className="h-4 w-4 text-red-600" />
+                        <span>不相容：<strong className="text-red-600">{summary.I}</strong> 對</span>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      <div className="flex items-center gap-2">
+                        <HelpCircle className="h-4 w-4 text-gray-400" />
+                        <span>無資料：<strong>{summary['-']}</strong> 對</span>
+                      </div>
+                    </div>
+
+                    {summary.I > 0 && (
+                      <Alert className="mt-3 border-red-200 bg-red-50">
+                        <XCircle className="h-4 w-4 text-red-600" />
+                        <AlertDescription className="text-red-800">
+                          發現 <strong>{summary.I}</strong> 對不相容組合，請勿混合或並行輸注，建議使用不同管路。
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* 矩陣表格 */}
+              {validDrugs.length >= 2 && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle>相容性矩陣</CardTitle>
+                    <CardDescription>
+                      <span className="inline-flex items-center gap-1 mr-3"><span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-green-100 text-green-700 border border-green-300">C</span> 相容</span>
+                      <span className="inline-flex items-center gap-1 mr-3"><span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-red-100 text-red-700 border border-red-300">I</span> 不相容</span>
+                      <span className="inline-flex items-center gap-1"><span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-gray-50 text-gray-500 border border-gray-200">-</span> 無資料</span>
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="overflow-x-auto">
+                    <table className="text-sm border-collapse">
+                      <thead>
+                        <tr>
+                          <th className="px-2 py-1.5 text-left font-medium text-muted-foreground sticky left-0 bg-background z-10" />
+                          {validDrugs.map(d => (
+                            <th key={d} className="px-2 py-1.5 text-center font-medium text-xs whitespace-nowrap max-w-[100px] truncate" title={d}>
+                              {d.length > 12 ? d.slice(0, 10) + '…' : d}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {validDrugs.map((rowDrug, ri) => (
+                          <tr key={rowDrug}>
+                            <td className="px-2 py-1.5 font-medium text-xs whitespace-nowrap sticky left-0 bg-background z-10 border-r">
+                              {rowDrug}
+                            </td>
+                            {validDrugs.map((colDrug, ci) => {
+                              if (ri === ci) {
+                                return <td key={colDrug} className="px-2 py-1.5 text-center bg-gray-50">—</td>;
+                              }
+                              const status = ri < ci ? getCell(rowDrug, colDrug) : getCell(colDrug, rowDrug);
+                              const notes = ri < ci ? getCellNotes(rowDrug, colDrug) : getCellNotes(colDrug, rowDrug);
+                              const cfg = STATUS_CONFIG[status];
+                              return (
+                                <td
+                                  key={colDrug}
+                                  className={`px-2 py-1.5 text-center border ${cfg.bg} cursor-default`}
+                                  title={`${rowDrug} + ${colDrug}: ${cfg.label}${notes ? ` (${notes})` : ''}`}
+                                >
+                                  <span className={`font-bold text-xs ${cfg.color}`}>{cfg.short}</span>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* 詳細不相容列表 */}
+              {matrixResults.filter(r => r.status === 'I').length > 0 && (
+                <>
+                  <h2>不相容組合</h2>
+                  <div className="grid gap-3">
+                    {matrixResults.filter(r => r.status === 'I').map((r, i) => (
+                      <Card key={i} className="border-red-200">
+                        <CardContent className="py-3 flex items-center gap-3">
+                          <XCircle className="h-5 w-5 text-red-600 shrink-0" />
+                          <div>
+                            <span className="font-medium">{r.drugA} + {r.drugB}</span>
+                            <Badge variant="destructive" className="ml-2 text-xs">不相容</Badge>
+                            {r.notes && <p className="text-sm text-muted-foreground mt-0.5">{r.notes}</p>}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* 詳細相容列表 */}
+              {matrixResults.filter(r => r.status === 'C').length > 0 && (
+                <>
+                  <h2>相容組合</h2>
+                  <div className="grid gap-3">
+                    {matrixResults.filter(r => r.status === 'C').map((r, i) => (
+                      <Card key={i} className="border-green-200">
+                        <CardContent className="py-3 flex items-center gap-3">
+                          <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+                          <div>
+                            <span className="font-medium">{r.drugA} + {r.drugB}</span>
+                            <Badge variant="outline" className="ml-2 text-xs border-green-300 text-green-700">相容</Badge>
+                            {r.notes && <p className="text-sm text-muted-foreground mt-0.5">{r.notes}</p>}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* 無資料列表 */}
+              {matrixResults.filter(r => r.status === '-').length > 0 && (
+                <>
+                  <h2>無資料組合</h2>
+                  <Alert>
+                    <HelpCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      以下組合尚無 Y-Site 相容性資料，建議使用分開的輸注管路或諮詢藥劑部門：
+                      <ul className="mt-1 list-disc ml-5 space-y-0.5">
+                        {matrixResults.filter(r => r.status === '-').map((r, i) => (
+                          <li key={i}>{r.drugA} + {r.drugB}</li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                </>
+              )}
+
+              <p className="text-xs text-muted-foreground">資料來源：陽明院區 Y-site compatibility 資料整理（8 科 ICU）</p>
             </>
           )}
         </div>
@@ -340,104 +544,6 @@ export function CompatibilityPage() {
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-[#7f265b]" />
           <p className="text-muted-foreground">查詢中...</p>
         </div>
-      )}
-
-      {/* 常用組合 */}
-      {!hasSearched && !loading && (
-        <>
-          <Card className="bg-muted/30">
-            <CardHeader className="cursor-pointer select-none" onClick={() => setInstructionsOpen(!instructionsOpen)}>
-              <CardTitle className="text-base flex items-center gap-2">
-                {instructionsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                使用說明
-              </CardTitle>
-            </CardHeader>
-            {instructionsOpen && (
-              <CardContent className="space-y-2 text-sm pt-0">
-                <p>• 輸入兩種藥品名稱進行查詢（必填）</p>
-                <p>• 可選擇特定溶液類型，或選擇「不限定」查詢所有溶液</p>
-                <p>• 相容性資料包含配伍條件（如 pH、濃度、時間限制）</p>
-                <p>• 若資料庫無相關資訊，建議使用分開的輸注管路</p>
-                <p>• 所有資料來源均可追溯，可查閱完整文獻</p>
-              </CardContent>
-            )}
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">常用組合快速查詢</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {favorites.length > 0 && (
-                <>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">
-                    我的常用（雲端同步）
-                  </p>
-                  <div className="grid gap-2 md:grid-cols-2 mb-4">
-                    {favorites.map((fav) => (
-                      <div key={fav.id} className="flex gap-1">
-                        <Button
-                          variant="outline"
-                          className="justify-start flex-1"
-                          onClick={() => {
-                            setDrugA(fav.drugA);
-                            setDrugB(fav.drugB);
-                            setSolution(fav.solution);
-                          }}
-                        >
-                          {fav.drugA} + {fav.drugB}{fav.solution && fav.solution !== 'none' ? ` (${fav.solution})` : ''}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="移除常用組合"
-                          onClick={() => handleRemoveFavorite(fav.id)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-              <div className="grid gap-2 md:grid-cols-2">
-                <Button
-                  variant="outline"
-                  className="justify-start"
-                  onClick={() => {
-                    setDrugA('Morphine');
-                    setDrugB('Midazolam');
-                    setSolution('NS');
-                  }}
-                >
-                  Morphine + Midazolam (NS)
-                </Button>
-                <Button
-                  variant="outline"
-                  className="justify-start"
-                  onClick={() => {
-                    setDrugA('Propofol');
-                    setDrugB('Fentanyl');
-                    setSolution('none');
-                  }}
-                >
-                  Propofol + Fentanyl
-                </Button>
-                <Button
-                  variant="outline"
-                  className="justify-start"
-                  onClick={() => {
-                    setDrugA('Cisatracurium');
-                    setDrugB('Propofol');
-                    setSolution('D5W');
-                  }}
-                >
-                  Cisatracurium + Propofol (D5W)
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </>
       )}
     </div>
   );
