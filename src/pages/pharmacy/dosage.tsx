@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
@@ -6,11 +6,22 @@ import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Separator } from '../../components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Calculator, Loader2, AlertTriangle, ChevronDown, ChevronRight, User, X } from 'lucide-react';
+import { Calculator, Loader2, AlertTriangle, ChevronDown, ChevronRight, User, X, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { padCalculate, getPadDrugs, type PadDrugInfo, type PadCalculateResult } from '../../lib/api/pharmacy';
 import { getPatients, type Patient } from '../../lib/api/patients';
 import { isAxiosError } from 'axios';
+
+/** Parse dose_range like "0.03–0.6" → [0.03, 0.6] */
+function parseDoseRange(range?: string): [number, number] | null {
+  if (!range) return null;
+  const parts = range.split('–');
+  if (parts.length !== 2) return null;
+  const lo = parseFloat(parts[0]);
+  const hi = parseFloat(parts[1]);
+  if (isNaN(lo) || isNaN(hi)) return null;
+  return [lo, hi];
+}
 
 export function DosagePage() {
   // Drug catalog
@@ -38,6 +49,17 @@ export function DosagePage() {
   // Selected drug info helper
   const drugInfo = padDrugs.find(d => d.key === selectedDrug);
 
+  // Dose range validation
+  const doseRange = useMemo(() => parseDoseRange(drugInfo?.dose_range), [drugInfo]);
+  const targetDoseNum = targetDose ? parseFloat(targetDose) : NaN;
+  const isDoseOutOfRange = doseRange && !isNaN(targetDoseNum) && targetDoseNum > 0 &&
+    (targetDoseNum < doseRange[0] || targetDoseNum > doseRange[1]);
+
+  // Concentration deviation check
+  const isConcentrationChanged = drugInfo &&
+    concentration !== '' &&
+    parseFloat(concentration) !== drugInfo.concentration;
+
   // Load PAD drugs + patients on mount
   useEffect(() => {
     let cancelled = false;
@@ -47,7 +69,6 @@ export function DosagePage() {
         const res = await getPadDrugs();
         if (!cancelled) setPadDrugs(res.drugs);
       } catch {
-        // Use hardcoded fallback
         if (!cancelled) setPadDrugs([]);
       } finally {
         if (!cancelled) setDrugsLoading(false);
@@ -67,15 +88,15 @@ export function DosagePage() {
     return () => { cancelled = true; };
   }, []);
 
-  // When drug changes, fill default concentration
+  // Fix #1: Drug switch always clears target dose + result
   const handleDrugChange = useCallback((drugKey: string) => {
     setSelectedDrug(drugKey);
+    setTargetDose('');
+    setResult(null);
     const info = padDrugs.find(d => d.key === drugKey);
     if (info) {
       setConcentration(String(info.concentration));
-      setTargetDose('');
     }
-    setResult(null);
   }, [padDrugs]);
 
   // When patient selected, fill weight/sex/height
@@ -91,6 +112,18 @@ export function DosagePage() {
       toast.success(`已帶入 ${p.name} 的基本資料`);
     }
   }, [patients]);
+
+  // Fix #5: Reset all fields
+  const handleReset = useCallback(() => {
+    setSelectedDrug('');
+    setWeight('');
+    setTargetDose('');
+    setConcentration('');
+    setSex('');
+    setHeight('');
+    setSelectedPatientId('');
+    setResult(null);
+  }, []);
 
   const isFixedDose = drugInfo?.weight_basis === 'fixed';
 
@@ -239,7 +272,15 @@ export function DosagePage() {
                   placeholder={drugInfo ? `例：${drugInfo.dose_range.split('–')[0]}` : '選擇藥品後顯示'}
                   value={targetDose}
                   onChange={(e) => setTargetDose(e.target.value)}
+                  className={isDoseOutOfRange ? 'border-amber-500 focus-visible:ring-amber-500' : ''}
                 />
+                {/* Fix #2: Out-of-range warning */}
+                {isDoseOutOfRange && doseRange && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    超出建議範圍（{doseRange[0]}–{doseRange[1]} {drugInfo?.dose_unit}），請確認劑量
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">
@@ -256,7 +297,15 @@ export function DosagePage() {
                   placeholder={drugInfo ? String(drugInfo.concentration) : ''}
                   value={concentration}
                   onChange={(e) => setConcentration(e.target.value)}
+                  className={isConcentrationChanged ? 'border-amber-500 focus-visible:ring-amber-500' : ''}
                 />
+                {/* Fix #4: Concentration deviation hint */}
+                {isConcentrationChanged && drugInfo && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    已偏離 PAD 預設濃度（{drugInfo.concentration} {drugInfo.concentration_unit}）
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -293,14 +342,23 @@ export function DosagePage() {
             </div>
           </div>
 
-          <Button onClick={handleCalculate} disabled={loading}>
-            {loading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Calculator className="mr-2 h-4 w-4" />
+          {/* Fix #5: Reset + Calculate buttons */}
+          <div className="flex gap-2">
+            <Button onClick={handleCalculate} disabled={loading}>
+              {loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Calculator className="mr-2 h-4 w-4" />
+              )}
+              計算輸注速率
+            </Button>
+            {(selectedDrug || weight || targetDose || concentration || sex || height) && (
+              <Button variant="outline" onClick={handleReset}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                清除全部
+              </Button>
             )}
-            計算輸注速率
-          </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -340,21 +398,23 @@ export function DosagePage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* 主要結果 */}
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="p-3 bg-muted rounded-lg text-center">
-                      <p className="text-xs text-muted-foreground">輸注速率</p>
-                      <p className="text-2xl font-bold text-[#7f265b]">{result.rate_ml_hr}</p>
-                      <p className="text-xs text-muted-foreground">ml/hr</p>
-                    </div>
+                  {/* Fix #7: Rate more prominent — dedicated hero section */}
+                  <div className="p-4 bg-[#7f265b]/10 border border-[#7f265b]/20 rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground mb-1">建議輸注速率</p>
+                    <p className="text-4xl font-bold text-[#7f265b]">{result.rate_ml_hr}</p>
+                    <p className="text-sm font-medium text-[#7f265b]/80">ml/hr</p>
+                  </div>
+
+                  {/* 次要結果 */}
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <div className="p-3 bg-muted rounded-lg text-center">
                       <p className="text-xs text-muted-foreground">每小時劑量</p>
-                      <p className="text-2xl font-bold">{result.dose_per_hr}</p>
+                      <p className="text-xl font-bold">{result.dose_per_hr}</p>
                       <p className="text-xs text-muted-foreground">{drugInfo?.dose_unit?.replace('/kg/hr', '/hr') || '/hr'}</p>
                     </div>
                     <div className="p-3 bg-muted rounded-lg text-center">
                       <p className="text-xs text-muted-foreground">藥物濃度</p>
-                      <p className="text-2xl font-bold">{result.concentration.split(' ')[0]}</p>
+                      <p className="text-xl font-bold">{result.concentration.split(' ')[0]}</p>
                       <p className="text-xs text-muted-foreground">{result.concentration.split(' ').slice(1).join(' ')}</p>
                     </div>
                   </div>
@@ -382,8 +442,12 @@ export function DosagePage() {
                             <span className="text-muted-foreground">%IBW</span>
                             <span className="font-medium sm:block">
                               {result.pct_IBW}%
+                              {/* Fix #8: Badges for both obese and underweight */}
                               {result.is_obese && (
                                 <Badge variant="destructive" className="ml-1 text-xs">肥胖</Badge>
+                              )}
+                              {!result.is_obese && result.pct_IBW != null && result.pct_IBW < 90 && (
+                                <Badge className="ml-1 text-xs bg-amber-500 hover:bg-amber-600">體重偏低</Badge>
                               )}
                             </span>
                           </div>
@@ -454,6 +518,7 @@ export function DosagePage() {
               <p>• 提供性別與身高時，系統會進行肥胖體重調整（Devine IBW/AdjBW）</p>
               <p>• 肥胖判定：%IBW &gt; 120%，親水性藥物使用 IBW，親脂性藥物使用 AdjBW</p>
               <p>• 計算公式：輸注速率 (ml/hr) = (計算體重 × 目標劑量) ÷ 濃度</p>
+              <p>• 目標劑量超出建議範圍或濃度偏離預設值時，會以黃色框線提示</p>
             </CardContent>
           )}
         </Card>

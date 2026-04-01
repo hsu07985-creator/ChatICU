@@ -216,9 +216,11 @@ def _pad_calculate(req: PadCalculateRequest) -> PadCalculateResponse:
     dose_per_hr = dosing_weight * req.target_dose_per_kg_hr
     rate_ml_hr = round(dose_per_hr / req.concentration, 1)
 
+    # e.g. "mcg/kg/hr" → "mcg/hr", "mg/kg/hr" → "mg/hr"
+    dose_unit_total = defaults['dose_unit'].replace('/kg', '')
     steps.append(
         f"劑量 = {round(dosing_weight, 1)} kg × {req.target_dose_per_kg_hr} "
-        f"{defaults['dose_unit']} = {round(dose_per_hr, 2)} /hr"
+        f"{defaults['dose_unit']} = {round(dose_per_hr, 2)} {dose_unit_total}"
     )
     steps.append(
         f"輸注速率 = {round(dose_per_hr, 2)} / {req.concentration} "
