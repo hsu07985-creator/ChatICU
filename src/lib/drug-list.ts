@@ -1,7 +1,7 @@
 /**
  * Hospital formulary drug list for pharmacy interaction checker.
  * Cross-referenced: 陽明院區常備藥品明細表 (1,587 items) × MICROMEDEX DrugDex.
- * 535 drugs with known interaction data included.
+ * 536 drugs with known interaction data included.
  */
 export const DRUG_LIST: string[] = [
   "ALPRAZolam",
@@ -519,6 +519,7 @@ export const DRUG_LIST: string[] = [
   "Umeclidinium",
   "Urokinase",
   "Vadadustat",
+  "Valproic Acid and Derivatives",
   "Valsartan",
   "Vancomycin",
   "Varenicline (Systemic)",
