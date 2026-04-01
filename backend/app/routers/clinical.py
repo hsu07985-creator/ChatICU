@@ -573,23 +573,52 @@ async def interaction_check(
     db_findings: list = []
     severity_rank = {"contraindicated": 5, "major": 4, "moderate": 3, "minor": 2}
     max_sev = "none"
+    seen_ids: set = set()
+
+    def _drug_match_clause(drug_name: str):
+        escaped = escape_like(drug_name)
+        return or_(
+            DrugInteraction.drug1.ilike(f"%{escaped}%"),
+            DrugInteraction.drug2.ilike(f"%{escaped}%"),
+            DrugInteraction.interacting_members.ilike(f"%{escaped}%"),
+        )
+
+    def _pair_on_different_sides(row, da: str, db_: str) -> bool:
+        """Ensure da and db_ match different sides of the interaction."""
+        members = json.loads(row.interacting_members) if row.interacting_members else []
+        d1_l = (row.drug1 or "").lower()
+        d2_l = (row.drug2 or "").lower()
+        side1 = {d1_l}
+        side2 = {d2_l}
+        for g in members:
+            gn = (g.get("group_name") or "").lower()
+            member_set = {m.lower() for m in g.get("members", [])}
+            if gn == d1_l:
+                side1.update(member_set)
+            elif gn == d2_l:
+                side2.update(member_set)
+        da_l, db_l = da.lower(), db_.lower()
+        da_s1 = any(da_l in n or n in da_l for n in side1)
+        da_s2 = any(da_l in n or n in da_l for n in side2)
+        db_s1 = any(db_l in n or n in db_l for n in side1)
+        db_s2 = any(db_l in n or n in db_l for n in side2)
+        return (da_s1 and db_s2) or (da_s2 and db_s1)
 
     for i in range(len(drugs)):
         for j in range(i + 1, len(drugs)):
             da, db_ = drugs[i], drugs[j]
             query = select(DrugInteraction).where(
-                or_(
-                    DrugInteraction.drug1.ilike(f"%{escape_like(da)}%"),
-                    DrugInteraction.drug2.ilike(f"%{escape_like(da)}%"),
-                )
+                _drug_match_clause(da)
             ).where(
-                or_(
-                    DrugInteraction.drug1.ilike(f"%{escape_like(db_)}%"),
-                    DrugInteraction.drug2.ilike(f"%{escape_like(db_)}%"),
-                )
+                _drug_match_clause(db_)
             )
             rows_result = await db.execute(query.limit(50))
             for row in rows_result.scalars().all():
+                if row.id in seen_ids:
+                    continue
+                if not _pair_on_different_sides(row, da, db_):
+                    continue
+                seen_ids.add(row.id)
                 sev = row.severity or "unknown"
                 if severity_rank.get(sev, 0) > severity_rank.get(max_sev, 0):
                     max_sev = sev

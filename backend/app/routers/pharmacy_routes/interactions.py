@@ -65,6 +65,33 @@ def _relevance_score(interaction, drug_a: str, drug_b: str) -> tuple:
     return (direct_priority, risk, sev)
 
 
+def _pair_on_different_sides(interaction, drug_a: str, drug_b: str) -> bool:
+    """Ensure drug_a and drug_b match different sides of the interaction.
+
+    Without this filter, two drugs that belong to the same broad class
+    (e.g. both are 'Blood Pressure Lowering Agents') would match rows
+    where neither drug1 nor drug2 is one of the queried drugs.
+    """
+    members = _parse_json_field(interaction.interacting_members)
+    d1_l = (interaction.drug1 or "").lower()
+    d2_l = (interaction.drug2 or "").lower()
+    side1 = {d1_l}
+    side2 = {d2_l}
+    for g in members:
+        gn = (g.get("group_name") or "").lower()
+        member_set = {m.lower() for m in g.get("members", [])}
+        if gn == d1_l:
+            side1.update(member_set)
+        elif gn == d2_l:
+            side2.update(member_set)
+    a_l, b_l = drug_a.lower(), drug_b.lower() if drug_b else ""
+    a_s1 = any(a_l in n or n in a_l for n in side1)
+    a_s2 = any(a_l in n or n in a_l for n in side2)
+    b_s1 = any(b_l in n or n in b_l for n in side1) if b_l else True
+    b_s2 = any(b_l in n or n in b_l for n in side2) if b_l else True
+    return (a_s1 and b_s2) or (a_s2 and b_s1)
+
+
 @router.get("/drug-interactions")
 async def search_drug_interactions(
     drugA: str = Query(..., min_length=1),
@@ -81,6 +108,10 @@ async def search_drug_interactions(
     # Fetch more rows than needed so we can sort by relevance in Python
     result = await db.execute(query.limit(500))
     interactions: List[DrugInteraction] = list(result.scalars().all())
+
+    # Filter: ensure both drugs match different sides of the interaction
+    if drugB:
+        interactions = [i for i in interactions if _pair_on_different_sides(i, drugA, drugB)]
 
     # Sort: direct name matches first, then by risk rating, then severity
     interactions.sort(key=lambda i: _relevance_score(i, drugA, drugB))
