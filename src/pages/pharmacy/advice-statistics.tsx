@@ -18,7 +18,7 @@ import {
   PHARMACY_ADVICE_CATEGORIES,
   PHARMACY_ADVICE_CATEGORY_COLORS,
 } from '../../lib/pharmacy-master-data';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Label } from 'recharts';
 
 export function PharmacyAdviceStatisticsPage() {
   // ── 病患清單 ──
@@ -164,12 +164,16 @@ export function PharmacyAdviceStatisticsPage() {
     );
   };
 
-  const renderPieLabel = ({ cx, cy }: { cx: number; cy: number }) => (
-    <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
-      <tspan x={cx} dy="-0.4em" fontSize={28} fontWeight={700} fill="#1a1a1a">{totalAdvices}</tspan>
-      <tspan x={cx} dy="1.6em" fontSize={12} fill="#6b7280">筆建議</tspan>
-    </text>
-  );
+  const renderPieCenterLabel = ({ viewBox }: { viewBox?: { cx: number; cy: number } }) => {
+    if (!viewBox) return null;
+    const { cx, cy } = viewBox;
+    return (
+      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
+        <tspan x={cx} dy="-0.4em" fontSize={28} fontWeight={700} fill="#1a1a1a">{totalAdvices}</tspan>
+        <tspan x={cx} dy="1.6em" fontSize={12} fill="#6b7280">筆建議</tspan>
+      </text>
+    );
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -347,22 +351,22 @@ export function PharmacyAdviceStatisticsPage() {
                       paddingAngle={2}
                       dataKey="value"
                       labelLine={false}
-                      label={renderPieLabel}
                     >
                       {pieData.map((entry, i) => (
                         <Cell key={i} fill={entry.color} />
                       ))}
+                      <Label content={renderPieCenterLabel} position="center" />
                     </Pie>
                     <Tooltip formatter={(value: number, name: string) => [`${value} 筆`, name]} />
                   </PieChart>
                 </ResponsiveContainer>
                 {/* 圖例 */}
-                <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center mt-1">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-2 px-2">
                   {pieData.map((entry) => (
-                    <div key={entry.name} className="flex items-center gap-1.5 text-xs">
-                      <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: entry.color }} />
-                      <span className="text-muted-foreground">{entry.name}</span>
-                      <span className="font-semibold">{entry.value}</span>
+                    <div key={entry.name} className="flex items-center gap-1.5 text-xs min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
+                      <span className="text-muted-foreground truncate">{entry.name}</span>
+                      <span className="font-semibold ml-auto shrink-0">{entry.value}</span>
                     </div>
                   ))}
                 </div>
@@ -456,7 +460,7 @@ export function PharmacyAdviceStatisticsPage() {
               <CardTitle className="text-base">細項分析（{barData.length} 項）</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={Math.max(200, barData.length * 36 + 40)}>
+              <ResponsiveContainer width="100%" height={Math.max(200, barData.length * 40 + 40)}>
                 <BarChart data={barData} layout="vertical" margin={{ top: 5, right: 40, left: 10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
                   <XAxis
@@ -470,7 +474,7 @@ export function PharmacyAdviceStatisticsPage() {
                   <YAxis
                     type="category"
                     dataKey="fullLabel"
-                    width={220}
+                    width={260}
                     stroke="#6b7280"
                     tick={{ fontSize: 11 }}
                     axisLine={false}
