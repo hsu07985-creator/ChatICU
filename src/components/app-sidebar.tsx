@@ -1,4 +1,4 @@
-import { Home, Users, MessageSquare, Database, FileText, UserCog, Briefcase, BarChart3, AlertTriangle, Calculator, Droplets, AlertCircle } from 'lucide-react';
+import { Home, Users, MessageSquare, Database, FileText, UserCog, Briefcase, BarChart3, AlertTriangle, Calculator, Droplets } from 'lucide-react';
 import logoImage from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 import {
   Sidebar,
@@ -107,11 +107,6 @@ export function AppSidebar() {
       title: '相容性檢核',
       url: '/pharmacy/compatibility',
       icon: Droplets,
-    },
-    {
-      title: '用藥異常通報',
-      url: '/pharmacy/error-report',
-      icon: AlertCircle,
     },
     {
       title: '用藥建議與統計',

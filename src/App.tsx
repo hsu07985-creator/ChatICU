@@ -21,7 +21,6 @@ const PharmacyWorkstationPage = lazy(() => import('./pages/pharmacy/workstation'
 const DrugInteractionsPage = lazy(() => import('./pages/pharmacy/interactions').then(m => ({ default: m.DrugInteractionsPage })));
 const CompatibilityPage = lazy(() => import('./pages/pharmacy/compatibility').then(m => ({ default: m.CompatibilityPage })));
 const DosagePage = lazy(() => import('./pages/pharmacy/dosage').then(m => ({ default: m.DosagePage })));
-const ErrorReportPage = lazy(() => import('./pages/pharmacy/error-report').then(m => ({ default: m.ErrorReportPage })));
 const PharmacyAdviceStatisticsPage = lazy(() => import('./pages/pharmacy/advice-statistics').then(m => ({ default: m.PharmacyAdviceStatisticsPage })));
 
 // Admin Pages (lazy)
@@ -244,16 +243,6 @@ function AppRoutes() {
           <PharmacyRoute>
             <AppLayout>
               <DosagePage />
-            </AppLayout>
-          </PharmacyRoute>
-        }
-      />
-      <Route
-        path="/pharmacy/error-report"
-        element={
-          <PharmacyRoute>
-            <AppLayout>
-              <ErrorReportPage />
             </AppLayout>
           </PharmacyRoute>
         }
