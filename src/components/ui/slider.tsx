@@ -56,11 +56,11 @@ function Slider({
           key={index}
           className="block shrink-0 rounded-full shadow-lg ring-ring/50 transition-[color,box-shadow] hover:ring-4 hover:scale-110 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50 cursor-grab active:cursor-grabbing"
           style={{
-            width: 26,
-            height: 26,
+            width: 18,
+            height: 18,
             backgroundColor: 'var(--primary)',
-            border: '3px solid white',
-            boxShadow: '0 2px 8px rgba(127,38,91,0.3)',
+            border: '2.5px solid white',
+            boxShadow: '0 1px 4px rgba(127,38,91,0.35)',
           }}
         />
       ))}

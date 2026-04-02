@@ -216,6 +216,6 @@ html {
   overflow: visible !important;
 }
 [data-slot="slider-thumb"] {
-  min-width: 26px !important;
-  min-height: 26px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
 }

@@ -148,7 +148,7 @@ function ScoreSlider({
           disabled={submitting}
           className="[&_[data-slot=slider-track]]:bg-[#ede0e7] [&_[data-slot=slider-range]]:bg-[#7f265b]"
         />
-        <div className="flex justify-between mt-3 px-0.5">
+        <div className="flex justify-between mt-2 px-0.5">
           {ticks.map((v) => (
             <span
               key={v}
@@ -310,7 +310,7 @@ export function PatientMedicationsTab({
                     className="h-7 px-3 text-xs border-[#d9b6c8] text-[#7f265b] hover:bg-[#fbf4f8]"
                     onClick={() => onOpenScoreTrend('pain')}
                   >
-                    📈 趨勢
+                    趨勢
                   </Button>
                 </div>
                 <CardDescription className="text-sm leading-tight">
@@ -368,7 +368,7 @@ export function PatientMedicationsTab({
                     className="h-7 px-3 text-xs border-[#d9b6c8] text-[#7f265b] hover:bg-[#fbf4f8]"
                     onClick={() => onOpenScoreTrend('rass')}
                   >
-                    📈 趨勢
+                    趨勢
                   </Button>
                 </div>
                 <CardDescription className="text-sm leading-tight">
