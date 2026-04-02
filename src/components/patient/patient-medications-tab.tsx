@@ -95,26 +95,14 @@ function ScoreSlider({
     }
   };
 
+  const steps = max - min;
+  const ticks = Array.from({ length: steps + 1 }, (_, i) => min + i);
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <span className="text-xs text-muted-foreground font-medium w-8 text-right">{fmt(min)}</span>
-        <div className="flex-1 relative">
-          <Slider
-            min={min}
-            max={max}
-            step={step ?? 1}
-            value={[displayValue]}
-            onValueChange={([v]) => setPending(v)}
-            disabled={submitting}
-            className="[&_[data-slot=slider-track]]:h-3 [&_[data-slot=slider-range]]:bg-[#7f265b] [&_[data-slot=slider-thumb]]:h-6 [&_[data-slot=slider-thumb]]:w-6 [&_[data-slot=slider-thumb]]:border-[#7f265b] [&_[data-slot=slider-thumb]]:border-2"
-          />
-        </div>
-        <span className="text-xs text-muted-foreground font-medium w-8">{fmt(max)}</span>
-      </div>
-      <div className="flex items-center justify-between">
+    <div className="space-y-2">
+      <div className="flex items-center gap-4">
         <span
-          className={`text-2xl font-bold tabular-nums ${hasPending ? 'text-[#7f265b]' : 'text-slate-800'}`}
+          className={`text-3xl font-bold tabular-nums min-w-[3ch] ${hasPending ? 'text-[#7f265b]' : 'text-slate-800'}`}
         >
           {fmt(displayValue)}
         </span>
@@ -126,7 +114,7 @@ function ScoreSlider({
               disabled={submitting}
               onClick={handleConfirm}
             >
-              {submitting ? '記錄中...' : `確認記錄`}
+              {submitting ? '記錄中...' : '確認記錄'}
             </Button>
             <Button
               variant="ghost"
@@ -139,6 +127,29 @@ function ScoreSlider({
             </Button>
           </div>
         )}
+      </div>
+      <div className="px-1">
+        <Slider
+          min={min}
+          max={max}
+          step={step ?? 1}
+          value={[displayValue]}
+          onValueChange={([v]) => setPending(v)}
+          disabled={submitting}
+          className="[&_[data-slot=slider-track]]:h-3 [&_[data-slot=slider-track]]:bg-gray-200 [&_[data-slot=slider-range]]:bg-[#7f265b] [&_[data-slot=slider-thumb]]:h-7 [&_[data-slot=slider-thumb]]:w-7 [&_[data-slot=slider-thumb]]:border-[#7f265b] [&_[data-slot=slider-thumb]]:border-[3px] [&_[data-slot=slider-thumb]]:bg-white [&_[data-slot=slider-thumb]]:shadow-md"
+        />
+        <div className="flex justify-between mt-1.5">
+          {ticks.map((v) => (
+            <span
+              key={v}
+              className={`text-[10px] w-0 text-center ${
+                v === displayValue ? 'font-bold text-[#7f265b]' : 'text-muted-foreground'
+              }`}
+            >
+              {fmt(v)}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -192,6 +203,7 @@ export function PatientMedicationsTab({
   onRefreshMedications,
 }: PatientMedicationsTabProps) {
   const [hidePrn, setHidePrn] = useState(false);
+  const [showAbxOnly, setShowAbxOnly] = useState(false);
   const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
   const [editForm, setEditForm] = useState({
     dose: '',
@@ -205,9 +217,17 @@ export function PatientMedicationsTab({
   const [isSavingMedication, setIsSavingMedication] = useState(false);
 
   const prnCount = otherMedications.filter(isPrnOrStat).length;
-  const displayedOtherMeds = hidePrn
-    ? otherMedications.filter((m) => !isPrnOrStat(m))
-    : otherMedications;
+  const abxCount = otherMedications.filter(isAntibiotic).length;
+  // Sort: antibiotics first, then by name
+  const sortedOtherMeds = [...otherMedications].sort((a, b) => {
+    const aAbx = isAntibiotic(a) ? 0 : 1;
+    const bAbx = isAntibiotic(b) ? 0 : 1;
+    if (aAbx !== bAbx) return aAbx - bAbx;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+  const displayedOtherMeds = sortedOtherMeds
+    .filter((m) => !hidePrn || !isPrnOrStat(m))
+    .filter((m) => !showAbxOnly || isAntibiotic(m));
   const canEditMedication = userRole === 'doctor' || userRole === 'pharmacist';
 
   const openMedicationEditor = (medication: Medication) => {
@@ -430,16 +450,28 @@ export function PatientMedicationsTab({
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold leading-tight text-slate-800">其他藥物 Other Medications</CardTitle>
-                {prnCount > 0 && (
-                  <Button
-                    variant={hidePrn ? 'outline' : 'ghost'}
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    onClick={() => setHidePrn(!hidePrn)}
-                  >
-                    {hidePrn ? `顯示 PRN/STAT (${prnCount})` : `隱藏 PRN/STAT (${prnCount})`}
-                  </Button>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {abxCount > 0 && (
+                    <Button
+                      variant={showAbxOnly ? 'default' : 'outline'}
+                      size="sm"
+                      className={`h-7 px-2 text-xs ${showAbxOnly ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'border-amber-300 text-amber-700 hover:bg-amber-50'}`}
+                      onClick={() => setShowAbxOnly(!showAbxOnly)}
+                    >
+                      {showAbxOnly ? `全部藥物` : `抗生素 (${abxCount})`}
+                    </Button>
+                  )}
+                  {prnCount > 0 && (
+                    <Button
+                      variant={hidePrn ? 'outline' : 'ghost'}
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setHidePrn(!hidePrn)}
+                    >
+                      {hidePrn ? `顯示 PRN/STAT (${prnCount})` : `隱藏 PRN/STAT (${prnCount})`}
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
