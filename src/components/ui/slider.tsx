@@ -55,7 +55,7 @@ function Slider({
           data-slot="slider-thumb"
           key={index}
           className="border-primary bg-background ring-ring/50 block shrink-0 rounded-full border-2 shadow-md transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
-          style={{ width: 24, height: 24 }}
+          style={{ width: 28, height: 28 }}
         />
       ))}
     </SliderPrimitive.Root>
