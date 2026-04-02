@@ -99,36 +99,46 @@ function ScoreSlider({
   const ticks = Array.from({ length: steps + 1 }, (_, i) => min + i);
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-4">
-        <span
-          className={`text-3xl font-bold tabular-nums min-w-[3ch] ${hasPending ? 'text-[#7f265b]' : 'text-slate-800'}`}
+    <div className="space-y-1.5">
+      {/* Value display + action buttons */}
+      <div className="flex items-center gap-3">
+        <div
+          className={`inline-flex items-center justify-center rounded-lg px-3 py-1 min-w-[3.5rem] transition-colors ${
+            hasPending
+              ? 'bg-[#7f265b] text-white'
+              : 'bg-[#f8f0f4] text-[#7f265b]'
+          }`}
         >
-          {fmt(displayValue)}
-        </span>
-        {hasPending && (
-          <div className="flex items-center gap-2">
+          <span className="text-xl font-bold tabular-nums leading-none">
+            {fmt(displayValue)}
+          </span>
+        </div>
+        {hasPending ? (
+          <div className="flex items-center gap-1.5">
             <Button
               size="sm"
-              className="h-8 px-4 text-sm bg-[#7f265b] hover:bg-[#6a1f4d]"
+              className="h-7 px-3 text-xs font-medium bg-[#7f265b] hover:bg-[#6a1f4d] rounded-md"
               disabled={submitting}
               onClick={handleConfirm}
             >
-              {submitting ? '記錄中...' : '確認記錄'}
+              {submitting ? '記錄中...' : '✓ 確認'}
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 px-3 text-sm text-muted-foreground"
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-slate-700"
               disabled={submitting}
               onClick={() => setPending(null)}
             >
               取消
             </Button>
           </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">← 拖曳滑桿選擇分數</span>
         )}
       </div>
-      <div className="px-1">
+      {/* Slider + ticks */}
+      <div className="px-3">
         <Slider
           min={min}
           max={max}
@@ -136,14 +146,16 @@ function ScoreSlider({
           value={[displayValue]}
           onValueChange={([v]) => setPending(v)}
           disabled={submitting}
-          className="[&_[data-slot=slider-track]]:h-3 [&_[data-slot=slider-track]]:bg-gray-200 [&_[data-slot=slider-range]]:bg-[#7f265b]"
+          className="[&_[data-slot=slider-track]]:bg-[#ede0e7] [&_[data-slot=slider-range]]:bg-[#7f265b]"
         />
-        <div className="flex justify-between mt-4">
+        <div className="flex justify-between mt-3 px-0.5">
           {ticks.map((v) => (
             <span
               key={v}
-              className={`text-[10px] w-0 text-center ${
-                v === displayValue ? 'font-bold text-[#7f265b]' : 'text-muted-foreground'
+              className={`text-[11px] w-0 text-center tabular-nums transition-colors ${
+                v === displayValue
+                  ? 'font-bold text-[#7f265b] scale-110'
+                  : 'text-slate-400'
               }`}
             >
               {fmt(v)}
