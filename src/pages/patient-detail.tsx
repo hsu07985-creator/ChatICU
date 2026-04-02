@@ -754,6 +754,20 @@ export function PatientDetailPage() {
     if (scoreType === 'pain') setPainScoreValue(value);
     else setRassScoreValue(value);
     toast.success(`已記錄 ${scoreType === 'pain' ? 'Pain' : 'RASS'} = ${value}`);
+    // 自動打開趨勢圖
+    setScoreTrendType(scoreType);
+    setScoreTrendOpen(true);
+    try {
+      const result = await getScoreTrends(id, scoreType, 72);
+      setScoreTrendData(
+        result.trends.map((t) => ({
+          date: new Date(t.timestamp).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }),
+          value: t.value,
+        }))
+      );
+    } catch {
+      setScoreTrendData([]);
+    }
   }, [id]);
 
   const handleOpenScoreTrend = useCallback(async (scoreType: 'pain' | 'rass') => {
