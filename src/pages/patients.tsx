@@ -356,7 +356,23 @@ export function PatientsPage() {
 
           {/* 病人列表 */}
           {!loading && !error && filteredPatients.length > 0 && (
-          <Table className="compact-table">
+          <Table className="compact-table" style={{ tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '4.5%' }} />   {/* 床號 */}
+              <col style={{ width: '7%' }} />     {/* 病例號碼 */}
+              <col style={{ width: '6%' }} />     {/* 姓名 */}
+              <col style={{ width: '4%' }} />     {/* 性別 */}
+              <col style={{ width: '5%' }} />     {/* 年齡 */}
+              <col style={{ width: '7%' }} />     {/* 主治醫師 */}
+              <col style={{ width: '16%' }} />    {/* 入院診斷 */}
+              <col style={{ width: '13%' }} />    {/* 入ICU日期 */}
+              <col style={{ width: '7%' }} />     {/* 呼吸器天數 */}
+              <col style={{ width: '4.5%' }} />   {/* DNR */}
+              <col style={{ width: '5%' }} />     {/* 隔離 */}
+              <col style={{ width: '5.5%' }} />   {/* 插管 */}
+              <col style={{ width: '4%' }} />     {/* 留言 */}
+              <col style={{ width: '12%' }} />    {/* 操作 */}
+            </colgroup>
             <TableHeader>
               <TableRow>
                 <TableHead>床號</TableHead>
@@ -371,7 +387,7 @@ export function PatientsPage() {
                 <TableHead>DNR</TableHead>
                 <TableHead>隔離</TableHead>
                 <TableHead>插管</TableHead>
-                <TableHead className="text-center w-8">留言</TableHead>
+                <TableHead className="text-center">留言</TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
             </TableHeader>
@@ -398,7 +414,7 @@ export function PatientsPage() {
                       {patient.attendingPhysician}
                     </Badge>
                   </TableCell>
-                  <TableCell className="max-w-xs truncate">{patient.diagnosis}</TableCell>
+                  <TableCell className="truncate" title={patient.diagnosis}>{patient.diagnosis}</TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-1">
                       <span className="text-sm">{patient.icuAdmissionDate}</span>
