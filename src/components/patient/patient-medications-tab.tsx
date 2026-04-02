@@ -286,12 +286,12 @@ export function PatientMedicationsTab({
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-semibold leading-tight text-slate-800">Pain 止痛</CardTitle>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="h-7 px-2 text-xs"
+                    className="h-7 px-3 text-xs border-[#d9b6c8] text-[#7f265b] hover:bg-[#fbf4f8]"
                     onClick={() => onOpenScoreTrend('pain')}
                   >
-                    趨勢
+                    📈 趨勢
                   </Button>
                 </div>
                 <CardDescription className="text-sm leading-tight">
@@ -343,12 +343,12 @@ export function PatientMedicationsTab({
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-semibold leading-tight text-slate-800">Sedation 鎮靜</CardTitle>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="h-7 px-2 text-xs"
+                    className="h-7 px-3 text-xs border-[#d9b6c8] text-[#7f265b] hover:bg-[#fbf4f8]"
                     onClick={() => onOpenScoreTrend('rass')}
                   >
-                    趨勢
+                    📈 趨勢
                   </Button>
                 </div>
                 <CardDescription className="text-sm leading-tight">
