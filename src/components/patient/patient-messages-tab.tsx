@@ -290,7 +290,7 @@ export function PatientMessagesTab({
                 variant="outline"
                 size="sm"
                 onClick={() => handleSend(onSendMedicationAdvice)}
-                disabled={!messageInput.trim() || userRole !== 'pharmacist' || !patientId}
+                disabled={!messageInput.trim() || (userRole !== 'pharmacist' && userRole !== 'admin') || !patientId}
               >
                 <Pill className="mr-1.5 h-3.5 w-3.5" />
                 標記為用藥建議
