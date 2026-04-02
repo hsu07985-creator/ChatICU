@@ -307,8 +307,8 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
               return (
                 <Button
                   key={type}
-                  variant={recordType === type ? 'default' : 'outline'}
-                  className={recordType === type ? 'bg-slate-800 hover:bg-slate-900 text-white' : ''}
+                  variant="outline"
+                  className={recordType === type ? 'bg-slate-800 hover:bg-slate-900 text-white border-slate-800' : ''}
                   onClick={() => { setRecordType(type); setSelectedTemplate(''); setInputContent(''); setPolishedContent(''); }}
                 >
                   <TypeIcon className="mr-2 h-5 w-5" />
