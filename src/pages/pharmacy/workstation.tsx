@@ -16,10 +16,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Separator } from '../../components/ui/separator';
 import { ScrollArea } from '../../components/ui/scroll-area';
 import { AssessmentResultsPanel } from './workstation/assessment-results-panel';
+import { PharmacyReportView } from './workstation/pharmacy-report-view';
 import { AdviceSubmitDialog } from './workstation/advice-submit-dialog';
 import {
   adviceCategories,
   type AssessmentResults,
+  type CompatibilitySummary,
   type DosageResult,
   type DrugInteraction,
   type ExpandedSections,
@@ -133,6 +135,9 @@ export function PharmacyWorkstationPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedAdviceCode, setSelectedAdviceCode] = useState<string>('');
 
+  // 檢視模式：assessment（評估詳情）或 report（結構化報告）
+  const [viewMode, setViewMode] = useState<'assessment' | 'report'>('assessment');
+
   // 當選擇病患時，自動載入病患用藥
   useEffect(() => {
     let cancelled = false;
@@ -219,6 +224,13 @@ export function PharmacyWorkstationPage() {
       };
 
       // 1) Interactions (func deterministic engine first; fallback to DB index)
+      const mapRiskRating = (r?: string): DrugInteraction['riskRating'] | undefined => {
+        if (!r) return undefined;
+        const v = r.toUpperCase().trim();
+        if (v === 'X' || v === 'D' || v === 'C' || v === 'B' || v === 'A') return v;
+        return undefined;
+      };
+
       let interactions: DrugInteraction[] = [];
       try {
         const res = await checkInteractions(
@@ -236,6 +248,13 @@ export function PharmacyWorkstationPage() {
             clinicalEffect: f.clinical_effect || '',
             management: f.recommended_action || '',
             references: f.dose_adjustment_hint || (Array.isArray(f.monitoring) ? f.monitoring.join('、') : ''),
+            riskRating: mapRiskRating(f.risk_rating),
+            riskRatingDescription: f.risk_rating_description || '',
+            reliabilityRating: f.reliability_rating || '',
+            routeDependency: f.route_dependency || '',
+            discussion: f.discussion || '',
+            dependencies: f.dependencies || [],
+            pubmedIds: f.pubmed_ids || [],
           }))
           .filter(x => x.drugA && x.drugB);
       } catch (err) {
@@ -268,6 +287,13 @@ export function PharmacyWorkstationPage() {
               clinicalEffect: it.clinicalEffect || '',
               management: it.management || '',
               references: it.references || '',
+              riskRating: mapRiskRating(it.riskRating),
+              riskRatingDescription: it.riskRatingDescription || '',
+              reliabilityRating: it.reliabilityRating || '',
+              routeDependency: it.routeDependency || '',
+              discussion: it.discussion || '',
+              dependencies: it.dependencies || [],
+              pubmedIds: it.pubmedIds || [],
             }));
         } catch (fallbackErr) {
           console.error('本地交互作用資料庫查詢失敗:', fallbackErr);
@@ -284,10 +310,12 @@ export function PharmacyWorkstationPage() {
       }
       // Avoid excessive requests for very long lists.
       const limitedPairs = pairs.slice(0, 20);
+      let compatPairsWithData = 0;
       for (const [a, b] of limitedPairs) {
         try {
           const resp = await getIVCompatibility({ drugA: a, drugB: b });
           const rows = resp.compatibilities || [];
+          if (rows.length > 0) compatPairsWithData++;
           for (const row of rows) {
             compatibility.push({
               id: row.id || '',
@@ -304,6 +332,12 @@ export function PharmacyWorkstationPage() {
           console.warn('相容性查詢失敗:', err);
         }
       }
+      const compatibilitySummary: CompatibilitySummary = {
+        compatible: compatibility.filter(c => c.compatible).length,
+        incompatible: compatibility.filter(c => !c.compatible).length,
+        noData: limitedPairs.length - compatPairsWithData,
+        pairsChecked: limitedPairs.length,
+      };
 
       // 3) Dose suggestions (func deterministic engine via backend proxy)
       const dosage: DosageResult[] = await Promise.all(
@@ -318,16 +352,29 @@ export function PharmacyWorkstationPage() {
               : '';
             const normalDose = fmt(inputDose) || (res.status === 'ok' ? '—' : '無法計算');
             const adjustedDose = fmt(finalRate) || (res.status === 'ok' ? '—' : '無法計算');
+            const steps = res.calculation_steps || [];
+            const isRequiresInput = res.error_code === 'MISSING_TARGET_DOSE' || res.status === 'requires_input';
             return {
               drugName: drug,
               normalDose,
               adjustedDose,
-              renalAdjustment: (res.calculation_steps || []).slice(0, 4).join('；') || (res.message || ''),
+              renalAdjustment: steps.slice(0, 4).join('；') || (res.message || ''),
               hepaticWarning: extendedData?.hepaticFunction && extendedData.hepaticFunction !== 'normal'
                 ? '已套用肝功能調整（如適用）'
                 : '',
               warnings: res.safety_warnings || [],
               references: (res.citations || []).length ? '包含規則引用（詳見劑量頁）' : undefined,
+              calculationSteps: steps,
+              status: (isRequiresInput ? 'requires_input' : 'calculated') as DosageResult['status'],
+              clinicalSummary: steps.length > 0 ? steps[0] : (res.message || adjustedDose),
+              supportingNote: steps.length > 1 ? steps.slice(1).join('；') : undefined,
+              targetDose: normalDose,
+              targetDoseTitle: '原始醫囑',
+              calculatedRate: adjustedDose,
+              calculatedRateTitle: '建議速率',
+              orderSummary: normalDose,
+              orderTypeLabel: cv?.order_type_label as string || '連續輸注',
+              isEquivalentEstimate: Boolean(cv?.is_equivalent_estimate),
             };
           } catch (err) {
             const msg = '劑量引擎不可用（請啟動 func/ 服務）';
@@ -338,6 +385,10 @@ export function PharmacyWorkstationPage() {
               renalAdjustment: msg,
               hepaticWarning: '',
               warnings: [],
+              calculationSteps: [],
+              status: 'service_unavailable' as DosageResult['status'],
+              clinicalSummary: msg,
+              calculatedRate: '—',
             };
           }
         })
@@ -372,6 +423,8 @@ export function PharmacyWorkstationPage() {
         compatibility,
         dosage,
         adviceRecommendations,
+        compatibilitySummary,
+        compatibilityPairsChecked: limitedPairs.length,
       });
 
       toast.success('評估完成');
@@ -430,6 +483,7 @@ export function PharmacyWorkstationPage() {
     });
 
     setAdviceContent(report);
+    setViewMode('report');
     toast.success('用藥建議報告已產生');
   };
 
@@ -672,19 +726,38 @@ export function PharmacyWorkstationPage() {
           )}
         </div>
 
-        <AssessmentResultsPanel
-          selectedPatient={selectedPatient}
-          assessmentResults={assessmentResults}
-          drugList={drugList}
-          expandedSections={expandedSections}
-          toggleSection={toggleSection}
-          extendedData={extendedData}
-          adviceContent={adviceContent}
-          onAdviceContentChange={setAdviceContent}
-          onGoToStatistics={handleGoToStatistics}
-          onGenerateAdvice={handleGenerateAdvice}
-          onSaveAdvice={handleSaveAdvice}
-        />
+        {viewMode === 'report' && assessmentResults ? (
+          <PharmacyReportView
+            selectedPatient={selectedPatient ? {
+              name: selectedPatient.name,
+              bedNumber: selectedPatient.bedNumber,
+              age: selectedPatient.age,
+              diagnosis: selectedPatient.diagnosis,
+            } : null}
+            assessmentResults={assessmentResults}
+            drugList={drugList}
+            extendedData={extendedData}
+            pharmacistName={user?.name || ''}
+            adviceContent={adviceContent}
+            onAdviceContentChange={setAdviceContent}
+            onSaveAdvice={handleSaveAdvice}
+            onBackToAssessment={() => setViewMode('assessment')}
+          />
+        ) : (
+          <AssessmentResultsPanel
+            selectedPatient={selectedPatient}
+            assessmentResults={assessmentResults}
+            drugList={drugList}
+            expandedSections={expandedSections}
+            toggleSection={toggleSection}
+            extendedData={extendedData}
+            adviceContent={adviceContent}
+            onAdviceContentChange={setAdviceContent}
+            onGoToStatistics={handleGoToStatistics}
+            onGenerateAdvice={handleGenerateAdvice}
+            onSaveAdvice={handleSaveAdvice}
+          />
+        )}
       </div>
 
       <AdviceSubmitDialog

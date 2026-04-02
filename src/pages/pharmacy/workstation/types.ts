@@ -10,6 +10,14 @@ export interface DrugInteraction {
   clinicalEffect: string;
   management: string;
   references?: string;
+  // Risk Rating from interactions DB (X/D/C/B/A)
+  riskRating?: 'X' | 'D' | 'C' | 'B' | 'A';
+  riskRatingDescription?: string;
+  reliabilityRating?: string;
+  routeDependency?: string;
+  discussion?: string;
+  dependencies?: string[];
+  pubmedIds?: string[];
 }
 
 export interface IVCompatibility {
@@ -42,6 +50,25 @@ export interface DosageResult {
   hepaticWarning: string;
   warnings: string[];
   references?: string;
+  // Enhanced fields
+  calculationSteps?: string[];
+  status: 'calculated' | 'requires_input' | 'service_unavailable';
+  clinicalSummary: string;
+  supportingNote?: string;
+  targetDose?: string;
+  targetDoseTitle?: string;
+  calculatedRate: string;
+  calculatedRateTitle?: string;
+  orderSummary?: string;
+  orderTypeLabel?: string;
+  isEquivalentEstimate?: boolean;
+}
+
+export interface CompatibilitySummary {
+  compatible: number;
+  incompatible: number;
+  noData: number;
+  pairsChecked: number;
 }
 
 export interface AssessmentResults {
@@ -49,6 +76,8 @@ export interface AssessmentResults {
   compatibility: IVCompatibility[];
   dosage: DosageResult[];
   adviceRecommendations: string[];
+  compatibilitySummary?: CompatibilitySummary;
+  compatibilityPairsChecked: number;
 }
 
 export type ExpandedSections = {
