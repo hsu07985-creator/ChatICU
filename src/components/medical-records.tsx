@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { getReadinessReason, polishClinicalText, type AIReadiness } from '../lib/api/ai';
 import { sendMessage } from '../lib/api/messages';
 import { copyToClipboard } from '../lib/clipboard-utils';
@@ -20,7 +20,9 @@ import {
   Download,
   Calendar,
   Send,
-  Sparkles
+  Sparkles,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -39,30 +41,73 @@ interface MedicalRecord {
   polishedContent?: string;
 }
 
-export function MedicalRecords({ patientId, patientName, aiReadiness = null }: MedicalRecordsProps) {
-  const { user } = useAuth();
-  const canPolish = aiReadiness ? aiReadiness.feature_gates.clinical_polish : true;
-  const polishReason = getReadinessReason(aiReadiness, 'clinical_polish');
-  
-  // 根據角色設定預設記錄類型
-  const getDefaultRecordType = (): 'progress-note' | 'medication-advice' | 'nursing-record' => {
-    if (user?.role === 'pharmacist') return 'medication-advice';
-    if (user?.role === 'nurse') return 'nursing-record';
-    return 'progress-note'; // doctor, admin
-  };
-  
-  const [recordType, setRecordType] = useState<'progress-note' | 'medication-advice' | 'nursing-record'>(getDefaultRecordType());
-  const [inputContent, setInputContent] = useState('');
-  const [polishedContent, setPolishedContent] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
-  
-  const [isPolishing, setIsPolishing] = useState(false);
+type RecordType = 'progress-note' | 'medication-advice' | 'nursing-record';
 
-  // 儲存的病歷記錄
-  const [records, setRecords] = useState<MedicalRecord[]>([]);
+const RECORD_TYPE_CONFIG: Record<RecordType, { label: string; icon: typeof FileText; description: string; placeholder: string; polishLabel: string }> = {
+  'progress-note': {
+    label: 'Progress Note',
+    icon: FileText,
+    description: '可以使用中文或不完整的英文描述，AI 會協助修飾為專業的 Progress Note 格式',
+    placeholder: '例如：病人今天意識清楚，血壓穩定，繼續使用呼吸器...',
+    polishLabel: 'AI 修飾 Progress Note',
+  },
+  'medication-advice': {
+    label: '用藥建議',
+    icon: Pill,
+    description: '輸入建議草稿，AI 會協助修飾為專業的用藥建議格式',
+    placeholder: '例如：建議調整 Morphine 劑量因為腎功能不全，同時注意監測呼吸抑制...',
+    polishLabel: 'AI 修飾用藥建議',
+  },
+  'nursing-record': {
+    label: '護理記錄',
+    icon: ClipboardList,
+    description: '使用模板快速建立記錄，AI 會協助檢查錯字並整理格式',
+    placeholder: '填寫護理記錄或使用上方模板...',
+    polishLabel: 'AI 檢查錯字與格式',
+  },
+};
 
-  // 護理記錄模板
-  const nursingTemplates = {
+const STORAGE_KEY = 'chaticu-record-templates';
+
+function loadCustomTemplates(): Record<RecordType, Record<string, string>> {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : { 'progress-note': {}, 'medication-advice': {}, 'nursing-record': {} };
+  } catch {
+    return { 'progress-note': {}, 'medication-advice': {}, 'nursing-record': {} };
+  }
+}
+
+function saveCustomTemplates(templates: Record<RecordType, Record<string, string>>) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+}
+
+const BUILTIN_TEMPLATES: Record<RecordType, Record<string, string>> = {
+  'progress-note': {
+    'SOAP 格式': `S (Subjective): ___
+O (Objective):
+  Vitals: BP ___ / ___ mmHg, HR ___ bpm, RR ___ rpm, T ___ °C
+  Labs: ___
+  Physical exam: ___
+A (Assessment): ___
+P (Plan): ___`,
+    '簡要紀錄': `主訴: ___
+目前狀況: ___
+處置計畫: ___`,
+  },
+  'medication-advice': {
+    '劑量調整建議': `藥品名稱: ___
+目前劑量: ___
+建議調整: ___
+調整原因: ___
+監測項目: ___`,
+    '新增藥品建議': `建議藥品: ___
+適應症: ___
+建議劑量: ___
+給藥途徑: ___
+注意事項: ___`,
+  },
+  'nursing-record': {
     '一般交班': `病患意識: ___
 生命徵象: BP ___ / ___ mmHg, HR ___ bpm, RR ___ rpm, T ___ °C
 呼吸器設定: Mode ___, FiO2 ___ %, PEEP ___ cmH2O
@@ -88,7 +133,40 @@ CAM-ICU: Positive / Negative
 滲液: 有 / 無 (量: ___, 顏色: ___)
 紅腫熱痛: ___
 換藥頻率: ___
-使用敷料: ___`
+使用敷料: ___`,
+  },
+};
+
+export function MedicalRecords({ patientId, patientName, aiReadiness = null }: MedicalRecordsProps) {
+  const { user } = useAuth();
+  const canPolish = aiReadiness ? aiReadiness.feature_gates.clinical_polish : true;
+  const polishReason = getReadinessReason(aiReadiness, 'clinical_polish');
+
+  const getDefaultRecordType = (): RecordType => {
+    if (user?.role === 'pharmacist') return 'medication-advice';
+    if (user?.role === 'nurse') return 'nursing-record';
+    return 'progress-note';
+  };
+
+  const [recordType, setRecordType] = useState<RecordType>(getDefaultRecordType());
+  const [inputContent, setInputContent] = useState('');
+  const [polishedContent, setPolishedContent] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [isPolishing, setIsPolishing] = useState(false);
+  const [records, setRecords] = useState<MedicalRecord[]>([]);
+
+  // Custom templates
+  const [customTemplates, setCustomTemplates] = useState(loadCustomTemplates);
+  const [showNewTemplate, setShowNewTemplate] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState('');
+
+  useEffect(() => {
+    saveCustomTemplates(customTemplates);
+  }, [customTemplates]);
+
+  const allTemplates = {
+    ...BUILTIN_TEMPLATES[recordType],
+    ...customTemplates[recordType],
   };
 
   const handlePolishContent = async () => {
@@ -133,7 +211,7 @@ CAM-ICU: Positive / Negative
         date: new Date().toLocaleString('zh-TW'),
         author: authorName,
         content: inputContent,
-        polishedContent: polishedContent || undefined
+        polishedContent: polishedContent || undefined,
       };
 
       setRecords([newRecord, ...records]);
@@ -145,55 +223,51 @@ CAM-ICU: Positive / Negative
     }
   };
 
-  const applyTemplate = (template: string) => {
-    setInputContent(nursingTemplates[template as keyof typeof nursingTemplates] || '');
+  const handleSaveAsTemplate = () => {
+    const name = newTemplateName.trim();
+    if (!name) { toast.error('請輸入模板名稱'); return; }
+    if (!inputContent.trim()) { toast.error('請先輸入內容'); return; }
+    setCustomTemplates((prev) => ({
+      ...prev,
+      [recordType]: { ...prev[recordType], [name]: inputContent },
+    }));
+    setNewTemplateName('');
+    setShowNewTemplate(false);
+    toast.success(`模板「${name}」已儲存`);
   };
 
-  const getRecordTypeLabel = (type: string) => {
-    switch (type) {
-      case 'progress-note': return 'Progress Note';
-      case 'medication-advice': return '用藥建議';
-      case 'nursing-record': return '護理記錄';
-      default: return type;
-    }
+  const handleDeleteTemplate = (name: string) => {
+    setCustomTemplates((prev) => {
+      const copy = { ...prev[recordType] };
+      delete copy[name];
+      return { ...prev, [recordType]: copy };
+    });
+    if (selectedTemplate === name) setSelectedTemplate('');
+    toast.success(`模板「${name}」已刪除`);
   };
 
-  const getRecordTypeColor = (type: string) => {
-    switch (type) {
-      case 'progress-note': return 'bg-blue-100 text-blue-800';
-      case 'medication-advice': return 'bg-green-100 text-green-800';
-      case 'nursing-record': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  const config = RECORD_TYPE_CONFIG[recordType];
+  const Icon = config.icon;
 
-  // 根據角色過濾顯示的記錄
+  const getRecordTypeLabel = (type: string) => RECORD_TYPE_CONFIG[type as RecordType]?.label || type;
+
   const getFilteredRecords = () => {
-    if (user?.role === 'admin') {
-      return records; // 管理者可以看到所有類型
-    }
-    
-    if (user?.role === 'pharmacist') {
-      return records.filter(r => r.type === 'medication-advice');
-    }
-    
-    if (user?.role === 'nurse') {
-      return records.filter(r => r.type === 'nursing-record');
-    }
-    
-    // doctor 和其他角色只看 progress-note
-    return records.filter(r => r.type === 'progress-note');
+    if (user?.role === 'admin') return records;
+    if (user?.role === 'pharmacist') return records.filter((r) => r.type === 'medication-advice');
+    if (user?.role === 'nurse') return records.filter((r) => r.type === 'nursing-record');
+    return records.filter((r) => r.type === 'progress-note');
   };
 
   const filteredRecords = getFilteredRecords();
+  const customTemplateNames = Object.keys(customTemplates[recordType]);
 
   return (
     <div className="space-y-6">
       {/* 記錄類型選擇 */}
-      <Card className="border-[#7f265b]">
+      <Card className="border-slate-300">
         <CardHeader className="bg-[#f8f9fa]">
           <CardTitle className="flex items-center gap-2">
-            <FileText className="h-6 w-6 text-[#7f265b]" />
+            <FileText className="h-6 w-6 text-slate-700" />
             新增病歷記錄
           </CardTitle>
           <CardDescription>
@@ -208,173 +282,132 @@ CAM-ICU: Positive / Negative
               {polishReason}
             </div>
           )}
+
           {/* 記錄類型選擇器 - 只在管理者時顯示 */}
           {user?.role === 'admin' && (
             <>
               <div className="grid grid-cols-3 gap-3">
-                <Button
-                  variant={recordType === 'progress-note' ? 'default' : 'outline'}
-                  className={recordType === 'progress-note' ? 'bg-blue-600 hover:bg-blue-700' : ''}
-                  onClick={() => setRecordType('progress-note')}
-                >
-                  <FileText className="mr-2 h-5 w-5" />
-                  Progress Note
-                </Button>
-                
-                <Button
-                  variant={recordType === 'medication-advice' ? 'default' : 'outline'}
-                  className={recordType === 'medication-advice' ? 'bg-green-600 hover:bg-green-700' : ''}
-                  onClick={() => setRecordType('medication-advice')}
-                >
-                  <Pill className="mr-2 h-5 w-5" />
-                  用藥建議
-                </Button>
-                
-                <Button
-                  variant={recordType === 'nursing-record' ? 'default' : 'outline'}
-                  className={recordType === 'nursing-record' ? 'bg-purple-600 hover:bg-purple-700' : ''}
-                  onClick={() => setRecordType('nursing-record')}
-                >
-                  <ClipboardList className="mr-2 h-5 w-5" />
-                  護理記錄
-                </Button>
+                {(Object.keys(RECORD_TYPE_CONFIG) as RecordType[]).map((type) => {
+                  const TypeIcon = RECORD_TYPE_CONFIG[type].icon;
+                  return (
+                    <Button
+                      key={type}
+                      variant={recordType === type ? 'default' : 'outline'}
+                      className={recordType === type ? 'bg-slate-800 hover:bg-slate-900 text-white' : ''}
+                      onClick={() => { setRecordType(type); setSelectedTemplate(''); setInputContent(''); setPolishedContent(''); }}
+                    >
+                      <TypeIcon className="mr-2 h-5 w-5" />
+                      {RECORD_TYPE_CONFIG[type].label}
+                    </Button>
+                  );
+                })}
               </div>
-
               <Separator />
             </>
           )}
-          
-          {/* Progress Note 表單 */}
-          {recordType === 'progress-note' && (
-            <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <FileText className="h-6 w-6 text-blue-600 mt-1" />
-                  <div>
-                    <h3 className="font-semibold text-blue-900">Progress Note 輔助</h3>
-                    <p className="text-sm text-blue-700 mt-1">
-                      可以使用中文或不完整的英文描述，AI 會協助修飾為專業的 Progress Note 格式
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  <div>
-                    <Label>輸入草稿或中文描述</Label>
-                    <Textarea
-                      placeholder="例如：病人今天意識清楚，血壓穩定，繼續使用呼吸器..."
-                      value={inputContent}
-                      onChange={(e) => setInputContent(e.target.value)}
-                      className="min-h-[150px] mt-2 border border-blue-300"
-                    />
-                  </div>
-                  
-                  <Button
-                    onClick={handlePolishContent}
-                    className="bg-blue-600 hover:bg-blue-700"
-                    disabled={isPolishing || !inputContent.trim() || !canPolish}
-                  >
-                    <Brain className="mr-2 h-5 w-5" />
-                    {isPolishing ? 'AI 修飾中...' : 'AI 修飾 Progress Note'}
-                  </Button>
+
+          {/* 統一表單 */}
+          <div className="space-y-4">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-start gap-3 mb-3">
+                <Icon className="h-6 w-6 text-slate-700 mt-1" />
+                <div>
+                  <h3 className="font-semibold text-slate-900">{config.label} 輔助</h3>
+                  <p className="text-sm text-slate-600 mt-1">{config.description}</p>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* 用藥建議表單 */}
-          {recordType === 'medication-advice' && (
-            <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <Pill className="h-6 w-6 text-green-600 mt-1" />
-                  <div>
-                    <h3 className="font-semibold text-green-900">用藥建議修飾</h3>
-                    <p className="text-sm text-green-700 mt-1">
-                      輸入建議草稿，AI 會協助修飾為專業的用藥建議格式
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  <div>
-                    <Label>輸入用藥建議草稿</Label>
-                    <Textarea
-                      placeholder="例如：建議調整 Morphine 劑量因為腎功能不全，同時注意監測呼吸抑制..."
-                      value={inputContent}
-                      onChange={(e) => setInputContent(e.target.value)}
-                      className="min-h-[150px] mt-2 border border-green-300"
-                    />
-                  </div>
-                  
-                  <Button
-                    onClick={handlePolishContent}
-                    className="bg-green-600 hover:bg-green-700"
-                    disabled={isPolishing || !inputContent.trim() || !canPolish}
-                  >
-                    <Brain className="mr-2 h-5 w-5" />
-                    {isPolishing ? 'AI 修飾中...' : 'AI 修飾用藥建議'}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 護理記錄表單 */}
-          {recordType === 'nursing-record' && (
-            <div className="space-y-4">
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <ClipboardList className="h-6 w-6 text-purple-600 mt-1" />
-                  <div>
-                    <h3 className="font-semibold text-purple-900">護理記錄輔助</h3>
-                    <p className="text-sm text-purple-700 mt-1">
-                      使用模板快速建立記錄，AI 會協助檢查錯字並整理格式
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
+              <div className="space-y-3">
+                {/* 模板選擇 */}
+                {Object.keys(allTemplates).length > 0 && (
                   <div>
                     <Label>選擇模板（可選）</Label>
-                    <Select value={selectedTemplate} onValueChange={(value) => {
-                      setSelectedTemplate(value);
-                      applyTemplate(value);
-                    }}>
-                      <SelectTrigger className="mt-2 border border-purple-300">
-                        <SelectValue placeholder="請選擇記錄模板" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="一般交班">一般交班記錄</SelectItem>
-                        <SelectItem value="鎮靜評估">鎮靜評估記錄</SelectItem>
-                        <SelectItem value="管路評估">管路評估記錄</SelectItem>
-                        <SelectItem value="傷口護理">傷口護理記錄</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="flex gap-2 mt-2">
+                      <Select value={selectedTemplate} onValueChange={(value) => {
+                        setSelectedTemplate(value);
+                        setInputContent(allTemplates[value] || '');
+                      }}>
+                        <SelectTrigger className="border-slate-300">
+                          <SelectValue placeholder="請選擇記錄模板" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.keys(BUILTIN_TEMPLATES[recordType]).map((name) => (
+                            <SelectItem key={name} value={name}>{name}</SelectItem>
+                          ))}
+                          {customTemplateNames.length > 0 && (
+                            <>
+                              <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 border-t mt-1 pt-2">自訂模板</div>
+                              {customTemplateNames.map((name) => (
+                                <SelectItem key={`custom-${name}`} value={name}>{name}</SelectItem>
+                              ))}
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {selectedTemplate && customTemplateNames.includes(selectedTemplate) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0"
+                          onClick={() => handleDeleteTemplate(selectedTemplate)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  
-                  <div>
-                    <Label>護理記錄內容</Label>
-                    <Textarea
-                      placeholder="填寫護理記錄或使用上方模板..."
-                      value={inputContent}
-                      onChange={(e) => setInputContent(e.target.value)}
-                      className="min-h-[200px] mt-2 border border-purple-300 font-mono"
-                    />
-                  </div>
-                  
+                )}
+
+                {/* 輸入區 */}
+                <div>
+                  <Label>輸入內容</Label>
+                  <Textarea
+                    placeholder={config.placeholder}
+                    value={inputContent}
+                    onChange={(e) => setInputContent(e.target.value)}
+                    className="min-h-[150px] mt-2 border-slate-300"
+                  />
+                </div>
+
+                {/* 新增模板 + AI 修飾 */}
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     onClick={handlePolishContent}
-                    className="bg-purple-600 hover:bg-purple-700"
+                    className="bg-slate-800 hover:bg-slate-900"
                     disabled={isPolishing || !inputContent.trim() || !canPolish}
                   >
-                    <Sparkles className="mr-2 h-5 w-5" />
-                    {isPolishing ? 'AI 檢查中...' : 'AI 檢查錯字與格式'}
+                    <Brain className="mr-2 h-5 w-5" />
+                    {isPolishing ? 'AI 修飾中...' : config.polishLabel}
                   </Button>
+
+                  {!showNewTemplate ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowNewTemplate(true)}
+                      disabled={!inputContent.trim()}
+                    >
+                      <Plus className="mr-1.5 h-4 w-4" />
+                      儲存為模板
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="模板名稱"
+                        value={newTemplateName}
+                        onChange={(e) => setNewTemplateName(e.target.value)}
+                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleSaveAsTemplate(); }}
+                      />
+                      <Button size="sm" onClick={handleSaveAsTemplate}>儲存</Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setShowNewTemplate(false); setNewTemplateName(''); }}>取消</Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          )}
+          </div>
 
           {/* 顯示修飾後的內容 */}
           {polishedContent && (
@@ -386,30 +419,22 @@ CAM-ICU: Positive / Negative
                   {recordType === 'medication-advice' && '修飾後的用藥建議'}
                   {recordType === 'nursing-record' && '檢查後的護理記錄'}
                 </Label>
-                <div className={`mt-2 p-4 rounded-lg border ${
-                  recordType === 'progress-note' ? 'bg-blue-50 border-blue-300' :
-                  recordType === 'medication-advice' ? 'bg-green-50 border-green-300' :
-                  'bg-purple-50 border-purple-300'
-                }`}>
+                <div className="mt-2 rounded-lg border border-slate-300 bg-slate-50 p-4">
                   <AiMarkdown content={polishedContent} className="text-sm" />
                 </div>
-                
+
                 <div className="flex gap-2 mt-3">
-                  <Button 
+                  <Button
                     variant="outline"
                     onClick={async () => {
                       const success = await copyToClipboard(polishedContent);
-                      if (success) {
-                        toast.success('已複製到剪貼簿');
-                      } else {
-                        toast.error('複製失敗，請手動複製');
-                      }
+                      success ? toast.success('已複製到剪貼簿') : toast.error('複製失敗，請手動複製');
                     }}
                   >
                     <Copy className="mr-2 h-4 w-4" />
                     複製
                   </Button>
-                  <Button 
+                  <Button
                     onClick={handleSaveRecord}
                     className="bg-[#7f265b] hover:bg-[#631e4d]"
                   >
@@ -452,7 +477,7 @@ CAM-ICU: Positive / Negative
       <Card>
         <CardHeader className="bg-[#f8f9fa]">
           <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-6 w-6 text-[#7f265b]" />
+            <Calendar className="h-6 w-6 text-slate-700" />
             病歷記錄歷史
           </CardTitle>
           <CardDescription>
@@ -471,7 +496,7 @@ CAM-ICU: Positive / Negative
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
-                      <Badge className={getRecordTypeColor(record.type)}>
+                      <Badge className="bg-slate-100 text-slate-800 border border-slate-200">
                         {getRecordTypeLabel(record.type)}
                       </Badge>
                       <span className="text-sm text-muted-foreground">
@@ -479,8 +504,8 @@ CAM-ICU: Positive / Negative
                       </span>
                     </div>
                     <div className="flex gap-1">
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         variant="ghost"
                         onClick={() => copyToClipboard(record.polishedContent || record.content)}
                       >
