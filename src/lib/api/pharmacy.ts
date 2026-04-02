@@ -368,4 +368,18 @@ export const pharmacyApi = {
   getAdviceRecords,
   createAdviceRecord,
   getAdviceRecordStats,
+  respondToAdvice,
 };
+
+// ========== 藥事建議回覆 ==========
+
+export async function respondToAdvice(
+  adviceRecordId: string,
+  data: { accepted: boolean }
+): Promise<PharmacyAdviceRecord> {
+  const response = await apiClient.patch<ApiResponse<PharmacyAdviceRecord>>(
+    `/pharmacy/advice-records/${adviceRecordId}/respond`,
+    data
+  );
+  return ensureData(response.data, 'API contract');
+}

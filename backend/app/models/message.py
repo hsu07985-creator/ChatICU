@@ -27,6 +27,10 @@ class PatientMessage(Base):
     linked_medication: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     advice_code: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     read_by: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of {userId, userName, readAt}
+    reply_to_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
+    reply_count: Mapped[int] = mapped_column(default=0)
+    tags: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    mentioned_roles: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

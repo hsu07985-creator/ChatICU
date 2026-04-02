@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -8,6 +8,9 @@ class MessageCreate(BaseModel):
     messageType: str = Field("general", max_length=50)
     linkedMedication: Optional[str] = Field(None, max_length=200)
     adviceCode: Optional[str] = Field(None, max_length=10)
+    replyToId: Optional[str] = Field(None, max_length=50)
+    tags: Optional[List[str]] = None
+    mentionedRoles: Optional[List[str]] = None
 
     @field_validator("messageType")
     @classmethod
@@ -16,6 +19,21 @@ class MessageCreate(BaseModel):
         if v not in allowed:
             raise ValueError(f"messageType 須為 {', '.join(sorted(allowed))} 之一")
         return v
+
+    @field_validator("mentionedRoles")
+    @classmethod
+    def check_mentioned_roles(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        if v is not None:
+            allowed = {"doctor", "nurse", "pharmacist", "admin"}
+            for role in v:
+                if role not in allowed:
+                    raise ValueError(f"角色須為 {', '.join(sorted(allowed))} 之一")
+        return v
+
+
+class MessageTagUpdate(BaseModel):
+    add: Optional[List[str]] = None
+    remove: Optional[List[str]] = None
 
 
 class TeamChatCreate(BaseModel):

@@ -18,6 +18,14 @@ export interface PatientMessage {
   }[];
   linkedMedication?: string;
   adviceCode?: string;
+  replyToId?: string;
+  replyCount?: number;
+  replies?: PatientMessage[];
+  tags?: string[];
+  mentionedRoles?: string[];
+  adviceRecordId?: string;
+  adviceAccepted?: boolean | null;
+  adviceRespondedBy?: string;
 }
 
 export interface MessagesResponse {
@@ -31,6 +39,9 @@ export interface SendMessageData {
   messageType?: 'general' | 'medication-advice' | 'alert' | 'urgent' | 'note' | 'progress-note' | 'nursing-record';
   linkedMedication?: string;
   adviceCode?: string;
+  replyToId?: string;
+  tags?: string[];
+  mentionedRoles?: string[];
 }
 
 // API 回應類型
@@ -76,6 +87,29 @@ export async function markMessageRead(
 ): Promise<PatientMessage> {
   const response = await apiClient.patch<ApiResponse<PatientMessage>>(
     `/patients/${patientId}/messages/${messageId}/read`
+  );
+  return ensureData(response.data, 'API contract');
+}
+
+// 取得預設標籤
+export async function getPresetTags(
+  patientId: string
+): Promise<string[]> {
+  const response = await apiClient.get<ApiResponse<string[]>>(
+    `/patients/${patientId}/messages/preset-tags`
+  );
+  return ensureData(response.data, 'API contract');
+}
+
+// 更新留言標籤
+export async function updateMessageTags(
+  patientId: string,
+  messageId: string,
+  data: { add?: string[]; remove?: string[] }
+): Promise<PatientMessage> {
+  const response = await apiClient.patch<ApiResponse<PatientMessage>>(
+    `/patients/${patientId}/messages/${messageId}/tags`,
+    data
   );
   return ensureData(response.data, 'API contract');
 }

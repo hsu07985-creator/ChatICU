@@ -256,3 +256,44 @@ async def create_advice_record(
     )
 
     return success_response(data=advice_to_dict(advice), message="用藥建議已建立")
+
+
+@router.patch("/advice-records/{advice_id}/respond")
+async def respond_to_advice(
+    advice_id: str,
+    request: Request,
+    user: User = Depends(require_roles("doctor", "admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Doctor/admin accepts or rejects a pharmacy advice record."""
+    import json as _json
+    raw = await request.body()
+    body = _json.loads(raw) if raw else {}
+    accepted = body.get("accepted")
+    if accepted is None or not isinstance(accepted, bool):
+        raise HTTPException(status_code=422, detail="accepted (bool) is required")
+
+    result = await db.execute(
+        select(PharmacyAdvice).where(PharmacyAdvice.id == advice_id)
+    )
+    advice = result.scalar_one_or_none()
+    if not advice:
+        raise HTTPException(status_code=404, detail="Advice record not found")
+
+    if advice.accepted is not None:
+        raise HTTPException(status_code=409, detail="此建議已有回覆，無法重複操作")
+
+    advice.accepted = accepted
+
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="回覆藥事建議" if accepted else "拒絕藥事建議",
+        target=advice_id, status="success",
+        ip=request.client.host if request.client else None,
+        details={"accepted": accepted},
+    )
+
+    return success_response(
+        data=advice_to_dict(advice),
+        message="已接受藥事建議" if accepted else "已拒絕藥事建議",
+    )
