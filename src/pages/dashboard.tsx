@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -6,7 +6,7 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Label } from '../components/ui/label';
-import { Search, AlertCircle, Pencil, Loader2 } from 'lucide-react';
+import { Search, AlertCircle, Pencil, Loader2, GripHorizontal } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { getPatients, Patient, updatePatient } from '../lib/api/patients';
 import { getDashboardStats, DashboardStats } from '../lib/api/dashboard';
@@ -54,6 +54,63 @@ export function DashboardPage() {
   const [saving, setSaving] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+
+  // 卡片大小: 1=標準, 2=加寬(2欄)
+  const [cardSpans, setCardSpans] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('dashboard-card-spans');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const persistSpans = useCallback((next: Record<string, number>) => {
+    setCardSpans(next);
+    localStorage.setItem('dashboard-card-spans', JSON.stringify(next));
+  }, []);
+
+  // 拖拉調整大小
+  const dragRef = useRef<{ patientId: string; startX: number; startWidth: number; colWidth: number } | null>(null);
+  const cardSpansRef = useRef(cardSpans);
+  cardSpansRef.current = cardSpans;
+
+  const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, patientId: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const card = (e.target as HTMLElement).closest('[data-card-id]') as HTMLElement;
+    if (!card) return;
+    const gridEl = card.parentElement;
+    const colWidth = gridEl ? (gridEl.offsetWidth - 16) / 3 : 300;
+    dragRef.current = { patientId, startX: clientX, startWidth: card.offsetWidth, colWidth };
+
+    const handleMove = (ev: MouseEvent | TouchEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const cx = 'touches' in ev ? ev.touches[0].clientX : ev.clientX;
+      const newWidth = d.startWidth + (cx - d.startX);
+      const spans = cardSpansRef.current;
+      const currentSpan = spans[d.patientId] || 1;
+      if (newWidth > d.colWidth * 1.4 && currentSpan === 1) {
+        persistSpans({ ...spans, [d.patientId]: 2 });
+      } else if (newWidth < d.colWidth * 1.3 && currentSpan === 2) {
+        const { [d.patientId]: _, ...rest } = spans;
+        persistSpans(rest);
+      }
+    };
+
+    const handleEnd = () => {
+      dragRef.current = null;
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleEnd);
+      document.removeEventListener('touchmove', handleMove);
+      document.removeEventListener('touchend', handleEnd);
+    };
+
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchmove', handleMove, { passive: false });
+    document.addEventListener('touchend', handleEnd);
+  }, [persistSpans]);
 
   // 從 API 獲取病患列表
   const fetchPatients = async () => {
@@ -258,9 +315,21 @@ export function DashboardPage() {
             {filteredPatients.map((patient) => (
               <Card
                 key={patient.id}
-                className="group cursor-pointer hover:shadow-xl transition-all duration-200 hover:border-primary/30 bg-white relative"
+                data-card-id={patient.id}
+                className={`group cursor-pointer hover:shadow-xl transition-all duration-200 hover:border-primary/30 bg-white relative ${
+                  (cardSpans[patient.id] || 1) >= 2 ? 'md:col-span-2' : ''
+                }`}
                 onClick={() => navigate(`/patient/${patient.id}`)}
               >
+                {/* 拖拉調整大小把手 */}
+                <div
+                  className="absolute bottom-1 right-1 z-10 cursor-ew-resize rounded p-0.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity hover:text-[#7f265b] hover:bg-[#7f265b]/10"
+                  title="拖拉調整卡片寬度"
+                  onMouseDown={(e) => handleResizeStart(e, patient.id)}
+                  onTouchStart={(e) => handleResizeStart(e, patient.id)}
+                >
+                  <GripHorizontal className="h-4 w-4" />
+                </div>
                 {/* 編輯按鈕 */}
                 <Button
                   variant="ghost"
@@ -322,7 +391,7 @@ export function DashboardPage() {
                   {patient.alerts.length > 0 && (
                     <div className="flex flex-wrap gap-1 pt-2 border-t">
                       {patient.alerts.map((alert, idx) => (
-                        <Badge key={idx} variant="destructive" className="text-xs bg-[#ff3975] hover:bg-[#ff3975]/90">
+                        <Badge key={idx} className="text-xs bg-rose-100 text-rose-700 border border-rose-200 hover:bg-rose-200/80">
                           <AlertCircle className="h-3 w-3 mr-1" />
                           {alert}
                         </Badge>
