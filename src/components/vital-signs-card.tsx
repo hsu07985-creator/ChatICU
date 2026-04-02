@@ -15,11 +15,12 @@ interface VitalSignCardProps {
   unit: string;
   onClick?: () => void;
   isAbnormal?: boolean;
-  secondaryValue?: string; // 用於顯示如 "120/80" 的血壓值
+  abnormalDirection?: 'high' | 'low' | 'normal';
+  secondaryValue?: string;
   timestamp?: string;
 }
 
-export function VitalSignCard({ label, value, unit, onClick, isAbnormal, secondaryValue, timestamp }: VitalSignCardProps) {
+export function VitalSignCard({ label, value, unit, onClick, isAbnormal, abnormalDirection, secondaryValue, timestamp }: VitalSignCardProps) {
   const hasSecondaryValue = typeof secondaryValue === 'string' && secondaryValue.trim() !== '';
   const normalizedValue =
     value === null || value === undefined || (typeof value === 'string' && value.trim() === '')
@@ -31,14 +32,18 @@ export function VitalSignCard({ label, value, unit, onClick, isAbnormal, seconda
   const valueToneClass = isMissing
     ? 'font-medium text-slate-400'
     : isAbnormal
-      ? 'font-semibold text-[#d97706]'
+      ? abnormalDirection === 'low'
+        ? 'font-semibold text-blue-600'
+        : 'font-semibold text-red-600'
       : 'font-semibold text-[#0f172a]';
 
   return (
     <div
       className={`group relative flex aspect-square flex-col rounded-xl border px-2.5 py-2 ${
         isAbnormal
-          ? 'border-[#f59e0b] bg-gradient-to-br from-orange-50 to-rose-50/70'
+          ? abnormalDirection === 'low'
+            ? 'border-blue-400 bg-gradient-to-br from-blue-50 to-sky-50/70'
+            : 'border-red-400 bg-gradient-to-br from-red-50 to-rose-50/70'
           : 'border-[#e5e7eb] bg-gradient-to-br from-white to-slate-50'
       } ${
         canClick

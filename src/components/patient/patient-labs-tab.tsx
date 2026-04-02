@@ -54,6 +54,13 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+function vitalDirection(value: number | null | undefined, low: number, high: number): 'high' | 'low' | 'normal' {
+  if (value === null || value === undefined || !Number.isFinite(value)) return 'normal';
+  if (value < low) return 'low';
+  if (value > high) return 'high';
+  return 'normal';
+}
+
 export function PatientLabsTab({
   patientId,
   patientIntubated,
@@ -144,6 +151,7 @@ export function PatientLabsTab({
                     value={temperature}
                     unit="°C"
                     isAbnormal={isFiniteNumber(temperature) && (temperature > 37.5 || temperature < 36)}
+                    abnormalDirection={vitalDirection(temperature, 36, 37.5)}
                     onClick={isFiniteNumber(temperature) ? () => onVitalSignClick('Temperature', temperature, '°C', 'vital') : undefined}
                     timestamp={vitalSignsTimestamp || undefined}
                   />
@@ -153,6 +161,7 @@ export function PatientLabsTab({
                     value={heartRate}
                     unit="bpm"
                     isAbnormal={isFiniteNumber(heartRate) && (heartRate > 100 || heartRate < 60)}
+                    abnormalDirection={vitalDirection(heartRate, 60, 100)}
                     onClick={isFiniteNumber(heartRate) ? () => onVitalSignClick('HeartRate', heartRate, 'bpm', 'vital') : undefined}
                     timestamp={vitalSignsTimestamp || undefined}
                   />
@@ -162,6 +171,7 @@ export function PatientLabsTab({
                     value={respiratoryRate}
                     unit="rpm"
                     isAbnormal={isFiniteNumber(respiratoryRate) && (respiratoryRate > 25 || respiratoryRate < 12)}
+                    abnormalDirection={vitalDirection(respiratoryRate, 12, 25)}
                     onClick={isFiniteNumber(respiratoryRate) ? () => onVitalSignClick('RespiratoryRate', respiratoryRate, 'rpm', 'vital') : undefined}
                     timestamp={vitalSignsTimestamp || undefined}
                   />
@@ -171,6 +181,7 @@ export function PatientLabsTab({
                     value={systolicBP}
                     unit="mmHg"
                     isAbnormal={isFiniteNumber(systolicBP) && (systolicBP > 140 || systolicBP < 90)}
+                    abnormalDirection={vitalDirection(systolicBP, 90, 140)}
                     onClick={isFiniteNumber(systolicBP) ? () => onVitalSignClick('BloodPressureSystolic', systolicBP, 'mmHg', 'vital') : undefined}
                     timestamp={vitalSignsTimestamp || undefined}
                   />
@@ -180,6 +191,7 @@ export function PatientLabsTab({
                     value={diastolicBP}
                     unit="mmHg"
                     isAbnormal={isFiniteNumber(diastolicBP) && (diastolicBP > 90 || diastolicBP < 60)}
+                    abnormalDirection={vitalDirection(diastolicBP, 60, 90)}
                     onClick={isFiniteNumber(diastolicBP) ? () => onVitalSignClick('BloodPressureDiastolic', diastolicBP, 'mmHg', 'vital') : undefined}
                     timestamp={vitalSignsTimestamp || undefined}
                   />
@@ -189,6 +201,7 @@ export function PatientLabsTab({
                     value={spo2}
                     unit="%"
                     isAbnormal={isFiniteNumber(spo2) && spo2 < 94}
+                    abnormalDirection={vitalDirection(spo2, 94, Infinity)}
                     onClick={isFiniteNumber(spo2) ? () => onVitalSignClick('SpO2', spo2, '%', 'vital') : undefined}
                     timestamp={vitalSignsTimestamp || undefined}
                   />
@@ -198,6 +211,7 @@ export function PatientLabsTab({
                     value={cvp}
                     unit="mmHg"
                     isAbnormal={isFiniteNumber(cvp) && (cvp > 12 || cvp < 2)}
+                    abnormalDirection={vitalDirection(cvp, 2, 12)}
                     onClick={isFiniteNumber(cvp) ? () => onVitalSignClick('CVP', cvp, 'mmHg', 'vital') : undefined}
                     timestamp={vitalSignsTimestamp || undefined}
                   />
@@ -207,6 +221,7 @@ export function PatientLabsTab({
                     value={icp}
                     unit="mmHg"
                     isAbnormal={isFiniteNumber(icp) && icp > 20}
+                    abnormalDirection={vitalDirection(icp, -Infinity, 20)}
                     onClick={isFiniteNumber(icp) ? () => onVitalSignClick('ICP', icp, 'mmHg', 'vital') : undefined}
                     timestamp={vitalSignsTimestamp || undefined}
                   />
@@ -258,6 +273,7 @@ export function PatientLabsTab({
                         value={ventFiO2}
                         unit="%"
                         isAbnormal={isFiniteNumber(ventFiO2) && ventFiO2 > 60}
+                        abnormalDirection={vitalDirection(ventFiO2, -Infinity, 60)}
                         onClick={isFiniteNumber(ventFiO2) ? () => onVitalSignClick('FiO2', ventFiO2, '%', 'ventilator') : undefined}
                         timestamp={ventTimestamp || undefined}
                       />
@@ -266,6 +282,7 @@ export function PatientLabsTab({
                         value={ventPeep}
                         unit="cmH₂O"
                         isAbnormal={isFiniteNumber(ventPeep) && ventPeep > 12}
+                        abnormalDirection={vitalDirection(ventPeep, -Infinity, 12)}
                         onClick={isFiniteNumber(ventPeep) ? () => onVitalSignClick('PEEP', ventPeep, 'cmH₂O', 'ventilator') : undefined}
                         timestamp={ventTimestamp || undefined}
                       />
@@ -274,6 +291,7 @@ export function PatientLabsTab({
                         value={ventTidalVolume}
                         unit="mL"
                         isAbnormal={isFiniteNumber(ventTidalVolume) && ventTidalVolume > 500}
+                        abnormalDirection={vitalDirection(ventTidalVolume, -Infinity, 500)}
                         onClick={isFiniteNumber(ventTidalVolume) ? () => onVitalSignClick('TidalVolume', ventTidalVolume, 'mL', 'ventilator') : undefined}
                         timestamp={ventTimestamp || undefined}
                       />
@@ -289,6 +307,7 @@ export function PatientLabsTab({
                         value={ventPip}
                         unit="cmH₂O"
                         isAbnormal={isFiniteNumber(ventPip) && ventPip > 30}
+                        abnormalDirection={vitalDirection(ventPip, -Infinity, 30)}
                         onClick={isFiniteNumber(ventPip) ? () => onVitalSignClick('PIP', ventPip, 'cmH₂O', 'ventilator') : undefined}
                         timestamp={ventTimestamp || undefined}
                       />
@@ -297,6 +316,7 @@ export function PatientLabsTab({
                         value={ventPlateau}
                         unit="cmH₂O"
                         isAbnormal={isFiniteNumber(ventPlateau) && ventPlateau > 30}
+                        abnormalDirection={vitalDirection(ventPlateau, -Infinity, 30)}
                         onClick={isFiniteNumber(ventPlateau) ? () => onVitalSignClick('Plateau', ventPlateau, 'cmH₂O', 'ventilator') : undefined}
                         timestamp={ventTimestamp || undefined}
                       />
@@ -305,6 +325,7 @@ export function PatientLabsTab({
                         value={ventCompliance}
                         unit="mL/cmH₂O"
                         isAbnormal={isFiniteNumber(ventCompliance) && ventCompliance < 30}
+                        abnormalDirection={vitalDirection(ventCompliance, 30, Infinity)}
                         onClick={isFiniteNumber(ventCompliance) ? () => onVitalSignClick('Compliance', ventCompliance, 'mL/cmH₂O', 'ventilator') : undefined}
                         timestamp={ventTimestamp || undefined}
                       />
