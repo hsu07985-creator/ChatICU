@@ -75,6 +75,26 @@ const IV_DRUG_ALPHA = IV_DRUG_LIST.map(d => ({
   alpha: d.replace(/[^a-zA-Z]/g, '').toLowerCase(),
 }));
 
+// Common brand-name → IV_DRUG_LIST generic mappings for ICU drugs
+const BRAND_TO_GENERIC: Record<string, string> = {
+  dormicum: 'Midazolam HCl',
+  ativan: 'Lorazepam',
+  diprivan: 'Propofol',
+  precedex: 'Dexmedetomidine HCl',
+  nimbex: 'Cisatracurium besylate',
+  zemuron: 'Rocuronium',  // not in IV_DRUG_LIST but kept for future
+  levophed: 'Norepinephrine bitartrate',
+  adrenaline: 'Epinephrine HCl',
+  bosmin: 'Epinephrine HCl',
+  pitressin: 'Vasopressin',
+  cordarone: 'Amiodarone HCl',
+  cardizem: 'Diltiazem HCl',
+  trandate: 'Labetalol HCl',
+  solumedrol: 'Methylprednisolone Sodium Succinate',
+  keppra: 'Levetiracetam',
+  lanoxin: 'Digoxin',
+};
+
 function matchIVDrug(medName: string): string | null {
   const lower = medName.toLowerCase();
   const exact = IV_DRUG_LIST.find(d => d.toLowerCase() === lower);
@@ -82,8 +102,11 @@ function matchIVDrug(medName: string): string | null {
   const alpha = medName.replace(/[^a-zA-Z]/g, '').toLowerCase();
   const found = IV_DRUG_ALPHA.find(d => d.alpha === alpha);
   if (found) return found.original;
-  // First word prefix (e.g., "Fentanyl 50mcg" → "Fentanyl Citrate")
+  // Check brand-name mapping
   const firstWord = lower.split(/[\s(,/]/)[0].replace(/[^a-z]/g, '');
+  const brandMatch = BRAND_TO_GENERIC[firstWord];
+  if (brandMatch && IV_DRUG_LIST.includes(brandMatch)) return brandMatch;
+  // First word prefix (e.g., "Fentanyl 50mcg" → "Fentanyl Citrate")
   if (firstWord.length >= 4) {
     const prefixMatch = IV_DRUG_ALPHA.find(d => d.alpha.startsWith(firstWord));
     if (prefixMatch) return prefixMatch.original;
@@ -145,8 +168,15 @@ export function CompatibilityPage() {
     try {
       const resp = await getMedications(patientId, { status: 'active', limit: 100 });
       const allMeds = resp.medications || [];
-      const names = [...new Set(allMeds.map(m => m.name).filter(Boolean))];
-      const matched = [...new Set(names.map(matchIVDrug).filter((v): v is string => v !== null))];
+      // Try matching by name first, then by genericName as fallback
+      const matchedSet = new Set<string>();
+      for (const m of allMeds) {
+        const byName = m.name ? matchIVDrug(m.name) : null;
+        if (byName) { matchedSet.add(byName); continue; }
+        const byGeneric = m.genericName ? matchIVDrug(m.genericName) : null;
+        if (byGeneric) matchedSet.add(byGeneric);
+      }
+      const matched = [...matchedSet];
 
       if (matched.length === 0) {
         toast('該病患目前無可比對的 IV 用藥');

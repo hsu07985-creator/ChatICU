@@ -32,6 +32,11 @@ export async function login(username: string, password: string): Promise<User> {
   const { user } = ensureData(response.data, 'API contract');
   // Tokens are now in httpOnly cookies — clear any legacy localStorage
   tokenManager.clearAll();
+  // Set non-httpOnly indicator cookie on the frontend domain.
+  // The backend also sets this via Set-Cookie, but cross-domain (Railway→Vercel)
+  // SameSite=None cookies may be blocked by browsers. Setting it here guarantees
+  // isLoggedIn() works regardless of third-party cookie policy.
+  document.cookie = 'chaticu_logged_in=1; path=/; max-age=604800; SameSite=Lax';
   return user;
 }
 
@@ -53,7 +58,10 @@ export async function getCurrentUser(): Promise<User> {
 // 刷新 Token — backend 讀取 cookie 中的 refresh token
 export async function refreshToken(): Promise<RefreshResponse> {
   const response = await apiClient.post<ApiResponse<RefreshResponse>>('/auth/refresh', {});
-  return ensureData(response.data, 'API contract');
+  const data = ensureData(response.data, 'API contract');
+  // Renew the indicator cookie on successful refresh
+  document.cookie = 'chaticu_logged_in=1; path=/; max-age=604800; SameSite=Lax';
+  return data;
 }
 
 // 檢查是否已登入（透過 non-httpOnly indicator cookie）
