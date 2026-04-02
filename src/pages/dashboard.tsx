@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -6,7 +6,7 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Label } from '../components/ui/label';
-import { Search, AlertCircle, Pencil, Loader2, GripHorizontal } from 'lucide-react';
+import { Search, AlertCircle, Pencil, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { getPatients, Patient, updatePatient } from '../lib/api/patients';
 import { getDashboardStats, DashboardStats } from '../lib/api/dashboard';
@@ -55,62 +55,19 @@ export function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // 卡片大小: 1=標準, 2=加寬(2欄)
-  const [cardSpans, setCardSpans] = useState<Record<string, number>>(() => {
+  // 卡片欄數: 2=大卡(2欄), 3=標準(3欄), 4=小卡(4欄), 6=迷你(6欄)
+  const GRID_OPTIONS = [2, 3, 4, 6] as const;
+  const [gridCols, setGridCols] = useState<number>(() => {
     try {
-      const saved = localStorage.getItem('dashboard-card-spans');
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
+      const saved = localStorage.getItem('dashboard-grid-cols');
+      return saved ? Number(saved) : 3;
+    } catch { return 3; }
   });
 
-  const persistSpans = useCallback((next: Record<string, number>) => {
-    setCardSpans(next);
-    localStorage.setItem('dashboard-card-spans', JSON.stringify(next));
+  const changeGridCols = useCallback((cols: number) => {
+    setGridCols(cols);
+    localStorage.setItem('dashboard-grid-cols', String(cols));
   }, []);
-
-  // 拖拉調整大小
-  const dragRef = useRef<{ patientId: string; startX: number; startWidth: number; colWidth: number } | null>(null);
-  const cardSpansRef = useRef(cardSpans);
-  cardSpansRef.current = cardSpans;
-
-  const handleResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, patientId: string) => {
-    e.stopPropagation();
-    e.preventDefault();
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const card = (e.target as HTMLElement).closest('[data-card-id]') as HTMLElement;
-    if (!card) return;
-    const gridEl = card.parentElement;
-    const colWidth = gridEl ? (gridEl.offsetWidth - 16) / 3 : 300;
-    dragRef.current = { patientId, startX: clientX, startWidth: card.offsetWidth, colWidth };
-
-    const handleMove = (ev: MouseEvent | TouchEvent) => {
-      const d = dragRef.current;
-      if (!d) return;
-      const cx = 'touches' in ev ? ev.touches[0].clientX : ev.clientX;
-      const newWidth = d.startWidth + (cx - d.startX);
-      const spans = cardSpansRef.current;
-      const currentSpan = spans[d.patientId] || 1;
-      if (newWidth > d.colWidth * 1.4 && currentSpan === 1) {
-        persistSpans({ ...spans, [d.patientId]: 2 });
-      } else if (newWidth < d.colWidth * 1.3 && currentSpan === 2) {
-        const { [d.patientId]: _, ...rest } = spans;
-        persistSpans(rest);
-      }
-    };
-
-    const handleEnd = () => {
-      dragRef.current = null;
-      document.removeEventListener('mousemove', handleMove);
-      document.removeEventListener('mouseup', handleEnd);
-      document.removeEventListener('touchmove', handleMove);
-      document.removeEventListener('touchend', handleEnd);
-    };
-
-    document.addEventListener('mousemove', handleMove);
-    document.addEventListener('mouseup', handleEnd);
-    document.addEventListener('touchmove', handleMove, { passive: false });
-    document.addEventListener('touchend', handleEnd);
-  }, [persistSpans]);
 
   // 從 API 獲取病患列表
   const fetchPatients = async () => {
@@ -249,8 +206,8 @@ export function DashboardPage() {
                   <p className="mt-1 text-3xl font-bold leading-none text-[#1a1a1a]">{stats?.patients?.intubated ?? 0}</p>
                 </div>
                 <div className="border-l border-[#e5e7eb] px-4 py-4">
-                  <p className="text-xs font-semibold text-blue-700">S 鎮靜</p>
-                  <p className="mt-1 text-3xl font-bold leading-none text-blue-900">
+                  <p className="text-xs font-semibold text-[#1a1a1a]">S 鎮靜</p>
+                  <p className="mt-1 text-3xl font-bold leading-none text-[#1a1a1a]">
                     {stats?.patients?.sanByCategory?.sedation ?? 0}
                   </p>
                 </div>
@@ -308,28 +265,47 @@ export function DashboardPage() {
                 <SelectItem value="admission">依入住時間</SelectItem>
               </SelectContent>
             </Select>
+            {/* 卡片縮放 */}
+            <div className="flex items-center gap-1.5 border rounded-md px-2 h-9 shrink-0">
+              <Button
+                variant="ghost" size="icon"
+                className="h-6 w-6 p-0"
+                disabled={gridCols >= GRID_OPTIONS[GRID_OPTIONS.length - 1]}
+                onClick={() => {
+                  const idx = GRID_OPTIONS.indexOf(gridCols as typeof GRID_OPTIONS[number]);
+                  if (idx < GRID_OPTIONS.length - 1) changeGridCols(GRID_OPTIONS[idx + 1]);
+                }}
+                title="縮小卡片"
+              >
+                <ZoomOut className="h-3.5 w-3.5" />
+              </Button>
+              <span className="text-xs text-muted-foreground w-8 text-center">{gridCols}欄</span>
+              <Button
+                variant="ghost" size="icon"
+                className="h-6 w-6 p-0"
+                disabled={gridCols <= GRID_OPTIONS[0]}
+                onClick={() => {
+                  const idx = GRID_OPTIONS.indexOf(gridCols as typeof GRID_OPTIONS[number]);
+                  if (idx > 0) changeGridCols(GRID_OPTIONS[idx - 1]);
+                }}
+                title="放大卡片"
+              >
+                <ZoomIn className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
 
           {/* 病患卡片 */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div
+            className="grid gap-4 transition-all duration-200"
+            style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}
+          >
             {filteredPatients.map((patient) => (
               <Card
                 key={patient.id}
-                data-card-id={patient.id}
-                className={`group cursor-pointer hover:shadow-xl transition-all duration-200 hover:border-primary/30 bg-white relative ${
-                  (cardSpans[patient.id] || 1) >= 2 ? 'md:col-span-2' : ''
-                }`}
+                className="group cursor-pointer hover:shadow-xl transition-all duration-200 hover:border-primary/30 bg-white relative"
                 onClick={() => navigate(`/patient/${patient.id}`)}
               >
-                {/* 拖拉調整大小把手 */}
-                <div
-                  className="absolute bottom-1 right-1 z-10 cursor-ew-resize rounded p-0.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity hover:text-[#7f265b] hover:bg-[#7f265b]/10"
-                  title="拖拉調整卡片寬度"
-                  onMouseDown={(e) => handleResizeStart(e, patient.id)}
-                  onTouchStart={(e) => handleResizeStart(e, patient.id)}
-                >
-                  <GripHorizontal className="h-4 w-4" />
-                </div>
                 {/* 編輯按鈕 */}
                 <Button
                   variant="ghost"
