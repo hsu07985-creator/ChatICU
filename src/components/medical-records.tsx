@@ -308,7 +308,8 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                 <Button
                   key={type}
                   variant="outline"
-                  className={recordType === type ? 'bg-slate-800 hover:bg-slate-900 text-white border-slate-800' : ''}
+                  className="transition-colors"
+                  style={recordType === type ? { backgroundColor: '#1e293b', color: '#fff', borderColor: '#1e293b' } : undefined}
                   onClick={() => { setRecordType(type); setSelectedTemplate(''); setInputContent(''); setPolishedContent(''); }}
                 >
                   <TypeIcon className="mr-2 h-5 w-5" />
@@ -428,7 +429,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                 <div>
                   <Button
                     onClick={handlePolishContent}
-                    className="bg-slate-800 hover:bg-slate-900"
+                    style={{ backgroundColor: '#1e293b' }}
                     disabled={isPolishing || !inputContent.trim() || !canPolish}
                   >
                     <Brain className="mr-2 h-5 w-5" />
