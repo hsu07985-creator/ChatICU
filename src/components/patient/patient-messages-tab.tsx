@@ -286,15 +286,6 @@ export function PatientMessagesTab({
                 <Send className="mr-1.5 h-3.5 w-3.5" />
                 {replyToId ? '發送回覆' : '發送留言'}
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleSend(onSendMedicationAdvice)}
-                disabled={!messageInput.trim() || (userRole !== 'pharmacist' && userRole !== 'admin') || !patientId}
-              >
-                <Pill className="mr-1.5 h-3.5 w-3.5" />
-                標記為用藥建議
-              </Button>
             </div>
           </div>
 
