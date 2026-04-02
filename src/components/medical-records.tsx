@@ -68,6 +68,20 @@ const RECORD_TYPE_CONFIG: Record<RecordType, { label: string; icon: typeof FileT
 };
 
 const STORAGE_KEY = 'chaticu-record-templates';
+const RECORDS_STORAGE_KEY = 'chaticu-medical-records';
+
+function loadRecords(patientId: string): MedicalRecord[] {
+  try {
+    const saved = localStorage.getItem(`${RECORDS_STORAGE_KEY}-${patientId}`);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecords(patientId: string, records: MedicalRecord[]) {
+  localStorage.setItem(`${RECORDS_STORAGE_KEY}-${patientId}`, JSON.stringify(records));
+}
 
 function loadCustomTemplates(): Record<RecordType, Record<string, string>> {
   try {
@@ -153,7 +167,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
   const [polishedContent, setPolishedContent] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [isPolishing, setIsPolishing] = useState(false);
-  const [records, setRecords] = useState<MedicalRecord[]>([]);
+  const [records, setRecords] = useState<MedicalRecord[]>(() => loadRecords(patientId));
 
   // Custom templates
   const [customTemplates, setCustomTemplates] = useState(loadCustomTemplates);
@@ -163,6 +177,10 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
   useEffect(() => {
     saveCustomTemplates(customTemplates);
   }, [customTemplates]);
+
+  useEffect(() => {
+    saveRecords(patientId, records);
+  }, [patientId, records]);
 
   const allTemplates = {
     ...BUILTIN_TEMPLATES[recordType],
@@ -227,6 +245,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
     const name = newTemplateName.trim();
     if (!name) { toast.error('請輸入模板名稱'); return; }
     if (!inputContent.trim()) { toast.error('請先輸入內容'); return; }
+    if (name in BUILTIN_TEMPLATES[recordType]) { toast.error(`「${name}」與內建模板名稱重複，請使用其他名稱`); return; }
     setCustomTemplates((prev) => ({
       ...prev,
       [recordType]: { ...prev[recordType], [name]: inputContent },
@@ -270,11 +289,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
             <FileText className="h-6 w-6 text-slate-700" />
             新增病歷記錄
           </CardTitle>
-          <CardDescription>
-            {user?.role === 'pharmacist' && '撰寫用藥建議並使用 AI 協助修飾'}
-            {user?.role === 'nurse' && '撰寫護理記錄並使用 AI 協助檢查'}
-            {(user?.role === 'doctor' || user?.role === 'admin') && '撰寫 Progress Note 並使用 AI 協助修飾'}
-          </CardDescription>
+          <CardDescription>{config.description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {!canPolish && (
@@ -283,28 +298,24 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
             </div>
           )}
 
-          {/* 記錄類型選擇器 - 只在管理者時顯示 */}
-          {user?.role === 'admin' && (
-            <>
-              <div className="grid grid-cols-3 gap-3">
-                {(Object.keys(RECORD_TYPE_CONFIG) as RecordType[]).map((type) => {
-                  const TypeIcon = RECORD_TYPE_CONFIG[type].icon;
-                  return (
-                    <Button
-                      key={type}
-                      variant={recordType === type ? 'default' : 'outline'}
-                      className={recordType === type ? 'bg-slate-800 hover:bg-slate-900 text-white' : ''}
-                      onClick={() => { setRecordType(type); setSelectedTemplate(''); setInputContent(''); setPolishedContent(''); }}
-                    >
-                      <TypeIcon className="mr-2 h-5 w-5" />
-                      {RECORD_TYPE_CONFIG[type].label}
-                    </Button>
-                  );
-                })}
-              </div>
-              <Separator />
-            </>
-          )}
+          {/* 記錄類型選擇器 */}
+          <div className="grid grid-cols-3 gap-3">
+            {(Object.keys(RECORD_TYPE_CONFIG) as RecordType[]).map((type) => {
+              const TypeIcon = RECORD_TYPE_CONFIG[type].icon;
+              return (
+                <Button
+                  key={type}
+                  variant={recordType === type ? 'default' : 'outline'}
+                  className={recordType === type ? 'bg-slate-800 hover:bg-slate-900 text-white' : ''}
+                  onClick={() => { setRecordType(type); setSelectedTemplate(''); setInputContent(''); setPolishedContent(''); }}
+                >
+                  <TypeIcon className="mr-2 h-5 w-5" />
+                  {RECORD_TYPE_CONFIG[type].label}
+                </Button>
+              );
+            })}
+          </div>
+          <Separator />
 
           {/* 統一表單 */}
           <div className="space-y-4">
@@ -324,6 +335,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                     <Label>選擇模板（可選）</Label>
                     <div className="flex gap-2 mt-2">
                       <Select value={selectedTemplate} onValueChange={(value) => {
+                        if (inputContent.trim() && !confirm('目前已有輸入內容，選擇模板將會取代。確定要繼續嗎？')) return;
                         setSelectedTemplate(value);
                         setInputContent(allTemplates[value] || '');
                       }}>
@@ -344,17 +356,24 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                           )}
                         </SelectContent>
                       </Select>
-                      {selectedTemplate && customTemplateNames.includes(selectedTemplate) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0"
-                          onClick={() => handleDeleteTemplate(selectedTemplate)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
                     </div>
+                    {customTemplateNames.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        {customTemplateNames.map((name) => (
+                          <span key={name} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">
+                            {name}
+                            <button
+                              type="button"
+                              className="ml-0.5 text-slate-400 hover:text-red-500 transition-colors"
+                              onClick={() => handleDeleteTemplate(name)}
+                              title={`刪除模板「${name}」`}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
