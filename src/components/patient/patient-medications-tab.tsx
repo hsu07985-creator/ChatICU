@@ -136,7 +136,7 @@ function ScoreSlider({
           value={[displayValue]}
           onValueChange={([v]) => setPending(v)}
           disabled={submitting}
-          className="[&_[data-slot=slider-track]]:h-3 [&_[data-slot=slider-track]]:bg-gray-200 [&_[data-slot=slider-range]]:bg-[#7f265b] [&_[data-slot=slider-thumb]]:!size-7 [&_[data-slot=slider-thumb]]:!border-white [&_[data-slot=slider-thumb]]:!border-[3px] [&_[data-slot=slider-thumb]]:!bg-[#7f265b] [&_[data-slot=slider-thumb]]:shadow-lg [&_[data-slot=slider-thumb]]:cursor-grab"
+          className="[&_[data-slot=slider-track]]:h-3 [&_[data-slot=slider-track]]:bg-gray-200 [&_[data-slot=slider-range]]:bg-[#7f265b]"
         />
         <div className="flex justify-between mt-4">
           {ticks.map((v) => (
