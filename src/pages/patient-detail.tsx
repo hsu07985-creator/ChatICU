@@ -37,6 +37,8 @@ import { LabDataSkeleton, MedicationsSkeleton, MessageListSkeleton } from '../co
 import { PatientSummaryTab } from '../components/patient/patient-summary-tab';
 import { PatientLabsTab } from '../components/patient/patient-labs-tab';
 import { PatientMedicationsTab } from '../components/patient/patient-medications-tab';
+import { PatientMessagesTab } from '../components/patient/patient-messages-tab';
+import { respondToAdvice } from '../lib/api/pharmacy';
 import { getLatestScores, recordScore, getScoreTrends } from '../lib/api/scores';
 import {
   ArrowLeft,
@@ -513,6 +515,7 @@ export function PatientDetailPage() {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [messageInput, setMessageInput] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
+  const [presetTags, setPresetTags] = useState<string[]>([]);
 
   // 生命徵象狀態
   const [vitalSigns, setVitalSigns] = useState<VitalSigns | null>(null);
@@ -781,23 +784,121 @@ export function PatientDetailPage() {
     }
   }, [id]);
 
+  // 載入預設標籤
+  useEffect(() => {
+    if (!id) return;
+    messagesApi.getPresetTags(id).then(setPresetTags).catch(() => setPresetTags([]));
+  }, [id]);
+
   // 發送留言板留言
-  const handleSendBoardMessage = async () => {
+  const handleSendBoardMessage = useCallback(async (replyToId?: string, tags?: string[], mentionedRoles?: string[]) => {
     if (!messageInput.trim() || !id) return;
 
     try {
       const newMessage = await messagesApi.sendMessage(id, {
         content: messageInput.trim(),
-        messageType: 'general'
+        messageType: 'general',
+        replyToId,
+        tags,
+        mentionedRoles,
       });
-      setMessages(prev => [newMessage, ...prev]);
+      if (replyToId) {
+        await refreshMessagesOnly();
+      } else {
+        setMessages(prev => [newMessage, ...prev]);
+      }
       setMessageInput('');
       toast.success('留言發送成功');
     } catch (err) {
       console.error('發送留言失敗:', err);
       toast.error('發送留言失敗');
     }
-  };
+  }, [messageInput, id, refreshMessagesOnly]);
+
+  // 發送用藥建議
+  const handleSendMedicationAdvice = useCallback(async (replyToId?: string, tags?: string[], mentionedRoles?: string[]) => {
+    if (!messageInput.trim() || !id) return;
+    if (user?.role !== 'pharmacist') {
+      toast.error('只有藥師可以發送用藥建議');
+      return;
+    }
+    try {
+      const newMessage = await messagesApi.sendMessage(id, {
+        content: messageInput.trim(),
+        messageType: 'medication-advice',
+        replyToId,
+        tags,
+        mentionedRoles,
+      });
+      if (replyToId) {
+        await refreshMessagesOnly();
+      } else {
+        setMessages(prev => [newMessage, ...prev]);
+      }
+      setMessageInput('');
+      toast.success('用藥建議發送成功');
+    } catch (err) {
+      console.error('發送用藥建議失敗:', err);
+      toast.error('發送用藥建議失敗');
+    }
+  }, [messageInput, id, user?.role, refreshMessagesOnly]);
+
+  // 更新留言標籤
+  const handleUpdateMessageTags = useCallback(async (messageId: string, data: { add?: string[]; remove?: string[] }) => {
+    if (!id) return;
+    try {
+      await messagesApi.updateMessageTags(id, messageId, data);
+      await refreshMessagesOnly();
+      toast.success('標籤已更新');
+    } catch (err) {
+      console.error('更新標籤失敗:', err);
+      toast.error('更新標籤失敗');
+    }
+  }, [id, refreshMessagesOnly]);
+
+  // 回覆藥事建議
+  const handleRespondToAdvice = useCallback(async (adviceRecordId: string, accepted: boolean) => {
+    try {
+      await respondToAdvice(adviceRecordId, { accepted });
+      toast.success(accepted ? '已接受藥事建議' : '已拒絕藥事建議');
+      await refreshMessagesOnly();
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 409) {
+        toast.error('此建議已有回覆，無法重複操作');
+      } else {
+        toast.error('回覆藥事建議失敗');
+      }
+    }
+  }, [refreshMessagesOnly]);
+
+  // 標記單則已讀
+  const handleMarkMessageRead = useCallback(async (messageId: string) => {
+    if (!id) return;
+    try {
+      await messagesApi.markMessageRead(id, messageId);
+      toast.success('已標記為已讀');
+      await refreshMessagesOnly();
+    } catch (err) {
+      console.error('標記已讀失敗:', err);
+      toast.error('標記已讀失敗');
+    }
+  }, [id, refreshMessagesOnly]);
+
+  // 全部標為已讀
+  const handleMarkAllRead = useCallback(async () => {
+    if (!id) return;
+    const unread = messages.filter(m => !m.isRead);
+    if (unread.length === 0) return;
+    try {
+      await Promise.all(unread.map(m => messagesApi.markMessageRead(id, m.id).catch(() => null)));
+      toast.success(`已標記 ${unread.length} 則留言為已讀`);
+      await refreshMessagesOnly();
+    } catch (err) {
+      console.error('全部標為已讀失敗:', err);
+      toast.error('全部標為已讀失敗');
+    }
+  }, [id, messages, refreshMessagesOnly]);
 
   // 格式化時間戳記
   const formatTimestamp = (timestamp: string) => {
@@ -1586,250 +1687,22 @@ export function PatientDetailPage() {
         </TabsContent>
 
         {/* 留言板 */}
-        <TabsContent value="messages" className="space-y-4">
-          <Card>
-            <CardHeader className="bg-[#f8f9fa] border-b">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-xl">
-                    <MessagesSquare className="h-6 w-6 text-[#7f265b]" />
-                    病患留言板
-                  </CardTitle>
-                  <CardDescription className="text-[15px] mt-2">
-                    團隊成員的照護溝通與用藥建議，避免重要訊息遺漏
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  {messages.filter(m => !m.isRead).length > 0 && (
-                    <Badge className="bg-[#ff3975] text-white px-3 py-1.5">
-                      {messages.filter(m => !m.isRead).length} 則未讀
-                    </Badge>
-                  )}
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={async () => {
-                      if (!id) return;
-                      const unread = messages.filter(m => !m.isRead);
-                      if (unread.length === 0) return;
-                      try {
-                        await Promise.all(
-                          unread.map(m => messagesApi.markMessageRead(id, m.id).catch(() => null))
-                        );
-                        toast.success(`已標記 ${unread.length} 則留言為已讀`);
-                        await refreshMessagesOnly();
-                      } catch (err) {
-                        console.error('全部標為已讀失敗:', err);
-                        toast.error('全部標為已讀失敗');
-                      }
-                    }}
-                  >
-                    全部標為已讀
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* 新增留言輸入區 */}
-              <div className="space-y-2 p-4 bg-[#f8f9fa] rounded-lg border border-[#e5e7eb]">
-                <div className="flex items-center gap-2">
-                  <Send className="h-5 w-5 text-[#7f265b]" />
-                  <label className="font-semibold text-[#1a1a1a]">新增留言</label>
-                </div>
-                <Textarea
-                  placeholder="輸入照護相關訊息或用藥建議..."
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  className="min-h-[80px] border border-[#7f265b] focus:border-[#7f265b] focus:ring-2 focus:ring-[#7f265b]/20 text-[17px]"
-                />
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleSendBoardMessage}
-                    size="lg"
-                    className="bg-[#7f265b] hover:bg-[#5f1e45]"
-                    disabled={!messageInput.trim()}
-                  >
-                    <Send className="mr-2 h-5 w-5" />
-                    發送留言
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={async () => {
-                      if (!messageInput.trim() || !id) return;
-                      if (user?.role !== 'pharmacist') {
-                        toast.error('只有藥師可以發送用藥建議');
-                        return;
-                      }
-                      try {
-                        const newMessage = await messagesApi.sendMessage(id, {
-                          content: messageInput.trim(),
-                          messageType: 'medication-advice'
-                        });
-                        setMessages(prev => [newMessage, ...prev]);
-                        setMessageInput('');
-                        toast.success('用藥建議發送成功');
-                      } catch (err) {
-                        console.error('發送用藥建議失敗:', err);
-                        toast.error('發送用藥建議失敗');
-                      }
-                    }}
-                    disabled={!messageInput.trim() || user?.role !== 'pharmacist'}
-                  >
-                    <Pill className="mr-2 h-5 w-5" />
-                    標記為用藥建議
-                  </Button>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* 留言列表 */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold">團隊留言 ({messages.length})</h3>
-                  <div className="flex gap-2">
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                      <Pill className="h-3 w-3 mr-1" />
-                      {messages.filter(m => m.messageType === 'medication-advice').length} 用藥建議
-                    </Badge>
-                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                      <AlertCircle className="h-3 w-3 mr-1" />
-                      {messages.filter(m => m.messageType === 'alert').length} 警示
-                    </Badge>
-                  </div>
-                </div>
-
-                {messagesLoading ? (
-                  <MessageListSkeleton count={3} />
-                ) : messages.length === 0 ? (
-                  <EmptyState
-                    icon={MessagesSquare}
-                    title="尚無留言"
-                    description="開始新增第一則留言，與團隊分享照護資訊"
-                  />
-                ) : (
-                  messages.map((message) => {
-                    const getRoleIcon = () => {
-                      switch (message.authorRole) {
-                        case 'pharmacist':
-                          return <Pill className="h-5 w-5 text-green-600" />;
-                        case 'doctor':
-                          return <Stethoscope className="h-5 w-5 text-blue-600" />;
-                        case 'nurse':
-                          return <Activity className="h-5 w-5 text-purple-600" />;
-                        case 'admin':
-                          return <Shield className="h-5 w-5 text-orange-600" />;
-                        default:
-                          return <User className="h-5 w-5 text-gray-600" />;
-                      }
-                    };
-
-                    const getRoleLabel = () => {
-                      switch (message.authorRole) {
-                        case 'pharmacist': return '藥師';
-                        case 'doctor': return '醫師';
-                        case 'nurse': return '護理師';
-                        case 'admin': return '管理者';
-                        default: return '使用者';
-                      }
-                    };
-
-                    const getMessageTypeColor = () => {
-                      switch (message.messageType) {
-                        case 'medication-advice':
-                          return 'border-green-200 bg-green-50';
-                        case 'alert':
-                          return 'border-red-200 bg-red-50';
-                        default:
-                          return 'border-blue-200 bg-blue-50';
-                      }
-                    };
-
-                    return (
-                      <Card 
-                        key={message.id} 
-                        className={`${getMessageTypeColor()} ${!message.isRead ? 'shadow-md' : ''}`}
-                      >
-                        <CardHeader className="pb-2 pt-3">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="p-1.5 bg-white rounded-full border">
-                                {getRoleIcon()}
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-semibold text-[#1a1a1a]">{message.authorName}</span>
-                                  <Badge variant="outline" className="text-xs">
-                                    {getRoleLabel()}
-                                  </Badge>
-                                  {message.messageType === 'medication-advice' && (
-                                    <Badge className="bg-green-600 text-white text-xs">
-                                      <Pill className="h-3 w-3 mr-1" />
-                                      用藥建議
-                                    </Badge>
-                                  )}
-                                  {message.messageType === 'alert' && (
-                                    <Badge className="bg-red-600 text-white text-xs">
-                                      <AlertCircle className="h-3 w-3 mr-1" />
-                                      警示
-                                    </Badge>
-                                  )}
-                                  {!message.isRead && (
-                                    <Badge className="bg-[#ff3975] text-white text-xs">
-                                      未讀
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                                  <Clock className="h-3 w-3" />
-                                  <span>{formatTimestamp(message.timestamp)}</span>
-                                  {message.linkedMedication && (
-                                    <>
-                                      <span>•</span>
-                                      <span className="text-[#7f265b] font-medium">
-                                        關聯藥品：{message.linkedMedication}
-                                      </span>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            {!message.isRead && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={async () => {
-                                  if (!id) return;
-                                  try {
-                                    await messagesApi.markMessageRead(id, message.id);
-                                    toast.success('已標記為已讀');
-                                    await refreshMessagesOnly();
-                                  } catch (err) {
-                                    console.error('標記已讀失敗:', err);
-                                    toast.error('標記已讀失敗');
-                                  }
-                                }}
-                              >
-                                <CheckCircle2 className="h-4 w-4 mr-1" />
-                                標為已讀
-                              </Button>
-                            )}
-                          </div>
-                        </CardHeader>
-                        <CardContent className="pt-0 pb-3">
-                          <p className="text-[15px] leading-relaxed whitespace-pre-wrap">
-                            {message.content}
-                          </p>
-                        </CardContent>
-                      </Card>
-                    );
-                  })
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        <PatientMessagesTab
+          patientId={id}
+          userRole={user?.role}
+          messages={messages}
+          messagesLoading={messagesLoading}
+          messageInput={messageInput}
+          onMessageInputChange={setMessageInput}
+          onSendGeneralMessage={handleSendBoardMessage}
+          onSendMedicationAdvice={handleSendMedicationAdvice}
+          onMarkAllRead={handleMarkAllRead}
+          onMarkMessageRead={handleMarkMessageRead}
+          formatTimestamp={formatTimestamp}
+          presetTags={presetTags}
+          onUpdateTags={handleUpdateMessageTags}
+          onRespondToAdvice={handleRespondToAdvice}
+        />
 
         {/* 病歷記錄 */}
         <TabsContent value="records" className="space-y-4">

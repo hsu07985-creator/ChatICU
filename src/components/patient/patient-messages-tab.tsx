@@ -571,5 +571,5 @@ export function PatientMessagesTab({
       </Card>
       <div aria-hidden="true" style={{ height: '26rem' }} />
     </TabsContent>
-  );
+  ); // v2: reply-threading + mentions
 }
