@@ -4,11 +4,13 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Textarea } from '../components/ui/textarea';
 import { ScrollArea } from '../components/ui/scroll-area';
-import { Send, Pin, MessageSquare, RefreshCw } from 'lucide-react';
+import { Send, Pin, MessageSquare, RefreshCw, AtSign, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 import { useAuth } from '../lib/auth-context';
 import { getTeamChatMessages, sendTeamChatMessage, postAnnouncement, togglePinMessage, TeamChatMessage } from '../lib/api/team-chat';
+import { getMyMentions, type MentionGroup } from '../lib/api/messages';
 import { LoadingSpinner } from '../components/ui/state-display';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -52,6 +54,15 @@ export function ChatPage() {
   const [announcementContent, setAnnouncementContent] = useState('');
   const [postingAnnouncement, setPostingAnnouncement] = useState(false);
 
+  // 右側面板：tab 切換
+  const [sidebarTab, setSidebarTab] = useState<'pinned' | 'mentions'>('mentions');
+  const [mentionGroups, setMentionGroups] = useState<MentionGroup[]>([]);
+  const [mentionsLoading, setMentionsLoading] = useState(false);
+  const [mentionsTotalCount, setMentionsTotalCount] = useState(0);
+  const [expandedPatients, setExpandedPatients] = useState<Set<string>>(new Set());
+  const [mentionsUnreadOnly, setMentionsUnreadOnly] = useState(false);
+  const navigate = useNavigate();
+
   // 載入訊息
   const loadMessages = async () => {
     try {
@@ -67,9 +78,27 @@ export function ChatPage() {
     }
   };
 
+  const loadMentions = async () => {
+    setMentionsLoading(true);
+    try {
+      const result = await getMyMentions({ hoursBack: 168, unreadOnly: mentionsUnreadOnly });
+      setMentionGroups(result.groups);
+      setMentionsTotalCount(result.totalMentions);
+    } catch (err) {
+      console.error('載入 @提及 失敗:', err);
+    } finally {
+      setMentionsLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadMessages();
+    loadMentions();
   }, []);
+
+  useEffect(() => {
+    loadMentions();
+  }, [mentionsUnreadOnly]);
 
   // 自動滾動到底部
   useEffect(() => {
@@ -266,43 +295,155 @@ export function ChatPage() {
           </CardContent>
         </Card>
 
-        {/* 側邊欄 */}
+        {/* 側邊欄 — Tabs: @我的留言 / 釘選訊息 */}
         <div className="space-y-4">
-          {/* 釘選訊息 — 有釘選時才展開完整內容 */}
           <Card>
-            <CardHeader className="bg-[#f8f9fa]">
-              <CardTitle className="flex items-center gap-2">
-                <Pin className="h-5 w-5 text-[#f59e0b]" />
-                釘選訊息
-                {messages.filter(m => m.pinned).length > 0 && (
-                  <Badge className="bg-[#f59e0b] text-white text-xs ml-auto">{messages.filter(m => m.pinned).length}</Badge>
-                )}
-              </CardTitle>
+            <CardHeader className="bg-[#f8f9fa] pb-0">
+              <div className="flex border-b border-[#e5e7eb]">
+                <button
+                  className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                    sidebarTab === 'mentions'
+                      ? 'border-[#7f265b] text-[#7f265b]'
+                      : 'border-transparent text-[#6b7280] hover:text-[#1a1a1a]'
+                  }`}
+                  onClick={() => setSidebarTab('mentions')}
+                >
+                  <AtSign className="h-4 w-4" />
+                  @我的留言
+                  {mentionsTotalCount > 0 && (
+                    <Badge className="bg-[#7f265b] text-white text-xs ml-1">{mentionsTotalCount}</Badge>
+                  )}
+                </button>
+                <button
+                  className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                    sidebarTab === 'pinned'
+                      ? 'border-[#f59e0b] text-[#f59e0b]'
+                      : 'border-transparent text-[#6b7280] hover:text-[#1a1a1a]'
+                  }`}
+                  onClick={() => setSidebarTab('pinned')}
+                >
+                  <Pin className="h-4 w-4" />
+                  釘選訊息
+                  {messages.filter(m => m.pinned).length > 0 && (
+                    <Badge className="bg-[#f59e0b] text-white text-xs ml-1">{messages.filter(m => m.pinned).length}</Badge>
+                  )}
+                </button>
+              </div>
             </CardHeader>
-            {messages.filter(m => m.pinned).length > 0 && (
-              <CardContent className="space-y-3 pt-4">
-                <ScrollArea className="max-h-[400px]">
-                  <div className="space-y-3">
-                    {messages.filter(m => m.pinned).map((msg) => (
-                      <div key={msg.id} className="group p-3 bg-white border border-[#f59e0b] rounded-lg relative">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-[#f59e0b] h-6 w-6 p-0"
-                          onClick={() => handleTogglePin(msg.id)}
-                          title="取消釘選"
-                        >
-                          <Pin className="h-3 w-3" />
-                        </Button>
-                        <div className="font-semibold mb-2 text-[#1a1a1a]">{msg.userName}</div>
-                        <p className="text-[#1a1a1a] text-[15px] leading-relaxed">{msg.content}</p>
-                        <p className="text-xs text-[#6b7280] mt-2">{formatTimestamp(msg.timestamp)}</p>
-                      </div>
-                    ))}
+            <CardContent className="pt-4">
+              {/* @我的留言 Panel */}
+              {sidebarTab === 'mentions' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <button
+                      className={`text-xs px-2 py-1 rounded ${mentionsUnreadOnly ? 'bg-[#7f265b] text-white' : 'bg-[#f8f9fa] text-[#6b7280]'}`}
+                      onClick={() => setMentionsUnreadOnly(!mentionsUnreadOnly)}
+                    >
+                      {mentionsUnreadOnly ? '僅未讀' : '全部'}
+                    </button>
+                    <Button variant="ghost" size="sm" onClick={loadMentions} disabled={mentionsLoading}>
+                      <RefreshCw className={`h-3.5 w-3.5 ${mentionsLoading ? 'animate-spin' : ''}`} />
+                    </Button>
                   </div>
-                </ScrollArea>
-              </CardContent>
-            )}
+                  <ScrollArea className="max-h-[500px]">
+                    {mentionsLoading ? (
+                      <div className="flex justify-center py-8"><LoadingSpinner size="sm" /></div>
+                    ) : mentionGroups.length === 0 ? (
+                      <div className="text-center py-8 text-[#6b7280] text-sm">
+                        <AtSign className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                        <p>目前沒有被 @到的留言</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {mentionGroups.map((group) => {
+                          const isExpanded = expandedPatients.has(group.patientId);
+                          return (
+                            <div key={group.patientId} className="rounded-lg border border-[#e5e7eb] overflow-hidden">
+                              {/* Patient header */}
+                              <button
+                                className="w-full flex items-center gap-2 px-3 py-2.5 bg-white hover:bg-[#f8f9fa] transition-colors text-left"
+                                onClick={() => setExpandedPatients(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(group.patientId)) next.delete(group.patientId);
+                                  else next.add(group.patientId);
+                                  return next;
+                                })}
+                              >
+                                {isExpanded ? <ChevronDown className="h-4 w-4 text-[#6b7280] shrink-0" /> : <ChevronRight className="h-4 w-4 text-[#6b7280] shrink-0" />}
+                                <Badge variant="outline" className="text-xs shrink-0">{group.bedNumber || '—'}</Badge>
+                                <span className="font-medium text-sm text-[#1a1a1a] truncate">{group.patientName}</span>
+                                <span className="ml-auto flex items-center gap-1.5 shrink-0">
+                                  {group.unreadCount > 0 && (
+                                    <Badge className="bg-red-500 text-white text-xs">{group.unreadCount} 未讀</Badge>
+                                  )}
+                                  <span className="text-xs text-[#6b7280]">{group.totalCount} 則</span>
+                                </span>
+                              </button>
+                              {/* Expanded messages */}
+                              {isExpanded && (
+                                <div className="border-t border-[#e5e7eb] bg-[#f8f9fa]">
+                                  {group.messages.map((msg) => (
+                                    <div
+                                      key={msg.id}
+                                      className={`px-3 py-2 border-b border-[#e5e7eb] last:border-b-0 ${!msg.isRead ? 'bg-orange-50/60' : ''}`}
+                                    >
+                                      <div className="flex items-center gap-1.5 mb-1">
+                                        <span className="text-xs font-medium text-[#1a1a1a]">{msg.authorName}</span>
+                                        <Badge variant="outline" className="text-[10px] px-1 py-0">{roleDisplayName[msg.authorRole] || msg.authorRole}</Badge>
+                                        <span className="text-[10px] text-[#6b7280] ml-auto">{formatTimestamp(msg.timestamp)}</span>
+                                      </div>
+                                      <p className="text-sm text-[#1a1a1a] leading-relaxed line-clamp-3">{msg.content}</p>
+                                    </div>
+                                  ))}
+                                  <button
+                                    className="w-full flex items-center justify-center gap-1 py-2 text-xs text-[#7f265b] hover:bg-white transition-colors font-medium"
+                                    onClick={() => navigate(`/patient/${group.patientId}?tab=messages`)}
+                                  >
+                                    <ExternalLink className="h-3 w-3" />
+                                    前往留言板
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </div>
+              )}
+
+              {/* 釘選訊息 Panel */}
+              {sidebarTab === 'pinned' && (
+                messages.filter(m => m.pinned).length > 0 ? (
+                  <ScrollArea className="max-h-[500px]">
+                    <div className="space-y-3">
+                      {messages.filter(m => m.pinned).map((msg) => (
+                        <div key={msg.id} className="group p-3 bg-white border border-[#f59e0b] rounded-lg relative">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-[#f59e0b] h-6 w-6 p-0"
+                            onClick={() => handleTogglePin(msg.id)}
+                            title="取消釘選"
+                          >
+                            <Pin className="h-3 w-3" />
+                          </Button>
+                          <div className="font-semibold mb-2 text-[#1a1a1a]">{msg.userName}</div>
+                          <p className="text-[#1a1a1a] text-[15px] leading-relaxed">{msg.content}</p>
+                          <p className="text-xs text-[#6b7280] mt-2">{formatTimestamp(msg.timestamp)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center py-8 text-[#6b7280] text-sm">
+                    <Pin className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <p>目前沒有釘選訊息</p>
+                  </div>
+                )
+              )}
+            </CardContent>
           </Card>
         </div>
       </div>

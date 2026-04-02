@@ -101,6 +101,45 @@ export async function getPresetTags(
   return ensureData(response.data, 'API contract');
 }
 
+// @我的留言 — 跨病患查詢被 @到的留言
+export interface MentionMessage {
+  id: string;
+  content: string;
+  authorName: string;
+  authorRole: string;
+  timestamp: string;
+  isRead: boolean;
+  mentionedRoles: string[];
+  tags: string[];
+}
+
+export interface MentionGroup {
+  patientId: string;
+  patientName: string;
+  bedNumber: string;
+  unreadCount: number;
+  totalCount: number;
+  messages: MentionMessage[];
+}
+
+export interface MyMentionsResponse {
+  groups: MentionGroup[];
+  totalMentions: number;
+}
+
+export async function getMyMentions(
+  options: { hoursBack?: number; unreadOnly?: boolean } = {}
+): Promise<MyMentionsResponse> {
+  const params = new URLSearchParams();
+  if (options.hoursBack) params.append('hours_back', String(options.hoursBack));
+  if (options.unreadOnly) params.append('unread_only', 'true');
+
+  const response = await apiClient.get<ApiResponse<MyMentionsResponse>>(
+    `/patients/messages/my-mentions?${params}`
+  );
+  return ensureData(response.data, 'API contract');
+}
+
 // 更新留言標籤
 export async function updateMessageTags(
   patientId: string,

@@ -63,6 +63,7 @@ from app.routers import (
     health,
     lab_data,
     medications,
+    message_activity,
     messages,
     patients,
     patients_v2,
@@ -592,6 +593,7 @@ app.include_router(vital_signs.router)
 app.include_router(ventilator.router)
 app.include_router(medications.router)
 app.include_router(messages.router)
+app.include_router(message_activity.router)
 app.include_router(team_chat.router)
 app.include_router(dashboard.router)
 app.include_router(admin.router)
