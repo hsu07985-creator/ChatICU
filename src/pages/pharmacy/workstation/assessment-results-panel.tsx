@@ -15,7 +15,6 @@ import {
   Calculator,
   Lightbulb,
   User,
-  Activity,
   ChevronDown,
   ChevronUp,
   Check,
@@ -107,9 +106,7 @@ export function AssessmentResultsPanel({
         <Card>
           <CardContent className="py-16">
             <div className="text-center space-y-3">
-              <Activity className="h-12 w-12 mx-auto text-muted-foreground" />
               <div>
-                <h3 className="font-semibold text-lg">準備執行評估</h3>
                 <p className="text-muted-foreground text-sm">
                   目前已載入 {drugList.length} 項藥品，點擊「執行全面評估」開始分析
                 </p>
@@ -401,7 +398,7 @@ export function AssessmentResultsPanel({
             )}
           </Card>
 
-          {/* ── 3. 劑量調整建議 ── */}
+          {/* ── 3. 劑量調整建議（僅 PAD 支援藥物） ── */}
           <Card className="border-l-4 border-l-[#7f265b]">
             <CardHeader
               className="cursor-pointer bg-[#f8f9fa] py-3"
@@ -411,18 +408,24 @@ export function AssessmentResultsPanel({
                 <div className="flex items-center gap-2">
                   <Calculator className="h-5 w-5 text-[#7f265b]" />
                   <CardTitle className="text-base">劑量調整建議</CardTitle>
-                  <Badge variant="secondary" className="text-xs">
-                    {assessmentResults.dosage.length} 項
-                  </Badge>
-                  {assessmentResults.dosage.filter(d => d.status === 'calculated').length > 0 && (
-                    <Badge variant="outline" className="text-xs">
-                      已換算 {assessmentResults.dosage.filter(d => d.status === 'calculated').length}
-                    </Badge>
-                  )}
-                  {assessmentResults.dosage.filter(d => d.status === 'requires_input').length > 0 && (
-                    <Badge variant="outline" className="border-[#f59e0b] text-xs text-[#f59e0b]">
-                      待補 {assessmentResults.dosage.filter(d => d.status === 'requires_input').length}
-                    </Badge>
+                  {assessmentResults.dosage.length > 0 ? (
+                    <>
+                      <Badge variant="secondary" className="text-xs">
+                        PAD {assessmentResults.dosage.length} 項
+                      </Badge>
+                      {assessmentResults.dosage.filter(d => d.status === 'calculated').length > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          已換算 {assessmentResults.dosage.filter(d => d.status === 'calculated').length}
+                        </Badge>
+                      )}
+                      {assessmentResults.dosage.filter(d => d.status === 'requires_input').length > 0 && (
+                        <Badge variant="outline" className="border-[#f59e0b] text-xs text-[#f59e0b]">
+                          待補 {assessmentResults.dosage.filter(d => d.status === 'requires_input').length}
+                        </Badge>
+                      )}
+                    </>
+                  ) : (
+                    <Badge variant="outline" className="text-xs">無 PAD 藥物</Badge>
                   )}
                 </div>
                 {expandedSections.dosage ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -430,66 +433,74 @@ export function AssessmentResultsPanel({
             </CardHeader>
             {expandedSections.dosage && (
               <CardContent className="space-y-2.5 pt-3">
-                {assessmentResults.dosage.map((dose, idx) => {
-                  const statusCfg = {
-                    calculated: { label: '已計算', className: 'bg-[#7f265b] text-white' },
-                    requires_input: { label: '待補資料', className: 'bg-[#f59e0b] text-white' },
-                    service_unavailable: { label: '服務異常', className: 'bg-red-600 text-white' },
-                  }[dose.status] || { label: '—', className: 'bg-gray-400 text-white' };
+                {assessmentResults.dosage.length === 0 ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>目前用藥中無 PAD 支援藥物，無需劑量調整計算</span>
+                  </div>
+                ) : (
+                  assessmentResults.dosage.map((dose, idx) => {
+                    const statusCfg = {
+                      calculated: { label: '已計算', className: 'bg-[#7f265b] text-white' },
+                      requires_input: { label: '待補資料', className: 'bg-[#f59e0b] text-white' },
+                      service_unavailable: { label: '服務異常', className: 'bg-red-600 text-white' },
+                    }[dose.status] || { label: '—', className: 'bg-gray-400 text-white' };
 
-                  return (
-                    <div key={idx} className="border rounded-lg p-3 space-y-2 bg-[#f8f9fa]">
-                      <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div className="flex items-center gap-2">
-                          <p className="font-semibold text-sm">{dose.drugName}</p>
-                          <Badge className={statusCfg.className}>{statusCfg.label}</Badge>
-                          {typeof extendedData?.egfr === 'number' && extendedData.egfr < 60 && (
-                            <Badge variant="outline" className="text-xs border-[#f59e0b] text-[#f59e0b]">
-                              需調整
-                            </Badge>
-                          )}
+                    return (
+                      <div key={idx} className="border rounded-lg p-3 space-y-2 bg-[#f8f9fa]">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-sm">{dose.drugName}</p>
+                            <Badge className={statusCfg.className}>{statusCfg.label}</Badge>
+                            {typeof extendedData?.egfr === 'number' && extendedData.egfr < 60 && (
+                              <Badge variant="outline" className="text-xs border-[#f59e0b] text-[#f59e0b]">
+                                需調整
+                              </Badge>
+                            )}
+                          </div>
                         </div>
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div className="rounded-lg border bg-white px-3 py-2">
+                            <p className="text-muted-foreground text-[11px]">{dose.targetDoseTitle || '標準劑量'}</p>
+                            <p className="font-medium mt-0.5">{dose.targetDose || dose.normalDose}</p>
+                          </div>
+                          <div className="rounded-lg border border-[#ead7e1] bg-[#fdf6fa] px-3 py-2">
+                            <p className="text-muted-foreground text-[11px]">{dose.calculatedRateTitle || '建議劑量'}</p>
+                            <p className="font-semibold text-[#7f265b] mt-0.5">{dose.calculatedRate || dose.adjustedDose}</p>
+                          </div>
+                        </div>
+                        {dose.clinicalSummary && (
+                          <p className="text-sm text-slate-700">{dose.clinicalSummary}</p>
+                        )}
+                        {dose.calculationSteps && dose.calculationSteps.length > 0 && (
+                          <details className="group">
+                            <summary className="cursor-pointer text-xs text-[#7f265b] flex items-center gap-1">
+                              <span className="group-open:rotate-90 transition-transform">▶</span>
+                              計算步驟（{dose.calculationSteps.length} 步）
+                            </summary>
+                            <ol className="mt-1.5 list-decimal list-inside space-y-0.5 text-xs text-muted-foreground pl-2">
+                              {dose.calculationSteps.map((step, sIdx) => (
+                                <li key={sIdx}>{step}</li>
+                              ))}
+                            </ol>
+                          </details>
+                        )}
+                        {dose.warnings && dose.warnings.length > 0 && (
+                          <div className="flex items-start gap-1.5 text-xs text-[#f59e0b]">
+                            <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                            <span>{dose.warnings.join('；')}</span>
+                          </div>
+                        )}
+                        {dose.hepaticWarning && (
+                          <p className="text-xs text-muted-foreground">{dose.hepaticWarning}</p>
+                        )}
                       </div>
-                      <div className="grid grid-cols-2 gap-3 text-xs">
-                        <div className="rounded-lg border bg-white px-3 py-2">
-                          <p className="text-muted-foreground text-[11px]">{dose.targetDoseTitle || '標準劑量'}</p>
-                          <p className="font-medium mt-0.5">{dose.targetDose || dose.normalDose}</p>
-                        </div>
-                        <div className="rounded-lg border border-[#ead7e1] bg-[#fdf6fa] px-3 py-2">
-                          <p className="text-muted-foreground text-[11px]">{dose.calculatedRateTitle || '建議劑量'}</p>
-                          <p className="font-semibold text-[#7f265b] mt-0.5">{dose.calculatedRate || dose.adjustedDose}</p>
-                        </div>
-                      </div>
-                      {dose.clinicalSummary && (
-                        <p className="text-sm text-slate-700">{dose.clinicalSummary}</p>
-                      )}
-                      {/* Collapsible calculation steps */}
-                      {dose.calculationSteps && dose.calculationSteps.length > 0 && (
-                        <details className="group">
-                          <summary className="cursor-pointer text-xs text-[#7f265b] flex items-center gap-1">
-                            <span className="group-open:rotate-90 transition-transform">▶</span>
-                            計算步驟（{dose.calculationSteps.length} 步）
-                          </summary>
-                          <ol className="mt-1.5 list-decimal list-inside space-y-0.5 text-xs text-muted-foreground pl-2">
-                            {dose.calculationSteps.map((step, sIdx) => (
-                              <li key={sIdx}>{step}</li>
-                            ))}
-                          </ol>
-                        </details>
-                      )}
-                      {dose.warnings && dose.warnings.length > 0 && (
-                        <div className="flex items-start gap-1.5 text-xs text-[#f59e0b]">
-                          <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                          <span>{dose.warnings.join('；')}</span>
-                        </div>
-                      )}
-                      {dose.hepaticWarning && (
-                        <p className="text-xs text-muted-foreground">{dose.hepaticWarning}</p>
-                      )}
-                    </div>
-                  );
-                })}
-                {/* Link to full dosage page */}
+                    );
+                  })
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  劑量計算僅適用於 PAD 支援的 ICU 藥物（如 Dexmedetomidine、Fentanyl、Midazolam 等），其他藥物請至劑量計算頁面操作。
+                </p>
                 <Button
                   variant="ghost"
                   size="sm"

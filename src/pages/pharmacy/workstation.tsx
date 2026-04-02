@@ -5,7 +5,7 @@ import { useAuth } from '../../lib/auth-context';
 import { getLatestLabData, type LabData as ApiLabData } from '../../lib/api/lab-data';
 import { getLatestVitalSigns, type VitalSigns as ApiVitalSigns } from '../../lib/api/vital-signs';
 import { calculateDose, checkInteractions, type PatientContext } from '../../lib/api/ai';
-import { createAdviceRecord, getDrugInteractions, getIVCompatibility } from '../../lib/api/pharmacy';
+import { createAdviceRecord, getDrugInteractions, getIVCompatibility, getPadDrugs, type PadDrugInfo } from '../../lib/api/pharmacy';
 import { getMedications } from '../../lib/api/medications';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -339,11 +339,60 @@ export function PharmacyWorkstationPage() {
         pairsChecked: limitedPairs.length,
       };
 
-      // 3) Dose suggestions (func deterministic engine via backend proxy)
+      // 3) Dose suggestions — only for PAD-supported drugs (specific ICU drugs)
+      // Known PAD drug keys (fallback when API is unavailable)
+      const KNOWN_PAD_KEYS = [
+        'dexmedetomidine', 'fentanyl', 'midazolam', 'cisatracurium',
+        'propofol', 'norepinephrine', 'vasopressin', 'nicardipine', 'ketamine',
+      ];
+
+      let padDrugCatalog: PadDrugInfo[] = [];
+      try {
+        const padRes = await getPadDrugs();
+        padDrugCatalog = padRes.drugs || [];
+      } catch {
+        console.warn('無法取得 PAD 藥物目錄，使用本地已知清單');
+        // Use known keys as fallback so filtering still works
+        padDrugCatalog = KNOWN_PAD_KEYS.map(key => ({
+          key,
+          label: key.charAt(0).toUpperCase() + key.slice(1),
+          concentration: 0,
+          concentration_unit: '',
+          dose_unit: '',
+          dose_range: '',
+          weight_basis: 'weight',
+        }));
+      }
+
+      // Match patient drugs to PAD catalog by alpha-only lowercase comparison
+      const matchPadDrug = (medName: string): PadDrugInfo | null => {
+        const alpha = medName.replace(/[^a-zA-Z]/g, '').toLowerCase();
+        const firstWord = medName.toLowerCase().split(/[\s(,/]/)[0].replace(/[^a-z]/g, '');
+        for (const pad of padDrugCatalog) {
+          const padAlpha = pad.key.replace(/[^a-zA-Z]/g, '').toLowerCase();
+          const padLabel = pad.label.replace(/[^a-zA-Z]/g, '').toLowerCase();
+          // Exact alpha match
+          if (padAlpha === alpha || padLabel === alpha) return pad;
+          // First-word exact match against PAD key (e.g., "fentanyl" === "fentanyl")
+          if (firstWord === padAlpha || firstWord === padLabel) return pad;
+          // First-word prefix: patient med's first word starts the PAD key
+          // (e.g., "propofol" starts with "propofol") — require at least 6 chars to avoid false positives
+          if (firstWord.length >= 6 && padAlpha.startsWith(firstWord)) return pad;
+          // Reverse: PAD key is a prefix of the first word
+          // (e.g., pad key "fentanyl" is prefix of "fentanylcitrate")
+          if (padAlpha.length >= 6 && firstWord.startsWith(padAlpha)) return pad;
+        }
+        return null;
+      };
+
+      const padMatchedDrugs = uniqueDrugs
+        .map(drug => ({ drug, padInfo: matchPadDrug(drug) }))
+        .filter((m): m is { drug: string; padInfo: PadDrugInfo } => m.padInfo !== null);
+
       const dosage: DosageResult[] = await Promise.all(
-        uniqueDrugs.map(async (drug) => {
+        padMatchedDrugs.map(async ({ drug, padInfo }) => {
           try {
-            const res = await calculateDose({ drug, patientContext }, { suppressErrorToast: true });
+            const res = await calculateDose({ drug: padInfo.key, patientContext }, { suppressErrorToast: true });
             const cv = res.computed_values as Record<string, unknown>;
             const inputDose = cv?.input_dose;
             const finalRate = cv?.final_rate;
@@ -355,7 +404,7 @@ export function PharmacyWorkstationPage() {
             const steps = res.calculation_steps || [];
             const isRequiresInput = res.error_code === 'MISSING_TARGET_DOSE' || res.status === 'requires_input';
             return {
-              drugName: drug,
+              drugName: padInfo.label || drug,
               normalDose,
               adjustedDose,
               renalAdjustment: steps.slice(0, 4).join('；') || (res.message || ''),
@@ -379,7 +428,7 @@ export function PharmacyWorkstationPage() {
           } catch (err) {
             const msg = '劑量引擎不可用（請啟動 func/ 服務）';
             return {
-              drugName: drug,
+              drugName: padInfo.label || drug,
               normalDose: '—',
               adjustedDose: msg,
               renalAdjustment: msg,
@@ -414,8 +463,11 @@ export function PharmacyWorkstationPage() {
       if (extendedData?.hepaticFunction && extendedData.hepaticFunction !== 'normal') {
         adviceRecommendations.push('肝功能異常，建議檢視需肝代謝調整藥物並監測肝功能。');
       }
-      if (dosage.some(d => d.renalAdjustment.includes('func/'))) {
-        adviceRecommendations.push('劑量計算需啟動 func/ Evidence 引擎服務（仍可先完成交互作用/相容性檢核）。');
+      if (dosage.some(d => d.status === 'service_unavailable')) {
+        adviceRecommendations.push('部分 PAD 藥物劑量計算服務不可用，建議稍後重試或至劑量計算頁面操作。');
+      }
+      if (padMatchedDrugs.length > 0 && dosage.length > 0) {
+        adviceRecommendations.push(`目前用藥中有 ${padMatchedDrugs.length} 項 PAD 支援藥物可進行劑量換算。`);
       }
 
       setAssessmentResults({
@@ -603,26 +655,6 @@ export function PharmacyWorkstationPage() {
                       <p className="font-semibold">
                         {selectedPatient.age}歲 / {typeof extendedData.weight === 'number' ? `${extendedData.weight}kg` : 'N/A'}
                       </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground text-xs">腎功能</p>
-                      <p className={`font-semibold ${typeof extendedData.egfr === 'number' && extendedData.egfr < 60 ? 'text-[#f59e0b]' : ''}`}>
-                        eGFR {typeof extendedData.egfr === 'number' ? extendedData.egfr : 'N/A'}
-                      </p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-muted-foreground text-xs mb-1">肝功能（Child-Pugh）</p>
-                      <Select value={hepaticFunction} onValueChange={(v) => setHepaticFunction(v as ExtendedPatientData['hepaticFunction'])}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="選擇肝功能..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="normal">正常</SelectItem>
-                          <SelectItem value="mild">A（輕度）</SelectItem>
-                          <SelectItem value="moderate">B（中度）</SelectItem>
-                          <SelectItem value="severe">C（重度）</SelectItem>
-                        </SelectContent>
-                      </Select>
                     </div>
                     <div className="col-span-2">
                       <p className="text-muted-foreground text-xs">診斷</p>
