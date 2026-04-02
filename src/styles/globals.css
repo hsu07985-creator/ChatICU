@@ -210,3 +210,12 @@
 html {
   font-size: var(--font-size);
 }
+
+/* Radix Slider: ensure thumb wrapper allows visible overflow */
+[data-slot="slider"] > span:not([data-slot]) {
+  overflow: visible !important;
+}
+[data-slot="slider-thumb"] {
+  min-width: 24px !important;
+  min-height: 24px !important;
+}
