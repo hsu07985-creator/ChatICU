@@ -72,12 +72,27 @@ export function PatientSummaryTab({ patient, aiReadiness }: PatientSummaryTabPro
         </CardHeader>
         <CardContent className="space-y-3 pt-3">
           {/* ── 識別區 ── */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-slate-200 bg-white px-4 py-2.5">
-            <span className="rounded bg-[#7f265b] px-2 py-0.5 text-sm font-bold text-white">{patient.bedNumber || '-'}</span>
-            <span className="text-lg font-bold text-slate-900">{patient.name || '-'}</span>
-            <span className="text-base text-slate-600">{patient.age} 歲 · {patient.gender || '-'}</span>
-            <span className="text-sm text-slate-500">ID: {patient.id}</span>
-            <span className="ml-auto text-sm text-slate-600">主治：{patient.attendingPhysician || '-'}</span>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+              <p className="text-xs text-slate-500">床號</p>
+              <p className="mt-0.5 text-base font-bold text-[#7f265b]">{patient.bedNumber || '-'}</p>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+              <p className="text-xs text-slate-500">姓名</p>
+              <p className="mt-0.5 text-base font-bold text-slate-900">{patient.name || '-'}</p>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+              <p className="text-xs text-slate-500">年齡 / 性別</p>
+              <p className="mt-0.5 text-base font-semibold text-slate-900">{patient.age} 歲 · {patient.gender || '-'}</p>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+              <p className="text-xs text-slate-500">病歷號</p>
+              <p className="mt-0.5 text-base font-semibold text-slate-900">{patient.id}</p>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+              <p className="text-xs text-slate-500">主治醫師</p>
+              <p className="mt-0.5 text-base font-semibold text-slate-900">{patient.attendingPhysician || '-'}</p>
+            </div>
           </div>
 
           {/* ── 身體數據 ── */}
