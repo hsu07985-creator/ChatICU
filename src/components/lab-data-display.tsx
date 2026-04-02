@@ -37,6 +37,7 @@ interface LabItemProps {
 interface LabFilterState {
   onlyAbnormal: boolean;
   hideMissing: boolean;
+  timestamp?: string;
 }
 
 const LabDisplayFilterContext = createContext<LabFilterState>({
@@ -196,8 +197,19 @@ function getAbnormalFlag(input: unknown): boolean {
   return false;
 }
 
+function formatShortTimestamp(ts?: string): string {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return '';
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${mm}/${dd} ${hh}:${min}`;
+}
+
 function LabItem({ labName, label, value, unit, isAbnormal, onClick, isOptional }: LabItemProps) {
-  const { hideMissing, onlyAbnormal } = useContext(LabDisplayFilterContext);
+  const { hideMissing, onlyAbnormal, timestamp } = useContext(LabDisplayFilterContext);
   const displayValue = toDisplayText(value);
   const hasValue = displayValue !== '-';
   const canOpenTrend = hasValue && !!onClick;
@@ -251,6 +263,14 @@ function LabItem({ labName, label, value, unit, isAbnormal, onClick, isOptional 
           </span>
         )}
       </div>
+      {timestamp && (
+        <span
+          className="mt-auto text-center leading-none text-slate-400"
+          style={{ fontSize: '0.55rem' }}
+        >
+          {formatShortTimestamp(timestamp)}
+        </span>
+      )}
     </div>
   );
 }
@@ -373,7 +393,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
 
   return (
     <>
-      <LabDisplayFilterContext.Provider value={{ onlyAbnormal, hideMissing }}>
+      <LabDisplayFilterContext.Provider value={{ onlyAbnormal, hideMissing, timestamp: labData?.timestamp }}>
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white/80 px-3 py-2">
           <div className="flex flex-wrap items-center gap-2">

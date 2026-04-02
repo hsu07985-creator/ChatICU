@@ -145,6 +145,7 @@ export function PatientLabsTab({
                     unit="°C"
                     isAbnormal={isFiniteNumber(temperature) && (temperature > 37.5 || temperature < 36)}
                     onClick={isFiniteNumber(temperature) ? () => onVitalSignClick('Temperature', temperature, '°C', 'vital') : undefined}
+                    timestamp={vitalSignsTimestamp || undefined}
                   />
 
                   <VitalSignCard
@@ -153,6 +154,7 @@ export function PatientLabsTab({
                     unit="bpm"
                     isAbnormal={isFiniteNumber(heartRate) && (heartRate > 100 || heartRate < 60)}
                     onClick={isFiniteNumber(heartRate) ? () => onVitalSignClick('HeartRate', heartRate, 'bpm', 'vital') : undefined}
+                    timestamp={vitalSignsTimestamp || undefined}
                   />
 
                   <VitalSignCard
@@ -161,6 +163,7 @@ export function PatientLabsTab({
                     unit="rpm"
                     isAbnormal={isFiniteNumber(respiratoryRate) && (respiratoryRate > 25 || respiratoryRate < 12)}
                     onClick={isFiniteNumber(respiratoryRate) ? () => onVitalSignClick('RespiratoryRate', respiratoryRate, 'rpm', 'vital') : undefined}
+                    timestamp={vitalSignsTimestamp || undefined}
                   />
 
                   <VitalSignCard
@@ -169,6 +172,7 @@ export function PatientLabsTab({
                     unit="mmHg"
                     isAbnormal={isFiniteNumber(systolicBP) && (systolicBP > 140 || systolicBP < 90)}
                     onClick={isFiniteNumber(systolicBP) ? () => onVitalSignClick('BloodPressureSystolic', systolicBP, 'mmHg', 'vital') : undefined}
+                    timestamp={vitalSignsTimestamp || undefined}
                   />
 
                   <VitalSignCard
@@ -177,6 +181,7 @@ export function PatientLabsTab({
                     unit="mmHg"
                     isAbnormal={isFiniteNumber(diastolicBP) && (diastolicBP > 90 || diastolicBP < 60)}
                     onClick={isFiniteNumber(diastolicBP) ? () => onVitalSignClick('BloodPressureDiastolic', diastolicBP, 'mmHg', 'vital') : undefined}
+                    timestamp={vitalSignsTimestamp || undefined}
                   />
 
                   <VitalSignCard
@@ -185,6 +190,7 @@ export function PatientLabsTab({
                     unit="%"
                     isAbnormal={isFiniteNumber(spo2) && spo2 < 94}
                     onClick={isFiniteNumber(spo2) ? () => onVitalSignClick('SpO2', spo2, '%', 'vital') : undefined}
+                    timestamp={vitalSignsTimestamp || undefined}
                   />
 
                   <VitalSignCard
@@ -193,6 +199,7 @@ export function PatientLabsTab({
                     unit="mmHg"
                     isAbnormal={isFiniteNumber(cvp) && (cvp > 12 || cvp < 2)}
                     onClick={isFiniteNumber(cvp) ? () => onVitalSignClick('CVP', cvp, 'mmHg', 'vital') : undefined}
+                    timestamp={vitalSignsTimestamp || undefined}
                   />
 
                   <VitalSignCard
@@ -201,6 +208,7 @@ export function PatientLabsTab({
                     unit="mmHg"
                     isAbnormal={isFiniteNumber(icp) && icp > 20}
                     onClick={isFiniteNumber(icp) ? () => onVitalSignClick('ICP', icp, 'mmHg', 'vital') : undefined}
+                    timestamp={vitalSignsTimestamp || undefined}
                   />
                 </div>
               )}
@@ -251,6 +259,7 @@ export function PatientLabsTab({
                         unit="%"
                         isAbnormal={isFiniteNumber(ventFiO2) && ventFiO2 > 60}
                         onClick={isFiniteNumber(ventFiO2) ? () => onVitalSignClick('FiO2', ventFiO2, '%', 'ventilator') : undefined}
+                        timestamp={ventTimestamp || undefined}
                       />
                       <VitalSignCard
                         label="PEEP"
@@ -258,6 +267,7 @@ export function PatientLabsTab({
                         unit="cmH₂O"
                         isAbnormal={isFiniteNumber(ventPeep) && ventPeep > 12}
                         onClick={isFiniteNumber(ventPeep) ? () => onVitalSignClick('PEEP', ventPeep, 'cmH₂O', 'ventilator') : undefined}
+                        timestamp={ventTimestamp || undefined}
                       />
                       <VitalSignCard
                         label="Vt"
@@ -265,12 +275,14 @@ export function PatientLabsTab({
                         unit="mL"
                         isAbnormal={isFiniteNumber(ventTidalVolume) && ventTidalVolume > 500}
                         onClick={isFiniteNumber(ventTidalVolume) ? () => onVitalSignClick('TidalVolume', ventTidalVolume, 'mL', 'ventilator') : undefined}
+                        timestamp={ventTimestamp || undefined}
                       />
                       <VitalSignCard
                         label="RR set"
                         value={ventRespRate}
                         unit="/min"
                         onClick={isFiniteNumber(ventRespRate) ? () => onVitalSignClick('VentRR', ventRespRate, '/min', 'ventilator') : undefined}
+                        timestamp={ventTimestamp || undefined}
                       />
                       <VitalSignCard
                         label="PIP"
@@ -278,6 +290,7 @@ export function PatientLabsTab({
                         unit="cmH₂O"
                         isAbnormal={isFiniteNumber(ventPip) && ventPip > 30}
                         onClick={isFiniteNumber(ventPip) ? () => onVitalSignClick('PIP', ventPip, 'cmH₂O', 'ventilator') : undefined}
+                        timestamp={ventTimestamp || undefined}
                       />
                       <VitalSignCard
                         label="Pplat"
@@ -285,6 +298,7 @@ export function PatientLabsTab({
                         unit="cmH₂O"
                         isAbnormal={isFiniteNumber(ventPlateau) && ventPlateau > 30}
                         onClick={isFiniteNumber(ventPlateau) ? () => onVitalSignClick('Plateau', ventPlateau, 'cmH₂O', 'ventilator') : undefined}
+                        timestamp={ventTimestamp || undefined}
                       />
                       <VitalSignCard
                         label="Cstat"
@@ -292,6 +306,7 @@ export function PatientLabsTab({
                         unit="mL/cmH₂O"
                         isAbnormal={isFiniteNumber(ventCompliance) && ventCompliance < 30}
                         onClick={isFiniteNumber(ventCompliance) ? () => onVitalSignClick('Compliance', ventCompliance, 'mL/cmH₂O', 'ventilator') : undefined}
+                        timestamp={ventTimestamp || undefined}
                       />
                     </div>
 
