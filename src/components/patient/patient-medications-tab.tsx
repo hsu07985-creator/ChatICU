@@ -19,7 +19,6 @@ import { Label } from '../ui/label';
 import { MedicationsSkeleton } from '../ui/skeletons';
 import { TabsContent } from '../ui/tabs';
 import { Textarea } from '../ui/textarea';
-import { IvCompatibilityChecker } from './iv-compatibility-checker';
 import { LabTrendChart } from '../lab-trend-chart';
 import { toast } from 'sonner';
 
@@ -91,7 +90,7 @@ function ScoreButtonRow({
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-wrap gap-1.5">
         {values.map((v) => {
           const isActive = currentValue === v && pending === null;
           const isPending = pending === v;
@@ -115,7 +114,7 @@ function ScoreButtonRow({
               key={v}
               disabled={submitting}
               className={`
-                min-w-[32px] h-8 rounded-md text-xs font-medium border transition-colors
+                min-w-[40px] h-10 rounded-lg text-sm font-semibold border-2 transition-colors
                 ${isPending
                   ? ''
                   : isActive
@@ -136,7 +135,7 @@ function ScoreButtonRow({
         <div className="flex items-center gap-2">
           <Button
             size="sm"
-            className="h-7 px-3 text-xs"
+            className="h-8 px-4 text-sm"
             disabled={submitting}
             onClick={handleConfirm}
           >
@@ -145,7 +144,7 @@ function ScoreButtonRow({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-xs text-muted-foreground"
+            className="h-8 px-3 text-sm text-muted-foreground"
             disabled={submitting}
             onClick={() => setPending(null)}
           >
@@ -513,16 +512,6 @@ export function PatientMedicationsTab({
               )}
             </CardContent>
           </Card>
-
-          {/* IV 相容性快速檢查 */}
-          <IvCompatibilityChecker
-            ivMedications={[
-              ...painMedications,
-              ...sedationMedications,
-              ...nmbMedications,
-              ...otherMedications,
-            ]}
-          />
 
           {/* Score Trend Chart Dialog */}
           <LabTrendChart
