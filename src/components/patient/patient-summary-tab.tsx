@@ -24,6 +24,10 @@ interface PatientSummaryTabPatient {
   bmi?: number | null;
   height?: number | null;
   weight?: number | null;
+  bedNumber?: string;
+  attendingPhysician?: string;
+  intubated?: boolean;
+  hasDNR?: boolean;
   symptoms?: string[];
   diagnosis?: string | null;
   alerts?: string[];
@@ -58,9 +62,13 @@ export function PatientSummaryTab({ patient, aiReadiness }: PatientSummaryTabPro
   const summaryFields = [
     { label: 'Age', value: `${patient.age} years` },
     { label: 'Gender', value: patient.gender || '-' },
+    { label: 'Bed', value: patient.bedNumber || '-' },
     { label: 'BMI', value: patient.bmi ? `${patient.bmi} kg/m²` : '-' },
     { label: 'Height', value: patient.height ? `${patient.height} cm` : '-' },
     { label: 'Weight', value: patient.weight ? `${patient.weight} kg` : '-' },
+    { label: '主治醫師', value: patient.attendingPhysician || '-' },
+    { label: '管灌', value: patient.intubated ? '是' : '否' },
+    { label: 'DNR', value: patient.hasDNR ? '是' : '否' },
     { label: 'Patient ID', value: patient.id || '-' },
   ];
   const canSummary = aiReadiness ? aiReadiness.feature_gates.clinical_summary : true;
