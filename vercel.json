@@ -2,39 +2,39 @@
   "rewrites": [
     {
       "source": "/auth/:path*",
-      "destination": "https://chaticu-production.up.railway.app/auth/:path*"
+      "destination": "https://chaticu-production-8060.up.railway.app/auth/:path*"
     },
     {
       "source": "/ai/:path*",
-      "destination": "https://chaticu-production.up.railway.app/ai/:path*"
+      "destination": "https://chaticu-production-8060.up.railway.app/ai/:path*"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://chaticu-production.up.railway.app/api/:path*"
+      "destination": "https://chaticu-production-8060.up.railway.app/api/:path*"
     },
     {
       "source": "/health",
-      "destination": "https://chaticu-production.up.railway.app/health"
+      "destination": "https://chaticu-production-8060.up.railway.app/health"
     },
     {
       "source": "/health/:path*",
-      "destination": "https://chaticu-production.up.railway.app/health/:path*"
+      "destination": "https://chaticu-production-8060.up.railway.app/health/:path*"
     },
     {
       "source": "/team/:path*",
-      "destination": "https://chaticu-production.up.railway.app/team/:path*"
+      "destination": "https://chaticu-production-8060.up.railway.app/team/:path*"
     },
     {
       "source": "/v2/:path*",
-      "destination": "https://chaticu-production.up.railway.app/v2/:path*"
+      "destination": "https://chaticu-production-8060.up.railway.app/v2/:path*"
     },
     {
       "source": "/record-templates",
-      "destination": "https://chaticu-production.up.railway.app/record-templates"
+      "destination": "https://chaticu-production-8060.up.railway.app/record-templates"
     },
     {
       "source": "/record-templates/:path*",
-      "destination": "https://chaticu-production.up.railway.app/record-templates/:path*"
+      "destination": "https://chaticu-production-8060.up.railway.app/record-templates/:path*"
     },
     {
       "source": "/patients",
@@ -44,7 +44,7 @@
           "key": "x-request-id"
         }
       ],
-      "destination": "https://chaticu-production.up.railway.app/patients"
+      "destination": "https://chaticu-production-8060.up.railway.app/patients"
     },
     {
       "source": "/patients/:path*",
@@ -54,7 +54,7 @@
           "key": "x-request-id"
         }
       ],
-      "destination": "https://chaticu-production.up.railway.app/patients/:path*"
+      "destination": "https://chaticu-production-8060.up.railway.app/patients/:path*"
     },
     {
       "source": "/dashboard",
@@ -64,7 +64,7 @@
           "key": "x-request-id"
         }
       ],
-      "destination": "https://chaticu-production.up.railway.app/dashboard"
+      "destination": "https://chaticu-production-8060.up.railway.app/dashboard"
     },
     {
       "source": "/dashboard/:path*",
@@ -74,7 +74,7 @@
           "key": "x-request-id"
         }
       ],
-      "destination": "https://chaticu-production.up.railway.app/dashboard/:path*"
+      "destination": "https://chaticu-production-8060.up.railway.app/dashboard/:path*"
     },
     {
       "source": "/admin",
@@ -84,7 +84,7 @@
           "key": "x-request-id"
         }
       ],
-      "destination": "https://chaticu-production.up.railway.app/admin"
+      "destination": "https://chaticu-production-8060.up.railway.app/admin"
     },
     {
       "source": "/admin/:path*",
@@ -94,7 +94,7 @@
           "key": "x-request-id"
         }
       ],
-      "destination": "https://chaticu-production.up.railway.app/admin/:path*"
+      "destination": "https://chaticu-production-8060.up.railway.app/admin/:path*"
     },
     {
       "source": "/pharmacy",
@@ -104,7 +104,7 @@
           "key": "x-request-id"
         }
       ],
-      "destination": "https://chaticu-production.up.railway.app/pharmacy"
+      "destination": "https://chaticu-production-8060.up.railway.app/pharmacy"
     },
     {
       "source": "/pharmacy/:path*",
@@ -114,7 +114,7 @@
           "key": "x-request-id"
         }
       ],
-      "destination": "https://chaticu-production.up.railway.app/pharmacy/:path*"
+      "destination": "https://chaticu-production-8060.up.railway.app/pharmacy/:path*"
     },
     {
       "source": "/(.*)",
