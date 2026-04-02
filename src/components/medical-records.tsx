@@ -173,6 +173,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
   const [customTemplates, setCustomTemplates] = useState(loadCustomTemplates);
   const [showNewTemplate, setShowNewTemplate] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
+  const [newTemplateContent, setNewTemplateContent] = useState('');
 
   useEffect(() => {
     saveCustomTemplates(customTemplates);
@@ -244,13 +245,14 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
   const handleSaveAsTemplate = () => {
     const name = newTemplateName.trim();
     if (!name) { toast.error('請輸入模板名稱'); return; }
-    if (!inputContent.trim()) { toast.error('請先輸入內容'); return; }
+    if (!newTemplateContent.trim()) { toast.error('請輸入模板內容'); return; }
     if (name in BUILTIN_TEMPLATES[recordType]) { toast.error(`「${name}」與內建模板名稱重複，請使用其他名稱`); return; }
     setCustomTemplates((prev) => ({
       ...prev,
-      [recordType]: { ...prev[recordType], [name]: inputContent },
+      [recordType]: { ...prev[recordType], [name]: newTemplateContent },
     }));
     setNewTemplateName('');
+    setNewTemplateContent('');
     setShowNewTemplate(false);
     toast.success(`模板「${name}」已儲存`);
   };
@@ -330,48 +332,82 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
 
               <div className="space-y-3">
                 {/* 模板選擇 */}
-                {Object.keys(allTemplates).length > 0 && (
-                  <div>
-                    <Label>選擇模板（可選）</Label>
-                    <div className="flex gap-2 mt-2">
-                      <Select value={selectedTemplate} onValueChange={(value) => {
-                        if (inputContent.trim() && !confirm('目前已有輸入內容，選擇模板將會取代。確定要繼續嗎？')) return;
-                        setSelectedTemplate(value);
-                        setInputContent(allTemplates[value] || '');
-                      }}>
-                        <SelectTrigger className="border-slate-300">
-                          <SelectValue placeholder="請選擇記錄模板" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.keys(BUILTIN_TEMPLATES[recordType]).map((name) => (
-                            <SelectItem key={name} value={name}>{name}</SelectItem>
-                          ))}
-                          {customTemplateNames.length > 0 && (
-                            <>
-                              <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 border-t mt-1 pt-2">自訂模板</div>
-                              {customTemplateNames.map((name) => (
-                                <SelectItem key={`custom-${name}`} value={name}>{name}</SelectItem>
-                              ))}
-                            </>
-                          )}
-                        </SelectContent>
-                      </Select>
+                <div>
+                  <Label>選擇模板（可選）</Label>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Select value={selectedTemplate} onValueChange={(value) => {
+                      if (inputContent.trim() && !confirm('目前已有輸入內容，選擇模板將會取代。確定要繼續嗎？')) return;
+                      setSelectedTemplate(value);
+                      setInputContent(allTemplates[value] || '');
+                    }}>
+                      <SelectTrigger className="border-slate-300">
+                        <SelectValue placeholder="請選擇記錄模板" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.keys(BUILTIN_TEMPLATES[recordType]).map((name) => (
+                          <SelectItem key={name} value={name}>{name}</SelectItem>
+                        ))}
+                        {customTemplateNames.length > 0 && (
+                          <>
+                            <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 border-t mt-1 pt-2">自訂模板</div>
+                            {customTemplateNames.map((name) => (
+                              <SelectItem key={`custom-${name}`} value={name}>{name}</SelectItem>
+                            ))}
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => setShowNewTemplate(!showNewTemplate)}
+                      title="新增自訂模板"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 新增模板面板（獨立區塊） */}
+                {showNewTemplate && (
+                  <div className="rounded-md border border-dashed border-slate-300 bg-white p-3 space-y-2">
+                    <p className="text-sm font-semibold text-slate-700">建立自訂模板</p>
+                    <input
+                      type="text"
+                      placeholder="模板名稱"
+                      value={newTemplateName}
+                      onChange={(e) => setNewTemplateName(e.target.value)}
+                      className="w-full h-9 rounded-md border border-slate-300 px-3 text-sm"
+                    />
+                    <Textarea
+                      placeholder="模板內容（欄位用 ___ 表示待填空位）"
+                      value={newTemplateContent}
+                      onChange={(e) => setNewTemplateContent(e.target.value)}
+                      className="min-h-[100px] border-slate-300"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" onClick={handleSaveAsTemplate}>儲存模板</Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setShowNewTemplate(false); setNewTemplateName(''); setNewTemplateContent(''); }}>取消</Button>
                     </div>
                     {customTemplateNames.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-1.5">
-                        {customTemplateNames.map((name) => (
-                          <span key={name} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">
-                            {name}
-                            <button
-                              type="button"
-                              className="ml-0.5 text-slate-400 hover:text-red-500 transition-colors"
-                              onClick={() => handleDeleteTemplate(name)}
-                              title={`刪除模板「${name}」`}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </span>
-                        ))}
+                      <div className="border-t border-slate-200 pt-2 mt-1">
+                        <p className="text-xs text-slate-500 mb-1">已建立的自訂模板</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {customTemplateNames.map((name) => (
+                            <span key={name} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">
+                              {name}
+                              <button
+                                type="button"
+                                className="ml-0.5 text-slate-400 hover:text-red-500 transition-colors"
+                                onClick={() => handleDeleteTemplate(name)}
+                                title={`刪除模板「${name}」`}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -388,8 +424,8 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                   />
                 </div>
 
-                {/* 新增模板 + AI 修飾 */}
-                <div className="flex flex-wrap items-center gap-2">
+                {/* AI 修飾 */}
+                <div>
                   <Button
                     onClick={handlePolishContent}
                     className="bg-slate-800 hover:bg-slate-900"
@@ -398,31 +434,6 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                     <Brain className="mr-2 h-5 w-5" />
                     {isPolishing ? 'AI 修飾中...' : config.polishLabel}
                   </Button>
-
-                  {!showNewTemplate ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowNewTemplate(true)}
-                      disabled={!inputContent.trim()}
-                    >
-                      <Plus className="mr-1.5 h-4 w-4" />
-                      儲存為模板
-                    </Button>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder="模板名稱"
-                        value={newTemplateName}
-                        onChange={(e) => setNewTemplateName(e.target.value)}
-                        className="h-9 rounded-md border border-slate-300 px-3 text-sm"
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleSaveAsTemplate(); }}
-                      />
-                      <Button size="sm" onClick={handleSaveAsTemplate}>儲存</Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setShowNewTemplate(false); setNewTemplateName(''); }}>取消</Button>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
