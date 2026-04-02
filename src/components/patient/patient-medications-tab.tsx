@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import type { Medication } from '../../lib/api';
 import type { UserRole } from '../../lib/auth-context';
 import { isAntibiotic } from '../../lib/antibiotic-codes';
@@ -20,6 +20,7 @@ import { MedicationsSkeleton } from '../ui/skeletons';
 import { TabsContent } from '../ui/tabs';
 import { Textarea } from '../ui/textarea';
 import { LabTrendChart } from '../lab-trend-chart';
+import { Slider } from '../ui/slider';
 import { toast } from 'sonner';
 
 const PRN_FREQ_PATTERN = /PRN|STAT/i;
@@ -62,20 +63,26 @@ const MED_CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
   antiemetic: { label: '止吐', color: 'bg-green-100 text-green-800' },
 };
 
-const PAIN_VALUES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-const RASS_VALUES = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4];
-
-function ScoreButtonRow({
-  values,
+function ScoreSlider({
+  min,
+  max,
+  step,
   currentValue,
   onSelect,
+  formatLabel,
 }: {
-  values: number[];
+  min: number;
+  max: number;
+  step?: number;
   currentValue: number | null;
   onSelect: (v: number) => void;
+  formatLabel?: (v: number) => string;
 }) {
   const [pending, setPending] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const displayValue = pending ?? currentValue ?? min;
+  const hasPending = pending !== null && pending !== currentValue;
+  const fmt = useCallback((v: number) => formatLabel ? formatLabel(v) : `${v}`, [formatLabel]);
 
   const handleConfirm = async () => {
     if (pending === null) return;
@@ -89,69 +96,50 @@ function ScoreButtonRow({
   };
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-1.5">
-        {values.map((v) => {
-          const isActive = currentValue === v && pending === null;
-          const isPending = pending === v;
-          const label = v > 0 ? `+${v}` : `${v}`;
-          const buttonStyle = isPending
-            ? {
-                backgroundColor: '#f6ecf1',
-                color: '#7f265b',
-                borderColor: '#d9b6c8',
-                boxShadow: '0 0 0 2px #e8d4df',
-              }
-            : isActive
-              ? {
-                  backgroundColor: '#7f265b',
-                  color: '#ffffff',
-                  borderColor: '#7f265b',
-                }
-              : undefined;
-          return (
-            <button
-              key={v}
-              disabled={submitting}
-              className={`
-                min-w-[40px] h-10 rounded-lg text-sm font-semibold border-2 transition-colors
-                ${isPending
-                  ? ''
-                  : isActive
-                    ? ''
-                    : 'bg-white text-gray-700 border-gray-200 hover:bg-[#fbf4f8] hover:border-[#d9b6c8] hover:text-[#7f265b]'
-                }
-                ${submitting ? 'opacity-50' : ''}
-              `}
-              style={buttonStyle}
-              onClick={() => setPending(pending === v ? null : v)}
-            >
-              {values[0] < 0 && v >= 0 ? label : v}
-            </button>
-          );
-        })}
-      </div>
-      {pending !== null && (
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            className="h-8 px-4 text-sm"
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-muted-foreground font-medium w-8 text-right">{fmt(min)}</span>
+        <div className="flex-1 relative">
+          <Slider
+            min={min}
+            max={max}
+            step={step ?? 1}
+            value={[displayValue]}
+            onValueChange={([v]) => setPending(v)}
             disabled={submitting}
-            onClick={handleConfirm}
-          >
-            {submitting ? '記錄中...' : `確認記錄 ${values[0] < 0 && pending > 0 ? `+${pending}` : pending}`}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 px-3 text-sm text-muted-foreground"
-            disabled={submitting}
-            onClick={() => setPending(null)}
-          >
-            取消
-          </Button>
+            className="[&_[data-slot=slider-track]]:h-3 [&_[data-slot=slider-range]]:bg-[#7f265b] [&_[data-slot=slider-thumb]]:h-6 [&_[data-slot=slider-thumb]]:w-6 [&_[data-slot=slider-thumb]]:border-[#7f265b] [&_[data-slot=slider-thumb]]:border-2"
+          />
         </div>
-      )}
+        <span className="text-xs text-muted-foreground font-medium w-8">{fmt(max)}</span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span
+          className={`text-2xl font-bold tabular-nums ${hasPending ? 'text-[#7f265b]' : 'text-slate-800'}`}
+        >
+          {fmt(displayValue)}
+        </span>
+        {hasPending && (
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              className="h-8 px-4 text-sm bg-[#7f265b] hover:bg-[#6a1f4d]"
+              disabled={submitting}
+              onClick={handleConfirm}
+            >
+              {submitting ? '記錄中...' : `確認記錄`}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-3 text-sm text-muted-foreground"
+              disabled={submitting}
+              onClick={() => setPending(null)}
+            >
+              取消
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -298,8 +286,9 @@ export function PatientMedicationsTab({
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-0 space-y-3">
-                <ScoreButtonRow
-                  values={PAIN_VALUES}
+                <ScoreSlider
+                  min={0}
+                  max={10}
                   currentValue={painScoreValue}
                   onSelect={(v) => onRecordScore('pain', v)}
                 />
@@ -355,10 +344,12 @@ export function PatientMedicationsTab({
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-0 space-y-3">
-                <ScoreButtonRow
-                  values={RASS_VALUES}
+                <ScoreSlider
+                  min={-5}
+                  max={4}
                   currentValue={rassScoreValue}
                   onSelect={(v) => onRecordScore('rass', v)}
+                  formatLabel={(v) => v > 0 ? `+${v}` : `${v}`}
                 />
                 <div>
                   <p className="mb-2 text-xs font-medium text-muted-foreground">鎮靜藥物</p>
