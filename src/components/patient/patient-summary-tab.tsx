@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 
 interface PatientSummaryTabPatient {
   id: string;
+  name?: string;
   age: number;
   gender?: string | null;
   bmi?: number | null;
@@ -59,18 +60,6 @@ export function PatientSummaryTab({ patient, aiReadiness }: PatientSummaryTabPro
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   const symptoms = Array.isArray(patient.symptoms) ? patient.symptoms : [];
-  const summaryFields = [
-    { label: 'Age', value: `${patient.age} years` },
-    { label: 'Gender', value: patient.gender || '-' },
-    { label: 'Bed', value: patient.bedNumber || '-' },
-    { label: 'BMI', value: patient.bmi ? `${patient.bmi} kg/m²` : '-' },
-    { label: 'Height', value: patient.height ? `${patient.height} cm` : '-' },
-    { label: 'Weight', value: patient.weight ? `${patient.weight} kg` : '-' },
-    { label: '主治醫師', value: patient.attendingPhysician || '-' },
-    { label: '管灌', value: patient.intubated ? '是' : '否' },
-    { label: 'DNR', value: patient.hasDNR ? '是' : '否' },
-    { label: 'Patient ID', value: patient.id || '-' },
-  ];
   const canSummary = aiReadiness ? aiReadiness.feature_gates.clinical_summary : true;
   const summaryReason = getReadinessReason(aiReadiness, 'clinical_summary');
 
@@ -82,13 +71,47 @@ export function PatientSummaryTab({ patient, aiReadiness }: PatientSummaryTabPro
           <p className="text-sm text-slate-500">病例概覽</p>
         </CardHeader>
         <CardContent className="space-y-3 pt-3">
-          <div className="flex flex-wrap gap-1.5">
-            {summaryFields.map((field) => (
-              <div key={field.label} className="rounded-md border border-slate-200 bg-white px-3 py-1.5 shadow-[0_1px_0_rgba(15,23,42,0.03)]">
-                <p className="text-xs tracking-tight text-slate-500">{field.label}</p>
-                <p className="mt-0.5 text-base font-semibold leading-tight text-slate-900">{field.value}</p>
+          {/* ── 識別區 ── */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-slate-200 bg-white px-4 py-2.5">
+            <span className="rounded bg-[#7f265b] px-2 py-0.5 text-sm font-bold text-white">{patient.bedNumber || '-'}</span>
+            <span className="text-lg font-bold text-slate-900">{patient.name || '-'}</span>
+            <span className="text-base text-slate-600">{patient.age} 歲 · {patient.gender || '-'}</span>
+            <span className="text-sm text-slate-500">ID: {patient.id}</span>
+            <span className="ml-auto text-sm text-slate-600">主治：{patient.attendingPhysician || '-'}</span>
+          </div>
+
+          {/* ── 身體數據 ── */}
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: 'Height', value: patient.height ? `${patient.height} cm` : '-' },
+              { label: 'Weight', value: patient.weight ? `${patient.weight} kg` : '-' },
+              { label: 'BMI', value: patient.bmi ? `${patient.bmi}` : '-' },
+            ].map((field) => (
+              <div key={field.label} className="rounded-md border border-slate-200 bg-white px-3 py-1.5">
+                <p className="text-xs text-slate-500">{field.label}</p>
+                <p className="text-base font-semibold text-slate-900">{field.value}</p>
               </div>
             ))}
+          </div>
+
+          {/* ── 臨床旗標 ── */}
+          <div className="flex flex-wrap gap-2">
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ${
+              patient.intubated
+                ? 'border border-red-200 bg-red-50 text-red-700'
+                : 'border border-green-200 bg-green-50 text-green-700'
+            }`}>
+              <span className={`h-2 w-2 rounded-full ${patient.intubated ? 'bg-red-500' : 'bg-green-500'}`} />
+              {patient.intubated ? '插管中' : '未插管'}
+            </span>
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ${
+              patient.hasDNR
+                ? 'border border-red-200 bg-red-50 text-red-700'
+                : 'border border-slate-200 bg-slate-50 text-slate-600'
+            }`}>
+              <span className={`h-2 w-2 rounded-full ${patient.hasDNR ? 'bg-red-500' : 'bg-slate-400'}`} />
+              {patient.hasDNR ? 'DNR' : '無 DNR'}
+            </span>
           </div>
           <section className="rounded-md border border-slate-200 bg-white p-3">
             <p className="text-sm font-semibold tracking-wide text-slate-700">臨床狀態 Clinical Status</p>
