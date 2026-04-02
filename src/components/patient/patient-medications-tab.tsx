@@ -20,7 +20,6 @@ import { MedicationsSkeleton } from '../ui/skeletons';
 import { TabsContent } from '../ui/tabs';
 import { Textarea } from '../ui/textarea';
 import { LabTrendChart } from '../lab-trend-chart';
-import { Slider } from '../ui/slider';
 import { toast } from 'sonner';
 
 const PRN_FREQ_PATTERN = /PRN|STAT/i;
@@ -63,26 +62,44 @@ const MED_CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
   antiemetic: { label: '止吐', color: 'bg-green-100 text-green-800' },
 };
 
-function ScoreSlider({
+/** Pain 0-10 色階：綠→黃→橙→紅 */
+function painColor(v: number): string {
+  if (v <= 1) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+  if (v <= 3) return 'bg-lime-100 text-lime-700 border-lime-200';
+  if (v <= 5) return 'bg-amber-100 text-amber-700 border-amber-200';
+  if (v <= 7) return 'bg-orange-100 text-orange-700 border-orange-200';
+  return 'bg-red-100 text-red-700 border-red-200';
+}
+
+/** RASS -5~+4 色階：深藍(深鎮靜)→淡藍→綠(平靜)→橙→紅(躁動) */
+function rassColor(v: number): string {
+  if (v <= -3) return 'bg-indigo-100 text-indigo-700 border-indigo-200';
+  if (v <= -1) return 'bg-sky-100 text-sky-700 border-sky-200';
+  if (v === 0) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+  if (v <= 2) return 'bg-amber-100 text-amber-700 border-amber-200';
+  return 'bg-red-100 text-red-700 border-red-200';
+}
+
+function ScoreSelector({
   min,
   max,
-  step,
   currentValue,
   onSelect,
   formatLabel,
+  colorFn,
 }: {
   min: number;
   max: number;
-  step?: number;
   currentValue: number | null;
   onSelect: (v: number) => void;
   formatLabel?: (v: number) => string;
+  colorFn?: (v: number) => string;
 }) {
   const [pending, setPending] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const displayValue = pending ?? currentValue ?? min;
   const hasPending = pending !== null && pending !== currentValue;
   const fmt = useCallback((v: number) => formatLabel ? formatLabel(v) : `${v}`, [formatLabel]);
+  const values = Array.from({ length: max - min + 1 }, (_, i) => min + i);
 
   const handleConfirm = async () => {
     if (pending === null) return;
@@ -95,74 +112,57 @@ function ScoreSlider({
     }
   };
 
-  const steps = max - min;
-  const ticks = Array.from({ length: steps + 1 }, (_, i) => min + i);
-
   return (
-    <div className="space-y-1.5">
-      {/* Value display + action buttons */}
-      <div className="flex items-center gap-3">
-        <div
-          className={`inline-flex items-center justify-center rounded-lg px-3 py-1 min-w-[3.5rem] transition-colors ${
-            hasPending
-              ? 'bg-[#7f265b] text-white'
-              : 'bg-[#f8f0f4] text-[#7f265b]'
-          }`}
-        >
-          <span className="text-xl font-bold tabular-nums leading-none">
-            {fmt(displayValue)}
-          </span>
-        </div>
-        {hasPending ? (
-          <div className="flex items-center gap-1.5">
-            <Button
-              size="sm"
-              className="h-7 px-3 text-xs font-medium bg-[#7f265b] hover:bg-[#6a1f4d] rounded-md"
-              disabled={submitting}
-              onClick={handleConfirm}
-            >
-              {submitting ? '記錄中...' : '✓ 確認'}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs text-muted-foreground hover:text-slate-700"
-              disabled={submitting}
-              onClick={() => setPending(null)}
-            >
-              取消
-            </Button>
-          </div>
-        ) : (
-          <span className="text-xs text-muted-foreground">← 拖曳滑桿選擇分數</span>
-        )}
-      </div>
-      {/* Slider + ticks */}
-      <div className="px-3">
-        <Slider
-          min={min}
-          max={max}
-          step={step ?? 1}
-          value={[displayValue]}
-          onValueChange={([v]) => setPending(v)}
-          disabled={submitting}
-          className="[&_[data-slot=slider-track]]:bg-[#ede0e7] [&_[data-slot=slider-range]]:bg-[#7f265b]"
-        />
-        <div className="flex justify-between mt-2 px-0.5">
-          {ticks.map((v) => (
-            <span
+    <div className="space-y-2">
+      {/* 色階數字格 */}
+      <div className="flex gap-[3px]">
+        {values.map((v) => {
+          const isSelected = v === pending || (pending === null && v === currentValue);
+          const color = colorFn ? colorFn(v) : 'bg-gray-100 text-gray-600 border-gray-200';
+          return (
+            <button
               key={v}
-              className={`text-[11px] w-0 text-center tabular-nums transition-colors ${
-                v === displayValue
-                  ? 'font-bold text-[#7f265b] scale-110'
-                  : 'text-slate-400'
-              }`}
+              type="button"
+              disabled={submitting}
+              onClick={() => setPending(v)}
+              className={`flex-1 py-1.5 text-xs font-semibold tabular-nums rounded transition-all border
+                ${isSelected
+                  ? `${color} ring-2 ring-[#7f265b] ring-offset-1 scale-105 shadow-sm`
+                  : `${color} opacity-60 hover:opacity-100 hover:scale-105`
+                }
+                disabled:pointer-events-none disabled:opacity-40
+              `}
             >
               {fmt(v)}
-            </span>
-          ))}
-        </div>
+            </button>
+          );
+        })}
       </div>
+      {/* 確認列 */}
+      {hasPending && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-[#7f265b]">
+            {fmt(pending!)}
+          </span>
+          <Button
+            size="sm"
+            className="h-7 px-3 text-xs font-medium bg-[#7f265b] hover:bg-[#6a1f4d] rounded-md"
+            disabled={submitting}
+            onClick={handleConfirm}
+          >
+            {submitting ? '記錄中...' : '確認記錄'}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-muted-foreground"
+            disabled={submitting}
+            onClick={() => setPending(null)}
+          >
+            取消
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -318,11 +318,12 @@ export function PatientMedicationsTab({
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-0 space-y-3">
-                <ScoreSlider
+                <ScoreSelector
                   min={0}
                   max={10}
                   currentValue={painScoreValue}
                   onSelect={(v) => onRecordScore('pain', v)}
+                  colorFn={painColor}
                 />
                 <div>
                   <p className="mb-2 text-xs font-medium text-muted-foreground">止痛藥物</p>
@@ -376,12 +377,13 @@ export function PatientMedicationsTab({
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-0 space-y-3">
-                <ScoreSlider
+                <ScoreSelector
                   min={-5}
                   max={4}
                   currentValue={rassScoreValue}
                   onSelect={(v) => onRecordScore('rass', v)}
                   formatLabel={(v) => v > 0 ? `+${v}` : `${v}`}
+                  colorFn={rassColor}
                 />
                 <div>
                   <p className="mb-2 text-xs font-medium text-muted-foreground">鎮靜藥物</p>
