@@ -118,7 +118,7 @@ function ScoreSelector({
       <div className="flex gap-[3px]">
         {values.map((v) => {
           const isSelected = v === pending || (pending === null && v === currentValue);
-          const color = colorFn ? colorFn(v) : 'bg-gray-100 text-gray-600 border-gray-200';
+          const color = colorFn ? colorFn(v) : 'bg-emerald-100 text-emerald-700 border-emerald-200';
           return (
             <button
               key={v}
@@ -128,7 +128,7 @@ function ScoreSelector({
               className={`flex-1 py-1.5 text-xs font-semibold tabular-nums rounded transition-all border
                 ${isSelected
                   ? `${color} ring-2 ring-[#7f265b] ring-offset-1 scale-105 shadow-sm`
-                  : `${color} opacity-60 hover:opacity-100 hover:scale-105`
+                  : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-700 hover:scale-105'
                 }
                 disabled:pointer-events-none disabled:opacity-40
               `}
