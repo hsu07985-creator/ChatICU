@@ -13,7 +13,8 @@ import {
   createAdviceRecord,
   type PharmacyAdviceRecord,
 } from '../../lib/api/pharmacy';
-import { getPatients, type Patient } from '../../lib/api/patients';
+import { type Patient } from '../../lib/api/patients';
+import { getCachedPatients, getCachedPatientsSync } from '../../lib/patients-cache';
 import {
   PHARMACY_ADVICE_CATEGORIES,
   PHARMACY_ADVICE_CATEGORY_COLORS,
@@ -21,9 +22,9 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Label } from 'recharts';
 
 export function PharmacyAdviceStatisticsPage() {
-  // ── 病患清單 ──
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [patientsLoading, setPatientsLoading] = useState(true);
+  // ── 病患清單（共用快取） ──
+  const [patients, setPatients] = useState<Patient[]>(getCachedPatientsSync() ?? []);
+  const [patientsLoading, setPatientsLoading] = useState(!getCachedPatientsSync());
 
   // ── 表單 ──
   const [selectedPatientId, setSelectedPatientId] = useState('');
@@ -38,20 +39,12 @@ export function PharmacyAdviceStatisticsPage() {
   const [records, setRecords] = useState<PharmacyAdviceRecord[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(true);
 
-  // 載入病患清單
+  // 載入病患清單（共用快取）
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      setPatientsLoading(true);
-      try {
-        const res = await getPatients({ limit: 100 });
-        if (!cancelled) setPatients(res.patients);
-      } catch {
-        if (!cancelled) toast.error('載入病患清單失敗');
-      } finally {
-        if (!cancelled) setPatientsLoading(false);
-      }
-    })();
+    getCachedPatients()
+      .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
+      .catch(() => { if (!cancelled) { toast.error('載入病患清單失敗'); setPatientsLoading(false); } });
     return () => { cancelled = true; };
   }, []);
 

@@ -139,11 +139,14 @@ export function DashboardPage() {
 
     setSaving(true);
     try {
-      const updated = await updatePatient(editingPatient.id, editFormData);
-      // 更新本地狀態
-      setPatients(prev => prev.map(p =>
-        p.id === editingPatient.id ? { ...p, ...updated } : p
-      ));
+      await updatePatient(editingPatient.id, editFormData);
+      // Invalidate shared cache + refresh local state
+      const freshPatients = await invalidatePatients();
+      setPatients(freshPatients);
+      // Also invalidate stats cache so counts refresh
+      _statsCache = null;
+      _statsTimestamp = 0;
+      fetchStats();
       setEditDialogOpen(false);
       toast.success('病患資料已更新');
     } catch (err) {
