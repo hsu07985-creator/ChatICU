@@ -119,14 +119,6 @@ export function PharmacyWorkstationPage() {
   const [assessmentResults, setAssessmentResults] = useState<AssessmentResults | null>(null);
   const [isAssessing, setIsAssessing] = useState(false);
 
-  // 展開狀態
-  const [expandedSections, setExpandedSections] = useState<ExpandedSections>({
-    interactions: true,
-    compatibility: true,
-    dosage: true,
-    advice: true
-  });
-
   // 用藥建議表單
   const [adviceContent, setAdviceContent] = useState('');
   
@@ -485,14 +477,6 @@ export function PharmacyWorkstationPage() {
     }
   };
 
-  // 切換展開狀態
-  const toggleSection = (section: keyof ExpandedSections) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
-
   // 產生用藥建議報告
   const handleGenerateAdvice = () => {
     if (!assessmentResults) {
@@ -780,8 +764,8 @@ export function PharmacyWorkstationPage() {
             selectedPatient={selectedPatient}
             assessmentResults={assessmentResults}
             drugList={drugList}
-            expandedSections={expandedSections}
-            toggleSection={toggleSection}
+            expandedSections={{ interactions: true, compatibility: true, dosage: true, advice: true }}
+            toggleSection={() => {}}
             extendedData={extendedData}
             adviceContent={adviceContent}
             onAdviceContentChange={setAdviceContent}
