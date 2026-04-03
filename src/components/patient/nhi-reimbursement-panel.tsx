@@ -209,7 +209,7 @@ function NhiLoader({ isLoading }: NhiLoaderProps) {
           <span className="text-xs font-medium text-purple-700 animate-pulse">
             正在連線健保資料庫
           </span>
-          <span className="text-[10px] font-mono rounded px-1 py-0.5 bg-purple-50 text-purple-500 border border-purple-200">
+          <span className="text-xs font-mono rounded px-1 py-0.5 bg-purple-50 text-purple-500 border border-purple-200">
             NHI
           </span>
           <span className="text-xs text-purple-400 animate-pulse select-none">···</span>

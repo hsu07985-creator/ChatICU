@@ -114,8 +114,8 @@ export function MedicationNormalizationPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1>用藥標準化字典</h1>
-          <p className="text-muted-foreground mt-1">管理 route/frequency 正規化規則（Layer2 建置使用）</p>
+          <h1 className="text-2xl font-bold">用藥標準化字典</h1>
+          <p className="text-muted-foreground text-sm mt-1">管理 route/frequency 正規化規則（Layer2 建置使用）</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={loadConfig} disabled={loading || saving}>

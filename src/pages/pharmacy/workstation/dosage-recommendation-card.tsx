@@ -63,13 +63,13 @@ export function DosageRecommendationCard({
 
         <div className="grid min-w-0 shrink-0 grid-cols-2 gap-2 xl:w-[250px]">
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
               {dose.targetDoseTitle || '原始醫囑'}
             </p>
             <p className="mt-1 text-sm font-medium text-slate-900">{dose.targetDose || dose.orderSummary || '—'}</p>
           </div>
           <div className="rounded-lg border border-[#ead7e1] bg-[#fdf6fa] px-3 py-2">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
               {dose.calculatedRateTitle || '建議速率'}
             </p>
             <p className="mt-1 text-sm font-semibold text-[#7f265b]">{dose.calculatedRate}</p>

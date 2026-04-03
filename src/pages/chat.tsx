@@ -200,8 +200,8 @@ export function ChatPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1>團隊聊天室</h1>
-          <p className="text-muted-foreground mt-1">團隊溝通與工作協調</p>
+          <h1 className="text-2xl font-bold">團隊聊天室</h1>
+          <p className="text-muted-foreground text-sm mt-1">團隊溝通與工作協調</p>
         </div>
         <div className="flex gap-2">
           {user?.role === 'admin' && (
@@ -285,7 +285,7 @@ export function ChatPage() {
                           <Pin className="h-4 w-4" />
                         </Button>
                       </div>
-                      <p className="text-[16px] text-[#1a1a1a] leading-relaxed">{msg.content}</p>
+                      <p className="text-base text-[#1a1a1a] leading-relaxed">{msg.content}</p>
                     </div>
                   ))}
                 </div>
@@ -310,7 +310,7 @@ export function ChatPage() {
                     }
                   }}
                   disabled={sending}
-                  className="min-h-[80px] border border-[#7f265b] focus:border-[#7f265b] focus:ring-2 focus:ring-[#7f265b]/20 text-[17px]"
+                  className="min-h-[80px] border border-[#7f265b] focus:border-[#7f265b] focus:ring-2 focus:ring-[#7f265b]/20 text-base"
                 />
                 <Button
                   onClick={handleSend}
@@ -385,7 +385,7 @@ export function ChatPage() {
                       <div className="flex justify-center py-8"><LoadingSpinner size="sm" /></div>
                     ) : mentionGroups.length === 0 ? (
                       <div className="text-center py-8 text-[#6b7280] text-sm">
-                        <AtSign className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                        <AtSign className="h-12 w-12 mx-auto mb-4 opacity-30" />
                         <p>目前沒有被 @到的留言</p>
                       </div>
                     ) : (
@@ -424,8 +424,8 @@ export function ChatPage() {
                                     >
                                       <div className="flex items-center gap-1.5 mb-1">
                                         <span className="text-xs font-medium text-[#1a1a1a]">{msg.authorName}</span>
-                                        <Badge variant="outline" className="text-[10px] px-1 py-0">{roleDisplayName[msg.authorRole] || msg.authorRole}</Badge>
-                                        <span className="text-[10px] text-[#6b7280] ml-auto">{formatTimestamp(msg.timestamp)}</span>
+                                        <Badge variant="outline" className="text-xs px-1 py-0">{roleDisplayName[msg.authorRole] || msg.authorRole}</Badge>
+                                        <span className="text-xs text-[#6b7280] ml-auto">{formatTimestamp(msg.timestamp)}</span>
                                       </div>
                                       <p className="text-sm text-[#1a1a1a] leading-relaxed line-clamp-3">{msg.content}</p>
                                     </div>
@@ -465,7 +465,7 @@ export function ChatPage() {
                             <Pin className="h-3 w-3" />
                           </Button>
                           <div className="font-semibold mb-2 text-[#1a1a1a]">{msg.userName}</div>
-                          <p className="text-[#1a1a1a] text-[15px] leading-relaxed">{msg.content}</p>
+                          <p className="text-[#1a1a1a] text-sm leading-relaxed">{msg.content}</p>
                           <p className="text-xs text-[#6b7280] mt-2">{formatTimestamp(msg.timestamp)}</p>
                         </div>
                       ))}
@@ -473,7 +473,7 @@ export function ChatPage() {
                   </ScrollArea>
                 ) : (
                   <div className="text-center py-8 text-[#6b7280] text-sm">
-                    <Pin className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <Pin className="h-12 w-12 mx-auto mb-4 opacity-30" />
                     <p>目前沒有釘選訊息</p>
                   </div>
                 )

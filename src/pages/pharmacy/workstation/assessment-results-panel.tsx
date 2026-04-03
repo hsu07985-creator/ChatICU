@@ -123,7 +123,7 @@ export function AssessmentResultsPanel({
       {/* ── 評估摘要 ── */}
       <Card className="border-[#7f265b] border-2">
         <CardHeader className="bg-[#7f265b] text-white py-3">
-          <CardTitle className="text-white text-lg flex items-center gap-2">
+          <CardTitle className="text-white text-base flex items-center gap-2">
             <ShieldAlert className="h-5 w-5" />
             評估摘要
           </CardTitle>

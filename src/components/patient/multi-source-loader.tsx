@@ -133,7 +133,7 @@ function SourceRow({ source }: { source: SourceState }) {
       {source.subLabel && (
         <span
           className={[
-            'text-[10px] font-mono rounded px-1 py-0.5 transition-colors duration-300',
+            'text-xs font-mono rounded px-1 py-0.5 transition-colors duration-300',
             source.status === 'done'    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : '',
             source.status === 'querying' ? 'bg-indigo-50 text-indigo-500 border border-indigo-200' : '',
             source.status === 'waiting'  ? 'bg-slate-50 text-slate-400 border border-slate-200' : '',

@@ -263,8 +263,8 @@ export function PatientsPage() {
     <div className="p-6 space-y-6 pl-16">
       <div className="flex items-center justify-between">
         <div>
-          <h1>病人清單</h1>
-          <p className="text-muted-foreground mt-1">檢視所有病患資料</p>
+          <h1 className="text-2xl font-bold">病人清單</h1>
+          <p className="text-muted-foreground text-sm mt-1">檢視所有病患資料</p>
         </div>
         {user?.role === 'admin' && (
           <div className="flex gap-2">

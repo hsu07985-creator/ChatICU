@@ -82,8 +82,8 @@ export function AuditPage() {
     <div className="p-6 space-y-6 pl-16">
       <div className="flex items-center justify-between">
         <div>
-          <h1>稽核紀錄</h1>
-          <p className="text-muted-foreground mt-1">系統操作與存取記錄查詢</p>
+          <h1 className="text-2xl font-bold">稽核紀錄</h1>
+          <p className="text-muted-foreground text-sm mt-1">系統操作與存取記錄查詢</p>
         </div>
         <Button
           variant="outline"
@@ -143,7 +143,7 @@ export function AuditPage() {
                 <FileText className="h-6 w-6 text-[#7f265b]" />
                 稽核記錄列表
               </CardTitle>
-              <CardDescription className="text-[15px] mt-2">
+              <CardDescription className="text-sm mt-2">
                 所有系統操作與存取的詳細記錄
               </CardDescription>
             </div>

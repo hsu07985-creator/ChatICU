@@ -243,8 +243,8 @@ export function UsersPage() {
     <div className="p-6 space-y-6 pl-16">
       <div className="flex items-center justify-between">
         <div>
-          <h1>帳號與權限管理</h1>
-          <p className="text-muted-foreground mt-1">管理系統使用者帳號、角色與權限設定</p>
+          <h1 className="text-2xl font-bold">帳號與權限管理</h1>
+          <p className="text-muted-foreground text-sm mt-1">管理系統使用者帳號、角色與權限設定</p>
         </div>
         <Button
           onClick={() => setIsAddDialogOpen(true)}
@@ -300,7 +300,7 @@ export function UsersPage() {
                 <UserCog className="h-6 w-6 text-[#7f265b]" />
                 帳號清單
               </CardTitle>
-              <CardDescription className="text-[15px] mt-2">
+              <CardDescription className="text-sm mt-2">
                 系統中所有使用者帳號的詳細資訊
               </CardDescription>
             </div>

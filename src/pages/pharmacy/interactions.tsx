@@ -376,8 +376,8 @@ export function DrugInteractionsPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1>交互作用查詢</h1>
-        <p className="text-muted-foreground mt-1">查詢藥物之間的交互作用與處理建議</p>
+        <h1 className="text-2xl font-bold">交互作用查詢</h1>
+        <p className="text-muted-foreground text-sm mt-1">查詢藥物之間的交互作用與處理建議</p>
       </div>
 
       {/* 搜尋區 */}

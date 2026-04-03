@@ -274,8 +274,8 @@ export function CompatibilityPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1>相容性檢核</h1>
-        <p className="text-muted-foreground mt-1">Y-Site 靜脈輸注藥物配伍相容性查詢（支援多藥品矩陣）</p>
+        <h1 className="text-2xl font-bold">相容性檢核</h1>
+        <p className="text-muted-foreground text-sm mt-1">Y-Site 靜脈輸注藥物配伍相容性查詢（支援多藥品矩陣）</p>
       </div>
 
       {/* 搜尋區 */}

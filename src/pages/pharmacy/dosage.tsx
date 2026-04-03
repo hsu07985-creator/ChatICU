@@ -155,7 +155,7 @@ export function DosagePage() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div>
-        <h1>劑量計算與建議</h1>
+        <h1 className="text-2xl font-bold">劑量計算與建議</h1>
         <p className="text-muted-foreground text-sm mt-0.5">ICU PAD 藥物輸注速率計算（含肥胖體重調整）</p>
       </div>
 
@@ -226,7 +226,7 @@ export function DosagePage() {
               <div className="space-y-1">
                 <label className="text-xs font-medium">
                   目標劑量 *
-                  {drugInfo && <span className="text-muted-foreground font-normal ml-0.5 text-[10px]">({drugInfo.dose_unit})</span>}
+                  {drugInfo && <span className="text-muted-foreground font-normal ml-0.5 text-xs">({drugInfo.dose_unit})</span>}
                 </label>
                 <Input type="number" step="any" className={`h-9 ${isDoseOutOfRange ? 'border-red-500 border-2 focus-visible:ring-red-500' : ''}`}
                   placeholder={drugInfo ? drugInfo.dose_range : ''} value={targetDose} onChange={(e) => setTargetDose(e.target.value)} />
@@ -239,7 +239,7 @@ export function DosagePage() {
               <div className="space-y-1">
                 <label className="text-xs font-medium">
                   濃度 *
-                  {drugInfo && <span className="text-muted-foreground font-normal ml-0.5 text-[10px]">({drugInfo.concentration_unit})</span>}
+                  {drugInfo && <span className="text-muted-foreground font-normal ml-0.5 text-xs">({drugInfo.concentration_unit})</span>}
                 </label>
                 <Input type="number" step="any" className={`h-9 ${isConcentrationChanged ? 'border-red-500 border-2 focus-visible:ring-red-500' : ''}`}
                   placeholder={drugInfo ? String(drugInfo.concentration) : ''} value={concentration} onChange={(e) => setConcentration(e.target.value)} />
@@ -337,7 +337,7 @@ export function DosagePage() {
                     {/* Rate hero */}
                     <div className="flex items-center gap-3 px-4 py-3 bg-[#7f265b]/10 border border-[#7f265b]/20 rounded-lg">
                       <div>
-                        <p className="text-[10px] text-muted-foreground leading-tight">輸注速率</p>
+                        <p className="text-xs text-muted-foreground leading-tight">輸注速率</p>
                         <p className="text-3xl font-bold text-[#7f265b] leading-none">{result.rate_ml_hr}</p>
                         <p className="text-xs font-medium text-[#7f265b]/70">ml/hr</p>
                       </div>
@@ -346,7 +346,7 @@ export function DosagePage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-medium text-sm">{drugInfo?.label || result.drug}</span>
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">{result.weight_basis}</Badge>
+                        <Badge variant="outline" className="text-xs px-1.5 py-0">{result.weight_basis}</Badge>
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-xs">
                         <div>
@@ -378,9 +378,9 @@ export function DosagePage() {
                       <span>
                         <span className="text-muted-foreground">%IBW</span>{' '}
                         <span className="font-medium">{result.pct_IBW}%</span>
-                        {result.is_obese && <Badge variant="destructive" className="ml-1 text-[10px] px-1 py-0">肥胖</Badge>}
+                        {result.is_obese && <Badge variant="destructive" className="ml-1 text-xs px-1 py-0">肥胖</Badge>}
                         {!result.is_obese && result.pct_IBW != null && result.pct_IBW < 90 && (
-                          <Badge className="ml-1 text-[10px] px-1 py-0 bg-amber-500 hover:bg-amber-600">體重偏低</Badge>
+                          <Badge className="ml-1 text-xs px-1 py-0 bg-amber-500 hover:bg-amber-600">體重偏低</Badge>
                         )}
                       </span>
                     </div>

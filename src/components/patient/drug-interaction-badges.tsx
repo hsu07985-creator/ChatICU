@@ -92,7 +92,7 @@ function InteractionBadge({ interaction }: InteractionBadgeProps) {
           <p className="text-red-700 text-[11px] leading-relaxed">{interaction.title}</p>
         )}
         {interaction.severity && (
-          <p className="text-red-600 text-[10px]">{interaction.severity}</p>
+          <p className="text-red-600 text-xs">{interaction.severity}</p>
         )}
       </div>
     );
@@ -123,7 +123,7 @@ function InteractionBadge({ interaction }: InteractionBadgeProps) {
         <p className="mt-1 text-[11px] leading-relaxed opacity-90">{interaction.title}</p>
       )}
       {expanded && interaction.severity && (
-        <p className="mt-0.5 text-[10px] opacity-75">{interaction.severity}</p>
+        <p className="mt-0.5 text-xs opacity-75">{interaction.severity}</p>
       )}
     </button>
   );

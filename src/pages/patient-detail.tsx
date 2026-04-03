@@ -1232,11 +1232,11 @@ export function PatientDetailPage() {
       {/* 分頁內容 */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-6 h-[44px] bg-[#f8f9fa] border border-[#e5e7eb] gap-0.5 p-0.5">
-          <TabsTrigger value="chat" className="text-[13px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
+          <TabsTrigger value="chat" className="text-xs font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
             <MessageSquare className="mr-1.5 h-4 w-4" />
             對話助手
           </TabsTrigger>
-          <TabsTrigger value="messages" className="text-[13px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white relative rounded-md">
+          <TabsTrigger value="messages" className="text-xs font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white relative rounded-md">
             <MessagesSquare className="mr-1.5 h-4 w-4" />
             留言板
             {messages.filter(m => !m.isRead).length > 0 && (
@@ -1245,19 +1245,19 @@ export function PatientDetailPage() {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="records" className="text-[13px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
+          <TabsTrigger value="records" className="text-xs font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
             <FileText className="mr-1.5 h-4 w-4" />
             病歷記錄
           </TabsTrigger>
-          <TabsTrigger value="labs" className="text-[13px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
+          <TabsTrigger value="labs" className="text-xs font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
             <TestTube className="mr-1.5 h-4 w-4" />
             檢驗數據
           </TabsTrigger>
-          <TabsTrigger value="meds" className="text-[13px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
+          <TabsTrigger value="meds" className="text-xs font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
             <Pill className="mr-1.5 h-4 w-4" />
             用藥
           </TabsTrigger>
-          <TabsTrigger value="summary" className="text-[13px] font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
+          <TabsTrigger value="summary" className="text-xs font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
             <FileText className="mr-1.5 h-4 w-4" />
             病歷摘要
           </TabsTrigger>
@@ -1272,13 +1272,13 @@ export function PatientDetailPage() {
                 <Card className="border">
                   <CardHeader className="bg-[#f8f9fa] border-b py-1.5 px-3" style={{ paddingBottom: '6px' }}>
                     <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1 text-[12px] font-semibold text-[#374151]">
+                      <span className="flex items-center gap-1 text-xs font-semibold text-[#374151]">
                         <History className="h-3.5 w-3.5 text-[#6b7280]" />
                         對話記錄
                       </span>
                       <Button
                         size="sm"
-                        className="h-6 px-2 text-[10px] bg-gray-700 hover:bg-gray-700 text-white"
+                        className="h-6 px-2 text-xs bg-gray-700 hover:bg-gray-700 text-white"
                         onClick={() => {
                           setSelectedSession(null);
                           setChatMessages([]);
@@ -1345,7 +1345,7 @@ export function PatientDetailPage() {
                                   <p className="font-semibold text-sm text-[#1a1a1a] truncate">
                                     {session.title}
                                   </p>
-                                  <span className="text-[10px] text-[#b0b0b0] mt-0.5">
+                                  <span className="text-xs text-[#b0b0b0] mt-0.5">
                                     {session.sessionDate === new Date().toISOString().slice(0, 10) ? session.sessionTime : `${session.sessionDate} ${session.sessionTime}`}
                                   </span>
                                   {session.labDataSnapshot && (
@@ -1386,14 +1386,14 @@ export function PatientDetailPage() {
                     {disclaimerCollapsed ? (
                       <button
                         onClick={() => setDisclaimerCollapsed(false)}
-                        className="flex items-center gap-1 text-[11px] text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
+                        className="flex items-center gap-1 text-xs text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
                       >
                         <Info className="h-3 w-3" />
                         <span>AI 僅供參考</span>
                         <ChevronDown className="h-2.5 w-2.5" />
                       </button>
                     ) : (
-                      <div className="flex items-center gap-1.5 text-[11px] text-[#6b7280] bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                      <div className="flex items-center gap-1.5 text-xs text-[#6b7280] bg-amber-50 border border-amber-200 rounded px-2 py-1">
                         <Info className="h-3 w-3 shrink-0 text-amber-600" />
                         <span>AI 輔助產生，僅供臨床參考，不可取代醫師專業判斷。</span>
                         <button onClick={() => setDisclaimerCollapsed(true)} className="shrink-0 text-[#9CA3AF] hover:text-[#6B7280]">
@@ -1406,7 +1406,7 @@ export function PatientDetailPage() {
 	                      {aiReadiness && (
 	                        <Badge
 	                          variant="outline"
-	                          className={`text-[10px] px-1.5 py-0 ${
+	                          className={`text-xs px-1.5 py-0 ${
 	                            canSendAiChat
 	                              ? 'border-green-300 bg-green-50 text-green-700'
 	                              : 'border-amber-300 bg-amber-50 text-amber-700'
@@ -1452,7 +1452,7 @@ export function PatientDetailPage() {
                     {chatMessages.length === 0 ? (
                       <div className="text-center text-muted-foreground py-12">
                         <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-30 text-[#9ca3af]" />
-                        <p className="text-[17px] font-medium">開始對話以獲得 AI 協助</p>
+                        <p className="text-base font-medium">開始對話以獲得 AI 協助</p>
                         <p className="text-sm text-[#6b7280] mt-2">可以詢問檢驗數據、用藥建議、治療指引等</p>
                       </div>
                     ) : (
@@ -1471,9 +1471,9 @@ export function PatientDetailPage() {
                           <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}${isFirstOfRound ? ' mt-3' : ''}`}>
                             {msg.role === 'user' ? (
                               <div className="max-w-[65%] w-fit rounded-2xl px-4 py-2.5 bg-white border border-[#e5e7eb]">
-                                <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-[#1F2937]">{msg.content}</p>
+                                <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1F2937]">{msg.content}</p>
                                 {msg.timestamp && (
-                                  <p className="text-[11px] text-[#9ca3af] mt-1.5 text-right">{msg.timestamp}</p>
+                                  <p className="text-xs text-[#9ca3af] mt-1.5 text-right">{msg.timestamp}</p>
                                 )}
                               </div>
                             ) : (
@@ -1493,7 +1493,7 @@ export function PatientDetailPage() {
                                       <div className="h-2 w-2 rounded-full animate-bounce" style={{ backgroundColor: '#9ca3af', animationDelay: '320ms' }} />
                                     </div>
                                   ) : (
-                                    <p className="text-[14px] leading-relaxed text-[#1F2937]">{displayContent}</p>
+                                    <p className="text-sm leading-relaxed text-[#1F2937]">{displayContent}</p>
                                   )}
 
                                   {/* Expandable panels — shown after streaming */}
@@ -1501,7 +1501,7 @@ export function PatientDetailPage() {
                                     {/* Detail / explanation panel */}
                                     {isDetailExpanded && msg.explanation && msg.explanation.trim().length > 0 && (
                                       <div className="mt-2 rounded-md bg-[#F7F8F9] border border-[#E5E7EB] px-3 py-2.5">
-                                        <AiMarkdown content={msg.explanation} className="text-[13px]" />
+                                        <AiMarkdown content={msg.explanation} className="text-xs" />
                                         <SafetyWarnings warnings={msg.warnings} />
                                         {msg.requiresExpertReview && (
                                           <div className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
@@ -1524,7 +1524,7 @@ export function PatientDetailPage() {
                                                   <span className="mt-0.5 text-[#6b7280]">•</span>
                                                   <div className="flex-1">
                                                     <p className="font-medium text-[#374151]">{ref.title || ref.sourceFile || 'unknown'}</p>
-                                                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                                                    <p className="text-xs text-muted-foreground mt-0.5">
                                                       {(ref.sourceFile || ref.source || 'unknown')}
                                                       {' • '}
                                                       {formatCitationPageText(ref)}
@@ -1533,33 +1533,33 @@ export function PatientDetailPage() {
                                                     </p>
                                                     {ref.summary ? (
                                                       <div className="mt-1 space-y-1">
-                                                        <p className="text-[11px] text-[#374151] leading-relaxed">
+                                                        <p className="text-xs text-[#374151] leading-relaxed">
                                                           <span className="font-medium text-[#374151]">重點：</span>{ref.summary}
                                                         </p>
                                                         {ref.keyQuote && (
-                                                          <div className="rounded border border-[#d1d5db] bg-white px-2 py-1.5 text-[11px] leading-relaxed text-[#6b7280] italic">
+                                                          <div className="rounded border border-[#d1d5db] bg-white px-2 py-1.5 text-xs leading-relaxed text-[#6b7280] italic">
                                                             「{ref.keyQuote}」
                                                           </div>
                                                         )}
                                                         {ref.relevanceNote && (
-                                                          <p className="text-[10px] text-[#9ca3af]">{ref.relevanceNote}</p>
+                                                          <p className="text-xs text-[#9ca3af]">{ref.relevanceNote}</p>
                                                         )}
                                                       </div>
                                                     ) : Array.isArray(ref.snippets) && ref.snippets.length > 1 ? (
                                                       <div className="mt-1 space-y-1.5">
                                                         {ref.snippets.map((s, si) => (
-                                                          <div key={si} className="rounded border border-[#d1d5db] bg-white p-2 text-[11px] leading-relaxed text-[#374151] whitespace-pre-wrap">
-                                                            <span className="inline-block text-[10px] font-medium mb-0.5 text-[#6b7280]">段落 {si + 1}</span>
+                                                          <div key={si} className="rounded border border-[#d1d5db] bg-white p-2 text-xs leading-relaxed text-[#374151] whitespace-pre-wrap">
+                                                            <span className="inline-block text-xs font-medium mb-0.5 text-[#6b7280]">段落 {si + 1}</span>
                                                             <div>{compactSnippet(s)}</div>
                                                           </div>
                                                         ))}
                                                       </div>
                                                     ) : ref.snippet && ref.snippet.trim().length > 0 ? (
-                                                      <div className="mt-1 rounded border border-[#d1d5db] bg-white p-2 text-[11px] leading-relaxed text-[#374151] whitespace-pre-wrap max-h-32 overflow-y-auto">
+                                                      <div className="mt-1 rounded border border-[#d1d5db] bg-white p-2 text-xs leading-relaxed text-[#374151] whitespace-pre-wrap max-h-32 overflow-y-auto">
                                                         {compactSnippet(ref.snippet)}
                                                       </div>
                                                     ) : (
-                                                      <p className="text-[11px] text-[#9ca3af] mt-1">未提供原文段落。</p>
+                                                      <p className="text-xs text-[#9ca3af] mt-1">未提供原文段落。</p>
                                                     )}
                                                   </div>
                                                 </div>
@@ -1584,7 +1584,7 @@ export function PatientDetailPage() {
 
                                   {/* Inline toolbar */}
                                   {!isStreamingThis && (
-                                    <div className="flex items-center gap-2.5 mt-2 pt-1.5 border-t border-[#F0F0F0] text-[12px] text-[#9CA3AF]">
+                                    <div className="flex items-center gap-2.5 mt-2 pt-1.5 border-t border-[#F0F0F0] text-xs text-[#9CA3AF]">
                                       {msg.explanation && msg.explanation.trim().length > 0 && (
                                         <button
                                           onClick={() => setExpandedExplanations(prev => { const n = new Set(prev); isDetailExpanded ? n.delete(idx) : n.add(idx); return n; })}
@@ -1614,7 +1614,7 @@ export function PatientDetailPage() {
                                         </button>
                                       )}
                                       {msg.timestamp && (
-                                        <span className="flex items-center gap-0.5 text-[11px] text-[#9ca3af]">
+                                        <span className="flex items-center gap-0.5 text-xs text-[#9ca3af]">
                                           <Clock className="h-3 w-3" />
                                           {msg.timestamp}
                                         </span>
@@ -1668,7 +1668,7 @@ export function PatientDetailPage() {
                             handleSendMessage();
                           }
                         }}
-                        className={`min-h-[36px] border text-[13px] transition-colors rounded-xl ${
+                        className={`min-h-[36px] border text-xs transition-colors rounded-xl ${
                           canSendAiChat
                             ? 'border-[#e5e7eb]'
                             : 'border-[#e5e7eb] bg-[#f8f9fa] text-[#9ca3af] cursor-not-allowed'
@@ -1687,7 +1687,7 @@ export function PatientDetailPage() {
                         <Send className={`h-4.5 w-4.5 ${isSending ? 'opacity-40' : ''}`} />
                       </Button>
                     </div>
-                    <p className="text-[9px] text-[#d0d0d0] mt-1">Enter 發送 · Shift+Enter 換行</p>
+                    <p className="text-xs text-[#d0d0d0] mt-1">Enter 發送 · Shift+Enter 換行</p>
                   </div>
                   </div>{/* end flex column */}
                 </CardContent>

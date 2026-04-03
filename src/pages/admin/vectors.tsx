@@ -161,8 +161,8 @@ export function VectorsPage() {
   return (
     <div className="p-6 space-y-6 pl-16">
       <div>
-        <h1>向量資料庫管理</h1>
-        <p className="text-muted-foreground mt-1">管理 AI 助手的知識庫與文件向量化</p>
+        <h1 className="text-2xl font-bold">向量資料庫管理</h1>
+        <p className="text-muted-foreground text-sm mt-1">管理 AI 助手的知識庫與文件向量化</p>
       </div>
 
       {/* 文件上傳區 */}
@@ -172,20 +172,20 @@ export function VectorsPage() {
             <FileUp className="h-6 w-6 text-[#7f265b]" />
             上傳 PDF 文件
           </CardTitle>
-          <CardDescription className="text-[15px] mt-2">
+          <CardDescription className="text-sm mt-2">
             上傳 PDF 格式的醫療文件，系統將自動解析並嵌入向量資料庫供 AI 查詢使用
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="database-select" className="text-[16px] font-medium">
+            <Label htmlFor="database-select" className="text-base font-medium">
               選擇目標資料庫
             </Label>
             <select
               id="database-select"
               value={selectedDatabase}
               onChange={(e) => setSelectedDatabase(e.target.value)}
-              className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg focus:border-[#7f265b] focus:outline-none text-[16px]"
+              className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg focus:border-[#7f265b] focus:outline-none text-base"
               disabled={isUploading}
             >
               {vectorDatabases.length === 0 ? (
@@ -201,7 +201,7 @@ export function VectorsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="file-upload" className="text-[16px] font-medium">
+            <Label htmlFor="file-upload" className="text-base font-medium">
               選擇檔案
             </Label>
             <div className="flex gap-3">
@@ -261,7 +261,7 @@ export function VectorsPage() {
             <Database className="h-6 w-6 text-[#7f265b]" />
             向量資料庫清單
           </CardTitle>
-          <CardDescription className="text-[15px] mt-2">
+          <CardDescription className="text-sm mt-2">
             當前系統中的所有向量資料庫及其狀態
           </CardDescription>
         </CardHeader>
@@ -310,7 +310,7 @@ export function VectorsPage() {
                       </div>
                       <div className="bg-white border border-[#e5e7eb] rounded-lg p-3">
                         <p className="text-xs text-muted-foreground mb-1">嵌入模型</p>
-                        <p className="text-[15px] font-medium text-[#1a1a1a]">{db.embeddingModel}</p>
+                        <p className="text-sm font-medium text-[#1a1a1a]">{db.embeddingModel}</p>
                       </div>
                     </div>
                   </div>
@@ -347,7 +347,7 @@ export function VectorsPage() {
       {/* 說明資訊 */}
       <Alert>
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription className="text-[15px]">
+        <AlertDescription className="text-sm">
           <strong>注意事項：</strong>
           <ul className="list-disc list-inside mt-2 space-y-1">
             <li>上傳的 PDF 文件將被自動解析並轉換為向量嵌入</li>

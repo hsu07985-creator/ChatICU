@@ -65,7 +65,7 @@ export function PatientActivityPanel({
             <Activity className="h-4 w-4 text-[#7f265b]" />
             病患留言動態
             {filtered.length > 0 && (
-              <Badge className="bg-[#7f265b] text-white text-[10px] ml-1">{filtered.length}</Badge>
+              <Badge className="bg-[#7f265b] text-white text-xs ml-1">{filtered.length}</Badge>
             )}
           </CardTitle>
           <div className="flex items-center gap-1">
@@ -92,7 +92,7 @@ export function PatientActivityPanel({
               <Badge
                 key={tag}
                 variant="outline"
-                className={`text-[10px] cursor-pointer transition-colors ${
+                className={`text-xs cursor-pointer transition-colors ${
                   selectedTag === tag
                     ? 'bg-[#7f265b] text-white border-[#7f265b]'
                     : TAG_STYLE[tag] || DEFAULT_TAG_STYLE
@@ -103,7 +103,7 @@ export function PatientActivityPanel({
               </Badge>
             ))}
             {selectedTag && (
-              <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1 text-slate-500" onClick={() => onTagFilter(null)}>
+              <Button variant="ghost" size="sm" className="h-5 text-xs px-1 text-slate-500" onClick={() => onTagFilter(null)}>
                 <X className="h-2.5 w-2.5 mr-0.5" />
                 清除
               </Button>
@@ -140,12 +140,12 @@ export function PatientActivityPanel({
                     <div className="flex items-center gap-1.5">
                       <span className="font-semibold text-sm text-slate-900">{item.patientName}</span>
                       {item.bedNumber && (
-                        <Badge variant="outline" className="text-[10px]">{item.bedNumber}</Badge>
+                        <Badge variant="outline" className="text-xs">{item.bedNumber}</Badge>
                       )}
                     </div>
                     <div className="flex items-center gap-1">
                       {item.unreadCount > 0 && (
-                        <Badge variant="destructive" className="text-[10px]">{item.unreadCount} 未讀</Badge>
+                        <Badge variant="destructive" className="text-xs">{item.unreadCount} 未讀</Badge>
                       )}
                       <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-[#7f265b] transition-colors" />
                     </div>
@@ -173,7 +173,7 @@ export function PatientActivityPanel({
                   </p>
 
                   {/* Meta */}
-                  <div className="flex items-center gap-1.5 mt-1 text-[10px] text-slate-400">
+                  <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-400">
                     <User className="h-2.5 w-2.5" />
                     <span>{item.latestAuthorName}</span>
                     <span className="text-slate-300">·</span>

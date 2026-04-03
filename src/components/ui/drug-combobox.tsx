@@ -161,7 +161,7 @@ export function DrugCombobox({
                     />
                     <HighlightMatch text={drug} query={search.trim()} />
                     {noData && (
-                      <span className="ml-auto shrink-0 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                      <span className="ml-auto shrink-0 text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                         尚未有資料
                       </span>
                     )}

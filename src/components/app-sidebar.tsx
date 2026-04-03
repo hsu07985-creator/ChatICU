@@ -1,4 +1,4 @@
-import { Home, Users, MessageSquare, Database, FileText, UserCog, Briefcase, AlertTriangle, Calculator, Droplets, BarChart3, Settings } from 'lucide-react';
+import { Home, Users, MessageSquare, Database, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Settings } from 'lucide-react';
 import logoImage from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 import {
   Sidebar,
@@ -43,7 +43,7 @@ export function AppSidebar() {
 
   // 2) 藥事支援中心（藥師/管理者可見）
   const pharmacyItems = (user?.role === 'pharmacist' || user?.role === 'admin') ? [
-    { title: '藥事支援工作台', url: '/pharmacy/workstation', icon: Briefcase },
+    { title: '藥事支援工作台', url: '/pharmacy/workstation', icon: Pill },
     { title: '交互作用查詢', url: '/pharmacy/interactions', icon: AlertTriangle },
     { title: '劑量計算與建議', url: '/pharmacy/dosage', icon: Calculator },
     { title: '相容性檢核', url: '/pharmacy/compatibility', icon: Droplets },

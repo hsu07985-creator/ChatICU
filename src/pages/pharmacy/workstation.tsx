@@ -8,7 +8,6 @@ import { getLatestLabData, type LabData as ApiLabData } from '../../lib/api/lab-
 import { getLatestVitalSigns, type VitalSigns as ApiVitalSigns } from '../../lib/api/vital-signs';
 import { checkInteractions, type PatientContext } from '../../lib/api/ai';
 import { createAdviceRecord, getDrugInteractions, getIVCompatibility, padCalculate, type PadDrugInfo } from '../../lib/api/pharmacy';
-import { getCachedPadDrugs } from '../../lib/pad-drugs-cache';
 import { getMedications } from '../../lib/api/medications';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -609,8 +608,8 @@ export function PharmacyWorkstationPage() {
     <div className="p-6 space-y-4">
       {/* 標題 */}
       <div>
-        <h1>藥事支援工作台</h1>
-        <p className="text-muted-foreground mt-1">
+        <h1 className="text-2xl font-bold">藥事支援工作台</h1>
+        <p className="text-muted-foreground text-sm mt-1">
           選擇病患、管理用藥、執行全面評估並產生用藥建議
         </p>
       </div>
@@ -621,7 +620,7 @@ export function PharmacyWorkstationPage() {
           {/* 病患選擇 */}
           <Card className="border-[#7f265b]">
             <CardHeader className="bg-[#f8f9fa] pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
+              <CardTitle className="flex items-center gap-2 text-base">
                 <User className="h-5 w-5 text-[#7f265b]" />
                 選擇病患
               </CardTitle>
@@ -678,7 +677,7 @@ export function PharmacyWorkstationPage() {
             <Card className="border-[#7f265b]">
               <CardHeader className="bg-[#f8f9fa] pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-lg">
+                  <CardTitle className="flex items-center gap-2 text-base">
                     <Pill className="h-5 w-5 text-[#7f265b]" />
                     用藥列表
                   </CardTitle>
