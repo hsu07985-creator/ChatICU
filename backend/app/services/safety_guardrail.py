@@ -4,12 +4,17 @@ Applies to all LLM responses before they reach the user:
 1. Appends a standard medical disclaimer
 2. Flags potentially unsafe drug dosage mentions
 3. Detects unsupported definitive diagnostic claims
+4. (Optional) LLM-based nuanced safety check for complex clinical content
 """
 
 from __future__ import annotations
 
+import json
+import logging
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger("chaticu")
 
 # ── Standard disclaimer appended to all AI outputs ──
 MEDICAL_DISCLAIMER = (
@@ -98,6 +103,16 @@ def apply_safety_guardrail(
     # NOTE: Do not inject warnings into content here; the frontend renders warnings
     # via a dedicated SafetyWarnings component.
 
+    # 4. LLM-based nuanced safety check (when enabled)
+    from app.config import settings
+    if getattr(settings, "GUARDRAIL_LLM_ENABLED", False):
+        llm_check = _llm_safety_check(content, user_role)
+        if not llm_check.get("safe", True):
+            llm_warnings = llm_check.get("warnings", [])
+            for w in llm_warnings:
+                if w and w not in warnings:
+                    warnings.append(w)
+
     flagged = len(warnings) > 0
 
     return {
@@ -108,3 +123,51 @@ def apply_safety_guardrail(
         # T30: Flagged outputs require expert review before clinical use
         "requiresExpertReview": flagged,
     }
+
+
+def _llm_safety_check(
+    content: str,
+    user_role: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Run LLM-based safety analysis on AI-generated content.
+
+    Detects nuanced safety issues that regex cannot catch:
+    - Contraindicated treatments for specific patient populations
+    - Missing critical safety caveats for high-risk interventions
+    - Subtle dosage errors or inappropriate drug combinations
+    - Claims that exceed the evidence base
+
+    Returns ``{"safe": True/False, "warnings": [...], "severity": "..."}``
+    Falls open (returns safe) on any LLM failure to avoid blocking responses.
+    """
+    from app.llm import call_llm
+
+    try:
+        result = call_llm(
+            task="safety_check",
+            input_data={
+                "ai_response": content[:2000],  # Truncate to control token usage
+                "user_role": user_role or "unknown",
+            },
+        )
+        if result.get("status") != "success":
+            logger.warning("[GUARDRAIL_LLM] LLM safety check failed: %s", result.get("content", "")[:200])
+            return {"safe": True, "warnings": [], "severity": "none"}
+
+        raw = result.get("content", "").strip()
+        # Strip markdown code fences if present
+        if raw.startswith("```"):
+            raw = re.sub(r"^```(?:json)?\s*", "", raw)
+            raw = re.sub(r"\s*```$", "", raw)
+        parsed = json.loads(raw)
+        return {
+            "safe": parsed.get("safe", True),
+            "warnings": [str(w) for w in parsed.get("warnings", []) if w],
+            "severity": parsed.get("severity", "none"),
+        }
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        logger.warning("[GUARDRAIL_LLM] Failed to parse LLM safety response: %s", exc)
+        return {"safe": True, "warnings": [], "severity": "none"}
+    except Exception as exc:
+        logger.warning("[GUARDRAIL_LLM] LLM safety check error: %s", exc)
+        return {"safe": True, "warnings": [], "severity": "none"}

@@ -13,7 +13,7 @@ import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, List
+from typing import Any, AsyncGenerator, List, Optional
 
 from app.config import settings
 
@@ -123,10 +123,33 @@ TASK_PROMPTS: dict[str, str] = {
         "輸出格式：一個 JSON array，每個元素對應一個來源。\n"
         "只輸出 JSON，不要其他文字。"
     ),
+    "safety_check": (
+        "You are a medical AI safety reviewer for ICU clinical outputs. "
+        "Analyze the given AI-generated response for safety concerns:\n"
+        "1. Dangerous drug dosage recommendations (especially high-alert medications)\n"
+        "2. Definitive diagnostic claims without sufficient evidence\n"
+        "3. Contraindicated treatment suggestions for ICU patients\n"
+        "4. Missing critical safety caveats for high-risk interventions\n"
+        "5. Potential patient harm from following the advice\n"
+        "6. Off-label use recommendations without appropriate disclaimer\n\n"
+        "Return a JSON object with:\n"
+        '  "safe": true/false\n'
+        '  "warnings": ["warning1", "warning2"] (繁體中文, each prefixed with ⚠️)\n'
+        '  "severity": "none" | "low" | "medium" | "high"\n'
+        "Only output JSON, no other text. "
+        "Be conservative: only flag genuine safety concerns, not general medical advice."
+    ),
+    "agentic_rag_router": (
+        "You are an ICU clinical search strategist. "
+        "Given a clinical question, decide the best search strategy. "
+        "You can search multiple times with different queries to gather comprehensive evidence. "
+        "Rewrite queries to be specific and medical when needed. "
+        + _LANG_DIRECTIVE
+    ),
 }
 
 
-def _normalize_trace_value(value: Any) -> str | None:
+def _normalize_trace_value(value: Any) -> Optional[str]:
     text = str(value or "").strip()
     return text or None
 
@@ -315,6 +338,132 @@ def call_llm_multi_turn(
         return {"status": "error", "content": str(e), "metadata": {}}
 
 
+async def call_llm_stream(
+    task: str,
+    messages: List[dict],
+    **kwargs,
+) -> AsyncGenerator[str, None]:
+    """Stream LLM tokens for a multi-turn conversation.
+
+    Yields individual text chunks as they arrive from the provider's
+    streaming API. The final yield is a JSON metadata string prefixed
+    with ``[DONE]`` containing usage statistics.
+    """
+    if task not in TASK_PROMPTS:
+        yield "[ERROR] Unknown task: " + task
+        return
+
+    system_prompt = TASK_PROMPTS[task]
+    max_tokens = kwargs.get("max_tokens", settings.LLM_MAX_TOKENS)
+    request_id = _normalize_trace_value(kwargs.get("request_id"))
+    trace_id = _normalize_trace_value(kwargs.get("trace_id"))
+
+    if settings.LLM_PROVIDER == "openai" and not (settings.OPENAI_API_KEY or "").strip():
+        yield "[ERROR] OPENAI_API_KEY is not set"
+        return
+    if settings.LLM_PROVIDER == "anthropic" and not (settings.ANTHROPIC_API_KEY or "").strip():
+        yield "[ERROR] ANTHROPIC_API_KEY is not set"
+        return
+
+    try:
+        if settings.LLM_PROVIDER == "openai":
+            async for chunk in _stream_openai(system_prompt, messages, max_tokens, task=task, request_id=request_id, trace_id=trace_id):
+                yield chunk
+        elif settings.LLM_PROVIDER == "anthropic":
+            async for chunk in _stream_anthropic(system_prompt, messages, max_tokens, task=task, request_id=request_id, trace_id=trace_id):
+                yield chunk
+        else:
+            yield f"[ERROR] Unsupported provider: {settings.LLM_PROVIDER}"
+    except Exception as e:
+        logger.error("[LLM][STREAM] Streaming failed: %s", str(e)[:500])
+        yield f"[ERROR] {str(e)}"
+
+
+async def _stream_openai(
+    system_prompt: str,
+    messages: List[dict],
+    max_tokens: int,
+    *,
+    task: str,
+    request_id: Optional[str] = None,
+    trace_id: Optional[str] = None,
+) -> AsyncGenerator[str, None]:
+    """Stream tokens from OpenAI using the async client."""
+    from openai import AsyncOpenAI
+
+    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    api_messages = [{"role": "system", "content": system_prompt}]
+    api_messages.extend(messages)
+
+    stream = await client.chat.completions.create(
+        model=settings.LLM_MODEL,
+        max_completion_tokens=max_tokens,
+        messages=api_messages,
+        stream=True,
+        stream_options={"include_usage": True},
+    )
+
+    full_content = ""
+    usage_meta = {}
+    async for chunk in stream:
+        if chunk.usage:
+            usage_meta = {
+                "prompt_tokens": chunk.usage.prompt_tokens,
+                "completion_tokens": chunk.usage.completion_tokens,
+            }
+        if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+            text = chunk.choices[0].delta.content
+            full_content += text
+            yield text
+
+    _maybe_capture_provider_raw(
+        provider="openai", task=task, model=settings.LLM_MODEL,
+        request_id=request_id, trace_id=trace_id,
+        input_payload=messages, response_payload={"content": full_content[:500], "usage": usage_meta},
+    )
+    yield json.dumps({"__done__": True, "model": settings.LLM_MODEL, "usage": usage_meta})
+
+
+async def _stream_anthropic(
+    system_prompt: str,
+    messages: List[dict],
+    max_tokens: int,
+    *,
+    task: str,
+    request_id: Optional[str] = None,
+    trace_id: Optional[str] = None,
+) -> AsyncGenerator[str, None]:
+    """Stream tokens from Anthropic using the async client."""
+    from anthropic import AsyncAnthropic
+
+    client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+    full_content = ""
+    usage_meta = {}
+
+    async with client.messages.stream(
+        model=settings.LLM_MODEL,
+        max_tokens=max_tokens,
+        system=system_prompt,
+        messages=messages,
+    ) as stream:
+        async for text in stream.text_stream:
+            full_content += text
+            yield text
+        # Get final message for usage info
+        final_message = await stream.get_final_message()
+        usage_meta = {
+            "input_tokens": final_message.usage.input_tokens,
+            "output_tokens": final_message.usage.output_tokens,
+        }
+
+    _maybe_capture_provider_raw(
+        provider="anthropic", task=task, model=settings.LLM_MODEL,
+        request_id=request_id, trace_id=trace_id,
+        input_payload=messages, response_payload={"content": full_content[:500], "usage": usage_meta},
+    )
+    yield json.dumps({"__done__": True, "model": settings.LLM_MODEL, "usage": usage_meta})
+
+
 def _call_openai(
     system_prompt,
     input_data,
@@ -401,18 +550,61 @@ def rerank_passages(
     passages: List[dict],
     top_k: int = 5,
 ) -> List[dict]:
-    """Rerank retrieved passages using LLM relevance scoring.
+    """Rerank retrieved passages using the configured reranker.
 
-    Over-retrieved candidates are scored by GPT-5-mini for query relevance,
-    then sorted by score. Raises on failure — no silent fallback.
+    Dispatches to Cohere Rerank (fast, dedicated) or falls back to
+    LLM-based scoring when Cohere is unavailable.
     """
     if not passages or len(passages) <= top_k:
         return passages[:top_k]
 
+    if settings.RERANKER_PROVIDER == "cohere" and (settings.COHERE_API_KEY or "").strip():
+        return _rerank_passages_cohere(query, passages, top_k)
+    return _rerank_passages_llm(query, passages, top_k)
+
+
+def _rerank_passages_cohere(
+    query: str,
+    passages: List[dict],
+    top_k: int = 5,
+) -> List[dict]:
+    """Rerank using Cohere Rerank API — 10-50x faster than LLM-based."""
+    import cohere
+
+    client = cohere.ClientV2(api_key=settings.COHERE_API_KEY)
+    docs = [p.get("text", "")[:512] for p in passages]
+
+    response = client.rerank(
+        model=settings.COHERE_RERANK_MODEL,
+        query=query,
+        documents=docs,
+        top_n=top_k,
+    )
+
+    results = []
+    for r in response.results:
+        entry = dict(passages[r.index])
+        entry["rerank_score"] = r.relevance_score
+        results.append(entry)
+
+    logger.info(
+        "[RAG][RERANK] Cohere reranked %d candidates → top-%d (model=%s)",
+        len(passages),
+        top_k,
+        settings.COHERE_RERANK_MODEL,
+    )
+    return results
+
+
+def _rerank_passages_llm(
+    query: str,
+    passages: List[dict],
+    top_k: int = 5,
+) -> List[dict]:
+    """Fallback: rerank using LLM relevance scoring (slower, more expensive)."""
     if not (settings.OPENAI_API_KEY or "").strip():
         raise RuntimeError("[RAG][RERANK] OPENAI_API_KEY is not set — cannot rerank")
 
-    # Build scoring prompt — truncate each passage to save tokens
     numbered = []
     for i, p in enumerate(passages):
         excerpt = p.get("text", "")[:300]
@@ -434,7 +626,7 @@ def rerank_passages(
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
     response = client.chat.completions.create(
         model=settings.RAG_RERANK_MODEL,
-        max_completion_tokens=4096,  # reasoning models need ~2-3x headroom for thinking tokens
+        max_completion_tokens=4096,
         messages=[
             {"role": "system", "content": "You are a relevance scoring assistant. Return only valid JSON."},
             {"role": "user", "content": scoring_prompt},
@@ -444,7 +636,6 @@ def rerank_passages(
     if not raw:
         raise ValueError("[RAG][RERANK] Model returned empty response — token budget may be too low")
 
-    # Parse JSON array of scores
     scores = json.loads(raw)
     if not isinstance(scores, list) or len(scores) != len(passages):
         raise ValueError(
@@ -452,7 +643,6 @@ def rerank_passages(
             f"expected {len(passages)}"
         )
 
-    # Attach rerank scores and sort
     scored = []
     for p, s in zip(passages, scores):
         entry = dict(p)
@@ -461,7 +651,7 @@ def rerank_passages(
     scored.sort(key=lambda x: x["rerank_score"], reverse=True)
 
     logger.info(
-        "[RAG][RERANK] Reranked %d candidates → top-%d (model=%s)",
+        "[RAG][RERANK] LLM reranked %d candidates → top-%d (model=%s)",
         len(passages),
         top_k,
         settings.RAG_RERANK_MODEL,
@@ -555,6 +745,45 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
         )
         all_embeddings.extend([item.embedding for item in response.data])
     return all_embeddings
+
+
+async def embed_texts_cached(texts: List[str]) -> List[List[float]]:
+    """Embed texts with Redis caching layer.
+
+    Checks Redis for cached embeddings first; only calls OpenAI API for
+    cache misses. Falls back to direct API call if cache is unavailable.
+    """
+    if not settings.EMBEDDING_CACHE_ENABLED:
+        return embed_texts(texts)
+
+    from app.middleware.auth import get_redis
+    from app.services.embedding_cache import get_cached_embedding, set_cached_embedding
+
+    redis_client = await get_redis()
+    model = settings.OPENAI_EMBEDDING_MODEL
+
+    results: List[Optional[List[float]]] = [None] * len(texts)
+    uncached_indices: List[int] = []
+
+    for i, t in enumerate(texts):
+        cached = await get_cached_embedding(redis_client, t, model)
+        if cached is not None:
+            results[i] = cached
+        else:
+            uncached_indices.append(i)
+
+    if uncached_indices:
+        uncached_texts = [texts[i] for i in uncached_indices]
+        new_embeddings = embed_texts(uncached_texts)
+        for j, idx in enumerate(uncached_indices):
+            results[idx] = new_embeddings[j]
+            await set_cached_embedding(redis_client, texts[idx], model, new_embeddings[j])
+
+    cache_hits = len(texts) - len(uncached_indices)
+    if cache_hits > 0:
+        logger.info("[EMB_CACHE] %d/%d cache hits", cache_hits, len(texts))
+
+    return results  # type: ignore[return-value]
 
 
 def generate_chunk_context(doc_text: str, chunk_text: str) -> str:

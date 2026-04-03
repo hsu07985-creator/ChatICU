@@ -85,6 +85,23 @@ class Settings(BaseSettings):
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-large"
     ANTHROPIC_API_KEY: str = ""
 
+    # Embedding Cache (Redis)
+    EMBEDDING_CACHE_ENABLED: bool = True
+    EMBEDDING_CACHE_TTL_SECONDS: int = 604800  # 7 days
+
+    # Reranker — "cohere" (fast, dedicated) or "llm" (GPT-based fallback)
+    RERANKER_PROVIDER: str = "cohere"
+    COHERE_API_KEY: str = ""
+    COHERE_RERANK_MODEL: str = "rerank-v3.5"
+
+    # Agentic RAG — LLM decides search strategy (multi-round retrieval)
+    RAG_AGENTIC_ENABLED: bool = False
+    RAG_AGENTIC_MAX_ROUNDS: int = 3
+    RAG_AGENTIC_MODEL: str = "gpt-5-mini"
+
+    # LLM-based Guardrail — augments regex guardrail with LLM safety check
+    GUARDRAIL_LLM_ENABLED: bool = True
+
     # RAG (Phase 3)
     RAG_DOCS_PATH: str = ""
     RAG_MIN_CITATIONS: int = 1

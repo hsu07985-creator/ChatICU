@@ -28,6 +28,7 @@ from app.llm import (
     RECENT_MSG_WINDOW,
     call_llm,
     call_llm_multi_turn,
+    call_llm_stream,
     summarize_citations,
 )
 from app.middleware.auth import get_current_user
@@ -731,78 +732,126 @@ async def ai_chat(
         else None
     )
 
-    # RAG-augmented LLM response — try hybrid RAG (func/) first, fallback to local RAG
+    # RAG-augmented LLM response — try agentic RAG, hybrid RAG, or local RAG fallback
     citations = []
     rag_context = ""
     evidence_confidence = None
-    try:
-        hybrid_result = await asyncio.to_thread(
-            evidence_client.query,
-            req.message,
-            top_k=5,
-            **trace_kwargs,
-        )
-        evidence_confidence = hybrid_result.get("confidence")
-        rag_context = hybrid_result.get("answer", "")
-        # Also gather evidence snippets for richer context
-        snippets = hybrid_result.get("evidence_snippets", [])
-        if snippets:
-            snippet_texts = [s.get("text", "") for s in snippets if s.get("text")]
-            if snippet_texts:
-                rag_context += "\n\n---\n\n" + "\n\n---\n\n".join(snippet_texts[:3])
-        citations = await _build_hybrid_citations(
-            [c for c in hybrid_result.get("citations", []) if isinstance(c, dict)],
-            request,
-        )
-        if not citations:
-            citations = _build_snippet_fallback_citations(
-                [s for s in snippets if isinstance(s, dict)]
-            )
-        logger.info("[INTG][AI][API] Hybrid RAG returned %d citations", len(citations))
-    except Exception as exc:
-        logger.warning(
-            "[INTG][AI][API][F07] Hybrid RAG unavailable for ai_chat, falling back to local RAG: %s",
-            exc,
-        )
-        if await _ensure_local_rag_index():
-            # Retrieve more candidates then enforce source diversity (max 2 chunks per doc)
+
+    if settings.RAG_AGENTIC_ENABLED:
+        # Agentic RAG: LLM decides search strategy with multi-round retrieval
+        from app.services.llm_services.agentic_rag import agentic_retrieve
+
+        async def _agentic_retrieve_fn(query: str, top_k: int = 5):
+            """Wrapper that returns (context, citations) from hybrid or local RAG."""
             try:
-                _raw_sources = rag_service.retrieve(req.message, top_k=8)
-            except Exception as local_rag_exc:
-                logger.error(
-                    "[INTG][AI][API][F07] Local RAG retrieve failed, continuing without citations: %s",
-                    local_rag_exc,
-                    exc_info=True,
+                hr = await asyncio.to_thread(evidence_client.query, query, top_k=top_k, **trace_kwargs)
+                ctx = hr.get("answer", "")
+                snips = hr.get("evidence_snippets", [])
+                if snips:
+                    st = [s.get("text", "") for s in snips if s.get("text")]
+                    if st:
+                        ctx += "\n\n---\n\n" + "\n\n---\n\n".join(st[:3])
+                cits = await _build_hybrid_citations(
+                    [c for c in hr.get("citations", []) if isinstance(c, dict)], request,
                 )
-                _raw_sources = []
-            _source_counts: Dict[str, int] = {}
-            sources = []
-            for _s in _raw_sources:
-                _doc = str(_s.get("doc_id") or "")
-                if _source_counts.get(_doc, 0) < 2:
-                    sources.append(_s)
-                    _source_counts[_doc] = _source_counts.get(_doc, 0) + 1
-                if len(sources) >= 6:
-                    break
-            rag_context = "\n\n---\n\n".join([s["text"] for s in sources])
-            citations = [
-                {
-                    "id": f"cite_{i}",
-                    "type": "guideline",
-                    "title": _citation_title(s.get("doc_id")),
-                    "source": s.get("category", ""),
-                    "sourceFile": s.get("doc_id"),
-                    "chunkId": (
-                        f"{s.get('doc_id')}#{s.get('chunk_index')}"
-                        if s.get("doc_id") is not None and s.get("chunk_index") is not None
-                        else None
-                    ),
-                    "page": _normalize_page(s.get("page")) or _extract_page_from_text(s.get("text")),
-                    "snippet": _clean_snippet_text(s.get("text", "")),
-                    "relevance": round(s["score"], 3),
-                }
-                for i, s in enumerate(sources)
-            ]
+                if not cits:
+                    cits = _build_snippet_fallback_citations([s for s in snips if isinstance(s, dict)])
+                return ctx, cits
+            except Exception:
+                if await _ensure_local_rag_index():
+                    try:
+                        raw = rag_service.retrieve(query, top_k=top_k)
+                    except Exception:
+                        raw = []
+                    ctx = "\n\n---\n\n".join([s["text"] for s in raw[:6]])
+                    cits = [
+                        {"id": f"cite_{i}", "type": "guideline", "title": _citation_title(s.get("doc_id")),
+                         "source": s.get("category", ""), "sourceFile": s.get("doc_id"),
+                         "snippet": _clean_snippet_text(s.get("text", "")),
+                         "relevance": round(s["score"], 3)}
+                        for i, s in enumerate(raw[:6])
+                    ]
+                    return ctx, cits
+                return "", []
+
+        try:
+            rag_context, citations = await agentic_retrieve(
+                req.message, _agentic_retrieve_fn, trace_kwargs=trace_kwargs,
+            )
+            logger.info("[INTG][AI][API] Agentic RAG returned %d citations", len(citations))
+        except Exception as exc:
+            logger.warning("[INTG][AI][API] Agentic RAG failed, falling back to standard: %s", exc)
+            settings.RAG_AGENTIC_ENABLED = False  # disable for this request
+
+    if not rag_context and not citations:
+        # Standard single-shot retrieval path
+        try:
+            hybrid_result = await asyncio.to_thread(
+                evidence_client.query,
+                req.message,
+                top_k=5,
+                **trace_kwargs,
+            )
+            evidence_confidence = hybrid_result.get("confidence")
+            rag_context = hybrid_result.get("answer", "")
+            snippets = hybrid_result.get("evidence_snippets", [])
+            if snippets:
+                snippet_texts = [s.get("text", "") for s in snippets if s.get("text")]
+                if snippet_texts:
+                    rag_context += "\n\n---\n\n" + "\n\n---\n\n".join(snippet_texts[:3])
+            citations = await _build_hybrid_citations(
+                [c for c in hybrid_result.get("citations", []) if isinstance(c, dict)],
+                request,
+            )
+            if not citations:
+                citations = _build_snippet_fallback_citations(
+                    [s for s in snippets if isinstance(s, dict)]
+                )
+            logger.info("[INTG][AI][API] Hybrid RAG returned %d citations", len(citations))
+        except Exception as exc:
+            logger.warning(
+                "[INTG][AI][API][F07] Hybrid RAG unavailable for ai_chat, falling back to local RAG: %s",
+                exc,
+            )
+            if await _ensure_local_rag_index():
+                # Retrieve more candidates then enforce source diversity (max 2 chunks per doc)
+                try:
+                    _raw_sources = rag_service.retrieve(req.message, top_k=8)
+                except Exception as local_rag_exc:
+                    logger.error(
+                        "[INTG][AI][API][F07] Local RAG retrieve failed, continuing without citations: %s",
+                        local_rag_exc,
+                        exc_info=True,
+                    )
+                    _raw_sources = []
+                _source_counts: Dict[str, int] = {}
+                sources = []
+                for _s in _raw_sources:
+                    _doc = str(_s.get("doc_id") or "")
+                    if _source_counts.get(_doc, 0) < 2:
+                        sources.append(_s)
+                        _source_counts[_doc] = _source_counts.get(_doc, 0) + 1
+                    if len(sources) >= 6:
+                        break
+                rag_context = "\n\n---\n\n".join([s["text"] for s in sources])
+                citations = [
+                    {
+                        "id": f"cite_{i}",
+                        "type": "guideline",
+                        "title": _citation_title(s.get("doc_id")),
+                        "source": s.get("category", ""),
+                        "sourceFile": s.get("doc_id"),
+                        "chunkId": (
+                            f"{s.get('doc_id')}#{s.get('chunk_index')}"
+                            if s.get("doc_id") is not None and s.get("chunk_index") is not None
+                            else None
+                        ),
+                        "page": _normalize_page(s.get("page")) or _extract_page_from_text(s.get("text")),
+                        "snippet": _clean_snippet_text(s.get("text", "")),
+                        "relevance": round(s["score"], 3),
+                    }
+                    for i, s in enumerate(sources)
+                ]
 
     citations = _merge_citations_by_source(citations)
 
@@ -1020,52 +1069,275 @@ async def ai_chat_stream(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """SSE chat stream endpoint (AO-04).
+    """True SSE streaming chat endpoint (AO-04).
 
-    The core response generation stays shared with /ai/chat. This endpoint wraps
-    the final assistant message into incremental SSE delta chunks so the frontend
-    can render stream updates and still receive a final canonical payload.
+    Performs all pre-generation work (session, RAG, evidence gate) up front,
+    then streams LLM tokens in real-time via SSE delta events. Post-generation
+    work (guardrail, DB persist, compression) runs after streaming completes.
     """
 
     async def event_generator():
         try:
-            envelope = await ai_chat(req=req, request=request, user=user, db=db)
-            payload = envelope.get("data", {}) if isinstance(envelope, dict) else {}
-            message = payload.get("message", {}) if isinstance(payload, dict) else {}
-            content = str(message.get("content", ""))
+            # ── Phase 1: Pre-generation (shared with /ai/chat) ──────────
+            session_id = req.sessionId or f"session_{uuid.uuid4().hex[:8]}"
+            now = datetime.now(timezone.utc)
+            trace_kwargs = evidence_trace_kwargs(request)
+            request_id = trace_kwargs.get("request_id", "unknown")
+            trace_id = trace_kwargs.get("trace_id", request_id)
 
-            yield _sse_event(
-                "start",
-                {
-                    "sessionId": payload.get("sessionId"),
-                    "messageId": message.get("id"),
-                },
+            result = await db.execute(select(AISession).where(AISession.id == session_id))
+            session = result.scalar_one_or_none()
+            if not session:
+                session = AISession(
+                    id=session_id, user_id=user.id,
+                    patient_id=req.patientId, title=req.message[:50],
+                )
+                db.add(session)
+                await db.flush()
+
+            history_result = await db.execute(
+                select(AIMessage).where(AIMessage.session_id == session_id)
+                .order_by(AIMessage.created_at.asc())
+            )
+            all_messages = list(history_result.scalars().all())
+
+            user_msg_id = f"msg_{uuid.uuid4().hex[:8]}"
+            user_msg = AIMessage(id=user_msg_id, session_id=session_id, role="user", content=req.message)
+            db.add(user_msg)
+
+            patient_context = None
+            data_freshness = None
+            if req.patientId:
+                try:
+                    patient_context = await _get_patient_dict(req.patientId, db)
+                    data_freshness = build_data_freshness(patient_context)
+                except HTTPException:
+                    pass
+
+            chat_intent = _classify_chat_intent(req.message)
+            stability_gap_reason = (
+                _stability_data_gap_reason(data_freshness)
+                if chat_intent == "patient_stability" else None
             )
 
-            for chunk in _chunk_text_for_stream(content):
-                yield _sse_event("delta", {"chunk": chunk})
-                await asyncio.sleep(0)
+            # RAG retrieval
+            citations: List[Dict[str, Any]] = []
+            rag_context = ""
+            evidence_confidence = None
+            try:
+                hybrid_result = await asyncio.to_thread(
+                    evidence_client.query, req.message, top_k=5, **trace_kwargs,
+                )
+                evidence_confidence = hybrid_result.get("confidence")
+                rag_context = hybrid_result.get("answer", "")
+                snippets = hybrid_result.get("evidence_snippets", [])
+                if snippets:
+                    snippet_texts = [s.get("text", "") for s in snippets if s.get("text")]
+                    if snippet_texts:
+                        rag_context += "\n\n---\n\n" + "\n\n---\n\n".join(snippet_texts[:3])
+                citations = await _build_hybrid_citations(
+                    [c for c in hybrid_result.get("citations", []) if isinstance(c, dict)], request,
+                )
+                if not citations:
+                    citations = _build_snippet_fallback_citations(
+                        [s for s in snippets if isinstance(s, dict)]
+                    )
+            except Exception:
+                if await _ensure_local_rag_index():
+                    try:
+                        _raw_sources = rag_service.retrieve(req.message, top_k=8)
+                    except Exception:
+                        _raw_sources = []
+                    _source_counts: Dict[str, int] = {}
+                    sources = []
+                    for _s in _raw_sources:
+                        _doc = str(_s.get("doc_id") or "")
+                        if _source_counts.get(_doc, 0) < 2:
+                            sources.append(_s)
+                            _source_counts[_doc] = _source_counts.get(_doc, 0) + 1
+                        if len(sources) >= 6:
+                            break
+                    rag_context = "\n\n---\n\n".join([s["text"] for s in sources])
+                    citations = [
+                        {
+                            "id": f"cite_{i}", "type": "guideline",
+                            "title": _citation_title(s.get("doc_id")),
+                            "source": s.get("category", ""),
+                            "sourceFile": s.get("doc_id"),
+                            "chunkId": (
+                                f"{s.get('doc_id')}#{s.get('chunk_index')}"
+                                if s.get("doc_id") is not None and s.get("chunk_index") is not None
+                                else None
+                            ),
+                            "page": _normalize_page(s.get("page")) or _extract_page_from_text(s.get("text")),
+                            "snippet": _clean_snippet_text(s.get("text", "")),
+                            "relevance": round(s["score"], 3),
+                        }
+                        for i, s in enumerate(sources)
+                    ]
 
-            yield _sse_event("done", payload)
+            citations = _merge_citations_by_source(citations)
+            evidence_gate = evaluate_evidence_gate(
+                citations=citations, confidence=evidence_confidence,
+                **_evidence_gate_overrides(chat_intent),
+            )
+
+            ai_msg_id = f"msg_{uuid.uuid4().hex[:8]}"
+            yield _sse_event("start", {"sessionId": session_id, "messageId": ai_msg_id})
+
+            # ── Phase 2: Determine if we can stream or must return static ──
+            if stability_gap_reason or not evidence_gate["passed"]:
+                # Non-streamable paths: return complete response immediately
+                if stability_gap_reason:
+                    llm_result = await asyncio.to_thread(
+                        call_llm, task="chat_partial_response",
+                        input_data={
+                            "question": req.message, "intent": chat_intent,
+                            "patient": patient_context, "data_freshness": data_freshness,
+                            "missing_reason": stability_gap_reason, "evidence_context": rag_context,
+                        },
+                        request_id=request_id, trace_id=trace_id,
+                    )
+                    raw_content = llm_result.get("content", "") if llm_result.get("status") == "success" else (
+                        f"{stability_gap_reason}\n目前僅能提供部分資訊，請先補齊最新生命徵象後再評估是否穩定。"
+                    )
+                    degraded = True
+                    degraded_reason = "insufficient_patient_data"
+                else:
+                    raw_content = "目前可用證據不足，暫不提供具體建議，請補充臨床條件或改問更具體問題。"
+                    degraded = True
+                    degraded_reason = "insufficient_evidence"
+
+                guardrail_result = apply_safety_guardrail(raw_content, include_disclaimer=False, user_role=user.role)
+                ai_content = str(guardrail_result["content"])
+
+                # Emit as chunked deltas for consistent frontend handling
+                for chunk in _chunk_text_for_stream(ai_content):
+                    yield _sse_event("delta", {"chunk": chunk})
+                    await asyncio.sleep(0)
+
+            else:
+                # ── Phase 2b: True LLM streaming ──────────────────────
+                chat_messages = _build_chat_messages(
+                    session_summary=session.summary,
+                    history=all_messages,
+                    current_question=req.message,
+                    rag_context=rag_context,
+                    patient_context=patient_context,
+                )
+
+                # Start citation summarization in parallel
+                citation_task = None
+                if settings.RAG_CITATION_SUMMARY_ENABLED and citations:
+                    citation_task = asyncio.create_task(
+                        asyncio.to_thread(summarize_citations, req.message, citations)
+                    )
+
+                full_content = ""
+                degraded = False
+                degraded_reason = None
+
+                async for token in call_llm_stream(
+                    task="rag_generation",
+                    messages=chat_messages,
+                    request_id=request_id,
+                    trace_id=trace_id,
+                ):
+                    # Check for metadata/done marker
+                    if token.startswith("{") and '"__done__"' in token:
+                        break
+                    if token.startswith("[ERROR]"):
+                        degraded = True
+                        degraded_reason = "llm_unavailable"
+                        full_content = llm_unavailable_detail()
+                        for chunk in _chunk_text_for_stream(full_content):
+                            yield _sse_event("delta", {"chunk": chunk})
+                        break
+                    full_content += token
+                    yield _sse_event("delta", {"chunk": token})
+
+                # Await citation task
+                if citation_task:
+                    try:
+                        citations = await citation_task
+                    except Exception:
+                        pass  # keep original citations
+
+                # Apply safety guardrail on complete content
+                guardrail_result = apply_safety_guardrail(full_content, include_disclaimer=False, user_role=user.role)
+                ai_content = str(guardrail_result["content"])
+
+                # If guardrail modified content, we already streamed the raw version.
+                # The final 'done' event carries the canonical guardrail-processed content.
+
+            # ── Phase 3: Post-generation (persist + compress + audit) ──
+            ai_explanation = None
+            if not (stability_gap_reason or not evidence_gate["passed"]):
+                parsed_main, parsed_explanation = _extract_main_and_explanation(ai_content)
+                normalized_main = _normalize_main_answer_prefix(parsed_main, req.message)
+                ai_content = normalized_main or parsed_main or ai_content.strip()
+                ai_explanation = parsed_explanation
+
+            guardrail_meta = {
+                "guardrail": {
+                    "warnings": guardrail_result.get("warnings") if guardrail_result.get("flagged") else None,
+                    "flagged": guardrail_result.get("flagged", False),
+                    "requiresExpertReview": guardrail_result.get("requiresExpertReview", False),
+                },
+                "delivery": {
+                    "degraded": degraded,
+                    "degradedReason": degraded_reason if degraded else None,
+                },
+                "queryPolicy": {"intent": chat_intent, "stabilityDataGapReason": stability_gap_reason},
+                "response": {"explanation": ai_explanation},
+                "evidenceGate": evidence_gate,
+                "dataFreshness": data_freshness,
+            }
+
+            ai_msg = AIMessage(
+                id=ai_msg_id, session_id=session_id, role="assistant",
+                content=ai_content, citations=citations or None,
+                suggested_actions=guardrail_meta,
+            )
+            db.add(ai_msg)
+
+            all_messages.append(user_msg)
+            all_messages.append(ai_msg)
+            await _maybe_compress_history(session, all_messages)
+
+            await create_audit_log(
+                db, user_id=user.id, user_name=user.name, role=user.role,
+                action="AI 對話（串流）", target=session_id, status="success" if not degraded else "degraded",
+                ip=request.client.host if request.client else None,
+                details={
+                    "patient_id": req.patientId, "message_length": len(req.message),
+                    "safety_flagged": guardrail_result.get("flagged", False),
+                    "chat_intent": chat_intent, "streaming": True,
+                },
+            )
+            await db.commit()
+
+            # Final done event with complete payload
+            yield _sse_event("done", {
+                "message": {
+                    "id": ai_msg_id, "role": "assistant", "content": ai_content,
+                    "explanation": ai_explanation, "timestamp": _iso_z(now),
+                    "citations": citations,
+                    "safetyWarnings": guardrail_result.get("warnings") if guardrail_result.get("flagged") else None,
+                    "requiresExpertReview": guardrail_result.get("requiresExpertReview", False),
+                    "degraded": degraded,
+                    "degradedReason": degraded_reason if degraded else None,
+                    "evidenceGate": evidence_gate,
+                    "dataFreshness": data_freshness,
+                },
+                "sessionId": session_id,
+            })
+
         except HTTPException as exc:
-            yield _sse_event(
-                "error",
-                {
-                    "message": str(exc.detail),
-                    "status": exc.status_code,
-                    "recoverable": True,
-                },
-            )
+            yield _sse_event("error", {"message": str(exc.detail), "status": exc.status_code, "recoverable": True})
         except Exception as exc:
             logger.exception("[INTG][AI][API][AO-04] chat stream failed: %s", exc)
-            yield _sse_event(
-                "error",
-                {
-                    "message": "AI 串流失敗，請稍後重試。",
-                    "status": 500,
-                    "recoverable": True,
-                },
-            )
+            yield _sse_event("error", {"message": "AI 串流失敗，請稍後重試。", "status": 500, "recoverable": True})
 
     return StreamingResponse(
         event_generator(),

@@ -25,6 +25,7 @@ redis[hiredis]==5.2.1
 # AI / RAG (Phase 3)
 openai>=1.51.0
 anthropic>=0.34.0
+cohere>=5.0.0
 PyMuPDF>=1.24.0
 python-docx>=1.1.0
 numpy>=1.24.0
