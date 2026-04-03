@@ -122,7 +122,7 @@ export function MedicationNormalizationPage() {
             <RefreshCw className="mr-2 h-4 w-4" />
             重新載入
           </Button>
-          <Button onClick={handleSave} disabled={loading || saving || !hasLocalChange} className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]">
+          <Button onClick={handleSave} disabled={loading || saving || !hasLocalChange} className="bg-brand hover:bg-brand-hover">
             <Save className="mr-2 h-4 w-4" />
             儲存
           </Button>
@@ -157,7 +157,7 @@ export function MedicationNormalizationPage() {
             <CardTitle className="text-base">版本</CardTitle>
           </CardHeader>
           <CardContent>
-            <Badge className="bg-[var(--color-brand)] text-white">{config?.version || '-'}</Badge>
+            <Badge className="bg-brand text-white">{config?.version || '-'}</Badge>
           </CardContent>
         </Card>
       </div>
@@ -165,7 +165,7 @@ export function MedicationNormalizationPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <FileJson className="h-5 w-5 text-[var(--color-brand)]" />
+            <FileJson className="h-5 w-5 text-brand" />
             字典編輯
           </CardTitle>
           <CardDescription>請輸入合法 JSON object，key/value 皆為字串。</CardDescription>

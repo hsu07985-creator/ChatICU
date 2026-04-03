@@ -114,7 +114,7 @@ export function UsersPage() {
 
   const getRoleBadge = (role: User['role']) => {
     const config = {
-      admin: { label: '系統管理員', color: 'bg-[var(--color-brand)] text-white', icon: ShieldCheck },
+      admin: { label: '系統管理員', color: 'bg-brand text-white', icon: ShieldCheck },
       doctor: { label: '醫師', color: 'bg-blue-100 text-blue-800', icon: Shield },
       nurse: { label: '護理師', color: 'bg-green-100 text-green-800', icon: Shield },
       pharmacist: { label: '藥師', color: 'bg-purple-100 text-purple-800', icon: Shield }
@@ -248,7 +248,7 @@ export function UsersPage() {
         </div>
         <Button
           onClick={() => setIsAddDialogOpen(true)}
-          className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]"
+          className="bg-brand hover:bg-brand-hover"
         >
           <Plus className="mr-2 h-4 w-4" />
           新增帳號
@@ -262,7 +262,7 @@ export function UsersPage() {
             <CardTitle className="text-base text-muted-foreground">總帳號數</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-[var(--color-brand)]">{userStats.total}</div>
+            <div className="text-3xl font-bold text-brand">{userStats.total}</div>
           </CardContent>
         </Card>
         <Card>
@@ -297,7 +297,7 @@ export function UsersPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-xl">
-                <UserCog className="h-6 w-6 text-[var(--color-brand)]" />
+                <UserCog className="h-6 w-6 text-brand" />
                 帳號清單
               </CardTitle>
               <CardDescription className="text-sm mt-2">
@@ -348,7 +348,7 @@ export function UsersPage() {
                           setSelectedUser(user);
                           setIsEditDialogOpen(true);
                         }}
-                        className="text-[var(--color-brand)] hover:text-[var(--color-brand)] hover:bg-slate-50"
+                        className="text-brand hover:text-brand hover:bg-slate-50"
                       >
                         <Edit2 className="h-4 w-4" />
                       </Button>
@@ -409,7 +409,7 @@ export function UsersPage() {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5 text-[var(--color-brand)]" />
+              <Plus className="h-5 w-5 text-brand" />
               新增帳號
             </DialogTitle>
             <DialogDescription>
@@ -483,7 +483,7 @@ export function UsersPage() {
             <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={submitting}>
               取消
             </Button>
-            <Button onClick={handleAddUser} className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]" disabled={submitting}>
+            <Button onClick={handleAddUser} className="bg-brand hover:bg-brand-hover" disabled={submitting}>
               {submitting ? '建立中...' : '建立帳號'}
             </Button>
           </DialogFooter>
@@ -496,7 +496,7 @@ export function UsersPage() {
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Edit2 className="h-5 w-5 text-[var(--color-brand)]" />
+                <Edit2 className="h-5 w-5 text-brand" />
                 編輯帳號
               </DialogTitle>
               <DialogDescription>
@@ -552,7 +552,7 @@ export function UsersPage() {
               <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={submitting}>
                 取消
               </Button>
-              <Button onClick={handleEditUser} className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]" disabled={submitting}>
+              <Button onClick={handleEditUser} className="bg-brand hover:bg-brand-hover" disabled={submitting}>
                 {submitting ? '儲存中...' : '儲存變更'}
               </Button>
             </DialogFooter>

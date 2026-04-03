@@ -9,11 +9,11 @@ interface PatientDetailTabsListProps {
 export function PatientDetailTabsList({ unreadMessagesCount }: PatientDetailTabsListProps) {
   return (
     <TabsList className="grid w-full grid-cols-6 h-[44px] bg-slate-50 border border-border gap-0.5 p-0.5">
-      <TabsTrigger value="chat" className="text-[13px] font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white rounded-md">
+      <TabsTrigger value="chat" className="text-[13px] font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
         <MessageSquare className="mr-1.5 h-4 w-4" />
         對話助手
       </TabsTrigger>
-      <TabsTrigger value="messages" className="text-[13px] font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white relative rounded-md">
+      <TabsTrigger value="messages" className="text-[13px] font-medium data-[state=active]:bg-brand data-[state=active]:text-white relative rounded-md">
         <MessagesSquare className="mr-1.5 h-4 w-4" />
         留言板
         {unreadMessagesCount > 0 && (
@@ -22,19 +22,19 @@ export function PatientDetailTabsList({ unreadMessagesCount }: PatientDetailTabs
           </Badge>
         )}
       </TabsTrigger>
-      <TabsTrigger value="records" className="text-[13px] font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white rounded-md">
+      <TabsTrigger value="records" className="text-[13px] font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
         <FileText className="mr-1.5 h-4 w-4" />
         病歷記錄
       </TabsTrigger>
-      <TabsTrigger value="labs" className="text-[13px] font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white rounded-md">
+      <TabsTrigger value="labs" className="text-[13px] font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
         <TestTube className="mr-1.5 h-4 w-4" />
         檢驗數據
       </TabsTrigger>
-      <TabsTrigger value="meds" className="text-[13px] font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white rounded-md">
+      <TabsTrigger value="meds" className="text-[13px] font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
         <Pill className="mr-1.5 h-4 w-4" />
         用藥
       </TabsTrigger>
-      <TabsTrigger value="summary" className="text-[13px] font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white rounded-md">
+      <TabsTrigger value="summary" className="text-[13px] font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
         <FileText className="mr-1.5 h-4 w-4" />
         病歷摘要
       </TabsTrigger>

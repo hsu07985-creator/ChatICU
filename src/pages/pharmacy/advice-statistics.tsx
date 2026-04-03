@@ -295,13 +295,13 @@ export function PharmacyAdviceStatisticsPage() {
 
       {/* ── 統計卡片 ── */}
       <div className="grid gap-3 md:grid-cols-5">
-        <Card className="border-[var(--color-brand)]">
+        <Card className="border-brand">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">本月總計</CardTitle>
-            <TrendingUp className="h-5 w-5 text-[var(--color-brand)]" />
+            <TrendingUp className="h-5 w-5 text-brand" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-[var(--color-brand)]">{totalAdvices}</div>
+            <div className="text-3xl font-bold text-brand">{totalAdvices}</div>
           </CardContent>
         </Card>
 

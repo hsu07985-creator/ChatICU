@@ -370,7 +370,7 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
       <Card>
         <CardHeader className="min-h-14 bg-slate-50 border-b py-3">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <Bug className="h-6 w-6 text-[var(--color-brand)]" />
+            <Bug className="h-6 w-6 text-brand" />
             Microbiology
           </CardTitle>
         </CardHeader>
@@ -388,7 +388,7 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
       <Card>
         <CardHeader className="min-h-14 bg-slate-50 border-b py-3">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <Bug className="h-6 w-6 text-[var(--color-brand)]" />
+            <Bug className="h-6 w-6 text-brand" />
             Microbiology
           </CardTitle>
         </CardHeader>
@@ -403,7 +403,7 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
     <Card>
       <CardHeader className="bg-slate-50 border-b py-2.5">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <Bug className="h-6 w-6 text-[var(--color-brand)]" />
+          <Bug className="h-6 w-6 text-brand" />
           Microbiology
         </CardTitle>
         <CardDescription className="mt-0.5 text-sm flex items-center gap-1">

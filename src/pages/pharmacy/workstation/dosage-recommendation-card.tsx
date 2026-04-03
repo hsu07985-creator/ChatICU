@@ -9,7 +9,7 @@ interface DosageRecommendationCardProps {
 const statusConfig: Record<DosageResult['status'], { label: string; className: string }> = {
   calculated: {
     label: '已計算',
-    className: 'bg-[var(--color-brand)] text-white',
+    className: 'bg-brand text-white',
   },
   requires_input: {
     label: '待補資料',
@@ -72,7 +72,7 @@ export function DosageRecommendationCard({
             <p className="text-xs uppercase tracking-wide text-muted-foreground">
               {dose.calculatedRateTitle || '建議速率'}
             </p>
-            <p className="mt-1 text-sm font-semibold text-[var(--color-brand)]">{dose.calculatedRate}</p>
+            <p className="mt-1 text-sm font-semibold text-brand">{dose.calculatedRate}</p>
           </div>
         </div>
       </div>

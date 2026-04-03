@@ -467,7 +467,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                   </Button>
                   <Button
                     onClick={handleSaveRecord}
-                    className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]"
+                    className="bg-brand hover:bg-brand-hover"
                   >
                     <Send className="mr-2 h-4 w-4" />
                     儲存記錄

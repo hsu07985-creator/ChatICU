@@ -20,7 +20,7 @@ export function LoadingSpinner({ size = 'md', className, text }: LoadingSpinnerP
 
   return (
     <div className={cn('flex items-center justify-center gap-3', className)}>
-      <Loader2 className={cn('animate-spin text-[var(--color-brand)]', sizeClasses[size])} />
+      <Loader2 className={cn('animate-spin text-brand', sizeClasses[size])} />
       {text && <span className="text-muted-foreground">{text}</span>}
     </div>
   );
@@ -37,8 +37,8 @@ export function LoadingCard({ title = '載入中', description, className }: Loa
     <Card className={cn('border-dashed', className)}>
       <CardContent className="flex flex-col items-center justify-center py-12">
         <div className="relative">
-          <div className="w-16 h-16 border-4 border-[var(--color-brand)]/20 rounded-full"></div>
-          <div className="w-16 h-16 border-4 border-[var(--color-brand)] border-t-transparent rounded-full animate-spin absolute top-0"></div>
+          <div className="w-16 h-16 border-4 border-brand/20 rounded-full"></div>
+          <div className="w-16 h-16 border-4 border-brand border-t-transparent rounded-full animate-spin absolute top-0"></div>
         </div>
         <p className="mt-4 font-medium text-foreground">{title}</p>
         {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
@@ -95,7 +95,7 @@ export function ErrorDisplay({
       <h3 className="text-lg font-semibold text-foreground mb-2">{title || config.defaultTitle}</h3>
       {message && <p className="text-sm text-muted-foreground text-center max-w-md mb-4">{message}</p>}
       {onRetry && (
-        <Button onClick={onRetry} variant="outline" className="border-[var(--color-brand)] text-[var(--color-brand)] hover:bg-[var(--color-brand)] hover:text-white">
+        <Button onClick={onRetry} variant="outline" className="border-brand text-brand hover:bg-brand hover:text-white">
           <RefreshCw className="mr-2 h-4 w-4" />
           {retryText}
         </Button>
@@ -136,7 +136,7 @@ export function EmptyState({ icon: Icon = Inbox, title, description, action, cla
       <h3 className="text-lg font-medium text-foreground mb-1">{title}</h3>
       {description && <p className="text-sm text-muted-foreground text-center max-w-md mb-4">{description}</p>}
       {action && (
-        <Button onClick={action.onClick} className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]">
+        <Button onClick={action.onClick} className="bg-brand hover:bg-brand-hover">
           {action.label}
         </Button>
       )}

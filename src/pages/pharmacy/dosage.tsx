@@ -306,7 +306,7 @@ export function DosagePage() {
           {/* ─── Result (inline, same card) ─── */}
           {loading && (
             <div className="text-center py-6">
-              <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-[var(--color-brand)]" />
+              <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-brand" />
               <p className="text-xs text-muted-foreground">計算中...</p>
             </div>
           )}
@@ -335,11 +335,11 @@ export function DosagePage() {
                   {/* Header: drug name + rate hero + secondary stats */}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                     {/* Rate hero */}
-                    <div className="flex items-center gap-3 px-4 py-3 bg-[var(--color-brand)]/10 border border-[var(--color-brand)]/20 rounded-lg">
+                    <div className="flex items-center gap-3 px-4 py-3 bg-brand/10 border border-brand/20 rounded-lg">
                       <div>
                         <p className="text-xs text-muted-foreground leading-tight">輸注速率</p>
-                        <p className="text-3xl font-bold text-[var(--color-brand)] leading-none">{result.rate_ml_hr}</p>
-                        <p className="text-xs font-medium text-[var(--color-brand)]/70">ml/hr</p>
+                        <p className="text-3xl font-bold text-brand leading-none">{result.rate_ml_hr}</p>
+                        <p className="text-xs font-medium text-brand/70">ml/hr</p>
                       </div>
                     </div>
                     {/* Drug info + secondary */}

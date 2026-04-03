@@ -47,7 +47,7 @@ export function VitalSignCard({ label, value, unit, onClick, isAbnormal, abnorma
           : 'border-border bg-gradient-to-br from-white to-slate-50'
       } ${
         canClick
-          ? 'cursor-pointer transition-all hover:-translate-y-0.5 hover:border-[var(--color-brand)]/45 hover:shadow-sm'
+          ? 'cursor-pointer transition-all hover:-translate-y-0.5 hover:border-brand/45 hover:shadow-sm'
           : 'cursor-default'
       }`}
       onClick={canClick ? onClick : undefined}

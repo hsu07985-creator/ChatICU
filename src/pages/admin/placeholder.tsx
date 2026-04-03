@@ -70,7 +70,7 @@ export function AuditPage() {
 
   const getRoleBadge = (role: string) => {
     const config: Record<string, { label: string; color: string; icon: typeof ShieldCheck }> = {
-      '管理者': { label: '系統管理員', color: 'bg-[var(--color-brand)] text-white', icon: ShieldCheck },
+      '管理者': { label: '系統管理員', color: 'bg-brand text-white', icon: ShieldCheck },
       '醫師': { label: '醫師', color: 'bg-blue-100 text-blue-800', icon: Shield },
       '護理師': { label: '護理師', color: 'bg-green-100 text-green-800', icon: Shield },
       '藥師': { label: '藥師', color: 'bg-purple-100 text-purple-800', icon: Shield },
@@ -105,7 +105,7 @@ export function AuditPage() {
           variant="outline"
           onClick={loadData}
           disabled={loading}
-          className="border-[var(--color-brand)] text-[var(--color-brand)] hover:bg-[var(--color-brand)] hover:text-white"
+          className="border-brand text-brand hover:bg-brand hover:text-white"
         >
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           重新整理
@@ -119,7 +119,7 @@ export function AuditPage() {
             <CardTitle className="text-base text-muted-foreground">今日總操作</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-[var(--color-brand)]">{stats.total}</div>
+            <div className="text-3xl font-bold text-brand">{stats.total}</div>
           </CardContent>
         </Card>
         <Card>
@@ -156,7 +156,7 @@ export function AuditPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-xl">
-                <FileText className="h-6 w-6 text-[var(--color-brand)]" />
+                <FileText className="h-6 w-6 text-brand" />
                 稽核記錄列表
               </CardTitle>
               <CardDescription className="text-sm mt-2">

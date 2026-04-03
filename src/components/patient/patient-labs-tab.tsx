@@ -122,7 +122,7 @@ export function PatientLabsTab({
               >
                 <div className="min-w-0">
                   <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                    <Activity className="h-6 w-6 text-[var(--color-brand)]" />
+                    <Activity className="h-6 w-6 text-brand" />
                     生命徵象 Vital Signs
                   </CardTitle>
                   <CardDescription className="mt-1 flex items-center gap-1 text-sm">
@@ -245,7 +245,7 @@ export function PatientLabsTab({
                 >
                   <div className="min-w-0">
                     <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                      <Wind className="h-6 w-6 text-[var(--color-brand)]" />
+                      <Wind className="h-6 w-6 text-brand" />
                       呼吸器設定 Ventilator Settings
                     </CardTitle>
                     <CardDescription className="mt-1 flex items-center gap-1 text-sm">
@@ -387,8 +387,8 @@ export function PatientLabsTab({
             type="button"
             className={`flex h-10 min-w-[136px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors ${
               activeSection === 'lab-data'
-                ? 'bg-[var(--color-brand)] text-white shadow-sm'
-                : 'bg-transparent text-slate-600 hover:bg-white hover:text-[var(--color-brand)]'
+                ? 'bg-brand text-white shadow-sm'
+                : 'bg-transparent text-slate-600 hover:bg-white hover:text-brand'
             }`}
             onClick={() => setActiveSection('lab-data')}
             aria-pressed={activeSection === 'lab-data'}
@@ -400,8 +400,8 @@ export function PatientLabsTab({
             type="button"
             className={`flex h-10 min-w-[136px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors ${
               activeSection === 'microbiology'
-                ? 'bg-[var(--color-brand)] text-white shadow-sm'
-                : 'bg-transparent text-slate-600 hover:bg-white hover:text-[var(--color-brand)]'
+                ? 'bg-brand text-white shadow-sm'
+                : 'bg-transparent text-slate-600 hover:bg-white hover:text-brand'
             }`}
             onClick={() => setActiveSection('microbiology')}
             aria-pressed={activeSection === 'microbiology'}
@@ -417,7 +417,7 @@ export function PatientLabsTab({
           <Card>
             <CardHeader className="min-h-14 bg-slate-50 border-b py-3">
               <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                <TestTube className="h-6 w-6 text-[var(--color-brand)]" />
+                <TestTube className="h-6 w-6 text-brand" />
                 檢驗數據 Lab Data
               </CardTitle>
               <CardDescription className="mt-1 text-sm flex items-center gap-1">

@@ -34,9 +34,9 @@ const adviceCategories = {
   prescription: {
     label: PHARMACY_ADVICE_CATEGORIES.prescription.label,
     color: 'bg-purple-100 border-purple-300 hover:bg-purple-200',
-    activeColor: 'bg-[var(--color-brand)] text-white',
+    activeColor: 'bg-brand text-white',
     icon: Pill,
-    iconColor: 'text-[var(--color-brand)]',
+    iconColor: 'text-brand',
     codes: PHARMACY_ADVICE_CATEGORIES.prescription.codes,
   },
   proactive: {
@@ -282,7 +282,7 @@ export function PharmacistAdviceWidget({
                 <Card 
                   className={`border-2 cursor-pointer transition-all ${
                     selectedCategory === 'prescription'
-                      ? 'ring-4 ring-offset-2 ring-[var(--color-brand)]/50 bg-[var(--color-brand)] text-white'
+                      ? 'ring-4 ring-offset-2 ring-brand/50 bg-brand text-white'
                       : 'bg-purple-100 border-purple-300 hover:bg-purple-200'
                   }`}
                   onClick={() => {
@@ -292,7 +292,7 @@ export function PharmacistAdviceWidget({
                 >
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-lg">
-                      <Pill className={`h-6 w-6 ${selectedCategory === 'prescription' ? 'text-white' : 'text-[var(--color-brand)]'}`} />
+                      <Pill className={`h-6 w-6 ${selectedCategory === 'prescription' ? 'text-white' : 'text-brand'}`} />
                       1. 建議處方
                     </CardTitle>
                   </CardHeader>
@@ -307,7 +307,7 @@ export function PharmacistAdviceWidget({
                             variant={selectedCode === codeItem.code ? 'default' : 'outline'}
                             className={`justify-start text-left h-auto py-2.5 text-sm ${
                               selectedCode === codeItem.code 
-                                ? 'bg-white text-[var(--color-brand)] hover:bg-white/90' 
+                                ? 'bg-white text-brand hover:bg-white/90' 
                                 : 'bg-purple-50 text-foreground border-purple-200 hover:bg-purple-100'
                             }`}
                             onClick={(e) => {

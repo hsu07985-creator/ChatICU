@@ -127,7 +127,7 @@ function ScoreSelector({
               onClick={() => setPending(v)}
               className={`flex-1 py-1.5 text-xs font-semibold tabular-nums rounded transition-all border
                 ${isSelected
-                  ? `${color} ring-2 ring-[var(--color-brand)] ring-offset-1 scale-105 shadow-sm`
+                  ? `${color} ring-2 ring-brand ring-offset-1 scale-105 shadow-sm`
                   : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-700 hover:scale-105'
                 }
                 disabled:pointer-events-none disabled:opacity-40
@@ -141,12 +141,12 @@ function ScoreSelector({
       {/* 確認列 */}
       {hasPending && (
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[var(--color-brand)]">
+          <span className="text-sm font-medium text-brand">
             {fmt(pending!)}
           </span>
           <Button
             size="sm"
-            className="h-7 px-3 text-xs font-medium bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] rounded-md"
+            className="h-7 px-3 text-xs font-medium bg-brand hover:bg-brand-hover rounded-md"
             disabled={submitting}
             onClick={handleConfirm}
           >
@@ -307,7 +307,7 @@ export function PatientMedicationsTab({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 px-3 text-xs border-[#d9b6c8] text-[var(--color-brand)] hover:bg-[#fbf4f8]"
+                    className="h-7 px-3 text-xs border-[#d9b6c8] text-brand hover:bg-[#fbf4f8]"
                     onClick={() => onOpenScoreTrend('pain')}
                   >
                     趨勢
@@ -366,7 +366,7 @@ export function PatientMedicationsTab({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 px-3 text-xs border-[#d9b6c8] text-[var(--color-brand)] hover:bg-[#fbf4f8]"
+                    className="h-7 px-3 text-xs border-[#d9b6c8] text-brand hover:bg-[#fbf4f8]"
                     onClick={() => onOpenScoreTrend('rass')}
                   >
                     趨勢

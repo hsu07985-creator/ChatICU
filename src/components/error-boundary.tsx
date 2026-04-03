@@ -56,7 +56,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             message={this.state.error?.message || '頁面發生未預期的錯誤'}
           />
           <div className="flex gap-3 mt-6">
-            <Button onClick={this.handleRetry} className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]">
+            <Button onClick={this.handleRetry} className="bg-brand hover:bg-brand-hover">
               <RefreshCw className="mr-2 h-4 w-4" />
               重新載入
             </Button>

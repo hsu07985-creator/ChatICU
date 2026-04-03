@@ -1199,14 +1199,14 @@ export function PatientDetailPage() {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-full bg-[var(--color-brand)] text-white flex items-center justify-center font-bold text-2xl shadow-lg">
+                <div className="h-16 w-16 rounded-full bg-brand text-white flex items-center justify-center font-bold text-2xl shadow-lg">
                   {patient.bedNumber}
                 </div>
                 <div>
                   <div className="flex items-center gap-3">
                     <h1 className="text-3xl font-bold text-[#3c7acb]">{patient.name}</h1>
                     {patient.intubated && (
-                      <Badge className="bg-[#d1cbf7] text-[var(--color-brand)] hover:bg-[#d1cbf7]/90">
+                      <Badge className="bg-[#d1cbf7] text-brand hover:bg-[#d1cbf7]/90">
                         插管中
                       </Badge>
                     )}
@@ -1222,7 +1222,7 @@ export function PatientDetailPage() {
             </div>
             <div className="flex gap-2">
               {user?.role === 'admin' && (
-                <Button className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]">編輯基本資料</Button>
+                <Button className="bg-brand hover:bg-brand-hover">編輯基本資料</Button>
               )}
             </div>
           </div>
@@ -1232,11 +1232,11 @@ export function PatientDetailPage() {
       {/* 分頁內容 */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-6 h-[44px] bg-slate-50 border border-border gap-0.5 p-0.5">
-          <TabsTrigger value="chat" className="text-xs font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white rounded-md">
+          <TabsTrigger value="chat" className="text-xs font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
             <MessageSquare className="mr-1.5 h-4 w-4" />
             對話助手
           </TabsTrigger>
-          <TabsTrigger value="messages" className="text-xs font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white relative rounded-md">
+          <TabsTrigger value="messages" className="text-xs font-medium data-[state=active]:bg-brand data-[state=active]:text-white relative rounded-md">
             <MessagesSquare className="mr-1.5 h-4 w-4" />
             留言板
             {messages.filter(m => !m.isRead).length > 0 && (
@@ -1245,19 +1245,19 @@ export function PatientDetailPage() {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="records" className="text-xs font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white rounded-md">
+          <TabsTrigger value="records" className="text-xs font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
             <FileText className="mr-1.5 h-4 w-4" />
             病歷記錄
           </TabsTrigger>
-          <TabsTrigger value="labs" className="text-xs font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white rounded-md">
+          <TabsTrigger value="labs" className="text-xs font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
             <TestTube className="mr-1.5 h-4 w-4" />
             檢驗數據
           </TabsTrigger>
-          <TabsTrigger value="meds" className="text-xs font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white rounded-md">
+          <TabsTrigger value="meds" className="text-xs font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
             <Pill className="mr-1.5 h-4 w-4" />
             用藥
           </TabsTrigger>
-          <TabsTrigger value="summary" className="text-xs font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white rounded-md">
+          <TabsTrigger value="summary" className="text-xs font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
             <FileText className="mr-1.5 h-4 w-4" />
             病歷摘要
           </TabsTrigger>
@@ -1415,15 +1415,15 @@ export function PatientDetailPage() {
 	                          {canSendAiChat ? 'AI 就緒' : 'AI 未就緒'}
 	                        </Badge>
 	                      )}
-	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-[var(--color-brand)]"
+	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-brand"
 	                        onClick={refreshAiReadiness} disabled={isCheckingAiReadiness} title="檢查 AI 狀態">
 	                        <Activity className={`h-3 w-3 ${isCheckingAiReadiness ? 'animate-spin' : ''}`} />
 	                      </Button>
-	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-[var(--color-brand)]"
+	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-brand"
 	                        onClick={() => loadPatientBundle('refresh')} disabled={isRefreshingPatientData} title="更新患者數值">
 	                        <RefreshCw className={`h-3 w-3 ${isRefreshingPatientData ? 'animate-spin' : ''}`} />
 	                      </Button>
-	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-[var(--color-brand)]"
+	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-brand"
 	                        onClick={() => setShowSessionList(!showSessionList)} title={showSessionList ? '隱藏記錄列表' : '顯示記錄列表'}>
 	                        <History className="h-3 w-3" />
 	                      </Button>

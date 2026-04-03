@@ -403,7 +403,7 @@ export function PatientsPage() {
                   </TableCell>
                   <TableCell>
                     {patient.hasDNR ? (
-                      <Badge className="bg-[var(--color-brand)] hover:bg-[var(--color-brand)]/90">有</Badge>
+                      <Badge className="bg-brand hover:bg-brand/90">有</Badge>
                     ) : (
                       <Badge variant="outline" className="text-muted-foreground">無</Badge>
                     )}
@@ -450,7 +450,7 @@ export function PatientsPage() {
                               e.stopPropagation();
                               handleEdit(patient);
                             }}
-                            className="text-[var(--color-brand)] hover:text-[var(--color-brand)] hover:bg-slate-50"
+                            className="text-brand hover:text-brand hover:bg-slate-50"
                             title="編輯"
                           >
                             <Edit2 className="h-4 w-4" />
@@ -462,7 +462,7 @@ export function PatientsPage() {
                               e.stopPropagation();
                               handleArchivePatient(patient.id);
                             }}
-                            className="text-muted-foreground hover:text-[var(--color-brand)] hover:bg-slate-50"
+                            className="text-muted-foreground hover:text-brand hover:bg-slate-50"
                             title="封存"
                           >
                             <Archive className="h-4 w-4" />
@@ -491,7 +491,7 @@ export function PatientsPage() {
           <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Edit2 className="h-5 w-5 text-[var(--color-brand)]" />
+                <Edit2 className="h-5 w-5 text-brand" />
                 編輯病人資料
               </DialogTitle>
               <DialogDescription>
@@ -698,7 +698,7 @@ export function PatientsPage() {
               </Button>
               <Button
                 onClick={handleSave}
-                className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]"
+                className="bg-brand hover:bg-brand-hover"
               >
                 <Save className="mr-2 h-4 w-4" />
                 儲存變更
@@ -714,7 +714,7 @@ export function PatientsPage() {
           <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5 text-[var(--color-brand)]" />
+                <Plus className="h-5 w-5 text-brand" />
                 新增病患
               </DialogTitle>
               <DialogDescription>
@@ -894,7 +894,7 @@ export function PatientsPage() {
               <Button
                 onClick={handleCreatePatient}
                 disabled={creatingPatient}
-                className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]"
+                className="bg-brand hover:bg-brand-hover"
               >
                 {creatingPatient ? '建立中...' : '建立病患'}
               </Button>
@@ -909,7 +909,7 @@ export function PatientsPage() {
           <DialogContent className="sm:max-w-[520px]">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Archive className="h-5 w-5 text-[var(--color-brand)]" />
+                <Archive className="h-5 w-5 text-brand" />
                 封存病患
               </DialogTitle>
               <DialogDescription>
@@ -944,7 +944,7 @@ export function PatientsPage() {
               <Button
                 onClick={() => handleArchivePatient(archiveTargetId)}
                 disabled={archivingPatient || !archiveTargetId}
-                className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]"
+                className="bg-brand hover:bg-brand-hover"
               >
                 {archivingPatient ? '封存中...' : '確認封存'}
               </Button>

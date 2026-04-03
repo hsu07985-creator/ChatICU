@@ -65,9 +65,9 @@ export function LoginPage() {
       {/* 左側裝飾區 */}
       <div className="hidden lg:flex flex-1 bg-slate-50 items-center justify-center p-12 relative">
         <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-[15%] left-[20%] w-32 h-32 rounded-full bg-[var(--color-brand)]" />
+          <div className="absolute top-[15%] left-[20%] w-32 h-32 rounded-full bg-brand" />
           <div className="absolute top-[35%] right-[15%] w-24 h-24 rounded-full bg-[#f59e0b]" />
-          <div className="absolute bottom-[25%] left-[15%] w-20 h-20 rounded-full bg-[var(--color-brand)]" />
+          <div className="absolute bottom-[25%] left-[15%] w-20 h-20 rounded-full bg-brand" />
         </div>
 
         <div className="relative z-10 max-w-md text-center space-y-8">
@@ -77,7 +77,7 @@ export function LoginPage() {
           </div>
 
           {/* Tagline */}
-          <p className="text-[var(--color-brand)] text-2xl font-semibold">
+          <p className="text-brand text-2xl font-semibold">
             <span className="font-black">I</span>ntelligent{' '}
             <span className="font-black">C</span>are for yo
             <span className="font-black">U</span>
@@ -162,7 +162,7 @@ export function LoginPage() {
               {/* Login Button */}
               <Button
                 type="submit"
-                className="w-full h-12 bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-white text-lg font-extrabold"
+                className="w-full h-12 bg-brand hover:bg-brand-hover text-white text-lg font-extrabold"
                 disabled={loading}
               >
                 {loading ? '登入中...' : 'Login'}
@@ -180,7 +180,7 @@ export function LoginPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full h-12 border-[var(--color-brand)] text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 font-semibold"
+                className="w-full h-12 border-brand text-brand hover:bg-brand/10 font-semibold"
                 disabled={loading}
                 onClick={async () => {
                   setError('');

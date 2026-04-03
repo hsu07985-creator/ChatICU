@@ -526,7 +526,7 @@ export function CompatibilityPage() {
 
       {loading && (
         <div className="text-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-[var(--color-brand)]" />
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-brand" />
           <p className="text-muted-foreground">查詢中...</p>
         </div>
       )}

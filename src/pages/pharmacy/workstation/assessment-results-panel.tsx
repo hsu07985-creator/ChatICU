@@ -121,8 +121,8 @@ export function AssessmentResultsPanel({
   return (
     <div className="lg:col-span-3 space-y-4">
       {/* ── 評估摘要 ── */}
-      <Card className="border-[var(--color-brand)] border-2">
-        <CardHeader className="bg-[var(--color-brand)] text-white py-3">
+      <Card className="border-brand border-2">
+        <CardHeader className="bg-brand text-white py-3">
           <CardTitle className="text-white text-base flex items-center gap-2">
             <ShieldAlert className="h-5 w-5" />
             評估摘要
@@ -185,14 +185,14 @@ export function AssessmentResultsPanel({
             {/* PAD 劑量 */}
             <div className="rounded-lg border p-4 text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
-                <Calculator className="h-5 w-5 text-[var(--color-brand)]" />
+                <Calculator className="h-5 w-5 text-brand" />
                 <span className="text-sm font-semibold">PAD 劑量</span>
               </div>
               {dosage.length === 0 ? (
                 <p className="text-base font-bold text-muted-foreground">無 PAD 藥物</p>
               ) : calculatedCount > 0 ? (
                 <>
-                  <p className="text-2xl font-bold text-[var(--color-brand)]">{calculatedCount} <span className="text-sm font-normal">已算</span></p>
+                  <p className="text-2xl font-bold text-brand">{calculatedCount} <span className="text-sm font-normal">已算</span></p>
                   <p className="text-xs text-muted-foreground mt-1">共 {dosage.length} 項 PAD 藥物</p>
                 </>
               ) : (
@@ -257,7 +257,7 @@ export function AssessmentResultsPanel({
               <Separator />
               <div>
                 <p className="text-base font-semibold flex items-center gap-2 mb-1">
-                  <Calculator className="h-5 w-5 text-[var(--color-brand)]" />
+                  <Calculator className="h-5 w-5 text-brand" />
                   PAD 劑量換算
                 </p>
                 <p className="text-xs text-muted-foreground mb-3 leading-relaxed">以劑量範圍中值估算，實際劑量請依臨床調整</p>
@@ -270,7 +270,7 @@ export function AssessmentResultsPanel({
                           <span className="text-sm text-muted-foreground ml-2">({d.normalDose})</span>
                         )}
                       </div>
-                      <span className="font-bold text-lg text-[var(--color-brand)]">{d.calculatedRate || d.adjustedDose}</span>
+                      <span className="font-bold text-lg text-brand">{d.calculatedRate || d.adjustedDose}</span>
                     </div>
                   ))}
                 </div>

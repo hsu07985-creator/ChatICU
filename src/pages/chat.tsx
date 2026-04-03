@@ -206,7 +206,7 @@ export function ChatPage() {
         <div className="flex gap-2">
           {user?.role === 'admin' && (
             <Button
-              className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]"
+              className="bg-brand hover:bg-brand-hover"
               onClick={() => setAnnouncementDialogOpen(true)}
             >
               <Pin className="mr-2 h-4 w-4" />
@@ -221,7 +221,7 @@ export function ChatPage() {
         <Card className="md:col-span-2">
           <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-6 w-6 text-[var(--color-brand)]" />
+              <MessageSquare className="h-6 w-6 text-brand" />
               全體頻道
             </CardTitle>
             <Button
@@ -295,7 +295,7 @@ export function ChatPage() {
             {/* 輸入區 */}
             <div className="space-y-2 border-t border-slate-200 pt-4">
               <div className="flex items-center gap-2">
-                <Send className="h-5 w-5 text-[var(--color-brand)]" />
+                <Send className="h-5 w-5 text-brand" />
                 <label className="font-semibold text-foreground">發送訊息給團隊</label>
               </div>
               <div className="flex gap-3">
@@ -310,12 +310,12 @@ export function ChatPage() {
                     }
                   }}
                   disabled={sending}
-                  className="min-h-[80px] border border-[var(--color-brand)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 text-base"
+                  className="min-h-[80px] border border-brand focus:border-brand focus:ring-2 focus:ring-brand/20 text-base"
                 />
                 <Button
                   onClick={handleSend}
                   size="icon"
-                  className="h-[80px] w-[80px] bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]"
+                  className="h-[80px] w-[80px] bg-brand hover:bg-brand-hover"
                   disabled={sending || !message.trim()}
                 >
                   {sending ? (
@@ -338,7 +338,7 @@ export function ChatPage() {
                 <button
                   className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                     sidebarTab === 'mentions'
-                      ? 'border-[var(--color-brand)] text-[var(--color-brand)]'
+                      ? 'border-brand text-brand'
                       : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                   onClick={() => setSidebarTab('mentions')}
@@ -346,7 +346,7 @@ export function ChatPage() {
                   <AtSign className="h-4 w-4" />
                   @我的留言
                   {mentionsTotalCount > 0 && (
-                    <Badge className="bg-[var(--color-brand)] text-white text-xs ml-1">{mentionsTotalCount}</Badge>
+                    <Badge className="bg-brand text-white text-xs ml-1">{mentionsTotalCount}</Badge>
                   )}
                 </button>
                 <button
@@ -371,7 +371,7 @@ export function ChatPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <button
-                      className={`text-xs px-2 py-1 rounded ${mentionsUnreadOnly ? 'bg-[var(--color-brand)] text-white' : 'bg-slate-50 text-muted-foreground'}`}
+                      className={`text-xs px-2 py-1 rounded ${mentionsUnreadOnly ? 'bg-brand text-white' : 'bg-slate-50 text-muted-foreground'}`}
                       onClick={() => setMentionsUnreadOnly(!mentionsUnreadOnly)}
                     >
                       {mentionsUnreadOnly ? '僅未讀' : '全部'}
@@ -431,7 +431,7 @@ export function ChatPage() {
                                     </div>
                                   ))}
                                   <button
-                                    className="w-full flex items-center justify-center gap-1 py-2 text-xs text-[var(--color-brand)] hover:bg-white transition-colors font-medium"
+                                    className="w-full flex items-center justify-center gap-1 py-2 text-xs text-brand hover:bg-white transition-colors font-medium"
                                     onClick={() => navigate(`/patient/${group.patientId}?tab=messages`)}
                                   >
                                     <ExternalLink className="h-3 w-3" />

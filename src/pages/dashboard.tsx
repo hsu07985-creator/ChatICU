@@ -219,7 +219,7 @@ export function DashboardPage() {
                 className="grid"
                 style={{ minWidth: '760px', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}
               >
-                <div className="bg-[var(--color-brand)]/[0.04] px-4 py-4">
+                <div className="bg-brand/[0.04] px-4 py-4">
                   <p className="text-xs font-medium text-muted-foreground">病患總數</p>
                   <p className="mt-1 text-3xl font-bold leading-none text-foreground">{stats?.patients?.total ?? 0}</p>
                 </div>
@@ -332,7 +332,7 @@ export function DashboardPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-muted-foreground hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 z-10"
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-muted-foreground hover:text-brand hover:bg-brand/10 z-10"
                   onClick={(e) => handleEditClick(e, patient)}
                   title="編輯病患資料"
                 >
@@ -345,7 +345,7 @@ export function DashboardPage() {
                       <div className="flex items-center gap-2 mb-2">
                         <CardTitle className="text-xl text-foreground">{patient.name}</CardTitle>
                         {patient.intubated && (
-                          <Badge variant="secondary" className="bg-slate-50 text-[var(--color-brand)] border border-border">
+                          <Badge variant="secondary" className="bg-slate-50 text-brand border border-border">
                             插管中
                           </Badge>
                         )}
@@ -354,7 +354,7 @@ export function DashboardPage() {
                         {patient.age} 歲 · 住院 {Math.floor((new Date().getTime() - new Date(patient.admissionDate).getTime()) / (1000 * 60 * 60 * 24))} 天
                       </p>
                     </div>
-                    <div className="h-12 w-12 rounded-full bg-[var(--color-brand)] text-white flex items-center justify-center font-bold text-lg shadow-lg">
+                    <div className="h-12 w-12 rounded-full bg-brand text-white flex items-center justify-center font-bold text-lg shadow-lg">
                       {patient.bedNumber}
                     </div>
                   </div>
@@ -434,7 +434,7 @@ export function DashboardPage() {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Pencil className="h-5 w-5 text-[var(--color-brand)]" />
+              <Pencil className="h-5 w-5 text-brand" />
               編輯病患資料
             </DialogTitle>
             <DialogDescription>
@@ -521,7 +521,7 @@ export function DashboardPage() {
             <Button
               onClick={handleSaveEdit}
               disabled={saving}
-              className="bg-[var(--color-brand)] hover:bg-[var(--color-brand)]/90"
+              className="bg-brand hover:bg-brand/90"
             >
               {saving ? '儲存中...' : '儲存'}
             </Button>

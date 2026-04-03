@@ -1,3 +1,4 @@
+@import "tailwindcss";
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -12,9 +13,11 @@
   --metric-card-unit-size: 0.625rem;
   
   /* Primary - 主色 #7f265b */
-  --color-brand: #7f265b;
-  --color-brand-hover: #631e4d;
-  --primary: var(--color-brand);
+  --brand: #7f265b;
+  --brand-hover: #631e4d;
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --primary: var(--brand);
   --primary-foreground: #ffffff;
   
   /* Dark - 深色文字 #1a1a1a */
@@ -125,6 +128,8 @@
   --color-input-background: var(--input-background);
   --color-switch-background: var(--switch-background);
   --color-ring: var(--ring);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);

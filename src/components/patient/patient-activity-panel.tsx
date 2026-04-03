@@ -62,10 +62,10 @@ export function PatientActivityPanel({
       <CardHeader className="bg-slate-50 pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <Activity className="h-4 w-4 text-[var(--color-brand)]" />
+            <Activity className="h-4 w-4 text-brand" />
             病患留言動態
             {filtered.length > 0 && (
-              <Badge className="bg-[var(--color-brand)] text-white text-xs ml-1">{filtered.length}</Badge>
+              <Badge className="bg-brand text-white text-xs ml-1">{filtered.length}</Badge>
             )}
           </CardTitle>
           <div className="flex items-center gap-1">
@@ -94,7 +94,7 @@ export function PatientActivityPanel({
                 variant="outline"
                 className={`text-xs cursor-pointer transition-colors ${
                   selectedTag === tag
-                    ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)]'
+                    ? 'bg-brand text-white border-brand'
                     : TAG_STYLE[tag] || DEFAULT_TAG_STYLE
                 }`}
                 onClick={() => onTagFilter(selectedTag === tag ? null : tag)}
@@ -133,7 +133,7 @@ export function PatientActivityPanel({
                 <button
                   key={item.patientId}
                   type="button"
-                  className="w-full text-left rounded-lg border border-slate-200 p-2.5 hover:border-[var(--color-brand)] hover:bg-[#faf5f8] transition-colors group"
+                  className="w-full text-left rounded-lg border border-slate-200 p-2.5 hover:border-brand hover:bg-[#faf5f8] transition-colors group"
                   onClick={() => onPatientClick(item.patientId)}
                 >
                   <div className="flex items-center justify-between mb-1">
@@ -147,7 +147,7 @@ export function PatientActivityPanel({
                       {item.unreadCount > 0 && (
                         <Badge variant="destructive" className="text-xs">{item.unreadCount} 未讀</Badge>
                       )}
-                      <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-[var(--color-brand)] transition-colors" />
+                      <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-brand transition-colors" />
                     </div>
                   </div>
 

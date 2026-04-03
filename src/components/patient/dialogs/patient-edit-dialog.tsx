@@ -43,7 +43,7 @@ export function PatientEditDialog({
       <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Edit2 className="h-5 w-5 text-[var(--color-brand)]" />
+            <Edit2 className="h-5 w-5 text-brand" />
             編輯病人資料
           </DialogTitle>
           <DialogDescription>請修改病人資料並儲存。只有管理員可以編輯。</DialogDescription>
@@ -273,7 +273,7 @@ export function PatientEditDialog({
             <X className="mr-2 h-4 w-4" />
             取消
           </Button>
-          <Button onClick={onSave} className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]">
+          <Button onClick={onSave} className="bg-brand hover:bg-brand-hover">
             <Save className="mr-2 h-4 w-4" />
             儲存變更
           </Button>

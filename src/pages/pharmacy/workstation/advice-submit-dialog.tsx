@@ -73,7 +73,7 @@ export function AdviceSubmitDialog({
           <Button
             onClick={onConfirm}
             disabled={!selectedAdviceCode}
-            className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]"
+            className="bg-brand hover:bg-brand-hover"
           >
             確認送出
           </Button>
