@@ -1362,11 +1362,12 @@ async def ai_chat_stream(
                     full_content += token
                     yield _sse_event("delta", {"chunk": token})
 
-                # Await citation task
+                # Await citation task (with timeout — don't block done event)
                 if citation_task:
                     try:
-                        citations = await citation_task
-                    except Exception:
+                        citations = await asyncio.wait_for(citation_task, timeout=5.0)
+                    except (asyncio.TimeoutError, Exception):
+                        logger.info("[INTG][AI][API][AO-04] Citation summarization timed out or failed, using raw citations")
                         pass  # keep original citations
 
                 # Apply safety guardrail on complete content
