@@ -1170,39 +1170,31 @@ async def ai_chat_stream(
             # Send thinking event immediately so frontend shows status
             yield _sse_event("thinking", {"phase": "init", "detail": "正在準備回覆…"})
 
-            # ── Parallel: session + history + patient context ──
-            async def _fetch_session():
-                r = await db.execute(select(AISession).where(AISession.id == session_id))
-                s = r.scalar_one_or_none()
-                if not s:
-                    s = AISession(
-                        id=session_id, user_id=user.id,
-                        patient_id=req.patientId, title=req.message[:50],
-                    )
-                    db.add(s)
-                    await db.flush()
-                return s
-
-            async def _fetch_history():
-                r = await db.execute(
-                    select(AIMessage).where(AIMessage.session_id == session_id)
-                    .order_by(AIMessage.created_at.asc())
+            # ── Session + history (sequential — AsyncSession is not concurrency-safe) ──
+            result = await db.execute(select(AISession).where(AISession.id == session_id))
+            session = result.scalar_one_or_none()
+            if not session:
+                session = AISession(
+                    id=session_id, user_id=user.id,
+                    patient_id=req.patientId, title=req.message[:50],
                 )
-                return list(r.scalars().all())
+                db.add(session)
+                await db.flush()
 
-            async def _fetch_patient():
-                if not req.patientId:
-                    return None, None
-                try:
-                    pc = await _get_patient_dict(req.patientId, db)
-                    df = build_data_freshness(pc)
-                    return pc, df
-                except HTTPException:
-                    return None, None
-
-            session, all_messages, (patient_context, data_freshness) = await asyncio.gather(
-                _fetch_session(), _fetch_history(), _fetch_patient(),
+            history_result = await db.execute(
+                select(AIMessage).where(AIMessage.session_id == session_id)
+                .order_by(AIMessage.created_at.asc())
             )
+            all_messages = list(history_result.scalars().all())
+
+            patient_context = None
+            data_freshness = None
+            if req.patientId:
+                try:
+                    patient_context = await _get_patient_dict(req.patientId, db)
+                    data_freshness = build_data_freshness(patient_context)
+                except HTTPException:
+                    pass
 
             user_msg_id = f"msg_{uuid.uuid4().hex[:8]}"
             user_msg = AIMessage(id=user_msg_id, session_id=session_id, role="user", content=req.message)
