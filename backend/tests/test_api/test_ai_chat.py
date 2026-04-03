@@ -6,19 +6,21 @@ import pytest
 from fastapi import HTTPException
 
 
-def _mock_evidence_query_ok(*_args, **_kwargs):
-    return {
-        "answer": "RAG evidence context",
-        "citations": [
-            {
-                "citation_id": "cite_1",
-                "source_file": "guidelines/padis.md",
-                "topic": "sedation",
-                "score": 0.91,
-            }
-        ],
-        "confidence": 0.91,
-    }
+def _mock_rag_retrieve(query, top_k=8):
+    """Mock local RAG retrieve returning a list of chunk dicts."""
+    return [
+        {
+            "doc_id": "guidelines/padis.md",
+            "text": "RAG evidence context about sedation protocols.",
+            "chunk_index": 0,
+            "category": "sedation",
+            "score": 0.91,
+        }
+    ]
+
+
+_PATCH_RAG = "app.routers.ai_chat.rag_service.retrieve"
+_PATCH_RAG_INDEXED = "app.routers.ai_chat.rag_service.is_indexed"
 
 
 # ── Patient context injection tests (Phase 2, updated for multi-turn) ──
@@ -34,7 +36,8 @@ async def test_ai_chat_with_patient_context(client):
         captured["messages"] = messages
         return {"status": "success", "content": "AI response", "metadata": {}}
 
-    with patch("app.routers.ai_chat.evidence_client.query", side_effect=_mock_evidence_query_ok), \
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
          patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
         response = await client.post(
             "/ai/chat",
@@ -58,7 +61,8 @@ async def test_ai_chat_response_includes_data_freshness_metadata(client):
     def mock_call_llm_multi(task, messages, **kwargs):
         return {"status": "success", "content": "AI response", "metadata": {}}
 
-    with patch("app.routers.ai_chat.evidence_client.query", side_effect=_mock_evidence_query_ok), \
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
          patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
         response = await client.post(
             "/ai/chat",
@@ -87,33 +91,21 @@ async def test_ai_chat_citations_include_page_and_snippet(client):
     def mock_call_llm_multi(task, messages, **kwargs):
         return {"status": "success", "content": "AI response", "metadata": {}}
 
-    with patch(
-        "app.routers.ai_chat.evidence_client.query",
-        return_value={
-            "answer": "RAG evidence context",
-            "citations": [
-                {
-                    "citation_id": "cite_001",
-                    "chunk_id": "chunk_001",
-                    "source_file": "guidelines/padis.md",
-                    "topic": "sedation",
-                    "score": 0.88,
-                    "snippet": "fallback snippet",
-                }
-            ],
-            "confidence": 0.88,
-        },
-    ), patch(
-        "app.routers.ai_chat.evidence_client.source_by_chunk_id",
-        return_value={
-            "chunk_id": "chunk_001",
-            "source_file": "guidelines/padis.md",
-            "page": 12,
-            "topic": "sedation",
-            "text": "PADIS 原文段落內容",
-            "metadata": {},
-        },
-    ), patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
+    def mock_retrieve(query, top_k=8):
+        return [
+            {
+                "doc_id": "guidelines/padis.md",
+                "text": "[Page 12]\nPADIS 原文段落內容",
+                "chunk_index": 0,
+                "category": "sedation",
+                "score": 0.88,
+                "page": 12,
+            }
+        ]
+
+    with patch(_PATCH_RAG, side_effect=mock_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
+         patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
         response = await client.post(
             "/ai/chat",
             json={"message": "請說明鎮靜策略"},
@@ -123,11 +115,10 @@ async def test_ai_chat_citations_include_page_and_snippet(client):
         msg = payload["message"]
         assert msg["citations"]
         citation = msg["citations"][0]
-        assert citation["chunkId"] == "chunk_001"
         assert citation["sourceFile"] == "guidelines/padis.md"
         assert citation["title"] == "padis.md"
         assert citation["page"] == 12
-        assert citation["snippet"] == "PADIS 原文段落內容"
+        assert "PADIS 原文段落內容" in citation["snippet"]
 
         session_id = payload["sessionId"]
         detail = await client.get(f"/ai/sessions/{session_id}")
@@ -136,15 +127,14 @@ async def test_ai_chat_citations_include_page_and_snippet(client):
         assistant = [m for m in detail_messages if m["role"] == "assistant"][-1]
         history_citation = assistant["citations"][0]
         assert history_citation["page"] == 12
-        assert history_citation["snippet"] == "PADIS 原文段落內容"
+        assert "PADIS 原文段落內容" in history_citation["snippet"]
 
 
 @pytest.mark.asyncio
 async def test_ai_chat_response_splits_main_and_explanation_sections(client):
-    with patch(
-        "app.routers.ai_chat.evidence_client.query",
-        side_effect=_mock_evidence_query_ok,
-    ), patch(
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
+         patch(
         "app.routers.ai_chat.call_llm_multi_turn",
         return_value={
             "status": "success",
@@ -180,10 +170,9 @@ async def test_ai_chat_response_splits_main_and_explanation_sections(client):
 
 @pytest.mark.asyncio
 async def test_ai_chat_removes_option_prefix_for_non_mcq_questions(client):
-    with patch(
-        "app.routers.ai_chat.evidence_client.query",
-        side_effect=_mock_evidence_query_ok,
-    ), patch(
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
+         patch(
         "app.routers.ai_chat.call_llm_multi_turn",
         return_value={
             "status": "success",
@@ -204,10 +193,9 @@ async def test_ai_chat_removes_option_prefix_for_non_mcq_questions(client):
 
 @pytest.mark.asyncio
 async def test_ai_chat_response_fallback_splits_first_sentence_when_no_markers(client):
-    with patch(
-        "app.routers.ai_chat.evidence_client.query",
-        side_effect=_mock_evidence_query_ok,
-    ), patch(
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
+         patch(
         "app.routers.ai_chat.call_llm_multi_turn",
         return_value={
             "status": "success",
@@ -228,14 +216,16 @@ async def test_ai_chat_response_fallback_splits_first_sentence_when_no_markers(c
 
 @pytest.mark.asyncio
 async def test_ai_chat_without_patient_id(client):
-    """When patientId is not provided, no patient context in messages."""
+    """When patientId is not provided, no [病患資料] JSON section in messages,
+    but metadata block with '無病患資料' is present."""
     captured = {}
 
     def mock_call_llm_multi(task, messages, **kwargs):
         captured["messages"] = messages
         return {"status": "success", "content": "AI response", "metadata": {}}
 
-    with patch("app.routers.ai_chat.evidence_client.query", side_effect=_mock_evidence_query_ok), \
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
          patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
         response = await client.post(
             "/ai/chat",
@@ -244,7 +234,10 @@ async def test_ai_chat_without_patient_id(client):
         assert response.status_code == 200
 
     last_msg = captured["messages"][-1]
-    assert "病患資料" not in last_msg["content"]
+    # No [病患資料] JSON section should be injected
+    assert "[病患資料]" not in last_msg["content"]
+    # Metadata block is present with '無病患資料'
+    assert "回答品質中繼資料" in last_msg["content"]
     assert "General medical question" in last_msg["content"]
 
 
@@ -257,7 +250,8 @@ async def test_ai_chat_with_invalid_patient_id(client):
         captured["messages"] = messages
         return {"status": "success", "content": "AI response", "metadata": {}}
 
-    with patch("app.routers.ai_chat.evidence_client.query", side_effect=_mock_evidence_query_ok), \
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
          patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
         response = await client.post(
             "/ai/chat",
@@ -266,34 +260,8 @@ async def test_ai_chat_with_invalid_patient_id(client):
         assert response.status_code == 200
 
     last_msg = captured["messages"][-1]
-    assert "病患資料" not in last_msg["content"]
-
-
-@pytest.mark.asyncio
-async def test_ai_chat_forwards_request_trace_ids_to_evidence(client):
-    captured = {}
-
-    def mock_query(question, top_k=8, topic_filter=None, **kwargs):
-        captured["kwargs"] = kwargs
-        return {"answer": "mock rag answer", "citations": []}
-
-    def mock_call_llm_multi(task, messages, **kwargs):
-        return {"status": "success", "content": "AI response", "metadata": {}}
-
-    with patch("app.routers.ai_chat.evidence_client.query", side_effect=mock_query), \
-         patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
-        response = await client.post(
-            "/ai/chat",
-            json={"message": "Need sedation suggestion"},
-            headers={
-                "X-Request-ID": "p1-chat-req-001",
-                "X-Trace-ID": "p1-chat-trace-001",
-            },
-        )
-        assert response.status_code == 200
-
-    assert captured["kwargs"]["request_id"] == "p1-chat-req-001"
-    assert captured["kwargs"]["trace_id"] == "p1-chat-trace-001"
+    # No [病患資料] JSON section should be injected for nonexistent patient
+    assert "[病患資料]" not in last_msg["content"]
 
 
 # ── Multi-turn conversation history tests ──────────────────────────────
@@ -310,7 +278,8 @@ async def test_ai_chat_sends_history_on_follow_up(client):
         captured_all.append(messages)
         return {"status": "success", "content": f"AI response {call_count['n']}", "metadata": {}}
 
-    with patch("app.routers.ai_chat.evidence_client.query", side_effect=_mock_evidence_query_ok), \
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
          patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
         # First message — creates session
         r1 = await client.post(
@@ -353,7 +322,8 @@ async def test_ai_chat_returns_session_id(client):
     def mock_call_llm_multi(task, messages, **kwargs):
         return {"status": "success", "content": "OK", "metadata": {}}
 
-    with patch("app.routers.ai_chat.evidence_client.query", side_effect=_mock_evidence_query_ok), \
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
          patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
         r = await client.post("/ai/chat", json={"message": "Hello"})
         assert r.status_code == 200
@@ -368,7 +338,8 @@ async def test_ai_chat_marks_degraded_response_when_llm_unavailable(client):
     def mock_call_llm_multi(task, messages, **kwargs):
         return {"status": "error", "content": "upstream timeout", "metadata": {}}
 
-    with patch("app.routers.ai_chat.evidence_client.query", side_effect=_mock_evidence_query_ok), \
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
          patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
         response = await client.post("/ai/chat", json={"message": "Need quick med summary"})
         assert response.status_code == 200
@@ -383,65 +354,56 @@ async def test_ai_chat_marks_degraded_response_when_llm_unavailable(client):
 
 
 @pytest.mark.asyncio
-async def test_ai_chat_blocks_when_evidence_below_threshold(client):
+async def test_ai_chat_proceeds_with_weak_evidence(client):
+    """LLM is always called even with weak evidence — no hard gate."""
     llm_called = {"called": False}
 
     def mock_call_llm_multi(task, messages, **kwargs):
         llm_called["called"] = True
-        return {"status": "success", "content": "should not happen", "metadata": {}}
+        return {"status": "success", "content": "目前知識庫無相關文獻，建議查閱原始指引。", "metadata": {}}
 
-    with patch(
-        "app.routers.ai_chat.evidence_client.query",
-        return_value={"answer": "weak evidence", "citations": [], "confidence": 0.1},
-    ), patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
+    with patch(_PATCH_RAG, return_value=[]), \
+         patch(_PATCH_RAG_INDEXED, True), \
+         patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
         response = await client.post("/ai/chat", json={"message": "Need recommendation"})
         assert response.status_code == 200
         data = response.json()["data"]["message"]
-        assert data["degraded"] is True
-        assert data["degradedReason"] == "insufficient_evidence"
-        assert data["upstreamStatus"] == "blocked_by_evidence_gate"
-        assert data["evidenceGate"]["passed"] is False
-        assert data["evidenceGate"]["reason_code"] in {
-            "EVIDENCE_NOT_FOUND",
-            "INSUFFICIENT_CITATIONS",
-            "LOW_CONFIDENCE",
-        }
-        assert "證據不足" in data["content"]
-        assert data["safetyWarnings"] is None
+        # LLM decides how to frame the answer — no hard block
+        assert data["degraded"] is False
+        assert data["evidenceGate"]["passed"] is True
+        assert data["evidenceGate"]["citation_count"] == 0
 
-    assert llm_called["called"] is False
+    # LLM should always be called (no evidence gate blocking)
+    assert llm_called["called"] is True
 
 
 @pytest.mark.asyncio
-async def test_ai_chat_uses_evidence_snippets_when_citations_missing(client):
+async def test_ai_chat_local_rag_returns_citations(client):
+    """Local RAG results are properly converted to citations."""
     def mock_call_llm_multi(task, messages, **kwargs):
         return {"status": "success", "content": "建議維持目前止痛策略。", "metadata": {}}
 
-    with patch(
-        "app.routers.ai_chat.evidence_client.query",
-        return_value={
-            "answer": "RAG evidence context",
-            "citations": [],
-            "confidence": 0.82,
-            "evidence_snippets": [
-                {
-                    "chunk_id": "chunk_snippet_1",
-                    "source_file": "guidelines/pain.md",
-                    "page": 7,
-                    "topic": "analgesia",
-                    "text": "疼痛控制應先評估疼痛分數與呼吸抑制風險。",
-                    "score": 0.81,
-                }
-            ],
-        },
-    ), patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
+    def mock_retrieve(query, top_k=8):
+        return [
+            {
+                "doc_id": "guidelines/pain.md",
+                "text": "[Page 7]\n疼痛控制應先評估疼痛分數與呼吸抑制風險。",
+                "chunk_index": 3,
+                "category": "analgesia",
+                "score": 0.81,
+            }
+        ]
+
+    with patch(_PATCH_RAG, side_effect=mock_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
+         patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
         response = await client.post("/ai/chat", json={"message": "患者在痛我要如何給止痛藥物"})
         assert response.status_code == 200
         message = response.json()["data"]["message"]
         assert len(message["citations"]) == 1
         citation = message["citations"][0]
-        assert citation["chunkId"] == "chunk_snippet_1"
         assert citation["sourceFile"] == "guidelines/pain.md"
+        assert citation["chunkId"] == "guidelines/pain.md#3"
         assert citation["page"] == 7
         assert "疼痛控制" in citation["snippet"]
 
@@ -451,87 +413,27 @@ async def test_ai_chat_merges_duplicate_citations_from_same_source(client):
     def mock_call_llm_multi(task, messages, **kwargs):
         return {"status": "success", "content": "建議維持現行止痛策略。", "metadata": {}}
 
-    with patch(
-        "app.routers.ai_chat.evidence_client.query",
-        return_value={
-            "answer": "RAG evidence context",
-            "citations": [
-                {
-                    "citation_id": "cite_1",
-                    "source_file": "1_analgesic/Taiwan PAD (pain) 1140131.pdf",
-                    "topic": "analgesia",
-                    "score": 0.71,
-                    "snippet": "[Page 5]\n鴉片類藥物可作為非神經病變性疼痛首選。",
-                },
-                {
-                    "citation_id": "cite_2",
-                    "source_file": "1_analgesic/Taiwan PAD (pain) 1140131.pdf",
-                    "topic": "analgesia",
-                    "score": 0.65,
-                    "page": 6,
-                    "snippet": "非鴉片類藥物可作為輔助。",
-                },
-                {
-                    "citation_id": "cite_3",
-                    "source_file": "1_analgesic/Taiwan PAD (pain) 1140131.pdf",
-                    "topic": "analgesia",
-                    "score": 0.55,
-                    "snippet": "",
-                },
-            ],
-            "confidence": 0.84,
-        },
-    ), patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
-        response = await client.post("/ai/chat", json={"message": "他適合什麼樣的方式止痛"})
-        assert response.status_code == 200
-        citations = response.json()["data"]["message"]["citations"]
-        assert len(citations) == 1
-        merged = citations[0]
-        assert merged["sourceFile"] == "1_analgesic/Taiwan PAD (pain) 1140131.pdf"
-        assert merged["page"] == 5
-        assert merged["pages"] == [5, 6]
-        assert merged["snippetCount"] >= 2
+    def mock_retrieve(query, top_k=8):
+        return [
+            {
+                "doc_id": "guidelines/pain.md",
+                "text": "[Page 5]\n所有適用的靜脈注射型鴉片類藥物可作為第一線止痛。",
+                "chunk_index": 0,
+                "category": "analgesia",
+                "score": 0.82,
+            },
+            {
+                "doc_id": "guidelines/pain.md",
+                "text": "[Page 6]\n非鴉片類藥物可作為輔助以降低鴉片劑量。",
+                "chunk_index": 1,
+                "category": "analgesia",
+                "score": 0.79,
+            },
+        ]
 
-
-@pytest.mark.asyncio
-async def test_ai_chat_merges_duplicate_citations_from_same_source(client):
-    def mock_call_llm_multi(task, messages, **kwargs):
-        return {"status": "success", "content": "建議維持現行止痛策略。", "metadata": {}}
-
-    with patch(
-        "app.routers.ai_chat.evidence_client.query",
-        return_value={
-            "answer": "RAG evidence context",
-            "confidence": 0.9,
-            "citations": [
-                {
-                    "citation_id": "cite_1",
-                    "source_file": "guidelines/pain.md",
-                    "topic": "analgesia",
-                    "score": 0.82,
-                    "page": 5,
-                    "snippet": "[Page 5]\n所有適用的靜脈注射型鴉片類藥物可作為第一線止痛。",
-                },
-                {
-                    "citation_id": "cite_2",
-                    "source_file": "guidelines/pain.md",
-                    "topic": "analgesia",
-                    "score": 0.79,
-                    "page": 6,
-                    "snippet": "[Page 6]\n非鴉片類藥物可作為輔助以降低鴉片劑量。",
-                },
-                {
-                    "citation_id": "cite_3",
-                    "source_file": "guidelines/pain.md",
-                    "topic": "analgesia",
-                    "score": 0.7,
-                    "page": 5,
-                    "snippet": "[Page 5]\n所有適用的靜脈注射型鴉片類藥物可作為第一線止痛。",
-                },
-            ],
-            "evidence_snippets": [],
-        },
-    ), patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
+    with patch(_PATCH_RAG, side_effect=mock_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
+         patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
         response = await client.post("/ai/chat", json={"message": "他適合什麼樣的方式止痛"})
         assert response.status_code == 200
         message = response.json()["data"]["message"]
@@ -556,15 +458,13 @@ async def test_ai_chat_medication_fact_allows_weak_evidence(client):
             "metadata": {},
         }
 
-    with patch(
-        "app.routers.ai_chat.evidence_client.query",
-        return_value={"answer": "weak evidence", "citations": [], "confidence": 0.1},
-    ), patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
+    with patch(_PATCH_RAG, return_value=[]), \
+         patch(_PATCH_RAG_INDEXED, True), \
+         patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
         response = await client.post("/ai/chat", json={"message": "他用什麼藥物？", "patientId": "pat_001"})
         assert response.status_code == 200
         data = response.json()["data"]["message"]
         assert data["degraded"] is False
-        assert data["upstreamStatus"] == "success"
         assert data["evidenceGate"]["passed"] is True
         assert data["evidenceGate"]["thresholds"]["min_citations"] == 0
         assert data["evidenceGate"]["thresholds"]["min_confidence"] == 0.0
@@ -573,34 +473,31 @@ async def test_ai_chat_medication_fact_allows_weak_evidence(client):
 
 
 @pytest.mark.asyncio
-async def test_ai_chat_stability_question_returns_partial_when_vitals_missing(client):
+async def test_ai_chat_stability_question_with_missing_vitals_still_calls_llm(client):
+    """Stability questions with missing vitals now go through the LLM
+    (which receives data freshness metadata and self-qualifies its answer).
+    No hard blocking anymore."""
     llm_multi_called = {"called": False}
 
     def mock_call_llm_multi(task, messages, **kwargs):
         llm_multi_called["called"] = True
-        return {"status": "success", "content": "should not run", "metadata": {}}
-
-    def mock_call_llm(task, input_data, **kwargs):
-        assert task == "chat_partial_response"
-        assert "missing_reason" in input_data
         return {
             "status": "success",
-            "content": "目前可確認：已有部分病歷資料。\n目前無法確認：缺少生命徵象。\n建議補充資料：請補抓最新 vital signs。",
+            "content": "【主回答】目前缺少最新生命徵象，無法確認穩定性，建議先取得 BP/HR/SpO2。\n【說明/補充】- 現有資料僅包含部分病歷。",
             "metadata": {},
         }
 
-    with patch("app.routers.ai_chat.evidence_client.query", side_effect=_mock_evidence_query_ok), \
-         patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi), \
-         patch("app.routers.ai_chat.call_llm", side_effect=mock_call_llm):
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
+         patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
         response = await client.post("/ai/chat", json={"message": "他還好嗎？", "patientId": "pat_001"})
         assert response.status_code == 200
         data = response.json()["data"]["message"]
-        assert data["degraded"] is True
-        assert data["degradedReason"] == "insufficient_patient_data"
-        assert data["upstreamStatus"] == "partial_due_to_patient_data"
-        assert "生命徵象" in data["content"]
+        # Not degraded — LLM handled it
+        assert data["degraded"] is False
 
-    assert llm_multi_called["called"] is False
+    # LLM multi-turn should be called (no stability gap hard block)
+    assert llm_multi_called["called"] is True
 
 
 @pytest.mark.asyncio
@@ -610,7 +507,8 @@ async def test_ai_chat_stream_emits_delta_and_done_events(client):
         yield "串流測試回覆。"
         yield '{"__done__": true, "model": "test", "usage": {}}'
 
-    with patch("app.routers.ai_chat.evidence_client.query", side_effect=_mock_evidence_query_ok), \
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
          patch("app.routers.ai_chat.call_llm_stream", side_effect=mock_stream):
         response = await client.post("/ai/chat/stream", json={"message": "stream test"})
         assert response.status_code == 200
@@ -627,7 +525,8 @@ async def test_ai_chat_stream_returns_error_event_on_http_exception(client):
     async def mock_stream_error(*args, **kwargs):
         yield "[ERROR] stream unavailable"
 
-    with patch("app.routers.ai_chat.evidence_client.query", side_effect=_mock_evidence_query_ok), \
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
          patch("app.routers.ai_chat.call_llm_stream", side_effect=mock_stream_error):
         response = await client.post("/ai/chat/stream", json={"message": "stream error test"})
         assert response.status_code == 200
@@ -642,7 +541,8 @@ async def test_ai_chat_can_update_session_title(client):
     def mock_call_llm_multi(task, messages, **kwargs):
         return {"status": "success", "content": "OK", "metadata": {}}
 
-    with patch("app.routers.ai_chat.evidence_client.query", side_effect=_mock_evidence_query_ok), \
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
          patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
         r = await client.post("/ai/chat", json={"message": "Hello"})
         assert r.status_code == 200
@@ -668,7 +568,8 @@ async def test_ai_chat_history_includes_guardrail_metadata(client):
         # High-alert med + dosage should trigger warnings in guardrail
         return {"status": "success", "content": "建議給予 heparin 5000 unit IV bolus", "metadata": {}}
 
-    with patch("app.routers.ai_chat.evidence_client.query", side_effect=_mock_evidence_query_ok), \
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
          patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi):
         r = await client.post("/ai/chat", json={"message": "Dose suggestion"})
         assert r.status_code == 200
@@ -704,7 +605,8 @@ async def test_ai_chat_compression_triggers_above_threshold(client):
         return {"status": "success", "content": "OK", "metadata": {}}
 
     # Use low thresholds: compress when >= 4 messages, keep last 2 verbatim
-    with patch("app.routers.ai_chat.evidence_client.query", side_effect=_mock_evidence_query_ok), \
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
          patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi), \
          patch("app.routers.ai_chat.call_llm", side_effect=mock_call_llm), \
          patch("app.routers.ai_chat.COMPRESS_THRESHOLD", 4), \
@@ -742,7 +644,8 @@ async def test_ai_chat_summary_used_in_history(client):
     def mock_call_llm(task, input_data, **kwargs):
         return {"status": "success", "content": "Summary text", "metadata": {}}
 
-    with patch("app.routers.ai_chat.evidence_client.query", side_effect=_mock_evidence_query_ok), \
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
          patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi), \
          patch("app.routers.ai_chat.call_llm", side_effect=mock_call_llm):
         # Create a session first
@@ -768,7 +671,8 @@ async def test_ai_chat_summary_used_in_history(client):
 
     # Now send another message — should include summary
     captured_all.clear()
-    with patch("app.routers.ai_chat.evidence_client.query", side_effect=_mock_evidence_query_ok), \
+    with patch(_PATCH_RAG, side_effect=_mock_rag_retrieve), \
+         patch(_PATCH_RAG_INDEXED, True), \
          patch("app.routers.ai_chat.call_llm_multi_turn", side_effect=mock_call_llm_multi), \
          patch("app.routers.ai_chat.call_llm", side_effect=mock_call_llm):
         r2 = await client.post(

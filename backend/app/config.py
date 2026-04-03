@@ -75,7 +75,7 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "openai"
     LLM_MODEL: str = "gpt-5.4-mini"
     LLM_TEMPERATURE: float = 0.3
-    LLM_MAX_TOKENS: int = 4096  # gpt-5.4-mini: non-reasoning, no thinking token overhead
+    LLM_MAX_TOKENS: int = 1024  # short concise answers for ICU chat
     LLM_RECENT_MSG_WINDOW: int = 10   # keep N most recent messages verbatim (F08)
     LLM_COMPRESS_THRESHOLD: int = 20  # trigger compression above this count (F08)
     # Optional audit capture of provider raw payloads (disabled by default).
@@ -117,7 +117,7 @@ class Settings(BaseSettings):
     RAG_BM25_WEIGHT: float = 0.3  # BM25 weight (vector weight = 1 - this)
 
     # RAG Citation Summary — LLM refines raw chunks into structured citations
-    RAG_CITATION_SUMMARY_ENABLED: bool = True
+    RAG_CITATION_SUMMARY_ENABLED: bool = False  # disabled — no RAG index active
 
     # RAG Index Persistence — persist embeddings + BM25 to disk
     RAG_INDEX_DIR: str = ""  # default: backend/data/rag_index/

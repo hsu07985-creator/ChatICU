@@ -1,4 +1,10 @@
-"""Evidence quality gate for AO-03 (minimum citations/confidence)."""
+"""Evidence quality gate for AO-03 (minimum citations/confidence).
+
+DEPRECATED: This module is no longer called from the chat pipeline.
+The LLM now handles evidence quality assessment via its system prompt
+and the [回答品質中繼資料] metadata block. Retained for audit logging
+compatibility and potential future use.
+"""
 
 from __future__ import annotations
 

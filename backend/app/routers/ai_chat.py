@@ -13,7 +13,6 @@ import re
 import time
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -38,11 +37,9 @@ from app.routers.clinical import _get_patient_dict
 from app.models.ai_session import AIMessage, AISession
 from app.models.user import User
 from app.schemas.clinical import AIChatRequest
-from app.services.evidence_client import evidence_client
-from app.services.llm_services.rag_service import RAG_DOCS_PATH, rag_service
+from app.services.llm_services.rag_service import rag_service
 from app.services.safety_guardrail import apply_safety_guardrail
 from app.utils.data_freshness import build_data_freshness
-from app.utils.evidence_gate import evaluate_evidence_gate
 from app.utils.llm_errors import llm_unavailable_detail
 from app.utils.request_context import evidence_trace_kwargs
 from app.middleware.rate_limit import limiter
@@ -53,138 +50,115 @@ logger = logging.getLogger("chaticu")
 
 router = APIRouter(prefix="/ai", tags=["AI"])
 
-# Max seconds to wait for the evidence service in chat endpoints.
-# The evidence httpx client itself has FUNC_API_TIMEOUT (default 30s),
-# but in chat context we need a much tighter budget so the total response
-# stays under Vercel's rewrite timeout (~30s hobby / 300s pro).
-_CHAT_EVIDENCE_TIMEOUT = 8.0
 
 
-_CHAT_INTENT_RECOMMENDATION_KEYWORDS = (
-    "recommendation",
-    "suggestion",
-    "should we",
-    "should i",
-    "dose",
-    "dosing",
-    "adjust",
-    "建議",
-    "應該",
-    "該不該",
-    "劑量",
-    "調整",
-)
+def _build_metadata_block(
+    data_freshness: Optional[dict],
+    citations: List[Dict[str, Any]],
+) -> str:
+    """Format evidence quality + data freshness as metadata for LLM.
 
-_CHAT_INTENT_MEDICATION_KEYWORDS = (
-    "medication",
-    "medications",
-    "drug",
-    "drugs",
-    "用藥",
-    "藥物",
-    "藥單",
-)
+    The LLM uses this block to self-regulate confidence and disclaimers
+    instead of external hard gates.
+    """
+    lines: List[str] = ["[回答品質中繼資料]"]
 
-_CHAT_INTENT_STABILITY_KEYWORDS = (
-    "stable",
-    "unstable",
-    "vital",
-    "vitals",
-    "血壓",
-    "心跳",
-    "呼吸",
-    "spo2",
-    "生命徵象",
-    "還好嗎",
-    "穩定",
-)
+    # Citation stats
+    relevance_scores = [float(c.get("relevance", 0) or 0) for c in citations]
+    max_rel = max(relevance_scores) if relevance_scores else 0.0
+    lines.append(f"- 引用文獻數量: {len(citations)}, 最高相關分數: {max_rel:.2f}")
 
-_LOCAL_RAG_INDEX_ATTEMPTED = False
+    # Data freshness
+    if isinstance(data_freshness, dict):
+        sections = data_freshness.get("sections", {})
+        parts: List[str] = []
+        for key in ("vital_signs", "lab_data", "ventilator_settings"):
+            sec = sections.get(key, {})
+            if isinstance(sec, dict):
+                status = sec.get("status", "unknown")
+                age = sec.get("age_hours")
+                if age is not None:
+                    parts.append(f"{key}={status}({age:.1f}h)")
+                else:
+                    parts.append(f"{key}={status}")
+        if parts:
+            lines.append(f"- 病患資料狀態: {', '.join(parts)}")
 
+        missing = data_freshness.get("missing_fields", [])
+        if missing:
+            lines.append(f"- 缺值欄位: {', '.join(missing[:8])}")
+    else:
+        lines.append("- 病患資料狀態: 無病患資料")
 
-def _classify_chat_intent(message: str) -> str:
-    text = (message or "").strip().lower()
-    if any(keyword in text for keyword in _CHAT_INTENT_RECOMMENDATION_KEYWORDS):
-        return "recommendation"
-    if any(keyword in text for keyword in _CHAT_INTENT_MEDICATION_KEYWORDS):
-        return "medication_fact"
-    if any(keyword in text for keyword in _CHAT_INTENT_STABILITY_KEYWORDS):
-        return "patient_stability"
-    return "general_qa"
+    return "\n".join(lines)
 
 
-def _evidence_gate_overrides(intent: str) -> Dict[str, Any]:
-    # High-risk recommendation questions keep strict AO-03 thresholds.
-    if intent == "recommendation":
-        return {}
-    # For fact lookup / status clarification, do not hard-block on citations/confidence.
-    return {"min_citations": 0, "min_confidence": 0.0}
+def _passive_evidence_gate(citations: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Compute evidence gate metadata passively (no blocking).
+
+    Returns a dict compatible with the frontend evidenceGate contract,
+    but ``passed`` is always True — the LLM decides how to handle
+    evidence quality via its system prompt.
+    """
+    relevance_scores = [float(c.get("relevance", 0) or 0) for c in citations]
+    return {
+        "passed": True,
+        "reason_code": None,
+        "display_reason": None,
+        "citation_count": len(citations),
+        "confidence": round(max(relevance_scores), 4) if relevance_scores else 0.0,
+        "thresholds": {"min_citations": 0, "min_confidence": 0.0},
+    }
 
 
-async def _ensure_local_rag_index() -> bool:
-    """Best-effort lazy index for local RAG fallback when hybrid RAG is unavailable."""
-    global _LOCAL_RAG_INDEX_ATTEMPTED
+async def _retrieve_with_fallback(
+    query: str,
+) -> Tuple[str, List[Dict[str, Any]]]:
+    """Retrieve from local RAG index. Returns (rag_context, citations).
 
-    if rag_service.is_indexed:
-        return True
-    if _LOCAL_RAG_INDEX_ATTEMPTED:
-        return rag_service.is_indexed
-    _LOCAL_RAG_INDEX_ATTEMPTED = True
+    Skips immediately if no index is loaded — no wasted I/O.
+    """
+    if not rag_service.is_indexed:
+        return "", []
 
-    candidates: List[str] = []
-    configured = str(settings.RAG_DOCS_PATH or "").strip()
-    if configured:
-        candidates.append(configured)
-    fallback = str(RAG_DOCS_PATH or "").strip()
-    if fallback and fallback not in candidates:
-        candidates.append(fallback)
+    try:
+        _raw_sources = rag_service.retrieve(query, top_k=8)
+    except Exception:
+        _raw_sources = []
 
-    for docs_path in candidates:
-        try:
-            resolved = Path(docs_path).expanduser()
-            if not resolved.exists():
-                continue
-            chunks = rag_service.load_and_chunk(str(resolved))
-            result = await rag_service.index(chunks)
-            total_chunks = int(result.get("total_chunks") or 0)
-            if total_chunks > 0:
-                logger.info(
-                    "[INTG][AI][API] Local RAG lazy-index ready: %d chunks (%s)",
-                    total_chunks,
-                    str(resolved),
-                )
-                return True
-        except Exception:
-            logger.warning(
-                "[INTG][AI][API] Local RAG lazy-index failed for path=%s",
-                docs_path,
-                exc_info=True,
-            )
+    _source_counts: Dict[str, int] = {}
+    sources: List[Dict[str, Any]] = []
+    for _s in _raw_sources:
+        _doc = str(_s.get("doc_id") or "")
+        if _source_counts.get(_doc, 0) < 2:
+            sources.append(_s)
+            _source_counts[_doc] = _source_counts.get(_doc, 0) + 1
+        if len(sources) >= 6:
+            break
 
-    return rag_service.is_indexed
+    rag_context = "\n\n---\n\n".join([s["text"] for s in sources])
+    citations = [
+        {
+            "id": f"cite_{i}",
+            "type": "guideline",
+            "title": _citation_title(s.get("doc_id")),
+            "source": s.get("category", ""),
+            "sourceFile": s.get("doc_id"),
+            "chunkId": (
+                f"{s.get('doc_id')}#{s.get('chunk_index')}"
+                if s.get("doc_id") is not None and s.get("chunk_index") is not None
+                else None
+            ),
+            "page": _normalize_page(s.get("page")) or _extract_page_from_text(s.get("text")),
+            "snippet": _clean_snippet_text(s.get("text", "")),
+            "relevance": round(s["score"], 3),
+        }
+        for i, s in enumerate(sources)
+    ]
+    if citations:
+        logger.info("[INTG][AI][RAG] Local RAG returned %d citations", len(citations))
 
-
-def _stability_data_gap_reason(data_freshness: Optional[dict]) -> Optional[str]:
-    if not isinstance(data_freshness, dict):
-        return "缺少病患資料，無法判斷病況穩定性。"
-
-    sections = data_freshness.get("sections")
-    if not isinstance(sections, dict):
-        return "缺少病患資料，無法判斷病況穩定性。"
-
-    vital_section = sections.get("vital_signs")
-    if not isinstance(vital_section, dict):
-        return "缺少 vital_signs，無法判斷病況穩定性。"
-
-    status = str(vital_section.get("status") or "unknown").lower()
-    if status in {"missing", "unknown"}:
-        return "缺少 vital_signs，無法判斷病況穩定性。"
-    if status == "stale":
-        ts = vital_section.get("timestamp")
-        if ts:
-            return f"vital_signs 較舊（最後更新：{ts}），無法可靠判斷病況穩定性。"
-        return "vital_signs 較舊，無法可靠判斷病況穩定性。"
-    return None
+    return rag_context, citations
 
 
 def _iso_z(dt: Optional[datetime]) -> Optional[str]:
@@ -503,132 +477,13 @@ def _build_snippet_fallback_citations(snippets: List[Dict[str, Any]]) -> List[Di
     return citations
 
 
-async def _build_hybrid_citations(
-    raw_citations: List[Dict[str, Any]],
-    request: Request,
-) -> List[Dict[str, Any]]:
-    trace_kwargs = evidence_trace_kwargs(request)
-
-    async def _build_one(index: int, raw: Dict[str, Any]) -> Dict[str, Any]:
-        chunk_id = str(raw.get("chunk_id") or "").strip()
-        source_detail: Dict[str, Any] = {}
-        if chunk_id:
-            try:
-                source_detail = await asyncio.to_thread(
-                    evidence_client.source_by_chunk_id,
-                    chunk_id,
-                    **trace_kwargs,
-                )
-            except Exception:
-                logger.info(
-                    "[INTG][AI][API] Citation source lookup failed for chunk_id=%s",
-                    chunk_id,
-                )
-
-        source_file = str(raw.get("source_file") or source_detail.get("source_file") or "").strip()
-        snippet = source_detail.get("text") or raw.get("snippet") or ""
-        snippet_text = _clean_snippet_text(snippet if isinstance(snippet, str) else str(snippet))
-
-        try:
-            relevance = round(float(raw.get("score", 0)), 3)
-        except (TypeError, ValueError):
-            relevance = 0.0
-
-        return {
-            "id": raw.get("citation_id", f"cite_{index}"),
-            "type": "guideline",
-            "title": _citation_title(source_file),
-            "source": str(raw.get("topic") or source_detail.get("topic") or ""),
-            "sourceFile": source_file,
-            "chunkId": chunk_id or None,
-            "page": _normalize_page(raw.get("page") if raw.get("page") is not None else source_detail.get("page"))
-            or _extract_page_from_text(snippet_text),
-            "snippet": snippet_text,
-            "relevance": relevance,
-        }
-
-    tasks = [
-        _build_one(i, citation)
-        for i, citation in enumerate(raw_citations)
-        if isinstance(citation, dict)
-    ]
-    if not tasks:
-        return []
-    return await asyncio.gather(*tasks)
-
-
 # ── Helper: slim patient context for token efficiency ────────────────
 
-def _slim_patient_context(patient_context: Optional[dict]) -> Optional[dict]:
-    """Reduce patient context to essential fields for LLM prompt efficiency.
-
-    Full patient JSON can be 2-5KB. This trims to ~500 bytes by keeping only
-    the most clinically relevant fields for ICU chat.
-    """
+def _prepare_patient_context(patient_context: Optional[dict]) -> Optional[dict]:
+    """Pass all patient data to LLM — labs, vitals, meds, ventilator, etc."""
     if not patient_context:
         return None
-
-    slim: Dict[str, Any] = {}
-    # Core demographics
-    for key in ("id", "name", "age", "gender", "bed_number", "department"):
-        if key in patient_context:
-            slim[key] = patient_context[key]
-
-    # Primary diagnosis
-    if "diagnoses" in patient_context:
-        diags = patient_context["diagnoses"]
-        if isinstance(diags, list):
-            slim["diagnoses"] = diags[:5]  # top 5 only
-        else:
-            slim["diagnoses"] = diags
-
-    # Recent vitals (latest only)
-    if "vital_signs" in patient_context:
-        vs = patient_context["vital_signs"]
-        if isinstance(vs, list) and vs:
-            slim["vital_signs"] = vs[-1] if len(vs) > 0 else vs  # latest only
-        elif isinstance(vs, dict):
-            slim["vital_signs"] = vs
-
-    # Abnormal labs only
-    if "lab_data" in patient_context:
-        labs = patient_context["lab_data"]
-        if isinstance(labs, list):
-            abnormal = [l for l in labs if _is_abnormal_lab(l)]
-            slim["lab_data"] = abnormal[:10] if abnormal else labs[:5]
-        else:
-            slim["lab_data"] = labs
-
-    # Active medications (name + dose only)
-    if "medications" in patient_context:
-        meds = patient_context["medications"]
-        if isinstance(meds, list):
-            slim["medications"] = [
-                {k: m.get(k) for k in ("name", "generic_name", "dose", "route", "frequency", "status") if m.get(k)}
-                for m in meds[:15]
-            ]
-        else:
-            slim["medications"] = meds
-
-    # Ventilator settings (if present)
-    if "ventilator_settings" in patient_context:
-        slim["ventilator_settings"] = patient_context["ventilator_settings"]
-
-    # Biochemistry for organ function
-    if "biochemistry" in patient_context:
-        slim["biochemistry"] = patient_context["biochemistry"]
-
-    return slim
-
-
-def _is_abnormal_lab(lab: Any) -> bool:
-    """Check if a lab result is outside normal range."""
-    if not isinstance(lab, dict):
-        return False
-    status = str(lab.get("status") or lab.get("flag") or "").lower()
-    if status in ("high", "low", "critical", "abnormal", "h", "l", "hh", "ll"):
-        return True
-    return False
+    return patient_context
 
 
 # ── Helper: build multi-turn messages for LLM ──────────────────────────
@@ -639,11 +494,12 @@ def _build_chat_messages(
     current_question: str,
     rag_context: str,
     patient_context: Optional[dict],
+    metadata_block: Optional[str] = None,
 ) -> List[dict]:
     """Build a multi-turn messages array for the LLM.
 
     Structure:
-      [summary context pair] + [recent history] + [current user message with RAG/patient]
+      [summary context pair] + [recent history] + [current user message with RAG/patient/metadata]
     """
     messages: List[dict] = []
 
@@ -666,13 +522,15 @@ def _build_chat_messages(
     for msg in recent:
         messages.append({"role": msg.role, "content": msg.content})
 
-    # 3. Build current user message with RAG + patient context
+    # 3. Build current user message with patient + metadata + RAG + question
     parts: List[str] = []
     if patient_context:
-        slim_ctx = _slim_patient_context(patient_context)
+        slim_ctx = _prepare_patient_context(patient_context)
         parts.append(
             f"[病患資料]\n{json.dumps(slim_ctx, ensure_ascii=False, default=str)}"
         )
+    if metadata_block:
+        parts.append(metadata_block)
     if rag_context:
         # Trim RAG context: keep first 3000 chars to avoid token waste
         trimmed_rag = rag_context[:3000]
@@ -792,7 +650,7 @@ async def ai_chat(
     )
     db.add(user_msg)
 
-    # AO-06: Always derive offline data freshness/missing-value hints when patient context exists.
+    # ── Context assembly (patient + data freshness) ──
     patient_context = None
     data_freshness = None
     if req.patientId:
@@ -801,277 +659,81 @@ async def ai_chat(
             data_freshness = build_data_freshness(patient_context)
         except HTTPException:
             logger.warning(
-                "[INTG][AI][API][AO-06] Patient %s not found for data freshness check",
+                "[INTG][AI][API] Patient %s not found",
                 req.patientId,
             )
 
-    chat_intent = _classify_chat_intent(req.message)
     logger.info(
-        "[INTG][AI][API] /ai/chat request_id=%s trace_id=%s session_id=%s user_id=%s patient_id=%s intent=%s",
-        request_id,
-        trace_id,
-        session_id,
-        user.id,
-        req.patientId,
-        chat_intent,
-    )
-    stability_gap_reason = (
-        _stability_data_gap_reason(data_freshness)
-        if chat_intent == "patient_stability"
-        else None
+        "[INTG][AI][API] /ai/chat request_id=%s trace_id=%s session_id=%s user_id=%s patient_id=%s",
+        request_id, trace_id, session_id, user.id, req.patientId,
     )
 
-    # RAG-augmented LLM response — try agentic RAG, hybrid RAG, or local RAG fallback
-    citations = []
-    rag_context = ""
-    evidence_confidence = None
-
-    if settings.RAG_AGENTIC_ENABLED:
-        # Agentic RAG: LLM decides search strategy with multi-round retrieval
-        from app.services.llm_services.agentic_rag import agentic_retrieve
-
-        async def _agentic_retrieve_fn(query: str, top_k: int = 5):
-            """Wrapper that returns (context, citations) from hybrid or local RAG."""
-            try:
-                hr = await asyncio.wait_for(
-                    asyncio.to_thread(evidence_client.query, query, top_k=top_k, **trace_kwargs),
-                    timeout=_CHAT_EVIDENCE_TIMEOUT,
-                )
-                ctx = hr.get("answer", "")
-                snips = hr.get("evidence_snippets", [])
-                if snips:
-                    st = [s.get("text", "") for s in snips if s.get("text")]
-                    if st:
-                        ctx += "\n\n---\n\n" + "\n\n---\n\n".join(st[:3])
-                cits = await _build_hybrid_citations(
-                    [c for c in hr.get("citations", []) if isinstance(c, dict)], request,
-                )
-                if not cits:
-                    cits = _build_snippet_fallback_citations([s for s in snips if isinstance(s, dict)])
-                return ctx, cits
-            except (asyncio.TimeoutError, Exception):
-                if await _ensure_local_rag_index():
-                    try:
-                        raw = rag_service.retrieve(query, top_k=top_k)
-                    except Exception:
-                        raw = []
-                    ctx = "\n\n---\n\n".join([s["text"] for s in raw[:6]])
-                    cits = [
-                        {"id": f"cite_{i}", "type": "guideline", "title": _citation_title(s.get("doc_id")),
-                         "source": s.get("category", ""), "sourceFile": s.get("doc_id"),
-                         "snippet": _clean_snippet_text(s.get("text", "")),
-                         "relevance": round(s["score"], 3)}
-                        for i, s in enumerate(raw[:6])
-                    ]
-                    return ctx, cits
-                return "", []
-
-        try:
-            rag_context, citations = await agentic_retrieve(
-                req.message, _agentic_retrieve_fn, trace_kwargs=trace_kwargs,
-            )
-            logger.info("[INTG][AI][API] Agentic RAG returned %d citations", len(citations))
-        except Exception as exc:
-            logger.warning("[INTG][AI][API] Agentic RAG failed, falling back to standard: %s", exc)
-            settings.RAG_AGENTIC_ENABLED = False  # disable for this request
-
-    if not rag_context and not citations:
-        # Standard single-shot retrieval path
-        try:
-            hybrid_result = await asyncio.wait_for(
-                asyncio.to_thread(
-                    evidence_client.query,
-                    req.message,
-                    top_k=5,
-                    **trace_kwargs,
-                ),
-                timeout=_CHAT_EVIDENCE_TIMEOUT,
-            )
-            evidence_confidence = hybrid_result.get("confidence")
-            rag_context = hybrid_result.get("answer", "")
-            snippets = hybrid_result.get("evidence_snippets", [])
-            if snippets:
-                snippet_texts = [s.get("text", "") for s in snippets if s.get("text")]
-                if snippet_texts:
-                    rag_context += "\n\n---\n\n" + "\n\n---\n\n".join(snippet_texts[:3])
-            citations = await _build_hybrid_citations(
-                [c for c in hybrid_result.get("citations", []) if isinstance(c, dict)],
-                request,
-            )
-            if not citations:
-                citations = _build_snippet_fallback_citations(
-                    [s for s in snippets if isinstance(s, dict)]
-                )
-            logger.info("[INTG][AI][API] Hybrid RAG returned %d citations", len(citations))
-        except (asyncio.TimeoutError, Exception) as exc:
-            logger.warning(
-                "[INTG][AI][API][F07] Hybrid RAG unavailable/timed out for ai_chat, falling back to local RAG: %s",
-                exc,
-            )
-            if await _ensure_local_rag_index():
-                # Retrieve more candidates then enforce source diversity (max 2 chunks per doc)
-                try:
-                    _raw_sources = rag_service.retrieve(req.message, top_k=8)
-                except Exception as local_rag_exc:
-                    logger.error(
-                        "[INTG][AI][API][F07] Local RAG retrieve failed, continuing without citations: %s",
-                        local_rag_exc,
-                        exc_info=True,
-                    )
-                    _raw_sources = []
-                _source_counts: Dict[str, int] = {}
-                sources = []
-                for _s in _raw_sources:
-                    _doc = str(_s.get("doc_id") or "")
-                    if _source_counts.get(_doc, 0) < 2:
-                        sources.append(_s)
-                        _source_counts[_doc] = _source_counts.get(_doc, 0) + 1
-                    if len(sources) >= 6:
-                        break
-                rag_context = "\n\n---\n\n".join([s["text"] for s in sources])
-                citations = [
-                    {
-                        "id": f"cite_{i}",
-                        "type": "guideline",
-                        "title": _citation_title(s.get("doc_id")),
-                        "source": s.get("category", ""),
-                        "sourceFile": s.get("doc_id"),
-                        "chunkId": (
-                            f"{s.get('doc_id')}#{s.get('chunk_index')}"
-                            if s.get("doc_id") is not None and s.get("chunk_index") is not None
-                            else None
-                        ),
-                        "page": _normalize_page(s.get("page")) or _extract_page_from_text(s.get("text")),
-                        "snippet": _clean_snippet_text(s.get("text", "")),
-                        "relevance": round(s["score"], 3),
-                    }
-                    for i, s in enumerate(sources)
-                ]
-
+    # ── RAG retrieval (single path with fallback) ──
+    rag_context, citations = await _retrieve_with_fallback(req.message)
     citations = _merge_citations_by_source(citations)
+    evidence_gate = _passive_evidence_gate(citations)
 
-    evidence_gate = evaluate_evidence_gate(
-        citations=citations,
-        confidence=evidence_confidence,
-        **_evidence_gate_overrides(chat_intent),
+    # ── Build metadata + messages ──
+    metadata_block = _build_metadata_block(data_freshness, citations)
+    chat_messages = _build_chat_messages(
+        session_summary=session.summary,
+        history=all_messages,
+        current_question=req.message,
+        rag_context=rag_context,
+        patient_context=patient_context,
+        metadata_block=metadata_block,
     )
+
+    # ── LLM generation + citation summary (parallel) ──
+    async def _run_citation_summary() -> List[Dict[str, Any]]:
+        if not settings.RAG_CITATION_SUMMARY_ENABLED or not citations:
+            return citations
+        try:
+            return await asyncio.to_thread(
+                summarize_citations, req.message, citations,
+            )
+        except Exception as exc:
+            logger.warning("[INTG][AI][API] Citation summary failed, using raw: %s", exc)
+            return citations
+
+    llm_task = asyncio.to_thread(
+        call_llm_multi_turn,
+        task="rag_generation",
+        messages=chat_messages,
+        request_id=request_id,
+        trace_id=trace_id,
+    )
+    citation_task = _run_citation_summary()
+    llm_result, citations = await asyncio.gather(llm_task, citation_task)
+
+    llm_status = llm_result.get("status")
+    degraded = llm_status != "success"
+    degraded_reason = "llm_unavailable" if degraded else None
     ai_content = ""
     ai_explanation: Optional[str] = None
-    llm_result = {}
-    if stability_gap_reason:
-        llm_status = "partial_due_to_patient_data"
-        degraded = True
-        degraded_reason = "insufficient_patient_data"
-        llm_result = await asyncio.to_thread(
-            call_llm,
-            task="chat_partial_response",
-            input_data={
-                "question": req.message,
-                "intent": chat_intent,
-                "patient": patient_context,
-                "data_freshness": data_freshness,
-                "missing_reason": stability_gap_reason,
-                "evidence_context": rag_context,
-            },
-            request_id=request_id,
-            trace_id=trace_id,
-        )
 
-        if llm_result.get("status") == "success":
-            raw_content = llm_result.get("content", "")
-        else:
-            logger.warning(
-                "[INTG][AI][API] partial chat generation failed [status=%s], fallback to deterministic partial reply",
-                llm_result.get("status"),
-            )
-            raw_content = (
-                f"{stability_gap_reason}\n"
-                "目前僅能提供部分資訊，請先補齊最新生命徵象後再評估是否穩定。"
-            )
-
-        guardrail_result = apply_safety_guardrail(raw_content, include_disclaimer=False, user_role=user.role)
-        ai_content = guardrail_result["content"]
-    elif not evidence_gate["passed"]:
-        llm_status = "blocked_by_evidence_gate"
-        degraded = True
-        degraded_reason = "insufficient_evidence"
-        logger.warning(
-            "[INTG][AI][API][AO-03] Evidence gate blocked chat response citations=%d confidence=%.3f thresholds=%s",
-            evidence_gate["citation_count"],
-            evidence_gate["confidence"],
-            evidence_gate["thresholds"],
+    if degraded:
+        logger.error(
+            "[INTG][AI][API] LLM chat failed [status=%s]: %s",
+            llm_status, (llm_result.get("content") or "")[:500],
         )
-        ai_content = "目前可用證據不足，暫不提供具體建議，請補充臨床條件或改問更具體問題。"
+        ai_content = llm_unavailable_detail()
+        citations = []
         guardrail_result = {
-            "content": ai_content,
-            "flagged": False,
-            "warnings": None,
-            "requiresExpertReview": False,
+            "content": ai_content, "flagged": False,
+            "warnings": None, "requiresExpertReview": False,
         }
     else:
-        # Build multi-turn messages with history + summary + current question
-        chat_messages = _build_chat_messages(
-            session_summary=session.summary,
-            history=all_messages,
-            current_question=req.message,
-            rag_context=rag_context,
-            patient_context=patient_context,
+        raw_content = llm_result.get("content", "Unable to generate response.")
+        guardrail_result = apply_safety_guardrail(raw_content, include_disclaimer=False, user_role=user.role)
+        parsed_main, parsed_explanation = _extract_main_and_explanation(
+            str(guardrail_result["content"]),
         )
+        normalized_main = _normalize_main_answer_prefix(parsed_main, req.message)
+        ai_content = normalized_main or parsed_main or str(guardrail_result["content"]).strip()
+        ai_explanation = parsed_explanation
 
-        # Run LLM generation and citation summarization in parallel
-        async def _run_citation_summary() -> List[Dict[str, Any]]:
-            if not settings.RAG_CITATION_SUMMARY_ENABLED or not citations:
-                return citations
-            try:
-                return await asyncio.to_thread(
-                    summarize_citations, req.message, citations,
-                )
-            except Exception as exc:
-                logger.warning("[INTG][AI][API] Citation summary failed, using raw: %s", exc)
-                return citations
-
-        llm_task = asyncio.to_thread(
-            call_llm_multi_turn,
-            task="rag_generation",
-            messages=chat_messages,
-            request_id=request_id,
-            trace_id=trace_id,
-        )
-        citation_task = _run_citation_summary()
-        llm_result, citations = await asyncio.gather(llm_task, citation_task)
-
-        llm_status = llm_result.get("status")
-        degraded = llm_status != "success"
-        degraded_reason = "llm_unavailable" if degraded else None
-        if degraded:
-            # Chat is a critical UI flow (T27). When LLM is unavailable, we still return a
-            # user-friendly message and persist the conversation so the UI remains usable.
-            logger.error(
-                "[INTG][AI][API] LLM chat failed [status=%s]: %s",
-                llm_status,
-                (llm_result.get("content") or "")[:500],
-            )
-            raw_content = llm_unavailable_detail()
-            ai_content = raw_content
-            citations = []  # Avoid implying an evidence-based answer when LLM did not run.
-            guardrail_result = {
-                "content": ai_content,
-                "flagged": False,
-                "warnings": None,
-                "requiresExpertReview": False,
-            }
-        else:
-            raw_content = llm_result.get("content", "Unable to generate response.")
-            # Apply medical safety guardrail (T30)
-            # Skip inline disclaimer for chat — frontend shows a persistent banner instead
-            guardrail_result = apply_safety_guardrail(raw_content, include_disclaimer=False, user_role=user.role)
-            parsed_main, parsed_explanation = _extract_main_and_explanation(
-                str(guardrail_result["content"]),
-            )
-            normalized_main = _normalize_main_answer_prefix(parsed_main, req.message)
-            ai_content = normalized_main or parsed_main or str(guardrail_result["content"]).strip()
-            ai_explanation = parsed_explanation
-
+    # ── Persist + compress + audit ──
     ai_msg_id = f"msg_{uuid.uuid4().hex[:8]}"
     guardrail_meta = {
         "guardrail": {
@@ -1084,52 +746,32 @@ async def ai_chat(
             "degradedReason": degraded_reason if degraded else None,
             "upstreamStatus": llm_status,
         },
-        "queryPolicy": {
-            "intent": chat_intent,
-            "stabilityDataGapReason": stability_gap_reason,
-        },
-        "response": {
-            "explanation": ai_explanation,
-        },
+        "queryPolicy": {},
+        "response": {"explanation": ai_explanation},
         "evidenceGate": evidence_gate,
         "dataFreshness": data_freshness,
     }
     ai_msg = AIMessage(
-        id=ai_msg_id,
-        session_id=session_id,
-        role="assistant",
-        content=ai_content,
-        citations=citations or None,
+        id=ai_msg_id, session_id=session_id, role="assistant",
+        content=ai_content, citations=citations or None,
         suggested_actions=guardrail_meta,
     )
     db.add(ai_msg)
 
-    # Check if conversation history needs compression
-    # all_messages + user_msg + ai_msg = total messages in session
     all_messages.append(user_msg)
     all_messages.append(ai_msg)
     await _maybe_compress_history(session, all_messages)
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
-        action="AI 對話", target=session_id, status="success" if llm_status == "success" else "failed",
+        action="AI 對話", target=session_id, status="success" if not degraded else "failed",
         ip=request.client.host if request.client else None,
         details={
             "patient_id": req.patientId,
             "message_length": len(req.message),
             "safety_flagged": guardrail_result["flagged"],
             "llm_status": llm_status,
-            "llm_error": (
-                evidence_gate["display_reason"]
-                if llm_status == "blocked_by_evidence_gate"
-                else (llm_result.get("content") or "")[:200] if llm_status != "success" else None
-            ),
-            "chat_intent": chat_intent,
-            "stability_gap_reason": stability_gap_reason,
-            "has_explanation": bool(ai_explanation),
-            "evidence_gate_passed": evidence_gate["passed"],
-            "evidence_citation_count": evidence_gate["citation_count"],
-            "evidence_confidence": evidence_gate["confidence"],
+            "citation_count": len(citations),
             "history_msg_count": len(all_messages),
             "has_summary": session.summary is not None,
         },
@@ -1138,11 +780,8 @@ async def ai_chat(
 
     return success_response(data={
         "message": {
-            "id": ai_msg_id,
-            "role": "assistant",
-            "content": ai_content,
-            "explanation": ai_explanation,
-            "timestamp": _iso_z(now),
+            "id": ai_msg_id, "role": "assistant", "content": ai_content,
+            "explanation": ai_explanation, "timestamp": _iso_z(now),
             "citations": citations,
             "safetyWarnings": guardrail_result["warnings"] if guardrail_result["flagged"] else None,
             "requiresExpertReview": guardrail_result.get("requiresExpertReview", False),
@@ -1219,188 +858,86 @@ async def ai_chat_stream(
             user_msg = AIMessage(id=user_msg_id, session_id=session_id, role="user", content=req.message)
             db.add(user_msg)
 
-            chat_intent = _classify_chat_intent(req.message)
-            stability_gap_reason = (
-                _stability_data_gap_reason(data_freshness)
-                if chat_intent == "patient_stability" else None
-            )
-
             yield _sse_event("thinking", {"phase": "rag", "detail": "正在查詢文獻…"})
 
-            # RAG retrieval (with tight timeout to avoid Vercel rewrite timeout)
+            # ── RAG retrieval (single path with fallback) ──
             t_rag = time.perf_counter()
-            citations: List[Dict[str, Any]] = []
-            rag_context = ""
-            evidence_confidence = None
-            try:
-                hybrid_result = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        evidence_client.query, req.message, top_k=5, **trace_kwargs,
-                    ),
-                    timeout=_CHAT_EVIDENCE_TIMEOUT,
-                )
-                evidence_confidence = hybrid_result.get("confidence")
-                rag_context = hybrid_result.get("answer", "")
-                snippets = hybrid_result.get("evidence_snippets", [])
-                if snippets:
-                    snippet_texts = [s.get("text", "") for s in snippets if s.get("text")]
-                    if snippet_texts:
-                        rag_context += "\n\n---\n\n" + "\n\n---\n\n".join(snippet_texts[:3])
-                citations = await _build_hybrid_citations(
-                    [c for c in hybrid_result.get("citations", []) if isinstance(c, dict)], request,
-                )
-                if not citations:
-                    citations = _build_snippet_fallback_citations(
-                        [s for s in snippets if isinstance(s, dict)]
-                    )
-            except (asyncio.TimeoutError, Exception) as exc:
-                logger.info("[INTG][AI][API][AO-04] Evidence query failed/timed out in stream, using local RAG: %s", type(exc).__name__)
-                if await _ensure_local_rag_index():
-                    try:
-                        _raw_sources = rag_service.retrieve(req.message, top_k=8)
-                    except Exception:
-                        _raw_sources = []
-                    _source_counts: Dict[str, int] = {}
-                    sources = []
-                    for _s in _raw_sources:
-                        _doc = str(_s.get("doc_id") or "")
-                        if _source_counts.get(_doc, 0) < 2:
-                            sources.append(_s)
-                            _source_counts[_doc] = _source_counts.get(_doc, 0) + 1
-                        if len(sources) >= 6:
-                            break
-                    rag_context = "\n\n---\n\n".join([s["text"] for s in sources])
-                    citations = [
-                        {
-                            "id": f"cite_{i}", "type": "guideline",
-                            "title": _citation_title(s.get("doc_id")),
-                            "source": s.get("category", ""),
-                            "sourceFile": s.get("doc_id"),
-                            "chunkId": (
-                                f"{s.get('doc_id')}#{s.get('chunk_index')}"
-                                if s.get("doc_id") is not None and s.get("chunk_index") is not None
-                                else None
-                            ),
-                            "page": _normalize_page(s.get("page")) or _extract_page_from_text(s.get("text")),
-                            "snippet": _clean_snippet_text(s.get("text", "")),
-                            "relevance": round(s["score"], 3),
-                        }
-                        for i, s in enumerate(sources)
-                    ]
-
+            rag_context, citations = await _retrieve_with_fallback(req.message)
             timings["rag_retrieval"] = time.perf_counter() - t_rag
 
             citations = _merge_citations_by_source(citations)
-            evidence_gate = evaluate_evidence_gate(
-                citations=citations, confidence=evidence_confidence,
-                **_evidence_gate_overrides(chat_intent),
-            )
+            evidence_gate = _passive_evidence_gate(citations)
 
             ai_msg_id = f"msg_{uuid.uuid4().hex[:8]}"
             yield _sse_event("start", {"sessionId": session_id, "messageId": ai_msg_id})
 
-            # ── Phase 2: Determine if we can stream or must return static ──
-            if stability_gap_reason or not evidence_gate["passed"]:
-                # Non-streamable paths: return complete response immediately
-                if stability_gap_reason:
-                    llm_result = await asyncio.to_thread(
-                        call_llm, task="chat_partial_response",
-                        input_data={
-                            "question": req.message, "intent": chat_intent,
-                            "patient": patient_context, "data_freshness": data_freshness,
-                            "missing_reason": stability_gap_reason, "evidence_context": rag_context,
-                        },
-                        request_id=request_id, trace_id=trace_id,
-                    )
-                    raw_content = llm_result.get("content", "") if llm_result.get("status") == "success" else (
-                        f"{stability_gap_reason}\n目前僅能提供部分資訊，請先補齊最新生命徵象後再評估是否穩定。"
-                    )
-                    degraded = True
-                    degraded_reason = "insufficient_patient_data"
-                else:
-                    raw_content = "目前可用證據不足，暫不提供具體建議，請補充臨床條件或改問更具體問題。"
-                    degraded = True
-                    degraded_reason = "insufficient_evidence"
+            # ── Phase 2: LLM streaming (always, no gates) ──
+            yield _sse_event("thinking", {"phase": "generating", "detail": "正在生成回答…"})
 
-                guardrail_result = apply_safety_guardrail(raw_content, include_disclaimer=False, user_role=user.role)
-                ai_content = str(guardrail_result["content"])
+            metadata_block = _build_metadata_block(data_freshness, citations)
+            chat_messages = _build_chat_messages(
+                session_summary=session.summary,
+                history=all_messages,
+                current_question=req.message,
+                rag_context=rag_context,
+                patient_context=patient_context,
+                metadata_block=metadata_block,
+            )
 
-                # Emit as chunked deltas for consistent frontend handling
-                for chunk in _chunk_text_for_stream(ai_content):
-                    yield _sse_event("delta", {"chunk": chunk})
-                    await asyncio.sleep(0)
-
-            else:
-                # ── Phase 2b: True LLM streaming ──────────────────────
-                yield _sse_event("thinking", {"phase": "generating", "detail": "正在生成回答…"})
-
-                chat_messages = _build_chat_messages(
-                    session_summary=session.summary,
-                    history=all_messages,
-                    current_question=req.message,
-                    rag_context=rag_context,
-                    patient_context=patient_context,
+            # Start citation summarization in parallel
+            citation_task = None
+            if settings.RAG_CITATION_SUMMARY_ENABLED and citations:
+                citation_task = asyncio.create_task(
+                    asyncio.to_thread(summarize_citations, req.message, citations)
                 )
 
-                # Start citation summarization in parallel
-                citation_task = None
-                if settings.RAG_CITATION_SUMMARY_ENABLED and citations:
-                    citation_task = asyncio.create_task(
-                        asyncio.to_thread(summarize_citations, req.message, citations)
-                    )
+            full_content = ""
+            degraded = False
+            degraded_reason = None
+            t_llm_start = time.perf_counter()
+            t_first_token = None
 
-                full_content = ""
-                degraded = False
-                degraded_reason = None
-                t_llm_start = time.perf_counter()
-                t_first_token = None
+            async for token in call_llm_stream(
+                task="rag_generation",
+                messages=chat_messages,
+                request_id=request_id,
+                trace_id=trace_id,
+            ):
+                if token.startswith("{") and '"__done__"' in token:
+                    break
+                if token.startswith("[ERROR]"):
+                    degraded = True
+                    degraded_reason = "llm_unavailable"
+                    full_content = llm_unavailable_detail()
+                    for chunk in _chunk_text_for_stream(full_content):
+                        yield _sse_event("delta", {"chunk": chunk})
+                    break
+                if t_first_token is None:
+                    t_first_token = time.perf_counter()
+                full_content += token
+                yield _sse_event("delta", {"chunk": token})
 
-                async for token in call_llm_stream(
-                    task="rag_generation",
-                    messages=chat_messages,
-                    request_id=request_id,
-                    trace_id=trace_id,
-                ):
-                    # Check for metadata/done marker
-                    if token.startswith("{") and '"__done__"' in token:
-                        break
-                    if token.startswith("[ERROR]"):
-                        degraded = True
-                        degraded_reason = "llm_unavailable"
-                        full_content = llm_unavailable_detail()
-                        for chunk in _chunk_text_for_stream(full_content):
-                            yield _sse_event("delta", {"chunk": chunk})
-                        break
-                    if t_first_token is None:
-                        t_first_token = time.perf_counter()
-                    full_content += token
-                    yield _sse_event("delta", {"chunk": token})
+            timings["llm_ttfb"] = (t_first_token - t_llm_start) if t_first_token else 0.0
+            timings["llm_streaming_total"] = time.perf_counter() - t_llm_start
 
-                timings["llm_ttfb"] = (t_first_token - t_llm_start) if t_first_token else 0.0
-                timings["llm_streaming_total"] = time.perf_counter() - t_llm_start
+            # Await citation task (with timeout)
+            t_post = time.perf_counter()
+            if citation_task:
+                try:
+                    citations = await asyncio.wait_for(citation_task, timeout=5.0)
+                except (asyncio.TimeoutError, Exception):
+                    logger.info("[INTG][AI][API] Citation summarization timed out, using raw citations")
+            timings["citation_summary"] = time.perf_counter() - t_post
 
-                # Await citation task (with timeout — don't block done event)
-                t_post = time.perf_counter()
-                if citation_task:
-                    try:
-                        citations = await asyncio.wait_for(citation_task, timeout=5.0)
-                    except (asyncio.TimeoutError, Exception):
-                        logger.info("[INTG][AI][API][AO-04] Citation summarization timed out or failed, using raw citations")
-                        pass  # keep original citations
-                timings["citation_summary"] = time.perf_counter() - t_post
-
-                # Apply safety guardrail on complete content
-                t_guard = time.perf_counter()
-                guardrail_result = apply_safety_guardrail(full_content, include_disclaimer=False, user_role=user.role)
-                ai_content = str(guardrail_result["content"])
-                timings["guardrail"] = time.perf_counter() - t_guard
-
-                # If guardrail modified content, we already streamed the raw version.
-                # The final 'done' event carries the canonical guardrail-processed content.
+            # Apply safety guardrail (regex only) on complete content
+            t_guard = time.perf_counter()
+            guardrail_result = apply_safety_guardrail(full_content, include_disclaimer=False, user_role=user.role)
+            ai_content = str(guardrail_result["content"])
+            timings["guardrail"] = time.perf_counter() - t_guard
 
             # ── Phase 3: Post-generation (persist + compress + audit) ──
             ai_explanation = None
-            if not (stability_gap_reason or not evidence_gate["passed"]):
+            if not degraded:
                 parsed_main, parsed_explanation = _extract_main_and_explanation(ai_content)
                 normalized_main = _normalize_main_answer_prefix(parsed_main, req.message)
                 ai_content = normalized_main or parsed_main or ai_content.strip()
@@ -1416,7 +953,7 @@ async def ai_chat_stream(
                     "degraded": degraded,
                     "degradedReason": degraded_reason if degraded else None,
                 },
-                "queryPolicy": {"intent": chat_intent, "stabilityDataGapReason": stability_gap_reason},
+                "queryPolicy": {},
                 "response": {"explanation": ai_explanation},
                 "evidenceGate": evidence_gate,
                 "dataFreshness": data_freshness,
@@ -1431,7 +968,6 @@ async def ai_chat_stream(
 
             all_messages.append(user_msg)
             all_messages.append(ai_msg)
-            # Run compression with a timeout — don't let it block done event for too long
             t_compress = time.perf_counter()
             try:
                 await asyncio.wait_for(_maybe_compress_history(session, all_messages), timeout=1.0)
@@ -1447,18 +983,16 @@ async def ai_chat_stream(
                 details={
                     "patient_id": req.patientId, "message_length": len(req.message),
                     "safety_flagged": guardrail_result.get("flagged", False),
-                    "chat_intent": chat_intent, "streaming": True,
+                    "citation_count": len(citations), "streaming": True,
                 },
             )
             await db.commit()
             timings["db_commit"] = time.perf_counter() - t_commit
             timings["total"] = time.perf_counter() - t_start
 
-            # Log pipeline timings for performance analysis
             timings_rounded = {k: round(v, 3) for k, v in timings.items()}
             logger.info("[PERF][AI][STREAM] timings=%s model=%s", json.dumps(timings_rounded), settings.LLM_MODEL)
 
-            # Final done event with complete payload
             yield _sse_event("done", {
                 "message": {
                     "id": ai_msg_id, "role": "assistant", "content": ai_content,

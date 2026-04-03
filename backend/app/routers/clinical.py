@@ -216,25 +216,25 @@ async def _get_patient_dict(patient_id: str, db: AsyncSession) -> dict:
         "is_isolated": patient.is_isolated,
     }
 
-    # Latest lab data (most recent by timestamp)
+    # Latest lab data (all fields)
     if patient.lab_data:
         latest_lab = sorted(patient.lab_data, key=lambda x: x.timestamp, reverse=True)[0]
         patient_dict["lab_data"] = lab_to_dict(latest_lab)
     else:
         patient_dict["lab_data"] = None
 
-    # Latest vital signs
+    # Latest vital signs (all fields)
     if patient.vital_signs:
         latest_vital = sorted(patient.vital_signs, key=lambda x: x.timestamp, reverse=True)[0]
         patient_dict["vital_signs"] = vital_to_dict(latest_vital)
     else:
         patient_dict["vital_signs"] = None
 
-    # Active medications only
+    # Active medications (all fields)
     active_meds = [m for m in patient.medications if m.status == "active"]
     patient_dict["medications"] = [med_to_dict(m) for m in active_meds]
 
-    # Latest ventilator settings
+    # Latest ventilator settings (all fields)
     if patient.ventilator_settings:
         latest_vent = sorted(patient.ventilator_settings, key=lambda x: x.timestamp, reverse=True)[0]
         patient_dict["ventilator_settings"] = vent_to_dict(latest_vent)

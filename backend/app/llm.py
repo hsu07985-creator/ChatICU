@@ -19,6 +19,46 @@ from app.config import settings
 
 logger = logging.getLogger("chaticu")
 
+
+# ── Lazy-initialized client singletons (avoid TLS handshake per request) ──
+_openai_sync_client = None
+_openai_async_client = None
+_anthropic_sync_client = None
+_anthropic_async_client = None
+
+
+def _get_openai_sync():
+    global _openai_sync_client
+    if _openai_sync_client is None:
+        from openai import OpenAI
+        _openai_sync_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    return _openai_sync_client
+
+
+def _get_openai_async():
+    global _openai_async_client
+    if _openai_async_client is None:
+        from openai import AsyncOpenAI
+        _openai_async_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    return _openai_async_client
+
+
+def _get_anthropic_sync():
+    global _anthropic_sync_client
+    if _anthropic_sync_client is None:
+        from anthropic import Anthropic
+        _anthropic_sync_client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    return _anthropic_sync_client
+
+
+def _get_anthropic_async():
+    global _anthropic_async_client
+    if _anthropic_async_client is None:
+        from anthropic import AsyncAnthropic
+        _anthropic_async_client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+    return _anthropic_async_client
+
+
 # ── Conversation history thresholds (configurable via env: F08) ──
 RECENT_MSG_WINDOW = settings.LLM_RECENT_MSG_WINDOW
 COMPRESS_THRESHOLD = settings.LLM_COMPRESS_THRESHOLD
@@ -53,32 +93,23 @@ TASK_PROMPTS: dict[str, str] = {
         + _LANG_DIRECTIVE
     ),
     "rag_generation": (
-        "You are an ICU clinical decision assistant. "
-        "If patient data is provided, incorporate it into your analysis. "
-        "Answer based ONLY on the provided context and patient data. "
-        "Output EXACTLY two sections with these headers: "
-        "【主回答】 and 【說明/補充】. "
-        "For 【主回答】: provide ONE short sentence (action-first, concrete and directly executable). "
-        "If this is a multiple-choice question, start with option letter format such as 'C。...'. "
-        "If this is a yes/no decision question, start with '建議' or '不建議' and include the immediate next step. "
-        "Avoid vague wording like '密切監測'. When monitoring is needed, specify: "
-        "(1) what to monitor (e.g., RR/SpO2/RASS/BP), "
-        "(2) monitoring frequency, and "
-        "(3) escalation trigger. "
-        "For 【說明/補充】: provide 2-4 short bullet points covering rationale, risk, and alternatives. "
-        "Avoid long paragraphs and avoid repeating the same point. "
-        "Cite supporting evidence. "
-        + _LANG_DIRECTIVE
-    ),
-    "chat_partial_response": (
-        "You are an ICU clinical assistant. "
-        "When key patient data is missing or stale, provide a best-effort partial response. "
-        "Use only the provided patient/context data and never fabricate values. "
-        "Output in three short sections: "
-        "(1) 目前可確認 "
-        "(2) 目前無法確認 "
-        "(3) 建議補充資料。 "
-        "Avoid definitive treatment recommendations in this mode. "
+        "You are an ICU clinical assistant (ChatICU). You help clinicians by answering questions about their patients.\n\n"
+
+        "## 回答原則\n"
+        "1. **先理解問題意圖**：\n"
+        "   - 問「狀況/狀態/怎麼樣」→ 用 [病患資料] 做狀態摘要（數值+趨勢+需注意事項）\n"
+        "   - 問「該怎麼做/建議」→ 給臨床建議\n"
+        "   - 問特定數值或用藥 → 直接從 [病患資料] 取值回答\n\n"
+
+        "2. **只用 [病患資料] 中的實際數值**，不要捏造數據或引用文獻來源。\n"
+        "   若資料不足，簡短指出缺什麼。\n\n"
+
+        "3. **安全**：不給具體劑量處方。高警訊藥物相關問題加註「須經藥師/醫師確認」。\n\n"
+
+        "4. **格式**：\n"
+        "   【主回答】1-2 句話，直接回答問題。\n"
+        "   【說明/補充】1-2 個重點，合計不超過 80 字。不要列超過 2 點。\n\n"
+
         + _LANG_DIRECTIVE
     ),
     "clinical_polish": (
@@ -389,9 +420,7 @@ async def _stream_openai(
     trace_id: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     """Stream tokens from OpenAI using the async client."""
-    from openai import AsyncOpenAI
-
-    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    client = _get_openai_async()
     api_messages = [{"role": "system", "content": system_prompt}]
     api_messages.extend(messages)
 
@@ -434,9 +463,7 @@ async def _stream_anthropic(
     trace_id: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     """Stream tokens from Anthropic using the async client."""
-    from anthropic import AsyncAnthropic
-
-    client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+    client = _get_anthropic_async()
     full_content = ""
     usage_meta = {}
 
@@ -474,8 +501,7 @@ def _call_openai(
     request_id: str | None = None,
     trace_id: str | None = None,
 ):
-    from openai import OpenAI
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    client = _get_openai_sync()
     response = client.chat.completions.create(
         model=settings.LLM_MODEL, max_completion_tokens=max_tokens,
         messages=[
@@ -515,8 +541,7 @@ def _call_openai_multi(
     request_id: str | None = None,
     trace_id: str | None = None,
 ):
-    from openai import OpenAI
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    client = _get_openai_sync()
     api_messages = [{"role": "system", "content": system_prompt}]
     api_messages.extend(messages)
     response = client.chat.completions.create(
@@ -622,8 +647,7 @@ def _rerank_passages_llm(
         "Do not include any other text."
     )
 
-    from openai import OpenAI
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    client = _get_openai_sync()
     response = client.chat.completions.create(
         model=settings.RAG_RERANK_MODEL,
         max_completion_tokens=4096,
@@ -694,8 +718,7 @@ def summarize_citations(
         + "\n\n---\n\n".join(sources_text)
     )
 
-    from openai import OpenAI
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    client = _get_openai_sync()
     response = client.chat.completions.create(
         model=settings.RAG_RERANK_MODEL,  # gpt-5-mini — fast and cheap
         max_completion_tokens=4096,  # reasoning models need ~2-3x headroom for thinking tokens
@@ -734,8 +757,7 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     """Embed texts using OpenAI API. Raises if API key is missing or call fails."""
     if not settings.OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY is required for embedding. No fallback available.")
-    from openai import OpenAI
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    client = _get_openai_sync()
     batch_size = 100
     all_embeddings: list[list[float]] = []
     for i in range(0, len(texts), batch_size):
@@ -801,8 +823,7 @@ def generate_chunk_context(doc_text: str, chunk_text: str) -> str:
     """
     if not settings.OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY is required for contextual retrieval.")
-    from openai import OpenAI
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    client = _get_openai_sync()
 
     system_prompt = TASK_PROMPTS["contextual_chunk"]
     max_doc = getattr(settings, "RAG_CONTEXTUAL_MAX_DOC_CHARS", 8000)
@@ -837,8 +858,7 @@ def _call_anthropic(
     request_id: str | None = None,
     trace_id: str | None = None,
 ):
-    from anthropic import Anthropic
-    client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    client = _get_anthropic_sync()
     response = client.messages.create(
         model=settings.LLM_MODEL, temperature=temperature, max_tokens=max_tokens,
         system=system_prompt,
@@ -873,8 +893,7 @@ def _call_anthropic_multi(
     request_id: str | None = None,
     trace_id: str | None = None,
 ):
-    from anthropic import Anthropic
-    client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    client = _get_anthropic_sync()
     response = client.messages.create(
         model=settings.LLM_MODEL, temperature=temperature, max_tokens=max_tokens,
         system=system_prompt,
