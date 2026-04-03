@@ -52,6 +52,12 @@ logger = logging.getLogger("chaticu")
 
 router = APIRouter(prefix="/ai", tags=["AI"])
 
+# Max seconds to wait for the evidence service in chat endpoints.
+# The evidence httpx client itself has FUNC_API_TIMEOUT (default 30s),
+# but in chat context we need a much tighter budget so the total response
+# stays under Vercel's rewrite timeout (~30s hobby / 300s pro).
+_CHAT_EVIDENCE_TIMEOUT = 8.0
+
 
 _CHAT_INTENT_RECOMMENDATION_KEYWORDS = (
     "recommendation",
@@ -826,7 +832,10 @@ async def ai_chat(
         async def _agentic_retrieve_fn(query: str, top_k: int = 5):
             """Wrapper that returns (context, citations) from hybrid or local RAG."""
             try:
-                hr = await asyncio.to_thread(evidence_client.query, query, top_k=top_k, **trace_kwargs)
+                hr = await asyncio.wait_for(
+                    asyncio.to_thread(evidence_client.query, query, top_k=top_k, **trace_kwargs),
+                    timeout=_CHAT_EVIDENCE_TIMEOUT,
+                )
                 ctx = hr.get("answer", "")
                 snips = hr.get("evidence_snippets", [])
                 if snips:
@@ -839,7 +848,7 @@ async def ai_chat(
                 if not cits:
                     cits = _build_snippet_fallback_citations([s for s in snips if isinstance(s, dict)])
                 return ctx, cits
-            except Exception:
+            except (asyncio.TimeoutError, Exception):
                 if await _ensure_local_rag_index():
                     try:
                         raw = rag_service.retrieve(query, top_k=top_k)
@@ -868,11 +877,14 @@ async def ai_chat(
     if not rag_context and not citations:
         # Standard single-shot retrieval path
         try:
-            hybrid_result = await asyncio.to_thread(
-                evidence_client.query,
-                req.message,
-                top_k=5,
-                **trace_kwargs,
+            hybrid_result = await asyncio.wait_for(
+                asyncio.to_thread(
+                    evidence_client.query,
+                    req.message,
+                    top_k=5,
+                    **trace_kwargs,
+                ),
+                timeout=_CHAT_EVIDENCE_TIMEOUT,
             )
             evidence_confidence = hybrid_result.get("confidence")
             rag_context = hybrid_result.get("answer", "")
@@ -890,9 +902,9 @@ async def ai_chat(
                     [s for s in snippets if isinstance(s, dict)]
                 )
             logger.info("[INTG][AI][API] Hybrid RAG returned %d citations", len(citations))
-        except Exception as exc:
+        except (asyncio.TimeoutError, Exception) as exc:
             logger.warning(
-                "[INTG][AI][API][F07] Hybrid RAG unavailable for ai_chat, falling back to local RAG: %s",
+                "[INTG][AI][API][F07] Hybrid RAG unavailable/timed out for ai_chat, falling back to local RAG: %s",
                 exc,
             )
             if await _ensure_local_rag_index():
@@ -1208,13 +1220,16 @@ async def ai_chat_stream(
 
             yield _sse_event("thinking", {"phase": "rag", "detail": "正在查詢文獻…"})
 
-            # RAG retrieval
+            # RAG retrieval (with tight timeout to avoid Vercel rewrite timeout)
             citations: List[Dict[str, Any]] = []
             rag_context = ""
             evidence_confidence = None
             try:
-                hybrid_result = await asyncio.to_thread(
-                    evidence_client.query, req.message, top_k=5, **trace_kwargs,
+                hybrid_result = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        evidence_client.query, req.message, top_k=5, **trace_kwargs,
+                    ),
+                    timeout=_CHAT_EVIDENCE_TIMEOUT,
                 )
                 evidence_confidence = hybrid_result.get("confidence")
                 rag_context = hybrid_result.get("answer", "")
@@ -1230,7 +1245,8 @@ async def ai_chat_stream(
                     citations = _build_snippet_fallback_citations(
                         [s for s in snippets if isinstance(s, dict)]
                     )
-            except Exception:
+            except (asyncio.TimeoutError, Exception) as exc:
+                logger.info("[INTG][AI][API][AO-04] Evidence query failed/timed out in stream, using local RAG: %s", type(exc).__name__)
                 if await _ensure_local_rag_index():
                     try:
                         _raw_sources = rag_service.retrieve(req.message, top_k=8)

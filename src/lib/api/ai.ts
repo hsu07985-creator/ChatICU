@@ -231,21 +231,30 @@ export async function streamChatMessage(options: StreamChatOptions): Promise<voi
   let streamStarted = false;
   try {
     const requestId = createStreamRequestId();
-    const response = await fetch(`${API_BASE_URL}/ai/chat/stream`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'text/event-stream',
-        'X-Request-ID': requestId,
-        'X-Trace-ID': requestId,
-      },
-      body: JSON.stringify({
-        message: options.message,
-        sessionId: options.sessionId,
-        patientId: options.patientId,
-      }),
-    });
+    // AbortController with 60s timeout — prevents indefinite hang if backend/proxy stalls
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60_000);
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE_URL}/ai/chat/stream`, {
+        method: 'POST',
+        credentials: 'include',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+          'X-Request-ID': requestId,
+          'X-Trace-ID': requestId,
+        },
+        body: JSON.stringify({
+          message: options.message,
+          sessionId: options.sessionId,
+          patientId: options.patientId,
+        }),
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
     if (!response.ok) {
       throw new Error(`AI 串流請求失敗（HTTP ${response.status}）`);
     }
