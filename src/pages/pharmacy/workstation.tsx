@@ -324,9 +324,20 @@ export function PharmacyWorkstationPage() {
           console.warn('相容性查詢失敗:', err);
         }
       }
+      // Count by deduplicated pairs (not individual rows which may have multiple solutions)
+      const compatPairResults = new Map<string, boolean>();
+      for (const c of compatibility) {
+        const key = [c.drugA, c.drugB].sort().join('|');
+        // If any row is incompatible, mark the pair as incompatible
+        if (!compatPairResults.has(key) || !c.compatible) {
+          compatPairResults.set(key, c.compatible);
+        }
+      }
+      const compatiblePairCount = [...compatPairResults.values()].filter(v => v).length;
+      const incompatiblePairCount = [...compatPairResults.values()].filter(v => !v).length;
       const compatibilitySummary: CompatibilitySummary = {
-        compatible: compatibility.filter(c => c.compatible).length,
-        incompatible: compatibility.filter(c => !c.compatible).length,
+        compatible: compatiblePairCount,
+        incompatible: incompatiblePairCount,
         noData: limitedPairs.length - compatPairsWithData,
         pairsChecked: limitedPairs.length,
       };

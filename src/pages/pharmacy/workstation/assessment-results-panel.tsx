@@ -41,6 +41,17 @@ const RISK_BADGE: Record<string, { className: string; label: string }> = {
   D: { className: 'bg-[#f59e0b] text-white', label: 'D 考慮調整' },
 };
 
+/** Try to show actual drug names from dependencies instead of class names */
+function formatDrugPair(int: { drugA: string; drugB: string; dependencies?: string[] }): string {
+  const a = int.drugA;
+  const b = int.drugB;
+  // If dependencies has exactly 2 entries, use them as actual drug names
+  if (int.dependencies && int.dependencies.length === 2) {
+    return `${int.dependencies[0]} + ${int.dependencies[1]}`;
+  }
+  return `${a} + ${b}`;
+}
+
 export function AssessmentResultsPanel({
   selectedPatient,
   assessmentResults,
@@ -96,6 +107,7 @@ export function AssessmentResultsPanel({
     const r = i.riskRating || '';
     if (r) riskCounts[r] = (riskCounts[r] || 0) + 1;
   });
+  const highRiskCount = (riskCounts['X'] || 0) + (riskCounts['D'] || 0);
   const highRiskInteractions = interactions.filter(i => i.riskRating === 'X' || i.riskRating === 'D');
 
   // 相容性統計 — deduplicate by drugA+drugB pair
@@ -129,7 +141,7 @@ export function AssessmentResultsPanel({
         <CardContent className="pt-4 space-y-4">
           {/* 三欄指標 */}
           <div className="grid grid-cols-3 gap-3">
-            {/* 交互作用 */}
+            {/* 交互作用 — Fix #2: show total with D/X breakdown */}
             <div className="rounded-lg border p-4 text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <AlertTriangle className={`h-5 w-5 ${interactions.length > 0 ? 'text-[#f59e0b]' : 'text-green-600'}`} />
@@ -140,19 +152,23 @@ export function AssessmentResultsPanel({
               ) : (
                 <>
                   <p className="text-2xl font-bold">{interactions.length} <span className="text-sm font-normal">項</span></p>
-                  <div className="flex justify-center gap-1.5 mt-2">
-                    {(['X', 'D'] as const).map(r => {
-                      const c = riskCounts[r];
-                      if (!c) return null;
-                      const cfg = RISK_BADGE[r];
-                      return <Badge key={r} className={`${cfg.className} text-xs px-2 py-0.5`}>{r}×{c}</Badge>;
-                    })}
-                  </div>
+                  {highRiskCount > 0 ? (
+                    <div className="flex justify-center gap-1.5 mt-2">
+                      {(['X', 'D'] as const).map(r => {
+                        const c = riskCounts[r];
+                        if (!c) return null;
+                        const cfg = RISK_BADGE[r];
+                        return <Badge key={r} className={`${cfg.className} text-xs px-2 py-0.5`}>{r}×{c}</Badge>;
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1">無高風險（X/D）</p>
+                  )}
                 </>
               )}
             </div>
 
-            {/* 相容性 */}
+            {/* 相容性 — Fix #3: numbers now count by pair, not row */}
             <div className="rounded-lg border p-4 text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <Droplets className={`h-5 w-5 ${incompatiblePairs.length > 0 ? 'text-[#f59e0b]' : 'text-green-600'}`} />
@@ -163,9 +179,13 @@ export function AssessmentResultsPanel({
                   <div className="flex justify-center gap-3 text-base font-bold">
                     <span className="text-green-600">✓ {compatibilitySummary.compatible}</span>
                     <span className="text-red-600">✗ {compatibilitySummary.incompatible}</span>
-                    <span className="text-gray-400">— {compatibilitySummary.noData}</span>
+                    {compatibilitySummary.noData > 0 && (
+                      <span className="text-gray-400">? {compatibilitySummary.noData}</span>
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">{compatibilitySummary.pairsChecked} 組已查</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {compatibilitySummary.pairsChecked} 組中 {compatibilitySummary.compatible + compatibilitySummary.incompatible} 組有資料
+                  </p>
                 </>
               ) : (
                 <p className="text-2xl font-bold text-muted-foreground">—</p>
@@ -194,7 +214,7 @@ export function AssessmentResultsPanel({
             </div>
           </div>
 
-          {/* ── 需注意事項 ── */}
+          {/* ── 需注意事項 — Fix #4: show actual drug names ── */}
           {hasAlerts && (
             <>
               <Separator />
@@ -207,12 +227,14 @@ export function AssessmentResultsPanel({
                   {highRiskInteractions.map((int, idx) => {
                     const cfg = int.riskRating ? RISK_BADGE[int.riskRating] : null;
                     return (
-                      <div key={`int-${idx}`} className="flex items-center gap-2.5 text-base py-2 px-3 rounded bg-[#f8f9fa] border">
-                        {cfg && <Badge className={`${cfg.className} text-xs px-2 py-0.5 shrink-0`}>{cfg.label}</Badge>}
-                        <span className="font-semibold">{int.drugA} + {int.drugB}</span>
-                        {int.management && (
-                          <span className="text-sm text-muted-foreground truncate hidden sm:inline">— {int.management}</span>
-                        )}
+                      <div key={`int-${idx}`} className="flex items-start gap-2.5 text-base py-2 px-3 rounded bg-[#f8f9fa] border">
+                        {cfg && <Badge className={`${cfg.className} text-xs px-2 py-0.5 shrink-0 mt-0.5`}>{cfg.label}</Badge>}
+                        <div className="min-w-0">
+                          <span className="font-semibold">{formatDrugPair(int)}</span>
+                          {int.management && (
+                            <p className="text-sm text-muted-foreground mt-0.5">{int.management}</p>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -239,19 +261,25 @@ export function AssessmentResultsPanel({
             </>
           )}
 
-          {/* ── PAD 劑量換算 ── */}
+          {/* ── PAD 劑量換算 — Fix #1: show target dose alongside rate ── */}
           {dosage.length > 0 && dosage.some(d => d.status === 'calculated') && (
             <>
               <Separator />
               <div>
-                <p className="text-base font-semibold flex items-center gap-2 mb-3">
+                <p className="text-base font-semibold flex items-center gap-2 mb-1">
                   <Calculator className="h-5 w-5 text-[#7f265b]" />
                   PAD 劑量換算
                 </p>
+                <p className="text-xs text-muted-foreground mb-3">以劑量範圍中值估算，實際劑量請依臨床調整</p>
                 <div className="space-y-2">
                   {dosage.filter(d => d.status === 'calculated').map((d, idx) => (
                     <div key={idx} className="flex items-center justify-between text-base py-2 px-3 rounded bg-[#fdf6fa] border border-[#ead7e1]">
-                      <span className="font-semibold">{d.drugName}</span>
+                      <div>
+                        <span className="font-semibold">{d.drugName}</span>
+                        {d.normalDose && d.normalDose !== '—' && (
+                          <span className="text-sm text-muted-foreground ml-2">({d.normalDose})</span>
+                        )}
+                      </div>
                       <span className="font-bold text-lg text-[#7f265b]">{d.calculatedRate || d.adjustedDose}</span>
                     </div>
                   ))}
