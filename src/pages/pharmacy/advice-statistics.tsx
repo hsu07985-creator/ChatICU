@@ -39,8 +39,9 @@ export function PharmacyAdviceStatisticsPage() {
   const [records, setRecords] = useState<PharmacyAdviceRecord[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(true);
 
-  // 載入病患清單（共用快取）
+  // 載入病患清單（共用快取，sync cache 命中則跳過）
   useEffect(() => {
+    if (getCachedPatientsSync()) return;
     let cancelled = false;
     getCachedPatients()
       .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })

@@ -145,8 +145,9 @@ export function CompatibilityPage() {
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [medsLoading, setMedsLoading] = useState(false);
 
-  // Load patients from shared cache
+  // Load patients from shared cache (skip if sync cache hit)
   useEffect(() => {
+    if (getCachedPatientsSync()) return;
     let cancelled = false;
     getCachedPatients()
       .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })

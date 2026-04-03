@@ -59,9 +59,8 @@ export function PatientsPage() {
   }, [patients.length]);
 
   useEffect(() => {
-    if (isPatientsCacheFresh()) {
-      getCachedPatients().then(d => { setPatients(d as PatientWithFrontendFields[]); setLoading(false); });
-    } else {
+    // Skip fetch if sync cache already populated initial state
+    if (!cached) {
       fetchPatients();
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

@@ -51,6 +51,8 @@ export function PharmacyWorkstationPage() {
   const [patientsError, setPatientsError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Skip if sync cache already populated initial state
+    if (getCachedPatientsSync()) return;
     let cancelled = false;
     getCachedPatients()
       .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })

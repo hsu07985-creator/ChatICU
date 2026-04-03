@@ -110,12 +110,14 @@ export function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (isPatientsCacheFresh()) {
-      getCachedPatients().then(d => { setPatients(d); setLoading(false); });
-    } else {
+    // Patients: skip fetch entirely if sync cache already populated state
+    if (!getCachedPatientsSync()) {
       fetchPatients();
     }
-    fetchStats();
+    // Stats: skip fetch if sync cache already populated state
+    if (!_statsCache) {
+      fetchStats();
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 開啟編輯對話框

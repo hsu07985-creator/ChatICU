@@ -62,15 +62,19 @@ export function DosagePage() {
     concentration !== '' &&
     parseFloat(concentration) !== drugInfo.concentration;
 
-  // Load PAD drugs + patients from shared cache
+  // Load PAD drugs + patients from shared cache (skip if sync cache hit)
   useEffect(() => {
     let cancelled = false;
-    getCachedPadDrugs()
-      .then(drugs => { if (!cancelled) { setPadDrugs(drugs); setDrugsLoading(false); } })
-      .catch(() => { if (!cancelled) setDrugsLoading(false); });
-    getCachedPatients()
-      .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
-      .catch(() => { if (!cancelled) { toast.error('無法載入病患列表'); setPatientsLoading(false); } });
+    if (!getCachedPadDrugsSync()) {
+      getCachedPadDrugs()
+        .then(drugs => { if (!cancelled) { setPadDrugs(drugs); setDrugsLoading(false); } })
+        .catch(() => { if (!cancelled) setDrugsLoading(false); });
+    }
+    if (!getCachedPatientsSync()) {
+      getCachedPatients()
+        .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
+        .catch(() => { if (!cancelled) { toast.error('無法載入病患列表'); setPatientsLoading(false); } });
+    }
     return () => { cancelled = true; };
   }, []);
 
