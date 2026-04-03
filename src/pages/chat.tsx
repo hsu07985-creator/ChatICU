@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -11,6 +11,16 @@ import { getMyMentions, type MentionGroup } from '../lib/api/messages';
 import { LoadingSpinner } from '../components/ui/state-display';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+
+// ── Module-level cache for chat messages (30s) + mentions (2min) ──
+let _msgsCache: TeamChatMessage[] | null = null;
+let _msgsTimestamp = 0;
+const MSGS_STALE_MS = 30 * 1000; // 30 seconds — chat is semi-realtime
+
+interface MentionsCacheEntry { groups: MentionGroup[]; total: number; unreadOnly: boolean }
+let _mentionsCache: MentionsCacheEntry | null = null;
+let _mentionsTimestamp = 0;
+const MENTIONS_STALE_MS = 2 * 60 * 1000; // 2 minutes
 import {
   Dialog,
   DialogContent,
@@ -43,8 +53,8 @@ function formatTimestamp(timestamp: string): string {
 export function ChatPage() {
   const { user } = useAuth();
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<TeamChatMessage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [messages, setMessages] = useState<TeamChatMessage[]>(_msgsCache ?? []);
+  const [loading, setLoading] = useState(!_msgsCache);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -56,19 +66,25 @@ export function ChatPage() {
 
   // 右側面板：tab 切換
   const [sidebarTab, setSidebarTab] = useState<'pinned' | 'mentions'>('mentions');
-  const [mentionGroups, setMentionGroups] = useState<MentionGroup[]>([]);
-  const [mentionsLoading, setMentionsLoading] = useState(false);
-  const [mentionsTotalCount, setMentionsTotalCount] = useState(0);
+  const [mentionGroups, setMentionGroups] = useState<MentionGroup[]>(_mentionsCache?.groups ?? []);
+  const [mentionsLoading, setMentionsLoading] = useState(!_mentionsCache);
+  const [mentionsTotalCount, setMentionsTotalCount] = useState(_mentionsCache?.total ?? 0);
   const [expandedPatients, setExpandedPatients] = useState<Set<string>>(new Set());
   const [mentionsUnreadOnly, setMentionsUnreadOnly] = useState(false);
   const navigate = useNavigate();
 
-  // 載入訊息
-  const loadMessages = async () => {
+  // 載入訊息（帶快取）
+  const loadMessages = useCallback(async (force = false) => {
+    if (!force && _msgsCache && Date.now() - _msgsTimestamp < MSGS_STALE_MS) {
+      setMessages(_msgsCache);
+      setLoading(false);
+      return;
+    }
     try {
       setError(null);
       const response = await getTeamChatMessages({ limit: 50 });
-      // API contract: messages are oldest -> newest.
+      _msgsCache = response.messages;
+      _msgsTimestamp = Date.now();
       setMessages(response.messages);
     } catch (err) {
       console.error('載入團隊聊天訊息失敗:', err);
@@ -76,12 +92,23 @@ export function ChatPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadMentions = async () => {
+  // 載入 @提及（帶快取，unreadOnly 切換時強制刷新）
+  const loadMentions = useCallback(async (forceUnreadOnly?: boolean) => {
+    const unread = forceUnreadOnly ?? mentionsUnreadOnly;
+    // Check cache (must match unreadOnly flag)
+    if (_mentionsCache && _mentionsCache.unreadOnly === unread && Date.now() - _mentionsTimestamp < MENTIONS_STALE_MS) {
+      setMentionGroups(_mentionsCache.groups);
+      setMentionsTotalCount(_mentionsCache.total);
+      setMentionsLoading(false);
+      return;
+    }
     setMentionsLoading(true);
     try {
-      const result = await getMyMentions({ hoursBack: 168, unreadOnly: mentionsUnreadOnly });
+      const result = await getMyMentions({ hoursBack: 168, unreadOnly: unread });
+      _mentionsCache = { groups: result.groups, total: result.totalMentions, unreadOnly: unread };
+      _mentionsTimestamp = Date.now();
       setMentionGroups(result.groups);
       setMentionsTotalCount(result.totalMentions);
     } catch (err) {
@@ -89,16 +116,20 @@ export function ChatPage() {
     } finally {
       setMentionsLoading(false);
     }
-  };
+  }, [mentionsUnreadOnly]);
 
+  // Initial load: messages first (priority), mentions in parallel
   useEffect(() => {
     loadMessages();
     loadMentions();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // unreadOnly 切換 → invalidate mentions cache + refetch
   useEffect(() => {
-    loadMentions();
-  }, [mentionsUnreadOnly]);
+    _mentionsCache = null;
+    _mentionsTimestamp = 0;
+    loadMentions(mentionsUnreadOnly);
+  }, [mentionsUnreadOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 自動滾動到底部
   useEffect(() => {
@@ -116,7 +147,9 @@ export function ChatPage() {
     setSending(true);
     try {
       const newMessage = await sendTeamChatMessage(message.trim());
-      setMessages(prev => [...prev, newMessage]);
+      const updated = [...messages, newMessage];
+      _msgsCache = updated; _msgsTimestamp = Date.now();
+      setMessages(updated);
       setMessage('');
       toast.success('訊息已發送');
     } catch (err) {
@@ -134,7 +167,9 @@ export function ChatPage() {
     setPostingAnnouncement(true);
     try {
       const newAnnouncement = await postAnnouncement(announcementContent.trim());
-      setMessages(prev => [...prev, newAnnouncement]);
+      const updated = [...messages, newAnnouncement];
+      _msgsCache = updated; _msgsTimestamp = Date.now();
+      setMessages(updated);
       setAnnouncementContent('');
       setAnnouncementDialogOpen(false);
       toast.success('公告已發布');
@@ -192,7 +227,7 @@ export function ChatPage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={loadMessages}
+              onClick={() => loadMessages(true)}
               disabled={loading}
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -208,7 +243,7 @@ export function ChatPage() {
               ) : error ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
                   <p className="text-red-500 mb-2">{error}</p>
-                  <Button variant="outline" onClick={loadMessages}>
+                  <Button variant="outline" onClick={() => loadMessages(true)}>
                     <RefreshCw className="mr-2 h-4 w-4" />
                     重新載入
                   </Button>
