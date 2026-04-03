@@ -4,8 +4,8 @@ import { getPatients, Patient as ApiPatient } from '../../lib/api/patients';
 import { useAuth } from '../../lib/auth-context';
 import { getLatestLabData, type LabData as ApiLabData } from '../../lib/api/lab-data';
 import { getLatestVitalSigns, type VitalSigns as ApiVitalSigns } from '../../lib/api/vital-signs';
-import { calculateDose, checkInteractions, type PatientContext } from '../../lib/api/ai';
-import { createAdviceRecord, getDrugInteractions, getIVCompatibility, getPadDrugs, type PadDrugInfo } from '../../lib/api/pharmacy';
+import { checkInteractions, type PatientContext } from '../../lib/api/ai';
+import { createAdviceRecord, getDrugInteractions, getIVCompatibility, getPadDrugs, padCalculate, type PadDrugInfo } from '../../lib/api/pharmacy';
 import { getMedications } from '../../lib/api/medications';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -381,54 +381,80 @@ export function PharmacyWorkstationPage() {
         .map(drug => ({ drug, padInfo: matchPadDrug(drug) }))
         .filter((m): m is { drug: string; padInfo: PadDrugInfo } => m.padInfo !== null);
 
+      // Use backend built-in PAD engine (deterministic, no external service needed)
+      const patientWeight = extendedData?.weight ?? null;
+      const patientSex = selectedPatient.gender === '男' ? 'male' : selectedPatient.gender === '女' ? 'female' : undefined;
+      const patientHeight = selectedPatient.height ?? undefined;
+
       const dosage: DosageResult[] = await Promise.all(
         padMatchedDrugs.map(async ({ drug, padInfo }) => {
-          try {
-            const res = await calculateDose({ drug: padInfo.key, patientContext }, { suppressErrorToast: true });
-            const cv = res.computed_values as Record<string, unknown>;
-            const inputDose = cv?.input_dose;
-            const finalRate = cv?.final_rate;
-            const fmt = (v: unknown) => v && typeof v === 'object' && v !== null && 'value' in v && 'unit' in v
-              ? `${(v as Record<string, unknown>).value} ${(v as Record<string, unknown>).unit}`
-              : '';
-            const normalDose = fmt(inputDose) || (res.status === 'ok' ? '—' : '無法計算');
-            const adjustedDose = fmt(finalRate) || (res.status === 'ok' ? '—' : '無法計算');
-            const steps = res.calculation_steps || [];
-            const isRequiresInput = res.error_code === 'MISSING_TARGET_DOSE' || res.status === 'requires_input';
-            return {
-              drugName: padInfo.label || drug,
-              normalDose,
-              adjustedDose,
-              renalAdjustment: steps.slice(0, 4).join('；') || (res.message || ''),
-              hepaticWarning: extendedData?.hepaticFunction && extendedData.hepaticFunction !== 'normal'
-                ? '已套用肝功能調整（如適用）'
-                : '',
-              warnings: res.safety_warnings || [],
-              references: (res.citations || []).length ? '包含規則引用（詳見劑量頁）' : undefined,
-              calculationSteps: steps,
-              status: (isRequiresInput ? 'requires_input' : 'calculated') as DosageResult['status'],
-              clinicalSummary: steps.length > 0 ? steps[0] : (res.message || adjustedDose),
-              supportingNote: steps.length > 1 ? steps.slice(1).join('；') : undefined,
-              targetDose: normalDose,
-              targetDoseTitle: '原始醫囑',
-              calculatedRate: adjustedDose,
-              calculatedRateTitle: '建議速率',
-              orderSummary: normalDose,
-              orderTypeLabel: cv?.order_type_label as string || '連續輸注',
-              isEquivalentEstimate: Boolean(cv?.is_equivalent_estimate),
-            };
-          } catch (err) {
-            const msg = '劑量引擎不可用（請啟動 func/ 服務）';
+          if (!patientWeight || patientWeight <= 0) {
             return {
               drugName: padInfo.label || drug,
               normalDose: '—',
-              adjustedDose: msg,
-              renalAdjustment: msg,
+              adjustedDose: '需要體重資料',
+              renalAdjustment: '',
+              hepaticWarning: '',
+              warnings: ['缺少體重資料，無法計算'],
+              calculationSteps: [],
+              status: 'requires_input' as DosageResult['status'],
+              clinicalSummary: '需要體重資料才能計算',
+              calculatedRate: '—',
+            };
+          }
+          // Fixed-dose drugs don't need target_dose
+          const isFixed = padInfo.weight_basis === 'fixed';
+          // Use mid-range dose as default target for non-fixed drugs
+          let defaultTarget = 0;
+          if (!isFixed && padInfo.dose_range) {
+            const parts = padInfo.dose_range.split('–');
+            if (parts.length === 2) {
+              const lo = parseFloat(parts[0]);
+              const hi = parseFloat(parts[1]);
+              if (!isNaN(lo) && !isNaN(hi)) defaultTarget = parseFloat(((lo + hi) / 2).toFixed(4));
+            }
+          }
+          try {
+            const res = await padCalculate({
+              drug: padInfo.key,
+              weight_kg: patientWeight,
+              target_dose_per_kg_hr: isFixed ? 0 : defaultTarget,
+              concentration: padInfo.concentration || 1,
+              sex: patientSex,
+              height_cm: patientHeight,
+            });
+            const rateStr = `${res.rate_ml_hr} ml/hr`;
+            const doseStr = `${res.dose_per_hr} ${padInfo.dose_unit?.replace('/kg', '') || '/hr'}`;
+            return {
+              drugName: padInfo.label || drug,
+              normalDose: `${defaultTarget} ${padInfo.dose_unit || ''}`,
+              adjustedDose: rateStr,
+              renalAdjustment: '',
+              hepaticWarning: '',
+              warnings: res.note ? [res.note] : [],
+              calculationSteps: res.steps,
+              status: 'calculated' as DosageResult['status'],
+              clinicalSummary: `${res.weight_basis} ${res.dosing_weight_kg}kg → ${rateStr}`,
+              supportingNote: res.steps.length > 1 ? res.steps.slice(1).join('；') : undefined,
+              targetDose: doseStr,
+              targetDoseTitle: '每小時劑量',
+              calculatedRate: rateStr,
+              calculatedRateTitle: '輸注速率',
+              orderSummary: `${padInfo.label} ${rateStr}`,
+              orderTypeLabel: '連續輸注',
+              isEquivalentEstimate: false,
+            };
+          } catch {
+            return {
+              drugName: padInfo.label || drug,
+              normalDose: '—',
+              adjustedDose: 'PAD 計算失敗',
+              renalAdjustment: '',
               hepaticWarning: '',
               warnings: [],
               calculationSteps: [],
               status: 'service_unavailable' as DosageResult['status'],
-              clinicalSummary: msg,
+              clinicalSummary: 'PAD 計算失敗',
               calculatedRate: '—',
             };
           }
@@ -456,10 +482,14 @@ export function PharmacyWorkstationPage() {
         adviceRecommendations.push('肝功能異常，建議檢視需肝代謝調整藥物並監測肝功能。');
       }
       if (dosage.some(d => d.status === 'service_unavailable')) {
-        adviceRecommendations.push('部分 PAD 藥物劑量計算服務不可用，建議稍後重試或至劑量計算頁面操作。');
+        adviceRecommendations.push('部分 PAD 藥物劑量計算失敗，建議至劑量計算頁面手動操作。');
       }
-      if (padMatchedDrugs.length > 0 && dosage.length > 0) {
-        adviceRecommendations.push(`目前用藥中有 ${padMatchedDrugs.length} 項 PAD 支援藥物可進行劑量換算。`);
+      if (dosage.some(d => d.status === 'requires_input')) {
+        adviceRecommendations.push('部分 PAD 藥物缺少體重資料，無法自動計算。');
+      }
+      const calculatedDosage = dosage.filter(d => d.status === 'calculated');
+      if (calculatedDosage.length > 0) {
+        adviceRecommendations.push(`已計算 ${calculatedDosage.length} 項 PAD 藥物輸注速率（使用劑量範圍中值）。至劑量計算頁面可自訂目標劑量。`);
       }
 
       setAssessmentResults({
