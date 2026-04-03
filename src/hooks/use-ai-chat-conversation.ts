@@ -196,7 +196,11 @@ export function useAiChatConversation(options: UseAiChatConversationOptions) {
         const detail = data?.message ?? data?.detail;
         if (typeof detail === 'string' && detail.trim()) {
           errorMessage = `AI 服務暫時不可用：${detail}`;
+        } else if (err.response) {
+          errorMessage = `AI 服務錯誤（HTTP ${err.response.status}）`;
         }
+      } else if (err instanceof Error && err.message) {
+        errorMessage = `AI 回覆失敗：${err.message}`;
       }
       setChatMessages([
         ...messagesWithUser,
