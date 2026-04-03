@@ -42,6 +42,7 @@ interface UsePatientDetailTabsPropsParams {
   onToggleSessionList: () => void;
   chatMessages: SessionChatMessage[];
   isSending: boolean;
+  thinkingStatus?: string | null;
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   onMessagesScroll: () => void;
@@ -101,6 +102,7 @@ export function usePatientDetailTabsProps(params: UsePatientDetailTabsPropsParam
     onToggleSessionList,
     chatMessages,
     isSending,
+    thinkingStatus,
     messagesContainerRef,
     messagesEndRef,
     onMessagesScroll,
@@ -147,6 +149,7 @@ export function usePatientDetailTabsProps(params: UsePatientDetailTabsPropsParam
       onToggleSessionList,
       chatMessages,
       isSending,
+      thinkingStatus,
       messagesContainerRef,
       messagesEndRef,
       onMessagesScroll,
@@ -211,6 +214,7 @@ export function usePatientDetailTabsProps(params: UsePatientDetailTabsPropsParam
     formatTimestamp,
     getDisplayFreshnessHints,
     isSending,
+    thinkingStatus,
     labsTabProps,
     messageInput,
     messages,

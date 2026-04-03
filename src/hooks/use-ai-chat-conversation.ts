@@ -36,6 +36,7 @@ export function useAiChatConversation(options: UseAiChatConversationOptions) {
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<SessionChatMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [thinkingStatus, setThinkingStatus] = useState<string | null>(null);
 
   const clearChatMessages = useCallback(() => {
     setChatMessages([]);
@@ -79,28 +80,73 @@ export function useAiChatConversation(options: UseAiChatConversationOptions) {
         },
       ]);
 
+      setThinkingStatus('正在準備回覆…');
       const response = await new Promise<ChatResponse>((resolve, reject) => {
+        let pendingChunks = '';
+        let rafId: number | null = null;
+
+        const flushChunks = () => {
+          rafId = null;
+          if (!pendingChunks) return;
+          const toAppend = pendingChunks;
+          pendingChunks = '';
+          setChatMessages((prev) => {
+            if (prev.length === 0) return prev;
+            const next = [...prev];
+            const lastIndex = next.length - 1;
+            const last = next[lastIndex];
+            if (last?.role !== 'assistant') return prev;
+            next[lastIndex] = {
+              ...last,
+              content: `${last.content || ''}${toAppend}`,
+            };
+            return next;
+          });
+        };
+
         streamChatMessage({
           message: userMessage,
           patientId: effectivePatientId,
           sessionId: selectedSessionId,
+          onThinking: (detail) => {
+            setThinkingStatus(detail);
+          },
           onMessage: (chunk) => {
             if (!chunk) return;
-            setChatMessages((prev) => {
-              if (prev.length === 0) return prev;
-              const next = [...prev];
-              const lastIndex = next.length - 1;
-              const last = next[lastIndex];
-              if (last?.role !== 'assistant') return prev;
-              next[lastIndex] = {
-                ...last,
-                content: `${last.content || ''}${chunk}`,
-              };
-              return next;
-            });
+            pendingChunks += chunk;
+            if (rafId === null) {
+              rafId = requestAnimationFrame(flushChunks);
+            }
           },
-          onComplete: (streamResult) => resolve(streamResult),
-          onError: (error) => reject(error),
+          onComplete: (streamResult) => {
+            // Flush any remaining chunks before completing
+            if (rafId !== null) {
+              cancelAnimationFrame(rafId);
+              rafId = null;
+            }
+            if (pendingChunks) {
+              const toAppend = pendingChunks;
+              pendingChunks = '';
+              setChatMessages((prev) => {
+                if (prev.length === 0) return prev;
+                const next = [...prev];
+                const lastIndex = next.length - 1;
+                const last = next[lastIndex];
+                if (last?.role !== 'assistant') return prev;
+                next[lastIndex] = { ...last, content: `${last.content || ''}${toAppend}` };
+                return next;
+              });
+            }
+            setThinkingStatus(null);
+            resolve(streamResult);
+          },
+          onError: (error) => {
+            if (rafId !== null) {
+              cancelAnimationFrame(rafId);
+            }
+            setThinkingStatus(null);
+            reject(error);
+          },
         });
       });
 
@@ -161,6 +207,7 @@ export function useAiChatConversation(options: UseAiChatConversationOptions) {
       ]);
     } finally {
       setIsSending(false);
+      setThinkingStatus(null);
     }
   }, [
     aiChatGateReason,
@@ -184,6 +231,7 @@ export function useAiChatConversation(options: UseAiChatConversationOptions) {
     setChatMessages,
     clearChatMessages,
     isSending,
+    thinkingStatus,
     sendMessage,
   };
 }

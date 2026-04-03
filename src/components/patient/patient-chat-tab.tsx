@@ -42,6 +42,7 @@ interface PatientChatTabProps {
 
   chatMessages: SessionChatMessage[];
   isSending: boolean;
+  thinkingStatus?: string | null;
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   onMessagesScroll: () => void;
@@ -84,6 +85,7 @@ export function PatientChatTab({
   onToggleSessionList,
   chatMessages,
   isSending,
+  thinkingStatus,
   messagesContainerRef,
   messagesEndRef,
   onMessagesScroll,
@@ -266,6 +268,7 @@ export function PatientChatTab({
                 <ChatMessageThread
                   chatMessages={chatMessages}
                   isSending={isSending}
+                  thinkingStatus={thinkingStatus}
                   containerRef={messagesContainerRef}
                   endRef={messagesEndRef}
                   onScroll={onMessagesScroll}

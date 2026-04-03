@@ -550,6 +550,80 @@ async def _build_hybrid_citations(
     return await asyncio.gather(*tasks)
 
 
+# ── Helper: slim patient context for token efficiency ────────────────
+
+def _slim_patient_context(patient_context: Optional[dict]) -> Optional[dict]:
+    """Reduce patient context to essential fields for LLM prompt efficiency.
+
+    Full patient JSON can be 2-5KB. This trims to ~500 bytes by keeping only
+    the most clinically relevant fields for ICU chat.
+    """
+    if not patient_context:
+        return None
+
+    slim: Dict[str, Any] = {}
+    # Core demographics
+    for key in ("id", "name", "age", "gender", "bed_number", "department"):
+        if key in patient_context:
+            slim[key] = patient_context[key]
+
+    # Primary diagnosis
+    if "diagnoses" in patient_context:
+        diags = patient_context["diagnoses"]
+        if isinstance(diags, list):
+            slim["diagnoses"] = diags[:5]  # top 5 only
+        else:
+            slim["diagnoses"] = diags
+
+    # Recent vitals (latest only)
+    if "vital_signs" in patient_context:
+        vs = patient_context["vital_signs"]
+        if isinstance(vs, list) and vs:
+            slim["vital_signs"] = vs[-1] if len(vs) > 0 else vs  # latest only
+        elif isinstance(vs, dict):
+            slim["vital_signs"] = vs
+
+    # Abnormal labs only
+    if "lab_data" in patient_context:
+        labs = patient_context["lab_data"]
+        if isinstance(labs, list):
+            abnormal = [l for l in labs if _is_abnormal_lab(l)]
+            slim["lab_data"] = abnormal[:10] if abnormal else labs[:5]
+        else:
+            slim["lab_data"] = labs
+
+    # Active medications (name + dose only)
+    if "medications" in patient_context:
+        meds = patient_context["medications"]
+        if isinstance(meds, list):
+            slim["medications"] = [
+                {k: m.get(k) for k in ("name", "generic_name", "dose", "route", "frequency", "status") if m.get(k)}
+                for m in meds[:15]
+            ]
+        else:
+            slim["medications"] = meds
+
+    # Ventilator settings (if present)
+    if "ventilator_settings" in patient_context:
+        slim["ventilator_settings"] = patient_context["ventilator_settings"]
+
+    # Biochemistry for organ function
+    if "biochemistry" in patient_context:
+        slim["biochemistry"] = patient_context["biochemistry"]
+
+    return slim
+
+
+def _is_abnormal_lab(lab: Any) -> bool:
+    """Check if a lab result is outside normal range."""
+    if not isinstance(lab, dict):
+        return False
+    status = str(lab.get("status") or lab.get("flag") or "").lower()
+    if status in ("high", "low", "critical", "abnormal", "h", "l", "hh", "ll"):
+        return True
+    return False
+
+
 # ── Helper: build multi-turn messages for LLM ──────────────────────────
 
 def _build_chat_messages(
@@ -588,11 +662,19 @@ def _build_chat_messages(
     # 3. Build current user message with RAG + patient context
     parts: List[str] = []
     if patient_context:
+        slim_ctx = _slim_patient_context(patient_context)
         parts.append(
-            f"[病患資料]\n{json.dumps(patient_context, ensure_ascii=False, default=str)}"
+            f"[病患資料]\n{json.dumps(slim_ctx, ensure_ascii=False, default=str)}"
         )
     if rag_context:
-        parts.append(f"[參考文獻]\n{rag_context}")
+        # Trim RAG context: keep first 3000 chars to avoid token waste
+        trimmed_rag = rag_context[:3000]
+        if len(rag_context) > 3000:
+            # Try to cut at a clean boundary
+            last_sep = trimmed_rag.rfind("\n\n---\n\n")
+            if last_sep > 1500:
+                trimmed_rag = trimmed_rag[:last_sep]
+        parts.append(f"[參考文獻]\n{trimmed_rag}")
     parts.append(current_question)
 
     messages.append({"role": "user", "content": "\n\n".join(parts)})
@@ -1085,40 +1167,54 @@ async def ai_chat_stream(
             request_id = trace_kwargs.get("request_id", "unknown")
             trace_id = trace_kwargs.get("trace_id", request_id)
 
-            result = await db.execute(select(AISession).where(AISession.id == session_id))
-            session = result.scalar_one_or_none()
-            if not session:
-                session = AISession(
-                    id=session_id, user_id=user.id,
-                    patient_id=req.patientId, title=req.message[:50],
-                )
-                db.add(session)
-                await db.flush()
+            # Send thinking event immediately so frontend shows status
+            yield _sse_event("thinking", {"phase": "init", "detail": "正在準備回覆…"})
 
-            history_result = await db.execute(
-                select(AIMessage).where(AIMessage.session_id == session_id)
-                .order_by(AIMessage.created_at.asc())
+            # ── Parallel: session + history + patient context ──
+            async def _fetch_session():
+                r = await db.execute(select(AISession).where(AISession.id == session_id))
+                s = r.scalar_one_or_none()
+                if not s:
+                    s = AISession(
+                        id=session_id, user_id=user.id,
+                        patient_id=req.patientId, title=req.message[:50],
+                    )
+                    db.add(s)
+                    await db.flush()
+                return s
+
+            async def _fetch_history():
+                r = await db.execute(
+                    select(AIMessage).where(AIMessage.session_id == session_id)
+                    .order_by(AIMessage.created_at.asc())
+                )
+                return list(r.scalars().all())
+
+            async def _fetch_patient():
+                if not req.patientId:
+                    return None, None
+                try:
+                    pc = await _get_patient_dict(req.patientId, db)
+                    df = build_data_freshness(pc)
+                    return pc, df
+                except HTTPException:
+                    return None, None
+
+            session, all_messages, (patient_context, data_freshness) = await asyncio.gather(
+                _fetch_session(), _fetch_history(), _fetch_patient(),
             )
-            all_messages = list(history_result.scalars().all())
 
             user_msg_id = f"msg_{uuid.uuid4().hex[:8]}"
             user_msg = AIMessage(id=user_msg_id, session_id=session_id, role="user", content=req.message)
             db.add(user_msg)
-
-            patient_context = None
-            data_freshness = None
-            if req.patientId:
-                try:
-                    patient_context = await _get_patient_dict(req.patientId, db)
-                    data_freshness = build_data_freshness(patient_context)
-                except HTTPException:
-                    pass
 
             chat_intent = _classify_chat_intent(req.message)
             stability_gap_reason = (
                 _stability_data_gap_reason(data_freshness)
                 if chat_intent == "patient_stability" else None
             )
+
+            yield _sse_event("thinking", {"phase": "rag", "detail": "正在查詢文獻…"})
 
             # RAG retrieval
             citations: List[Dict[str, Any]] = []
@@ -1218,6 +1314,8 @@ async def ai_chat_stream(
 
             else:
                 # ── Phase 2b: True LLM streaming ──────────────────────
+                yield _sse_event("thinking", {"phase": "generating", "detail": "正在生成回答…"})
+
                 chat_messages = _build_chat_messages(
                     session_summary=session.summary,
                     history=all_messages,
@@ -1303,7 +1401,11 @@ async def ai_chat_stream(
 
             all_messages.append(user_msg)
             all_messages.append(ai_msg)
-            await _maybe_compress_history(session, all_messages)
+            # Run compression with a timeout — don't let it block done event for too long
+            try:
+                await asyncio.wait_for(_maybe_compress_history(session, all_messages), timeout=1.0)
+            except asyncio.TimeoutError:
+                logger.info("[INTG][AI][API] History compression timed out, will retry next request")
 
             await create_audit_log(
                 db, user_id=user.id, user_name=user.name, role=user.role,

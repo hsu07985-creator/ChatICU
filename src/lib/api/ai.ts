@@ -116,6 +116,7 @@ export interface StreamChatOptions {
   sessionId?: string;
   patientId?: string;
   message: string;
+  onThinking?: (detail: string) => void;
   onMessage: (chunk: string) => void;
   onComplete: (response: ChatResponse) => void;
   onError: (error: Error) => void;
@@ -286,6 +287,10 @@ export async function streamChatMessage(options: StreamChatOptions): Promise<voi
           }
         }
 
+        if (parsed.event === 'thinking' && typeof payload.detail === 'string') {
+          options.onThinking?.(payload.detail);
+          continue;
+        }
         if (parsed.event === 'delta' && typeof payload.chunk === 'string') {
           options.onMessage(payload.chunk);
           continue;

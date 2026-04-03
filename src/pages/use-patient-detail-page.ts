@@ -107,6 +107,7 @@ export function usePatientDetailPage() {
     setChatMessages,
     clearChatMessages,
     isSending,
+    thinkingStatus,
     sendMessage,
   } = useAiChatConversation({
     patientId: id,
@@ -300,6 +301,7 @@ export function usePatientDetailPage() {
     onToggleSessionList: () => setShowSessionList(!showSessionList),
     chatMessages,
     isSending,
+    thinkingStatus,
     messagesContainerRef,
     messagesEndRef,
     onMessagesScroll: handleMessagesScroll,

@@ -20,6 +20,7 @@ import { ExpertReviewWarning } from './expert-review-warning';
 interface ChatMessageThreadProps {
   chatMessages: SessionChatMessage[];
   isSending: boolean;
+  thinkingStatus?: string | null;
   containerRef: RefObject<HTMLDivElement | null>;
   endRef: RefObject<HTMLDivElement | null>;
   onScroll: () => void;
@@ -41,6 +42,7 @@ interface ChatMessageThreadProps {
 export function ChatMessageThread({
   chatMessages,
   isSending,
+  thinkingStatus,
   containerRef,
   endRef,
   onScroll,
@@ -117,19 +119,24 @@ export function ChatMessageThread({
                     <div className="flex-1 min-w-0 px-3 py-2.5">
                       {isWaiting ? (
                         <div className="flex items-center py-1.5">
-                          <div className="chat-thinking-dots" role="status" aria-label="AI 思考中">
-                            <span
-                              className="chat-thinking-dot"
-                              style={{ animationDelay: '0ms' }}
-                            />
-                            <span
-                              className="chat-thinking-dot"
-                              style={{ animationDelay: '180ms' }}
-                            />
-                            <span
-                              className="chat-thinking-dot"
-                              style={{ animationDelay: '360ms' }}
-                            />
+                          <div>
+                            <div className="chat-thinking-dots" role="status" aria-label="AI 思考中">
+                              <span
+                                className="chat-thinking-dot"
+                                style={{ animationDelay: '0ms' }}
+                              />
+                              <span
+                                className="chat-thinking-dot"
+                                style={{ animationDelay: '180ms' }}
+                              />
+                              <span
+                                className="chat-thinking-dot"
+                                style={{ animationDelay: '360ms' }}
+                              />
+                            </div>
+                            {thinkingStatus && (
+                              <p className="text-xs text-muted-foreground mt-1">{thinkingStatus}</p>
+                            )}
                           </div>
                         </div>
                       ) : (
