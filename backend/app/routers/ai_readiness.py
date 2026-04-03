@@ -79,7 +79,7 @@ async def ai_readiness(
     knowledge_ready = evidence_reachable or rag_ready
 
     feature_gates = {
-        "chat": llm_ready and knowledge_ready,
+        "chat": llm_ready,  # RAG enhances but should not block chat
         "clinical_summary": llm_ready,
         "patient_explanation": llm_ready,
         "guideline_interpretation": llm_ready and knowledge_ready,
