@@ -39,7 +39,6 @@ interface AssessmentResultsPanelProps {
 const RISK_BADGE: Record<string, { className: string; label: string }> = {
   X: { className: 'bg-red-700 text-white', label: 'X 避免併用' },
   D: { className: 'bg-[#f59e0b] text-white', label: 'D 考慮調整' },
-  C: { className: 'bg-yellow-500 text-white', label: 'C 監測' },
 };
 
 export function AssessmentResultsPanel({
@@ -142,7 +141,7 @@ export function AssessmentResultsPanel({
                 <>
                   <p className="text-2xl font-bold">{interactions.length} <span className="text-sm font-normal">項</span></p>
                   <div className="flex justify-center gap-1.5 mt-2">
-                    {(['X', 'D', 'C'] as const).map(r => {
+                    {(['X', 'D'] as const).map(r => {
                       const c = riskCounts[r];
                       if (!c) return null;
                       const cfg = RISK_BADGE[r];
