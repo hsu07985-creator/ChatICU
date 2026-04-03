@@ -215,7 +215,7 @@ export function PharmacyWorkstationPage() {
         k_mmol_l: extendedData?.k ?? undefined,
       };
 
-      // 1) Interactions (func deterministic engine first; fallback to DB index)
+      // ── Helper functions ──
       const mapRiskRating = (r?: string): DrugInteraction['riskRating'] | undefined => {
         if (!r) return undefined;
         const v = r.toUpperCase().trim();
@@ -223,254 +223,243 @@ export function PharmacyWorkstationPage() {
         return undefined;
       };
 
-      let interactions: DrugInteraction[] = [];
-      try {
-        const res = await checkInteractions(
-          { drugList: uniqueDrugs, patientContext },
-          { suppressErrorToast: true },
-        );
-        interactions = (res.findings || [])
-          .map((f, idx) => ({
-            id: `int_${idx}`,
-            drugA: f.drugA || f.drug_a || '',
-            drugB: f.drugB || f.drug_b || '',
-            severity: mapSeverity(f.severity),
-            description: f.clinical_effect || f.mechanism || '',
-            mechanism: f.mechanism || '',
-            clinicalEffect: f.clinical_effect || '',
-            management: f.recommended_action || '',
-            references: f.dose_adjustment_hint || (Array.isArray(f.monitoring) ? f.monitoring.join('、') : ''),
-            riskRating: mapRiskRating(f.risk_rating),
-            riskRatingDescription: f.risk_rating_description || '',
-            reliabilityRating: f.reliability_rating || '',
-            routeDependency: f.route_dependency || '',
-            discussion: f.discussion || '',
-            dependencies: f.dependencies || [],
-            pubmedIds: f.pubmed_ids || [],
-          }))
-          .filter(x => x.drugA && x.drugB);
-      } catch (err) {
-        console.warn('Evidence 交互作用引擎不可用，改用本地資料庫查詢', err);
-        try {
-          const drugSet = new Set(uniqueDrugs.map(d => d.toLowerCase()));
-          const respList = await Promise.all(
-            uniqueDrugs.map((d) => getDrugInteractions({ drugA: d }))
-          );
-          const all = respList.flatMap((resp) => resp.interactions || []);
-          const byId = new Map<string, typeof all[number]>();
-          for (const it of all) {
-            const id = String(it.id || '');
-            if (!id) continue;
-            if (!byId.has(id)) byId.set(id, it);
-          }
-          interactions = Array.from(byId.values())
-            .filter((it) => {
-              const a = String(it.drug1).toLowerCase();
-              const b = String(it.drug2).toLowerCase();
-              return drugSet.has(a) && drugSet.has(b);
-            })
-            .map((it) => ({
-              id: it.id,
-              drugA: it.drug1,
-              drugB: it.drug2,
-              severity: mapSeverity(it.severity),
-              description: it.clinicalEffect || '',
-              mechanism: it.mechanism || '',
-              clinicalEffect: it.clinicalEffect || '',
-              management: it.management || '',
-              references: it.references || '',
-              riskRating: mapRiskRating(it.riskRating),
-              riskRatingDescription: it.riskRatingDescription || '',
-              reliabilityRating: it.reliabilityRating || '',
-              routeDependency: it.routeDependency || '',
-              discussion: it.discussion || '',
-              dependencies: it.dependencies || [],
-              pubmedIds: it.pubmedIds || [],
-            }));
-        } catch (fallbackErr) {
-          console.error('本地交互作用資料庫查詢失敗:', fallbackErr);
-        }
-      }
-
-      // 2) IV Compatibility (DB)
-      const compatibility: IVCompatibility[] = [];
-      const pairs: Array<[string, string]> = [];
-      for (let i = 0; i < uniqueDrugs.length; i++) {
-        for (let j = i + 1; j < uniqueDrugs.length; j++) {
-          pairs.push([uniqueDrugs[i], uniqueDrugs[j]]);
-        }
-      }
-      // Avoid excessive requests for very long lists.
-      const limitedPairs = pairs.slice(0, 20);
-      let compatPairsWithData = 0;
-      for (const [a, b] of limitedPairs) {
-        try {
-          const resp = await getIVCompatibility({ drugA: a, drugB: b });
-          const rows = resp.compatibilities || [];
-          if (rows.length > 0) compatPairsWithData++;
-          for (const row of rows) {
-            compatibility.push({
-              id: row.id || '',
-              drugA: row.drug1 || a,
-              drugB: row.drug2 || b,
-              solution: (row.solution as IVCompatibility['solution']) || 'multiple',
-              compatible: Boolean(row.compatible),
-              timeStability: row.timeStability || undefined,
-              notes: row.notes || undefined,
-              references: row.references || undefined,
-            });
-          }
-        } catch (err) {
-          console.warn('相容性查詢失敗:', err);
-        }
-      }
-      // Count by deduplicated pairs (not individual rows which may have multiple solutions)
-      const compatPairResults = new Map<string, boolean>();
-      for (const c of compatibility) {
-        const key = [c.drugA, c.drugB].sort().join('|');
-        // If any row is incompatible, mark the pair as incompatible
-        if (!compatPairResults.has(key) || !c.compatible) {
-          compatPairResults.set(key, c.compatible);
-        }
-      }
-      const compatiblePairCount = [...compatPairResults.values()].filter(v => v).length;
-      const incompatiblePairCount = [...compatPairResults.values()].filter(v => !v).length;
-      const compatibilitySummary: CompatibilitySummary = {
-        compatible: compatiblePairCount,
-        incompatible: incompatiblePairCount,
-        noData: limitedPairs.length - compatPairsWithData,
-        pairsChecked: limitedPairs.length,
-      };
-
-      // 3) Dose suggestions — only for PAD-supported drugs (specific ICU drugs)
-      // Known PAD drug keys (fallback when API is unavailable)
-      const KNOWN_PAD_KEYS = [
-        'dexmedetomidine', 'fentanyl', 'midazolam', 'cisatracurium',
-        'propofol', 'norepinephrine', 'vasopressin', 'nicardipine', 'ketamine',
-      ];
-
-      let padDrugCatalog: PadDrugInfo[] = [];
-      try {
-        const padRes = await getPadDrugs();
-        padDrugCatalog = padRes.drugs || [];
-      } catch {
-        console.warn('無法取得 PAD 藥物目錄，使用本地已知清單');
-        // Use known keys as fallback so filtering still works
-        padDrugCatalog = KNOWN_PAD_KEYS.map(key => ({
-          key,
-          label: key.charAt(0).toUpperCase() + key.slice(1),
-          concentration: 0,
-          concentration_unit: '',
-          dose_unit: '',
-          dose_range: '',
-          weight_basis: 'weight',
-        }));
-      }
-
-      // Match patient drugs to PAD catalog by alpha-only lowercase comparison
-      const matchPadDrug = (medName: string): PadDrugInfo | null => {
-        const alpha = medName.replace(/[^a-zA-Z]/g, '').toLowerCase();
-        const firstWord = medName.toLowerCase().split(/[\s(,/]/)[0].replace(/[^a-z]/g, '');
-        for (const pad of padDrugCatalog) {
-          const padAlpha = pad.key.replace(/[^a-zA-Z]/g, '').toLowerCase();
-          const padLabel = pad.label.replace(/[^a-zA-Z]/g, '').toLowerCase();
-          // Exact alpha match
-          if (padAlpha === alpha || padLabel === alpha) return pad;
-          // First-word exact match against PAD key (e.g., "fentanyl" === "fentanyl")
-          if (firstWord === padAlpha || firstWord === padLabel) return pad;
-          // First-word prefix: patient med's first word starts the PAD key
-          // (e.g., "propofol" starts with "propofol") — require at least 6 chars to avoid false positives
-          if (firstWord.length >= 6 && padAlpha.startsWith(firstWord)) return pad;
-          // Reverse: PAD key is a prefix of the first word
-          // (e.g., pad key "fentanyl" is prefix of "fentanylcitrate")
-          if (padAlpha.length >= 6 && firstWord.startsWith(padAlpha)) return pad;
-        }
-        return null;
-      };
-
-      const padMatchedDrugs = uniqueDrugs
-        .map(drug => ({ drug, padInfo: matchPadDrug(drug) }))
-        .filter((m): m is { drug: string; padInfo: PadDrugInfo } => m.padInfo !== null);
-
-      // Use backend built-in PAD engine (deterministic, no external service needed)
-      const patientWeight = extendedData?.weight ?? null;
-      const patientSex = selectedPatient.gender === '男' ? 'male' : selectedPatient.gender === '女' ? 'female' : undefined;
-      const patientHeight = selectedPatient.height ?? undefined;
-
-      const dosage: DosageResult[] = await Promise.all(
-        padMatchedDrugs.map(async ({ drug, padInfo }) => {
-          if (!patientWeight || patientWeight <= 0) {
-            return {
-              drugName: padInfo.label || drug,
-              normalDose: '—',
-              adjustedDose: '需要體重資料',
-              renalAdjustment: '',
-              hepaticWarning: '',
-              warnings: ['缺少體重資料，無法計算'],
-              calculationSteps: [],
-              status: 'requires_input' as DosageResult['status'],
-              clinicalSummary: '需要體重資料才能計算',
-              calculatedRate: '—',
-            };
-          }
-          // Fixed-dose drugs don't need target_dose
-          const isFixed = padInfo.weight_basis === 'fixed';
-          // Use mid-range dose as default target for non-fixed drugs
-          let defaultTarget = 0;
-          if (!isFixed && padInfo.dose_range) {
-            const parts = padInfo.dose_range.split('–');
-            if (parts.length === 2) {
-              const lo = parseFloat(parts[0]);
-              const hi = parseFloat(parts[1]);
-              if (!isNaN(lo) && !isNaN(hi)) defaultTarget = parseFloat(((lo + hi) / 2).toFixed(4));
+      // ── Run all 3 tasks in parallel ──
+      const [interactions, { compatibility, compatibilitySummary, limitedPairsCount }, dosage] = await Promise.all([
+        // Task 1: Interactions
+        (async (): Promise<DrugInteraction[]> => {
+          try {
+            const res = await checkInteractions(
+              { drugList: uniqueDrugs, patientContext },
+              { suppressErrorToast: true },
+            );
+            return (res.findings || [])
+              .map((f, idx) => ({
+                id: `int_${idx}`,
+                drugA: f.drugA || f.drug_a || '',
+                drugB: f.drugB || f.drug_b || '',
+                severity: mapSeverity(f.severity),
+                description: f.clinical_effect || f.mechanism || '',
+                mechanism: f.mechanism || '',
+                clinicalEffect: f.clinical_effect || '',
+                management: f.recommended_action || '',
+                references: f.dose_adjustment_hint || (Array.isArray(f.monitoring) ? f.monitoring.join('、') : ''),
+                riskRating: mapRiskRating(f.risk_rating),
+                riskRatingDescription: f.risk_rating_description || '',
+                reliabilityRating: f.reliability_rating || '',
+                routeDependency: f.route_dependency || '',
+                discussion: f.discussion || '',
+                dependencies: f.dependencies || [],
+                pubmedIds: f.pubmed_ids || [],
+              }))
+              .filter(x => x.drugA && x.drugB);
+          } catch (err) {
+            console.warn('Evidence 交互作用引擎不可用，改用本地資料庫查詢', err);
+            try {
+              const drugSet = new Set(uniqueDrugs.map(d => d.toLowerCase()));
+              const respList = await Promise.all(
+                uniqueDrugs.map((d) => getDrugInteractions({ drugA: d }))
+              );
+              const all = respList.flatMap((resp) => resp.interactions || []);
+              const byId = new Map<string, typeof all[number]>();
+              for (const it of all) {
+                const id = String(it.id || '');
+                if (!id) continue;
+                if (!byId.has(id)) byId.set(id, it);
+              }
+              return Array.from(byId.values())
+                .filter((it) => {
+                  const a = String(it.drug1).toLowerCase();
+                  const b = String(it.drug2).toLowerCase();
+                  return drugSet.has(a) && drugSet.has(b);
+                })
+                .map((it) => ({
+                  id: it.id,
+                  drugA: it.drug1,
+                  drugB: it.drug2,
+                  severity: mapSeverity(it.severity),
+                  description: it.clinicalEffect || '',
+                  mechanism: it.mechanism || '',
+                  clinicalEffect: it.clinicalEffect || '',
+                  management: it.management || '',
+                  references: it.references || '',
+                  riskRating: mapRiskRating(it.riskRating),
+                  riskRatingDescription: it.riskRatingDescription || '',
+                  reliabilityRating: it.reliabilityRating || '',
+                  routeDependency: it.routeDependency || '',
+                  discussion: it.discussion || '',
+                  dependencies: it.dependencies || [],
+                  pubmedIds: it.pubmedIds || [],
+                }));
+            } catch (fallbackErr) {
+              console.error('本地交互作用資料庫查詢失敗:', fallbackErr);
+              return [];
             }
           }
-          try {
-            const res = await padCalculate({
-              drug: padInfo.key,
-              weight_kg: patientWeight,
-              target_dose_per_kg_hr: isFixed ? 0 : defaultTarget,
-              concentration: padInfo.concentration || 1,
-              sex: patientSex,
-              height_cm: patientHeight,
-            });
-            const rateStr = `${res.rate_ml_hr} ml/hr`;
-            const doseStr = `${res.dose_per_hr} ${padInfo.dose_unit?.replace('/kg', '') || '/hr'}`;
-            return {
-              drugName: padInfo.label || drug,
-              normalDose: `${defaultTarget} ${padInfo.dose_unit || ''}`,
-              adjustedDose: rateStr,
-              renalAdjustment: '',
-              hepaticWarning: '',
-              warnings: res.note ? [res.note] : [],
-              calculationSteps: res.steps,
-              status: 'calculated' as DosageResult['status'],
-              clinicalSummary: `${res.weight_basis} ${res.dosing_weight_kg}kg → ${rateStr}`,
-              supportingNote: res.steps.length > 1 ? res.steps.slice(1).join('；') : undefined,
-              targetDose: doseStr,
-              targetDoseTitle: '每小時劑量',
-              calculatedRate: rateStr,
-              calculatedRateTitle: '輸注速率',
-              orderSummary: `${padInfo.label} ${rateStr}`,
-              orderTypeLabel: '連續輸注',
-              isEquivalentEstimate: false,
-            };
-          } catch {
-            return {
-              drugName: padInfo.label || drug,
-              normalDose: '—',
-              adjustedDose: 'PAD 計算失敗',
-              renalAdjustment: '',
-              hepaticWarning: '',
-              warnings: [],
-              calculationSteps: [],
-              status: 'service_unavailable' as DosageResult['status'],
-              clinicalSummary: 'PAD 計算失敗',
-              calculatedRate: '—',
-            };
+        })(),
+
+        // Task 2: IV Compatibility (all pairs in parallel)
+        (async () => {
+          const pairs: Array<[string, string]> = [];
+          for (let i = 0; i < uniqueDrugs.length; i++) {
+            for (let j = i + 1; j < uniqueDrugs.length; j++) {
+              pairs.push([uniqueDrugs[i], uniqueDrugs[j]]);
+            }
           }
-        })
-      );
+          const limitedPairs = pairs.slice(0, 20);
+
+          // Query all pairs in parallel instead of sequential for loop
+          const pairResults = await Promise.all(
+            limitedPairs.map(async ([a, b]) => {
+              try {
+                const resp = await getIVCompatibility({ drugA: a, drugB: b });
+                const rows = resp.compatibilities || [];
+                return rows.map(row => ({
+                  id: row.id || '',
+                  drugA: row.drug1 || a,
+                  drugB: row.drug2 || b,
+                  solution: (row.solution as IVCompatibility['solution']) || 'multiple',
+                  compatible: Boolean(row.compatible),
+                  timeStability: row.timeStability || undefined,
+                  notes: row.notes || undefined,
+                  references: row.references || undefined,
+                }));
+              } catch (err) {
+                console.warn('相容性查詢失敗:', err);
+                return [] as IVCompatibility[];
+              }
+            })
+          );
+
+          const compatibility: IVCompatibility[] = pairResults.flat();
+          const compatPairsWithData = pairResults.filter(rows => rows.length > 0).length;
+
+          // Count by deduplicated pairs
+          const compatPairMap = new Map<string, boolean>();
+          for (const c of compatibility) {
+            const key = [c.drugA, c.drugB].sort().join('|');
+            if (!compatPairMap.has(key) || !c.compatible) {
+              compatPairMap.set(key, c.compatible);
+            }
+          }
+          const compatibilitySummary: CompatibilitySummary = {
+            compatible: [...compatPairMap.values()].filter(v => v).length,
+            incompatible: [...compatPairMap.values()].filter(v => !v).length,
+            noData: limitedPairs.length - compatPairsWithData,
+            pairsChecked: limitedPairs.length,
+          };
+
+          return { compatibility, compatibilitySummary, limitedPairsCount: limitedPairs.length };
+        })(),
+
+        // Task 3: PAD Dosage (getPadDrugs + parallel padCalculate)
+        (async (): Promise<DosageResult[]> => {
+          const KNOWN_PAD_KEYS = [
+            'dexmedetomidine', 'fentanyl', 'midazolam', 'cisatracurium',
+            'propofol', 'norepinephrine', 'vasopressin', 'nicardipine', 'ketamine',
+          ];
+
+          let padDrugCatalog: PadDrugInfo[] = [];
+          try {
+            const padRes = await getPadDrugs();
+            padDrugCatalog = padRes.drugs || [];
+          } catch {
+            console.warn('無法取得 PAD 藥物目錄，使用本地已知清單');
+            padDrugCatalog = KNOWN_PAD_KEYS.map(key => ({
+              key,
+              label: key.charAt(0).toUpperCase() + key.slice(1),
+              concentration: 0, concentration_unit: '', dose_unit: '',
+              dose_range: '', weight_basis: 'weight',
+            }));
+          }
+
+          const matchPadDrug = (medName: string): PadDrugInfo | null => {
+            const alpha = medName.replace(/[^a-zA-Z]/g, '').toLowerCase();
+            const firstWord = medName.toLowerCase().split(/[\s(,/]/)[0].replace(/[^a-z]/g, '');
+            for (const pad of padDrugCatalog) {
+              const padAlpha = pad.key.replace(/[^a-zA-Z]/g, '').toLowerCase();
+              const padLabel = pad.label.replace(/[^a-zA-Z]/g, '').toLowerCase();
+              if (padAlpha === alpha || padLabel === alpha) return pad;
+              if (firstWord === padAlpha || firstWord === padLabel) return pad;
+              if (firstWord.length >= 6 && padAlpha.startsWith(firstWord)) return pad;
+              if (padAlpha.length >= 6 && firstWord.startsWith(padAlpha)) return pad;
+            }
+            return null;
+          };
+
+          const padMatchedDrugs = uniqueDrugs
+            .map(drug => ({ drug, padInfo: matchPadDrug(drug) }))
+            .filter((m): m is { drug: string; padInfo: PadDrugInfo } => m.padInfo !== null);
+
+          const patientWeight = extendedData?.weight ?? null;
+          const patientSex = selectedPatient.gender === '男' ? 'male' : selectedPatient.gender === '女' ? 'female' : undefined;
+          const patientHeight = selectedPatient.height ?? undefined;
+
+          return Promise.all(
+            padMatchedDrugs.map(async ({ drug, padInfo }) => {
+              if (!patientWeight || patientWeight <= 0) {
+                return {
+                  drugName: padInfo.label || drug,
+                  normalDose: '—', adjustedDose: '需要體重資料',
+                  renalAdjustment: '', hepaticWarning: '',
+                  warnings: ['缺少體重資料，無法計算'],
+                  calculationSteps: [],
+                  status: 'requires_input' as DosageResult['status'],
+                  clinicalSummary: '需要體重資料才能計算',
+                  calculatedRate: '—',
+                };
+              }
+              const isFixed = padInfo.weight_basis === 'fixed';
+              let defaultTarget = 0;
+              if (!isFixed && padInfo.dose_range) {
+                const parts = padInfo.dose_range.split('–');
+                if (parts.length === 2) {
+                  const lo = parseFloat(parts[0]);
+                  const hi = parseFloat(parts[1]);
+                  if (!isNaN(lo) && !isNaN(hi)) defaultTarget = parseFloat(((lo + hi) / 2).toFixed(4));
+                }
+              }
+              try {
+                const res = await padCalculate({
+                  drug: padInfo.key,
+                  weight_kg: patientWeight,
+                  target_dose_per_kg_hr: isFixed ? 0 : defaultTarget,
+                  concentration: padInfo.concentration || 1,
+                  sex: patientSex,
+                  height_cm: patientHeight,
+                });
+                const rateStr = `${res.rate_ml_hr} ml/hr`;
+                const doseStr = `${res.dose_per_hr} ${padInfo.dose_unit?.replace('/kg', '') || '/hr'}`;
+                return {
+                  drugName: padInfo.label || drug,
+                  normalDose: `${defaultTarget} ${padInfo.dose_unit || ''}`,
+                  adjustedDose: rateStr,
+                  renalAdjustment: '', hepaticWarning: '',
+                  warnings: res.note ? [res.note] : [],
+                  calculationSteps: res.steps,
+                  status: 'calculated' as DosageResult['status'],
+                  clinicalSummary: `${res.weight_basis} ${res.dosing_weight_kg}kg → ${rateStr}`,
+                  supportingNote: res.steps.length > 1 ? res.steps.slice(1).join('；') : undefined,
+                  targetDose: doseStr, targetDoseTitle: '每小時劑量',
+                  calculatedRate: rateStr, calculatedRateTitle: '輸注速率',
+                  orderSummary: `${padInfo.label} ${rateStr}`,
+                  orderTypeLabel: '連續輸注',
+                  isEquivalentEstimate: false,
+                };
+              } catch {
+                return {
+                  drugName: padInfo.label || drug,
+                  normalDose: '—', adjustedDose: 'PAD 計算失敗',
+                  renalAdjustment: '', hepaticWarning: '',
+                  warnings: [], calculationSteps: [],
+                  status: 'service_unavailable' as DosageResult['status'],
+                  clinicalSummary: 'PAD 計算失敗',
+                  calculatedRate: '—',
+                };
+              }
+            })
+          );
+        })(),
+      ]);
 
       // 4) Recommendations (rule-based hints; not LLM-generated)
       const adviceRecommendations: string[] = [];
@@ -509,7 +498,7 @@ export function PharmacyWorkstationPage() {
         dosage,
         adviceRecommendations,
         compatibilitySummary,
-        compatibilityPairsChecked: limitedPairs.length,
+        compatibilityPairsChecked: limitedPairsCount,
       });
 
       toast.success('評估完成');
