@@ -1,4 +1,4 @@
-import { Home, Users, MessageSquare, Database, FileText, UserCog, Briefcase, BarChart3, AlertTriangle, Calculator, Droplets } from 'lucide-react';
+import { Home, Users, MessageSquare, Database, FileText, UserCog, Briefcase, AlertTriangle, Calculator, Droplets, BarChart3, Settings } from 'lucide-react';
 import logoImage from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 import {
   Sidebar,
@@ -35,85 +35,58 @@ export function AppSidebar() {
 
   const isCollapsed = state === 'collapsed';
 
-  // 病人照護選單（所有角色可見）
+  // 1) 病人照護（所有角色可見）
   const patientCareItems = [
-    {
-      title: '總覽',
-      url: '/dashboard',
-      icon: Home,
-    },
-    {
-      title: '病人清單',
-      url: '/patients',
-      icon: Users,
-    },
+    { title: '總覽', url: '/dashboard', icon: Home },
+    { title: '病人清單', url: '/patients', icon: Users },
   ];
 
-  // 其他聊天（所有角色可見）
-  const chatItems = [
-    {
-      title: '團隊聊天室',
-      url: '/chat',
-      icon: MessageSquare,
-    },
-  ];
-
-  // 資料管理（僅管理者可見）
-  const dataManagementItems = user?.role === 'admin' ? [
-    {
-      title: '向量資料庫',
-      url: '/admin/vectors',
-      icon: Database,
-    },
-  ] : [];
-
-  // 紀錄（僅管理者可見）
-  const recordItems = user?.role === 'admin' ? [
-    {
-      title: '稽核紀錄',
-      url: '/admin/audit',
-      icon: FileText,
-    },
-    {
-      title: '藥事統計',
-      url: '/admin/statistics',
-      icon: BarChart3,
-    },
-    {
-      title: '帳號與權限',
-      url: '/admin/users',
-      icon: UserCog,
-    },
-  ] : [];
-
-  // 藥事支援中心（藥師/管理者可見）
+  // 2) 藥事支援中心（藥師/管理者可見）
   const pharmacyItems = (user?.role === 'pharmacist' || user?.role === 'admin') ? [
-    {
-      title: '藥事支援工作台',
-      url: '/pharmacy/workstation',
-      icon: Briefcase,
-    },
-    {
-      title: '交互作用查詢',
-      url: '/pharmacy/interactions',
-      icon: AlertTriangle,
-    },
-    {
-      title: '劑量計算與建議',
-      url: '/pharmacy/dosage',
-      icon: Calculator,
-    },
-    {
-      title: '相容性檢核',
-      url: '/pharmacy/compatibility',
-      icon: Droplets,
-    },
-    {
-      title: '用藥建議與統計',
-      url: '/pharmacy/advice-statistics',
-      icon: BarChart3,
-    },
+    { title: '藥事支援工作台', url: '/pharmacy/workstation', icon: Briefcase },
+    { title: '交互作用查詢', url: '/pharmacy/interactions', icon: AlertTriangle },
+    { title: '劑量計算與建議', url: '/pharmacy/dosage', icon: Calculator },
+    { title: '相容性檢核', url: '/pharmacy/compatibility', icon: Droplets },
+    { title: '用藥建議與統計', url: '/pharmacy/advice-statistics', icon: BarChart3 },
   ] : [];
+
+  // 3) 溝通（所有角色可見）
+  const communicationItems = [
+    { title: '團隊聊天室', url: '/chat', icon: MessageSquare },
+  ];
+
+  // 4) 系統管理（僅管理者可見）
+  const adminItems = user?.role === 'admin' ? [
+    { title: '稽核紀錄', url: '/admin/audit', icon: FileText },
+    { title: '帳號與權限', url: '/admin/users', icon: UserCog },
+    { title: '向量資料庫', url: '/admin/vectors', icon: Database },
+  ] : [];
+
+  const renderMenuGroup = (label: string, items: typeof patientCareItems) => (
+    <SidebarGroup>
+      <SidebarGroupLabel>{label}</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {items.map((item) => (
+            <SidebarMenuItem key={item.title}>
+              <SidebarMenuButton
+                asChild
+                isActive={isActive(item.url)}
+              >
+                <a href={item.url} onClick={(e) => {
+                  e.preventDefault();
+                  navigate(item.url);
+                }}>
+                  <item.icon />
+                  <span>{item.title}</span>
+                </a>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
 
   return (
     <Sidebar collapsible="icon">
@@ -134,148 +107,33 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {/* 病人照護 */}
-        <SidebarGroup>
-          <SidebarGroupLabel>病人照護</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {patientCareItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild
-                    isActive={isActive(item.url)}
-                  >
-                    <a href={item.url} onClick={(e) => {
-                      e.preventDefault();
-                      navigate(item.url);
-                    }}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* 1) 病人照護 */}
+        {renderMenuGroup('病人照護', patientCareItems)}
 
-        {/* 其他聊天 */}
-        <SidebarGroup>
-          <SidebarGroupLabel>其他聊天</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {chatItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild
-                    isActive={isActive(item.url)}
-                  >
-                    <a href={item.url} onClick={(e) => {
-                      e.preventDefault();
-                      navigate(item.url);
-                    }}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* 資料管理（僅管理者） */}
-        {dataManagementItems.length > 0 && (
-          <>
-            <SidebarSeparator />
-            <SidebarGroup>
-              <SidebarGroupLabel>資料管理</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {dataManagementItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton 
-                        asChild
-                        isActive={isActive(item.url)}
-                      >
-                        <a href={item.url} onClick={(e) => {
-                          e.preventDefault();
-                          navigate(item.url);
-                        }}>
-                          <item.icon />
-                          <span>{item.title}</span>
-                        </a>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </>
-        )}
-
-        {/* 紀錄（僅管理者） */}
-        {recordItems.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel>紀錄</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {recordItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
-                      asChild
-                      isActive={isActive(item.url)}
-                    >
-                      <a href={item.url} onClick={(e) => {
-                        e.preventDefault();
-                        navigate(item.url);
-                      }}>
-                        <item.icon />
-                        <span>{item.title}</span>
-                      </a>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* 藥事支援中心（藥師/管理者） */}
+        {/* 2) 藥事支援中心 */}
         {pharmacyItems.length > 0 && (
           <>
             <SidebarSeparator />
-            <SidebarGroup>
-              <SidebarGroupLabel>藥事支援中心</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {pharmacyItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton 
-                        asChild
-                        isActive={isActive(item.url)}
-                      >
-                        <a href={item.url} onClick={(e) => {
-                          e.preventDefault();
-                          navigate(item.url);
-                        }}>
-                          <item.icon />
-                          <span>{item.title}</span>
-                        </a>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+            {renderMenuGroup('藥事支援中心', pharmacyItems)}
+          </>
+        )}
+
+        {/* 3) 溝通 */}
+        {renderMenuGroup('溝通', communicationItems)}
+
+        {/* 4) 系統管理 */}
+        {adminItems.length > 0 && (
+          <>
+            <SidebarSeparator />
+            {renderMenuGroup('系統管理', adminItems)}
           </>
         )}
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t">
-        <Button 
-          variant="outline" 
-          onClick={handleLogout} 
+        <Button
+          variant="outline"
+          onClick={handleLogout}
           className="w-full border-[#e5e7eb] text-[#1a1a1a] hover:bg-[#f8f9fa]"
         >
           登出
