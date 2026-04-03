@@ -570,7 +570,7 @@ export function PatientDetailPage() {
       const [patientData, labDataResult, medicationsResult, messagesResult, vitalSignsResult, ventilatorResult, weaningResult] = await Promise.all([
         patientsApi.getPatient(id),
         labDataApi.getLatestLabData(id).catch(() => defaultLabData),
-        medicationsApi.getMedications(id, { status: 'active' }).catch(() => ({ medications: [], grouped: EMPTY_MEDICATION_GROUPS, interactions: [] })),
+        medicationsApi.getMedications(id, { status: 'all' }).catch(() => ({ medications: [], grouped: EMPTY_MEDICATION_GROUPS, interactions: [] })),
         messagesApi.getMessages(id).catch(() => ({ messages: [], total: 0, unreadCount: 0 })),
         vitalSignsApi.getLatestVitalSigns(id).catch(() => null),
         ventilatorApi.getLatestVentilatorSettings(id).catch(() => null),
@@ -791,7 +791,7 @@ export function PatientDetailPage() {
     if (!id) return;
     setMedicationsLoading(true);
     try {
-      const result = await medicationsApi.getMedications(id, { status: 'active' });
+      const result = await medicationsApi.getMedications(id, { status: 'all' });
       setMedicationGroups(result.grouped || deriveMedicationGroups(result.medications));
     } catch { /* ignore */ } finally {
       setMedicationsLoading(false);

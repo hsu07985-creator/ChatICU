@@ -147,7 +147,7 @@ export function usePatientBundle(id?: string) {
         ] = await Promise.all([
           patientsApi.getPatient(id),
           labDataApi.getLatestLabData(id).catch(() => defaultLabData),
-          medicationsApi.getMedications(id, { status: 'active' }).catch(() => EMPTY_MEDICATION_RESPONSE),
+          medicationsApi.getMedications(id, { status: 'all' }).catch(() => EMPTY_MEDICATION_RESPONSE),
           messagesApi.getMessages(id).catch(() => EMPTY_MESSAGES_RESPONSE),
           vitalSignsApi.getLatestVitalSigns(id).catch(() => null),
           ventilatorApi.getLatestVentilatorSettings(id).catch(() => null),

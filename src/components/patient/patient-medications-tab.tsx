@@ -215,7 +215,9 @@ export function PatientMedicationsTab({
   onRefreshMedications,
 }: PatientMedicationsTabProps) {
   const [hidePrn, setHidePrn] = useState(false);
+  const [showPrnOnly, setShowPrnOnly] = useState(false);
   const [showAbxOnly, setShowAbxOnly] = useState(false);
+  const [showDiscontinued, setShowDiscontinued] = useState(false);
   const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
   const [editForm, setEditForm] = useState({
     dose: '',
@@ -228,18 +230,42 @@ export function PatientMedicationsTab({
   });
   const [isSavingMedication, setIsSavingMedication] = useState(false);
 
-  const prnCount = otherMedications.filter(isPrnOrStat).length;
-  const abxCount = otherMedications.filter(isAntibiotic).length;
+  const isDiscontinued = (med: Medication) =>
+    med.status === 'discontinued' || med.status === 'completed' || med.status === 'inactive';
+
+  // Separate active vs discontinued across all groups
+  const activePainMeds = painMedications.filter((m) => !isDiscontinued(m));
+  const activeSedationMeds = sedationMedications.filter((m) => !isDiscontinued(m));
+  const activeNmbMeds = nmbMedications.filter((m) => !isDiscontinued(m));
+  const activeOtherMeds = otherMedications.filter((m) => !isDiscontinued(m));
+
+  const allDiscontinuedMeds = [
+    ...painMedications.filter(isDiscontinued),
+    ...sedationMedications.filter(isDiscontinued),
+    ...nmbMedications.filter(isDiscontinued),
+    ...otherMedications.filter(isDiscontinued),
+  ];
+  const discontinuedOtherMeds = allDiscontinuedMeds;
+
+  const prnCount = activeOtherMeds.filter(isPrnOrStat).length;
+  const abxCount = activeOtherMeds.filter(isAntibiotic).length;
+  const discontinuedCount = discontinuedOtherMeds.length;
+
   // Sort: antibiotics first, then by name
-  const sortedOtherMeds = [...otherMedications].sort((a, b) => {
+  const sortOtherMeds = (meds: Medication[]) => [...meds].sort((a, b) => {
     const aAbx = isAntibiotic(a) ? 0 : 1;
     const bAbx = isAntibiotic(b) ? 0 : 1;
     if (aAbx !== bAbx) return aAbx - bAbx;
     return (a.name || '').localeCompare(b.name || '');
   });
-  const displayedOtherMeds = sortedOtherMeds
+
+  const applyFilters = (meds: Medication[]) => meds
     .filter((m) => !hidePrn || !isPrnOrStat(m))
+    .filter((m) => !showPrnOnly || isPrnOrStat(m))
     .filter((m) => !showAbxOnly || isAntibiotic(m));
+
+  const displayedOtherMeds = applyFilters(sortOtherMeds(activeOtherMeds));
+  const displayedDiscontinuedMeds = showDiscontinued ? sortOtherMeds(discontinuedOtherMeds) : [];
   const canEditMedication = userRole === 'doctor' || userRole === 'pharmacist';
 
   const openMedicationEditor = (medication: Medication) => {
@@ -327,11 +353,11 @@ export function PatientMedicationsTab({
                 />
                 <div>
                   <p className="mb-2 text-xs font-medium text-muted-foreground">止痛藥物</p>
-                  {painMedications.length === 0 ? (
+                  {activePainMeds.length === 0 ? (
                     <p className="py-3 text-sm text-muted-foreground">無止痛藥物</p>
                   ) : (
                     <div className="space-y-2">
-                      {painMedications.map((medication) => (
+                      {activePainMeds.map((medication) => (
                         <div key={medication.id} className="rounded-md border bg-white px-3 py-2">
                           <div className="flex items-start justify-between gap-3">
                             <p className="font-medium leading-tight">{formatDisplayValue(medication.name)}</p>
@@ -387,11 +413,11 @@ export function PatientMedicationsTab({
                 />
                 <div>
                   <p className="mb-2 text-xs font-medium text-muted-foreground">鎮靜藥物</p>
-                  {sedationMedications.length === 0 ? (
+                  {activeSedationMeds.length === 0 ? (
                     <p className="py-3 text-sm text-muted-foreground">無鎮靜藥物</p>
                   ) : (
                     <div className="space-y-2">
-                      {sedationMedications.map((medication) => (
+                      {activeSedationMeds.map((medication) => (
                         <div key={medication.id} className="rounded-md border bg-white px-3 py-2">
                           <div className="flex items-start justify-between gap-3">
                             <p className="font-medium leading-tight">{formatDisplayValue(medication.name)}</p>
@@ -428,11 +454,11 @@ export function PatientMedicationsTab({
               </CardHeader>
               <CardContent className="pt-0">
                 <p className="mb-2 text-xs font-medium text-muted-foreground">神經肌肉阻斷藥物</p>
-                {nmbMedications.length === 0 ? (
+                {activeNmbMeds.length === 0 ? (
                   <p className="py-3 text-sm text-muted-foreground">無神經肌肉阻斷藥物</p>
                 ) : (
                   <div className="space-y-2">
-                    {nmbMedications.map((medication) => (
+                    {activeNmbMeds.map((medication) => (
                       <div key={medication.id} className="rounded-md border bg-white px-3 py-2">
                         <div className="flex items-start justify-between gap-3">
                           <p className="font-medium leading-tight">{formatDisplayValue(medication.name)}</p>
@@ -464,27 +490,44 @@ export function PatientMedicationsTab({
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold leading-tight text-slate-800">其他藥物 Other Medications</CardTitle>
-                <div className="flex items-center gap-1.5">
-                  {abxCount > 0 && (
-                    <Button
-                      variant={showAbxOnly ? 'default' : 'outline'}
-                      size="sm"
-                      className={`h-7 px-2 text-xs ${showAbxOnly ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'border-amber-300 text-amber-700 hover:bg-amber-50'}`}
-                      onClick={() => setShowAbxOnly(!showAbxOnly)}
-                    >
-                      {showAbxOnly ? `全部藥物` : `抗生素 (${abxCount})`}
-                    </Button>
-                  )}
-                  {prnCount > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Button
+                    variant={showAbxOnly ? 'default' : 'outline'}
+                    size="sm"
+                    disabled={abxCount === 0 && !showAbxOnly}
+                    className={`h-7 px-2 text-xs ${showAbxOnly ? 'bg-amber-600 hover:bg-amber-700 text-white' : abxCount > 0 ? 'border-amber-300 text-amber-700 hover:bg-amber-50' : 'border-gray-200 text-gray-400'}`}
+                    onClick={() => { setShowAbxOnly(!showAbxOnly); if (!showAbxOnly) setShowPrnOnly(false); }}
+                  >
+                    {showAbxOnly ? `全部藥物` : `抗生素 (${abxCount})`}
+                  </Button>
+                  <Button
+                    variant={showPrnOnly ? 'default' : 'outline'}
+                    size="sm"
+                    disabled={prnCount === 0 && !showPrnOnly}
+                    className={`h-7 px-2 text-xs ${showPrnOnly ? 'bg-violet-600 hover:bg-violet-700 text-white' : prnCount > 0 ? 'border-violet-300 text-violet-700 hover:bg-violet-50' : 'border-gray-200 text-gray-400'}`}
+                    onClick={() => { setShowPrnOnly(!showPrnOnly); if (!showPrnOnly) { setShowAbxOnly(false); setHidePrn(false); } }}
+                  >
+                    {showPrnOnly ? '全部藥物' : `僅 PRN/STAT (${prnCount})`}
+                  </Button>
+                  {prnCount > 0 && !showPrnOnly && (
                     <Button
                       variant={hidePrn ? 'outline' : 'ghost'}
                       size="sm"
                       className="h-7 px-2 text-xs"
                       onClick={() => setHidePrn(!hidePrn)}
                     >
-                      {hidePrn ? `顯示 PRN/STAT (${prnCount})` : `隱藏 PRN/STAT (${prnCount})`}
+                      {hidePrn ? `顯示 PRN/STAT` : `隱藏 PRN/STAT`}
                     </Button>
                   )}
+                  <Button
+                    variant={showDiscontinued ? 'default' : 'outline'}
+                    size="sm"
+                    disabled={discontinuedCount === 0 && !showDiscontinued}
+                    className={`h-7 px-2 text-xs ${showDiscontinued ? 'bg-gray-600 hover:bg-gray-700 text-white' : discontinuedCount > 0 ? 'border-gray-300 text-gray-600 hover:bg-gray-50' : 'border-gray-200 text-gray-400'}`}
+                    onClick={() => setShowDiscontinued(!showDiscontinued)}
+                  >
+                    {showDiscontinued ? '隱藏已停用' : `已停用 (${discontinuedCount})`}
+                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -492,7 +535,7 @@ export function PatientMedicationsTab({
               <p className="mb-2 text-xs font-medium text-muted-foreground">其他藥物清單</p>
               {displayedOtherMeds.length === 0 ? (
                 <p className="py-3 text-sm text-muted-foreground">
-                  {hidePrn && otherMedications.length > 0 ? `已隱藏 ${prnCount} 項 PRN/STAT 藥物` : '無其他藥物'}
+                  {showPrnOnly ? '無 PRN/STAT 藥物' : hidePrn && activeOtherMeds.length > 0 ? `已隱藏 ${prnCount} 項 PRN/STAT 藥物` : showAbxOnly ? '無抗生素藥物' : '無其他藥物'}
                 </p>
               ) : (
                 <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
@@ -549,6 +592,52 @@ export function PatientMedicationsTab({
               )}
             </CardContent>
           </Card>
+
+          {/* Discontinued Medications */}
+          {showDiscontinued && displayedDiscontinuedMeds.length > 0 && (
+            <Card className="border-border border-dashed">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold leading-tight text-gray-500">
+                  已停用藥物 Discontinued ({discontinuedCount})
+                </CardTitle>
+                <CardDescription className="text-sm">本次住院期間曾使用，現已停用的藥品</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+                  {displayedDiscontinuedMeds.map((medication) => {
+                    const category = MED_CATEGORY_LABELS[medication.category];
+                    const statusLabel = medication.status === 'completed' ? '療程完成' : medication.status === 'inactive' ? '未啟用' : '已停用';
+                    return (
+                      <div key={medication.id} className="rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 opacity-75">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium leading-tight text-gray-500 line-through">{formatDisplayValue(medication.name)}</p>
+                            <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-gray-200 text-gray-600">
+                              {statusLabel}
+                            </Badge>
+                            {category && (
+                              <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 ${category.color} opacity-60`}>
+                                {category.label}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-1 flex items-center gap-2 text-sm text-gray-400">
+                          <span>{formatMedicationRegimen(medication)}</span>
+                          {medication.startDate && (
+                            <span className="text-xs">{formatMedDate(medication.startDate)}</span>
+                          )}
+                          {medication.endDate && (
+                            <span className="text-xs">→ {formatMedDate(medication.endDate)}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Score Trend Chart Dialog */}
           <LabTrendChart
