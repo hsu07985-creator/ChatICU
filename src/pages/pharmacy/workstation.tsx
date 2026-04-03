@@ -727,7 +727,7 @@ export function PharmacyWorkstationPage() {
                           className="flex items-center justify-between p-2.5 bg-[#f8f9fa] rounded-lg border"
                         >
                           <div className="flex items-center gap-2">
-                            <Pill className="h-4 w-4 text-[#7f265b]" />
+                            <span className="text-xs font-medium text-muted-foreground w-5 text-right">{index + 1}.</span>
                             <span className="font-medium text-sm">{drug}</span>
                           </div>
                           <Button
