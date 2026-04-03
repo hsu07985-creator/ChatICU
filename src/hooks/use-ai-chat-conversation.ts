@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import {
   streamChatMessage,
+  extractStreamMainContent,
   updateChatSessionTitle,
   type ChatResponse,
 } from '../lib/api/ai';
@@ -82,24 +83,19 @@ export function useAiChatConversation(options: UseAiChatConversationOptions) {
 
       setThinkingStatus('正在準備回覆…');
       const response = await new Promise<ChatResponse>((resolve, reject) => {
-        let pendingChunks = '';
+        let rawBuffer = '';
         let rafId: number | null = null;
 
-        const flushChunks = () => {
+        const flushDisplay = () => {
           rafId = null;
-          if (!pendingChunks) return;
-          const toAppend = pendingChunks;
-          pendingChunks = '';
+          const mainContent = extractStreamMainContent(rawBuffer);
           setChatMessages((prev) => {
             if (prev.length === 0) return prev;
             const next = [...prev];
             const lastIndex = next.length - 1;
             const last = next[lastIndex];
             if (last?.role !== 'assistant') return prev;
-            next[lastIndex] = {
-              ...last,
-              content: `${last.content || ''}${toAppend}`,
-            };
+            next[lastIndex] = { ...last, content: mainContent };
             return next;
           });
         };
@@ -113,27 +109,25 @@ export function useAiChatConversation(options: UseAiChatConversationOptions) {
           },
           onMessage: (chunk) => {
             if (!chunk) return;
-            pendingChunks += chunk;
+            rawBuffer += chunk;
             if (rafId === null) {
-              rafId = requestAnimationFrame(flushChunks);
+              rafId = requestAnimationFrame(flushDisplay);
             }
           },
           onComplete: (streamResult) => {
-            // Flush any remaining chunks before completing
+            // Flush any remaining content before completing
             if (rafId !== null) {
               cancelAnimationFrame(rafId);
               rafId = null;
             }
-            if (pendingChunks) {
-              const toAppend = pendingChunks;
-              pendingChunks = '';
-              setChatMessages((prev) => {
-                if (prev.length === 0) return prev;
-                const next = [...prev];
-                const lastIndex = next.length - 1;
-                const last = next[lastIndex];
-                if (last?.role !== 'assistant') return prev;
-                next[lastIndex] = { ...last, content: `${last.content || ''}${toAppend}` };
+            const mainContent = extractStreamMainContent(rawBuffer);
+            setChatMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const next = [...prev];
+              const lastIndex = next.length - 1;
+              const last = next[lastIndex];
+              if (last?.role !== 'assistant') return prev;
+              next[lastIndex] = { ...last, content: mainContent };
                 return next;
               });
             }

@@ -6,6 +6,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import {
   streamChatMessage,
+  extractStreamMainContent,
   getChatSessions as fetchChatSessionsApi,
   getChatSession as fetchChatSessionApi,
   updateChatSessionTitle,
@@ -1055,22 +1056,22 @@ export function PatientDetailPage() {
       ]);
 
       const response = await new Promise<ChatResponse>((resolve, reject) => {
+        let rawBuffer = '';
         streamChatMessage({
           message: userMessage,
           patientId: id,
           sessionId: selectedSession?.id,
           onMessage: (chunk) => {
             if (!chunk) return;
+            rawBuffer += chunk;
+            const mainContent = extractStreamMainContent(rawBuffer);
             setChatMessages((prev) => {
               if (prev.length === 0) return prev;
               const next = [...prev];
               const lastIndex = next.length - 1;
               const last = next[lastIndex];
               if (last?.role !== 'assistant') return prev;
-              next[lastIndex] = {
-                ...last,
-                content: `${last.content || ''}${chunk}`,
-              };
+              next[lastIndex] = { ...last, content: mainContent };
               return next;
             });
           },

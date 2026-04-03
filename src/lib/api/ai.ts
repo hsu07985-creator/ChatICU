@@ -2,6 +2,34 @@ import apiClient, { ensureData } from '../api-client';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
+// Markers matching backend _MAIN_SECTION_MARKERS / _DETAIL_SECTION_MARKERS
+const _MAIN_MARKERS = ['【主回答】', '主回答：', '主回答:'];
+const _DETAIL_MARKERS = ['【說明/補充】', '【說明】', '說明/補充：', '說明：', '補充：'];
+
+/**
+ * Extract only the main answer from raw streaming text, stripping LLM
+ * section markers and cutting before the detail/explanation section.
+ * This lets the frontend display clean content during streaming instead
+ * of showing raw markers that get replaced on the `done` event.
+ */
+export function extractStreamMainContent(rawText: string): string {
+  let text = rawText;
+  for (const m of _MAIN_MARKERS) {
+    if (text.startsWith(m)) {
+      text = text.slice(m.length);
+      break;
+    }
+  }
+  for (const m of _DETAIL_MARKERS) {
+    const idx = text.indexOf(m);
+    if (idx >= 0) {
+      text = text.slice(0, idx);
+      break;
+    }
+  }
+  return text.trimStart();
+}
+
 // 類型定義
 export interface ChatMessage {
   id: string;
