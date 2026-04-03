@@ -8,7 +8,8 @@ import { Badge } from '../components/ui/badge';
 import { Label } from '../components/ui/label';
 import { Search, AlertCircle, Pencil, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { getPatients, Patient, updatePatient } from '../lib/api/patients';
+import { Patient, updatePatient } from '../lib/api/patients';
+import { getCachedPatients, getCachedPatientsSync, isPatientsCacheFresh, invalidatePatients } from '../lib/patients-cache';
 import { getDashboardStats, DashboardStats } from '../lib/api/dashboard';
 import { toast } from 'sonner';
 import {
@@ -20,6 +21,11 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import { Switch } from '../components/ui/switch';
+
+// ── Dashboard stats module-level cache (5 min) ──
+let _statsCache: DashboardStats | null = null;
+let _statsTimestamp = 0;
+const STATS_STALE_MS = 5 * 60 * 1000;
 
 // 編輯表單的數據類型
 interface EditFormData {
@@ -36,8 +42,8 @@ export function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('bed');
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [patients, setPatients] = useState<Patient[]>(getCachedPatientsSync() ?? []);
+  const [loading, setLoading] = useState(!getCachedPatientsSync());
   const [error, setError] = useState<string | null>(null);
 
   // 編輯對話框狀態
@@ -52,8 +58,8 @@ export function DashboardPage() {
     attendingPhysician: '',
   });
   const [saving, setSaving] = useState(false);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats | null>(_statsCache);
+  const [statsLoading, setStatsLoading] = useState(!_statsCache);
 
   // 卡片欄數: 2=大卡(2欄), 3=標準(3欄), 4=小卡(4欄), 6=迷你(6欄)
   const GRID_OPTIONS = [2, 3, 4, 6] as const;
@@ -69,12 +75,12 @@ export function DashboardPage() {
     localStorage.setItem('dashboard-grid-cols', String(cols));
   }, []);
 
-  // 從 API 獲取病患列表
-  const fetchPatients = async () => {
+  // 從共用快取獲取病患列表
+  const fetchPatients = useCallback(async () => {
     setError(null);
     try {
-      const res = await getPatients();
-      setPatients(res.patients);
+      const data = await invalidatePatients();
+      setPatients(data);
     } catch (err) {
       console.error('載入病患列表失敗:', err);
       setError('無法連線至伺服器，請確認後端服務是否正常運行');
@@ -82,24 +88,35 @@ export function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // 從 API 獲取儀表板統計
-  const fetchStats = async () => {
+  // 從 API 獲取儀表板統計（帶快取）
+  const fetchStats = useCallback(async () => {
+    if (_statsCache && Date.now() - _statsTimestamp < STATS_STALE_MS) {
+      setStats(_statsCache);
+      setStatsLoading(false);
+      return;
+    }
     try {
       const data = await getDashboardStats();
+      _statsCache = data;
+      _statsTimestamp = Date.now();
       setStats(data);
     } catch (err) {
       console.error('載入統計數據失敗:', err);
     } finally {
       setStatsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchPatients();
+    if (isPatientsCacheFresh()) {
+      getCachedPatients().then(d => { setPatients(d); setLoading(false); });
+    } else {
+      fetchPatients();
+    }
     fetchStats();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 開啟編輯對話框
   const handleEditClick = (e: React.MouseEvent, patient: Patient) => {

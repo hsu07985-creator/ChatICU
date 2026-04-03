@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth-context';
 import { patientsApi, type Patient } from '../lib/api';
+import { getCachedPatients, getCachedPatientsSync, invalidatePatients, isPatientsCacheFresh } from '../lib/patients-cache';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
@@ -23,17 +24,12 @@ import { ErrorDisplay, EmptyState } from '../components/ui/state-display';
 import { TableSkeleton } from '../components/ui/skeletons';
 import { toast } from 'sonner';
 
-// ── Module-level cache (survives re-mounts, 5-min staleTime) ──
 interface PatientWithFrontendFields extends Patient {
   sedation?: string[];
   analgesia?: string[];
   nmb?: string[];
   hasUnreadMessages?: boolean;
 }
-
-let _cachedPatients: PatientWithFrontendFields[] | null = null;
-let _cacheTimestamp = 0;
-const STALE_TIME = 5 * 60 * 1000; // 5 minutes
 
 // ICU 科別選項（UI 靜態設定）
 const ICU_DEPARTMENTS = ['內科-李穎灝', '內科-黃英哲', '外科'] as const;
@@ -43,36 +39,28 @@ export function PatientsPage() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [patients, setPatients] = useState<PatientWithFrontendFields[]>(_cachedPatients ?? []);
-  const [loading, setLoading] = useState(!_cachedPatients);
+  const cached = getCachedPatientsSync();
+  const [patients, setPatients] = useState<PatientWithFrontendFields[]>((cached ?? []) as PatientWithFrontendFields[]);
+  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
-  const fetchingRef = useRef(false);
 
   const fetchPatients = useCallback(async () => {
-    if (fetchingRef.current) return;
-    fetchingRef.current = true;
     try {
-      setLoading((prev) => patients.length === 0 ? true : prev); // only show spinner on first load
+      if (patients.length === 0) setLoading(true);
       setError(null);
-      const response = await patientsApi.getPatients({ limit: 100 });
-      const data = response.patients as PatientWithFrontendFields[];
-      _cachedPatients = data;
-      _cacheTimestamp = Date.now();
-      setPatients(data);
+      const data = await invalidatePatients();
+      setPatients(data as PatientWithFrontendFields[]);
     } catch (err) {
       console.error('載入病人列表失敗:', err);
       setError('無法載入病人列表，請稍後再試');
     } finally {
       setLoading(false);
-      fetchingRef.current = false;
     }
   }, [patients.length]);
 
   useEffect(() => {
-    // If cache is fresh, use it; otherwise fetch
-    if (_cachedPatients && Date.now() - _cacheTimestamp < STALE_TIME) {
-      setPatients(_cachedPatients);
-      setLoading(false);
+    if (isPatientsCacheFresh()) {
+      getCachedPatients().then(d => { setPatients(d as PatientWithFrontendFields[]); setLoading(false); });
     } else {
       fetchPatients();
     }

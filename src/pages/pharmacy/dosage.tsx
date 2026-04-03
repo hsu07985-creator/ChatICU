@@ -8,8 +8,10 @@ import { Separator } from '../../components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Calculator, Loader2, AlertTriangle, User, X, RotateCcw, ChevronRight, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
-import { padCalculate, getPadDrugs, type PadDrugInfo, type PadCalculateResult } from '../../lib/api/pharmacy';
-import { getPatients, type Patient } from '../../lib/api/patients';
+import { padCalculate, type PadDrugInfo, type PadCalculateResult } from '../../lib/api/pharmacy';
+import { type Patient } from '../../lib/api/patients';
+import { getCachedPatients, getCachedPatientsSync } from '../../lib/patients-cache';
+import { getCachedPadDrugs, getCachedPadDrugsSync } from '../../lib/pad-drugs-cache';
 import { isAxiosError } from 'axios';
 
 /** Parse dose_range like "0.03–0.6" → [0.03, 0.6] */
@@ -24,13 +26,13 @@ function parseDoseRange(range?: string): [number, number] | null {
 }
 
 export function DosagePage() {
-  // Drug catalog
-  const [padDrugs, setPadDrugs] = useState<PadDrugInfo[]>([]);
-  const [drugsLoading, setDrugsLoading] = useState(false);
+  // Drug catalog (from shared cache)
+  const [padDrugs, setPadDrugs] = useState<PadDrugInfo[]>(getCachedPadDrugsSync() ?? []);
+  const [drugsLoading, setDrugsLoading] = useState(!getCachedPadDrugsSync());
 
-  // Patient selector
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [patientsLoading, setPatientsLoading] = useState(false);
+  // Patient selector (from shared cache)
+  const [patients, setPatients] = useState<Patient[]>(getCachedPatientsSync() ?? []);
+  const [patientsLoading, setPatientsLoading] = useState(!getCachedPatientsSync());
   const [selectedPatientId, setSelectedPatientId] = useState('');
 
   // Input
@@ -60,31 +62,15 @@ export function DosagePage() {
     concentration !== '' &&
     parseFloat(concentration) !== drugInfo.concentration;
 
-  // Load PAD drugs + patients on mount
+  // Load PAD drugs + patients from shared cache
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      setDrugsLoading(true);
-      try {
-        const res = await getPadDrugs();
-        if (!cancelled) setPadDrugs(res.drugs);
-      } catch {
-        if (!cancelled) setPadDrugs([]);
-      } finally {
-        if (!cancelled) setDrugsLoading(false);
-      }
-    })();
-    (async () => {
-      setPatientsLoading(true);
-      try {
-        const res = await getPatients({ limit: 100 });
-        if (!cancelled) setPatients(res.patients);
-      } catch {
-        if (!cancelled) toast.error('無法載入病患列表');
-      } finally {
-        if (!cancelled) setPatientsLoading(false);
-      }
-    })();
+    getCachedPadDrugs()
+      .then(drugs => { if (!cancelled) { setPadDrugs(drugs); setDrugsLoading(false); } })
+      .catch(() => { if (!cancelled) setDrugsLoading(false); });
+    getCachedPatients()
+      .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
+      .catch(() => { if (!cancelled) { toast.error('無法載入病患列表'); setPatientsLoading(false); } });
     return () => { cancelled = true; };
   }, []);
 

@@ -8,7 +8,8 @@ import { Search, Plus, CheckCircle2, XCircle, HelpCircle, Loader2, X, User } fro
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { toast } from 'sonner';
 import { getIVCompatibility } from '../../lib/api/pharmacy';
-import { getPatients, type Patient } from '../../lib/api/patients';
+import { type Patient } from '../../lib/api/patients';
+import { getCachedPatients, getCachedPatientsSync } from '../../lib/patients-cache';
 import { getMedications } from '../../lib/api/medications';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
 
@@ -138,26 +139,18 @@ export function CompatibilityPage() {
   const [loading, setLoading] = useState(false);
   const [matrixResults, setMatrixResults] = useState<MatrixCell[]>([]);
 
-  // Patient selector
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [patientsLoading, setPatientsLoading] = useState(false);
+  // Patient selector (from shared cache)
+  const [patients, setPatients] = useState<Patient[]>(getCachedPatientsSync() ?? []);
+  const [patientsLoading, setPatientsLoading] = useState(!getCachedPatientsSync());
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [medsLoading, setMedsLoading] = useState(false);
 
-  // Load patients on mount
+  // Load patients from shared cache
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      setPatientsLoading(true);
-      try {
-        const res = await getPatients({ limit: 100 });
-        if (!cancelled) setPatients(res.patients);
-      } catch {
-        if (!cancelled) toast.error('無法載入病患列表');
-      } finally {
-        if (!cancelled) setPatientsLoading(false);
-      }
-    })();
+    getCachedPatients()
+      .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
+      .catch(() => { if (!cancelled) { toast.error('無法載入病患列表'); setPatientsLoading(false); } });
     return () => { cancelled = true; };
   }, []);
 

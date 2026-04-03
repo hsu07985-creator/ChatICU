@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toast } from 'sonner';
 import { checkInteractions, type InteractionCheckResponse } from '../../lib/api/ai';
 import { getDrugInteractions } from '../../lib/api/pharmacy';
-import { getPatients, type Patient } from '../../lib/api/patients';
+import { type Patient } from '../../lib/api/patients';
+import { getCachedPatients, getCachedPatientsSync } from '../../lib/patients-cache';
 import { getMedications } from '../../lib/api/medications';
 import { copyToClipboard } from '../../lib/clipboard-utils';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
@@ -83,26 +84,18 @@ export function DrugInteractionsPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Patient selector state
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [patientsLoading, setPatientsLoading] = useState(false);
+  // Patient selector state (from shared cache)
+  const [patients, setPatients] = useState<Patient[]>(getCachedPatientsSync() ?? []);
+  const [patientsLoading, setPatientsLoading] = useState(!getCachedPatientsSync());
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [medsLoading, setMedsLoading] = useState(false);
 
-  // Load patient list on mount
+  // Load patient list from shared cache
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      setPatientsLoading(true);
-      try {
-        const res = await getPatients({ limit: 100 });
-        if (!cancelled) setPatients(res.patients);
-      } catch {
-        if (!cancelled) toast.error('無法載入病患列表');
-      } finally {
-        if (!cancelled) setPatientsLoading(false);
-      }
-    })();
+    getCachedPatients()
+      .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
+      .catch(() => { if (!cancelled) { toast.error('無法載入病患列表'); setPatientsLoading(false); } });
     return () => { cancelled = true; };
   }, []);
 

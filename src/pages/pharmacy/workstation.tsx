@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getPatients, Patient as ApiPatient } from '../../lib/api/patients';
+import { Patient as ApiPatient } from '../../lib/api/patients';
+import { getCachedPatients, getCachedPatientsSync, isPatientsCacheFresh } from '../../lib/patients-cache';
+import { getCachedPadDrugs } from '../../lib/pad-drugs-cache';
 import { useAuth } from '../../lib/auth-context';
 import { getLatestLabData, type LabData as ApiLabData } from '../../lib/api/lab-data';
 import { getLatestVitalSigns, type VitalSigns as ApiVitalSigns } from '../../lib/api/vital-signs';
 import { checkInteractions, type PatientContext } from '../../lib/api/ai';
-import { createAdviceRecord, getDrugInteractions, getIVCompatibility, getPadDrugs, padCalculate, type PadDrugInfo } from '../../lib/api/pharmacy';
+import { createAdviceRecord, getDrugInteractions, getIVCompatibility, padCalculate, type PadDrugInfo } from '../../lib/api/pharmacy';
+import { getCachedPadDrugs } from '../../lib/pad-drugs-cache';
 import { getMedications } from '../../lib/api/medications';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -42,28 +45,17 @@ export function PharmacyWorkstationPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // 病患列表（從 API 載入）
-  const [patients, setPatients] = useState<ApiPatient[]>([]);
-  const [patientsLoading, setPatientsLoading] = useState(true);
+  // 病患列表（從共用快取載入）
+  const [patients, setPatients] = useState<ApiPatient[]>(getCachedPatientsSync() ?? []);
+  const [patientsLoading, setPatientsLoading] = useState(!getCachedPatientsSync());
   const [patientsError, setPatientsError] = useState<string | null>(null);
 
-  // 載入病患列表
   useEffect(() => {
-    const loadPatients = async () => {
-      setPatientsLoading(true);
-      setPatientsError(null);
-      try {
-        const res = await getPatients();
-        setPatients(res.patients);
-      } catch (err) {
-        console.error('載入病患列表失敗:', err);
-        setPatientsError('無法載入病患列表');
-        setPatients([]);
-      } finally {
-        setPatientsLoading(false);
-      }
-    };
-    loadPatients();
+    let cancelled = false;
+    getCachedPatients()
+      .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
+      .catch(() => { if (!cancelled) { setPatientsError('無法載入病患列表'); setPatientsLoading(false); } });
+    return () => { cancelled = true; };
   }, []);
 
   // 病患選擇
@@ -360,8 +352,7 @@ export function PharmacyWorkstationPage() {
 
           let padDrugCatalog: PadDrugInfo[] = [];
           try {
-            const padRes = await getPadDrugs();
-            padDrugCatalog = padRes.drugs || [];
+            padDrugCatalog = await getCachedPadDrugs();
           } catch {
             console.warn('無法取得 PAD 藥物目錄，使用本地已知清單');
             padDrugCatalog = KNOWN_PAD_KEYS.map(key => ({
