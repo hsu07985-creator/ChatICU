@@ -1,6 +1,4 @@
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
-import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
 import { Separator } from '../../../components/ui/separator';
 import {
@@ -10,9 +8,6 @@ import {
   Droplets,
   Calculator,
   User,
-  FileText,
-  BarChart3,
-  ExternalLink,
   ShieldAlert,
 } from 'lucide-react';
 import type { AssessmentResults, ExpandedSections, ExtendedPatientData } from './types';
@@ -56,12 +51,7 @@ export function AssessmentResultsPanel({
   selectedPatient,
   assessmentResults,
   drugList,
-  onGoToStatistics,
-  onGenerateAdvice,
-  onSaveAdvice,
-  adviceContent,
 }: AssessmentResultsPanelProps) {
-  const navigate = useNavigate();
 
   // ── 未選病患 ──
   if (!selectedPatient) {
@@ -290,33 +280,6 @@ export function AssessmentResultsPanel({
         </CardContent>
       </Card>
 
-      {/* ── 操作列 ── */}
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={onGenerateAdvice} className="bg-[#7f265b] hover:bg-[#631e4d]">
-          <FileText className="mr-1.5 h-4 w-4" />
-          產生報告
-        </Button>
-        <Button onClick={onSaveAdvice} variant="outline" disabled={!adviceContent.trim()}>
-          送出建議
-        </Button>
-        <Button onClick={onGoToStatistics} variant="ghost" size="sm" className="text-xs">
-          <BarChart3 className="mr-1 h-3 w-3" />
-          統計
-        </Button>
-      </div>
-
-      {/* ── 快速連結到獨立頁面 ── */}
-      <div className="flex flex-wrap gap-2 text-xs">
-        <Button variant="ghost" size="sm" className="text-[#7f265b] h-7" onClick={() => navigate('/pharmacy/interactions')}>
-          <ExternalLink className="mr-1 h-3 w-3" />交互作用詳情
-        </Button>
-        <Button variant="ghost" size="sm" className="text-[#7f265b] h-7" onClick={() => navigate('/pharmacy/compatibility')}>
-          <ExternalLink className="mr-1 h-3 w-3" />相容性矩陣
-        </Button>
-        <Button variant="ghost" size="sm" className="text-[#7f265b] h-7" onClick={() => navigate('/pharmacy/dosage')}>
-          <ExternalLink className="mr-1 h-3 w-3" />劑量計算
-        </Button>
-      </div>
     </div>
   );
 }
