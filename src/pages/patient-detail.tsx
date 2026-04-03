@@ -1387,47 +1387,8 @@ export function PatientDetailPage() {
               <Card className="border">
                 <CardHeader className="bg-slate-50 border-b py-1 px-3" style={{ paddingBottom: '4px' }}>
                   <div className="flex items-center gap-1.5">
-                    {/* Disclaimer inline */}
-                    {disclaimerCollapsed ? (
-                      <button
-                        onClick={() => setDisclaimerCollapsed(false)}
-                        className="flex items-center gap-1 text-xs text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
-                      >
-                        <Info className="h-3.5 w-3.5" />
-                        <span>AI 僅供參考</span>
-                        <ChevronDown className="h-2.5 w-2.5" />
-                      </button>
-                    ) : (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                        <Info className="h-3.5 w-3.5 shrink-0 text-amber-600" />
-                        <span>AI 輔助產生，僅供臨床參考，不可取代醫師專業判斷。</span>
-                        <button onClick={() => setDisclaimerCollapsed(true)} className="shrink-0 text-[#9CA3AF] hover:text-[#6B7280]">
-                          <ChevronUp className="h-3 w-3" />
-                        </button>
-                      </div>
-                    )}
                     <div className="flex-1" />
                     <div className="flex items-center gap-1">
-	                      {aiReadiness && (
-	                        <Badge
-	                          variant="outline"
-	                          className={`text-xs px-1.5 py-0 ${
-	                            canSendAiChat
-	                              ? 'border-green-300 bg-green-50 text-green-700'
-	                              : 'border-amber-300 bg-amber-50 text-amber-700'
-	                          }`}
-	                        >
-	                          {canSendAiChat ? 'AI 就緒' : 'AI 未就緒'}
-	                        </Badge>
-	                      )}
-	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-brand"
-	                        onClick={refreshAiReadiness} disabled={isCheckingAiReadiness} title="檢查 AI 狀態">
-	                        <Activity className={`h-3 w-3 ${isCheckingAiReadiness ? 'animate-spin' : ''}`} />
-	                      </Button>
-	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-brand"
-	                        onClick={() => loadPatientBundle('refresh')} disabled={isRefreshingPatientData} title="更新患者數值">
-	                        <RefreshCw className={`h-3 w-3 ${isRefreshingPatientData ? 'animate-spin' : ''}`} />
-	                      </Button>
 	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-brand"
 	                        onClick={() => setShowSessionList(!showSessionList)} title={showSessionList ? '隱藏記錄列表' : '顯示記錄列表'}>
 	                        <History className="h-3 w-3" />
@@ -1437,17 +1398,6 @@ export function PatientDetailPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="flex flex-col" style={{ height: 'max(calc(100vh - 260px), 480px)' }}>
-                  {/* AI 未就緒 warning */}
-                  {!canSendAiChat && (
-                    <div className="flex-none mx-4 mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 flex items-start gap-2">
-                      <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-medium">AI 對話功能暫時無法使用</p>
-                        <p className="text-amber-700 mt-0.5">請聯繫系統管理員或稍後重試。</p>
-                      </div>
-                    </div>
-                  )}
-
                   {/* 對話區 */}
                   <div
                     ref={messagesContainerRef}
