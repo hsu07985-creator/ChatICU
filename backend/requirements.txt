@@ -20,7 +20,7 @@ pydantic-settings==2.7.1
 slowapi==0.1.9
 
 # Redis
-redis[hiredis]==5.2.1
+redis[hiredis]==7.0.1
 
 # AI / RAG (Phase 3)
 openai>=1.51.0
