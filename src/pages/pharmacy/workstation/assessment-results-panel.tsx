@@ -100,8 +100,17 @@ export function AssessmentResultsPanel({
   });
   const highRiskInteractions = interactions.filter(i => i.riskRating === 'X' || i.riskRating === 'D');
 
-  // 相容性統計
-  const incompatiblePairs = compatibility.filter(c => !c.compatible);
+  // 相容性統計 — deduplicate by drugA+drugB pair
+  const incompatiblePairs = (() => {
+    const seen = new Set<string>();
+    return compatibility.filter(c => {
+      if (c.compatible) return false;
+      const key = [c.drugA, c.drugB].sort().join('|');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
 
   // 劑量統計
   const calculatedCount = dosage.filter(d => d.status === 'calculated').length;
@@ -174,13 +183,15 @@ export function AssessmentResultsPanel({
               </div>
               {dosage.length === 0 ? (
                 <p className="text-sm font-bold text-muted-foreground">無 PAD 藥物</p>
+              ) : calculatedCount > 0 ? (
+                <>
+                  <p className="text-lg font-bold text-[#7f265b]">{calculatedCount} <span className="text-xs font-normal">已算</span></p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">共 {dosage.length} 項 PAD 藥物</p>
+                </>
               ) : (
                 <>
-                  <p className="text-lg font-bold">{dosage.length} <span className="text-xs font-normal">項</span></p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {calculatedCount > 0 && `已算 ${calculatedCount}`}
-                    {unavailableCount > 0 && ` 異常 ${unavailableCount}`}
-                  </p>
+                  <p className="text-sm font-bold text-muted-foreground">{dosage.length} 項</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">服務未啟動</p>
                 </>
               )}
             </div>
