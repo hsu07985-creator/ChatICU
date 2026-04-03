@@ -318,7 +318,7 @@ export function PatientMedicationsTab({
   };
 
   return (
-    <TabsContent value="meds" className="space-y-4" style={{ paddingBottom: '10rem' }}>
+    <TabsContent value="meds" className="space-y-3">
       {medicationsLoading ? (
         <MedicationsSkeleton />
       ) : (

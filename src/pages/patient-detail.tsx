@@ -1189,10 +1189,10 @@ export function PatientDetailPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 space-y-4">
       {/* 頁首資訊條 */}
       <Card className="border">
-        <CardContent className="p-6">
+        <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" onClick={() => navigate('/patients')} className="hover:bg-slate-50" title="返回病人清單">

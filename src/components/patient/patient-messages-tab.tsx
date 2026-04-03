@@ -182,7 +182,7 @@ export function PatientMessagesTab({
   };
 
   return (
-    <TabsContent value="messages" className="space-y-3">
+    <TabsContent value="messages" className="space-y-2">
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">

@@ -109,7 +109,7 @@ export function PatientLabsTab({
   }, [setSearchParams]);
 
   return (
-    <TabsContent value="labs" className="space-y-4" style={{ paddingBottom: '10rem' }}>
+    <TabsContent value="labs" className="space-y-3">
       {/* 生命徵象 */}
       <Collapsible open={vitalSignsOpen} onOpenChange={setVitalSignsOpen}>
         <Card className="gap-0">
@@ -137,7 +137,7 @@ export function PatientLabsTab({
             </CollapsibleTrigger>
           </CardHeader>
           <CollapsibleContent className="overflow-hidden">
-            <CardContent className="pt-4">
+            <CardContent className="pt-2">
               {vitalSignsLoading ? (
                 <div className="flex items-center justify-center py-4">
                   <LoadingSpinner size="md" text="載入生命徵象..." />
@@ -260,13 +260,13 @@ export function PatientLabsTab({
               </CollapsibleTrigger>
             </CardHeader>
             <CollapsibleContent className="overflow-hidden">
-              <CardContent className="pt-4">
+              <CardContent className="pt-2">
                 {ventilatorLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <LoadingSpinner size="md" text="載入呼吸器設定..." />
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <div className="grid" style={metricGridStyle}>
                       <VitalSignCard
                         label="FiO₂"

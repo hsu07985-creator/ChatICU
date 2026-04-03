@@ -78,9 +78,9 @@ export function PatientSummaryTab({ patient, aiReadiness }: PatientSummaryTabPro
   return (
     <div className="grid gap-3 lg:grid-cols-[3fr_2fr]">
       {/* ── 左欄：基本資訊 / 症狀 / 入院診斷 ── */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         <Card className="overflow-hidden border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100/80">
-          <CardHeader className="border-b border-slate-200/80 bg-white/70 pb-2.5">
+          <CardHeader className="border-b border-slate-200/80 bg-white/70 pb-1.5">
             <CardTitle className="text-lg font-bold tracking-tight text-slate-900">病患資訊</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 pt-3">
@@ -117,7 +117,7 @@ export function PatientSummaryTab({ patient, aiReadiness }: PatientSummaryTabPro
         </Card>
 
         <Card className="overflow-hidden border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100/80">
-          <CardHeader className="border-b border-slate-200/80 bg-white/70 pb-2.5">
+          <CardHeader className="border-b border-slate-200/80 bg-white/70 pb-1.5">
             <CardTitle className="text-lg font-bold tracking-tight text-slate-900">臨床狀態</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 pt-3">
