@@ -234,13 +234,13 @@ export function PatientChatTab({
                     onClick={() => onSetDisclaimerCollapsed(false)}
                     className="flex items-center gap-1 text-xs text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
                   >
-                    <Info className="h-3 w-3" />
+                    <Info className="h-3.5 w-3.5" />
                     <span>AI 僅供參考</span>
                     <ChevronDown className="h-2.5 w-2.5" />
                   </button>
                 ) : (
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                    <Info className="h-3 w-3 shrink-0 text-amber-600" />
+                    <Info className="h-3.5 w-3.5 shrink-0 text-amber-600" />
                     <span>AI 輔助產生，僅供臨床參考，不可取代醫師專業判斷。</span>
                     <button onClick={() => onSetDisclaimerCollapsed(true)} className="shrink-0 text-[#9CA3AF] hover:text-[#6B7280]">
                       <ChevronUp className="h-3 w-3" />

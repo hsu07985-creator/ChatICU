@@ -500,7 +500,7 @@ export function PatientMessagesTab({
                               return (
                                 <div key={reply.id} className="rounded-md border border-slate-100 bg-slate-50/50 px-2.5 py-2">
                                   <div className="flex items-center gap-1.5 text-xs">
-                                    <ReplyRoleIcon className={`h-3 w-3 ${replyRoleCfg.color}`} />
+                                    <ReplyRoleIcon className={`h-3.5 w-3.5 ${replyRoleCfg.color}`} />
                                     <span className="font-medium text-slate-800">{reply.authorName}</span>
                                     <Badge variant="outline" className="text-xs">{replyRoleCfg.label}</Badge>
                                     <span className="text-muted-foreground ml-auto">{formatTimestamp(reply.timestamp)}</span>
@@ -519,7 +519,7 @@ export function PatientMessagesTab({
                     return (
                       <div key={group.key} className="space-y-2">
                         <div className="flex items-center gap-2 text-xs text-slate-500">
-                          <Clock className="h-3 w-3" />
+                          <Clock className="h-3.5 w-3.5" />
                           <span className="font-medium">{group.label}</span>
                         </div>
                         {messageCards}
