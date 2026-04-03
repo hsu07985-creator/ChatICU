@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth-context';
 import { patientsApi, type Patient } from '../lib/api';
@@ -14,19 +14,16 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import { Search, Plus, Archive, MessageCircle, Edit2, Save, X, Users } from 'lucide-react';
+import { Search, Plus, Archive, Edit2, Save, X, Users } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
 import { Checkbox } from '../components/ui/checkbox';
-import { LoadingSpinner, ErrorDisplay, EmptyState } from '../components/ui/state-display';
+import { ErrorDisplay, EmptyState } from '../components/ui/state-display';
 import { TableSkeleton } from '../components/ui/skeletons';
 import { toast } from 'sonner';
 
-// ICU 科別選項（UI 靜態設定）
-const ICU_DEPARTMENTS = ['內科-李穎灝', '內科-黃英哲', '外科'] as const;
-
-// 擴展 Patient 類型以包含前端需要的額外欄位
+// ── Module-level cache (survives re-mounts, 5-min staleTime) ──
 interface PatientWithFrontendFields extends Patient {
   sedation?: string[];
   analgesia?: string[];
@@ -34,14 +31,87 @@ interface PatientWithFrontendFields extends Patient {
   hasUnreadMessages?: boolean;
 }
 
+let _cachedPatients: PatientWithFrontendFields[] | null = null;
+let _cacheTimestamp = 0;
+const STALE_TIME = 5 * 60 * 1000; // 5 minutes
+
+// ICU 科別選項（UI 靜態設定）
+const ICU_DEPARTMENTS = ['內科-李穎灝', '內科-黃英哲', '外科'] as const;
+
 export function PatientsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [patients, setPatients] = useState<PatientWithFrontendFields[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [patients, setPatients] = useState<PatientWithFrontendFields[]>(_cachedPatients ?? []);
+  const [loading, setLoading] = useState(!_cachedPatients);
   const [error, setError] = useState<string | null>(null);
+  const fetchingRef = useRef(false);
+
+  const fetchPatients = useCallback(async () => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+    try {
+      setLoading((prev) => patients.length === 0 ? true : prev); // only show spinner on first load
+      setError(null);
+      const response = await patientsApi.getPatients({ limit: 100 });
+      const data = response.patients as PatientWithFrontendFields[];
+      _cachedPatients = data;
+      _cacheTimestamp = Date.now();
+      setPatients(data);
+    } catch (err) {
+      console.error('載入病人列表失敗:', err);
+      setError('無法載入病人列表，請稍後再試');
+    } finally {
+      setLoading(false);
+      fetchingRef.current = false;
+    }
+  }, [patients.length]);
+
+  useEffect(() => {
+    // If cache is fresh, use it; otherwise fetch
+    if (_cachedPatients && Date.now() - _cacheTimestamp < STALE_TIME) {
+      setPatients(_cachedPatients);
+      setLoading(false);
+    } else {
+      fetchPatients();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const getSedation = (patient: PatientWithFrontendFields) => patient.sedation || patient.sanSummary?.sedation || [];
+  const getAnalgesia = (patient: PatientWithFrontendFields) => patient.analgesia || patient.sanSummary?.analgesia || [];
+  const getNmb = (patient: PatientWithFrontendFields) => patient.nmb || patient.sanSummary?.nmb || [];
+
+  const filteredPatients = useMemo(
+    () => patients.filter(patient => {
+      const matchSearch = patient.name.includes(searchTerm) || patient.bedNumber.includes(searchTerm);
+      if (filterStatus === 'intubated') return matchSearch && patient.intubated;
+      if (filterStatus === 'san') {
+        return matchSearch && (getSedation(patient).length > 0 || getAnalgesia(patient).length > 0 || getNmb(patient).length > 0);
+      }
+      return matchSearch;
+    }),
+    [patients, searchTerm, filterStatus],
+  );
+
+  const getICUDays = (icuAdmissionDate: string) => {
+    const today = new Date();
+    const admission = new Date(icuAdmissionDate);
+    return Math.ceil(Math.abs(today.getTime() - admission.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  const getDepartmentBgColor = (department: string) => {
+    if (department.includes('內科')) return 'bg-blue-50 hover:bg-blue-100/70';
+    if (department.includes('外科')) return 'bg-amber-50 hover:bg-amber-100/70';
+    return 'hover:bg-muted/50';
+  };
+
+  const getDepartmentBadgeColor = (department: string) => {
+    if (department.includes('內科')) return 'bg-blue-600 text-white';
+    if (department.includes('外科')) return 'bg-amber-600 text-white';
+    return 'bg-gray-600 text-white';
+  };
+
   const [editingPatientId, setEditingPatientId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<PatientWithFrontendFields | null>(null);
 
@@ -71,88 +141,6 @@ export function PatientsPage() {
     analgesia: '',
     nmb: '',
   });
-
-  // 載入病人列表
-  const fetchPatients = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await patientsApi.getPatients({ limit: 100 });
-      setPatients(response.patients as PatientWithFrontendFields[]);
-    } catch (err) {
-      console.error('載入病人列表失敗:', err);
-      setError('無法載入病人列表，請稍後再試');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchPatients();
-  }, []);
-
-  // 取得病人的 S/A/N 資料（支援兩種格式）
-  const getSedation = (patient: PatientWithFrontendFields) => patient.sedation || patient.sanSummary?.sedation || [];
-  const getAnalgesia = (patient: PatientWithFrontendFields) => patient.analgesia || patient.sanSummary?.analgesia || [];
-  const getNmb = (patient: PatientWithFrontendFields) => patient.nmb || patient.sanSummary?.nmb || [];
-
-  const filteredPatients = patients.filter(patient => {
-    const matchSearch = patient.name.includes(searchTerm) || patient.bedNumber.includes(searchTerm);
-
-    if (filterStatus === 'intubated') return matchSearch && patient.intubated;
-    if (filterStatus === 'san') {
-      return matchSearch && (
-        getSedation(patient).length > 0 ||
-        getAnalgesia(patient).length > 0 ||
-        getNmb(patient).length > 0
-      );
-    }
-
-    return matchSearch;
-  });
-
-  const getSANMarkers = (patient: PatientWithFrontendFields) => {
-    const markers = [];
-    if (getSedation(patient).length > 0) markers.push('S');
-    if (getAnalgesia(patient).length > 0) markers.push('A');
-    if (getNmb(patient).length > 0) markers.push('N');
-    return markers.join('/') || '-';
-  };
-
-  // 計算 ICU 住院天數
-  const getICUDays = (icuAdmissionDate: string) => {
-    const today = new Date();
-    const admission = new Date(icuAdmissionDate);
-    const diffTime = Math.abs(today.getTime() - admission.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-
-  // 根據科別與醫師獲取背景顏色
-  const getDepartmentBgColor = (department: string) => {
-    // 內科統一用藍色
-    if (department.includes('內科')) {
-      return 'bg-blue-50 hover:bg-blue-100/70';
-    }
-    // 外科用橙色
-    if (department.includes('外科')) {
-      return 'bg-amber-50 hover:bg-amber-100/70';
-    }
-    return 'hover:bg-muted/50';
-  };
-
-  // 根據科別與醫師獲取標籤顏色
-  const getDepartmentBadgeColor = (department: string) => {
-    // 內科統一用藍色
-    if (department.includes('內科')) {
-      return 'bg-blue-600 text-white';
-    }
-    // 外科用橙色
-    if (department.includes('外科')) {
-      return 'bg-amber-600 text-white';
-    }
-    return 'bg-gray-600 text-white';
-  };
 
   const handleEdit = (patient: PatientWithFrontendFields) => {
     setEditingPatientId(patient.id);
