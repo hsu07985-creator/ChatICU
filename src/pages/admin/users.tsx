@@ -259,7 +259,7 @@ export function UsersPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm text-muted-foreground">總帳號數</CardTitle>
+            <CardTitle className="text-base text-muted-foreground">總帳號數</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-[#7f265b]">{userStats.total}</div>
@@ -267,7 +267,7 @@ export function UsersPage() {
         </Card>
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm text-muted-foreground">啟用中</CardTitle>
+            <CardTitle className="text-base text-muted-foreground">啟用中</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-600">{userStats.active}</div>
@@ -275,7 +275,7 @@ export function UsersPage() {
         </Card>
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm text-muted-foreground">醫師帳號</CardTitle>
+            <CardTitle className="text-base text-muted-foreground">醫師帳號</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-blue-600">{userStats.byRole.doctor}</div>
@@ -283,7 +283,7 @@ export function UsersPage() {
         </Card>
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm text-muted-foreground">藥師帳號</CardTitle>
+            <CardTitle className="text-base text-muted-foreground">藥師帳號</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-purple-600">{userStats.byRole.pharmacist}</div>
@@ -338,7 +338,7 @@ export function UsersPage() {
                   <TableCell className="text-sm text-muted-foreground">{user.unit}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
                   <TableCell>{getStatusBadge(user.active)}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{user.lastLogin}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{user.lastLogin ? new Date(user.lastLogin).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-1 justify-end">
                       <Button

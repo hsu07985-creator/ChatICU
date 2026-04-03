@@ -100,7 +100,7 @@ export function AuditPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm text-muted-foreground">今日總操作</CardTitle>
+            <CardTitle className="text-base text-muted-foreground">今日總操作</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-[#7f265b]">{stats.total}</div>
@@ -108,7 +108,7 @@ export function AuditPage() {
         </Card>
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm text-muted-foreground">成功操作</CardTitle>
+            <CardTitle className="text-base text-muted-foreground">成功操作</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-600">{stats.success}</div>
@@ -116,7 +116,7 @@ export function AuditPage() {
         </Card>
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm text-muted-foreground">失敗操作</CardTitle>
+            <CardTitle className="text-base text-muted-foreground">失敗操作</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-red-600">{stats.failed}</div>
@@ -124,7 +124,7 @@ export function AuditPage() {
         </Card>
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm text-muted-foreground">活躍用戶</CardTitle>
+            <CardTitle className="text-base text-muted-foreground">活躍用戶</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-blue-600">

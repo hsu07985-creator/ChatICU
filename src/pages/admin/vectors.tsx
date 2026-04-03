@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../..
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Label } from '../../components/ui/label';
 import {
   Database,
@@ -181,23 +182,22 @@ export function VectorsPage() {
             <Label htmlFor="database-select" className="text-base font-medium">
               選擇目標資料庫
             </Label>
-            <select
-              id="database-select"
-              value={selectedDatabase}
-              onChange={(e) => setSelectedDatabase(e.target.value)}
-              className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg focus:border-[#7f265b] focus:outline-none text-base"
-              disabled={isUploading}
-            >
-              {vectorDatabases.length === 0 ? (
-                <option value="clinical-guidelines">clinical-guidelines（預設）</option>
-              ) : (
-                vectorDatabases.map((db) => (
-                  <option key={db.id} value={db.id}>
-                    {db.name}
-                  </option>
-                ))
-              )}
-            </select>
+            <Select value={selectedDatabase} onValueChange={setSelectedDatabase} disabled={isUploading}>
+              <SelectTrigger>
+                <SelectValue placeholder="選擇資料庫" />
+              </SelectTrigger>
+              <SelectContent>
+                {vectorDatabases.length === 0 ? (
+                  <SelectItem value="clinical-guidelines">clinical-guidelines（預設）</SelectItem>
+                ) : (
+                  vectorDatabases.map((db) => (
+                    <SelectItem key={db.id} value={db.id}>
+                      {db.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -205,14 +205,23 @@ export function VectorsPage() {
               選擇檔案
             </Label>
             <div className="flex gap-3">
-              <Input
+              <input
                 id="file-upload"
                 type="file"
                 accept=".pdf"
                 onChange={handleFileSelect}
                 disabled={isUploading}
-                className="flex-1 cursor-pointer"
+                className="hidden"
               />
+              <Button
+                variant="outline"
+                onClick={() => document.getElementById('file-upload')?.click()}
+                disabled={isUploading}
+                className="flex-1 justify-start text-muted-foreground font-normal"
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                {selectedFile ? selectedFile.name : '選擇 PDF 檔案...'}
+              </Button>
               <Button
                 onClick={handleUpload}
                 disabled={!selectedFile || isUploading}
