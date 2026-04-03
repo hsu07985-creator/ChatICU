@@ -427,7 +427,7 @@ async def _stream_openai(
     stream = await client.chat.completions.create(
         model=settings.LLM_MODEL,
         max_completion_tokens=max_tokens,
-        reasoning={"effort": settings.LLM_REASONING_EFFORT},
+        reasoning_effort=settings.LLM_REASONING_EFFORT,
         messages=api_messages,
         stream=True,
         stream_options={"include_usage": True},
@@ -505,7 +505,7 @@ def _call_openai(
     client = _get_openai_sync()
     response = client.chat.completions.create(
         model=settings.LLM_MODEL, max_completion_tokens=max_tokens,
-        reasoning={"effort": settings.LLM_REASONING_EFFORT},
+        reasoning_effort=settings.LLM_REASONING_EFFORT,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": json.dumps(input_data, ensure_ascii=False, default=str)},
@@ -548,7 +548,7 @@ def _call_openai_multi(
     api_messages.extend(messages)
     response = client.chat.completions.create(
         model=settings.LLM_MODEL, max_completion_tokens=max_tokens,
-        reasoning={"effort": settings.LLM_REASONING_EFFORT},
+        reasoning_effort=settings.LLM_REASONING_EFFORT,
         messages=api_messages,
     )
     _maybe_capture_provider_raw(
