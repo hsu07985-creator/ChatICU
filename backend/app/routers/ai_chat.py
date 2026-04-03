@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1173,6 +1174,9 @@ async def ai_chat_stream(
     async def event_generator():
         try:
             # ── Phase 1: Pre-generation (shared with /ai/chat) ──────────
+            t_start = time.perf_counter()
+            timings: Dict[str, float] = {}
+
             session_id = req.sessionId or f"session_{uuid.uuid4().hex[:8]}"
             now = datetime.now(timezone.utc)
             trace_kwargs = evidence_trace_kwargs(request)
@@ -1198,15 +1202,18 @@ async def ai_chat_stream(
                 .order_by(AIMessage.created_at.asc())
             )
             all_messages = list(history_result.scalars().all())
+            timings["db_session_history"] = time.perf_counter() - t_start
 
             patient_context = None
             data_freshness = None
+            t_patient = time.perf_counter()
             if req.patientId:
                 try:
                     patient_context = await _get_patient_dict(req.patientId, db)
                     data_freshness = build_data_freshness(patient_context)
                 except HTTPException:
                     pass
+            timings["patient_context"] = time.perf_counter() - t_patient
 
             user_msg_id = f"msg_{uuid.uuid4().hex[:8]}"
             user_msg = AIMessage(id=user_msg_id, session_id=session_id, role="user", content=req.message)
@@ -1221,6 +1228,7 @@ async def ai_chat_stream(
             yield _sse_event("thinking", {"phase": "rag", "detail": "正在查詢文獻…"})
 
             # RAG retrieval (with tight timeout to avoid Vercel rewrite timeout)
+            t_rag = time.perf_counter()
             citations: List[Dict[str, Any]] = []
             rag_context = ""
             evidence_confidence = None
@@ -1279,6 +1287,8 @@ async def ai_chat_stream(
                         }
                         for i, s in enumerate(sources)
                     ]
+
+            timings["rag_retrieval"] = time.perf_counter() - t_rag
 
             citations = _merge_citations_by_source(citations)
             evidence_gate = evaluate_evidence_gate(
@@ -1342,6 +1352,8 @@ async def ai_chat_stream(
                 full_content = ""
                 degraded = False
                 degraded_reason = None
+                t_llm_start = time.perf_counter()
+                t_first_token = None
 
                 async for token in call_llm_stream(
                     task="rag_generation",
@@ -1359,20 +1371,29 @@ async def ai_chat_stream(
                         for chunk in _chunk_text_for_stream(full_content):
                             yield _sse_event("delta", {"chunk": chunk})
                         break
+                    if t_first_token is None:
+                        t_first_token = time.perf_counter()
                     full_content += token
                     yield _sse_event("delta", {"chunk": token})
 
+                timings["llm_ttfb"] = (t_first_token - t_llm_start) if t_first_token else 0.0
+                timings["llm_streaming_total"] = time.perf_counter() - t_llm_start
+
                 # Await citation task (with timeout — don't block done event)
+                t_post = time.perf_counter()
                 if citation_task:
                     try:
                         citations = await asyncio.wait_for(citation_task, timeout=5.0)
                     except (asyncio.TimeoutError, Exception):
                         logger.info("[INTG][AI][API][AO-04] Citation summarization timed out or failed, using raw citations")
                         pass  # keep original citations
+                timings["citation_summary"] = time.perf_counter() - t_post
 
                 # Apply safety guardrail on complete content
+                t_guard = time.perf_counter()
                 guardrail_result = apply_safety_guardrail(full_content, include_disclaimer=False, user_role=user.role)
                 ai_content = str(guardrail_result["content"])
+                timings["guardrail"] = time.perf_counter() - t_guard
 
                 # If guardrail modified content, we already streamed the raw version.
                 # The final 'done' event carries the canonical guardrail-processed content.
@@ -1411,11 +1432,14 @@ async def ai_chat_stream(
             all_messages.append(user_msg)
             all_messages.append(ai_msg)
             # Run compression with a timeout — don't let it block done event for too long
+            t_compress = time.perf_counter()
             try:
                 await asyncio.wait_for(_maybe_compress_history(session, all_messages), timeout=1.0)
             except asyncio.TimeoutError:
                 logger.info("[INTG][AI][API] History compression timed out, will retry next request")
+            timings["compression"] = time.perf_counter() - t_compress
 
+            t_commit = time.perf_counter()
             await create_audit_log(
                 db, user_id=user.id, user_name=user.name, role=user.role,
                 action="AI 對話（串流）", target=session_id, status="success" if not degraded else "degraded",
@@ -1427,6 +1451,12 @@ async def ai_chat_stream(
                 },
             )
             await db.commit()
+            timings["db_commit"] = time.perf_counter() - t_commit
+            timings["total"] = time.perf_counter() - t_start
+
+            # Log pipeline timings for performance analysis
+            timings_rounded = {k: round(v, 3) for k, v in timings.items()}
+            logger.info("[PERF][AI][STREAM] timings=%s model=%s", json.dumps(timings_rounded), settings.LLM_MODEL)
 
             # Final done event with complete payload
             yield _sse_event("done", {
@@ -1442,6 +1472,7 @@ async def ai_chat_stream(
                     "dataFreshness": data_freshness,
                 },
                 "sessionId": session_id,
+                "timings": timings_rounded,
             })
 
         except HTTPException as exc:
