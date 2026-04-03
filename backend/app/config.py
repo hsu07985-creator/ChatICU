@@ -75,7 +75,8 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "openai"
     LLM_MODEL: str = "gpt-5.4-mini"
     LLM_TEMPERATURE: float = 0.3
-    LLM_MAX_TOKENS: int = 16384  # reasoning models need headroom for thinking tokens
+    LLM_MAX_TOKENS: int = 4096
+    LLM_REASONING_EFFORT: str = "low"  # none|low|medium|high (gpt-5.4-mini)
     LLM_RECENT_MSG_WINDOW: int = 10   # keep N most recent messages verbatim (F08)
     LLM_COMPRESS_THRESHOLD: int = 20  # trigger compression above this count (F08)
     # Optional audit capture of provider raw payloads (disabled by default).
