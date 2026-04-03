@@ -117,7 +117,7 @@ export function PatientLabsTab({
             <CollapsibleTrigger asChild>
               <button
                 type="button"
-                className="flex w-full items-center justify-between gap-3 px-6 py-3 text-left transition-colors hover:bg-slate-100/70"
+                className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left transition-colors hover:bg-slate-100/70"
                 aria-label={vitalSignsOpen ? '收合生命徵象' : '展開生命徵象'}
               >
                 <div className="min-w-0">
@@ -240,7 +240,7 @@ export function PatientLabsTab({
               <CollapsibleTrigger asChild>
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between gap-3 px-6 py-3 text-left transition-colors hover:bg-slate-100/70"
+                  className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left transition-colors hover:bg-slate-100/70"
                   aria-label={ventilatorOpen ? '收合呼吸器設定' : '展開呼吸器設定'}
                 >
                   <div className="min-w-0">
