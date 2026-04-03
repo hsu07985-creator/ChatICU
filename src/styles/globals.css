@@ -12,7 +12,9 @@
   --metric-card-unit-size: 0.625rem;
   
   /* Primary - 主色 #7f265b */
-  --primary: #7f265b;
+  --color-brand: #7f265b;
+  --color-brand-hover: #631e4d;
+  --primary: var(--color-brand);
   --primary-foreground: #ffffff;
   
   /* Dark - 深色文字 #1a1a1a */
@@ -40,21 +42,21 @@
   --input: transparent;
   --input-background: #ffffff;
   --switch-background: #e5e7eb;
-  --ring: #7f265b;
+  --ring: var(--color-brand);
   --radius: 0.5rem;
   
   /* Sidebar */
   --sidebar: #ffffff;
   --sidebar-foreground: #1a1a1a;
-  --sidebar-primary: #7f265b;
+  --sidebar-primary: var(--color-brand);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f8f9fa;
-  --sidebar-accent-foreground: #1a1a1a;
+  --sidebar-accent: #f3e8ee;
+  --sidebar-accent-foreground: var(--color-brand);
   --sidebar-border: #e5e7eb;
-  --sidebar-ring: #7f265b;
+  --sidebar-ring: var(--color-brand);
   
   /* Charts - using primary variations */
-  --chart-1: #7f265b;
+  --chart-1: var(--color-brand);
   --chart-2: #1a1a1a;
   --chart-3: #f59e0b;
   --chart-4: #6b7280;
@@ -159,7 +161,7 @@
   :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
     h1 {
       font-size: var(--text-2xl);
-      font-weight: var(--font-weight-medium);
+      font-weight: 600;
       line-height: 1.5;
     }
 

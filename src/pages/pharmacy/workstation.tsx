@@ -618,10 +618,10 @@ export function PharmacyWorkstationPage() {
         {/* 左側：病患與用藥管理 (40%) */}
         <div className="lg:col-span-2 space-y-4">
           {/* 病患選擇 */}
-          <Card className="border-[#7f265b]">
-            <CardHeader className="bg-[#f8f9fa] pb-3">
+          <Card className="border-[var(--color-brand)]">
+            <CardHeader className="bg-slate-50 py-3">
               <CardTitle className="flex items-center gap-2 text-base">
-                <User className="h-5 w-5 text-[#7f265b]" />
+                <User className="h-5 w-5 text-[var(--color-brand)]" />
                 選擇病患
               </CardTitle>
             </CardHeader>
@@ -674,14 +674,14 @@ export function PharmacyWorkstationPage() {
 
           {/* 用藥列表管理 */}
           {selectedPatient && (
-            <Card className="border-[#7f265b]">
-              <CardHeader className="bg-[#f8f9fa] pb-3">
+            <Card className="border-[var(--color-brand)]">
+              <CardHeader className="bg-slate-50 py-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
-                    <Pill className="h-5 w-5 text-[#7f265b]" />
+                    <Pill className="h-5 w-5 text-[var(--color-brand)]" />
                     用藥列表
                   </CardTitle>
-                  <Badge className="bg-[#7f265b]">
+                  <Badge className="bg-[var(--color-brand)]">
                     {drugList.length} 項
                   </Badge>
                 </div>
@@ -703,7 +703,7 @@ export function PharmacyWorkstationPage() {
                   <Button 
                     onClick={handleAddDrug}
                     disabled={!currentDrug.trim()}
-                    className="bg-[#7f265b] hover:bg-[#631e4d]"
+                    className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]"
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -716,7 +716,7 @@ export function PharmacyWorkstationPage() {
                       {drugList.map((drug, index) => (
                         <div 
                           key={index}
-                          className="flex items-center justify-between p-2.5 bg-[#f8f9fa] rounded-lg border"
+                          className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg border"
                         >
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-medium text-muted-foreground w-5 text-right">{index + 1}.</span>
@@ -749,7 +749,7 @@ export function PharmacyWorkstationPage() {
                 <Button 
                   onClick={handleComprehensiveAssessment}
                   disabled={drugList.length === 0 || isAssessing}
-                  className="w-full h-12 bg-[#7f265b] hover:bg-[#631e4d]"
+                  className="w-full h-12 bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]"
                   size="lg"
                 >
                   <Zap className="mr-2 h-5 w-5" />

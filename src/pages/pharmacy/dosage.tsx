@@ -160,7 +160,7 @@ export function DosagePage() {
       </div>
 
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader>
           <CardTitle className="text-base">PAD 藥物劑量計算</CardTitle>
           <CardDescription className="text-xs">選擇藥品、輸入體重與目標劑量，系統自動計算輸注速率 (ml/hr)</CardDescription>
         </CardHeader>
@@ -214,7 +214,7 @@ export function DosagePage() {
           {/* Fixed dose alert */}
           {isFixedDose && drugInfo && (
             <Alert className="py-2">
-              <AlertDescription className="text-xs">
+              <AlertDescription className="text-xs leading-relaxed">
                 <strong>{drugInfo.label}</strong> 為固定劑量藥物（非體重依賴），建議劑量：{drugInfo.dose_range}。不需輸入目標劑量與濃度。
               </AlertDescription>
             </Alert>
@@ -306,7 +306,7 @@ export function DosagePage() {
           {/* ─── Result (inline, same card) ─── */}
           {loading && (
             <div className="text-center py-6">
-              <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-[#7f265b]" />
+              <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-[var(--color-brand)]" />
               <p className="text-xs text-muted-foreground">計算中...</p>
             </div>
           )}
@@ -324,7 +324,7 @@ export function DosagePage() {
                   </div>
                   <Alert className="py-2">
                     <AlertTriangle className="h-3.5 w-3.5" />
-                    <AlertDescription className="text-xs">{result.note}</AlertDescription>
+                    <AlertDescription className="text-xs leading-relaxed">{result.note}</AlertDescription>
                   </Alert>
                   {result.steps.length > 0 && (
                     <p className="text-xs text-muted-foreground">{result.steps[0]}</p>
@@ -335,11 +335,11 @@ export function DosagePage() {
                   {/* Header: drug name + rate hero + secondary stats */}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                     {/* Rate hero */}
-                    <div className="flex items-center gap-3 px-4 py-3 bg-[#7f265b]/10 border border-[#7f265b]/20 rounded-lg">
+                    <div className="flex items-center gap-3 px-4 py-3 bg-[var(--color-brand)]/10 border border-[var(--color-brand)]/20 rounded-lg">
                       <div>
                         <p className="text-xs text-muted-foreground leading-tight">輸注速率</p>
-                        <p className="text-3xl font-bold text-[#7f265b] leading-none">{result.rate_ml_hr}</p>
-                        <p className="text-xs font-medium text-[#7f265b]/70">ml/hr</p>
+                        <p className="text-3xl font-bold text-[var(--color-brand)] leading-none">{result.rate_ml_hr}</p>
+                        <p className="text-xs font-medium text-[var(--color-brand)]/70">ml/hr</p>
                       </div>
                     </div>
                     {/* Drug info + secondary */}
@@ -408,7 +408,7 @@ export function DosagePage() {
 
                   {result.note && (
                     <div className="flex items-start gap-1.5 text-xs">
-                      <AlertTriangle className="h-3 w-3 text-amber-500 mt-0.5 shrink-0" />
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
                       <span className="text-muted-foreground">{result.note}</span>
                     </div>
                   )}

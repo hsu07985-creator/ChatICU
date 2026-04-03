@@ -127,7 +127,7 @@ function ScoreSelector({
               onClick={() => setPending(v)}
               className={`flex-1 py-1.5 text-xs font-semibold tabular-nums rounded transition-all border
                 ${isSelected
-                  ? `${color} ring-2 ring-[#7f265b] ring-offset-1 scale-105 shadow-sm`
+                  ? `${color} ring-2 ring-[var(--color-brand)] ring-offset-1 scale-105 shadow-sm`
                   : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-700 hover:scale-105'
                 }
                 disabled:pointer-events-none disabled:opacity-40
@@ -141,12 +141,12 @@ function ScoreSelector({
       {/* 確認列 */}
       {hasPending && (
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#7f265b]">
+          <span className="text-sm font-medium text-[var(--color-brand)]">
             {fmt(pending!)}
           </span>
           <Button
             size="sm"
-            className="h-7 px-3 text-xs font-medium bg-[#7f265b] hover:bg-[#6a1f4d] rounded-md"
+            className="h-7 px-3 text-xs font-medium bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] rounded-md"
             disabled={submitting}
             onClick={handleConfirm}
           >
@@ -300,14 +300,14 @@ export function PatientMedicationsTab({
           {/* S/A/N 藥物 */}
           <div className="grid gap-3 md:grid-cols-3">
             {/* Pain (A) */}
-            <Card className="border-[#e5e7eb]">
+            <Card className="border-border">
               <CardHeader className="pb-2 space-y-1">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-semibold leading-tight text-slate-800">Pain 止痛</CardTitle>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 px-3 text-xs border-[#d9b6c8] text-[#7f265b] hover:bg-[#fbf4f8]"
+                    className="h-7 px-3 text-xs border-[#d9b6c8] text-[var(--color-brand)] hover:bg-[#fbf4f8]"
                     onClick={() => onOpenScoreTrend('pain')}
                   >
                     趨勢
@@ -359,14 +359,14 @@ export function PatientMedicationsTab({
             </Card>
 
             {/* Sedation (S) */}
-            <Card className="border-[#e5e7eb]">
+            <Card className="border-border">
               <CardHeader className="pb-2 space-y-1">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-semibold leading-tight text-slate-800">Sedation 鎮靜</CardTitle>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 px-3 text-xs border-[#d9b6c8] text-[#7f265b] hover:bg-[#fbf4f8]"
+                    className="h-7 px-3 text-xs border-[#d9b6c8] text-[var(--color-brand)] hover:bg-[#fbf4f8]"
                     onClick={() => onOpenScoreTrend('rass')}
                   >
                     趨勢
@@ -419,7 +419,7 @@ export function PatientMedicationsTab({
             </Card>
 
             {/* Neuromuscular Blockade (N) */}
-            <Card className="border-[#e5e7eb]">
+            <Card className="border-border">
               <CardHeader className="pb-2 space-y-1">
                 <CardTitle className="text-base font-semibold leading-tight text-slate-800">Neuromuscular Blockade 神經肌肉阻斷</CardTitle>
                 <CardDescription className="text-sm leading-tight">
@@ -460,7 +460,7 @@ export function PatientMedicationsTab({
           </div>
 
           {/* Other Medications */}
-          <Card className="border-[#e5e7eb]">
+          <Card className="border-border">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold leading-tight text-slate-800">其他藥物 Other Medications</CardTitle>

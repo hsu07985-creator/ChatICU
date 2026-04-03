@@ -42,7 +42,7 @@ export function ConfidenceBadge({
           className,
         )}
       >
-        <CheckCircle2 className={isMd ? 'h-4 w-4' : 'h-3 w-3'} />
+        <CheckCircle2 className={isMd ? 'h-4 w-4' : 'h-3.5 w-3.5'} />
         {showLabel && <span>高信心</span>}
         <span>({pct}%)</span>
       </Badge>
@@ -78,7 +78,7 @@ export function ConfidenceBadge({
         className,
       )}
     >
-      <XCircle className={isMd ? 'h-4 w-4' : 'h-3 w-3'} />
+      <XCircle className={isMd ? 'h-4 w-4' : 'h-3.5 w-3.5'} />
       {showLabel && <span>低信心 — 建議諮詢專科</span>}
       <span>({pct}%)</span>
     </Badge>

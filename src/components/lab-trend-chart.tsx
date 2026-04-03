@@ -73,7 +73,7 @@ export function LabTrendChart({
               <Line
                 type="monotone"
                 dataKey="value"
-                stroke="#7f265b"
+                stroke="var(--color-brand)"
                 strokeWidth={2}
                 dot={(props: any) => {
                   const { cx, cy, index } = props;
@@ -83,13 +83,13 @@ export function LabTrendChart({
                       cx={cx}
                       cy={cy}
                       r={6}
-                      fill="#7f265b"
+                      fill="var(--color-brand)"
                       stroke="#ffffff"
                       strokeWidth={2}
                     />
                   );
                 }}
-                activeDot={{ r: 8, fill: '#7f265b', stroke: '#ffffff', strokeWidth: 2 }}
+                activeDot={{ r: 8, fill: 'var(--color-brand)', stroke: '#ffffff', strokeWidth: 2 }}
               />
             </LineChart>
           </ResponsiveContainer>

@@ -122,7 +122,7 @@ export function MedicationNormalizationPage() {
             <RefreshCw className="mr-2 h-4 w-4" />
             重新載入
           </Button>
-          <Button onClick={handleSave} disabled={loading || saving || !hasLocalChange} className="bg-[#7f265b] hover:bg-[#631e4d]">
+          <Button onClick={handleSave} disabled={loading || saving || !hasLocalChange} className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]">
             <Save className="mr-2 h-4 w-4" />
             儲存
           </Button>
@@ -137,7 +137,7 @@ export function MedicationNormalizationPage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader>
             <CardTitle className="text-base">Route Alias</CardTitle>
           </CardHeader>
           <CardContent>
@@ -145,7 +145,7 @@ export function MedicationNormalizationPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader>
             <CardTitle className="text-base">Frequency Alias</CardTitle>
           </CardHeader>
           <CardContent>
@@ -153,11 +153,11 @@ export function MedicationNormalizationPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader>
             <CardTitle className="text-base">版本</CardTitle>
           </CardHeader>
           <CardContent>
-            <Badge className="bg-[#7f265b] text-white">{config?.version || '-'}</Badge>
+            <Badge className="bg-[var(--color-brand)] text-white">{config?.version || '-'}</Badge>
           </CardContent>
         </Card>
       </div>
@@ -165,7 +165,7 @@ export function MedicationNormalizationPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <FileJson className="h-5 w-5 text-[#7f265b]" />
+            <FileJson className="h-5 w-5 text-[var(--color-brand)]" />
             字典編輯
           </CardTitle>
           <CardDescription>請輸入合法 JSON object，key/value 皆為字串。</CardDescription>

@@ -34,9 +34,9 @@ const adviceCategories = {
   prescription: {
     label: PHARMACY_ADVICE_CATEGORIES.prescription.label,
     color: 'bg-purple-100 border-purple-300 hover:bg-purple-200',
-    activeColor: 'bg-[#7f265b] text-white',
+    activeColor: 'bg-[var(--color-brand)] text-white',
     icon: Pill,
-    iconColor: 'text-[#7f265b]',
+    iconColor: 'text-[var(--color-brand)]',
     codes: PHARMACY_ADVICE_CATEGORIES.prescription.codes,
   },
   proactive: {
@@ -218,7 +218,7 @@ export function PharmacistAdviceWidget({
         {/* 輸入與修飾區 */}
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="font-semibold text-[#1a1a1a]">輸入用藥建議草稿（中文或英文）</label>
+            <label className="font-semibold text-foreground">輸入用藥建議草稿（中文或英文）</label>
             <Textarea
               placeholder="例如：建議調整 Morphine 劑量因為腎功能不全（eGFR < 30），同時注意監測呼吸抑制..."
               value={adviceInput}
@@ -239,8 +239,8 @@ export function PharmacistAdviceWidget({
             <>
               <Separator />
               <div className="space-y-3">
-                <label className="font-semibold text-[#1a1a1a]">修飾後的用藥建議</label>
-                <div className="bg-[#f8f9fa] border-2 border-green-600 rounded-lg p-4">
+                <label className="font-semibold text-foreground">修飾後的用藥建議</label>
+                <div className="bg-slate-50 border-2 border-green-600 rounded-lg p-4">
                   <AiMarkdown content={polishedAdvice} className="text-[15px]" />
                 </div>
 	                <div className="flex gap-2">
@@ -282,7 +282,7 @@ export function PharmacistAdviceWidget({
                 <Card 
                   className={`border-2 cursor-pointer transition-all ${
                     selectedCategory === 'prescription'
-                      ? 'ring-4 ring-offset-2 ring-[#7f265b]/50 bg-[#7f265b] text-white'
+                      ? 'ring-4 ring-offset-2 ring-[var(--color-brand)]/50 bg-[var(--color-brand)] text-white'
                       : 'bg-purple-100 border-purple-300 hover:bg-purple-200'
                   }`}
                   onClick={() => {
@@ -292,7 +292,7 @@ export function PharmacistAdviceWidget({
                 >
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-lg">
-                      <Pill className={`h-6 w-6 ${selectedCategory === 'prescription' ? 'text-white' : 'text-[#7f265b]'}`} />
+                      <Pill className={`h-6 w-6 ${selectedCategory === 'prescription' ? 'text-white' : 'text-[var(--color-brand)]'}`} />
                       1. 建議處方
                     </CardTitle>
                   </CardHeader>
@@ -307,8 +307,8 @@ export function PharmacistAdviceWidget({
                             variant={selectedCode === codeItem.code ? 'default' : 'outline'}
                             className={`justify-start text-left h-auto py-2.5 text-sm ${
                               selectedCode === codeItem.code 
-                                ? 'bg-white text-[#7f265b] hover:bg-white/90' 
-                                : 'bg-purple-50 text-[#1a1a1a] border-purple-200 hover:bg-purple-100'
+                                ? 'bg-white text-[var(--color-brand)] hover:bg-white/90' 
+                                : 'bg-purple-50 text-foreground border-purple-200 hover:bg-purple-100'
                             }`}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -358,7 +358,7 @@ export function PharmacistAdviceWidget({
                             className={`justify-start text-left h-auto py-2.5 text-sm ${
                               selectedCode === codeItem.code 
                                 ? 'bg-white text-[#ff9900] hover:bg-white/90' 
-                                : 'bg-orange-50 text-[#1a1a1a] border-orange-200 hover:bg-orange-100'
+                                : 'bg-orange-50 text-foreground border-orange-200 hover:bg-orange-100'
                             }`}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -408,7 +408,7 @@ export function PharmacistAdviceWidget({
                             className={`justify-start text-left h-auto py-2.5 text-sm ${
                               selectedCode === codeItem.code 
                                 ? 'bg-white text-gray-700 hover:bg-white/90' 
-                                : 'bg-gray-50 text-[#1a1a1a] border-gray-200 hover:bg-gray-100'
+                                : 'bg-gray-50 text-foreground border-gray-200 hover:bg-gray-100'
                             }`}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -458,7 +458,7 @@ export function PharmacistAdviceWidget({
                             className={`justify-start text-left h-auto py-2.5 text-sm ${
                               selectedCode === codeItem.code 
                                 ? 'bg-white text-[#007bff] hover:bg-white/90' 
-                                : 'bg-blue-50 text-[#1a1a1a] border-blue-200 hover:bg-blue-100'
+                                : 'bg-blue-50 text-foreground border-blue-200 hover:bg-blue-100'
                             }`}
                             onClick={(e) => {
                               e.stopPropagation();

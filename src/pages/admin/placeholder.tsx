@@ -8,7 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '../../components/ui/table';
-import { FileText, User, Clock, AlertCircle, RefreshCw } from 'lucide-react';
+import { FileText, User, Clock, AlertCircle, RefreshCw, ShieldCheck, Shield } from 'lucide-react';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { useState, useEffect } from 'react';
@@ -18,6 +18,8 @@ import { getApiErrorMessage } from '../../lib/api-client';
 // 稽核紀錄頁面
 export function AuditPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
   const [apiData, setApiData] = useState<AuditLogsResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -56,6 +58,9 @@ export function AuditPage() {
     log.target.includes(searchTerm)
   );
 
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / PAGE_SIZE));
+  const paginatedLogs = filteredLogs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   const getStatusBadge = (status: 'success' | 'failed') => {
     if (status === 'success') {
       return <Badge className="bg-green-100 text-green-800 border-green-200">成功</Badge>;
@@ -64,15 +69,26 @@ export function AuditPage() {
   };
 
   const getRoleBadge = (role: string) => {
-    const colors: Record<string, string> = {
-      '管理者': 'bg-[#7f265b] text-white',
-      '醫師': 'bg-blue-100 text-blue-800',
-      '護理師': 'bg-green-100 text-green-800',
-      '藥師': 'bg-purple-100 text-purple-800'
+    const config: Record<string, { label: string; color: string; icon: typeof ShieldCheck }> = {
+      '管理者': { label: '系統管理員', color: 'bg-[var(--color-brand)] text-white', icon: ShieldCheck },
+      '醫師': { label: '醫師', color: 'bg-blue-100 text-blue-800', icon: Shield },
+      '護理師': { label: '護理師', color: 'bg-green-100 text-green-800', icon: Shield },
+      '藥師': { label: '藥師', color: 'bg-purple-100 text-purple-800', icon: Shield },
     };
 
+    const entry = config[role];
+    if (entry) {
+      const Icon = entry.icon;
+      return (
+        <Badge className={entry.color}>
+          <Icon className="h-3.5 w-3.5 mr-1" />
+          {entry.label}
+        </Badge>
+      );
+    }
     return (
-      <Badge className={colors[role] || 'bg-gray-100 text-gray-800'}>
+      <Badge className="bg-gray-100 text-gray-800">
+        <Shield className="h-3.5 w-3.5 mr-1" />
         {role}
       </Badge>
     );
@@ -89,7 +105,7 @@ export function AuditPage() {
           variant="outline"
           onClick={loadData}
           disabled={loading}
-          className="border-[#7f265b] text-[#7f265b] hover:bg-[#7f265b] hover:text-white"
+          className="border-[var(--color-brand)] text-[var(--color-brand)] hover:bg-[var(--color-brand)] hover:text-white"
         >
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           重新整理
@@ -99,15 +115,15 @@ export function AuditPage() {
       {/* 統計卡片 */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader>
             <CardTitle className="text-base text-muted-foreground">今日總操作</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-[#7f265b]">{stats.total}</div>
+            <div className="text-3xl font-bold text-[var(--color-brand)]">{stats.total}</div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader>
             <CardTitle className="text-base text-muted-foreground">成功操作</CardTitle>
           </CardHeader>
           <CardContent>
@@ -115,7 +131,7 @@ export function AuditPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader>
             <CardTitle className="text-base text-muted-foreground">失敗操作</CardTitle>
           </CardHeader>
           <CardContent>
@@ -123,7 +139,7 @@ export function AuditPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader>
             <CardTitle className="text-base text-muted-foreground">活躍用戶</CardTitle>
           </CardHeader>
           <CardContent>
@@ -136,11 +152,11 @@ export function AuditPage() {
 
       {/* 稽核記錄列表 */}
       <Card>
-        <CardHeader className="bg-[#f8f9fa] border-b">
+        <CardHeader className="bg-slate-50 border-b">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-xl">
-                <FileText className="h-6 w-6 text-[#7f265b]" />
+                <FileText className="h-6 w-6 text-[var(--color-brand)]" />
                 稽核記錄列表
               </CardTitle>
               <CardDescription className="text-sm mt-2">
@@ -151,7 +167,7 @@ export function AuditPage() {
               <Input
                 placeholder="搜尋用戶、操作或目標..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
                 className="border"
               />
             </div>
@@ -181,7 +197,7 @@ export function AuditPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredLogs.map((log) => (
+              {paginatedLogs.map((log) => (
                 <TableRow key={log.id}>
                   <TableCell className="font-mono text-sm">{log.timestamp}</TableCell>
                   <TableCell className="font-medium">{log.user}</TableCell>
@@ -194,6 +210,30 @@ export function AuditPage() {
               ))}
             </TableBody>
           </Table>
+
+          {!loading && !error && filteredLogs.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between px-4 py-3 border-t">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+              >
+                上一頁
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                第 {page} / {totalPages} 頁
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+              >
+                下一頁
+              </Button>
+            </div>
+          )}
 
           {loading && (
             <div className="text-center py-12 text-muted-foreground">

@@ -120,17 +120,17 @@ export function PatientChatTab({
         {showSessionList && (
           <div className="w-[320px] shrink-0">
             <Card className="border">
-              <CardHeader className="border-b bg-[#f8f9fa] px-3 py-2">
+              <CardHeader className="border-b bg-slate-50 px-3 py-2">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5 text-sm font-semibold text-[#374151]">
-                    <MessageSquare className="h-3.5 w-3.5 text-[#6b7280]" />
+                    <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
                     對話記錄
                   </span>
                   <div className="flex items-center gap-1.5">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-[#6b7280] hover:text-[#374151]"
+                      className="h-7 w-7 text-muted-foreground hover:text-[#374151]"
                       onClick={onToggleSessionList}
                       title="收合對話記錄"
                     >
@@ -152,7 +152,7 @@ export function PatientChatTab({
                   {chatSessions.length === 0 ? (
                     <div className="p-8 flex flex-col items-center gap-2 text-center text-muted-foreground">
                       <MessageSquare className="h-10 w-10 opacity-30 text-[#9ca3af]" />
-                      <p className="text-sm font-medium text-[#6b7280]">尚無對話記錄</p>
+                      <p className="text-sm font-medium text-muted-foreground">尚無對話記錄</p>
                       <p className="text-xs text-[#9ca3af] leading-relaxed">點擊「新對話」開始<br />向 AI 詢問照護問題</p>
                     </div>
                   ) : (
@@ -165,28 +165,28 @@ export function PatientChatTab({
                           onClick={() => {
                             void onOpenSession(session);
                           }}
-                          className={`group w-full rounded-xl border px-3 py-2.5 text-left transition-all hover:bg-[#f8f9fa] ${
+                          className={`group w-full rounded-xl border px-3 py-2.5 text-left transition-all hover:bg-slate-50 ${
                             selectedSessionId === session.id
-                              ? 'border-[#d7dce5] bg-[#f8f9fa] shadow-[0_1px_2px_rgba(15,23,42,0.05)]'
+                              ? 'border-[#d7dce5] bg-slate-50 shadow-[0_1px_2px_rgba(15,23,42,0.05)]'
                               : 'border-[#edf0f4] bg-white'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
-                              <p className="break-words pr-1 text-sm font-semibold leading-5 text-[#1a1a1a]">
+                              <p className="break-words pr-1 text-sm font-semibold leading-5 text-foreground">
                                 {session.title}
                               </p>
                               <p className="mt-1 text-xs leading-4 text-[#9ca3af]">
                                 {session.sessionDate === todayDateKey ? session.sessionTime : `${session.sessionDate} ${session.sessionTime}`}
                               </p>
                               {session.labDataSnapshot && (
-                                <div className="mt-1.5 text-xs leading-4 text-[#6b7280]">
+                                <div className="mt-1.5 text-xs leading-4 text-muted-foreground">
                                   K: {formatSnapshotValue(session.labDataSnapshot.K)} • eGFR: {formatSnapshotValue(session.labDataSnapshot.eGFR)}
                                 </div>
                               )}
                             </div>
                             <div className="flex shrink-0 flex-col items-end gap-1.5">
-                              <Badge className="h-5 min-w-[1.5rem] justify-center border border-[#e5e7eb] bg-gray-100 px-1.5 text-xs text-[#374151]">
+                              <Badge className="h-5 min-w-[1.5rem] justify-center border border-border bg-gray-100 px-1.5 text-xs text-[#374151]">
                                 {session.messageCount ?? session.messages.length}
                               </Badge>
                               <button
@@ -214,13 +214,13 @@ export function PatientChatTab({
         {/* 右側對話區 */}
         <div className="min-w-0 flex-1">
           <Card className="border">
-            <CardHeader className="bg-[#f8f9fa] border-b py-1 px-3" style={{ paddingBottom: '4px' }}>
+            <CardHeader className="bg-slate-50 border-b py-1 px-3" style={{ paddingBottom: '4px' }}>
               <div className="flex items-center gap-1.5">
                 {!showSessionList && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 text-xs text-[#6b7280] hover:text-[#374151]"
+                    className="h-7 px-2 text-xs text-muted-foreground hover:text-[#374151]"
                     onClick={onToggleSessionList}
                     title="顯示對話記錄"
                   >
@@ -239,7 +239,7 @@ export function PatientChatTab({
                     <ChevronDown className="h-2.5 w-2.5" />
                   </button>
                 ) : (
-                  <div className="flex items-center gap-1.5 text-xs text-[#6b7280] bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-amber-50 border border-amber-200 rounded px-2 py-1">
                     <Info className="h-3 w-3 shrink-0 text-amber-600" />
                     <span>AI 輔助產生，僅供臨床參考，不可取代醫師專業判斷。</span>
                     <button onClick={() => onSetDisclaimerCollapsed(true)} className="shrink-0 text-[#9CA3AF] hover:text-[#6B7280]">
@@ -285,7 +285,7 @@ export function PatientChatTab({
                 />
 
                 {/* 輸入區 */}
-                <div className="flex-none px-4 pb-1.5 pt-0 border-t border-[#e5e7eb] bg-white">
+                <div className="flex-none px-4 pb-1.5 pt-0 border-t border-border bg-white">
                   <div className="flex gap-2 pt-1.5 items-end">
                     <Textarea
                       ref={chatInputRef}
@@ -300,8 +300,8 @@ export function PatientChatTab({
                       }}
                       className={`min-h-[120px] border text-sm transition-colors rounded-xl ${
                         canSendAiChat
-                          ? 'border-[#e5e7eb]'
-                          : 'border-[#e5e7eb] bg-[#f8f9fa] text-[#9ca3af] cursor-not-allowed'
+                          ? 'border-border'
+                          : 'border-border bg-slate-50 text-[#9ca3af] cursor-not-allowed'
                       }`}
                       disabled={!canSendAiChat}
                     />

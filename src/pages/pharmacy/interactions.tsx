@@ -292,7 +292,7 @@ export function DrugInteractionsPage() {
     if (!config) return null;
     return (
       <Badge variant="outline" className={`gap-1 border ${config.bgColor} ${config.color} font-semibold`}>
-        <ShieldAlert className="h-3 w-3" />
+        <ShieldAlert className="h-3.5 w-3.5" />
         {config.label}
       </Badge>
     );
@@ -301,11 +301,11 @@ export function DrugInteractionsPage() {
   const getSeverityBadge = (severity: string) => {
     switch (severity) {
       case 'high':
-        return <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" />高風險</Badge>;
+        return <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3.5 w-3.5" />高風險</Badge>;
       case 'medium':
-        return <Badge variant="secondary" className="gap-1 bg-orange-100 text-orange-800"><AlertCircle className="h-3 w-3" />中風險</Badge>;
+        return <Badge variant="secondary" className="gap-1 bg-orange-100 text-orange-800"><AlertCircle className="h-3.5 w-3.5" />中風險</Badge>;
       case 'low':
-        return <Badge variant="outline" className="gap-1"><Info className="h-3 w-3" />低風險</Badge>;
+        return <Badge variant="outline" className="gap-1"><Info className="h-3.5 w-3.5" />低風險</Badge>;
       default:
         return null;
     }
@@ -521,7 +521,7 @@ export function DrugInteractionsPage() {
               {/* 摘要卡片 */}
               {summary && (
                 <Card>
-                  <CardHeader className="pb-3">
+                  <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2">
                         <ShieldAlert className="h-5 w-5" />
@@ -707,7 +707,7 @@ export function DrugInteractionsPage() {
 
       {loading && (
         <div className="text-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-[#7f265b]" />
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-[var(--color-brand)]" />
           <p className="text-muted-foreground">查詢中...</p>
         </div>
       )}

@@ -145,10 +145,10 @@ export function PatientSummaryTab({ patient, aiReadiness }: PatientSummaryTabPro
       </div>
 
       {/* ── 右欄：AI 臨床摘要 ── */}
-      <Card className="border border-[#7f265b]/25 bg-gradient-to-br from-white via-white to-[#7f265b]/[0.04]">
+      <Card className="border border-[var(--color-brand)]/25 bg-gradient-to-br from-white via-white to-[var(--color-brand)]/[0.04]">
         <CardHeader className="space-y-1 pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <FileText className="h-5 w-5 text-[#7f265b]" />
+            <FileText className="h-5 w-5 text-[var(--color-brand)]" />
             AI 臨床摘要
           </CardTitle>
           <CardDescription className="text-sm leading-relaxed text-slate-600">
@@ -158,7 +158,7 @@ export function PatientSummaryTab({ patient, aiReadiness }: PatientSummaryTabPro
         <CardContent className="space-y-2 pt-0">
           <Button
             size="sm"
-            className="bg-[#7f265b] hover:bg-[#631e4d] w-auto"
+            className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] w-auto"
             onClick={async () => {
               if (!canSummary) {
                 toast.error(summaryReason);
@@ -182,7 +182,7 @@ export function PatientSummaryTab({ patient, aiReadiness }: PatientSummaryTabPro
             {isGeneratingSummary ? '生成中...' : '生成臨床摘要'}
           </Button>
           {aiSummary && (
-            <div className="rounded-lg border border-[#7f265b]/30 bg-white/90 p-3">
+            <div className="rounded-lg border border-[var(--color-brand)]/30 bg-white/90 p-3">
               <AiMarkdown content={aiSummary} className="text-sm" />
               <SafetyWarnings warnings={summaryWarnings} />
               <DataFreshnessHint dataFreshness={summaryFreshness} />

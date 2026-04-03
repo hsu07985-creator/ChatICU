@@ -138,21 +138,21 @@ export function VectorsPage() {
       case 'active':
         return (
           <Badge className="bg-green-100 text-green-800 border-green-200">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
+            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
             正常運行
           </Badge>
         );
       case 'updating':
         return (
           <Badge className="bg-blue-100 text-blue-800 border-blue-200">
-            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
             更新中
           </Badge>
         );
       case 'error':
         return (
           <Badge className="bg-red-100 text-red-800 border-red-200">
-            <AlertCircle className="h-3 w-3 mr-1" />
+            <AlertCircle className="h-3.5 w-3.5 mr-1" />
             異常
           </Badge>
         );
@@ -167,10 +167,10 @@ export function VectorsPage() {
       </div>
 
       {/* 文件上傳區 */}
-      <Card className="border-[#7f265b]">
-        <CardHeader className="bg-[#f8f9fa]">
+      <Card className="border-[var(--color-brand)]">
+        <CardHeader className="bg-slate-50">
           <CardTitle className="flex items-center gap-2 text-xl">
-            <FileUp className="h-6 w-6 text-[#7f265b]" />
+            <FileUp className="h-6 w-6 text-[var(--color-brand)]" />
             上傳 PDF 文件
           </CardTitle>
           <CardDescription className="text-sm mt-2">
@@ -225,7 +225,7 @@ export function VectorsPage() {
               <Button
                 onClick={handleUpload}
                 disabled={!selectedFile || isUploading}
-                className="bg-[#7f265b] hover:bg-[#631e4d] min-w-[120px]"
+                className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] min-w-[120px]"
               >
                 {isUploading ? (
                   <>
@@ -265,9 +265,9 @@ export function VectorsPage() {
 
       {/* 向量資料庫列表 */}
       <Card>
-        <CardHeader className="bg-[#f8f9fa] border-b">
+        <CardHeader className="bg-slate-50 border-b">
           <CardTitle className="flex items-center gap-2 text-xl">
-            <Database className="h-6 w-6 text-[#7f265b]" />
+            <Database className="h-6 w-6 text-[var(--color-brand)]" />
             向量資料庫清單
           </CardTitle>
           <CardDescription className="text-sm mt-2">
@@ -301,25 +301,25 @@ export function VectorsPage() {
 
           <div className="divide-y">
             {vectorDatabases.map((db) => (
-              <div key={db.id} className="p-6 hover:bg-[#f8f9fa] transition-colors">
+              <div key={db.id} className="p-6 hover:bg-slate-50 transition-colors">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-semibold text-[#1a1a1a]">{db.name}</h3>
+                      <h3 className="text-xl font-semibold text-foreground">{db.name}</h3>
                       {getStatusBadge(db.status)}
                     </div>
                     <div className="grid grid-cols-3 gap-4 mt-3">
-                      <div className="bg-white border border-[#e5e7eb] rounded-lg p-3">
+                      <div className="bg-white border border-border rounded-lg p-3">
                         <p className="text-xs text-muted-foreground mb-1">文件數量</p>
-                        <p className="text-lg font-bold text-[#7f265b]">{db.documentCount}</p>
+                        <p className="text-lg font-bold text-[var(--color-brand)]">{db.documentCount}</p>
                       </div>
-                      <div className="bg-white border border-[#e5e7eb] rounded-lg p-3">
+                      <div className="bg-white border border-border rounded-lg p-3">
                         <p className="text-xs text-muted-foreground mb-1">切片數量</p>
-                        <p className="text-lg font-bold text-[#7f265b]">{db.chunkCount}</p>
+                        <p className="text-lg font-bold text-[var(--color-brand)]">{db.chunkCount}</p>
                       </div>
-                      <div className="bg-white border border-[#e5e7eb] rounded-lg p-3">
+                      <div className="bg-white border border-border rounded-lg p-3">
                         <p className="text-xs text-muted-foreground mb-1">嵌入模型</p>
-                        <p className="text-sm font-medium text-[#1a1a1a]">{db.embeddingModel}</p>
+                        <p className="text-sm font-medium text-foreground">{db.embeddingModel}</p>
                       </div>
                     </div>
                   </div>
@@ -330,7 +330,7 @@ export function VectorsPage() {
                       size="sm"
                       onClick={handleRefreshDatabase}
                       disabled={db.status === 'updating'}
-                      className="border-[#7f265b] text-[#7f265b] hover:bg-[#7f265b] hover:text-white"
+                      className="border-[var(--color-brand)] text-[var(--color-brand)] hover:bg-[var(--color-brand)] hover:text-white"
                     >
                       <RefreshCw className={`h-4 w-4 mr-1 ${db.status === 'updating' ? 'animate-spin' : ''}`} />
                       重建索引

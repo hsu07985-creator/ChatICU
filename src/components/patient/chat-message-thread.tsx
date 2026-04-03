@@ -68,7 +68,7 @@ export function ChatMessageThread({
         <div className="text-center text-muted-foreground py-12">
           <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-30 text-[#9ca3af]" />
           <p className="text-base font-medium">開始對話以獲得 AI 協助</p>
-          <p className="text-sm text-[#6b7280] mt-2">可以詢問檢驗數據、用藥建議、治療指引等</p>
+          <p className="text-sm text-muted-foreground mt-2">可以詢問檢驗數據、用藥建議、治療指引等</p>
         </div>
       ) : (
         chatMessages.map((msg, idx) => {
@@ -94,7 +94,7 @@ export function ChatMessageThread({
               }`}
             >
               {msg.role === 'user' ? (
-                <div className="max-w-[65%] w-fit rounded-2xl px-4 py-2.5 bg-white border border-[#e5e7eb]">
+                <div className="max-w-[65%] w-fit rounded-2xl px-4 py-2.5 bg-white border border-border">
                   <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1F2937]">
                     {msg.content}
                   </p>
@@ -109,7 +109,7 @@ export function ChatMessageThread({
                     alt="AI"
                     className="h-8 w-8 rounded-full shadow-sm shrink-0 mt-0.5 object-cover"
                   />
-                  <div className="flex flex-1 min-w-0 rounded-2xl bg-white border border-[#e5e7eb] overflow-hidden">
+                  <div className="flex flex-1 min-w-0 rounded-2xl bg-white border border-border overflow-hidden">
                     <div
                       className="w-[3px] shrink-0 rounded-l-full"
                       style={{ backgroundColor: '#d1d5db' }}
@@ -162,9 +162,9 @@ export function ChatMessageThread({
                           )}
 
                           {isRefsExpanded && (
-                            <div className="mt-2 rounded-md bg-[#f8f9fa] border border-[#e5e7eb] p-2.5">
+                            <div className="mt-2 rounded-md bg-slate-50 border border-border p-2.5">
                               {references.length === 0 ? (
-                                <p className="text-xs text-[#6b7280]">
+                                <p className="text-xs text-muted-foreground">
                                   本次回答未擷取到可顯示的文獻段落，可改用更具體關鍵詞再詢問。
                                 </p>
                               ) : (
@@ -175,7 +175,7 @@ export function ChatMessageThread({
                                       className="text-xs text-muted-foreground"
                                     >
                                       <div className="flex items-start gap-1">
-                                        <span className="mt-0.5 text-[#6b7280]">•</span>
+                                        <span className="mt-0.5 text-muted-foreground">•</span>
                                         <div className="flex-1">
                                           <p className="font-medium text-[#374151]">
                                             {ref.title || ref.sourceFile || 'unknown'}
@@ -197,7 +197,7 @@ export function ChatMessageThread({
                                                 {ref.summary}
                                               </p>
                                               {ref.keyQuote && (
-                                                <div className="rounded border border-[#d1d5db] bg-white px-2 py-1.5 text-xs leading-relaxed text-[#6b7280] italic">
+                                                <div className="rounded border border-[#d1d5db] bg-white px-2 py-1.5 text-xs leading-relaxed text-muted-foreground italic">
                                                   「{ref.keyQuote}」
                                                 </div>
                                               )}
@@ -214,7 +214,7 @@ export function ChatMessageThread({
                                                   key={snippetIndex}
                                                   className="rounded border border-[#d1d5db] bg-white p-2 text-xs leading-relaxed text-[#374151] whitespace-pre-wrap"
                                                 >
-                                                  <span className="inline-block text-xs font-medium mb-0.5 text-[#6b7280]">
+                                                  <span className="inline-block text-xs font-medium mb-0.5 text-muted-foreground">
                                                     段落 {snippetIndex + 1}
                                                   </span>
                                                   <div>{compactSnippet(snippet)}</div>
@@ -285,7 +285,7 @@ export function ChatMessageThread({
                               className="flex items-center gap-0.5 hover:text-[#4B5563] cursor-pointer transition-colors"
                               aria-label="參考依據"
                             >
-                              <BookOpen className="h-3 w-3" />
+                              <BookOpen className="h-3.5 w-3.5" />
                               {references.length}
                             </button>
                           )}
@@ -295,12 +295,12 @@ export function ChatMessageThread({
                               className="flex items-center gap-0.5 text-amber-500 hover:text-amber-700 transition-colors"
                               aria-label="資料品質警告"
                             >
-                              <AlertCircle className="h-3 w-3" />
+                              <AlertCircle className="h-3.5 w-3.5" />
                             </button>
                           )}
                           {msg.timestamp && (
                             <span className="flex items-center gap-0.5 text-xs text-[#9ca3af]">
-                              <Clock className="h-3 w-3" />
+                              <Clock className="h-3.5 w-3.5" />
                               {msg.timestamp}
                             </span>
                           )}

@@ -32,10 +32,10 @@ const AdminStatisticsPage = lazy(() => import('./pages/admin/statistics').then(m
 // Loading 元件
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa]">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="text-center">
-        <div className="w-16 h-16 border-4 border-[#7f265b] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-[#6b7280]">載入中...</p>
+        <div className="w-16 h-16 border-4 border-[var(--color-brand)] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-muted-foreground">載入中...</p>
       </div>
     </div>
   );

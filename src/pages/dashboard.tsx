@@ -219,27 +219,27 @@ export function DashboardPage() {
                 className="grid"
                 style={{ minWidth: '760px', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}
               >
-                <div className="bg-[#7f265b]/[0.04] px-4 py-4">
-                  <p className="text-xs font-medium text-[#6b7280]">病患總數</p>
-                  <p className="mt-1 text-3xl font-bold leading-none text-[#1a1a1a]">{stats?.patients?.total ?? 0}</p>
+                <div className="bg-[var(--color-brand)]/[0.04] px-4 py-4">
+                  <p className="text-xs font-medium text-muted-foreground">病患總數</p>
+                  <p className="mt-1 text-3xl font-bold leading-none text-foreground">{stats?.patients?.total ?? 0}</p>
                 </div>
-                <div className="border-l border-[#e5e7eb] px-4 py-4">
-                  <p className="text-xs font-medium text-[#6b7280]">插管人數</p>
-                  <p className="mt-1 text-3xl font-bold leading-none text-[#1a1a1a]">{stats?.patients?.intubated ?? 0}</p>
+                <div className="border-l border-border px-4 py-4">
+                  <p className="text-xs font-medium text-muted-foreground">插管人數</p>
+                  <p className="mt-1 text-3xl font-bold leading-none text-foreground">{stats?.patients?.intubated ?? 0}</p>
                 </div>
-                <div className="border-l border-[#e5e7eb] px-4 py-4">
-                  <p className="text-xs font-semibold text-[#1a1a1a]">S 鎮靜</p>
-                  <p className="mt-1 text-3xl font-bold leading-none text-[#1a1a1a]">
+                <div className="border-l border-border px-4 py-4">
+                  <p className="text-xs font-semibold text-foreground">S 鎮靜</p>
+                  <p className="mt-1 text-3xl font-bold leading-none text-foreground">
                     {stats?.patients?.sanByCategory?.sedation ?? 0}
                   </p>
                 </div>
-                <div className="border-l border-[#e5e7eb] px-4 py-4">
+                <div className="border-l border-border px-4 py-4">
                   <p className="text-xs font-semibold text-emerald-700">A 止痛</p>
                   <p className="mt-1 text-3xl font-bold leading-none text-emerald-900">
                     {stats?.patients?.sanByCategory?.analgesia ?? 0}
                   </p>
                 </div>
-                <div className="border-l border-[#e5e7eb] px-4 py-4">
+                <div className="border-l border-border px-4 py-4">
                   <p className="text-xs font-semibold text-violet-700">N 阻斷</p>
                   <p className="mt-1 text-3xl font-bold leading-none text-violet-900">
                     {stats?.patients?.sanByCategory?.nmb ?? 0}
@@ -332,20 +332,20 @@ export function DashboardPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-[#6b7280] hover:text-[#7f265b] hover:bg-[#7f265b]/10 z-10"
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-muted-foreground hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 z-10"
                   onClick={(e) => handleEditClick(e, patient)}
                   title="編輯病患資料"
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
 
-                <CardHeader className="pb-3">
+                <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex-1 pr-8">
                       <div className="flex items-center gap-2 mb-2">
-                        <CardTitle className="text-xl text-[#1a1a1a]">{patient.name}</CardTitle>
+                        <CardTitle className="text-xl text-foreground">{patient.name}</CardTitle>
                         {patient.intubated && (
-                          <Badge variant="secondary" className="bg-[#f8f9fa] text-[#7f265b] border border-[#e5e7eb]">
+                          <Badge variant="secondary" className="bg-slate-50 text-[var(--color-brand)] border border-border">
                             插管中
                           </Badge>
                         )}
@@ -354,15 +354,15 @@ export function DashboardPage() {
                         {patient.age} 歲 · 住院 {Math.floor((new Date().getTime() - new Date(patient.admissionDate).getTime()) / (1000 * 60 * 60 * 24))} 天
                       </p>
                     </div>
-                    <div className="h-12 w-12 rounded-full bg-[#7f265b] text-white flex items-center justify-center font-bold text-lg shadow-lg">
+                    <div className="h-12 w-12 rounded-full bg-[var(--color-brand)] text-white flex items-center justify-center font-bold text-lg shadow-lg">
                       {patient.bedNumber}
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="bg-[#f8f9fa] p-3 rounded-lg border border-[#e5e7eb]">
+                  <div className="bg-slate-50 p-3 rounded-lg border border-border">
                     <p className="text-xs font-medium text-muted-foreground mb-1">入院診斷</p>
-                    <p className="text-sm font-medium text-[#1a1a1a]">{patient.diagnosis}</p>
+                    <p className="text-sm font-medium text-foreground">{patient.diagnosis}</p>
                   </div>
 
                   {/* S/A/N 標記 - 緊湊顯示 */}
@@ -390,7 +390,7 @@ export function DashboardPage() {
                     <div className="flex flex-wrap gap-1 pt-2 border-t">
                       {patient.alerts.map((alert, idx) => (
                         <Badge key={idx} className="text-xs bg-rose-100 text-rose-700 border border-rose-200 hover:bg-rose-200/80">
-                          <AlertCircle className="h-3 w-3 mr-1" />
+                          <AlertCircle className="h-3.5 w-3.5 mr-1" />
                           {alert}
                         </Badge>
                       ))}
@@ -433,7 +433,10 @@ export function DashboardPage() {
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>編輯病患資料</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-[var(--color-brand)]" />
+              編輯病患資料
+            </DialogTitle>
             <DialogDescription>
               修改病患的基本資料，完成後點擊儲存。
             </DialogDescription>
@@ -518,7 +521,7 @@ export function DashboardPage() {
             <Button
               onClick={handleSaveEdit}
               disabled={saving}
-              className="bg-[#7f265b] hover:bg-[#7f265b]/90"
+              className="bg-[var(--color-brand)] hover:bg-[var(--color-brand)]/90"
             >
               {saving ? '儲存中...' : '儲存'}
             </Button>

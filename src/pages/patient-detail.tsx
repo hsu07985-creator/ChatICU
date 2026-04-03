@@ -1195,18 +1195,18 @@ export function PatientDetailPage() {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/patients')} className="hover:bg-[#f8f9fa]" title="返回病人清單">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/patients')} className="hover:bg-slate-50" title="返回病人清單">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-full bg-[#7f265b] text-white flex items-center justify-center font-bold text-2xl shadow-lg">
+                <div className="h-16 w-16 rounded-full bg-[var(--color-brand)] text-white flex items-center justify-center font-bold text-2xl shadow-lg">
                   {patient.bedNumber}
                 </div>
                 <div>
                   <div className="flex items-center gap-3">
                     <h1 className="text-3xl font-bold text-[#3c7acb]">{patient.name}</h1>
                     {patient.intubated && (
-                      <Badge className="bg-[#d1cbf7] text-[#7f265b] hover:bg-[#d1cbf7]/90">
+                      <Badge className="bg-[#d1cbf7] text-[var(--color-brand)] hover:bg-[#d1cbf7]/90">
                         插管中
                       </Badge>
                     )}
@@ -1222,7 +1222,7 @@ export function PatientDetailPage() {
             </div>
             <div className="flex gap-2">
               {user?.role === 'admin' && (
-                <Button className="bg-[#7f265b] hover:bg-[#631e4d]">編輯基本資料</Button>
+                <Button className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]">編輯基本資料</Button>
               )}
             </div>
           </div>
@@ -1231,12 +1231,12 @@ export function PatientDetailPage() {
 
       {/* 分頁內容 */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-6 h-[44px] bg-[#f8f9fa] border border-[#e5e7eb] gap-0.5 p-0.5">
-          <TabsTrigger value="chat" className="text-xs font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
+        <TabsList className="grid w-full grid-cols-6 h-[44px] bg-slate-50 border border-border gap-0.5 p-0.5">
+          <TabsTrigger value="chat" className="text-xs font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white rounded-md">
             <MessageSquare className="mr-1.5 h-4 w-4" />
             對話助手
           </TabsTrigger>
-          <TabsTrigger value="messages" className="text-xs font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white relative rounded-md">
+          <TabsTrigger value="messages" className="text-xs font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white relative rounded-md">
             <MessagesSquare className="mr-1.5 h-4 w-4" />
             留言板
             {messages.filter(m => !m.isRead).length > 0 && (
@@ -1245,19 +1245,19 @@ export function PatientDetailPage() {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="records" className="text-xs font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
+          <TabsTrigger value="records" className="text-xs font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white rounded-md">
             <FileText className="mr-1.5 h-4 w-4" />
             病歷記錄
           </TabsTrigger>
-          <TabsTrigger value="labs" className="text-xs font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
+          <TabsTrigger value="labs" className="text-xs font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white rounded-md">
             <TestTube className="mr-1.5 h-4 w-4" />
             檢驗數據
           </TabsTrigger>
-          <TabsTrigger value="meds" className="text-xs font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
+          <TabsTrigger value="meds" className="text-xs font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white rounded-md">
             <Pill className="mr-1.5 h-4 w-4" />
             用藥
           </TabsTrigger>
-          <TabsTrigger value="summary" className="text-xs font-medium data-[state=active]:bg-[#7f265b] data-[state=active]:text-white rounded-md">
+          <TabsTrigger value="summary" className="text-xs font-medium data-[state=active]:bg-[var(--color-brand)] data-[state=active]:text-white rounded-md">
             <FileText className="mr-1.5 h-4 w-4" />
             病歷摘要
           </TabsTrigger>
@@ -1270,10 +1270,10 @@ export function PatientDetailPage() {
             {showSessionList && (
               <div className="col-span-3">
                 <Card className="border">
-                  <CardHeader className="bg-[#f8f9fa] border-b py-1.5 px-3" style={{ paddingBottom: '6px' }}>
+                  <CardHeader className="bg-slate-50 border-b py-1.5 px-3" style={{ paddingBottom: '6px' }}>
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-1 text-xs font-semibold text-[#374151]">
-                        <History className="h-3.5 w-3.5 text-[#6b7280]" />
+                        <History className="h-3.5 w-3.5 text-muted-foreground" />
                         對話記錄
                       </span>
                       <Button
@@ -1295,7 +1295,7 @@ export function PatientDetailPage() {
                       {chatSessions.length === 0 ? (
                         <div className="p-8 flex flex-col items-center gap-2 text-center text-muted-foreground">
                           <MessageSquare className="h-10 w-10 opacity-30 text-[#9ca3af]" />
-                          <p className="text-sm font-medium text-[#6b7280]">尚無對話記錄</p>
+                          <p className="text-sm font-medium text-muted-foreground">尚無對話記錄</p>
                           <p className="text-xs text-[#9ca3af] leading-relaxed">點擊「新對話」開始<br/>向 AI 詢問照護問題</p>
                         </div>
                       ) : (
@@ -1334,15 +1334,15 @@ export function PatientDetailPage() {
 	                                  setChatMessages([]);
 	                                }
 	                              }}
-	                              className={`group w-full text-left px-2.5 py-2 rounded-lg border transition-all hover:bg-[#f8f9fa] ${
+	                              className={`group w-full text-left px-2.5 py-2 rounded-lg border transition-all hover:bg-slate-50 ${
 	                                selectedSession?.id === session.id
-	                                  ? 'bg-[#f8f9fa] border-[#e5e7eb]'
+	                                  ? 'bg-slate-50 border-border'
 	                                  : 'border-transparent'
                               }`}
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-semibold text-sm text-[#1a1a1a] truncate">
+                                  <p className="font-semibold text-sm text-foreground truncate">
                                     {session.title}
                                   </p>
                                   <span className="text-xs text-[#b0b0b0] mt-0.5">
@@ -1355,7 +1355,7 @@ export function PatientDetailPage() {
                                   )}
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
-	                                <Badge className="text-xs bg-gray-100 text-[#374151] border border-[#e5e7eb]">
+	                                <Badge className="text-xs bg-gray-100 text-[#374151] border border-border">
 	                                  {session.messageCount ?? session.messages.length}
 	                                </Badge>
                                   <button
@@ -1380,7 +1380,7 @@ export function PatientDetailPage() {
             {/* 右側對話區 */}
             <div className={showSessionList ? "col-span-9" : "col-span-12"}>
               <Card className="border">
-                <CardHeader className="bg-[#f8f9fa] border-b py-1 px-3" style={{ paddingBottom: '4px' }}>
+                <CardHeader className="bg-slate-50 border-b py-1 px-3" style={{ paddingBottom: '4px' }}>
                   <div className="flex items-center gap-1.5">
                     {/* Disclaimer inline */}
                     {disclaimerCollapsed ? (
@@ -1388,13 +1388,13 @@ export function PatientDetailPage() {
                         onClick={() => setDisclaimerCollapsed(false)}
                         className="flex items-center gap-1 text-xs text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
                       >
-                        <Info className="h-3 w-3" />
+                        <Info className="h-3.5 w-3.5" />
                         <span>AI 僅供參考</span>
                         <ChevronDown className="h-2.5 w-2.5" />
                       </button>
                     ) : (
-                      <div className="flex items-center gap-1.5 text-xs text-[#6b7280] bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                        <Info className="h-3 w-3 shrink-0 text-amber-600" />
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                        <Info className="h-3.5 w-3.5 shrink-0 text-amber-600" />
                         <span>AI 輔助產生，僅供臨床參考，不可取代醫師專業判斷。</span>
                         <button onClick={() => setDisclaimerCollapsed(true)} className="shrink-0 text-[#9CA3AF] hover:text-[#6B7280]">
                           <ChevronUp className="h-3 w-3" />
@@ -1415,15 +1415,15 @@ export function PatientDetailPage() {
 	                          {canSendAiChat ? 'AI 就緒' : 'AI 未就緒'}
 	                        </Badge>
 	                      )}
-	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-[#6b7280] hover:text-[#7f265b]"
+	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-[var(--color-brand)]"
 	                        onClick={refreshAiReadiness} disabled={isCheckingAiReadiness} title="檢查 AI 狀態">
 	                        <Activity className={`h-3 w-3 ${isCheckingAiReadiness ? 'animate-spin' : ''}`} />
 	                      </Button>
-	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-[#6b7280] hover:text-[#7f265b]"
+	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-[var(--color-brand)]"
 	                        onClick={() => loadPatientBundle('refresh')} disabled={isRefreshingPatientData} title="更新患者數值">
 	                        <RefreshCw className={`h-3 w-3 ${isRefreshingPatientData ? 'animate-spin' : ''}`} />
 	                      </Button>
-	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-[#6b7280] hover:text-[#7f265b]"
+	                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-[var(--color-brand)]"
 	                        onClick={() => setShowSessionList(!showSessionList)} title={showSessionList ? '隱藏記錄列表' : '顯示記錄列表'}>
 	                        <History className="h-3 w-3" />
 	                      </Button>
@@ -1453,7 +1453,7 @@ export function PatientDetailPage() {
                       <div className="text-center text-muted-foreground py-12">
                         <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-30 text-[#9ca3af]" />
                         <p className="text-base font-medium">開始對話以獲得 AI 協助</p>
-                        <p className="text-sm text-[#6b7280] mt-2">可以詢問檢驗數據、用藥建議、治療指引等</p>
+                        <p className="text-sm text-muted-foreground mt-2">可以詢問檢驗數據、用藥建議、治療指引等</p>
                       </div>
                     ) : (
                       chatMessages.map((msg, idx) => {
@@ -1470,7 +1470,7 @@ export function PatientDetailPage() {
                         return (
                           <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}${isFirstOfRound ? ' mt-3' : ''}`}>
                             {msg.role === 'user' ? (
-                              <div className="max-w-[65%] w-fit rounded-2xl px-4 py-2.5 bg-white border border-[#e5e7eb]">
+                              <div className="max-w-[65%] w-fit rounded-2xl px-4 py-2.5 bg-white border border-border">
                                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1F2937]">{msg.content}</p>
                                 {msg.timestamp && (
                                   <p className="text-xs text-[#9ca3af] mt-1.5 text-right">{msg.timestamp}</p>
@@ -1480,7 +1480,7 @@ export function PatientDetailPage() {
                               <div className="flex items-start gap-2 max-w-[92%]">
                                 {/* AI avatar */}
                                 <img src={chatBotAvatar} alt="AI" className="h-8 w-8 rounded-full shadow-sm shrink-0 mt-0.5 object-cover" />
-                              <div className="flex flex-1 min-w-0 rounded-2xl bg-white border border-[#e5e7eb] overflow-hidden">
+                              <div className="flex flex-1 min-w-0 rounded-2xl bg-white border border-border overflow-hidden">
                                 {/* Accent bar */}
                                 <div className="w-[3px] shrink-0 rounded-l-full" style={{ backgroundColor: '#d1d5db' }} />
                                 {/* Content */}
@@ -1513,15 +1513,15 @@ export function PatientDetailPage() {
 
                                     {/* References panel */}
                                     {isRefsExpanded && (
-                                      <div className="mt-2 rounded-md bg-[#f8f9fa] border border-[#e5e7eb] p-2.5">
+                                      <div className="mt-2 rounded-md bg-slate-50 border border-border p-2.5">
                                         {references.length === 0 ? (
-                                          <p className="text-xs text-[#6b7280]">本次回答未擷取到可顯示的文獻段落，可改用更具體關鍵詞再詢問。</p>
+                                          <p className="text-xs text-muted-foreground">本次回答未擷取到可顯示的文獻段落，可改用更具體關鍵詞再詢問。</p>
                                         ) : (
                                           <ul className="space-y-2">
                                             {references.map((ref, refIdx) => (
                                               <li key={`${ref.id || 'ref'}-${refIdx}`} className="text-xs text-muted-foreground">
                                                 <div className="flex items-start gap-1">
-                                                  <span className="mt-0.5 text-[#6b7280]">•</span>
+                                                  <span className="mt-0.5 text-muted-foreground">•</span>
                                                   <div className="flex-1">
                                                     <p className="font-medium text-[#374151]">{ref.title || ref.sourceFile || 'unknown'}</p>
                                                     <p className="text-xs text-muted-foreground mt-0.5">
@@ -1537,7 +1537,7 @@ export function PatientDetailPage() {
                                                           <span className="font-medium text-[#374151]">重點：</span>{ref.summary}
                                                         </p>
                                                         {ref.keyQuote && (
-                                                          <div className="rounded border border-[#d1d5db] bg-white px-2 py-1.5 text-xs leading-relaxed text-[#6b7280] italic">
+                                                          <div className="rounded border border-[#d1d5db] bg-white px-2 py-1.5 text-xs leading-relaxed text-muted-foreground italic">
                                                             「{ref.keyQuote}」
                                                           </div>
                                                         )}
@@ -1549,7 +1549,7 @@ export function PatientDetailPage() {
                                                       <div className="mt-1 space-y-1.5">
                                                         {ref.snippets.map((s, si) => (
                                                           <div key={si} className="rounded border border-[#d1d5db] bg-white p-2 text-xs leading-relaxed text-[#374151] whitespace-pre-wrap">
-                                                            <span className="inline-block text-xs font-medium mb-0.5 text-[#6b7280]">段落 {si + 1}</span>
+                                                            <span className="inline-block text-xs font-medium mb-0.5 text-muted-foreground">段落 {si + 1}</span>
                                                             <div>{compactSnippet(s)}</div>
                                                           </div>
                                                         ))}
@@ -1600,7 +1600,7 @@ export function PatientDetailPage() {
                                           className="flex items-center gap-0.5 hover:text-[#4B5563] cursor-pointer transition-colors"
                                           aria-label="參考依據"
                                         >
-                                          <BookOpen className="h-3 w-3" />
+                                          <BookOpen className="h-3.5 w-3.5" />
                                           {references.length}
                                         </button>
                                       )}
@@ -1610,12 +1610,12 @@ export function PatientDetailPage() {
                                           className="flex items-center gap-0.5 text-amber-500 hover:text-amber-700 transition-colors"
                                           aria-label="資料品質警告"
                                         >
-                                          <AlertCircle className="h-3 w-3" />
+                                          <AlertCircle className="h-3.5 w-3.5" />
                                         </button>
                                       )}
                                       {msg.timestamp && (
                                         <span className="flex items-center gap-0.5 text-xs text-[#9ca3af]">
-                                          <Clock className="h-3 w-3" />
+                                          <Clock className="h-3.5 w-3.5" />
                                           {msg.timestamp}
                                         </span>
                                       )}
@@ -1655,7 +1655,7 @@ export function PatientDetailPage() {
                   </div>
 
                   {/* 輸入區 */}
-                  <div className="flex-none px-4 pb-1.5 pt-0 border-t border-[#e5e7eb] bg-white">
+                  <div className="flex-none px-4 pb-1.5 pt-0 border-t border-border bg-white">
                     <div className="flex gap-2 pt-1.5 items-end">
                       <Textarea
                         ref={chatInputRef}
@@ -1670,8 +1670,8 @@ export function PatientDetailPage() {
                         }}
                         className={`min-h-[36px] border text-xs transition-colors rounded-xl ${
                           canSendAiChat
-                            ? 'border-[#e5e7eb]'
-                            : 'border-[#e5e7eb] bg-[#f8f9fa] text-[#9ca3af] cursor-not-allowed'
+                            ? 'border-border'
+                            : 'border-border bg-slate-50 text-[#9ca3af] cursor-not-allowed'
                         }`}
                         disabled={!canSendAiChat}
                       />

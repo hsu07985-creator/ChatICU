@@ -286,7 +286,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
     <div className="space-y-6">
       {/* 記錄類型選擇 */}
       <Card className="border-slate-300">
-        <CardHeader className="bg-[#f8f9fa]">
+        <CardHeader className="bg-slate-50">
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-6 w-6 text-slate-700" />
             新增病歷記錄
@@ -467,7 +467,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                   </Button>
                   <Button
                     onClick={handleSaveRecord}
-                    className="bg-[#7f265b] hover:bg-[#631e4d]"
+                    className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]"
                   >
                     <Send className="mr-2 h-4 w-4" />
                     儲存記錄
@@ -506,7 +506,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
 
       {/* 歷史記錄 */}
       <Card>
-        <CardHeader className="bg-[#f8f9fa]">
+        <CardHeader className="bg-slate-50">
           <CardTitle className="flex items-center gap-2">
             <Calendar className="h-6 w-6 text-slate-700" />
             病歷記錄歷史
@@ -569,7 +569,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="bg-[#f8f9fa] p-3 rounded-lg">
+                  <div className="bg-slate-50 p-3 rounded-lg">
                     <AiMarkdown content={record.polishedContent || record.content} className="text-sm" />
                   </div>
                 </CardContent>

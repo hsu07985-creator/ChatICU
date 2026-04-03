@@ -288,7 +288,7 @@ function LabItem({ labName, label, value, unit, isAbnormal, abnormalDirection, o
             : 'border-red-400 bg-gradient-to-br from-red-50 to-rose-50/70'
           : ''
       } ${
-        canOpenTrend ? 'cursor-pointer transition-all hover:-translate-y-0.5 hover:border-[#7f265b]/45 hover:shadow-sm' : ''
+        canOpenTrend ? 'cursor-pointer transition-all hover:-translate-y-0.5 hover:border-[var(--color-brand)]/45 hover:shadow-sm' : ''
       }`}
       onClick={canOpenTrend ? onClick : undefined}
     >
@@ -463,8 +463,8 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               type="button"
               className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
                 onlyAbnormal
-                  ? 'border-[#7f265b] bg-[#7f265b] text-white'
-                  : 'border-slate-300 bg-white text-slate-700 hover:border-[#7f265b]/40'
+                  ? 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white'
+                  : 'border-slate-300 bg-white text-slate-700 hover:border-[var(--color-brand)]/40'
               }`}
               aria-pressed={onlyAbnormal}
               onClick={() => setOnlyAbnormal((prev) => !prev)}
@@ -475,8 +475,8 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               type="button"
               className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
                 hideMissing
-                  ? 'border-[#7f265b] bg-[#7f265b] text-white'
-                  : 'border-slate-300 bg-white text-slate-700 hover:border-[#7f265b]/40'
+                  ? 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white'
+                  : 'border-slate-300 bg-white text-slate-700 hover:border-[var(--color-brand)]/40'
               }`}
               aria-pressed={hideMissing}
               onClick={() => setHideMissing((prev) => !prev)}
@@ -495,7 +495,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
 
         {/* 固定追蹤項目 - 電解質 */}
         <div className={showElectrolytes ? 'space-y-2' : 'hidden'}>
-          <h3 className="text-xs font-semibold tracking-wide text-[#7f265b]">電解質與礦物質</h3>
+          <h3 className="text-xs font-semibold tracking-wide text-[var(--color-brand)]">電解質與礦物質</h3>
           <div className={compactGridClass} style={compactGridStyle}>
             <LabItem
               labName="Na"
@@ -547,7 +547,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
 
         {/* 血液學檢查 */}
         <div className={showHematology ? 'space-y-2' : 'hidden'}>
-          <h3 className="text-xs font-semibold tracking-wide text-[#7f265b]">血液學檢查</h3>
+          <h3 className="text-xs font-semibold tracking-wide text-[var(--color-brand)]">血液學檢查</h3>
           <div className={compactGridClass} style={compactGridStyle}>
             <LabItem
               labName="WBC"
@@ -590,7 +590,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
 
         {/* 生化與炎症指標 */}
         <div className={showInflammatory ? 'space-y-2' : 'hidden'}>
-          <h3 className="text-xs font-semibold tracking-wide text-[#7f265b]">生化與炎症指標</h3>
+          <h3 className="text-xs font-semibold tracking-wide text-[var(--color-brand)]">生化與炎症指標</h3>
           <div className={compactGridClass} style={compactGridStyle}>
             <LabItem
               labName="Alb"
@@ -633,7 +633,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
 
         {/* 動脈血氣體分析 */}
         <div className={showAbg ? 'space-y-2' : 'hidden'}>
-          <h3 className="text-xs font-semibold tracking-wide text-[#7f265b]">動脈血氣體分析</h3>
+          <h3 className="text-xs font-semibold tracking-wide text-[var(--color-brand)]">動脈血氣體分析</h3>
           <div className={compactGridClass} style={compactGridStyle}>
             <LabItem
               labName="pH"
@@ -685,7 +685,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
 
         {/* 肝腎功能 */}
         <div className={showLiverRenal ? 'space-y-2' : 'hidden'}>
-          <h3 className="text-xs font-semibold tracking-wide text-[#7f265b]">肝腎功能</h3>
+          <h3 className="text-xs font-semibold tracking-wide text-[var(--color-brand)]">肝腎功能</h3>
           <div className={compactGridClass} style={compactGridStyle}>
             <LabItem
               labName="AST"

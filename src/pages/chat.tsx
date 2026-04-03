@@ -206,7 +206,7 @@ export function ChatPage() {
         <div className="flex gap-2">
           {user?.role === 'admin' && (
             <Button
-              className="bg-[#7f265b] hover:bg-[#5f1e45]"
+              className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]"
               onClick={() => setAnnouncementDialogOpen(true)}
             >
               <Pin className="mr-2 h-4 w-4" />
@@ -219,9 +219,9 @@ export function ChatPage() {
       <div className="grid gap-6 md:grid-cols-3">
         {/* 主聊天區 */}
         <Card className="md:col-span-2">
-          <CardHeader className="bg-[#f8f9fa] border-b flex flex-row items-center justify-between">
+          <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="h-6 w-6 text-[#7f265b]" />
+              <MessageSquare className="h-6 w-6 text-[var(--color-brand)]" />
               全體頻道
             </CardTitle>
             <Button
@@ -249,7 +249,7 @@ export function ChatPage() {
                   </Button>
                 </div>
               ) : messages.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-[#6b7280]">
+                <div className="flex items-center justify-center h-full text-muted-foreground">
                   目前沒有訊息，開始與團隊對話吧！
                 </div>
               ) : (
@@ -258,18 +258,18 @@ export function ChatPage() {
                     <div
                       key={msg.id}
                       data-testid="team-chat-message"
-                      className={`group space-y-2 p-3 rounded-lg ${msg.pinned ? 'border-l-4 border-[#f59e0b] bg-[#f8f9fa]' : 'bg-white border border-[#e5e7eb]'}`}
+                      className={`group space-y-2 p-3 rounded-lg ${msg.pinned ? 'border-l-4 border-[#f59e0b] bg-slate-50' : 'bg-white border border-slate-200'}`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-[#1a1a1a]">{msg.userName}</span>
+                          <span className="font-semibold text-foreground">{msg.userName}</span>
                           <Badge variant="outline" className="text-xs">
                             {roleDisplayName[msg.userRole] || msg.userRole}
                           </Badge>
-                          <span className="text-sm text-[#6b7280]">{formatTimestamp(msg.timestamp)}</span>
+                          <span className="text-xs text-muted-foreground">{formatTimestamp(msg.timestamp)}</span>
                           {msg.pinned && (
                             <Badge className="bg-[#f59e0b] text-white">
-                              <Pin className="h-3 w-3 mr-1" />
+                              <Pin className="h-3.5 w-3.5 mr-1" />
                               已釘選
                             </Badge>
                           )}
@@ -278,14 +278,14 @@ export function ChatPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className={`opacity-0 group-hover:opacity-100 transition-opacity ${msg.pinned ? 'text-[#f59e0b]' : 'text-[#6b7280] hover:text-[#f59e0b]'}`}
+                          className={`opacity-0 group-hover:opacity-100 transition-opacity ${msg.pinned ? 'text-[#f59e0b]' : 'text-muted-foreground hover:text-[#f59e0b]'}`}
                           onClick={() => handleTogglePin(msg.id)}
                           title={msg.pinned ? '取消釘選' : '釘選此訊息'}
                         >
                           <Pin className="h-4 w-4" />
                         </Button>
                       </div>
-                      <p className="text-base text-[#1a1a1a] leading-relaxed">{msg.content}</p>
+                      <p className="text-base text-foreground leading-relaxed">{msg.content}</p>
                     </div>
                   ))}
                 </div>
@@ -293,10 +293,10 @@ export function ChatPage() {
             </ScrollArea>
 
             {/* 輸入區 */}
-            <div className="space-y-2 border-t border-[#e5e7eb] pt-4">
+            <div className="space-y-2 border-t border-slate-200 pt-4">
               <div className="flex items-center gap-2">
-                <Send className="h-5 w-5 text-[#7f265b]" />
-                <label className="font-semibold text-[#1a1a1a]">發送訊息給團隊</label>
+                <Send className="h-5 w-5 text-[var(--color-brand)]" />
+                <label className="font-semibold text-foreground">發送訊息給團隊</label>
               </div>
               <div className="flex gap-3">
                 <Textarea
@@ -310,12 +310,12 @@ export function ChatPage() {
                     }
                   }}
                   disabled={sending}
-                  className="min-h-[80px] border border-[#7f265b] focus:border-[#7f265b] focus:ring-2 focus:ring-[#7f265b]/20 text-base"
+                  className="min-h-[80px] border border-[var(--color-brand)] focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/20 text-base"
                 />
                 <Button
                   onClick={handleSend}
                   size="icon"
-                  className="h-[80px] w-[80px] bg-[#7f265b] hover:bg-[#5f1e45]"
+                  className="h-[80px] w-[80px] bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]"
                   disabled={sending || !message.trim()}
                 >
                   {sending ? (
@@ -325,7 +325,7 @@ export function ChatPage() {
                   )}
                 </Button>
               </div>
-              <p className="text-sm text-[#6b7280]">按 Enter 發送，Shift + Enter 換行</p>
+              <p className="text-sm text-muted-foreground">按 Enter 發送，Shift + Enter 換行</p>
             </div>
           </CardContent>
         </Card>
@@ -333,27 +333,27 @@ export function ChatPage() {
         {/* 側邊欄 — Tabs: @我的留言 / 釘選訊息 */}
         <div className="space-y-4">
           <Card>
-            <CardHeader className="bg-[#f8f9fa] pb-0">
-              <div className="flex border-b border-[#e5e7eb]">
+            <CardHeader className="bg-slate-50 pb-0">
+              <div className="flex border-b border-slate-200">
                 <button
                   className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                     sidebarTab === 'mentions'
-                      ? 'border-[#7f265b] text-[#7f265b]'
-                      : 'border-transparent text-[#6b7280] hover:text-[#1a1a1a]'
+                      ? 'border-[var(--color-brand)] text-[var(--color-brand)]'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                   onClick={() => setSidebarTab('mentions')}
                 >
                   <AtSign className="h-4 w-4" />
                   @我的留言
                   {mentionsTotalCount > 0 && (
-                    <Badge className="bg-[#7f265b] text-white text-xs ml-1">{mentionsTotalCount}</Badge>
+                    <Badge className="bg-[var(--color-brand)] text-white text-xs ml-1">{mentionsTotalCount}</Badge>
                   )}
                 </button>
                 <button
                   className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                     sidebarTab === 'pinned'
                       ? 'border-[#f59e0b] text-[#f59e0b]'
-                      : 'border-transparent text-[#6b7280] hover:text-[#1a1a1a]'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                   onClick={() => setSidebarTab('pinned')}
                 >
@@ -371,7 +371,7 @@ export function ChatPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <button
-                      className={`text-xs px-2 py-1 rounded ${mentionsUnreadOnly ? 'bg-[#7f265b] text-white' : 'bg-[#f8f9fa] text-[#6b7280]'}`}
+                      className={`text-xs px-2 py-1 rounded ${mentionsUnreadOnly ? 'bg-[var(--color-brand)] text-white' : 'bg-slate-50 text-muted-foreground'}`}
                       onClick={() => setMentionsUnreadOnly(!mentionsUnreadOnly)}
                     >
                       {mentionsUnreadOnly ? '僅未讀' : '全部'}
@@ -384,7 +384,7 @@ export function ChatPage() {
                     {mentionsLoading ? (
                       <div className="flex justify-center py-8"><LoadingSpinner size="sm" /></div>
                     ) : mentionGroups.length === 0 ? (
-                      <div className="text-center py-8 text-[#6b7280] text-sm">
+                      <div className="text-center py-8 text-muted-foreground text-sm">
                         <AtSign className="h-12 w-12 mx-auto mb-4 opacity-30" />
                         <p>目前沒有被 @到的留言</p>
                       </div>
@@ -393,10 +393,10 @@ export function ChatPage() {
                         {mentionGroups.map((group) => {
                           const isExpanded = expandedPatients.has(group.patientId);
                           return (
-                            <div key={group.patientId} className="rounded-lg border border-[#e5e7eb] overflow-hidden">
+                            <div key={group.patientId} className="rounded-lg border border-slate-200 overflow-hidden">
                               {/* Patient header */}
                               <button
-                                className="w-full flex items-center gap-2 px-3 py-2.5 bg-white hover:bg-[#f8f9fa] transition-colors text-left"
+                                className="w-full flex items-center gap-2 px-3 py-2.5 bg-white hover:bg-slate-50 transition-colors text-left"
                                 onClick={() => setExpandedPatients(prev => {
                                   const next = new Set(prev);
                                   if (next.has(group.patientId)) next.delete(group.patientId);
@@ -404,34 +404,34 @@ export function ChatPage() {
                                   return next;
                                 })}
                               >
-                                {isExpanded ? <ChevronDown className="h-4 w-4 text-[#6b7280] shrink-0" /> : <ChevronRight className="h-4 w-4 text-[#6b7280] shrink-0" />}
+                                {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
                                 <Badge variant="outline" className="text-xs shrink-0">{group.bedNumber || '—'}</Badge>
-                                <span className="font-medium text-sm text-[#1a1a1a] truncate">{group.patientName}</span>
+                                <span className="font-medium text-sm text-foreground truncate">{group.patientName}</span>
                                 <span className="ml-auto flex items-center gap-1.5 shrink-0">
                                   {group.unreadCount > 0 && (
                                     <Badge className="bg-red-500 text-white text-xs">{group.unreadCount} 未讀</Badge>
                                   )}
-                                  <span className="text-xs text-[#6b7280]">{group.totalCount} 則</span>
+                                  <span className="text-xs text-muted-foreground">{group.totalCount} 則</span>
                                 </span>
                               </button>
                               {/* Expanded messages */}
                               {isExpanded && (
-                                <div className="border-t border-[#e5e7eb] bg-[#f8f9fa]">
+                                <div className="border-t border-slate-200 bg-slate-50">
                                   {group.messages.map((msg) => (
                                     <div
                                       key={msg.id}
-                                      className={`px-3 py-2 border-b border-[#e5e7eb] last:border-b-0 ${!msg.isRead ? 'bg-orange-50/60' : ''}`}
+                                      className={`px-3 py-2 border-b border-slate-200 last:border-b-0 ${!msg.isRead ? 'bg-orange-50/60' : ''}`}
                                     >
                                       <div className="flex items-center gap-1.5 mb-1">
-                                        <span className="text-xs font-medium text-[#1a1a1a]">{msg.authorName}</span>
+                                        <span className="text-xs font-medium text-foreground">{msg.authorName}</span>
                                         <Badge variant="outline" className="text-xs px-1 py-0">{roleDisplayName[msg.authorRole] || msg.authorRole}</Badge>
-                                        <span className="text-xs text-[#6b7280] ml-auto">{formatTimestamp(msg.timestamp)}</span>
+                                        <span className="text-xs text-muted-foreground ml-auto">{formatTimestamp(msg.timestamp)}</span>
                                       </div>
-                                      <p className="text-sm text-[#1a1a1a] leading-relaxed line-clamp-3">{msg.content}</p>
+                                      <p className="text-sm text-foreground leading-relaxed line-clamp-3">{msg.content}</p>
                                     </div>
                                   ))}
                                   <button
-                                    className="w-full flex items-center justify-center gap-1 py-2 text-xs text-[#7f265b] hover:bg-white transition-colors font-medium"
+                                    className="w-full flex items-center justify-center gap-1 py-2 text-xs text-[var(--color-brand)] hover:bg-white transition-colors font-medium"
                                     onClick={() => navigate(`/patient/${group.patientId}?tab=messages`)}
                                   >
                                     <ExternalLink className="h-3 w-3" />
@@ -464,15 +464,15 @@ export function ChatPage() {
                           >
                             <Pin className="h-3 w-3" />
                           </Button>
-                          <div className="font-semibold mb-2 text-[#1a1a1a]">{msg.userName}</div>
-                          <p className="text-[#1a1a1a] text-sm leading-relaxed">{msg.content}</p>
-                          <p className="text-xs text-[#6b7280] mt-2">{formatTimestamp(msg.timestamp)}</p>
+                          <div className="font-semibold mb-2 text-foreground">{msg.userName}</div>
+                          <p className="text-foreground text-sm leading-relaxed">{msg.content}</p>
+                          <p className="text-xs text-muted-foreground mt-2">{formatTimestamp(msg.timestamp)}</p>
                         </div>
                       ))}
                     </div>
                   </ScrollArea>
                 ) : (
-                  <div className="text-center py-8 text-[#6b7280] text-sm">
+                  <div className="text-center py-8 text-muted-foreground text-sm">
                     <Pin className="h-12 w-12 mx-auto mb-4 opacity-30" />
                     <p>目前沒有釘選訊息</p>
                   </div>

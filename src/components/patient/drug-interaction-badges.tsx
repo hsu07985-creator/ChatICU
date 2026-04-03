@@ -114,9 +114,9 @@ function InteractionBadge({ interaction }: InteractionBadgeProps) {
           {interaction.drug_a} + {interaction.drug_b}
         </span>
         {expanded ? (
-          <ChevronUp className="h-3 w-3 shrink-0 ml-auto" />
+          <ChevronUp className="h-3.5 w-3.5 shrink-0 ml-auto" />
         ) : (
-          <ChevronDown className="h-3 w-3 shrink-0 ml-auto" />
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 ml-auto" />
         )}
       </div>
       {expanded && interaction.title && (

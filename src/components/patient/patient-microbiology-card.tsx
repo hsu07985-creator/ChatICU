@@ -368,9 +368,9 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
   if (loading) {
     return (
       <Card>
-        <CardHeader className="min-h-14 bg-[#f8f9fa] border-b py-3">
+        <CardHeader className="min-h-14 bg-slate-50 border-b py-3">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <Bug className="h-6 w-6 text-[#7f265b]" />
+            <Bug className="h-6 w-6 text-[var(--color-brand)]" />
             Microbiology
           </CardTitle>
         </CardHeader>
@@ -386,9 +386,9 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
   if (error) {
     return (
       <Card>
-        <CardHeader className="min-h-14 bg-[#f8f9fa] border-b py-3">
+        <CardHeader className="min-h-14 bg-slate-50 border-b py-3">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <Bug className="h-6 w-6 text-[#7f265b]" />
+            <Bug className="h-6 w-6 text-[var(--color-brand)]" />
             Microbiology
           </CardTitle>
         </CardHeader>
@@ -401,9 +401,9 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
 
   return (
     <Card>
-      <CardHeader className="bg-[#f8f9fa] border-b py-2.5">
+      <CardHeader className="bg-slate-50 border-b py-2.5">
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <Bug className="h-6 w-6 text-[#7f265b]" />
+          <Bug className="h-6 w-6 text-[var(--color-brand)]" />
           Microbiology
         </CardTitle>
         <CardDescription className="mt-0.5 text-sm flex items-center gap-1">

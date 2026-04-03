@@ -150,8 +150,8 @@ export function PharmacyReportView({
   return (
     <div className="lg:col-span-3 space-y-4 print-report">
       {/* ── Report Header ── */}
-      <Card className="border-[#7f265b] border-2">
-        <CardHeader className="bg-[#7f265b] text-white py-4">
+      <Card className="border-[var(--color-brand)] border-2">
+        <CardHeader className="bg-[var(--color-brand)] text-white py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FileText className="h-6 w-6" />
@@ -207,7 +207,7 @@ export function PharmacyReportView({
                 <details key={group.category} className="group border-b border-slate-200 px-3 last:border-b-0" open>
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-3 marker:hidden">
                     <div className="flex min-w-0 flex-1 items-center gap-2">
-                      <span className="rounded-full bg-[#7f265b]/10 px-2 py-0.5 text-xs font-semibold text-[#7f265b]">
+                      <span className="rounded-full bg-[var(--color-brand)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--color-brand)]">
                         {group.items.length} 項
                       </span>
                       <span className="text-sm font-semibold text-slate-800">
@@ -225,7 +225,7 @@ export function PharmacyReportView({
                           key={`${group.category}-${index}-${drug}`}
                           className="flex min-w-0 items-start gap-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2 text-sm"
                         >
-                          <span className="mt-0.5 shrink-0 text-xs font-semibold text-[#7f265b]">
+                          <span className="mt-0.5 shrink-0 text-xs font-semibold text-[var(--color-brand)]">
                             {index + 1}.
                           </span>
                           <span className="min-w-0 break-words leading-5 text-slate-700">
@@ -260,9 +260,9 @@ export function PharmacyReportView({
 
       {/* ── Section 1: Drug Interactions ── */}
       <Card>
-        <CardHeader className="bg-[#f8f9fa] py-3">
+        <CardHeader className="bg-slate-50 py-3">
           <div className="flex items-center gap-2">
-            <AlertTriangle className={`h-5 w-5 ${assessmentResults.interactions.length > 0 ? 'text-[#f59e0b]' : 'text-[#7f265b]'}`} />
+            <AlertTriangle className={`h-5 w-5 ${assessmentResults.interactions.length > 0 ? 'text-[#f59e0b]' : 'text-[var(--color-brand)]'}`} />
             <CardTitle className="text-base">藥物交互作用</CardTitle>
             <Badge variant={assessmentResults.interactions.length > 0 ? 'default' : 'outline'} className={assessmentResults.interactions.length > 0 ? 'bg-[#f59e0b] text-white' : ''}>
               {assessmentResults.interactions.length > 0 ? `${assessmentResults.interactions.length} 項` : '無異常'}
@@ -313,9 +313,9 @@ export function PharmacyReportView({
 
       {/* ── Section 2: IV Compatibility ── */}
       <Card>
-        <CardHeader className="bg-[#f8f9fa] py-3">
+        <CardHeader className="bg-slate-50 py-3">
           <div className="flex items-center gap-2">
-            <Droplets className={`h-5 w-5 ${incompatiblePairs.length > 0 ? 'text-[#f59e0b]' : 'text-[#7f265b]'}`} />
+            <Droplets className={`h-5 w-5 ${incompatiblePairs.length > 0 ? 'text-[#f59e0b]' : 'text-[var(--color-brand)]'}`} />
             <CardTitle className="text-base">靜脈注射相容性</CardTitle>
             {incompatiblePairs.length > 0 ? (
               <Badge variant="secondary" className="text-xs">
@@ -368,9 +368,9 @@ export function PharmacyReportView({
 
       {/* ── Section 3: Dosage Adjustments (PAD 9 drugs only) ── */}
       <Card>
-        <CardHeader className="bg-[#f8f9fa] py-3">
+        <CardHeader className="bg-slate-50 py-3">
           <div className="flex items-center gap-2">
-            <Calculator className="h-5 w-5 text-[#7f265b]" />
+            <Calculator className="h-5 w-5 text-[var(--color-brand)]" />
             <CardTitle className="text-base">劑量調整建議</CardTitle>
             <Badge variant="secondary" className="text-xs">
               {assessmentResults.dosage.length} 項
@@ -414,10 +414,10 @@ export function PharmacyReportView({
 
       {/* ── Section 4: Recommendations ── */}
       {assessmentResults.adviceRecommendations.length > 0 && (
-        <Card className="border-l-4 border-l-[#7f265b]">
-          <CardHeader className="bg-[#f8f9fa] py-3">
+        <Card className="border-l-4 border-l-[var(--color-brand)]">
+          <CardHeader className="bg-slate-50 py-3">
             <div className="flex items-center gap-2">
-              <Lightbulb className="h-5 w-5 text-[#7f265b]" />
+              <Lightbulb className="h-5 w-5 text-[var(--color-brand)]" />
               <CardTitle className="text-base">綜合建議</CardTitle>
             </div>
           </CardHeader>
@@ -451,7 +451,7 @@ export function PharmacyReportView({
             onClick={onSaveAdvice}
             disabled={!adviceContent.trim()}
             size="sm"
-            className="bg-[#7f265b] hover:bg-[#631e4d]"
+            className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]"
           >
             <Send className="mr-1.5 h-4 w-4" />
             送出用藥建議

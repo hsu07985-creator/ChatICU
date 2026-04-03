@@ -99,8 +99,8 @@ export function AppSidebar() {
           <div className="flex items-center gap-3 p-4">
             <img src={logoImage} alt="ChatICU" className="h-12 w-12 rounded-full shadow-lg flex-shrink-0 object-cover" />
             <div className="min-w-0 flex-1">
-              <h2 className="font-bold text-lg text-[#1a1a1a]">ChatICU</h2>
-              <p className="text-xs text-[#6b7280] truncate">{user?.name} · {user?.unit}</p>
+              <h2 className="font-bold text-lg text-foreground">ChatICU</h2>
+              <p className="text-xs text-muted-foreground truncate">{user?.name} · {user?.unit}</p>
             </div>
           </div>
         )}
@@ -134,7 +134,7 @@ export function AppSidebar() {
         <Button
           variant="outline"
           onClick={handleLogout}
-          className="w-full border-[#e5e7eb] text-[#1a1a1a] hover:bg-[#f8f9fa]"
+          className="w-full border-border text-foreground hover:bg-slate-50"
         >
           登出
         </Button>

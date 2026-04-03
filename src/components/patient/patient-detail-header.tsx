@@ -25,18 +25,18 @@ export function PatientDetailHeader({
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={onBackToPatients} className="hover:bg-[#f8f9fa]" title="返回病人清單">
+            <Button variant="ghost" size="icon" onClick={onBackToPatients} className="hover:bg-slate-50" title="返回病人清單">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex items-center gap-4">
-              <div className="h-16 w-16 rounded-full bg-[#7f265b] text-white flex items-center justify-center font-bold text-2xl shadow-lg">
+              <div className="h-16 w-16 rounded-full bg-[var(--color-brand)] text-white flex items-center justify-center font-bold text-2xl shadow-lg">
                 {bedNumber}
               </div>
               <div>
                 <div className="flex items-center gap-3">
                   <h1 className="text-3xl font-bold text-[#3c7acb]">{patientName}</h1>
                   {isIntubated && (
-                    <Badge className="bg-[#d1cbf7] text-[#7f265b] hover:bg-[#d1cbf7]/90">
+                    <Badge className="bg-[#d1cbf7] text-[var(--color-brand)] hover:bg-[#d1cbf7]/90">
                       插管中
                     </Badge>
                   )}
@@ -52,7 +52,7 @@ export function PatientDetailHeader({
           </div>
           <div className="flex gap-2">
             {showEditButton && (
-              <Button className="bg-[#7f265b] hover:bg-[#631e4d]">編輯基本資料</Button>
+              <Button className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]">編輯基本資料</Button>
             )}
           </div>
         </div>

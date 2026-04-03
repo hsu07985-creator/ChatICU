@@ -81,7 +81,7 @@ function TagSelector({
           type="button"
           className="inline-flex items-center gap-1 rounded-md px-2 h-7 text-xs hover:bg-accent hover:text-accent-foreground transition-colors"
         >
-          <Tag className="h-3 w-3" />
+          <Tag className="h-3.5 w-3.5" />
           標籤
         </button>
       </PopoverTrigger>
@@ -217,7 +217,7 @@ export function PatientMessagesTab({
             {replyToMessage && (
               <div className="flex items-center justify-between rounded-md bg-blue-50 border border-blue-200 px-3 py-1.5">
                 <span className="flex items-center gap-1.5 text-xs text-blue-700">
-                  <Reply className="h-3 w-3" />
+                  <Reply className="h-3.5 w-3.5" />
                   回覆 <span className="font-medium">{replyToMessage.authorName}</span> 的留言
                 </span>
                 <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-blue-500 hover:text-blue-700" onClick={() => setReplyToId(null)}>
@@ -447,12 +447,12 @@ export function PatientMessagesTab({
                           <div className="px-3 pb-2.5">
                             <p className="text-sm leading-relaxed whitespace-pre-wrap text-slate-800">{message.content}</p>
                             <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
-                              <Clock className="h-3 w-3" />
+                              <Clock className="h-3.5 w-3.5" />
                               <span>{formatTimestamp(message.timestamp)}</span>
                               {message.linkedMedication && (
                                 <>
                                   <span className="text-slate-300">|</span>
-                                  <Pill className="h-3 w-3 text-green-600" />
+                                  <Pill className="h-3.5 w-3.5 text-green-600" />
                                   <span className="text-green-700">{message.linkedMedication}</span>
                                 </>
                               )}
@@ -486,7 +486,7 @@ export function PatientMessagesTab({
                                 className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline mt-2"
                                 onClick={() => toggleThread(message.id)}
                               >
-                                <MessagesSquare className="h-3 w-3" />
+                                <MessagesSquare className="h-3.5 w-3.5" />
                                 {isThreadExpanded ? '收起回覆' : `${message.replyCount} 則回覆`}
                               </button>
                             )}

@@ -150,7 +150,7 @@ export function PatientsListCard({
                   </TableCell>
                   <TableCell>
                     {patient.hasDNR ? (
-                      <Badge className="bg-[#7f265b] hover:bg-[#7f265b]/90">有</Badge>
+                      <Badge className="bg-[var(--color-brand)] hover:bg-[var(--color-brand)]/90">有</Badge>
                     ) : (
                       <Badge variant="outline" className="text-muted-foreground">
                         無
@@ -201,7 +201,7 @@ export function PatientsListCard({
                               event.stopPropagation();
                               onEditPatient(patient);
                             }}
-                            className="text-[#7f265b] hover:text-[#7f265b] hover:bg-[#f8f9fa]"
+                            className="text-[var(--color-brand)] hover:text-[var(--color-brand)] hover:bg-slate-50"
                             title="編輯"
                           >
                             <Edit2 className="h-4 w-4" />
@@ -213,7 +213,7 @@ export function PatientsListCard({
                               event.stopPropagation();
                               onArchivePatient(patient.id);
                             }}
-                            className="text-[#6b7280] hover:text-[#7f265b] hover:bg-[#f8f9fa]"
+                            className="text-muted-foreground hover:text-[var(--color-brand)] hover:bg-slate-50"
                             title="封存"
                           >
                             <Archive className="h-4 w-4" />

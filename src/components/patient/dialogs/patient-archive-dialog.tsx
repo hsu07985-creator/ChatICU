@@ -36,7 +36,7 @@ export function PatientArchiveDialog({
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Archive className="h-5 w-5 text-[#7f265b]" />
+            <Archive className="h-5 w-5 text-[var(--color-brand)]" />
             封存病患
           </DialogTitle>
           <DialogDescription>
@@ -67,7 +67,7 @@ export function PatientArchiveDialog({
           <Button
             onClick={() => onConfirmArchive(archiveTargetId)}
             disabled={archivingPatient || !archiveTargetId}
-            className="bg-[#7f265b] hover:bg-[#631e4d]"
+            className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]"
           >
             {archivingPatient ? '封存中...' : '確認封存'}
           </Button>

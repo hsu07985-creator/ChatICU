@@ -23,7 +23,7 @@ function ChatICURobot() {
 function SpeechBubble() {
   return (
     <svg className="w-[140px] h-[85px]" fill="none" viewBox="0 0 140 85">
-      <path d={svgPaths.p1faf2071} fill="#631E4D" />
+      <path d={svgPaths.p1faf2071} fill="var(--color-brand-hover)" />
       <path d={svgPaths.p5a77e80} fill="white" />
       <path d={svgPaths.p11500b00} fill="white" />
       <path d={svgPaths.p2be42e00} fill="white" />
@@ -63,11 +63,11 @@ export function LoginPage() {
   return (
     <div className="min-h-screen flex bg-white">
       {/* 左側裝飾區 */}
-      <div className="hidden lg:flex flex-1 bg-[#f8f9fa] items-center justify-center p-12 relative">
+      <div className="hidden lg:flex flex-1 bg-slate-50 items-center justify-center p-12 relative">
         <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-[15%] left-[20%] w-32 h-32 rounded-full bg-[#7f265b]" />
+          <div className="absolute top-[15%] left-[20%] w-32 h-32 rounded-full bg-[var(--color-brand)]" />
           <div className="absolute top-[35%] right-[15%] w-24 h-24 rounded-full bg-[#f59e0b]" />
-          <div className="absolute bottom-[25%] left-[15%] w-20 h-20 rounded-full bg-[#7f265b]" />
+          <div className="absolute bottom-[25%] left-[15%] w-20 h-20 rounded-full bg-[var(--color-brand)]" />
         </div>
 
         <div className="relative z-10 max-w-md text-center space-y-8">
@@ -77,7 +77,7 @@ export function LoginPage() {
           </div>
 
           {/* Tagline */}
-          <p className="text-[#7f265b] text-2xl font-semibold">
+          <p className="text-[var(--color-brand)] text-2xl font-semibold">
             <span className="font-black">I</span>ntelligent{' '}
             <span className="font-black">C</span>are for yo
             <span className="font-black">U</span>
@@ -103,10 +103,10 @@ export function LoginPage() {
           <div className="space-y-8">
             {/* Header */}
             <div>
-              <h1 className="text-3xl font-bold text-[#1a1a1a] mb-2">
+              <h1 className="text-3xl font-bold text-foreground mb-2">
                 Login to your Account
               </h1>
-              <p className="text-sm text-[#6b7280]">
+              <p className="text-sm text-muted-foreground">
                 智慧型加護病房照護系統
               </p>
             </div>
@@ -115,7 +115,7 @@ export function LoginPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Email Field */}
               <div className="space-y-2">
-                <Label htmlFor="username" className="text-sm font-semibold text-[#6b7280]">
+                <Label htmlFor="username" className="text-sm font-semibold text-muted-foreground">
                   Email
                 </Label>
                 <Input
@@ -124,7 +124,7 @@ export function LoginPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="請輸入帳號"
-                  className="h-12 border-[#e5e7eb] bg-white"
+                  className="h-12 border-border bg-white"
                   required
                   minLength={1}
                   autoComplete="username"
@@ -133,7 +133,7 @@ export function LoginPage() {
 
               {/* Password Field */}
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-semibold text-[#6b7280]">
+                <Label htmlFor="password" className="text-sm font-semibold text-muted-foreground">
                   Password
                 </Label>
                 <Input
@@ -142,7 +142,7 @@ export function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="請輸入密碼"
-                  className="h-12 border-[#e5e7eb] bg-white"
+                  className="h-12 border-border bg-white"
                   required
                   minLength={1}
                   autoComplete="current-password"
@@ -162,7 +162,7 @@ export function LoginPage() {
               {/* Login Button */}
               <Button
                 type="submit"
-                className="w-full h-12 bg-[#7f265b] hover:bg-[#631e4d] text-white text-lg font-extrabold"
+                className="w-full h-12 bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] text-white text-lg font-extrabold"
                 disabled={loading}
               >
                 {loading ? '登入中...' : 'Login'}
@@ -171,21 +171,21 @@ export function LoginPage() {
               {/* Demo Quick Login */}
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-[#e5e7eb]" />
+                  <span className="w-full border-t border-border" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-2 text-[#6b7280]">快速登入</span>
+                  <span className="bg-white px-2 text-muted-foreground">快速登入</span>
                 </div>
               </div>
               <Button
                 type="button"
                 variant="outline"
-                className="w-full h-12 border-[#7f265b] text-[#7f265b] hover:bg-[#7f265b]/10 font-semibold"
+                className="w-full h-12 border-[var(--color-brand)] text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 font-semibold"
                 disabled={loading}
                 onClick={async () => {
                   setError('');
                   setLoading(true);
-                  const result = await login('admin', 'ChatICU@2026!Secure');
+                  const result = await login('admin', 'Admin2026Test9');
                   if (result.success) {
                     navigate('/dashboard');
                   } else {

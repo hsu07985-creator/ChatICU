@@ -59,13 +59,13 @@ export function PatientActivityPanel({
 
   return (
     <Card>
-      <CardHeader className="bg-[#f8f9fa] pb-2">
+      <CardHeader className="bg-slate-50 pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <Activity className="h-4 w-4 text-[#7f265b]" />
+            <Activity className="h-4 w-4 text-[var(--color-brand)]" />
             病患留言動態
             {filtered.length > 0 && (
-              <Badge className="bg-[#7f265b] text-white text-xs ml-1">{filtered.length}</Badge>
+              <Badge className="bg-[var(--color-brand)] text-white text-xs ml-1">{filtered.length}</Badge>
             )}
           </CardTitle>
           <div className="flex items-center gap-1">
@@ -94,7 +94,7 @@ export function PatientActivityPanel({
                 variant="outline"
                 className={`text-xs cursor-pointer transition-colors ${
                   selectedTag === tag
-                    ? 'bg-[#7f265b] text-white border-[#7f265b]'
+                    ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)]'
                     : TAG_STYLE[tag] || DEFAULT_TAG_STYLE
                 }`}
                 onClick={() => onTagFilter(selectedTag === tag ? null : tag)}
@@ -120,7 +120,7 @@ export function PatientActivityPanel({
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-6 text-center">
-              <Activity className="h-8 w-8 text-slate-300 mb-2" />
+              <Activity className="h-12 w-12 text-slate-300 mb-4" />
               <p className="text-xs text-slate-400">
                 {selectedTag
                   ? `目前無「${selectedTag}」標籤的留言動態`
@@ -133,7 +133,7 @@ export function PatientActivityPanel({
                 <button
                   key={item.patientId}
                   type="button"
-                  className="w-full text-left rounded-lg border border-slate-200 p-2.5 hover:border-[#7f265b] hover:bg-[#faf5f8] transition-colors group"
+                  className="w-full text-left rounded-lg border border-slate-200 p-2.5 hover:border-[var(--color-brand)] hover:bg-[#faf5f8] transition-colors group"
                   onClick={() => onPatientClick(item.patientId)}
                 >
                   <div className="flex items-center justify-between mb-1">
@@ -147,7 +147,7 @@ export function PatientActivityPanel({
                       {item.unreadCount > 0 && (
                         <Badge variant="destructive" className="text-xs">{item.unreadCount} 未讀</Badge>
                       )}
-                      <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-[#7f265b] transition-colors" />
+                      <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-[var(--color-brand)] transition-colors" />
                     </div>
                   </div>
 

@@ -407,7 +407,7 @@ export function CompatibilityPage() {
               {/* 摘要 */}
               {summary && (
                 <Card>
-                  <CardHeader className="pb-3">
+                  <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle>查詢摘要</CardTitle>
                       <span className="text-sm text-muted-foreground">
@@ -446,7 +446,7 @@ export function CompatibilityPage() {
               {/* 矩陣表格 */}
               {validDrugs.length >= 2 && (
                 <Card>
-                  <CardHeader className="pb-3">
+                  <CardHeader>
                     <CardTitle>相容性矩陣</CardTitle>
                     <CardDescription>
                       <span className="inline-flex items-center gap-1 mr-3"><span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-green-100 text-green-700 border border-green-300">C</span> 相容</span>
@@ -469,8 +469,8 @@ export function CompatibilityPage() {
                       <tbody>
                         {validDrugs.map((rowDrug, ri) => (
                           <tr key={rowDrug}>
-                            <td className="px-2 py-1.5 font-medium text-xs whitespace-nowrap sticky left-0 bg-background z-10 border-r">
-                              {rowDrug}
+                            <td className="px-2 py-1.5 font-medium text-xs whitespace-nowrap sticky left-0 bg-background z-10 border-r max-w-[100px] truncate" title={rowDrug}>
+                              {rowDrug.length > 12 ? rowDrug.slice(0, 10) + '...' : rowDrug}
                             </td>
                             {validDrugs.map((colDrug, ci) => {
                               if (ri === ci) {
@@ -526,7 +526,7 @@ export function CompatibilityPage() {
 
       {loading && (
         <div className="text-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-[#7f265b]" />
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-[var(--color-brand)]" />
           <p className="text-muted-foreground">查詢中...</p>
         </div>
       )}

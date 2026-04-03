@@ -43,7 +43,7 @@ export function PatientCreateDialog({
       <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5 text-[#7f265b]" />
+            <Plus className="h-5 w-5 text-[var(--color-brand)]" />
             新增病患
           </DialogTitle>
           <DialogDescription>
@@ -219,7 +219,7 @@ export function PatientCreateDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={creatingPatient}>
             取消
           </Button>
-          <Button onClick={onCreate} disabled={creatingPatient} className="bg-[#7f265b] hover:bg-[#631e4d]">
+          <Button onClick={onCreate} disabled={creatingPatient} className="bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]">
             {creatingPatient ? '建立中...' : '建立病患'}
           </Button>
         </DialogFooter>

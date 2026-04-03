@@ -68,7 +68,7 @@ export const PHARMACY_ADVICE_CATEGORIES: Record<string, AdviceCategoryItem> = {
 };
 
 export const PHARMACY_ADVICE_CATEGORY_COLORS: Record<string, string> = {
-  '1. 建議處方': '#7f265b',
+  '1. 建議處方': 'var(--color-brand)',
   '2. 主動建議': '#f59e0b',
   '3. 建議監測': '#1a1a1a',
   '4. 用藥連貫性': '#3b82f6',

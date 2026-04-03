@@ -62,7 +62,7 @@ export function AssessmentResultsPanel({
             <div className="text-center space-y-3">
               <User className="h-12 w-12 mx-auto text-muted-foreground" />
               <h3 className="font-semibold text-lg">請先選擇病患</h3>
-              <p className="text-muted-foreground text-sm">選擇病患後即可管理用藥並執行評估</p>
+              <p className="text-muted-foreground text-sm leading-relaxed">選擇病患後即可管理用藥並執行評估</p>
             </div>
           </CardContent>
         </Card>
@@ -78,7 +78,7 @@ export function AssessmentResultsPanel({
           <CardContent className="py-16">
             <div className="text-center space-y-3">
               <h3 className="font-semibold text-lg">準備執行評估</h3>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground text-sm leading-relaxed">
                 目前已載入 {drugList.length} 項藥品，點擊「執行全面評估」開始分析
               </p>
             </div>
@@ -121,8 +121,8 @@ export function AssessmentResultsPanel({
   return (
     <div className="lg:col-span-3 space-y-4">
       {/* ── 評估摘要 ── */}
-      <Card className="border-[#7f265b] border-2">
-        <CardHeader className="bg-[#7f265b] text-white py-3">
+      <Card className="border-[var(--color-brand)] border-2">
+        <CardHeader className="bg-[var(--color-brand)] text-white py-3">
           <CardTitle className="text-white text-base flex items-center gap-2">
             <ShieldAlert className="h-5 w-5" />
             評估摘要
@@ -185,14 +185,14 @@ export function AssessmentResultsPanel({
             {/* PAD 劑量 */}
             <div className="rounded-lg border p-4 text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
-                <Calculator className="h-5 w-5 text-[#7f265b]" />
+                <Calculator className="h-5 w-5 text-[var(--color-brand)]" />
                 <span className="text-sm font-semibold">PAD 劑量</span>
               </div>
               {dosage.length === 0 ? (
                 <p className="text-base font-bold text-muted-foreground">無 PAD 藥物</p>
               ) : calculatedCount > 0 ? (
                 <>
-                  <p className="text-2xl font-bold text-[#7f265b]">{calculatedCount} <span className="text-sm font-normal">已算</span></p>
+                  <p className="text-2xl font-bold text-[var(--color-brand)]">{calculatedCount} <span className="text-sm font-normal">已算</span></p>
                   <p className="text-xs text-muted-foreground mt-1">共 {dosage.length} 項 PAD 藥物</p>
                 </>
               ) : (
@@ -217,12 +217,12 @@ export function AssessmentResultsPanel({
                   {highRiskInteractions.map((int, idx) => {
                     const cfg = int.riskRating ? RISK_BADGE[int.riskRating] : null;
                     return (
-                      <div key={`int-${idx}`} className="flex items-start gap-2.5 text-base py-2 px-3 rounded bg-[#f8f9fa] border">
+                      <div key={`int-${idx}`} className="flex items-start gap-2.5 text-base py-2 px-3 rounded bg-slate-50 border">
                         {cfg && <Badge className={`${cfg.className} text-xs px-2 py-0.5 shrink-0 mt-0.5`}>{cfg.label}</Badge>}
                         <div className="min-w-0">
                           <span className="font-semibold">{formatDrugPair(int)}</span>
                           {int.management && (
-                            <p className="text-sm text-muted-foreground mt-0.5">{int.management}</p>
+                            <p className="text-sm text-muted-foreground mt-0.5 leading-relaxed">{int.management}</p>
                           )}
                         </div>
                       </div>
@@ -257,10 +257,10 @@ export function AssessmentResultsPanel({
               <Separator />
               <div>
                 <p className="text-base font-semibold flex items-center gap-2 mb-1">
-                  <Calculator className="h-5 w-5 text-[#7f265b]" />
+                  <Calculator className="h-5 w-5 text-[var(--color-brand)]" />
                   PAD 劑量換算
                 </p>
-                <p className="text-xs text-muted-foreground mb-3">以劑量範圍中值估算，實際劑量請依臨床調整</p>
+                <p className="text-xs text-muted-foreground mb-3 leading-relaxed">以劑量範圍中值估算，實際劑量請依臨床調整</p>
                 <div className="space-y-2">
                   {dosage.filter(d => d.status === 'calculated').map((d, idx) => (
                     <div key={idx} className="flex items-center justify-between text-base py-2 px-3 rounded bg-[#fdf6fa] border border-[#ead7e1]">
@@ -270,7 +270,7 @@ export function AssessmentResultsPanel({
                           <span className="text-sm text-muted-foreground ml-2">({d.normalDose})</span>
                         )}
                       </div>
-                      <span className="font-bold text-lg text-[#7f265b]">{d.calculatedRate || d.adjustedDose}</span>
+                      <span className="font-bold text-lg text-[var(--color-brand)]">{d.calculatedRate || d.adjustedDose}</span>
                     </div>
                   ))}
                 </div>

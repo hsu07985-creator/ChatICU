@@ -1626,15 +1626,15 @@
     border-left-width: 4px;
   }
 
-  .border-\[\#7f265b\] {
-    border-color: #7f265b;
+  .border-[var(--color-brand)] {
+    border-color: var(--color-brand);
   }
 
-  .border-\[\#7f265b\]\/20 {
+  .border-[var(--color-brand)]\/20 {
     border-color: oklab(42.3048% .131964 -.0287104 / .2);
   }
 
-  .border-\[\#7f265b\]\/30 {
+  .border-[var(--color-brand)]\/30 {
     border-color: oklab(42.3048% .131964 -.0287104 / .3);
   }
 
@@ -1750,8 +1750,8 @@
     border-left-color: #3c7acb;
   }
 
-  .border-l-\[\#7f265b\] {
-    border-left-color: #7f265b;
+  .border-l-[var(--color-brand)] {
+    border-left-color: var(--color-brand);
   }
 
   .border-l-\[\#f59e0b\] {
@@ -1770,15 +1770,15 @@
     background-color: #007bff;
   }
 
-  .bg-\[\#7f265b\] {
-    background-color: #7f265b;
+  .bg-[var(--color-brand)] {
+    background-color: var(--color-brand);
   }
 
-  .bg-\[\#7f265b\]\/5 {
+  .bg-[var(--color-brand)]\/5 {
     background-color: oklab(42.3048% .131964 -.0287104 / .05);
   }
 
-  .bg-\[\#7f265b\]\/10 {
+  .bg-[var(--color-brand)]\/10 {
     background-color: oklab(42.3048% .131964 -.0287104 / .1);
   }
 
@@ -2371,8 +2371,8 @@
     color: #007bff;
   }
 
-  .text-\[\#7f265b\] {
-    color: #7f265b;
+  .text-[var(--color-brand)] {
+    color: var(--color-brand);
   }
 
   .text-\[\#f59e0b\] {
@@ -2671,7 +2671,7 @@
     --tw-ring-color: oklab(60.4814% -.0479283 -.211188 / .5);
   }
 
-  .ring-\[\#7f265b\]\/50 {
+  .ring-[var(--color-brand)]\/50 {
     --tw-ring-color: oklab(42.3048% .131964 -.0287104 / .5);
   }
 
@@ -3064,7 +3064,7 @@
 
   @media (hover: hover) {
     .hover\:border-\[\#7f265b\]:hover {
-      border-color: #7f265b;
+      border-color: var(--color-brand);
     }
   }
 
@@ -3094,19 +3094,19 @@
 
   @media (hover: hover) {
     .hover\:bg-\[\#5f1e45\]:hover {
-      background-color: #5f1e45;
+      background-color: var(--color-brand-hover);
     }
   }
 
   @media (hover: hover) {
     .hover\:bg-\[\#6a1f4d\]:hover {
-      background-color: #6a1f4d;
+      background-color: var(--color-brand-hover);
     }
   }
 
   @media (hover: hover) {
     .hover\:bg-\[\#7f265b\]:hover {
-      background-color: #7f265b;
+      background-color: var(--color-brand);
     }
   }
 
@@ -3124,7 +3124,7 @@
 
   @media (hover: hover) {
     .hover\:bg-\[\#631e4d\]:hover {
-      background-color: #631e4d;
+      background-color: var(--color-brand-hover);
     }
   }
 
@@ -3382,7 +3382,7 @@
 
   @media (hover: hover) {
     .hover\:text-\[\#7f265b\]:hover {
-      color: #7f265b;
+      color: var(--color-brand);
     }
   }
 
@@ -3463,7 +3463,7 @@
   }
 
   .focus\:border-\[\#7f265b\]:focus {
-    border-color: #7f265b;
+    border-color: var(--color-brand);
   }
 
   .focus\:bg-accent:focus {
@@ -3745,7 +3745,7 @@
   }
 
   .data-\[state\=active\]\:bg-\[\#7f265b\][data-state="active"] {
-    background-color: #7f265b;
+    background-color: var(--color-brand);
   }
 
   .data-\[state\=active\]\:bg-card[data-state="active"] {
@@ -3761,7 +3761,7 @@
   }
 
   .data-\[state\=checked\]\:bg-\[\#7f265b\][data-state="checked"] {
-    background-color: #7f265b;
+    background-color: var(--color-brand);
   }
 
   .data-\[state\=checked\]\:bg-primary[data-state="checked"] {
@@ -4343,7 +4343,9 @@
 
 :root {
   --font-size: 18px;
-  --primary: #7f265b;
+  --color-brand: #7f265b;
+  --color-brand-hover: #631e4d;
+  --primary: var(--color-brand);
   --primary-foreground: #fff;
   --foreground: #1a1a1a;
   --background: #f8f9fa;
@@ -4361,17 +4363,17 @@
   --input: transparent;
   --input-background: #fff;
   --switch-background: #e5e7eb;
-  --ring: #7f265b;
+  --ring: var(--color-brand);
   --radius: .5rem;
   --sidebar: #fff;
   --sidebar-foreground: #1a1a1a;
-  --sidebar-primary: #7f265b;
+  --sidebar-primary: var(--color-brand);
   --sidebar-primary-foreground: #fff;
   --sidebar-accent: #f8f9fa;
   --sidebar-accent-foreground: #1a1a1a;
   --sidebar-border: #e5e7eb;
-  --sidebar-ring: #7f265b;
-  --chart-1: #7f265b;
+  --sidebar-ring: var(--color-brand);
+  --chart-1: var(--color-brand);
   --chart-2: #1a1a1a;
   --chart-3: #f59e0b;
   --chart-4: #6b7280;
@@ -4729,6 +4731,5 @@ html {
 /* C1: Compact table rows for patient list */
 .compact-table td,
 .compact-table th {
-  padding-top: 0.375rem;
-  padding-bottom: 0.375rem;
+  padding: 0.375rem 0.625rem;
 }

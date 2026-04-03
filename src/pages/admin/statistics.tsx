@@ -159,13 +159,13 @@ export function AdminStatisticsPage() {
 
       {/* Summary cards */}
       <div className="grid gap-4 md:grid-cols-5">
-        <Card className="border-[#7f265b]">
+        <Card className="border-[var(--color-brand)]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">總介入數</CardTitle>
-            <TrendingUp className="h-5 w-5 text-[#7f265b]" />
+            <TrendingUp className="h-5 w-5 text-[var(--color-brand)]" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-[#7f265b]">{stats.total}</div>
+            <div className="text-3xl font-bold text-[var(--color-brand)]">{stats.total}</div>
             <p className="text-xs text-muted-foreground mt-1">本月累計</p>
           </CardContent>
         </Card>
@@ -193,7 +193,7 @@ export function AdminStatisticsPage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-[#7f265b]" />
+              <BarChart3 className="h-5 w-5 text-[var(--color-brand)]" />
               類別分佈
             </CardTitle>
             <CardDescription>四大類介入數量</CardDescription>
@@ -219,7 +219,7 @@ export function AdminStatisticsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CircleDot className="h-5 w-5 text-[#7f265b]" />
+              <CircleDot className="h-5 w-5 text-[var(--color-brand)]" />
               醫師回應統計
             </CardTitle>
             <CardDescription>本月建議接受率</CardDescription>
@@ -268,7 +268,7 @@ export function AdminStatisticsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Tag className="h-5 w-5 text-[#7f265b]" />
+              <Tag className="h-5 w-5 text-[var(--color-brand)]" />
               Top 10 介入代碼
             </CardTitle>
             <CardDescription>依本月數量排序</CardDescription>
@@ -309,7 +309,7 @@ export function AdminStatisticsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <UserIcon className="h-5 w-5 text-[#7f265b]" />
+              <UserIcon className="h-5 w-5 text-[var(--color-brand)]" />
               Top 10 藥師
             </CardTitle>
             <CardDescription>依本月介入數量排序</CardDescription>
@@ -322,13 +322,13 @@ export function AdminStatisticsPage() {
                 {topPharmacists.map((p, idx) => (
                   <div key={`${p.pharmacistName}-${idx}`} className="flex items-center justify-between rounded-lg border p-3">
                     <div className="flex items-center gap-3">
-                      <Badge className="bg-[#7f265b] text-white">{idx + 1}</Badge>
+                      <Badge className="bg-[var(--color-brand)] text-white">{idx + 1}</Badge>
                       <div>
                         <div className="font-medium">{p.pharmacistName}</div>
                         <div className="text-xs text-muted-foreground">本月介入</div>
                       </div>
                     </div>
-                    <div className="text-2xl font-bold text-[#7f265b]">{p.count}</div>
+                    <div className="text-2xl font-bold text-[var(--color-brand)]">{p.count}</div>
                   </div>
                 ))}
               </div>

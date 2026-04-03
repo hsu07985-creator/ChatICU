@@ -141,7 +141,7 @@ export function PharmacyAdviceStatisticsPage() {
         label: rec?.adviceLabel || code,
         category: rec?.category || '',
         count,
-        color: PHARMACY_ADVICE_CATEGORY_COLORS[rec?.category || ''] || '#7f265b',
+        color: PHARMACY_ADVICE_CATEGORY_COLORS[rec?.category || ''] || 'var(--color-brand)',
       };
     })
     .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
@@ -178,7 +178,7 @@ export function PharmacyAdviceStatisticsPage() {
 
       {/* ── 新增紀錄 ── */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader>
           <CardTitle className="text-base">新增藥事紀錄</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -295,13 +295,13 @@ export function PharmacyAdviceStatisticsPage() {
 
       {/* ── 統計卡片 ── */}
       <div className="grid gap-3 md:grid-cols-5">
-        <Card className="border-[#7f265b]">
+        <Card className="border-[var(--color-brand)]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">本月總計</CardTitle>
-            <TrendingUp className="h-5 w-5 text-[#7f265b]" />
+            <TrendingUp className="h-5 w-5 text-[var(--color-brand)]" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-[#7f265b]">{totalAdvices}</div>
+            <div className="text-3xl font-bold text-[var(--color-brand)]">{totalAdvices}</div>
           </CardContent>
         </Card>
 
@@ -492,7 +492,7 @@ export function PharmacyAdviceStatisticsPage() {
 
       {/* ── 紀錄清單 ── */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             紀錄清單
             <Badge variant="secondary">{records.length} 筆</Badge>
@@ -551,19 +551,19 @@ export function PharmacyAdviceStatisticsPage() {
                           <span className="font-medium">{record.bedNumber} {record.patientName}</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Tag className="h-3 w-3 text-muted-foreground" />
+                          <Tag className="h-3.5 w-3.5 text-muted-foreground" />
                           <span className="font-medium">{record.pharmacistName}</span>
                         </div>
                         <Badge variant="outline" className="text-xs">{record.category}</Badge>
                       </div>
 
-                      <p className="text-sm text-[#1a1a1a] leading-relaxed whitespace-pre-line">
+                      <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
                         {record.content}
                       </p>
 
                       {record.linkedMedications && record.linkedMedications.length > 0 && (
                         <div className="pt-2 mt-2 border-t border-gray-100 flex items-center gap-2 flex-wrap">
-                          <Pill className="h-3 w-3 text-muted-foreground" />
+                          <Pill className="h-3.5 w-3.5 text-muted-foreground" />
                           {record.linkedMedications.map((med, idx) => (
                             <Badge key={idx} variant="outline" className="text-xs">{med}</Badge>
                           ))}

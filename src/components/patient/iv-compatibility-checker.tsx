@@ -415,7 +415,7 @@ function QuickCheckPanel() {
         <Button
           onClick={handleCheck}
           disabled={!canCheck || state.loading}
-          className="h-9 shrink-0 bg-[#7f265b] hover:bg-[#631e4d] sm:mt-0 mt-1"
+          className="h-9 shrink-0 bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)] sm:mt-0 mt-1"
           size="sm"
         >
           {state.loading ? (
@@ -476,11 +476,11 @@ export function IvCompatibilityChecker({ ivMedications }: IvCompatibilityChecker
   const hasIVMeds = ivDrugNames.length >= 2;
 
   return (
-    <Card className="border-[#e5e7eb]">
+    <Card className="border-border">
       <CardHeader className="pb-2 space-y-1">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <FlaskConical className="h-4 w-4 text-[#7f265b]" />
+            <FlaskConical className="h-4 w-4 text-[var(--color-brand)]" />
             <CardTitle className="text-base font-semibold leading-tight text-slate-800">IV 相容性快速檢查</CardTitle>
           </div>
           {hasIVMeds && (
@@ -488,7 +488,7 @@ export function IvCompatibilityChecker({ ivMedications }: IvCompatibilityChecker
               <Button
                 size="sm"
                 variant={activeMode === 'quick' ? 'default' : 'outline'}
-                className={`h-7 px-2.5 text-xs ${activeMode === 'quick' ? 'bg-[#7f265b] hover:bg-[#631e4d]' : ''}`}
+                className={`h-7 px-2.5 text-xs ${activeMode === 'quick' ? 'bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]' : ''}`}
                 onClick={() => setActiveMode('quick')}
               >
                 快速檢查
@@ -496,7 +496,7 @@ export function IvCompatibilityChecker({ ivMedications }: IvCompatibilityChecker
               <Button
                 size="sm"
                 variant={activeMode === 'matrix' ? 'default' : 'outline'}
-                className={`h-7 px-2.5 text-xs ${activeMode === 'matrix' ? 'bg-[#7f265b] hover:bg-[#631e4d]' : ''}`}
+                className={`h-7 px-2.5 text-xs ${activeMode === 'matrix' ? 'bg-[var(--color-brand)] hover:bg-[var(--color-brand-hover)]' : ''}`}
                 onClick={() => setActiveMode('matrix')}
               >
                 矩陣模式

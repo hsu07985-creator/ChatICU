@@ -44,10 +44,10 @@ export function VitalSignCard({ label, value, unit, onClick, isAbnormal, abnorma
           ? abnormalDirection === 'low'
             ? 'border-blue-400 bg-gradient-to-br from-blue-50 to-sky-50/70'
             : 'border-red-400 bg-gradient-to-br from-red-50 to-rose-50/70'
-          : 'border-[#e5e7eb] bg-gradient-to-br from-white to-slate-50'
+          : 'border-border bg-gradient-to-br from-white to-slate-50'
       } ${
         canClick
-          ? 'cursor-pointer transition-all hover:-translate-y-0.5 hover:border-[#7f265b]/45 hover:shadow-sm'
+          ? 'cursor-pointer transition-all hover:-translate-y-0.5 hover:border-[var(--color-brand)]/45 hover:shadow-sm'
           : 'cursor-default'
       }`}
       onClick={canClick ? onClick : undefined}
