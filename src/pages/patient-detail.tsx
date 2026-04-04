@@ -1,5 +1,4 @@
 import { MedicalRecords } from '../components/medical-records';
-import { PharmacistAdviceWidget } from '../components/pharmacist-advice-widget';
 import { LabTrendChart, LabTrendData } from '../components/lab-trend-chart';
 import { VitalSignCard } from '../components/vital-signs-card';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -1677,13 +1676,6 @@ export function PatientDetailPage() {
         {/* 病歷記錄 */}
         <TabsContent value="records" className="space-y-4">
           <MedicalRecords patientId={patient.id} patientName={patient.name} aiReadiness={aiReadiness} />
-          {(user?.role === 'pharmacist' || user?.role === 'admin') && (
-            <PharmacistAdviceWidget
-              patientId={patient.id}
-              patientName={patient.name}
-              aiReadiness={aiReadiness}
-            />
-          )}
         </TabsContent>
 
         {/* 檢驗數據 */}
