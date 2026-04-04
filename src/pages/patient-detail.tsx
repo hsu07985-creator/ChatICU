@@ -1,3 +1,4 @@
+// Patient detail page
 import { MedicalRecords } from '../components/medical-records';
 import { LabTrendChart, LabTrendData } from '../components/lab-trend-chart';
 import { VitalSignCard } from '../components/vital-signs-card';
