@@ -45,6 +45,7 @@ class AIMessage(Base):
     content: Mapped[str] = mapped_column(Text)
     citations: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     suggested_actions: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    feedback: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # "up" | "down" | null
     token_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

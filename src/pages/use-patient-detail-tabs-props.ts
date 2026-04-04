@@ -63,6 +63,8 @@ interface UsePatientDetailTabsPropsParams {
   chatInput: string;
   onChatInputChange: (value: string) => void;
   onSendMessage: () => void | Promise<void>;
+  onSetMessageFeedback: (msgIndex: number, feedback: 'up' | 'down' | null) => void;
+  onRegenerateMessage: (msgIndex: number) => void;
 
   labsTabProps: React.ComponentProps<typeof PatientLabsTab>;
   medicationsTabProps: React.ComponentProps<typeof PatientMedicationsTab>;
@@ -170,6 +172,8 @@ export function usePatientDetailTabsProps(params: UsePatientDetailTabsPropsParam
       chatInput,
       onChatInputChange,
       onSendMessage,
+      onSetMessageFeedback,
+      onRegenerateMessage,
     };
 
     const messagesTabProps: React.ComponentProps<typeof PatientMessagesTab> = {
@@ -236,6 +240,8 @@ export function usePatientDetailTabsProps(params: UsePatientDetailTabsPropsParam
     onSendGeneralMessage,
     onSendMedicationAdvice,
     onSendMessage,
+    onSetMessageFeedback,
+    onRegenerateMessage,
     onUpdateTags,
     onSetDisclaimerCollapsed,
     onStartNewSession,

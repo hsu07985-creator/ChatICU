@@ -13,6 +13,7 @@ import {
 export interface SessionChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  messageId?: string;
   explanation?: string | null;
   timestamp?: string;
   references?: AiCitation[];
@@ -23,6 +24,7 @@ export interface SessionChatMessage {
   upstreamStatus?: string | null;
   dataFreshness?: DataFreshness | null;
   graphMeta?: GraphMeta | null;
+  feedback?: 'up' | 'down' | null;
 }
 
 export interface SessionListItem {

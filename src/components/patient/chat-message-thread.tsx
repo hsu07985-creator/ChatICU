@@ -9,6 +9,9 @@ import {
   Clock,
   Copy,
   MessageSquare,
+  RefreshCw,
+  ThumbsDown,
+  ThumbsUp,
 } from 'lucide-react';
 import { AiMarkdown, SafetyWarnings } from '../ui/ai-markdown';
 import { copyToClipboard } from '../../lib/clipboard-utils';
@@ -37,6 +40,8 @@ interface ChatMessageThreadProps {
   formatCitationPageText: (citation: AiCitation) => string;
   compactSnippet: (snippet?: string) => string;
   avatarSrc: string;
+  onSetMessageFeedback: (msgIndex: number, feedback: 'up' | 'down' | null) => void;
+  onRegenerateMessage: (msgIndex: number) => void;
 }
 
 export function ChatMessageThread({
@@ -59,6 +64,8 @@ export function ChatMessageThread({
   formatCitationPageText,
   compactSnippet,
   avatarSrc,
+  onSetMessageFeedback,
+  onRegenerateMessage,
 }: ChatMessageThreadProps) {
   return (
     <div
@@ -322,6 +329,35 @@ export function ChatMessageThread({
                             aria-label="複製回覆"
                           >
                             <Copy className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => onSetMessageFeedback(idx, 'up')}
+                            className={`flex items-center gap-0.5 transition-colors ${
+                              msg.feedback === 'up'
+                                ? 'text-green-600'
+                                : 'hover:text-[#4B5563]'
+                            }`}
+                            aria-label="讚"
+                          >
+                            <ThumbsUp className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => onSetMessageFeedback(idx, 'down')}
+                            className={`flex items-center gap-0.5 transition-colors ${
+                              msg.feedback === 'down'
+                                ? 'text-red-500'
+                                : 'hover:text-[#4B5563]'
+                            }`}
+                            aria-label="倒讚"
+                          >
+                            <ThumbsDown className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => onRegenerateMessage(idx)}
+                            className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
+                            aria-label="重新生成"
+                          >
+                            <RefreshCw className="h-3 w-3" />
                           </button>
                         </div>
                       )}

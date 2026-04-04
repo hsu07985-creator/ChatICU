@@ -144,6 +144,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("[INTG][DB] updated_at column check failed (non-fatal): %s", e)
 
+    # Ensure feedback column exists on ai_messages (for thumbs up/down)
+    try:
+        from app.database import engine as _eng_fb
+        from sqlalchemy import text as _t_fb
+        async with _eng_fb.begin() as conn:
+            await conn.execute(_t_fb(
+                "ALTER TABLE ai_messages ADD COLUMN IF NOT EXISTS feedback VARCHAR(10)"
+            ))
+    except Exception:
+        pass
+
     # Ensure culture_results table exists (Alembic chain may skip 024/025)
     try:
         from app.database import engine

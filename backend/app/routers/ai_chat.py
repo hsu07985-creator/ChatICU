@@ -480,10 +480,15 @@ def _build_snippet_fallback_citations(snippets: List[Dict[str, Any]]) -> List[Di
 # ── Helper: slim patient context for token efficiency ────────────────
 
 def _prepare_patient_context(patient_context: Optional[dict]) -> Optional[dict]:
-    """Pass all patient data to LLM — labs, vitals, meds, ventilator, etc."""
+    """Strip null/empty values from patient data to reduce token count."""
     if not patient_context:
         return None
-    return patient_context
+    slim: Dict[str, Any] = {}
+    for k, v in patient_context.items():
+        if v is None or v == [] or v == {} or v == "":
+            continue
+        slim[k] = v
+    return slim
 
 
 # ── Helper: build multi-turn messages for LLM ──────────────────────────
@@ -858,11 +863,13 @@ async def ai_chat_stream(
             user_msg = AIMessage(id=user_msg_id, session_id=session_id, role="user", content=req.message)
             db.add(user_msg)
 
-            yield _sse_event("thinking", {"phase": "rag", "detail": "正在查詢文獻…"})
-
-            # ── RAG retrieval (single path with fallback) ──
+            # ── RAG retrieval (skip entirely when not indexed) ──
             t_rag = time.perf_counter()
-            rag_context, citations = await _retrieve_with_fallback(req.message)
+            if rag_service.is_indexed:
+                yield _sse_event("thinking", {"phase": "rag", "detail": "正在查詢文獻…"})
+                rag_context, citations = await _retrieve_with_fallback(req.message)
+            else:
+                rag_context, citations = "", []
             timings["rag_retrieval"] = time.perf_counter() - t_rag
 
             citations = _merge_citations_by_source(citations)
@@ -1239,3 +1246,29 @@ async def update_session_title(
 
     await db.commit()
     return success_response(data={"sessionId": session_id, "title": session.title})
+
+
+# ── Message feedback (thumbs up/down) ────────────────────────────────
+
+
+class FeedbackBody(BaseModel):
+    feedback: Optional[str] = Field(None, pattern=r"^(up|down)$")
+
+
+@router.patch("/chat/messages/{message_id}/feedback")
+@limiter.limit("30/minute")
+async def update_message_feedback(
+    message_id: str,
+    body: FeedbackBody,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(AIMessage).where(AIMessage.id == message_id))
+    msg = result.scalar_one_or_none()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    msg.feedback = body.feedback
+    await db.commit()
+    return success_response(data={"messageId": message_id, "feedback": body.feedback})

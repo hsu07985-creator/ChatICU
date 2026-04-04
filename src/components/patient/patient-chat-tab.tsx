@@ -64,6 +64,8 @@ interface PatientChatTabProps {
   chatInput: string;
   onChatInputChange: (value: string) => void;
   onSendMessage: () => void | Promise<void>;
+  onSetMessageFeedback: (msgIndex: number, feedback: 'up' | 'down' | null) => void;
+  onRegenerateMessage: (msgIndex: number) => void;
 }
 
 export function PatientChatTab({
@@ -106,6 +108,8 @@ export function PatientChatTab({
   chatInput,
   onChatInputChange,
   onSendMessage,
+  onSetMessageFeedback,
+  onRegenerateMessage,
 }: PatientChatTabProps) {
   const deleteTargetSession = useMemo(
     () => chatSessions.find((session) => session.id === deleteSessionTargetId) || null,
@@ -285,6 +289,8 @@ export function PatientChatTab({
                   formatCitationPageText={formatCitationPageText}
                   compactSnippet={compactSnippet}
                   avatarSrc={avatarSrc}
+                  onSetMessageFeedback={onSetMessageFeedback}
+                  onRegenerateMessage={onRegenerateMessage}
                 />
 
                 {/* 輸入區 */}

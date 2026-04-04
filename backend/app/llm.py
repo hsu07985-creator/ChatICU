@@ -429,6 +429,7 @@ async def _stream_openai(
 
     stream = await client.chat.completions.create(
         model=settings.LLM_MODEL,
+        temperature=settings.LLM_TEMPERATURE,
         max_completion_tokens=max_tokens,
         reasoning_effort=settings.LLM_REASONING_EFFORT,
         messages=api_messages,
@@ -473,6 +474,7 @@ async def _stream_anthropic(
 
     async with client.messages.stream(
         model=settings.LLM_MODEL,
+        temperature=settings.LLM_TEMPERATURE,
         max_tokens=max_tokens,
         system=system_prompt,
         messages=messages,
@@ -507,7 +509,9 @@ def _call_openai(
 ):
     client = _get_openai_sync()
     response = client.chat.completions.create(
-        model=settings.LLM_MODEL, max_completion_tokens=max_tokens,
+        model=settings.LLM_MODEL,
+        temperature=temperature,
+        max_completion_tokens=max_tokens,
         reasoning_effort=settings.LLM_REASONING_EFFORT,
         messages=[
             {"role": "system", "content": system_prompt},
@@ -550,7 +554,9 @@ def _call_openai_multi(
     api_messages = [{"role": "system", "content": system_prompt}]
     api_messages.extend(messages)
     response = client.chat.completions.create(
-        model=settings.LLM_MODEL, max_completion_tokens=max_tokens,
+        model=settings.LLM_MODEL,
+        temperature=temperature,
+        max_completion_tokens=max_tokens,
         reasoning_effort=settings.LLM_REASONING_EFFORT,
         messages=api_messages,
     )

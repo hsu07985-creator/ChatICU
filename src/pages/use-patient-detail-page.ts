@@ -109,6 +109,8 @@ export function usePatientDetailPage() {
     isSending,
     thinkingStatus,
     sendMessage,
+    setMessageFeedback,
+    regenerateMessage,
   } = useAiChatConversation({
     patientId: id,
     fallbackPatientId: patient?.id,
@@ -322,6 +324,8 @@ export function usePatientDetailPage() {
     chatInput,
     onChatInputChange: setChatInput,
     onSendMessage: sendMessage,
+    onSetMessageFeedback: setMessageFeedback,
+    onRegenerateMessage: regenerateMessage,
     labsTabProps: {
       patientId: patient?.id || '',
       patientIntubated: patient?.intubated || false,

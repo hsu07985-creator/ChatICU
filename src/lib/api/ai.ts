@@ -714,3 +714,13 @@ export async function clinicalQuery(data: {
   const response = await apiClient.post<ApiResponse<ClinicalQueryResponse>>('/api/v1/clinical/clinical-query', payload);
   return ensureData(response.data, 'API contract');
 }
+
+
+// ── Message feedback (thumbs up/down) ──────────────────────────────
+
+export async function updateMessageFeedback(
+  messageId: string,
+  feedback: 'up' | 'down' | null,
+): Promise<void> {
+  await apiClient.patch(`/ai/chat/messages/${messageId}/feedback`, { feedback });
+}
