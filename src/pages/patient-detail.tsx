@@ -1005,6 +1005,9 @@ export function PatientDetailPage() {
     }
   };
 
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
+
   const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
     if (!confirm('確定要刪除此對話記錄嗎？')) return;
@@ -1020,6 +1023,35 @@ export function PatientDetailPage() {
     } catch {
       toast.error('刪除對話記錄失敗');
     }
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedSessionIds.size === 0) return;
+    if (!confirm(`確定要刪除所選的 ${selectedSessionIds.size} 筆對話記錄嗎？`)) return;
+    try {
+      const ids = Array.from(selectedSessionIds);
+      await Promise.all(ids.map(id => deleteChatSession(id)));
+      if (selectedSession && selectedSessionIds.has(selectedSession.id)) {
+        setSelectedSession(null);
+        setChatMessages([]);
+        setSessionTitle('');
+      }
+      setSelectedSessionIds(new Set());
+      setIsSelectMode(false);
+      await refreshChatSessions();
+      toast.success(`已刪除 ${ids.length} 筆對話記錄`);
+    } catch {
+      toast.error('部分對話記錄刪除失敗');
+    }
+  };
+
+  const toggleSessionSelection = (sessionId: string) => {
+    setSelectedSessionIds(prev => {
+      const next = new Set(prev);
+      if (next.has(sessionId)) next.delete(sessionId);
+      else next.add(sessionId);
+      return next;
+    });
   };
 
   const handleSendMessage = async () => {
@@ -1274,19 +1306,64 @@ export function PatientDetailPage() {
                         <History className="h-3.5 w-3.5 text-muted-foreground" />
                         對話記錄
                       </span>
-                      <Button
-                        size="sm"
-                        className="h-6 px-2 text-xs bg-gray-700 hover:bg-gray-700 text-white"
-                        onClick={() => {
-                          setSelectedSession(null);
-                          setChatMessages([]);
-                          setSessionTitle('');
-                        }}
-                      >
-                        <Plus className="h-3 w-3 mr-1" />
-                        新對話
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {chatSessions.length > 0 && (
+                          <Button
+                            size="sm"
+                            variant={isSelectMode ? "outline" : "ghost"}
+                            className="h-6 px-2 text-xs"
+                            onClick={() => {
+                              setIsSelectMode(!isSelectMode);
+                              setSelectedSessionIds(new Set());
+                            }}
+                          >
+                            {isSelectMode ? '完成' : '管理'}
+                          </Button>
+                        )}
+                        {!isSelectMode && (
+                          <Button
+                            size="sm"
+                            className="h-6 px-2 text-xs bg-gray-700 hover:bg-gray-700 text-white"
+                            onClick={() => {
+                              setSelectedSession(null);
+                              setChatMessages([]);
+                              setSessionTitle('');
+                            }}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            新對話
+                          </Button>
+                        )}
+                      </div>
                     </div>
+                    {isSelectMode && (
+                      <div className="flex items-center justify-between mt-1.5">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => {
+                            if (selectedSessionIds.size === chatSessions.length) {
+                              setSelectedSessionIds(new Set());
+                            } else {
+                              setSelectedSessionIds(new Set(chatSessions.map(s => s.id)));
+                            }
+                          }}
+                        >
+                          {selectedSessionIds.size === chatSessions.length ? '取消全選' : '全選'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-6 px-2 text-xs"
+                          disabled={selectedSessionIds.size === 0}
+                          onClick={handleBatchDelete}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          刪除 ({selectedSessionIds.size})
+                        </Button>
+                      </div>
+                    )}
                   </CardHeader>
                   <CardContent className="p-0">
                     <ScrollArea style={{ height: 'calc(100vh - 220px)', minHeight: '400px' }}>
@@ -1304,6 +1381,10 @@ export function PatientDetailPage() {
 	                              tabIndex={0}
 	                              key={session.id}
 	                              onClick={async () => {
+	                                if (isSelectMode) {
+	                                  toggleSessionSelection(session.id);
+	                                  return;
+	                                }
 	                                setSelectedSession(session);
 	                                setSessionTitle(session.title);
 	                                try {
@@ -1333,12 +1414,25 @@ export function PatientDetailPage() {
 	                                }
 	                              }}
 	                              className={`group w-full text-left px-2.5 py-2 rounded-lg border transition-all hover:bg-slate-50 ${
-	                                selectedSession?.id === session.id
-	                                  ? 'bg-slate-50 border-border'
-	                                  : 'border-transparent'
+	                                isSelectMode && selectedSessionIds.has(session.id)
+	                                  ? 'bg-red-50 border-red-200'
+	                                  : selectedSession?.id === session.id
+	                                    ? 'bg-slate-50 border-border'
+	                                    : 'border-transparent'
                               }`}
                             >
-                              <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-start gap-2">
+                                {isSelectMode && (
+                                  <div className="flex items-center pt-0.5 shrink-0">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedSessionIds.has(session.id)}
+                                      onChange={() => toggleSessionSelection(session.id)}
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="h-3.5 w-3.5 rounded border-gray-300 accent-red-500 cursor-pointer"
+                                    />
+                                  </div>
+                                )}
                                 <div className="flex-1 min-w-0">
                                   <p className="font-semibold text-sm text-foreground truncate">
                                     {session.title}
@@ -1352,18 +1446,20 @@ export function PatientDetailPage() {
                                     </div>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-1 shrink-0">
-	                                <Badge className="text-xs bg-gray-100 text-[#374151] border border-border">
-	                                  {session.messageCount ?? session.messages.length}
-	                                </Badge>
-                                  <button
-                                    onClick={(e) => handleDeleteSession(e, session.id)}
-                                    className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 text-muted-foreground hover:text-red-600"
-                                    title="刪除對話"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
+                                {!isSelectMode && (
+                                  <div className="flex items-center gap-1 shrink-0">
+	                                  <Badge className="text-xs bg-gray-100 text-[#374151] border border-border">
+	                                    {session.messageCount ?? session.messages.length}
+	                                  </Badge>
+                                    <button
+                                      onClick={(e) => handleDeleteSession(e, session.id)}
+                                      className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 text-muted-foreground hover:text-red-600"
+                                      title="刪除對話"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           ))}
