@@ -63,6 +63,9 @@ def _get_anthropic_async():
 RECENT_MSG_WINDOW = settings.LLM_RECENT_MSG_WINDOW
 COMPRESS_THRESHOLD = settings.LLM_COMPRESS_THRESHOLD
 
+# Reasoning models (o-series, gpt-5.4-mini) don't support temperature
+_REASONING_EFFORT = (settings.LLM_REASONING_EFFORT or "").strip() or None
+
 _LANG_DIRECTIVE = (
     "Always reply in Traditional Chinese (繁體中文). "
     "Use medical terminology common in Taiwan "
@@ -427,15 +430,18 @@ async def _stream_openai(
     api_messages = [{"role": "system", "content": system_prompt}]
     api_messages.extend(messages)
 
-    stream = await client.chat.completions.create(
+    create_kwargs: dict = dict(
         model=settings.LLM_MODEL,
-        temperature=settings.LLM_TEMPERATURE,
         max_completion_tokens=max_tokens,
-        reasoning_effort=settings.LLM_REASONING_EFFORT,
         messages=api_messages,
         stream=True,
         stream_options={"include_usage": True},
     )
+    if _REASONING_EFFORT:
+        create_kwargs["reasoning_effort"] = _REASONING_EFFORT
+    else:
+        create_kwargs["temperature"] = settings.LLM_TEMPERATURE
+    stream = await client.chat.completions.create(**create_kwargs)
 
     full_content = ""
     usage_meta = {}
@@ -508,16 +514,19 @@ def _call_openai(
     trace_id: str | None = None,
 ):
     client = _get_openai_sync()
-    response = client.chat.completions.create(
+    create_kwargs: dict = dict(
         model=settings.LLM_MODEL,
-        temperature=temperature,
         max_completion_tokens=max_tokens,
-        reasoning_effort=settings.LLM_REASONING_EFFORT,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": json.dumps(input_data, ensure_ascii=False, default=str)},
         ],
     )
+    if _REASONING_EFFORT:
+        create_kwargs["reasoning_effort"] = _REASONING_EFFORT
+    else:
+        create_kwargs["temperature"] = temperature
+    response = client.chat.completions.create(**create_kwargs)
     _maybe_capture_provider_raw(
         provider="openai",
         task=task,
@@ -553,13 +562,16 @@ def _call_openai_multi(
     client = _get_openai_sync()
     api_messages = [{"role": "system", "content": system_prompt}]
     api_messages.extend(messages)
-    response = client.chat.completions.create(
+    create_kwargs: dict = dict(
         model=settings.LLM_MODEL,
-        temperature=temperature,
         max_completion_tokens=max_tokens,
-        reasoning_effort=settings.LLM_REASONING_EFFORT,
         messages=api_messages,
     )
+    if _REASONING_EFFORT:
+        create_kwargs["reasoning_effort"] = _REASONING_EFFORT
+    else:
+        create_kwargs["temperature"] = temperature
+    response = client.chat.completions.create(**create_kwargs)
     _maybe_capture_provider_raw(
         provider="openai",
         task=task,
