@@ -55,13 +55,13 @@ const adviceCategories = {
     iconColor: 'text-gray-700',
     codes: PHARMACY_ADVICE_CATEGORIES.monitoring.codes,
   },
-  appropriateness: {
-    label: PHARMACY_ADVICE_CATEGORIES.appropriateness.label,
+  continuity: {
+    label: PHARMACY_ADVICE_CATEGORIES.continuity.label,
     color: 'bg-blue-100 border-blue-300 hover:bg-blue-200',
     activeColor: 'bg-blue-600 text-white',
     icon: CheckCircle2,
     iconColor: 'text-blue-600',
-    codes: PHARMACY_ADVICE_CATEGORIES.appropriateness.codes,
+    codes: PHARMACY_ADVICE_CATEGORIES.continuity.codes,
   },
 };
 
@@ -428,30 +428,30 @@ export function PharmacistAdviceWidget({
               )}
 
               {/* 用藥適真性類別（全寬） */}
-              {(selectedCategory === 'appropriateness' || !selectedCategory) && (
+              {(selectedCategory === 'continuity' || !selectedCategory) && (
                 <Card 
                   className={`border-2 cursor-pointer transition-all ${
-                    selectedCategory === 'appropriateness'
+                    selectedCategory === 'continuity'
                       ? 'ring-4 ring-offset-2 ring-[#007bff]/50 bg-[#007bff] text-white'
                       : 'bg-blue-100 border-blue-300 hover:bg-blue-200'
                   }`}
                   onClick={() => {
-                    setSelectedCategory('appropriateness');
+                    setSelectedCategory('continuity');
                     setSelectedCode(null);
                   }}
                 >
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-lg">
-                      <CheckCircle2 className={`h-6 w-6 ${selectedCategory === 'appropriateness' ? 'text-white' : 'text-[#007bff]'}`} />
+                      <CheckCircle2 className={`h-6 w-6 ${selectedCategory === 'continuity' ? 'text-white' : 'text-[#007bff]'}`} />
                       4. 用藥適真性
                     </CardTitle>
                   </CardHeader>
                   
-                  {selectedCategory === 'appropriateness' && (
+                  {selectedCategory === 'continuity' && (
                     <CardContent className="space-y-2">
                       <p className="text-sm text-white/80 mb-3">選擇具體建議類型：</p>
                       <div className="grid grid-cols-2 gap-2">
-                        {adviceCategories.appropriateness.codes.map((codeItem) => (
+                        {adviceCategories.continuity.codes.map((codeItem) => (
                           <Button
                             key={codeItem.code}
                             variant={selectedCode === codeItem.code ? 'default' : 'outline'}
