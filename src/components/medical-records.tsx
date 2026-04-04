@@ -1,6 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getReadinessReason, polishClinicalText, type AIReadiness } from '../lib/api/ai';
 import { sendMessage } from '../lib/api/messages';
+import {
+  listRecordTemplates,
+  createRecordTemplate,
+  deleteRecordTemplate,
+  type RecordTemplate,
+  type RecordTemplateType,
+} from '../lib/api/record-templates';
 import { copyToClipboard } from '../lib/clipboard-utils';
 import { useAuth } from '../lib/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
@@ -67,7 +74,6 @@ const RECORD_TYPE_CONFIG: Record<RecordType, { label: string; icon: typeof FileT
   },
 };
 
-const STORAGE_KEY = 'chaticu-record-templates';
 const RECORDS_STORAGE_KEY = 'chaticu-medical-records';
 
 function loadRecords(patientId: string): MedicalRecord[] {
@@ -81,19 +87,6 @@ function loadRecords(patientId: string): MedicalRecord[] {
 
 function saveRecords(patientId: string, records: MedicalRecord[]) {
   localStorage.setItem(`${RECORDS_STORAGE_KEY}-${patientId}`, JSON.stringify(records));
-}
-
-function loadCustomTemplates(): Record<RecordType, Record<string, string>> {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : { 'progress-note': {}, 'medication-advice': {}, 'nursing-record': {} };
-  } catch {
-    return { 'progress-note': {}, 'medication-advice': {}, 'nursing-record': {} };
-  }
-}
-
-function saveCustomTemplates(templates: Record<RecordType, Record<string, string>>) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
 }
 
 const BUILTIN_TEMPLATES: Record<RecordType, Record<string, string>> = {
@@ -169,23 +162,42 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
   const [isPolishing, setIsPolishing] = useState(false);
   const [records, setRecords] = useState<MedicalRecord[]>(() => loadRecords(patientId));
 
-  // Custom templates
-  const [customTemplates, setCustomTemplates] = useState(loadCustomTemplates);
+  // Server-backed custom templates
+  const [serverTemplates, setServerTemplates] = useState<RecordTemplate[]>([]);
+  const [templateLoading, setTemplateLoading] = useState(false);
   const [showNewTemplate, setShowNewTemplate] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateContent, setNewTemplateContent] = useState('');
 
+  const fetchTemplates = useCallback(async (type: RecordTemplateType) => {
+    setTemplateLoading(true);
+    try {
+      const templates = await listRecordTemplates(type);
+      setServerTemplates(templates);
+    } catch {
+      // Fallback: server templates empty, builtins still available
+      setServerTemplates([]);
+    } finally {
+      setTemplateLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    saveCustomTemplates(customTemplates);
-  }, [customTemplates]);
+    fetchTemplates(recordType as RecordTemplateType);
+  }, [recordType, fetchTemplates]);
 
   useEffect(() => {
     saveRecords(patientId, records);
   }, [patientId, records]);
 
+  // Build merged template map: builtins + server templates
+  const serverTemplateMap: Record<string, string> = {};
+  for (const t of serverTemplates) {
+    serverTemplateMap[t.name] = t.content;
+  }
   const allTemplates = {
     ...BUILTIN_TEMPLATES[recordType],
-    ...customTemplates[recordType],
+    ...serverTemplateMap,
   };
 
   const handlePolishContent = async () => {
@@ -242,29 +254,43 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
     }
   };
 
-  const handleSaveAsTemplate = () => {
+  const handleSaveAsTemplate = async () => {
     const name = newTemplateName.trim();
     if (!name) { toast.error('請輸入模板名稱'); return; }
     if (!newTemplateContent.trim()) { toast.error('請輸入模板內容'); return; }
     if (name in BUILTIN_TEMPLATES[recordType]) { toast.error(`「${name}」與內建模板名稱重複，請使用其他名稱`); return; }
-    setCustomTemplates((prev) => ({
-      ...prev,
-      [recordType]: { ...prev[recordType], [name]: newTemplateContent },
-    }));
-    setNewTemplateName('');
-    setNewTemplateContent('');
-    setShowNewTemplate(false);
-    toast.success(`模板「${name}」已儲存`);
+    try {
+      const roleMap: Record<string, RecordTemplate['roleScope']> = {
+        doctor: 'doctor', nurse: 'nurse', pharmacist: 'pharmacist', admin: 'admin',
+      };
+      await createRecordTemplate({
+        name,
+        recordType: recordType as RecordTemplateType,
+        roleScope: roleMap[user?.role || ''] || 'all',
+        content: newTemplateContent,
+      });
+      setNewTemplateName('');
+      setNewTemplateContent('');
+      setShowNewTemplate(false);
+      toast.success(`模板「${name}」已儲存`);
+      fetchTemplates(recordType as RecordTemplateType);
+    } catch {
+      toast.error('儲存模板失敗，請稍後再試');
+    }
   };
 
-  const handleDeleteTemplate = (name: string) => {
-    setCustomTemplates((prev) => {
-      const copy = { ...prev[recordType] };
-      delete copy[name];
-      return { ...prev, [recordType]: copy };
-    });
-    if (selectedTemplate === name) setSelectedTemplate('');
-    toast.success(`模板「${name}」已刪除`);
+  const handleDeleteTemplate = async (name: string) => {
+    const tpl = serverTemplates.find((t) => t.name === name);
+    if (!tpl) { toast.error('無法刪除內建模板'); return; }
+    if (!tpl.canDelete) { toast.error('您沒有刪除此模板的權限'); return; }
+    try {
+      await deleteRecordTemplate(tpl.id);
+      if (selectedTemplate === name) setSelectedTemplate('');
+      toast.success(`模板「${name}」已刪除`);
+      fetchTemplates(recordType as RecordTemplateType);
+    } catch {
+      toast.error('刪除模板失敗，請稍後再試');
+    }
   };
 
   const config = RECORD_TYPE_CONFIG[recordType];
@@ -280,7 +306,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
   };
 
   const filteredRecords = getFilteredRecords();
-  const customTemplateNames = Object.keys(customTemplates[recordType]);
+  const customTemplateNames = serverTemplates.map((t) => t.name);
 
   return (
     <div className="space-y-6">

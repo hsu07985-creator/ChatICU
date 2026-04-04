@@ -31,6 +31,10 @@ class PatientMessage(Base):
     reply_count: Mapped[int] = mapped_column(default=0)
     tags: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     mentioned_roles: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    advice_record_id: Mapped[Optional[str]] = mapped_column(
+        String(50), ForeignKey("pharmacy_advices.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

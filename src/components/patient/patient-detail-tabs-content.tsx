@@ -1,8 +1,9 @@
 import type React from 'react';
 import type { Patient } from '../../lib/api';
 import type { AIReadiness, RAGStatus } from '../../lib/api/ai';
-import type { UserRole } from '../../lib/auth-context';
+import { useAuth, type UserRole } from '../../lib/auth-context';
 import { MedicalRecords } from '../medical-records';
+import { PharmacistAdviceWidget } from '../pharmacist-advice-widget';
 import { Tabs, TabsContent } from '../ui/tabs';
 import { PatientChatTab } from './patient-chat-tab';
 import { PatientDetailTabsList } from './patient-detail-tabs-list';
@@ -43,6 +44,9 @@ export function PatientDetailTabsContent({
   medicationsTabProps,
   summary,
 }: PatientDetailTabsContentProps) {
+  const { user } = useAuth();
+  const isPharmacist = user?.role === 'pharmacist' || user?.role === 'admin';
+
   return (
     <Tabs value={activeTab} onValueChange={onActiveTabChange}>
       <PatientDetailTabsList unreadMessagesCount={unreadMessagesCount} />
@@ -57,6 +61,13 @@ export function PatientDetailTabsContent({
           patientName={records.patientName}
           aiReadiness={records.aiReadiness}
         />
+        {isPharmacist && (
+          <PharmacistAdviceWidget
+            patientId={records.patientId}
+            patientName={records.patientName}
+            aiReadiness={records.aiReadiness}
+          />
+        )}
         <div aria-hidden="true" style={{ height: '10rem' }} />
       </TabsContent>
 

@@ -24,6 +24,7 @@ import {
   FileText,
   Droplets,
   Calculator,
+  Brain,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AssessmentResults, ExtendedPatientData } from './types';
@@ -46,6 +47,9 @@ interface PharmacyReportViewProps {
   onAdviceContentChange: (value: string) => void;
   onSaveAdvice: () => void;
   onBackToAssessment: () => void;
+  patientId?: string;
+  onPolishAdvice?: () => void;
+  isPolishing?: boolean;
 }
 
 const hepaticLabels: Record<string, string> = {
@@ -121,6 +125,8 @@ export function PharmacyReportView({
   onAdviceContentChange,
   onSaveAdvice,
   onBackToAssessment,
+  onPolishAdvice,
+  isPolishing = false,
 }: PharmacyReportViewProps) {
   const now = new Date().toLocaleString('zh-TW');
   const incompatiblePairs = assessmentResults.compatibility.filter(c => c.compatible === false);
@@ -447,6 +453,17 @@ export function PharmacyReportView({
             <ArrowLeft className="mr-1.5 h-4 w-4" />
             返回評估詳情
           </Button>
+          {onPolishAdvice && (
+            <Button
+              onClick={onPolishAdvice}
+              disabled={!adviceContent.trim() || isPolishing}
+              size="sm"
+              variant="outline"
+            >
+              <Brain className="mr-1.5 h-4 w-4" />
+              {isPolishing ? 'AI 修飾中...' : 'AI 修飾建議'}
+            </Button>
+          )}
           <Button
             onClick={onSaveAdvice}
             disabled={!adviceContent.trim()}

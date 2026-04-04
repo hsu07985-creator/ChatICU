@@ -27,6 +27,11 @@ class PharmacyAdvice(Base):
     content: Mapped[str] = mapped_column(Text)
     linked_medications: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     accepted: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    responded_by_id: Mapped[Optional[str]] = mapped_column(
+        String(50), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True,
+    )
+    responded_by_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    responded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

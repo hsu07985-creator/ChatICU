@@ -16,6 +16,8 @@ from app.utils.response import success_response
 
 router = APIRouter(prefix="/patients/{patient_id}/messages", tags=["messages"])
 
+_UNSET = object()  # sentinel for optional advice_accepted
+
 # ── Default preset tags ──
 DEFAULT_PRESET_TAGS = [
     "重要", "追蹤", "待處理", "已確認", "用藥相關",
@@ -23,7 +25,7 @@ DEFAULT_PRESET_TAGS = [
 ]
 
 
-def msg_to_dict(msg: PatientMessage, replies: list = None) -> dict:
+def msg_to_dict(msg: PatientMessage, replies: list = None, advice_accepted: object = _UNSET) -> dict:
     d = {
         "id": msg.id,
         "patientId": msg.patient_id,
@@ -36,12 +38,15 @@ def msg_to_dict(msg: PatientMessage, replies: list = None) -> dict:
         "isRead": msg.is_read,
         "linkedMedication": msg.linked_medication,
         "adviceCode": msg.advice_code,
+        "adviceRecordId": msg.advice_record_id,
         "readBy": msg.read_by or [],
         "replyToId": msg.reply_to_id,
         "replyCount": msg.reply_count or 0,
         "tags": msg.tags or [],
         "mentionedRoles": msg.mentioned_roles or [],
     }
+    if advice_accepted is not _UNSET:
+        d["adviceAccepted"] = advice_accepted
     if replies is not None:
         d["replies"] = replies
     return d
@@ -95,8 +100,24 @@ async def list_messages(
         for reply in replies_result.scalars().all():
             replies_map.setdefault(reply.reply_to_id, []).append(msg_to_dict(reply))
 
+    # Batch-lookup adviceAccepted for messages linked to pharmacy advices
+    advice_ids = [m.advice_record_id for m in top_messages if m.advice_record_id]
+    accepted_map: dict = {}
+    if advice_ids:
+        from app.models.pharmacy_advice import PharmacyAdvice
+        adv_result = await db.execute(
+            select(PharmacyAdvice.id, PharmacyAdvice.accepted)
+            .where(PharmacyAdvice.id.in_(advice_ids))
+        )
+        for adv_id, adv_accepted in adv_result.all():
+            accepted_map[adv_id] = adv_accepted
+
     messages = [
-        msg_to_dict(m, replies=replies_map.get(m.id, []))
+        msg_to_dict(
+            m,
+            replies=replies_map.get(m.id, []),
+            advice_accepted=accepted_map.get(m.advice_record_id, _UNSET),
+        )
         for m in top_messages
     ]
 

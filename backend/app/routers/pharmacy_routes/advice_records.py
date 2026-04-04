@@ -33,6 +33,9 @@ def advice_to_dict(a: PharmacyAdvice) -> dict:
         "timestamp": a.timestamp.isoformat() if a.timestamp else None,
         "linkedMedications": a.linked_medications or [],
         "accepted": a.accepted,
+        "respondedById": a.responded_by_id,
+        "respondedByName": a.responded_by_name,
+        "respondedAt": a.responded_at.isoformat() if a.responded_at else None,
     }
 
 
@@ -54,12 +57,21 @@ def _parse_month_range(month: str) -> Tuple[datetime, datetime]:
 async def list_advice_records(
     month: str = Query(None, description="YYYY-MM format filter"),
     category: str = Query(None, description="Category filter"),
+    accepted: str = Query(None, description="Filter: true/false/pending"),
     page: int = Query(1, ge=1),
     limit: int = Query(100, ge=1, le=500),
     user: User = Depends(require_roles("pharmacist", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
     query = select(PharmacyAdvice)
+
+    if accepted is not None:
+        if accepted == "true":
+            query = query.where(PharmacyAdvice.accepted.is_(True))
+        elif accepted == "false":
+            query = query.where(PharmacyAdvice.accepted.is_(False))
+        elif accepted == "pending":
+            query = query.where(PharmacyAdvice.accepted.is_(None))
 
     if month:
         try:
@@ -238,6 +250,7 @@ async def create_advice_record(
         is_read=False,
         linked_medication=linked_med,
         advice_code=body.adviceCode,
+        advice_record_id=advice.id,
     )
     db.add(msg)
     await db.flush()
@@ -258,7 +271,7 @@ async def create_advice_record(
     return success_response(data=advice_to_dict(advice), message="用藥建議已建立")
 
 
-@router.patch("/advice-records/{advice_id}/respond")
+@router.patch("/advice-records/{advice_id}/response")
 async def respond_to_advice(
     advice_id: str,
     request: Request,
@@ -272,6 +285,7 @@ async def respond_to_advice(
     accepted = body.get("accepted")
     if accepted is None or not isinstance(accepted, bool):
         raise HTTPException(status_code=422, detail="accepted (bool) is required")
+    note = body.get("note", "")
 
     result = await db.execute(
         select(PharmacyAdvice).where(PharmacyAdvice.id == advice_id)
@@ -284,13 +298,41 @@ async def respond_to_advice(
         raise HTTPException(status_code=409, detail="此建議已有回覆，無法重複操作")
 
     advice.accepted = accepted
+    advice.responded_by_id = user.id
+    advice.responded_by_name = user.name
+    advice.responded_at = datetime.now(timezone.utc)
+
+    # Create auto-reply on the linked patient message
+    linked_msg_result = await db.execute(
+        select(PatientMessage).where(PatientMessage.advice_record_id == advice_id)
+    )
+    linked_msg = linked_msg_result.scalar_one_or_none()
+    if linked_msg:
+        status_text = "已接受" if accepted else "已拒絕"
+        reply_content = f"醫師 {user.name} {status_text}此藥事建議"
+        if note:
+            reply_content += f"\n備註：{note}"
+        reply = PatientMessage(
+            id=f"pmsg_{uuid.uuid4().hex[:8]}",
+            patient_id=linked_msg.patient_id,
+            author_id=user.id,
+            author_name=user.name,
+            author_role=user.role,
+            message_type="medication-advice",
+            content=reply_content,
+            timestamp=datetime.now(timezone.utc),
+            is_read=False,
+            reply_to_id=linked_msg.id,
+        )
+        db.add(reply)
+        linked_msg.reply_count = (linked_msg.reply_count or 0) + 1
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="回覆藥事建議" if accepted else "拒絕藥事建議",
         target=advice_id, status="success",
         ip=request.client.host if request.client else None,
-        details={"accepted": accepted},
+        details={"accepted": accepted, "note": note},
     )
 
     return success_response(

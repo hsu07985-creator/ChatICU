@@ -69,6 +69,7 @@ from app.routers import (
     patients_v2,
     pharmacy,
     rag,
+    record_templates,
     rules,
     scores,
     team_chat,
@@ -609,3 +610,4 @@ app.include_router(ai_chat.router)
 # Phase 4: V2 endpoints + Clinical Scores
 app.include_router(patients_v2.router)
 app.include_router(scores.router)
+app.include_router(record_templates.router)

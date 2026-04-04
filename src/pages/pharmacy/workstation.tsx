@@ -6,7 +6,7 @@ import { getCachedPadDrugs } from '../../lib/pad-drugs-cache';
 import { useAuth } from '../../lib/auth-context';
 import { getLatestLabData, type LabData as ApiLabData } from '../../lib/api/lab-data';
 import { getLatestVitalSigns, type VitalSigns as ApiVitalSigns } from '../../lib/api/vital-signs';
-import { checkInteractions, type PatientContext } from '../../lib/api/ai';
+import { checkInteractions, polishClinicalText, type PatientContext } from '../../lib/api/ai';
 import { createAdviceRecord, getDrugInteractions, getIVCompatibility, padCalculate, type PadDrugInfo } from '../../lib/api/pharmacy';
 import { getMedications } from '../../lib/api/medications';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
@@ -114,7 +114,8 @@ export function PharmacyWorkstationPage() {
 
   // 用藥建議表單
   const [adviceContent, setAdviceContent] = useState('');
-  
+  const [isPolishingAdvice, setIsPolishingAdvice] = useState(false);
+
   // 用藥建議送出對話框
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -545,6 +546,25 @@ export function PharmacyWorkstationPage() {
     toast.success('用藥建議報告已產生');
   };
 
+  // AI 修飾用藥建議
+  const handlePolishAdvice = async () => {
+    if (!adviceContent.trim() || !selectedPatientId) return;
+    setIsPolishingAdvice(true);
+    try {
+      const result = await polishClinicalText({
+        patientId: selectedPatientId,
+        content: adviceContent,
+        polishType: 'medication_advice',
+      });
+      setAdviceContent(result.polished);
+      toast.success('AI 修飾完成');
+    } catch {
+      toast.error('AI 修飾失敗，請稍後再試');
+    } finally {
+      setIsPolishingAdvice(false);
+    }
+  };
+
   // 儲存用藥建議
   const handleSaveAdvice = () => {
     if (!adviceContent.trim()) {
@@ -780,6 +800,9 @@ export function PharmacyWorkstationPage() {
             onAdviceContentChange={setAdviceContent}
             onSaveAdvice={handleSaveAdvice}
             onBackToAssessment={() => setViewMode('assessment')}
+            patientId={selectedPatientId}
+            onPolishAdvice={handlePolishAdvice}
+            isPolishing={isPolishingAdvice}
           />
         ) : (
           <AssessmentResultsPanel
