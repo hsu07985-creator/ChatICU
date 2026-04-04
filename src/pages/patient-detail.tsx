@@ -486,6 +486,8 @@ export function PatientDetailPage() {
   const [disclaimerCollapsed, setDisclaimerCollapsed] = useState(true);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
 
   // RAG 索引狀態
   const [ragStatus, setRagStatus] = useState<RAGStatus | null>(null);
@@ -1006,9 +1008,6 @@ export function PatientDetailPage() {
     }
   };
 
-  const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
-
   const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
     if (!confirm('確定要刪除此對話記錄嗎？')) return;
@@ -1215,19 +1214,6 @@ export function PatientDetailPage() {
       source,
     });
   };
-
-  // DEBUG: log all state types to find #310 cause
-  console.log('[DEBUG-310] State types:', {
-    expandedExplanations: typeof expandedExplanations, isArray: Array.isArray(expandedExplanations),
-    expandedReferences: typeof expandedReferences,
-    expandedDataQuality: typeof expandedDataQuality,
-    selectedSessionIds: typeof selectedSessionIds, isArr2: Array.isArray(selectedSessionIds),
-    chatSessions: typeof chatSessions, chatSessionsLen: chatSessions?.length,
-    chatMessages: typeof chatMessages,
-    patient: typeof patient, patientName: patient?.name,
-    vitalSigns: typeof vitalSigns,
-    labData: typeof labData,
-  });
 
   return (
     <div className="p-4 space-y-4">

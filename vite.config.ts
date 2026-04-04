@@ -56,7 +56,6 @@
       },
     },
     build: {
-      sourcemap: true,
       target: 'esnext',
       outDir: 'build',
       rollupOptions: {
