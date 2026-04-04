@@ -6,7 +6,7 @@ Create Date: 2026-04-04
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 from alembic import op
 import sqlalchemy as sa
@@ -157,7 +157,7 @@ def upgrade():
         sa.column("updated_at", sa.DateTime),
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     for t in SYSTEM_TEMPLATES:
         # Idempotent: skip if already exists
         exists = conn.execute(
