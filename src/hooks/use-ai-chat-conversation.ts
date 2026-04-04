@@ -129,9 +129,8 @@ export function useAiChatConversation(options: UseAiChatConversationOptions) {
               const last = next[lastIndex];
               if (last?.role !== 'assistant') return prev;
               next[lastIndex] = { ...last, content: mainContent };
-                return next;
-              });
-            }
+              return next;
+            });
             setThinkingStatus(null);
             resolve(streamResult);
           },

@@ -11,6 +11,7 @@ import {
   getChatSessions as fetchChatSessionsApi,
   getChatSession as fetchChatSessionApi,
   updateChatSessionTitle,
+  updateMessageFeedback,
   deleteChatSession,
   getRAGStatus,
   getAIReadiness,
@@ -77,7 +78,9 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronRight,
-  ArrowDown
+  ArrowDown,
+  ThumbsUp,
+  ThumbsDown
 } from 'lucide-react';
 import { LabDataDisplay } from '../components/lab-data-display';
 import chatBotAvatar from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
@@ -138,6 +141,7 @@ interface ChatSession {
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  messageId?: string;
   explanation?: string | null;
   timestamp?: string;
   references?: AiCitation[];
@@ -147,6 +151,7 @@ interface ChatMessage {
   degradedReason?: string | null;
   upstreamStatus?: string | null;
   dataFreshness?: DataFreshness | null;
+  feedback?: 'up' | 'down' | null;
 }
 
 interface MedicationGroups {
@@ -1105,6 +1110,7 @@ export function PatientDetailPage() {
       const assistantMsg: ChatMessage = {
         role: 'assistant',
         content: response.message.content,
+        messageId: response.message.id,
         explanation: response.message.explanation || null,
         references: response.message.citations || [],
         warnings: response.message.safetyWarnings || null,
@@ -1113,6 +1119,7 @@ export function PatientDetailPage() {
         degradedReason: response.message.degradedReason || null,
         upstreamStatus: response.message.upstreamStatus || null,
         dataFreshness: response.message.dataFreshness || null,
+        feedback: null,
         timestamp: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
       };
 
@@ -1166,6 +1173,98 @@ export function PatientDetailPage() {
           role: 'assistant',
           content: errorMessage
         },
+      ]);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleSetMessageFeedback = async (msgIndex: number, feedback: 'up' | 'down' | null) => {
+    const msg = chatMessages[msgIndex];
+    if (!msg || msg.role !== 'assistant' || !msg.messageId) return;
+
+    const newFeedback = msg.feedback === feedback ? null : feedback;
+    setChatMessages((prev) => {
+      const next = [...prev];
+      next[msgIndex] = { ...next[msgIndex], feedback: newFeedback };
+      return next;
+    });
+    try {
+      await updateMessageFeedback(msg.messageId, newFeedback);
+    } catch {
+      setChatMessages((prev) => {
+        const next = [...prev];
+        next[msgIndex] = { ...next[msgIndex], feedback: msg.feedback };
+        return next;
+      });
+      toast.error('回饋儲存失敗');
+    }
+  };
+
+  const handleRegenerateMessage = async (msgIndex: number) => {
+    if (isSending) return;
+    const assistantMsg = chatMessages[msgIndex];
+    if (!assistantMsg || assistantMsg.role !== 'assistant') return;
+
+    let userMsgIndex = msgIndex - 1;
+    while (userMsgIndex >= 0 && chatMessages[userMsgIndex].role !== 'user') {
+      userMsgIndex--;
+    }
+    if (userMsgIndex < 0) return;
+
+    const userMessage = chatMessages[userMsgIndex].content;
+    if (!id) return;
+
+    const messagesBeforeAssistant = chatMessages.slice(0, msgIndex);
+    setChatMessages([...messagesBeforeAssistant, { role: 'assistant', content: '' }]);
+    setIsSending(true);
+
+    try {
+      const response = await new Promise<ChatResponse>((resolve, reject) => {
+        let rawBuffer = '';
+        streamChatMessage({
+          message: userMessage,
+          patientId: id,
+          sessionId: selectedSession?.id,
+          onMessage: (chunk) => {
+            if (!chunk) return;
+            rawBuffer += chunk;
+            const mainContent = extractStreamMainContent(rawBuffer);
+            setChatMessages((prev) => {
+              const next = [...prev];
+              const lastIndex = next.length - 1;
+              const last = next[lastIndex];
+              if (last?.role !== 'assistant') return prev;
+              next[lastIndex] = { ...last, content: mainContent };
+              return next;
+            });
+          },
+          onComplete: (streamResult) => resolve(streamResult),
+          onError: (error) => reject(error),
+        });
+      });
+
+      const newAssistantMsg: ChatMessage = {
+        role: 'assistant',
+        content: response.message.content,
+        messageId: response.message.id,
+        explanation: response.message.explanation || null,
+        references: response.message.citations || [],
+        warnings: response.message.safetyWarnings || null,
+        requiresExpertReview: response.message.requiresExpertReview || false,
+        degraded: response.message.degraded || false,
+        degradedReason: response.message.degradedReason || null,
+        upstreamStatus: response.message.upstreamStatus || null,
+        dataFreshness: response.message.dataFreshness || null,
+        feedback: null,
+        timestamp: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      setChatMessages([...messagesBeforeAssistant, newAssistantMsg]);
+    } catch {
+      setChatMessages([
+        ...messagesBeforeAssistant,
+        { role: 'assistant', content: '重新生成失敗，請稍後再試。' },
       ]);
     } finally {
       setIsSending(false);
@@ -1671,6 +1770,32 @@ export function PatientDetailPage() {
                                         aria-label="複製回覆"
                                       >
                                         <Copy className="h-3 w-3" />
+                                      </button>
+                                      <button
+                                        onClick={() => void handleSetMessageFeedback(idx, 'up')}
+                                        className={`flex items-center gap-0.5 transition-colors ${
+                                          msg.feedback === 'up' ? 'text-green-600' : 'hover:text-[#4B5563]'
+                                        }`}
+                                        aria-label="讚"
+                                      >
+                                        <ThumbsUp className="h-3 w-3" />
+                                      </button>
+                                      <button
+                                        onClick={() => void handleSetMessageFeedback(idx, 'down')}
+                                        className={`flex items-center gap-0.5 transition-colors ${
+                                          msg.feedback === 'down' ? 'text-red-500' : 'hover:text-[#4B5563]'
+                                        }`}
+                                        aria-label="倒讚"
+                                      >
+                                        <ThumbsDown className="h-3 w-3" />
+                                      </button>
+                                      <button
+                                        onClick={() => void handleRegenerateMessage(idx)}
+                                        className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
+                                        aria-label="重新生成"
+                                        disabled={isSending}
+                                      >
+                                        <RefreshCw className={`h-3 w-3 ${isSending ? 'opacity-40' : ''}`} />
                                       </button>
                                     </div>
                                   )}
