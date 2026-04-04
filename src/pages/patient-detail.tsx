@@ -1006,7 +1006,7 @@ export function PatientDetailPage() {
   };
 
   const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set());
+  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
 
   const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
@@ -1026,17 +1026,17 @@ export function PatientDetailPage() {
   };
 
   const handleBatchDelete = async () => {
-    if (selectedSessionIds.size === 0) return;
-    if (!confirm(`確定要刪除所選的 ${selectedSessionIds.size} 筆對話記錄嗎？`)) return;
+    if (selectedSessionIds.length === 0) return;
+    if (!confirm(`確定要刪除所選的 ${selectedSessionIds.length} 筆對話記錄嗎？`)) return;
     try {
-      const ids = Array.from(selectedSessionIds);
+      const ids = [...selectedSessionIds];
       await Promise.all(ids.map(id => deleteChatSession(id)));
-      if (selectedSession && selectedSessionIds.has(selectedSession.id)) {
+      if (selectedSession && selectedSessionIds.includes(selectedSession.id)) {
         setSelectedSession(null);
         setChatMessages([]);
         setSessionTitle('');
       }
-      setSelectedSessionIds(new Set());
+      setSelectedSessionIds([]);
       setIsSelectMode(false);
       await refreshChatSessions();
       toast.success(`已刪除 ${ids.length} 筆對話記錄`);
@@ -1046,12 +1046,9 @@ export function PatientDetailPage() {
   };
 
   const toggleSessionSelection = (sessionId: string) => {
-    setSelectedSessionIds(prev => {
-      const next = new Set(prev);
-      if (next.has(sessionId)) next.delete(sessionId);
-      else next.add(sessionId);
-      return next;
-    });
+    setSelectedSessionIds(prev =>
+      prev.includes(sessionId) ? prev.filter(id => id !== sessionId) : [...prev, sessionId]
+    );
   };
 
   const handleSendMessage = async () => {
@@ -1314,7 +1311,7 @@ export function PatientDetailPage() {
                             className="h-6 px-2 text-xs"
                             onClick={() => {
                               setIsSelectMode(!isSelectMode);
-                              setSelectedSessionIds(new Set());
+                              setSelectedSessionIds([]);
                             }}
                           >
                             {isSelectMode ? '完成' : '管理'}
@@ -1343,24 +1340,24 @@ export function PatientDetailPage() {
                           variant="ghost"
                           className="h-6 px-2 text-xs"
                           onClick={() => {
-                            if (selectedSessionIds.size === chatSessions.length) {
-                              setSelectedSessionIds(new Set());
+                            if (selectedSessionIds.length === chatSessions.length) {
+                              setSelectedSessionIds([]);
                             } else {
-                              setSelectedSessionIds(new Set(chatSessions.map(s => s.id)));
+                              setSelectedSessionIds(chatSessions.map(s => s.id));
                             }
                           }}
                         >
-                          {selectedSessionIds.size === chatSessions.length ? '取消全選' : '全選'}
+                          {selectedSessionIds.length === chatSessions.length ? '取消全選' : '全選'}
                         </Button>
                         <Button
                           size="sm"
                           variant="destructive"
                           className="h-6 px-2 text-xs"
-                          disabled={selectedSessionIds.size === 0}
+                          disabled={selectedSessionIds.length === 0}
                           onClick={handleBatchDelete}
                         >
                           <Trash2 className="h-3 w-3 mr-1" />
-                          刪除 ({selectedSessionIds.size})
+                          刪除 ({selectedSessionIds.length})
                         </Button>
                       </div>
                     )}
@@ -1414,7 +1411,7 @@ export function PatientDetailPage() {
 	                                }
 	                              }}
 	                              className={`group w-full text-left px-2.5 py-2 rounded-lg border transition-all hover:bg-slate-50 ${
-	                                isSelectMode && selectedSessionIds.has(session.id)
+	                                isSelectMode && selectedSessionIds.includes(session.id)
 	                                  ? 'bg-red-50 border-red-200'
 	                                  : selectedSession?.id === session.id
 	                                    ? 'bg-slate-50 border-border'
@@ -1426,7 +1423,7 @@ export function PatientDetailPage() {
                                   <div className="flex items-center pt-0.5 shrink-0">
                                     <input
                                       type="checkbox"
-                                      checked={selectedSessionIds.has(session.id)}
+                                      checked={selectedSessionIds.includes(session.id)}
                                       onChange={() => toggleSessionSelection(session.id)}
                                       onClick={(e) => e.stopPropagation()}
                                       className="h-3.5 w-3.5 rounded border-gray-300 accent-red-500 cursor-pointer"
