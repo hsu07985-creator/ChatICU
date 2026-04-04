@@ -543,12 +543,17 @@ export async function polishClinicalText(data: {
   patientId: string;
   content: string;
   polishType: 'progress_note' | 'medication_advice' | 'nursing_record' | 'pharmacy_advice';
+  templateContent?: string;
 }): Promise<PolishResponse> {
-  const response = await apiClient.post<ApiResponse<PolishResponse>>('/api/v1/clinical/polish', {
+  const body: Record<string, string> = {
     patient_id: data.patientId,
     content: data.content,
     polish_type: data.polishType,
-  });
+  };
+  if (data.templateContent) {
+    body.template_content = data.templateContent;
+  }
+  const response = await apiClient.post<ApiResponse<PolishResponse>>('/api/v1/clinical/polish', body);
   return ensureData(response.data, 'API contract');
 }
 

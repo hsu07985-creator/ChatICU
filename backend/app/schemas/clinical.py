@@ -42,6 +42,7 @@ class PolishRequest(BaseModel):
         ...,
         pattern=r"^(progress_note|medication_advice|nursing_record|pharmacy_advice)$",
     )
+    template_content: Optional[str] = Field(None, max_length=5000)
 
 
 # ─── RAG ──────────────────────────────────────────────

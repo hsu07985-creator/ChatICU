@@ -477,15 +477,19 @@ async def polish_clinical_text(
     patient_data = await _get_patient_dict(req.patient_id, db)
     data_freshness = build_data_freshness(patient_data)
 
+    input_data = {
+        "patient": patient_data,
+        "draft_content": req.content,
+        "polish_type": req.polish_type,
+        "user_role": user.role,
+    }
+    if req.template_content:
+        input_data["template_format"] = req.template_content
+
     result = await asyncio.to_thread(
         call_llm,
         task="clinical_polish",
-        input_data={
-            "patient": patient_data,
-            "draft_content": req.content,
-            "polish_type": req.polish_type,
-            "user_role": user.role,
-        },
+        input_data=input_data,
     )
 
     if result.get("status") != "success":

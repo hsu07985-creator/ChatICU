@@ -213,10 +213,12 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
         'medication-advice': 'medication_advice',
         'nursing-record': 'nursing_record',
       };
+      const templateContent = selectedTemplate ? allTemplates[selectedTemplate] : undefined;
       const result = await polishClinicalText({
         patientId,
         content: inputContent,
         polishType: polishTypeMap[recordType],
+        templateContent,
       });
       setPolishedContent(result.polished);
     } catch {
@@ -363,9 +365,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                   <Label>選擇模板（可選）</Label>
                   <div className="flex items-center gap-2 mt-2">
                     <Select value={selectedTemplate} onValueChange={(value) => {
-                      if (inputContent.trim() && !confirm('目前已有輸入內容，選擇模板將會取代。確定要繼續嗎？')) return;
                       setSelectedTemplate(value);
-                      setInputContent(allTemplates[value] || '');
                     }}>
                       <SelectTrigger className="border-slate-300">
                         <SelectValue placeholder="請選擇記錄模板" />
@@ -437,6 +437,14 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* 模板預覽 */}
+                {selectedTemplate && allTemplates[selectedTemplate] && (
+                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-semibold text-slate-500 mb-1">AI 將依照此模板格式輸出：</p>
+                    <pre className="text-xs text-slate-600 whitespace-pre-wrap font-mono leading-relaxed">{allTemplates[selectedTemplate]}</pre>
                   </div>
                 )}
 
