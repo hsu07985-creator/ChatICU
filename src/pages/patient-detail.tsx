@@ -480,9 +480,9 @@ export function PatientDetailPage() {
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const [expandedExplanations, setExpandedExplanations] = useState<Set<number>>(new Set());
-  const [expandedReferences, setExpandedReferences] = useState<Set<number>>(new Set());
-  const [expandedDataQuality, setExpandedDataQuality] = useState<Set<number>>(new Set());
+  const [expandedExplanations, setExpandedExplanations] = useState<number[]>([]);
+  const [expandedReferences, setExpandedReferences] = useState<number[]>([]);
+  const [expandedDataQuality, setExpandedDataQuality] = useState<number[]>([]);
   const [disclaimerCollapsed, setDisclaimerCollapsed] = useState(true);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -1505,9 +1505,9 @@ export function PatientDetailPage() {
                         const references = msg.role === 'assistant' ? (msg.references || []) : [];
                         const freshnessHints = msg.role === 'assistant' ? getDisplayFreshnessHints(msg.dataFreshness) : [];
                         const hasDataQuality = msg.role === 'assistant' && (msg.degraded || freshnessHints.length > 0);
-                        const isDetailExpanded = expandedExplanations.has(idx);
-                        const isRefsExpanded = expandedReferences.has(idx);
-                        const isQualityExpanded = expandedDataQuality.has(idx);
+                        const isDetailExpanded = expandedExplanations.includes(idx);
+                        const isRefsExpanded = expandedReferences.includes(idx);
+                        const isQualityExpanded = expandedDataQuality.includes(idx);
                         const isFirstOfRound = idx > 0 && msg.role === 'user' && chatMessages[idx - 1].role === 'assistant';
                         return (
                           <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}${isFirstOfRound ? ' mt-3' : ''}`}>
@@ -1629,7 +1629,7 @@ export function PatientDetailPage() {
                                     <div className="flex items-center gap-2.5 mt-2 pt-1.5 border-t border-[#F0F0F0] text-xs text-[#9CA3AF]">
                                       {msg.explanation && msg.explanation.trim().length > 0 && (
                                         <button
-                                          onClick={() => setExpandedExplanations(prev => { const n = new Set(prev); isDetailExpanded ? n.delete(idx) : n.add(idx); return n; })}
+                                          onClick={() => setExpandedExplanations(prev => isDetailExpanded ? prev.filter(i => i !== idx) : [...prev, idx])}
                                           className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
                                           aria-label={isDetailExpanded ? '收合說明' : '展開說明'}
                                         >
@@ -1638,7 +1638,7 @@ export function PatientDetailPage() {
                                       )}
                                       {references.length > 0 && (
                                         <button
-                                          onClick={() => setExpandedReferences(prev => { const n = new Set(prev); isRefsExpanded ? n.delete(idx) : n.add(idx); return n; })}
+                                          onClick={() => setExpandedReferences(prev => isRefsExpanded ? prev.filter(i => i !== idx) : [...prev, idx])}
                                           className="flex items-center gap-0.5 hover:text-[#4B5563] cursor-pointer transition-colors"
                                           aria-label="參考依據"
                                         >
@@ -1648,7 +1648,7 @@ export function PatientDetailPage() {
                                       )}
                                       {hasDataQuality && (
                                         <button
-                                          onClick={() => setExpandedDataQuality(prev => { const n = new Set(prev); isQualityExpanded ? n.delete(idx) : n.add(idx); return n; })}
+                                          onClick={() => setExpandedDataQuality(prev => isQualityExpanded ? prev.filter(i => i !== idx) : [...prev, idx])}
                                           className="flex items-center gap-0.5 text-amber-500 hover:text-amber-700 transition-colors"
                                           aria-label="資料品質警告"
                                         >
