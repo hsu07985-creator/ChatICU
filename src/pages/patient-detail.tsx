@@ -1216,6 +1216,19 @@ export function PatientDetailPage() {
     });
   };
 
+  // DEBUG: log all state types to find #310 cause
+  console.log('[DEBUG-310] State types:', {
+    expandedExplanations: typeof expandedExplanations, isArray: Array.isArray(expandedExplanations),
+    expandedReferences: typeof expandedReferences,
+    expandedDataQuality: typeof expandedDataQuality,
+    selectedSessionIds: typeof selectedSessionIds, isArr2: Array.isArray(selectedSessionIds),
+    chatSessions: typeof chatSessions, chatSessionsLen: chatSessions?.length,
+    chatMessages: typeof chatMessages,
+    patient: typeof patient, patientName: patient?.name,
+    vitalSigns: typeof vitalSigns,
+    labData: typeof labData,
+  });
+
   return (
     <div className="p-4 space-y-4">
       {/* 頁首資訊條 */}
