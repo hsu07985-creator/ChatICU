@@ -122,6 +122,7 @@
     }
   ],
   "framework": "vite",
-  "buildCommand": "npm run build",
-  "outputDirectory": "build"
+  "buildCommand": "npx vite build --force",
+  "outputDirectory": "build",
+  "installCommand": "npm install"
 }
