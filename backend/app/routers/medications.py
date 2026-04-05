@@ -205,7 +205,7 @@ async def create_medication(
     patient_id: str,
     body: MedicationCreate,
     request: Request,
-    user: User = Depends(require_roles("doctor")),
+    user: User = Depends(require_roles("doctor", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
     pid = normalize_patient_id(patient_id)
@@ -245,7 +245,7 @@ async def update_medication(
     medication_id: str,
     body: MedicationUpdate,
     request: Request,
-    user: User = Depends(require_roles("doctor", "pharmacist")),
+    user: User = Depends(require_roles("doctor", "pharmacist", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
     pid = normalize_patient_id(patient_id)
