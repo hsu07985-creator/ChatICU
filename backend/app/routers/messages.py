@@ -116,11 +116,41 @@ async def get_preset_tags(
     patient_id: str,
     user: User = Depends(get_current_user),
 ):
+    """Return flat preset tag list (backward compatible: data is string[])."""
     tags = list(DEFAULT_PRESET_TAGS)
     if user.role in ("pharmacist", "admin"):
         tags.extend(PHARMACIST_CATEGORY_TAGS)
-        tags.extend(format_subcode_tag(code) for code in CODE_TO_SHORT_LABEL)
     return success_response(data=tags)
+
+
+@router.get("/pharmacy-tags")
+async def get_pharmacy_tags(
+    patient_id: str,
+    user: User = Depends(get_current_user),
+):
+    """Return grouped pharmacy subcode tags for dedicated pharmacy tag picker."""
+    if user.role not in ("pharmacist", "admin"):
+        return success_response(data=[])
+
+    categories = [
+        {
+            "category": "建議處方",
+            "tags": [format_subcode_tag(c) for c in CODE_TO_SHORT_LABEL if c.startswith("1-")],
+        },
+        {
+            "category": "主動建議",
+            "tags": [format_subcode_tag(c) for c in CODE_TO_SHORT_LABEL if c.startswith("2-")],
+        },
+        {
+            "category": "建議監測",
+            "tags": [format_subcode_tag(c) for c in CODE_TO_SHORT_LABEL if c.startswith("3-")],
+        },
+        {
+            "category": "用藥連貫性",
+            "tags": [format_subcode_tag(c) for c in CODE_TO_SHORT_LABEL if c.startswith("4-")],
+        },
+    ]
+    return success_response(data=categories)
 
 
 @router.get("")

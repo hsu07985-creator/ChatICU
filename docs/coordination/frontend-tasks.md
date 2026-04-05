@@ -105,6 +105,31 @@
 
 ### Pharmacy Tag & Advice Response Integration
 
+### F14 [READY] Add dedicated "藥事標籤" button with categorized picker
+- **Added by:** backend session
+- **Endpoint ready since:** 2026-04-06
+- **API contract:** `GET /patients/{id}/messages/pharmacy-tags`
+- **Date:** 2026-04-06
+- **Priority:** P0
+- **Files:** `src/components/patient/patient-messages-tab.tsx` (modify), `src/lib/api/messages.ts` (add new function), `src/pages/use-patient-detail-controller.ts` (fetch + pass prop)
+- **Description:**
+  - Add a new API client function `getPharmacyTags(patientId)` calling `GET /patients/{id}/messages/pharmacy-tags`
+  - Response format: `{ success: true, data: [{ category: "建議處方", tags: ["1-1 給藥問題", ...] }, ...] }`
+  - Only returned for pharmacist/admin roles (empty array for others)
+  - In the compose area, add a second button next to "標籤": a "藥事標籤" button (pharmacy icon)
+  - Clicking it opens a **categorized dropdown** with 4 collapsible sections (建議處方/主動建議/建議監測/用藥連貫性)
+  - Each section header is the category name, with subcodes listed underneath
+  - Clicking a subcode adds it as a tag (same as existing tag behavior)
+  - Selecting a subcode should auto-add the corresponding category tag too (e.g. clicking "1-1 給藥問題" also adds "建議處方")
+  - Also add this picker to the per-message tag edit dialog (existing "標籤" button on each message)
+  - The regular "標籤" button keeps showing 14 flat tags (unchanged, backward compat)
+  - Hide the "藥事標籤" button for doctor/nurse roles (they get empty array from API)
+- **UX notes:**
+  - Category section colors: 建議處方=brand, 主動建議=amber, 建議監測=dark, 用藥連貫性=blue
+  - Use `PHARMACY_ADVICE_CATEGORY_COLORS` from `src/lib/pharmacy-master-data.ts`
+  - Sections default to collapsed; clicking header toggles open/close
+  - Already-applied tags should show a checkmark and be non-clickable
+
 ### F11 [READY] Add "回覆並接受/拒絕建議" buttons to bulletin board reply UI
 - **Added by:** backend session
 - **Endpoint ready since:** 2026-04-06

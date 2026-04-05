@@ -56,6 +56,49 @@
 
 <!-- Backend: document new endpoints below with full request/response schemas -->
 
+### [READY] GET `/patients/{id}/messages/pharmacy-tags` — Grouped Pharmacy Tags
+
+> **Status:** Implemented 2026-04-06. For dedicated "藥事標籤" button.
+
+- **Auth:** any logged-in user (returns empty array for non-pharmacist/admin)
+
+**Response (pharmacist/admin):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "category": "建議處方",
+      "tags": ["1-1 給藥問題", "1-2 適應症問題", "1-3 用藥禁忌問題", "..."]
+    },
+    {
+      "category": "主動建議",
+      "tags": ["2-1 用藥劑量/頻次問題", "..."]
+    },
+    {
+      "category": "建議監測",
+      "tags": ["3-1 建議藥品療效監測", "3-2 建議藥品不良反應監測", "3-3 建議藥品血中濃度監測"]
+    },
+    {
+      "category": "用藥連貫性",
+      "tags": ["4-1 藥歷審核與整合", "4-2 藥品辨識/自備藥辨識", "4-3 病人用藥遵從性問題"]
+    }
+  ]
+}
+```
+
+**Response (doctor/nurse):**
+```json
+{ "success": true, "data": [] }
+```
+
+**Notes:**
+- Existing `GET /patients/{id}/messages/preset-tags` is unchanged (returns flat `string[]` of 14 tags)
+- This new endpoint provides the grouped structure for a dedicated pharmacy tag picker UI
+- 4 categories, 27 subcodes total (13+8+3+3)
+
+---
+
 ### [READY] POST `/api/v1/clinical/query` — Unified Clinical Query (B07)
 
 > **Status:** Implemented 2026-03-02. Backend endpoint ready for frontend integration.
