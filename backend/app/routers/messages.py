@@ -25,7 +25,7 @@ DEFAULT_PRESET_TAGS = [
 ]
 
 # Pharmacist category tags (match 4 major categories in pharmacy-master-data)
-PHARMACIST_PRESET_TAGS = ["建議處方", "主動建議", "建議監測", "用藥連貫性"]
+PHARMACIST_CATEGORY_TAGS = ["建議處方", "主動建議", "建議監測", "用藥連貫性"]
 
 # Map full category label → short tag name (used for auto-tagging)
 CATEGORY_TAG_MAP = {
@@ -118,7 +118,8 @@ async def get_preset_tags(
 ):
     tags = list(DEFAULT_PRESET_TAGS)
     if user.role in ("pharmacist", "admin"):
-        tags.extend(PHARMACIST_PRESET_TAGS)
+        tags.extend(PHARMACIST_CATEGORY_TAGS)
+        tags.extend(format_subcode_tag(code) for code in CODE_TO_SHORT_LABEL)
     return success_response(data=tags)
 
 
