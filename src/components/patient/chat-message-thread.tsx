@@ -1,7 +1,6 @@
 import type { RefObject } from 'react';
 import { toast } from 'sonner';
 import {
-  AlertCircle,
   ArrowDown,
   BookOpen,
   ChevronDown,
@@ -253,22 +252,6 @@ export function ChatMessageThread({
                             </div>
                           )}
 
-                          {isQualityExpanded && hasDataQuality && (
-                            <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 px-2.5 py-2 text-xs text-amber-700 flex items-start gap-1.5">
-                              <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                              <div className="space-y-0.5">
-                                {msg.degraded && (
-                                  <p>
-                                    系統狀態：
-                                    {formatAiDegradedReason(msg.degradedReason, msg.upstreamStatus)}
-                                  </p>
-                                )}
-                                {freshnessHints.length > 0 && (
-                                  <p>資料品質：{freshnessHints.join(' ')}</p>
-                                )}
-                              </div>
-                            </div>
-                          )}
                         </>
                       )}
 
@@ -301,15 +284,6 @@ export function ChatMessageThread({
                             >
                               <BookOpen className="h-3.5 w-3.5" />
                               {references.length}
-                            </button>
-                          )}
-                          {hasDataQuality && (
-                            <button
-                              onClick={() => onToggleDataQuality(idx)}
-                              className="flex items-center gap-0.5 text-amber-500 hover:text-amber-700 transition-colors"
-                              aria-label="資料品質警告"
-                            >
-                              <AlertCircle className="h-3.5 w-3.5" />
                             </button>
                           )}
                           {msg.timestamp && (
