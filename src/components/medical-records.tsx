@@ -366,6 +366,8 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                   <div className="flex items-center gap-2 mt-2">
                     <Select value={selectedTemplate} onValueChange={(value) => {
                       setSelectedTemplate(value);
+                      const tpl = { ...BUILTIN_TEMPLATES[recordType], ...serverTemplateMap }[value];
+                      if (tpl) setInputContent(tpl);
                     }}>
                       <SelectTrigger className="border-slate-300">
                         <SelectValue placeholder="請選擇記錄模板" />
@@ -437,14 +439,6 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                         </div>
                       </div>
                     )}
-                  </div>
-                )}
-
-                {/* 模板預覽 */}
-                {selectedTemplate && allTemplates[selectedTemplate] && (
-                  <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-semibold text-slate-500 mb-1">AI 將依照此模板格式輸出：</p>
-                    <pre className="text-xs text-slate-600 whitespace-pre-wrap font-mono leading-relaxed">{allTemplates[selectedTemplate]}</pre>
                   </div>
                 )}
 

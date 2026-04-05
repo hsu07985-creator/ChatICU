@@ -261,7 +261,7 @@ async def clinical_summary(
         raise HTTPException(status_code=503, detail=llm_unavailable_detail())
 
     raw_summary = result.get("summary", "")
-    guardrail = apply_safety_guardrail(raw_summary, user_role=user.role)
+    guardrail = apply_safety_guardrail(raw_summary, user_role=user.role, include_disclaimer=False)
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
@@ -300,7 +300,7 @@ async def patient_explanation(
         raise HTTPException(status_code=503, detail=llm_unavailable_detail())
 
     raw_explanation = result.get("explanation", "")
-    guardrail = apply_safety_guardrail(raw_explanation, user_role=user.role)
+    guardrail = apply_safety_guardrail(raw_explanation, user_role=user.role, include_disclaimer=False)
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
@@ -379,7 +379,7 @@ async def guideline_interpretation(
         raise HTTPException(status_code=503, detail=llm_unavailable_detail())
 
     raw_content = result.get("content", "")
-    guardrail = apply_safety_guardrail(raw_content, user_role=user.role)
+    guardrail = apply_safety_guardrail(raw_content, user_role=user.role, include_disclaimer=False)
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
@@ -441,7 +441,7 @@ async def multi_agent_decision(
         raise HTTPException(status_code=503, detail=llm_unavailable_detail())
 
     raw_content = result.get("content", "")
-    guardrail = apply_safety_guardrail(raw_content, user_role=user.role)
+    guardrail = apply_safety_guardrail(raw_content, user_role=user.role, include_disclaimer=False)
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
@@ -497,7 +497,7 @@ async def polish_clinical_text(
         raise HTTPException(status_code=503, detail=llm_unavailable_detail())
 
     raw_content = result.get("content", "")
-    guardrail = apply_safety_guardrail(raw_content, user_role=user.role)
+    guardrail = apply_safety_guardrail(raw_content, user_role=user.role, include_disclaimer=False)
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
