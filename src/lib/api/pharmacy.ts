@@ -378,7 +378,7 @@ export async function respondToAdvice(
   data: { accepted: boolean }
 ): Promise<PharmacyAdviceRecord> {
   const response = await apiClient.patch<ApiResponse<PharmacyAdviceRecord>>(
-    `/pharmacy/advice-records/${adviceRecordId}/respond`,
+    `/pharmacy/advice-records/${adviceRecordId}/response`,
     data
   );
   return ensureData(response.data, 'API contract');
