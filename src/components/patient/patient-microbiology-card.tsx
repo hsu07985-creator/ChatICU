@@ -8,9 +8,9 @@ import type { LucideIcon } from 'lucide-react';
 /* ── helpers ─────────────────────────────────────────────── */
 
 function resultColor(result: string) {
-  if (result === 'R') return 'bg-red-50 text-red-700 border-red-200';
-  if (result === 'I') return 'bg-amber-50 text-amber-700 border-amber-200';
-  if (result === 'S') return 'bg-slate-50 text-slate-500 border-slate-200';
+  if (result === 'R') return 'bg-red-100 text-red-800 border-red-300 font-bold';
+  if (result === 'I') return 'bg-amber-100 text-amber-800 border-amber-300 font-semibold';
+  if (result === 'S') return 'bg-green-50 text-green-700 border-green-200';
   return 'bg-slate-50 text-slate-400 border-slate-200';
 }
 
@@ -77,17 +77,17 @@ function buildOrganismSummaries(panels: CulturePanel[]): OrganismSummary[] {
 function OrganismBanner({ summaries, specimenCount }: { summaries: OrganismSummary[]; specimenCount: number }) {
   if (summaries.length === 0 || specimenCount < 2) return null;
   return (
-    <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 mb-2">
-      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Isolated Organisms</p>
-      <div className="flex flex-wrap gap-1.5">
+    <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 mb-3">
+      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Isolated Organisms</p>
+      <div className="flex flex-wrap gap-2">
         {summaries.map((s) => (
           <span
             key={s.organism}
-            className="inline-flex items-center gap-1.5 rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px]"
+            className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs shadow-sm"
           >
-            <span className="font-medium text-slate-700 italic">{s.organism}</span>
-            <span className="text-slate-400">{s.specimens.join(', ')}</span>
-            <span className="text-slate-300">{formatDate(s.latestDate)}</span>
+            <span className="font-semibold text-slate-800 italic">{s.organism}</span>
+            <span className="text-slate-500">{s.specimens.join(', ')}</span>
+            <span className="text-slate-400">{formatDate(s.latestDate)}</span>
           </span>
         ))}
       </div>
@@ -103,33 +103,33 @@ function SusceptibilityPills({ items }: { items: SusceptibilityResult[] }) {
 
   const riPills = sorted.filter((s) => s.result === 'R' || s.result === 'I');
   const sPills = sorted.filter((s) => s.result === 'S');
-  const shouldCollapse = sPills.length > 3;
+  const shouldCollapse = sPills.length > 4;
   const showAll = expanded || !shouldCollapse;
 
   return (
-    <div className="mt-1.5 flex flex-wrap gap-1">
+    <div className="mt-2 flex flex-wrap gap-1.5">
       {riPills.map((s, idx) => (
         <span
           key={`ri-${idx}`}
-          className={`inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[11px] font-medium leading-none ${resultColor(s.result)}`}
+          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs leading-none ${resultColor(s.result)}`}
         >
-          <span className="font-semibold">{s.result}</span>
+          <span>{s.result}</span>
           <span>{s.antibiotic}</span>
         </span>
       ))}
       {showAll && sPills.map((s, idx) => (
         <span
           key={`s-${idx}`}
-          className={`inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[11px] font-normal leading-none ${resultColor(s.result)}`}
+          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs leading-none ${resultColor(s.result)}`}
         >
-          <span className="font-semibold">{s.result}</span>
+          <span>{s.result}</span>
           <span>{s.antibiotic}</span>
         </span>
       ))}
       {shouldCollapse && !expanded && (
         <button
           type="button"
-          className="inline-flex items-center gap-0.5 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium leading-none text-slate-400 transition-colors hover:bg-slate-100"
+          className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium leading-none text-slate-500 transition-colors hover:bg-slate-100"
           onClick={() => setExpanded(true)}
         >
           +{sPills.length} S
@@ -138,7 +138,7 @@ function SusceptibilityPills({ items }: { items: SusceptibilityResult[] }) {
       {shouldCollapse && expanded && (
         <button
           type="button"
-          className="inline-flex items-center gap-0.5 rounded-full border border-slate-200 px-2 py-0.5 text-[11px] font-medium leading-none text-slate-400 transition-colors hover:bg-slate-100"
+          className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium leading-none text-slate-500 transition-colors hover:bg-slate-100"
           onClick={() => setExpanded(false)}
         >
           收合
@@ -197,21 +197,21 @@ function mergeConsecutiveCultures(panels: CulturePanel[]): MergedCulture[] {
 function MergedCultureRow({ merged }: { merged: MergedCulture }) {
   const hasResistance = merged.resistantCount > 0;
   const borderAccent = hasResistance
-    ? 'border-l-red-400 bg-red-50/20'
-    : 'border-l-slate-300 bg-white';
+    ? 'border-l-red-400 bg-red-50/30'
+    : 'border-l-emerald-400 bg-white';
 
   return (
     <div
-      className={`rounded-md border border-slate-200 border-l-[3px] ${borderAccent} px-3 py-2.5`}
+      className={`rounded-lg border border-slate-200 border-l-[3px] ${borderAccent} px-4 py-3`}
       title={merged.panels.map((p) => `${p.sheetNumber} · ${p.department || ''}`).join('\n')}
     >
-      <div className="flex items-baseline gap-2">
-        <span className="text-xs text-slate-500 font-medium tabular-nums shrink-0">
+      <div className="flex items-baseline gap-2.5">
+        <span className="text-xs text-slate-400 font-medium tabular-nums shrink-0">
           {merged.dates.map((d) => shortDate(d)).join(', ')}
         </span>
-        <div className="flex flex-wrap gap-x-1.5">
+        <div className="flex flex-wrap gap-x-2">
           {merged.organisms.map((org, idx) => (
-            <span key={idx} className="text-[13px] font-medium leading-snug text-slate-700 italic">
+            <span key={idx} className="text-sm font-semibold leading-snug text-slate-800 italic">
               {org}{idx < merged.organisms.length - 1 ? ',' : ''}
             </span>
           ))}
@@ -228,12 +228,12 @@ function NegativeRows({ panels }: { panels: CulturePanel[] }) {
   if (panels.length === 0) return null;
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       {panels.map((p, idx) => (
-        <div key={idx} className="rounded-md border border-slate-100 bg-slate-50/50 px-3 py-1.5 flex items-center gap-2">
+        <div key={idx} className="rounded-lg border border-green-100 bg-green-50/50 px-4 py-2 flex items-center gap-2.5">
           <span className="text-xs text-slate-500 font-medium tabular-nums">{shortDate(p.reportedAt)}</span>
-          <Check className="h-3 w-3 text-slate-400" />
-          <span className="text-xs text-slate-400">No growth</span>
+          <Check className="h-3.5 w-3.5 text-green-500" />
+          <span className="text-xs text-green-600 font-medium">No growth</span>
         </div>
       ))}
     </div>
@@ -244,7 +244,7 @@ function NegativeRows({ panels }: { panels: CulturePanel[] }) {
 
 function MicroSectionCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-md border border-slate-200 bg-white px-3 py-2.5 ${className}`}>
+    <div className={`rounded-lg border border-slate-200 bg-white px-4 py-3.5 shadow-sm ${className}`}>
       {children}
     </div>
   );
@@ -253,10 +253,10 @@ function MicroSectionCard({ children, className = '' }: { children: React.ReactN
 function SectionLabel({ label, count, hasPositive, Icon }: { label: string; count: number; hasPositive?: boolean; Icon: LucideIcon }) {
   const borderColor = hasPositive ? 'border-red-400' : 'border-slate-300';
   return (
-    <div className={`flex items-center gap-1.5 border-l-[3px] ${borderColor} pl-2 mb-2`}>
-      <Icon className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-      <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-600">{label}</h4>
-      <span className="text-[11px] text-slate-400">{count}</span>
+    <div className={`flex items-center gap-2 border-l-[3px] ${borderColor} pl-2.5 mb-3`}>
+      <Icon className="h-4 w-4 text-slate-500 shrink-0" />
+      <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-700">{label}</h4>
+      <span className="text-xs text-slate-400 font-medium">{count}</span>
     </div>
   );
 }
@@ -353,14 +353,14 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
   }
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       {/* Organism Summary Banner */}
       {cultures.length > 0 && (
         <OrganismBanner summaries={organismSummaries} specimenCount={positiveCategoryCount} />
       )}
 
       {/* 2x2 Grid: all 4 categories always shown */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {categoryGroups.map((group) => {
           const meta = CATEGORY_META[group.category];
           const total = group.positive.length + group.negative.length;
@@ -377,18 +377,18 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
               />
 
               {total === 0 ? (
-                <p className="text-xs text-slate-300 py-2 text-center">無培養資料</p>
+                <p className="text-sm text-slate-300 py-4 text-center">無培養資料</p>
               ) : (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {merged.map((m, mIdx) => (
                     <MergedCultureRow key={mIdx} merged={m} />
                   ))}
                   <NegativeRows panels={group.negative} />
 
                   {group.category === 'other' && total > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-0.5">
+                    <div className="flex flex-wrap gap-1.5 mt-1">
                       {[...new Set([...group.positive, ...group.negative].map((p) => p.specimen))].map((s) => (
-                        <span key={s} className="text-[10px] text-slate-400 bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5">{s}</span>
+                        <span key={s} className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-md px-2 py-0.5">{s}</span>
                       ))}
                     </div>
                   )}
