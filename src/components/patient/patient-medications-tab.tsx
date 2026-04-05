@@ -218,7 +218,7 @@ export function PatientMedicationsTab({
   onCloseScoreTrend,
   onRefreshMedications,
 }: PatientMedicationsTabProps) {
-  const [medView, setMedView] = useState<'active' | 'discontinued'>('active');
+  const [medView, setMedView] = useState<'active' | 'discontinued' | 'all'>('active');
   const [filterAbx, setFilterAbx] = useState(false);
   const [filterPrn, setFilterPrn] = useState(false);
   const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
@@ -249,11 +249,13 @@ export function PatientMedicationsTab({
     ...otherMedications.filter(isDiscontinued),
   ];
 
+  const allOtherMeds = [...activeOtherMeds, ...allDiscontinuedMeds];
   const activeCount = activeOtherMeds.length;
   const discontinuedCount = allDiscontinuedMeds.length;
+  const totalCount = allOtherMeds.length;
 
   // Current base list depends on view mode
-  const baseMeds = medView === 'active' ? activeOtherMeds : allDiscontinuedMeds;
+  const baseMeds = medView === 'active' ? activeOtherMeds : medView === 'discontinued' ? allDiscontinuedMeds : allOtherMeds;
   const prnCount = baseMeds.filter(isPrnOrStat).length;
   const abxCount = baseMeds.filter(isAntibiotic).length;
 
@@ -515,6 +517,14 @@ export function PatientMedicationsTab({
                   >
                     已停用 ({discontinuedCount})
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`h-7 px-3 text-xs rounded-md ${medView === 'all' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                    onClick={() => { setMedView('all'); setFilterAbx(false); setFilterPrn(false); }}
+                  >
+                    全部 ({totalCount})
+                  </Button>
                 </div>
                 {/* Sub-filters */}
                 {abxCount > 0 && (
@@ -545,7 +555,7 @@ export function PatientMedicationsTab({
               )}
               {displayedMeds.length === 0 ? (
                 <p className="py-3 text-sm text-muted-foreground">
-                  {filterAbx ? '無抗生素藥物' : filterPrn ? '無 PRN/STAT 藥物' : medView === 'discontinued' ? '無已停用藥物' : '無其他藥物'}
+                  {filterAbx ? '無抗生素藥物' : filterPrn ? '無 PRN/STAT 藥物' : medView === 'discontinued' ? '無已停用藥物' : medView === 'all' ? '無藥物' : '無其他藥物'}
                 </p>
               ) : (
                 <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
