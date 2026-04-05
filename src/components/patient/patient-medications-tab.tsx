@@ -218,10 +218,9 @@ export function PatientMedicationsTab({
   onCloseScoreTrend,
   onRefreshMedications,
 }: PatientMedicationsTabProps) {
-  const [hidePrn, setHidePrn] = useState(false);
-  const [showPrnOnly, setShowPrnOnly] = useState(false);
-  const [showAbxOnly, setShowAbxOnly] = useState(false);
-  const [showDiscontinued, setShowDiscontinued] = useState(false);
+  const [medView, setMedView] = useState<'active' | 'discontinued'>('active');
+  const [filterAbx, setFilterAbx] = useState(false);
+  const [filterPrn, setFilterPrn] = useState(false);
   const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
   const [editForm, setEditForm] = useState({
     dose: '',
@@ -249,11 +248,14 @@ export function PatientMedicationsTab({
     ...nmbMedications.filter(isDiscontinued),
     ...otherMedications.filter(isDiscontinued),
   ];
-  const discontinuedOtherMeds = allDiscontinuedMeds;
 
-  const prnCount = activeOtherMeds.filter(isPrnOrStat).length;
-  const abxCount = activeOtherMeds.filter(isAntibiotic).length;
-  const discontinuedCount = discontinuedOtherMeds.length;
+  const activeCount = activeOtherMeds.length;
+  const discontinuedCount = allDiscontinuedMeds.length;
+
+  // Current base list depends on view mode
+  const baseMeds = medView === 'active' ? activeOtherMeds : allDiscontinuedMeds;
+  const prnCount = baseMeds.filter(isPrnOrStat).length;
+  const abxCount = baseMeds.filter(isAntibiotic).length;
 
   // Sort: antibiotics first, then by name
   const sortOtherMeds = (meds: Medication[]) => [...meds].sort((a, b) => {
@@ -264,12 +266,10 @@ export function PatientMedicationsTab({
   });
 
   const applyFilters = (meds: Medication[]) => meds
-    .filter((m) => !hidePrn || !isPrnOrStat(m))
-    .filter((m) => !showPrnOnly || isPrnOrStat(m))
-    .filter((m) => !showAbxOnly || isAntibiotic(m));
+    .filter((m) => !filterPrn || isPrnOrStat(m))
+    .filter((m) => !filterAbx || isAntibiotic(m));
 
-  const displayedOtherMeds = applyFilters(sortOtherMeds(activeOtherMeds));
-  const displayedDiscontinuedMeds = showDiscontinued ? sortOtherMeds(discontinuedOtherMeds) : [];
+  const displayedMeds = applyFilters(sortOtherMeds(baseMeds));
   const canEditMedication = userRole === 'doctor' || userRole === 'pharmacist';
 
   const openMedicationEditor = (medication: Medication) => {
@@ -490,86 +490,110 @@ export function PatientMedicationsTab({
           </div>
 
           {/* Other Medications */}
-          <Card className="border-border">
-            <CardHeader className="pb-2">
+          <Card className={`border-border ${medView === 'discontinued' ? 'border-dashed' : ''}`}>
+            <CardHeader className="pb-2 space-y-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold leading-tight text-slate-800">其他藥物 Other Medications</CardTitle>
-                <div className="flex items-center gap-1.5 flex-wrap">
+              </div>
+              {/* Primary toggle: active vs discontinued */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="inline-flex rounded-lg border border-slate-200 p-0.5">
                   <Button
-                    variant={showAbxOnly ? 'default' : 'outline'}
+                    variant="ghost"
                     size="sm"
-                    disabled={abxCount === 0 && !showAbxOnly}
-                    className={`h-7 px-2 text-xs ${showAbxOnly ? 'bg-amber-600 hover:bg-amber-700 text-white' : abxCount > 0 ? 'border-amber-300 text-amber-700 hover:bg-amber-50' : 'border-gray-200 text-gray-400'}`}
-                    onClick={() => { setShowAbxOnly(!showAbxOnly); if (!showAbxOnly) setShowPrnOnly(false); }}
+                    className={`h-7 px-3 text-xs rounded-md ${medView === 'active' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                    onClick={() => { setMedView('active'); setFilterAbx(false); setFilterPrn(false); }}
                   >
-                    {showAbxOnly ? `全部藥物` : `抗生素 (${abxCount})`}
+                    使用中 ({activeCount})
                   </Button>
                   <Button
-                    variant={showPrnOnly ? 'default' : 'outline'}
+                    variant="ghost"
                     size="sm"
-                    disabled={prnCount === 0 && !showPrnOnly}
-                    className={`h-7 px-2 text-xs ${showPrnOnly ? 'bg-violet-600 hover:bg-violet-700 text-white' : prnCount > 0 ? 'border-violet-300 text-violet-700 hover:bg-violet-50' : 'border-gray-200 text-gray-400'}`}
-                    onClick={() => { setShowPrnOnly(!showPrnOnly); if (!showPrnOnly) { setShowAbxOnly(false); setHidePrn(false); } }}
+                    disabled={discontinuedCount === 0}
+                    className={`h-7 px-3 text-xs rounded-md ${medView === 'discontinued' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                    onClick={() => { setMedView('discontinued'); setFilterAbx(false); setFilterPrn(false); }}
                   >
-                    {showPrnOnly ? '全部藥物' : `僅 PRN/STAT (${prnCount})`}
-                  </Button>
-                  {prnCount > 0 && !showPrnOnly && (
-                    <Button
-                      variant={hidePrn ? 'outline' : 'ghost'}
-                      size="sm"
-                      className="h-7 px-2 text-xs"
-                      onClick={() => setHidePrn(!hidePrn)}
-                    >
-                      {hidePrn ? `顯示 PRN/STAT` : `隱藏 PRN/STAT`}
-                    </Button>
-                  )}
-                  <Button
-                    variant={showDiscontinued ? 'default' : 'outline'}
-                    size="sm"
-                    disabled={discontinuedCount === 0 && !showDiscontinued}
-                    className={`h-7 px-2 text-xs ${showDiscontinued ? 'bg-gray-600 hover:bg-gray-700 text-white' : discontinuedCount > 0 ? 'border-gray-300 text-gray-600 hover:bg-gray-50' : 'border-gray-200 text-gray-400'}`}
-                    onClick={() => setShowDiscontinued(!showDiscontinued)}
-                  >
-                    {showDiscontinued ? '隱藏已停用' : `已停用 (${discontinuedCount})`}
+                    已停用 ({discontinuedCount})
                   </Button>
                 </div>
+                {/* Sub-filters */}
+                {abxCount > 0 && (
+                  <Button
+                    variant={filterAbx ? 'default' : 'outline'}
+                    size="sm"
+                    className={`h-7 px-2 text-xs ${filterAbx ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'border-amber-300 text-amber-700 hover:bg-amber-50'}`}
+                    onClick={() => { setFilterAbx(!filterAbx); if (!filterAbx) setFilterPrn(false); }}
+                  >
+                    抗生素 ({abxCount})
+                  </Button>
+                )}
+                {prnCount > 0 && (
+                  <Button
+                    variant={filterPrn ? 'default' : 'outline'}
+                    size="sm"
+                    className={`h-7 px-2 text-xs ${filterPrn ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'border-violet-300 text-violet-700 hover:bg-violet-50'}`}
+                    onClick={() => { setFilterPrn(!filterPrn); if (!filterPrn) setFilterAbx(false); }}
+                  >
+                    PRN/STAT ({prnCount})
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              <p className="mb-2 text-xs font-medium text-muted-foreground">其他藥物清單</p>
-              {displayedOtherMeds.length === 0 ? (
+              {medView === 'discontinued' && (
+                <p className="mb-2 text-xs text-muted-foreground">本次住院期間曾使用，現已停用的藥品</p>
+              )}
+              {displayedMeds.length === 0 ? (
                 <p className="py-3 text-sm text-muted-foreground">
-                  {showPrnOnly ? '無 PRN/STAT 藥物' : hidePrn && activeOtherMeds.length > 0 ? `已隱藏 ${prnCount} 項 PRN/STAT 藥物` : showAbxOnly ? '無抗生素藥物' : '無其他藥物'}
+                  {filterAbx ? '無抗生素藥物' : filterPrn ? '無 PRN/STAT 藥物' : medView === 'discontinued' ? '無已停用藥物' : '無其他藥物'}
                 </p>
               ) : (
                 <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                  {displayedOtherMeds.map((medication) => {
+                  {displayedMeds.map((medication) => {
                     const category = MED_CATEGORY_LABELS[medication.category];
                     const abx = isAntibiotic(medication);
                     const prn = isPrnOrStat(medication);
                     const isStat = medication.frequency?.toUpperCase() === 'STAT';
+                    const discontinued = isDiscontinued(medication);
+                    const statusLabel = medication.status === 'completed' ? '療程完成' : medication.status === 'inactive' ? '未啟用' : '已停用';
                     return (
-                      <div key={medication.id} className={`rounded-md border px-3 py-2 ${abx ? 'bg-amber-50 border-amber-200' : 'bg-[rgba(196,196,196,0.15)]'}`}>
+                      <div
+                        key={medication.id}
+                        className={`rounded-md border px-3 py-2 ${
+                          discontinued
+                            ? 'border-dashed border-gray-300 bg-gray-50 opacity-75'
+                            : abx
+                              ? 'bg-amber-50 border-amber-200'
+                              : 'bg-[rgba(196,196,196,0.15)]'
+                        }`}
+                      >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-medium leading-tight">{formatDisplayValue(medication.name)}</p>
+                            <p className={`font-medium leading-tight ${discontinued ? 'text-gray-500 line-through' : ''}`}>
+                              {formatDisplayValue(medication.name)}
+                            </p>
+                            {discontinued && (
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-gray-200 text-gray-600">
+                                {statusLabel}
+                              </Badge>
+                            )}
                             {abx && (
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-amber-100 text-amber-800">
+                              <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 bg-amber-100 text-amber-800 ${discontinued ? 'opacity-60' : ''}`}>
                                 抗生素
                               </Badge>
                             )}
-                            {prn && (
+                            {prn && !discontinued && (
                               <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-violet-100 text-violet-800">
                                 {isStat ? 'STAT' : 'PRN'}
                               </Badge>
                             )}
                             {category && !abx && (
-                              <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 ${category.color}`}>
+                              <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 ${category.color} ${discontinued ? 'opacity-60' : ''}`}>
                                 {category.label}
                               </Badge>
                             )}
                           </div>
-                          {canEditMedication && patientId && (
+                          {!discontinued && canEditMedication && patientId && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -580,13 +604,16 @@ export function PatientMedicationsTab({
                             </Button>
                           )}
                         </div>
-                        <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className={`mt-1 flex items-center gap-2 text-sm ${discontinued ? 'text-gray-400' : 'text-muted-foreground'}`}>
                           <span>{formatMedicationRegimen(medication)}</span>
                           {medication.startDate && (
-                            <span className="text-xs text-muted-foreground/70">{formatMedDate(medication.startDate)}</span>
+                            <span className="text-xs">{formatMedDate(medication.startDate)}</span>
+                          )}
+                          {discontinued && medication.endDate && (
+                            <span className="text-xs">→ {formatMedDate(medication.endDate)}</span>
                           )}
                         </div>
-                        {formatMedicationConcentration(medication) && (
+                        {!discontinued && formatMedicationConcentration(medication) && (
                           <p className="mt-1 text-xs text-slate-500">濃度 {formatMedicationConcentration(medication)}</p>
                         )}
                       </div>
@@ -596,52 +623,6 @@ export function PatientMedicationsTab({
               )}
             </CardContent>
           </Card>
-
-          {/* Discontinued Medications */}
-          {showDiscontinued && displayedDiscontinuedMeds.length > 0 && (
-            <Card className="border-border border-dashed">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold leading-tight text-gray-500">
-                  已停用藥物 Discontinued ({discontinuedCount})
-                </CardTitle>
-                <CardDescription className="text-sm">本次住院期間曾使用，現已停用的藥品</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                  {displayedDiscontinuedMeds.map((medication) => {
-                    const category = MED_CATEGORY_LABELS[medication.category];
-                    const statusLabel = medication.status === 'completed' ? '療程完成' : medication.status === 'inactive' ? '未啟用' : '已停用';
-                    return (
-                      <div key={medication.id} className="rounded-md border border-dashed border-gray-300 bg-gray-50 px-3 py-2 opacity-75">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-medium leading-tight text-gray-500 line-through">{formatDisplayValue(medication.name)}</p>
-                            <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-gray-200 text-gray-600">
-                              {statusLabel}
-                            </Badge>
-                            {category && (
-                              <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 ${category.color} opacity-60`}>
-                                {category.label}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <div className="mt-1 flex items-center gap-2 text-sm text-gray-400">
-                          <span>{formatMedicationRegimen(medication)}</span>
-                          {medication.startDate && (
-                            <span className="text-xs">{formatMedDate(medication.startDate)}</span>
-                          )}
-                          {medication.endDate && (
-                            <span className="text-xs">→ {formatMedDate(medication.endDate)}</span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Score Trend Chart Dialog */}
           <ScoreTrendChart
