@@ -185,7 +185,7 @@ export function LoginPage() {
                 onClick={async () => {
                   setError('');
                   setLoading(true);
-                  const result = await login('admin', 'Admin2026Test9');
+                  const result = await login('admin', 'ChatICU@2026!Secure');
                   if (result.success) {
                     navigate('/dashboard');
                   } else {
