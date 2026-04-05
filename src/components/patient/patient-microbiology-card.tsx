@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bug, Calendar, Check, Wind, Droplets, FlaskConical, FileText } from 'lucide-react';
+import { Check, Wind, Droplets, FlaskConical, FileText } from 'lucide-react';
 import { getCultureSusceptibility } from '../../lib/api/microbiology';
 import type { CulturePanel, CultureSusceptibilityData, SusceptibilityResult } from '../../lib/api/microbiology';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { LoadingSpinner } from '../ui/state-display';
 import type { LucideIcon } from 'lucide-react';
 
@@ -338,134 +337,67 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
   const cultures = data?.cultures ?? [];
   const organismSummaries = useMemo(() => buildOrganismSummaries(cultures), [cultures]);
   const categoryGroups = useMemo(() => groupByCategory(cultures), [cultures]);
-  const positiveCount = cultures.filter(isPositiveCulture).length;
-  const negativeCount = cultures.length - positiveCount;
-  const latestDate = cultures.length > 0 ? cultures[0]?.reportedAt : null;
 
   const positiveCategoryCount = categoryGroups.filter((g) => g.positive.length > 0).length;
-  const activeGroups = categoryGroups.filter((g) => g.positive.length + g.negative.length > 0);
-  const emptyGroups = categoryGroups.filter((g) => g.positive.length + g.negative.length === 0);
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader className="min-h-14 bg-slate-50 border-b py-3">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <Bug className="h-5 w-5 text-brand" />
-            Microbiology
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <div className="flex items-center justify-center py-8">
-            <LoadingSpinner size="md" text="Loading..." />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center py-8">
+        <LoadingSpinner size="md" text="Loading..." />
+      </div>
     );
   }
 
   if (error) {
-    return (
-      <Card>
-        <CardHeader className="min-h-14 bg-slate-50 border-b py-3">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <Bug className="h-5 w-5 text-brand" />
-            Microbiology
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <p className="text-sm text-red-600">{error}</p>
-        </CardContent>
-      </Card>
-    );
+    return <p className="text-sm text-red-600 py-4">{error}</p>;
   }
 
   return (
-    <Card>
-      <CardHeader className="bg-slate-50 border-b py-2.5">
-        <CardTitle className="flex items-center gap-2 text-base font-semibold">
-          <Bug className="h-5 w-5 text-brand" />
-          Microbiology
-        </CardTitle>
-        <CardDescription className="mt-0.5 text-sm flex items-center gap-1">
-          <Calendar className="h-3.5 w-3.5" />
-          {latestDate ? `Latest: ${formatDate(latestDate)}` : 'No data'}
-          {cultures.length > 0 && (
-            <span className="ml-2">
-              {positiveCount > 0 && (
-                <span className="text-red-600 font-medium">{positiveCount} positive</span>
-              )}
-              {positiveCount > 0 && negativeCount > 0 && <span className="text-slate-300">, </span>}
-              {negativeCount > 0 && (
-                <span className="text-slate-400">{negativeCount} negative</span>
-              )}
-            </span>
-          )}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pt-2 space-y-2.5">
-        {cultures.length === 0 ? (
-          <p className="text-sm text-slate-400 py-4 text-center">No culture data</p>
-        ) : (
-          <>
-            {/* Organism Summary Banner */}
-            <OrganismBanner summaries={organismSummaries} specimenCount={positiveCategoryCount} />
+    <div className="space-y-2.5">
+      {/* Organism Summary Banner */}
+      {cultures.length > 0 && (
+        <OrganismBanner summaries={organismSummaries} specimenCount={positiveCategoryCount} />
+      )}
 
-            {/* Active categories grid */}
-            <div className={`grid grid-cols-1 ${activeGroups.length > 1 ? 'md:grid-cols-2' : ''} gap-2.5`}>
-              {activeGroups.map((group, idx) => {
-                const meta = CATEGORY_META[group.category];
-                const total = group.positive.length + group.negative.length;
-                const hasPositive = group.positive.length > 0;
-                const merged = hasPositive ? mergeConsecutiveCultures(group.positive) : [];
-                const isLastOdd = activeGroups.length > 1 && idx === activeGroups.length - 1 && activeGroups.length % 2 === 1;
+      {/* 2x2 Grid: all 4 categories always shown */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+        {categoryGroups.map((group) => {
+          const meta = CATEGORY_META[group.category];
+          const total = group.positive.length + group.negative.length;
+          const hasPositive = group.positive.length > 0;
+          const merged = hasPositive ? mergeConsecutiveCultures(group.positive) : [];
 
-                return (
-                  <MicroSectionCard key={group.category} className={isLastOdd ? 'md:col-span-2' : ''}>
-                    <SectionLabel
-                      label={meta.label}
-                      count={total}
-                      hasPositive={hasPositive}
-                      Icon={meta.Icon}
-                    />
+          return (
+            <MicroSectionCard key={group.category}>
+              <SectionLabel
+                label={meta.label}
+                count={total}
+                hasPositive={hasPositive}
+                Icon={meta.Icon}
+              />
 
-                    <div className="space-y-1.5">
-                      {merged.map((m, mIdx) => (
-                        <MergedCultureRow key={mIdx} merged={m} />
+              {total === 0 ? (
+                <p className="text-xs text-slate-300 py-2 text-center">無培養資料</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {merged.map((m, mIdx) => (
+                    <MergedCultureRow key={mIdx} merged={m} />
+                  ))}
+                  <NegativeRows panels={group.negative} />
+
+                  {group.category === 'other' && total > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      {[...new Set([...group.positive, ...group.negative].map((p) => p.specimen))].map((s) => (
+                        <span key={s} className="text-[10px] text-slate-400 bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5">{s}</span>
                       ))}
-                      <NegativeRows panels={group.negative} />
-
-                      {group.category === 'other' && total > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-0.5">
-                          {[...new Set([...group.positive, ...group.negative].map((p) => p.specimen))].map((s) => (
-                            <span key={s} className="text-[10px] text-slate-400 bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5">{s}</span>
-                          ))}
-                        </div>
-                      )}
                     </div>
-                  </MicroSectionCard>
-                );
-              })}
-            </div>
-
-            {/* Empty categories — compact inline */}
-            {emptyGroups.length > 0 && (
-              <div className="flex items-center gap-2 px-1 pt-0.5">
-                <span className="text-[11px] text-slate-300">無資料：</span>
-                {emptyGroups.map((g) => {
-                  const meta = CATEGORY_META[g.category];
-                  return (
-                    <span key={g.category} className="inline-flex items-center gap-1 text-[11px] text-slate-300">
-                      <meta.Icon className="h-3 w-3" />
-                      {meta.label}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
+                  )}
+                </div>
+              )}
+            </MicroSectionCard>
+          );
+        })}
+      </div>
+    </div>
   );
 }
