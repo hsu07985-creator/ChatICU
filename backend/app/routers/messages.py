@@ -24,8 +24,25 @@ DEFAULT_PRESET_TAGS = [
     "檢驗相關", "會診", "交班", "護理紀錄", "家屬溝通",
 ]
 
+# Pharmacist category tags (match 4 major categories in pharmacy-master-data)
+PHARMACIST_PRESET_TAGS = ["建議處方", "主動建議", "建議監測", "用藥連貫性"]
 
-def msg_to_dict(msg: PatientMessage, replies: list = None, advice_accepted: object = _UNSET) -> dict:
+# Map full category label → short tag name (used for auto-tagging)
+CATEGORY_TAG_MAP = {
+    "1. 建議處方": "建議處方",
+    "2. 主動建議": "主動建議",
+    "3. 建議監測": "建議監測",
+    "4. 用藥連貫性": "用藥連貫性",
+    "4. 用藥適從性": "用藥連貫性",  # legacy alias
+}
+
+
+def msg_to_dict(
+    msg: PatientMessage,
+    replies: list = None,
+    advice_accepted: object = _UNSET,
+    advice_responded_by: object = _UNSET,
+) -> dict:
     d = {
         "id": msg.id,
         "patientId": msg.patient_id,
@@ -47,6 +64,8 @@ def msg_to_dict(msg: PatientMessage, replies: list = None, advice_accepted: obje
     }
     if advice_accepted is not _UNSET:
         d["adviceAccepted"] = advice_accepted
+    if advice_responded_by is not _UNSET:
+        d["adviceRespondedBy"] = advice_responded_by
     if replies is not None:
         d["replies"] = replies
     return d
@@ -57,7 +76,10 @@ async def get_preset_tags(
     patient_id: str,
     user: User = Depends(get_current_user),
 ):
-    return success_response(data=DEFAULT_PRESET_TAGS)
+    tags = list(DEFAULT_PRESET_TAGS)
+    if user.role in ("pharmacist", "admin"):
+        tags.extend(PHARMACIST_PRESET_TAGS)
+    return success_response(data=tags)
 
 
 @router.get("")
@@ -100,23 +122,26 @@ async def list_messages(
         for reply in replies_result.scalars().all():
             replies_map.setdefault(reply.reply_to_id, []).append(msg_to_dict(reply))
 
-    # Batch-lookup adviceAccepted for messages linked to pharmacy advices
+    # Batch-lookup adviceAccepted + respondedBy for messages linked to pharmacy advices
     advice_ids = [m.advice_record_id for m in top_messages if m.advice_record_id]
     accepted_map: dict = {}
+    responded_by_map: dict = {}
     if advice_ids:
         from app.models.pharmacy_advice import PharmacyAdvice
         adv_result = await db.execute(
-            select(PharmacyAdvice.id, PharmacyAdvice.accepted)
+            select(PharmacyAdvice.id, PharmacyAdvice.accepted, PharmacyAdvice.responded_by_name)
             .where(PharmacyAdvice.id.in_(advice_ids))
         )
-        for adv_id, adv_accepted in adv_result.all():
+        for adv_id, adv_accepted, adv_responded_by in adv_result.all():
             accepted_map[adv_id] = adv_accepted
+            responded_by_map[adv_id] = adv_responded_by
 
     messages = [
         msg_to_dict(
             m,
             replies=replies_map.get(m.id, []),
             advice_accepted=accepted_map.get(m.advice_record_id, _UNSET),
+            advice_responded_by=responded_by_map.get(m.advice_record_id, _UNSET),
         )
         for m in top_messages
     ]
