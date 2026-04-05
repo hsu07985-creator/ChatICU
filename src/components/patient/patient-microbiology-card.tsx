@@ -277,6 +277,8 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
 
   const cultures = data?.cultures ?? [];
   const categoryGroups = useMemo(() => groupByCategory(cultures), [cultures]);
+  const [onlyPositive, setOnlyPositive] = useState(false);
+  const [onlyResistant, setOnlyResistant] = useState(false);
 
   if (loading) {
     return (
@@ -292,13 +294,48 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
 
   return (
     <div className="space-y-3">
+      {/* 篩選按鈕 */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white/80 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+              onlyPositive
+                ? 'border-brand bg-brand text-white'
+                : 'border-slate-300 bg-white text-slate-700 hover:border-brand/40'
+            }`}
+            aria-pressed={onlyPositive}
+            onClick={() => setOnlyPositive((prev) => !prev)}
+          >
+            只看陽性
+          </button>
+          <button
+            type="button"
+            className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+              onlyResistant
+                ? 'border-brand bg-brand text-white'
+                : 'border-slate-300 bg-white text-slate-700 hover:border-brand/40'
+            }`}
+            aria-pressed={onlyResistant}
+            onClick={() => setOnlyResistant((prev) => !prev)}
+          >
+            只看抗藥
+          </button>
+        </div>
+        <span className="text-xs text-slate-500">高效率篩選</span>
+      </div>
+
       {/* 2x2 Grid: all 4 categories always shown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {categoryGroups.map((group) => {
           const meta = CATEGORY_META[group.category];
-          const total = group.positive.length + group.negative.length;
-          const hasPositive = group.positive.length > 0;
-          const merged = hasPositive ? mergeConsecutiveCultures(group.positive) : [];
+          const showNegative = !onlyPositive && !onlyResistant;
+          const filteredPositive = onlyResistant
+            ? group.positive.filter((p) => p.susceptibility.some((s) => s.result === 'R' || s.result === 'I'))
+            : group.positive;
+          const hasPositive = filteredPositive.length > 0;
+          const merged = hasPositive ? mergeConsecutiveCultures(filteredPositive) : [];
+          const total = filteredPositive.length + (showNegative ? group.negative.length : 0);
 
           return (
             <MicroSectionCard key={group.category}>
@@ -310,17 +347,19 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
               />
 
               {total === 0 ? (
-                <p className="text-sm text-slate-300 py-4 text-center">無培養資料</p>
+                <p className="text-sm text-slate-300 py-4 text-center">
+                  {(onlyPositive || onlyResistant) ? '篩選條件下無結果' : '無培養資料'}
+                </p>
               ) : (
                 <div className="space-y-2">
                   {merged.map((m, mIdx) => (
                     <MergedCultureRow key={mIdx} merged={m} />
                   ))}
-                  <NegativeRows panels={group.negative} />
+                  {showNegative && <NegativeRows panels={group.negative} />}
 
                   {group.category === 'other' && total > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-1">
-                      {[...new Set([...group.positive, ...group.negative].map((p) => p.specimen))].map((s) => (
+                      {[...new Set([...filteredPositive, ...(showNegative ? group.negative : [])].map((p) => p.specimen))].map((s) => (
                         <span key={s} className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-md px-2 py-0.5">{s}</span>
                       ))}
                     </div>

@@ -1,5 +1,5 @@
 import { Activity, Bug, Stethoscope, TestTube, Wind } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { LabData, WeaningAssessment } from '../../lib/api';
 import { LabDataDisplay } from '../lab-data-display';
@@ -100,6 +100,44 @@ export function PatientLabsTab({
     ? Math.round((systolicBP + 2 * diastolicBP) / 3)
     : null;
   const hasAnyVitalSign = [temperature, heartRate, respiratoryRate, systolicBP, diastolicBP, spo2, cvp, icp].some(isFiniteNumber);
+  const [monitorOnlyAbnormal, setMonitorOnlyAbnormal] = useState(false);
+  const [monitorHideMissing, setMonitorHideMissing] = useState(false);
+
+  interface VitalItem {
+    label: string; value: number | null | undefined; unit: string;
+    isAbnormal: boolean; abnormalDirection: 'high' | 'low' | 'normal';
+    clickName: string; source: TrendSource; timestamp: string | undefined;
+  }
+
+  const vitalItems: VitalItem[] = useMemo(() => [
+    { label: 'Temp', value: temperature, unit: '°C', isAbnormal: isFiniteNumber(temperature) && (temperature > 37.5 || temperature < 36), abnormalDirection: vitalDirection(temperature, 36, 37.5), clickName: 'Temperature', source: 'vital' as TrendSource, timestamp: vitalSignsTimestamp || undefined },
+    { label: 'HR', value: heartRate, unit: 'bpm', isAbnormal: isFiniteNumber(heartRate) && (heartRate > 100 || heartRate < 60), abnormalDirection: vitalDirection(heartRate, 60, 100), clickName: 'HeartRate', source: 'vital', timestamp: vitalSignsTimestamp || undefined },
+    { label: 'RR', value: respiratoryRate, unit: 'rpm', isAbnormal: isFiniteNumber(respiratoryRate) && (respiratoryRate > 25 || respiratoryRate < 12), abnormalDirection: vitalDirection(respiratoryRate, 12, 25), clickName: 'RespiratoryRate', source: 'vital', timestamp: vitalSignsTimestamp || undefined },
+    { label: 'SBP', value: systolicBP, unit: 'mmHg', isAbnormal: isFiniteNumber(systolicBP) && (systolicBP > 140 || systolicBP < 90), abnormalDirection: vitalDirection(systolicBP, 90, 140), clickName: 'BloodPressureSystolic', source: 'vital', timestamp: vitalSignsTimestamp || undefined },
+    { label: 'DBP', value: diastolicBP, unit: 'mmHg', isAbnormal: isFiniteNumber(diastolicBP) && (diastolicBP > 90 || diastolicBP < 60), abnormalDirection: vitalDirection(diastolicBP, 60, 90), clickName: 'BloodPressureDiastolic', source: 'vital', timestamp: vitalSignsTimestamp || undefined },
+    { label: 'MAP', value: map, unit: 'mmHg', isAbnormal: isFiniteNumber(map) && (map > 110 || map < 65), abnormalDirection: vitalDirection(map, 65, 110), clickName: 'MAP', source: 'vital', timestamp: vitalSignsTimestamp || undefined },
+    { label: 'SpO₂', value: spo2, unit: '%', isAbnormal: isFiniteNumber(spo2) && spo2 < 94, abnormalDirection: vitalDirection(spo2, 94, Infinity), clickName: 'SpO2', source: 'vital', timestamp: vitalSignsTimestamp || undefined },
+    { label: 'CVP', value: cvp, unit: 'mmHg', isAbnormal: isFiniteNumber(cvp) && (cvp > 12 || cvp < 2), abnormalDirection: vitalDirection(cvp, 2, 12), clickName: 'CVP', source: 'vital', timestamp: vitalSignsTimestamp || undefined },
+    { label: 'ICP', value: icp, unit: 'mmHg', isAbnormal: isFiniteNumber(icp) && icp > 20, abnormalDirection: vitalDirection(icp, -Infinity, 20), clickName: 'ICP', source: 'vital', timestamp: vitalSignsTimestamp || undefined },
+  ], [temperature, heartRate, respiratoryRate, systolicBP, diastolicBP, map, spo2, cvp, icp, vitalSignsTimestamp]);
+
+  const ventItems: VitalItem[] = useMemo(() => [
+    { label: 'FiO₂', value: ventFiO2, unit: '%', isAbnormal: isFiniteNumber(ventFiO2) && ventFiO2 > 60, abnormalDirection: vitalDirection(ventFiO2, -Infinity, 60), clickName: 'FiO2', source: 'ventilator' as TrendSource, timestamp: ventTimestamp || undefined },
+    { label: 'PEEP', value: ventPeep, unit: 'cmH₂O', isAbnormal: isFiniteNumber(ventPeep) && ventPeep > 12, abnormalDirection: vitalDirection(ventPeep, -Infinity, 12), clickName: 'PEEP', source: 'ventilator', timestamp: ventTimestamp || undefined },
+    { label: 'Vt', value: ventTidalVolume, unit: 'mL', isAbnormal: isFiniteNumber(ventTidalVolume) && ventTidalVolume > 500, abnormalDirection: vitalDirection(ventTidalVolume, -Infinity, 500), clickName: 'TidalVolume', source: 'ventilator', timestamp: ventTimestamp || undefined },
+    { label: 'RR set', value: ventRespRate, unit: '/min', isAbnormal: false, abnormalDirection: 'normal' as const, clickName: 'VentRR', source: 'ventilator', timestamp: ventTimestamp || undefined },
+    { label: 'PIP', value: ventPip, unit: 'cmH₂O', isAbnormal: isFiniteNumber(ventPip) && ventPip > 30, abnormalDirection: vitalDirection(ventPip, -Infinity, 30), clickName: 'PIP', source: 'ventilator', timestamp: ventTimestamp || undefined },
+    { label: 'Pplat', value: ventPlateau, unit: 'cmH₂O', isAbnormal: isFiniteNumber(ventPlateau) && ventPlateau > 30, abnormalDirection: vitalDirection(ventPlateau, -Infinity, 30), clickName: 'Plateau', source: 'ventilator', timestamp: ventTimestamp || undefined },
+    { label: 'Cstat', value: ventCompliance, unit: 'mL/cmH₂O', isAbnormal: isFiniteNumber(ventCompliance) && ventCompliance < 30, abnormalDirection: vitalDirection(ventCompliance, 30, Infinity), clickName: 'Compliance', source: 'ventilator', timestamp: ventTimestamp || undefined },
+  ], [ventFiO2, ventPeep, ventTidalVolume, ventRespRate, ventPip, ventPlateau, ventCompliance, ventTimestamp]);
+
+  function filterItems(items: VitalItem[]): VitalItem[] {
+    return items.filter((item) => {
+      if (monitorHideMissing && !isFiniteNumber(item.value)) return false;
+      if (monitorOnlyAbnormal && !item.isAbnormal) return false;
+      return true;
+    });
+  }
   const setActiveSection = useCallback((section: 'lab-data' | 'microbiology') => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
@@ -159,6 +197,37 @@ export function PatientLabsTab({
         </div>
       </div>
 
+      {/* 篩選按鈕（生命徵象 & 呼吸器共用） */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white/80 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+              monitorOnlyAbnormal
+                ? 'border-brand bg-brand text-white'
+                : 'border-slate-300 bg-white text-slate-700 hover:border-brand/40'
+            }`}
+            aria-pressed={monitorOnlyAbnormal}
+            onClick={() => setMonitorOnlyAbnormal((prev) => !prev)}
+          >
+            只看異常
+          </button>
+          <button
+            type="button"
+            className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+              monitorHideMissing
+                ? 'border-brand bg-brand text-white'
+                : 'border-slate-300 bg-white text-slate-700 hover:border-brand/40'
+            }`}
+            aria-pressed={monitorHideMissing}
+            onClick={() => setMonitorHideMissing((prev) => !prev)}
+          >
+            隱藏無資料
+          </button>
+        </div>
+        <span className="text-xs text-slate-500">高效率篩選</span>
+      </div>
+
       {/* 生命徵象 / 呼吸器 內容 */}
       {activeMonitor === 'vital-signs' ? (
         vitalSignsLoading ? (
@@ -167,89 +236,24 @@ export function PatientLabsTab({
           </div>
         ) : !hasAnyVitalSign ? (
           <p className="py-2 text-center text-sm text-slate-400">尚無生命徵象資料</p>
+        ) : filterItems(vitalItems).length === 0 ? (
+          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">
+            目前篩選條件下沒有可顯示的項目
+          </div>
         ) : (
           <div className="grid" style={metricGridStyle}>
-            <VitalSignCard
-              label="Temp"
-              value={temperature}
-              unit="°C"
-              isAbnormal={isFiniteNumber(temperature) && (temperature > 37.5 || temperature < 36)}
-              abnormalDirection={vitalDirection(temperature, 36, 37.5)}
-              onClick={isFiniteNumber(temperature) ? () => onVitalSignClick('Temperature', temperature, '°C', 'vital') : undefined}
-              timestamp={vitalSignsTimestamp || undefined}
-            />
-            <VitalSignCard
-              label="HR"
-              value={heartRate}
-              unit="bpm"
-              isAbnormal={isFiniteNumber(heartRate) && (heartRate > 100 || heartRate < 60)}
-              abnormalDirection={vitalDirection(heartRate, 60, 100)}
-              onClick={isFiniteNumber(heartRate) ? () => onVitalSignClick('HeartRate', heartRate, 'bpm', 'vital') : undefined}
-              timestamp={vitalSignsTimestamp || undefined}
-            />
-            <VitalSignCard
-              label="RR"
-              value={respiratoryRate}
-              unit="rpm"
-              isAbnormal={isFiniteNumber(respiratoryRate) && (respiratoryRate > 25 || respiratoryRate < 12)}
-              abnormalDirection={vitalDirection(respiratoryRate, 12, 25)}
-              onClick={isFiniteNumber(respiratoryRate) ? () => onVitalSignClick('RespiratoryRate', respiratoryRate, 'rpm', 'vital') : undefined}
-              timestamp={vitalSignsTimestamp || undefined}
-            />
-            <VitalSignCard
-              label="SBP"
-              value={systolicBP}
-              unit="mmHg"
-              isAbnormal={isFiniteNumber(systolicBP) && (systolicBP > 140 || systolicBP < 90)}
-              abnormalDirection={vitalDirection(systolicBP, 90, 140)}
-              onClick={isFiniteNumber(systolicBP) ? () => onVitalSignClick('BloodPressureSystolic', systolicBP, 'mmHg', 'vital') : undefined}
-              timestamp={vitalSignsTimestamp || undefined}
-            />
-            <VitalSignCard
-              label="DBP"
-              value={diastolicBP}
-              unit="mmHg"
-              isAbnormal={isFiniteNumber(diastolicBP) && (diastolicBP > 90 || diastolicBP < 60)}
-              abnormalDirection={vitalDirection(diastolicBP, 60, 90)}
-              onClick={isFiniteNumber(diastolicBP) ? () => onVitalSignClick('BloodPressureDiastolic', diastolicBP, 'mmHg', 'vital') : undefined}
-              timestamp={vitalSignsTimestamp || undefined}
-            />
-            <VitalSignCard
-              label="MAP"
-              value={map}
-              unit="mmHg"
-              isAbnormal={isFiniteNumber(map) && (map > 110 || map < 65)}
-              abnormalDirection={vitalDirection(map, 65, 110)}
-              onClick={isFiniteNumber(map) ? () => onVitalSignClick('MAP', map, 'mmHg', 'vital') : undefined}
-              timestamp={vitalSignsTimestamp || undefined}
-            />
-            <VitalSignCard
-              label="SpO₂"
-              value={spo2}
-              unit="%"
-              isAbnormal={isFiniteNumber(spo2) && spo2 < 94}
-              abnormalDirection={vitalDirection(spo2, 94, Infinity)}
-              onClick={isFiniteNumber(spo2) ? () => onVitalSignClick('SpO2', spo2, '%', 'vital') : undefined}
-              timestamp={vitalSignsTimestamp || undefined}
-            />
-            <VitalSignCard
-              label="CVP"
-              value={cvp}
-              unit="mmHg"
-              isAbnormal={isFiniteNumber(cvp) && (cvp > 12 || cvp < 2)}
-              abnormalDirection={vitalDirection(cvp, 2, 12)}
-              onClick={isFiniteNumber(cvp) ? () => onVitalSignClick('CVP', cvp, 'mmHg', 'vital') : undefined}
-              timestamp={vitalSignsTimestamp || undefined}
-            />
-            <VitalSignCard
-              label="ICP"
-              value={icp}
-              unit="mmHg"
-              isAbnormal={isFiniteNumber(icp) && icp > 20}
-              abnormalDirection={vitalDirection(icp, -Infinity, 20)}
-              onClick={isFiniteNumber(icp) ? () => onVitalSignClick('ICP', icp, 'mmHg', 'vital') : undefined}
-              timestamp={vitalSignsTimestamp || undefined}
-            />
+            {filterItems(vitalItems).map((item) => (
+              <VitalSignCard
+                key={item.label}
+                label={item.label}
+                value={item.value}
+                unit={item.unit}
+                isAbnormal={item.isAbnormal}
+                abnormalDirection={item.abnormalDirection}
+                onClick={isFiniteNumber(item.value) ? () => onVitalSignClick(item.clickName, item.value as number, item.unit, item.source) : undefined}
+                timestamp={item.timestamp}
+              />
+            ))}
           </div>
         )
       ) : activeMonitor === 'ventilator' && patientIntubated ? (
@@ -259,69 +263,26 @@ export function PatientLabsTab({
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="grid" style={metricGridStyle}>
-              <VitalSignCard
-                label="FiO₂"
-                value={ventFiO2}
-                unit="%"
-                isAbnormal={isFiniteNumber(ventFiO2) && ventFiO2 > 60}
-                abnormalDirection={vitalDirection(ventFiO2, -Infinity, 60)}
-                onClick={isFiniteNumber(ventFiO2) ? () => onVitalSignClick('FiO2', ventFiO2, '%', 'ventilator') : undefined}
-                timestamp={ventTimestamp || undefined}
-              />
-              <VitalSignCard
-                label="PEEP"
-                value={ventPeep}
-                unit="cmH₂O"
-                isAbnormal={isFiniteNumber(ventPeep) && ventPeep > 12}
-                abnormalDirection={vitalDirection(ventPeep, -Infinity, 12)}
-                onClick={isFiniteNumber(ventPeep) ? () => onVitalSignClick('PEEP', ventPeep, 'cmH₂O', 'ventilator') : undefined}
-                timestamp={ventTimestamp || undefined}
-              />
-              <VitalSignCard
-                label="Vt"
-                value={ventTidalVolume}
-                unit="mL"
-                isAbnormal={isFiniteNumber(ventTidalVolume) && ventTidalVolume > 500}
-                abnormalDirection={vitalDirection(ventTidalVolume, -Infinity, 500)}
-                onClick={isFiniteNumber(ventTidalVolume) ? () => onVitalSignClick('TidalVolume', ventTidalVolume, 'mL', 'ventilator') : undefined}
-                timestamp={ventTimestamp || undefined}
-              />
-              <VitalSignCard
-                label="RR set"
-                value={ventRespRate}
-                unit="/min"
-                onClick={isFiniteNumber(ventRespRate) ? () => onVitalSignClick('VentRR', ventRespRate, '/min', 'ventilator') : undefined}
-                timestamp={ventTimestamp || undefined}
-              />
-              <VitalSignCard
-                label="PIP"
-                value={ventPip}
-                unit="cmH₂O"
-                isAbnormal={isFiniteNumber(ventPip) && ventPip > 30}
-                abnormalDirection={vitalDirection(ventPip, -Infinity, 30)}
-                onClick={isFiniteNumber(ventPip) ? () => onVitalSignClick('PIP', ventPip, 'cmH₂O', 'ventilator') : undefined}
-                timestamp={ventTimestamp || undefined}
-              />
-              <VitalSignCard
-                label="Pplat"
-                value={ventPlateau}
-                unit="cmH₂O"
-                isAbnormal={isFiniteNumber(ventPlateau) && ventPlateau > 30}
-                abnormalDirection={vitalDirection(ventPlateau, -Infinity, 30)}
-                onClick={isFiniteNumber(ventPlateau) ? () => onVitalSignClick('Plateau', ventPlateau, 'cmH₂O', 'ventilator') : undefined}
-                timestamp={ventTimestamp || undefined}
-              />
-              <VitalSignCard
-                label="Cstat"
-                value={ventCompliance}
-                unit="mL/cmH₂O"
-                isAbnormal={isFiniteNumber(ventCompliance) && ventCompliance < 30}
-                abnormalDirection={vitalDirection(ventCompliance, 30, Infinity)}
-                onClick={isFiniteNumber(ventCompliance) ? () => onVitalSignClick('Compliance', ventCompliance, 'mL/cmH₂O', 'ventilator') : undefined}
-                timestamp={ventTimestamp || undefined}
-              />
-            </div>
+            {filterItems(ventItems).length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">
+                目前篩選條件下沒有可顯示的項目
+              </div>
+            ) : (
+              <div className="grid" style={metricGridStyle}>
+                {filterItems(ventItems).map((item) => (
+                  <VitalSignCard
+                    key={item.label}
+                    label={item.label}
+                    value={item.value}
+                    unit={item.unit}
+                    isAbnormal={item.isAbnormal}
+                    abnormalDirection={item.abnormalDirection}
+                    onClick={isFiniteNumber(item.value) ? () => onVitalSignClick(item.clickName, item.value as number, item.unit, item.source) : undefined}
+                    timestamp={item.timestamp}
+                  />
+                ))}
+              </div>
+            )}
 
             {/* 脫機評估 */}
             {weaningAssessment && (
