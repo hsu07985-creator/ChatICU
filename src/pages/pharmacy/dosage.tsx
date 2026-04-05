@@ -83,17 +83,26 @@ export function DosagePage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Drug switch always clears target dose + result
+  // Drug switch: pre-fill dose range + concentration, clear results
   const handleDrugChange = useCallback((drugKey: string) => {
     setSelectedDrug(drugKey);
-    setTargetDoseMin('');
-    setTargetDoseMax('');
     setResultMin(null);
     setResultMax(null);
     setStepsOpen(false);
     const info = padDrugs.find(d => d.key === drugKey);
     if (info) {
       setConcentration(String(info.concentration));
+      const range = parseDoseRange(info.dose_range);
+      if (range) {
+        setTargetDoseMin(String(range[0]));
+        setTargetDoseMax(String(range[1]));
+      } else {
+        setTargetDoseMin('');
+        setTargetDoseMax('');
+      }
+    } else {
+      setTargetDoseMin('');
+      setTargetDoseMax('');
     }
   }, [padDrugs]);
 
@@ -231,6 +240,21 @@ export function DosagePage() {
             </div>
           </div>
 
+          {/* Drug info summary bar */}
+          {drugInfo && !isFixedDose && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-md text-xs">
+              <Badge variant="outline" className="text-xs px-1.5 py-0 shrink-0">{drugInfo.label}</Badge>
+              <span className="text-muted-foreground">建議範圍</span>
+              <span className="font-medium">{drugInfo.dose_range} {drugInfo.dose_unit}</span>
+              <span className="text-muted-foreground mx-1">|</span>
+              <span className="text-muted-foreground">預設濃度</span>
+              <span className="font-medium">{drugInfo.concentration} {drugInfo.concentration_unit}</span>
+              <span className="text-muted-foreground mx-1">|</span>
+              <span className="text-muted-foreground">計算基準</span>
+              <span className="font-medium">{drugInfo.weight_basis}</span>
+            </div>
+          )}
+
           {/* Fixed dose alert */}
           {isFixedDose && drugInfo && (
             <Alert className="py-2">
@@ -341,48 +365,48 @@ export function DosagePage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {/* Header: drug name + rate hero boxes (min–max) + secondary stats */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    {/* Rate hero: min–max */}
-                    <div className="flex items-center gap-2 px-4 py-3 bg-brand/10 border border-brand/20 rounded-lg">
-                      <div className="text-center">
-                        <p className="text-xs text-muted-foreground leading-tight">最小速率</p>
-                        <p className="text-3xl font-bold text-brand leading-none">{resultMin.rate_ml_hr}</p>
-                        <p className="text-xs font-medium text-brand/70">ml/hr</p>
-                      </div>
-                      {resultMax && (
-                        <>
-                          <span className="text-2xl text-muted-foreground font-light">–</span>
-                          <div className="text-center">
-                            <p className="text-xs text-muted-foreground leading-tight">最大速率</p>
-                            <p className="text-3xl font-bold text-brand leading-none">{resultMax.rate_ml_hr}</p>
-                            <p className="text-xs font-medium text-brand/70">ml/hr</p>
-                          </div>
-                        </>
-                      )}
+                  {/* Drug name + weight basis */}
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm">{drugInfo?.label || resultMin.drug}</span>
+                    <Badge variant="outline" className="text-xs px-1.5 py-0">{resultMin.weight_basis}</Badge>
+                  </div>
+
+                  {/* Rate hero: min–max range */}
+                  <div className="flex items-stretch gap-0 rounded-lg overflow-hidden border border-brand/20">
+                    <div className="flex-1 px-4 py-3 bg-brand/10 text-center">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-tight mb-1">{resultMax ? '最小速率' : '輸注速率'}</p>
+                      <p className="text-3xl font-bold text-brand leading-none">{resultMin.rate_ml_hr}</p>
+                      <p className="text-xs font-medium text-brand/70 mt-0.5">ml/hr</p>
                     </div>
-                    {/* Drug info + secondary */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-sm">{drugInfo?.label || resultMin.drug}</span>
-                        <Badge variant="outline" className="text-xs px-1.5 py-0">{resultMin.weight_basis}</Badge>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 text-xs">
-                        <div>
-                          <span className="text-muted-foreground">計算體重</span>
-                          <p className="font-medium">{resultMin.dosing_weight_kg} kg</p>
+                    {resultMax && (
+                      <>
+                        <div className="flex items-center bg-brand/5 px-2">
+                          <span className="text-xl text-brand/40 font-light">→</span>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">每小時劑量</span>
-                          <p className="font-medium">
-                            {resultMin.dose_per_hr}{resultMax ? ` – ${resultMax.dose_per_hr}` : ''} {doseUnitShort}
-                          </p>
+                        <div className="flex-1 px-4 py-3 bg-brand/10 text-center">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-tight mb-1">最大速率</p>
+                          <p className="text-3xl font-bold text-brand leading-none">{resultMax.rate_ml_hr}</p>
+                          <p className="text-xs font-medium text-brand/70 mt-0.5">ml/hr</p>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">濃度</span>
-                          <p className="font-medium">{resultMin.concentration}</p>
-                        </div>
-                      </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Secondary stats */}
+                  <div className="grid grid-cols-3 gap-3 text-xs bg-muted/30 rounded-md px-3 py-2">
+                    <div>
+                      <span className="text-muted-foreground">計算體重</span>
+                      <p className="font-semibold">{resultMin.dosing_weight_kg} kg</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">每小時劑量</span>
+                      <p className="font-semibold">
+                        {resultMin.dose_per_hr}{resultMax ? ` – ${resultMax.dose_per_hr}` : ''} {doseUnitShort}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">濃度</span>
+                      <p className="font-semibold">{resultMin.concentration}</p>
                     </div>
                   </div>
 
