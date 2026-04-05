@@ -3,18 +3,11 @@ import {
   getClinicalSummary,
   getReadinessReason,
   type AIReadiness,
-  type DataFreshness,
-  type RAGStatus,
 } from '../../lib/api/ai';
 import { updatePatient } from '../../lib/api/patients';
-import { copyToClipboard } from '../../lib/clipboard-utils';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { AiMarkdown, SafetyWarnings } from '../ui/ai-markdown';
 import {
-  FileText,
-  Sparkles,
-  Copy,
   X,
   Plus,
   Wand2,
@@ -43,29 +36,11 @@ interface PatientSummaryTabPatient {
 interface PatientSummaryTabProps {
   patient: PatientSummaryTabPatient;
   userRole?: string;
-  ragStatus: RAGStatus | null;
   aiReadiness: AIReadiness | null;
   onPatientUpdate?: (updated: Partial<PatientSummaryTabPatient>) => void;
 }
 
-function DataFreshnessHint({ dataFreshness }: { dataFreshness?: DataFreshness | null }) {
-  if (!dataFreshness || !Array.isArray(dataFreshness.hints) || dataFreshness.hints.length === 0) {
-    return null;
-  }
-  return (
-    <div className="mt-2 rounded border border-sky-300 bg-sky-50 px-3 py-2 text-xs text-sky-900">
-      <p className="font-medium">資料新鮮度/缺值提示</p>
-      <p className="mt-1 leading-relaxed">{dataFreshness.hints.join(' ')}</p>
-    </div>
-  );
-}
-
 export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: PatientSummaryTabProps) {
-  const [aiSummary, setAiSummary] = useState('');
-  const [summaryWarnings, setSummaryWarnings] = useState<string[] | null>(null);
-  const [summaryFreshness, setSummaryFreshness] = useState<DataFreshness | null>(null);
-  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-
   // Symptom editing state
   const initialSymptoms = Array.isArray(patient.symptoms) ? patient.symptoms : [];
   const [editingSymptoms, setEditingSymptoms] = useState<string[]>(initialSymptoms);
@@ -157,9 +132,7 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: Pat
   ];
 
   return (
-    <div className="grid gap-3 lg:grid-cols-[3fr_2fr]">
-      {/* ── 左欄：基本資訊 / 臨床狀態 ── */}
-      <div className="space-y-2">
+    <div className="space-y-2">
         <Card className="overflow-hidden border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100/80">
           <CardHeader className="border-b border-slate-200/80 bg-white/70 pb-1.5">
             <CardTitle className="text-lg font-bold tracking-tight text-slate-900">病患資訊</CardTitle>
@@ -314,65 +287,6 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: Pat
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      {/* ── 右欄：AI 臨床摘要 ── */}
-      <Card className="border border-brand/25 bg-gradient-to-br from-white via-white to-brand/[0.04]">
-        <CardHeader className="space-y-1 pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileText className="h-5 w-5 text-brand" />
-            AI 臨床摘要
-          </CardTitle>
-          <CardDescription className="text-sm leading-relaxed text-slate-600">
-            根據病患完整臨床資料（檢驗、生命徵象、藥物、呼吸器）自動生成摘要
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2 pt-0">
-          <Button
-            size="sm"
-            className="bg-brand hover:bg-brand-hover w-auto"
-            onClick={async () => {
-              if (!canSummary) {
-                toast.error(summaryReason);
-                return;
-              }
-              setIsGeneratingSummary(true);
-              try {
-                const result = await getClinicalSummary(patient.id);
-                setAiSummary(typeof result.summary === 'string' ? result.summary : JSON.stringify(result.summary));
-                setSummaryWarnings(result.safetyWarnings || null);
-                setSummaryFreshness(result.dataFreshness || null);
-              } catch {
-                toast.error('AI 摘要生成失敗，請稍後再試');
-              } finally {
-                setIsGeneratingSummary(false);
-              }
-            }}
-            disabled={isGeneratingSummary || !canSummary}
-          >
-            <Sparkles className="mr-2 h-4 w-4" />
-            {isGeneratingSummary ? '生成中...' : '生成臨床摘要'}
-          </Button>
-          {aiSummary && (
-            <div className="rounded-lg border border-brand/30 bg-white/90 p-3">
-              <AiMarkdown content={aiSummary} className="text-sm" />
-              <SafetyWarnings warnings={summaryWarnings} />
-              <DataFreshnessHint dataFreshness={summaryFreshness} />
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={async () => {
-                  const ok = await copyToClipboard(aiSummary);
-                  ok ? toast.success('已複製') : toast.error('複製失敗');
-                }}
-              >
-                <Copy className="mr-1 h-3 w-3" /> 複製
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }

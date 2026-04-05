@@ -79,7 +79,6 @@ export function PatientDetailTabsContent({
         <PatientSummaryTab
           patient={summary.patient}
           userRole={summary.userRole}
-          ragStatus={summary.ragStatus}
           aiReadiness={summary.aiReadiness}
         />
         <div aria-hidden="true" style={{ height: '10rem' }} />
