@@ -37,20 +37,28 @@ async def list_symptom_records(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    pid = normalize_patient_id(patient_id)
-    pat_result = await db.execute(select(Patient).where(Patient.id == pid))
-    patient_obj = pat_result.scalar_one_or_none()
-    if not patient_obj:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    verify_patient_access(user, patient_obj)
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        pid = normalize_patient_id(patient_id)
+        pat_result = await db.execute(select(Patient).where(Patient.id == pid))
+        patient_obj = pat_result.scalar_one_or_none()
+        if not patient_obj:
+            raise HTTPException(status_code=404, detail="Patient not found")
+        verify_patient_access(user, patient_obj)
 
-    result = await db.execute(
-        select(SymptomRecord)
-        .where(SymptomRecord.patient_id == pid)
-        .order_by(SymptomRecord.recorded_at.desc())
-    )
-    records = [record_to_dict(r) for r in result.scalars().all()]
-    return success_response(data=records)
+        result = await db.execute(
+            select(SymptomRecord)
+            .where(SymptomRecord.patient_id == pid)
+            .order_by(SymptomRecord.recorded_at.desc())
+        )
+        records = [record_to_dict(r) for r in result.scalars().all()]
+        return success_response(data=records)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("symptom_records list error")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("")
