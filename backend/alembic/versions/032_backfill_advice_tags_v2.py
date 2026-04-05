@@ -1,14 +1,12 @@
-"""Backfill pharmacy category+code tags on existing advice messages.
+"""Backfill pharmacy tags on medication-advice messages (v2).
 
-Existing PatientMessages with message_type='medication-advice' have no tags.
-This migration sets tags = [category_tag, advice_code] based on the
-advice_code field (e.g. '1-3' → ['建議處方', '1-3']).
+Migration 031 used advice_record_id JOIN which missed messages where
+the FK was null. This version uses advice_code prefix to derive the
+category tag directly.
 
-Also handles messages linked via advice_record_id FK.
-
-Revision ID: 031
-Revises: 030
-Create Date: 2026-04-05
+Revision ID: 032
+Revises: 031
+Create Date: 2026-04-06
 """
 
 import json
@@ -16,12 +14,11 @@ import json
 from alembic import op
 import sqlalchemy as sa
 
-revision = "031"
-down_revision = "030"
+revision = "032"
+down_revision = "031"
 branch_labels = None
 depends_on = None
 
-# Map advice_code prefix → category tag
 _CODE_PREFIX_TO_TAG = {
     "1": "建議處方",
     "2": "主動建議",
@@ -33,7 +30,6 @@ _CODE_PREFIX_TO_TAG = {
 def upgrade():
     conn = op.get_bind()
 
-    # Find all medication-advice messages with empty/null tags
     rows = conn.execute(sa.text(
         "SELECT id, advice_code FROM patient_messages "
         "WHERE message_type = 'medication-advice' "
