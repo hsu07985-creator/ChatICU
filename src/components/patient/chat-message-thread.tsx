@@ -154,7 +154,7 @@ export function ChatMessageThread({
                               hasRiskX={msg.graphMeta.has_risk_x}
                             />
                           )}
-                          <p className="text-sm leading-relaxed text-[#1F2937]">{displayContent}</p>
+                          <AiMarkdown content={displayContent} className="text-sm leading-relaxed text-[#1F2937]" />
                           {msg.requiresExpertReview && (
                             <ExpertReviewWarning show={msg.requiresExpertReview} />
                           )}
