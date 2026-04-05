@@ -4,6 +4,7 @@ import { sendMessage } from '../lib/api/messages';
 import {
   listRecordTemplates,
   createRecordTemplate,
+  updateRecordTemplate,
   deleteRecordTemplate,
   type RecordTemplate,
   type RecordTemplateType,
@@ -30,6 +31,8 @@ import {
   Sparkles,
   Plus,
   Trash2,
+  Pencil,
+  Save,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -168,6 +171,8 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
   const [showNewTemplate, setShowNewTemplate] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateContent, setNewTemplateContent] = useState('');
+  const [editingTemplateName, setEditingTemplateName] = useState<string | null>(null);
+  const [editingTemplateContent, setEditingTemplateContent] = useState('');
 
   const fetchTemplates = useCallback(async (type: RecordTemplateType) => {
     setTemplateLoading(true);
@@ -292,6 +297,32 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
       fetchTemplates(recordType as RecordTemplateType);
     } catch {
       toast.error('刪除模板失敗，請稍後再試');
+    }
+  };
+
+  const handleStartEditTemplate = (name: string) => {
+    const tpl = serverTemplates.find((t) => t.name === name);
+    if (!tpl) { toast.error('內建模板不支援編輯'); return; }
+    if (!tpl.canEdit) { toast.error('您沒有編輯此模板的權限'); return; }
+    setEditingTemplateName(name);
+    setEditingTemplateContent(tpl.content);
+  };
+
+  const handleUpdateTemplate = async () => {
+    if (!editingTemplateName) return;
+    const tpl = serverTemplates.find((t) => t.name === editingTemplateName);
+    if (!tpl) return;
+    try {
+      await updateRecordTemplate(tpl.id, { content: editingTemplateContent });
+      toast.success(`模板「${editingTemplateName}」已更新`);
+      setEditingTemplateName(null);
+      setEditingTemplateContent('');
+      fetchTemplates(recordType as RecordTemplateType);
+      if (selectedTemplate === editingTemplateName) {
+        setInputContent(editingTemplateContent);
+      }
+    } catch {
+      toast.error('更新模板失敗，請稍後再試');
     }
   };
 
@@ -428,6 +459,14 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                               {name}
                               <button
                                 type="button"
+                                className="ml-0.5 text-slate-400 hover:text-blue-500 transition-colors"
+                                onClick={() => handleStartEditTemplate(name)}
+                                title={`編輯模板「${name}」`}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                              <button
+                                type="button"
                                 className="ml-0.5 text-slate-400 hover:text-red-500 transition-colors"
                                 onClick={() => handleDeleteTemplate(name)}
                                 title={`刪除模板「${name}」`}
@@ -439,6 +478,25 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* 編輯模板面板 */}
+                {editingTemplateName && (
+                  <div className="rounded-md border border-dashed border-blue-300 bg-blue-50 p-3 space-y-2">
+                    <p className="text-sm font-semibold text-slate-700">編輯模板：{editingTemplateName}</p>
+                    <Textarea
+                      value={editingTemplateContent}
+                      onChange={(e) => setEditingTemplateContent(e.target.value)}
+                      className="min-h-[120px] border-slate-300 bg-white"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" onClick={handleUpdateTemplate}>
+                        <Save className="mr-1.5 h-3.5 w-3.5" />
+                        儲存變更
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setEditingTemplateName(null); setEditingTemplateContent(''); }}>取消</Button>
+                    </div>
                   </div>
                 )}
 
