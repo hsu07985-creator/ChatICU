@@ -28,6 +28,11 @@ def lab_to_dict(lab: LabData) -> dict:
         "bloodGas": lab.blood_gas,
         "inflammatory": lab.inflammatory,
         "coagulation": lab.coagulation,
+        "cardiac": lab.cardiac,
+        "thyroid": lab.thyroid,
+        "hormone": lab.hormone,
+        "lipid": lab.lipid,
+        "other": lab.other,
         "corrections": lab.corrections,
     }
 

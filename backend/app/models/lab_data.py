@@ -21,6 +21,11 @@ class LabData(Base):
     blood_gas: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     inflammatory: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     coagulation: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    cardiac: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    thyroid: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    hormone: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    lipid: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    other: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     corrections: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of correction records
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

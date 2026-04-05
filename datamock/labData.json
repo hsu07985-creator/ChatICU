@@ -241,6 +241,54 @@
           "referenceRange": "2.0-4.0",
           "isAbnormal": true
         }
+      },
+      "cardiac": {
+        "TnT": {
+          "value": 0.08,
+          "unit": "ng/mL",
+          "referenceRange": "<0.04",
+          "isAbnormal": true
+        },
+        "CKMB": {
+          "value": 18,
+          "unit": "U/L",
+          "referenceRange": "<25",
+          "isAbnormal": false
+        },
+        "CK": {
+          "value": 245,
+          "unit": "U/L",
+          "referenceRange": "30-200",
+          "isAbnormal": true
+        },
+        "NTproBNP": {
+          "value": 1250,
+          "unit": "pg/mL",
+          "referenceRange": "<300",
+          "isAbnormal": true
+        }
+      },
+      "thyroid": {
+        "TSH": {
+          "value": 2.1,
+          "unit": "μIU/mL",
+          "referenceRange": "0.4-4.0",
+          "isAbnormal": false
+        },
+        "freeT4": {
+          "value": 1.2,
+          "unit": "ng/dL",
+          "referenceRange": "0.8-1.8",
+          "isAbnormal": false
+        }
+      },
+      "hormone": {
+        "Cortisol": {
+          "value": 28,
+          "unit": "μg/dL",
+          "referenceRange": "5-25",
+          "isAbnormal": true
+        }
       }
     },
     {
