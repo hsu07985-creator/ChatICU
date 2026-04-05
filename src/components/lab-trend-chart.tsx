@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Dot } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Dot, Tooltip, type TooltipProps } from 'recharts';
 
 export interface LabTrendData {
   date: string;
@@ -70,6 +70,19 @@ export function LabTrendChart({
                   style: { fontSize: 14, fill: '#6b7280' }
                 }}
               />
+              <Tooltip
+                content={({ active, payload, label }: TooltipProps<number, string>) => {
+                  if (!active || !payload?.[0]) return null;
+                  return (
+                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-md">
+                      <p className="text-xs text-slate-500">{label}</p>
+                      <p className="text-sm font-semibold" style={{ color: 'var(--color-brand)' }}>
+                        {payload[0].value} {unit}
+                      </p>
+                    </div>
+                  );
+                }}
+              />
               <Line
                 type="monotone"
                 dataKey="value"
@@ -90,6 +103,19 @@ export function LabTrendChart({
                   );
                 }}
                 activeDot={{ r: 8, fill: 'var(--color-brand)', stroke: '#ffffff', strokeWidth: 2 }}
+                label={({ x, y, value, index }: any) => (
+                  <text
+                    key={`label-${index}`}
+                    x={x}
+                    y={y - 12}
+                    textAnchor="middle"
+                    fill="#374151"
+                    fontSize={12}
+                    fontWeight={600}
+                  >
+                    {value}
+                  </text>
+                )}
               />
             </LineChart>
           </ResponsiveContainer>
