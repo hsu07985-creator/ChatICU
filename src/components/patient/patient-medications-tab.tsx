@@ -503,6 +503,14 @@ export function PatientMedicationsTab({
                   <Button
                     variant="ghost"
                     size="sm"
+                    className={`h-7 px-3 text-xs rounded-md ${medView === 'all' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                    onClick={() => { setMedView('all'); setFilterAbx(false); setFilterPrn(false); }}
+                  >
+                    全部 ({totalCount})
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className={`h-7 px-3 text-xs rounded-md ${medView === 'active' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
                     onClick={() => { setMedView('active'); setFilterAbx(false); setFilterPrn(false); }}
                   >
@@ -517,16 +525,7 @@ export function PatientMedicationsTab({
                   >
                     已停用 ({discontinuedCount})
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={`h-7 px-3 text-xs rounded-md ${medView === 'all' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
-                    onClick={() => { setMedView('all'); setFilterAbx(false); setFilterPrn(false); }}
-                  >
-                    全部 ({totalCount})
-                  </Button>
                 </div>
-                {/* Sub-filters */}
                 {abxCount > 0 && (
                   <Button
                     variant={filterAbx ? 'default' : 'outline'}
