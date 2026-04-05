@@ -36,6 +36,46 @@ CATEGORY_TAG_MAP = {
     "4. 用藥適從性": "用藥連貫性",  # legacy alias
 }
 
+# Map advice_code → short label (parenthetical content stripped)
+# Used for readable subcode tags: "1-1 給藥問題" instead of bare "1-1"
+CODE_TO_SHORT_LABEL = {
+    "1-1": "給藥問題",
+    "1-2": "適應症問題",
+    "1-3": "用藥禁忌問題",
+    "1-4": "藥品併用問題",
+    "1-5": "藥品交互作用",
+    "1-6": "疑似藥品不良反應",
+    "1-7": "藥品相容性問題",
+    "1-8": "其他",
+    "1-9": "不符健保給付規定",
+    "1-10": "用藥劑量/頻次問題",
+    "1-11": "用藥期間/數量問題",
+    "1-12": "用藥途徑或劑型問題",
+    "1-13": "建議更適當用藥/配方組成",
+    "2-1": "用藥劑量/頻次問題",
+    "2-2": "用藥期間/數量問題",
+    "2-3": "用藥途徑或劑型問題",
+    "2-4": "建議更適當用藥/配方組成",
+    "2-5": "藥品不良反應評估",
+    "2-6": "建議用藥/建議增加用藥",
+    "2-7": "建議藥物治療療程",
+    "2-8": "建議靜脈營養配方",
+    "3-1": "建議藥品療效監測",
+    "3-2": "建議藥品不良反應監測",
+    "3-3": "建議藥品血中濃度監測",
+    "4-1": "藥歷審核與整合",
+    "4-2": "藥品辨識/自備藥辨識",
+    "4-3": "病人用藥遵從性問題",
+}
+
+
+def format_subcode_tag(code: str) -> str:
+    """Format advice code as readable tag: '1-1' → '1-1 給藥問題'."""
+    label = CODE_TO_SHORT_LABEL.get(code)
+    if label:
+        return f"{code} {label}"
+    return code
+
 
 def msg_to_dict(
     msg: PatientMessage,
@@ -199,6 +239,41 @@ async def create_message(
     if body.replyToId and parent:
         parent.reply_count = (parent.reply_count or 0) + 1
 
+    # Phase 3: adviceAction — doctor accept/reject via bulletin board reply
+    advice_synced = False
+    if body.adviceAction and body.replyToId and parent:
+        if user.role not in ("doctor", "admin"):
+            raise HTTPException(status_code=403, detail="只有醫師可以接受或拒絕藥事建議")
+        if parent.message_type != "medication-advice":
+            raise HTTPException(status_code=422, detail="只能對藥事建議訊息進行接受/拒絕操作")
+        if not parent.advice_record_id:
+            raise HTTPException(status_code=422, detail="此訊息未連結藥事建議紀錄")
+
+        from app.models.pharmacy_advice import PharmacyAdvice
+        adv_result = await db.execute(
+            select(PharmacyAdvice).where(PharmacyAdvice.id == parent.advice_record_id)
+        )
+        advice = adv_result.scalar_one_or_none()
+        if not advice:
+            raise HTTPException(status_code=404, detail="藥事建議紀錄不存在")
+        if advice.accepted is not None:
+            raise HTTPException(status_code=409, detail="此建議已有回覆，無法重複操作")
+
+        accepted = body.adviceAction == "accept"
+        advice.accepted = accepted
+        advice.responded_by_id = user.id
+        advice.responded_by_name = user.name
+        advice.responded_at = datetime.now(timezone.utc)
+        advice_synced = True
+
+        await create_audit_log(
+            db, user_id=user.id, user_name=user.name, role=user.role,
+            action="回覆藥事建議" if accepted else "拒絕藥事建議",
+            target=parent.advice_record_id, status="success",
+            ip=request.client.host if request.client else None,
+            details={"accepted": accepted, "via": "bulletin-reply", "message_id": msg.id},
+        )
+
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="建立病患訊息", target=pid, status="success",
@@ -207,10 +282,16 @@ async def create_message(
             "message_id": msg.id,
             "message_type": body.messageType,
             "reply_to_id": body.replyToId,
+            "advice_action": body.adviceAction,
         },
     )
 
-    return success_response(data=msg_to_dict(msg), message="訊息已發送")
+    result_msg = "訊息已發送"
+    if advice_synced:
+        action_label = "已接受" if body.adviceAction == "accept" else "已拒絕"
+        result_msg = f"訊息已發送，藥事建議{action_label}"
+
+    return success_response(data=msg_to_dict(msg), message=result_msg)
 
 
 @router.patch("/{message_id}/read")

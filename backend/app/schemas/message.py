@@ -11,6 +11,7 @@ class MessageCreate(BaseModel):
     replyToId: Optional[str] = Field(None, max_length=50)
     tags: Optional[List[str]] = None
     mentionedRoles: Optional[List[str]] = None
+    adviceAction: Optional[str] = Field(None, description="accept or reject (doctor reply to pharmacy advice)")
 
     @field_validator("messageType")
     @classmethod
@@ -18,6 +19,13 @@ class MessageCreate(BaseModel):
         allowed = {"general", "medication-advice", "urgent", "note", "progress-note", "nursing-record"}
         if v not in allowed:
             raise ValueError(f"messageType 須為 {', '.join(sorted(allowed))} 之一")
+        return v
+
+    @field_validator("adviceAction")
+    @classmethod
+    def check_advice_action(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in ("accept", "reject"):
+            raise ValueError("adviceAction 須為 accept 或 reject")
         return v
 
     @field_validator("mentionedRoles")

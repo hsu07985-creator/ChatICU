@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+import sqlalchemy as sa
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,7 +14,7 @@ from app.models.message import PatientMessage
 from app.models.patient import Patient
 from app.models.pharmacy_advice import PharmacyAdvice
 from app.models.user import User
-from app.routers.messages import CATEGORY_TAG_MAP
+from app.routers.messages import CATEGORY_TAG_MAP, format_subcode_tag
 from app.schemas.admin import AdviceRecordCreate
 from app.utils.response import success_response
 
@@ -203,6 +204,40 @@ async def get_advice_record_stats(
     })
 
 
+@router.get("/advice-records/tag-stats")
+async def get_advice_tag_stats(
+    month: str = Query(None, description="YYYY-MM format filter"),
+    user: User = Depends(require_roles("pharmacist", "admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Tag usage stats from bulletin board medication-advice messages."""
+    filters = "WHERE pm.message_type = 'medication-advice' AND pm.tags IS NOT NULL AND pm.reply_to_id IS NULL"
+    params = {}
+
+    if month:
+        try:
+            start, end = _parse_month_range(month)
+            filters += " AND pm.timestamp >= :start AND pm.timestamp < :end"
+            params["start"] = start
+            params["end"] = end
+        except (ValueError, AttributeError):
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid month format: '{month}'. Expected YYYY-MM (e.g. 2026-01).",
+            )
+
+    result = await db.execute(sa.text(
+        f"SELECT tag, COUNT(*) as cnt "
+        f"FROM patient_messages pm, jsonb_array_elements_text(pm.tags) AS tag "
+        f"{filters} "
+        f"GROUP BY tag ORDER BY cnt DESC"
+    ), params)
+
+    tag_stats = [{"tag": row.tag, "count": int(row.cnt)} for row in result.all()]
+
+    return success_response(data={"tagStats": tag_stats})
+
+
 @router.post("/advice-records")
 async def create_advice_record(
     request: Request,
@@ -245,7 +280,7 @@ async def create_advice_record(
     if category_tag:
         auto_tags.append(category_tag)
     if body.adviceCode:
-        auto_tags.append(body.adviceCode)
+        auto_tags.append(format_subcode_tag(body.adviceCode))
 
     msg = PatientMessage(
         id=f"pmsg_{uuid.uuid4().hex[:8]}",
