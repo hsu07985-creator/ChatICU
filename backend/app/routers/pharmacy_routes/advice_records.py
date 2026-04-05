@@ -13,6 +13,7 @@ from app.models.message import PatientMessage
 from app.models.patient import Patient
 from app.models.pharmacy_advice import PharmacyAdvice
 from app.models.user import User
+from app.routers.messages import CATEGORY_TAG_MAP
 from app.schemas.admin import AdviceRecordCreate
 from app.utils.response import success_response
 
@@ -238,6 +239,14 @@ async def create_advice_record(
         if joined:
             linked_med = joined[:200]
 
+    # Auto-tag with category + subcode
+    auto_tags = []
+    category_tag = CATEGORY_TAG_MAP.get(body.category)
+    if category_tag:
+        auto_tags.append(category_tag)
+    if body.adviceCode:
+        auto_tags.append(body.adviceCode)
+
     msg = PatientMessage(
         id=f"pmsg_{uuid.uuid4().hex[:8]}",
         patient_id=patient.id,
@@ -251,6 +260,7 @@ async def create_advice_record(
         linked_medication=linked_med,
         advice_code=body.adviceCode,
         advice_record_id=advice.id,
+        tags=auto_tags,
     )
     db.add(msg)
     await db.flush()
