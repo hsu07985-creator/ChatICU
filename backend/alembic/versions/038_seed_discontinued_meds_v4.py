@@ -1,7 +1,7 @@
-"""force seed discontinued medications using op.execute + bindparams
+"""seed discontinued medications using op.execute + bindparams pattern
 
-Revision ID: 037
-Revises: 036
+Revision ID: 038
+Revises: 037
 Create Date: 2026-04-06
 """
 import json
@@ -9,8 +9,8 @@ import json
 from alembic import op
 import sqlalchemy as sa
 
-revision = "037"
-down_revision = "036"
+revision = "038"
+down_revision = "037"
 branch_labels = None
 depends_on = None
 
