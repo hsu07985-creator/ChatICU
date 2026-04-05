@@ -1,21 +1,18 @@
-"""Create symptom_records table for tracking symptom history over time.
+"""Ensure symptom_records table exists (idempotent re-run of 039).
 
-Revision ID: 039
-Revises: 038
+Revision ID: 040
+Revises: 039
 """
 
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
 
-revision = "039"
-down_revision = "038"
+revision = "040"
+down_revision = "039"
 branch_labels = None
 depends_on = None
 
 
 def upgrade() -> None:
-    # Use raw SQL with IF NOT EXISTS for idempotency
     op.execute("""
         CREATE TABLE IF NOT EXISTS symptom_records (
             id VARCHAR(50) PRIMARY KEY,
@@ -34,4 +31,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_table("symptom_records")
+    pass
