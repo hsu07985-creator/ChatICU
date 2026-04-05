@@ -438,7 +438,7 @@ export interface ClinicalSummaryResponse {
 export async function getClinicalSummary(patientId: string): Promise<ClinicalSummaryResponse> {
   const response = await apiClient.post<ApiResponse<ClinicalSummaryResponse>>('/api/v1/clinical/summary', {
     patient_id: patientId,
-  });
+  }, { timeout: 90_000 });
   return ensureData(response.data, 'API contract');
 }
 
@@ -470,7 +470,7 @@ export async function getPatientExplanation(
     patient_id: patientId,
     topic,
     reading_level: readingLevel || undefined,
-  });
+  }, { timeout: 90_000 });
   return ensureData(response.data, 'API contract');
 }
 
@@ -501,7 +501,7 @@ export async function getGuidelineInterpretation(data: {
     patient_id: data.patientId,
     scenario: data.scenario,
     guideline_topic: data.guidelineTopic,
-  });
+  }, { timeout: 90_000 });
   return ensureData(response.data, 'API contract');
 }
 
@@ -533,7 +533,7 @@ export async function getDecisionSupport(data: {
     patient_id: data.patientId,
     question: data.question,
     assessments: data.assessments,
-  });
+  }, { timeout: 90_000 });
   return ensureData(response.data, 'API contract');
 }
 
@@ -553,7 +553,9 @@ export async function polishClinicalText(data: {
   if (data.templateContent) {
     body.template_content = data.templateContent;
   }
-  const response = await apiClient.post<ApiResponse<PolishResponse>>('/api/v1/clinical/polish', body);
+  const response = await apiClient.post<ApiResponse<PolishResponse>>('/api/v1/clinical/polish', body, {
+    timeout: 90_000,
+  });
   return ensureData(response.data, 'API contract');
 }
 
