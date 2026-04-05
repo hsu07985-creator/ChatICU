@@ -299,31 +299,49 @@ function SectionLabel({ label, count, hasPositive }: { label: string; count: num
   );
 }
 
-/* ── Specimen Section Grouping ───────────────────────────── */
+/* ── 4-Category Specimen Grouping ───────────────────────── */
 
-interface SpecimenGroup {
-  specimen: string;
+type SpecimenCategory = 'sputum' | 'urine' | 'blood' | 'other';
+
+const CATEGORY_META: Record<SpecimenCategory, { label: string; icon: string }> = {
+  sputum: { label: '痰 Sputum', icon: '🫁' },
+  urine:  { label: '尿 Urine',  icon: '🧪' },
+  blood:  { label: '血液 Blood', icon: '🩸' },
+  other:  { label: '其他 Other', icon: '📋' },
+};
+
+const CATEGORY_ORDER: SpecimenCategory[] = ['sputum', 'urine', 'blood', 'other'];
+
+function classifySpecimen(specimen: string): SpecimenCategory {
+  const s = specimen.toLowerCase();
+  if (s.includes('sputum') || s.includes('痰')) return 'sputum';
+  if (s.includes('urine') || s.includes('尿')) return 'urine';
+  if (s.includes('blood') || s.includes('血')) return 'blood';
+  return 'other';
+}
+
+interface CategoryGroup {
+  category: SpecimenCategory;
   positive: CulturePanel[];
   negative: CulturePanel[];
 }
 
-function groupBySpecimen(panels: CulturePanel[]): SpecimenGroup[] {
-  const map = new Map<string, SpecimenGroup>();
+function groupByCategory(panels: CulturePanel[]): CategoryGroup[] {
+  const map: Record<SpecimenCategory, CategoryGroup> = {
+    sputum: { category: 'sputum', positive: [], negative: [] },
+    urine:  { category: 'urine',  positive: [], negative: [] },
+    blood:  { category: 'blood',  positive: [], negative: [] },
+    other:  { category: 'other',  positive: [], negative: [] },
+  };
   for (const p of panels) {
-    const key = p.specimen || 'Unknown';
-    if (!map.has(key)) map.set(key, { specimen: key, positive: [], negative: [] });
-    const group = map.get(key)!;
+    const cat = classifySpecimen(p.specimen || 'Unknown');
     if (isPositiveCulture(p)) {
-      group.positive.push(p);
+      map[cat].positive.push(p);
     } else {
-      group.negative.push(p);
+      map[cat].negative.push(p);
     }
   }
-  return Array.from(map.values()).sort((a, b) => {
-    if (a.positive.length > 0 && b.positive.length === 0) return -1;
-    if (a.positive.length === 0 && b.positive.length > 0) return 1;
-    return 0;
-  });
+  return CATEGORY_ORDER.map((c) => map[c]);
 }
 
 /* ── Main Component ──────────────────────────────────────── */
@@ -356,14 +374,12 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
 
   const cultures = data?.cultures ?? [];
   const organismSummaries = useMemo(() => buildOrganismSummaries(cultures), [cultures]);
-  const specimenGroups = useMemo(() => groupBySpecimen(cultures), [cultures]);
+  const categoryGroups = useMemo(() => groupByCategory(cultures), [cultures]);
   const positiveCount = cultures.filter(isPositiveCulture).length;
   const negativeCount = cultures.length - positiveCount;
   const latestDate = cultures.length > 0 ? cultures[0]?.reportedAt : null;
 
-  const positiveGroups = specimenGroups.filter((g) => g.positive.length > 0);
-  const negativeOnlyGroups = specimenGroups.filter((g) => g.positive.length === 0);
-  const positiveSpecimenCount = positiveGroups.length;
+  const positiveCategoryCount = categoryGroups.filter((g) => g.positive.length > 0).length;
 
   if (loading) {
     return (
@@ -421,48 +437,65 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
           <p className="text-sm text-slate-400 py-4 text-center">No culture data</p>
         ) : (
           <>
-            {/* 1. Organism Summary Banner — only if multiple positive specimens */}
-            <OrganismBanner summaries={organismSummaries} specimenCount={positiveSpecimenCount} />
+            {/* Organism Summary Banner — only if multiple categories have positives */}
+            <OrganismBanner summaries={organismSummaries} specimenCount={positiveCategoryCount} />
 
-            {/* 2. Positive specimen groups with merged rows */}
-            {positiveGroups.map((group) => {
-              const merged = mergeConsecutiveCultures(group.positive);
-              return (
-                <MicroSectionCard key={group.specimen}>
-                  <SectionLabel
-                    label={group.specimen}
-                    count={group.positive.length + group.negative.length}
-                    hasPositive
-                  />
-                  <div className="mb-2 space-y-2.5">
-                    {merged.map((m, idx) => (
-                      <MergedCultureRow key={idx} merged={m} />
-                    ))}
-                  </div>
-                  <NegativeSection panels={group.negative} />
-                </MicroSectionCard>
-              );
-            })}
+            {/* 2x2 Grid: 痰 / 尿 / 血液 / 其他 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              {categoryGroups.map((group) => {
+                const meta = CATEGORY_META[group.category];
+                const total = group.positive.length + group.negative.length;
+                const hasPositive = group.positive.length > 0;
+                const merged = hasPositive ? mergeConsecutiveCultures(group.positive) : [];
 
-            {/* 3. Negative-only groups — 2-column grid, last odd one spans full */}
-            {negativeOnlyGroups.length > 0 && (
-              <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2">
-                {negativeOnlyGroups.map((group, idx) => {
-                  const isLastOdd = idx === negativeOnlyGroups.length - 1 && negativeOnlyGroups.length % 2 === 1;
-                  return (
-                    <MicroSectionCard key={group.specimen} className={isLastOdd ? 'col-span-2' : ''}>
-                      <SectionLabel label={group.specimen} count={group.negative.length} />
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-green-600 font-medium">No growth</span>
-                        <span className="text-xs text-slate-400">
-                          {group.negative.map((p) => formatDate(p.reportedAt)).join(', ')}
-                        </span>
+                return (
+                  <MicroSectionCard key={group.category}>
+                    <SectionLabel
+                      label={`${meta.icon} ${meta.label}`}
+                      count={total}
+                      hasPositive={hasPositive}
+                    />
+
+                    {total === 0 ? (
+                      <p className="text-xs text-slate-400 py-3 text-center">無培養資料</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {/* Positive cultures with merged rows */}
+                        {merged.length > 0 && (
+                          <div className="space-y-2">
+                            {merged.map((m, idx) => (
+                              <MergedCultureRow key={idx} merged={m} />
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Negative-only: No growth */}
+                        {group.negative.length > 0 && !hasPositive && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-green-600 font-medium">No growth</span>
+                            <span className="text-xs text-slate-400">
+                              {group.negative.map((p) => formatDate(p.reportedAt)).join(', ')}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Negative section (collapsible) when mixed with positives */}
+                        {hasPositive && <NegativeSection panels={group.negative} />}
+
+                        {/* "Other" category: show original specimen names */}
+                        {group.category === 'other' && total > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {[...new Set([...group.positive, ...group.negative].map((p) => p.specimen))].map((s) => (
+                              <span key={s} className="text-[10px] text-slate-400 bg-slate-100 rounded px-1.5 py-0.5">{s}</span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </MicroSectionCard>
-                  );
-                })}
-              </div>
-            )}
+                    )}
+                  </MicroSectionCard>
+                );
+              })}
+            </div>
           </>
         )}
       </CardContent>
