@@ -19,7 +19,7 @@ import { Label } from '../ui/label';
 import { MedicationsSkeleton } from '../ui/skeletons';
 import { TabsContent } from '../ui/tabs';
 import { Textarea } from '../ui/textarea';
-import { LabTrendChart } from '../lab-trend-chart';
+import { ScoreTrendChart } from '../score-trend-chart';
 import { toast } from 'sonner';
 
 const PRN_FREQ_PATTERN = /PRN|STAT/i;
@@ -187,6 +187,8 @@ interface PatientMedicationsTabProps {
   scoreTrendOpen: boolean;
   scoreTrendType: 'pain' | 'rass';
   scoreTrendData: { date: string; value: number }[];
+  scoreEntries: import('@/lib/api/scores').ScoreEntry[];
+  onDeleteScoreEntry?: (scoreId: string) => Promise<void>;
   onCloseScoreTrend: () => void;
   onRefreshMedications: () => Promise<void>;
 }
@@ -211,6 +213,8 @@ export function PatientMedicationsTab({
   scoreTrendOpen,
   scoreTrendType,
   scoreTrendData,
+  scoreEntries,
+  onDeleteScoreEntry,
   onCloseScoreTrend,
   onRefreshMedications,
 }: PatientMedicationsTabProps) {
@@ -640,13 +644,13 @@ export function PatientMedicationsTab({
           )}
 
           {/* Score Trend Chart Dialog */}
-          <LabTrendChart
+          <ScoreTrendChart
             isOpen={scoreTrendOpen}
             onClose={onCloseScoreTrend}
-            labName={scoreTrendType === 'pain' ? 'Pain Score' : 'RASS Score'}
-            labNameChinese={scoreTrendType === 'pain' ? '疼痛分數' : '鎮靜分數'}
-            unit={scoreTrendType === 'pain' ? '分 (0-10)' : '分 (-5~+4)'}
+            scoreType={scoreTrendType}
             trendData={scoreTrendData}
+            scoreEntries={scoreEntries}
+            onDeleteEntry={onDeleteScoreEntry}
           />
 
           <Dialog open={editingMedication !== null} onOpenChange={(open) => { if (!open) closeMedicationEditor(); }}>

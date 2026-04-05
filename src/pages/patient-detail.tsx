@@ -42,7 +42,7 @@ import { PatientLabsTab } from '../components/patient/patient-labs-tab';
 import { PatientMedicationsTab } from '../components/patient/patient-medications-tab';
 import { PatientMessagesTab } from '../components/patient/patient-messages-tab';
 import { respondToAdvice } from '../lib/api/pharmacy';
-import { getLatestScores, recordScore, getScoreTrends } from '../lib/api/scores';
+import { getLatestScores, recordScore, deleteScore, getScoreTrends } from '../lib/api/scores';
 import {
   ArrowLeft,
   Calendar,
@@ -518,6 +518,7 @@ export function PatientDetailPage() {
   const [scoreTrendOpen, setScoreTrendOpen] = useState(false);
   const [scoreTrendType, setScoreTrendType] = useState<'pain' | 'rass'>('pain');
   const [scoreTrendData, setScoreTrendData] = useState<{ date: string; value: number }[]>([]);
+  const [scoreEntries, setScoreEntries] = useState<import('@/lib/api/scores').ScoreEntry[]>([]);
 
   // 留言板狀態
   const [messages, setMessages] = useState<PatientMessage[]>([]);
@@ -758,44 +759,47 @@ export function PatientDetailPage() {
     fetchTrend();
   }, [selectedTrendMetric, id]);
 
+  const loadScoreTrends = useCallback(async (scoreType: 'pain' | 'rass') => {
+    if (!id) return;
+    try {
+      const result = await getScoreTrends(id, scoreType, 72);
+      setScoreEntries(result.trends);
+      setScoreTrendData(
+        result.trends.map((t) => ({
+          date: new Date(t.timestamp).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }),
+          value: t.value,
+        }))
+      );
+    } catch {
+      setScoreEntries([]);
+      setScoreTrendData([]);
+    }
+  }, [id]);
+
   const handleRecordScore = useCallback(async (scoreType: 'pain' | 'rass', value: number) => {
     if (!id) return;
     await recordScore(id, { score_type: scoreType, value });
     if (scoreType === 'pain') setPainScoreValue(value);
     else setRassScoreValue(value);
     toast.success(`已記錄 ${scoreType === 'pain' ? 'Pain' : 'RASS'} = ${value}`);
-    // 自動打開趨勢圖
     setScoreTrendType(scoreType);
     setScoreTrendOpen(true);
-    try {
-      const result = await getScoreTrends(id, scoreType, 72);
-      setScoreTrendData(
-        result.trends.map((t) => ({
-          date: new Date(t.timestamp).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }),
-          value: t.value,
-        }))
-      );
-    } catch {
-      setScoreTrendData([]);
-    }
-  }, [id]);
+    await loadScoreTrends(scoreType);
+  }, [id, loadScoreTrends]);
 
   const handleOpenScoreTrend = useCallback(async (scoreType: 'pain' | 'rass') => {
     if (!id) return;
     setScoreTrendType(scoreType);
     setScoreTrendOpen(true);
-    try {
-      const result = await getScoreTrends(id, scoreType, 72);
-      setScoreTrendData(
-        result.trends.map((t) => ({
-          date: new Date(t.timestamp).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }),
-          value: t.value,
-        }))
-      );
-    } catch {
-      setScoreTrendData([]);
-    }
-  }, [id]);
+    await loadScoreTrends(scoreType);
+  }, [id, loadScoreTrends]);
+
+  const handleDeleteScoreEntry = useCallback(async (scoreId: string) => {
+    if (!id) return;
+    await deleteScore(id, scoreId);
+    toast.success('已刪除紀錄');
+    await loadScoreTrends(scoreTrendType);
+  }, [id, scoreTrendType, loadScoreTrends]);
 
   const handleRefreshMedications = useCallback(async () => {
     if (!id) return;
@@ -1945,6 +1949,8 @@ export function PatientDetailPage() {
           scoreTrendOpen={scoreTrendOpen}
           scoreTrendType={scoreTrendType}
           scoreTrendData={scoreTrendData}
+          scoreEntries={scoreEntries}
+          onDeleteScoreEntry={handleDeleteScoreEntry}
           onCloseScoreTrend={() => setScoreTrendOpen(false)}
           onRefreshMedications={handleRefreshMedications}
         />

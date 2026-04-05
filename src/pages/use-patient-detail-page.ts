@@ -226,6 +226,7 @@ export function usePatientDetailPage() {
   const [scoreTrendOpen, setScoreTrendOpen] = useState(false);
   const [scoreTrendType, setScoreTrendType] = useState<'pain' | 'rass'>('pain');
   const [scoreTrendData, setScoreTrendData] = useState<{ date: string; value: number }[]>([]);
+  const [scoreEntries, setScoreEntries] = useState<import('@/lib/api/scores').ScoreEntry[]>([]);
 
   const handleRecordScore = useCallback(async (scoreType: 'pain' | 'rass', value: number) => {
     if (!id) return;
@@ -253,12 +254,11 @@ export function usePatientDetailPage() {
     }
   }, [id, refreshScores]);
 
-  const handleOpenScoreTrend = useCallback(async (scoreType: 'pain' | 'rass') => {
+  const loadScoreTrends = useCallback(async (scoreType: 'pain' | 'rass') => {
     if (!id) return;
-    setScoreTrendType(scoreType);
-    setScoreTrendOpen(true);
     try {
       const result: ScoreTrendsResponse = await getScoreTrends(id, scoreType, 72);
+      setScoreEntries(result.trends);
       setScoreTrendData(
         result.trends.map((t) => ({
           date: new Date(t.timestamp).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
@@ -267,9 +267,24 @@ export function usePatientDetailPage() {
       );
     } catch {
       toast.error('載入趨勢資料失敗');
+      setScoreEntries([]);
       setScoreTrendData([]);
     }
   }, [id]);
+
+  const handleOpenScoreTrend = useCallback(async (scoreType: 'pain' | 'rass') => {
+    if (!id) return;
+    setScoreTrendType(scoreType);
+    setScoreTrendOpen(true);
+    await loadScoreTrends(scoreType);
+  }, [id, loadScoreTrends]);
+
+  const handleDeleteScoreEntry = useCallback(async (scoreId: string) => {
+    if (!id) return;
+    await deleteScore(id, scoreId);
+    toast.success('已刪除紀錄');
+    await loadScoreTrends(scoreTrendType);
+  }, [id, scoreTrendType, loadScoreTrends]);
 
   const { unreadMessagesCount, chatTabProps, messagesTabProps, labsTabProps, medicationsTabProps } = usePatientDetailTabsProps({
     patientId: id,
@@ -376,6 +391,8 @@ export function usePatientDetailPage() {
       scoreTrendOpen,
       scoreTrendType,
       scoreTrendData,
+      scoreEntries,
+      onDeleteScoreEntry: handleDeleteScoreEntry,
       onCloseScoreTrend: () => setScoreTrendOpen(false),
       onRefreshMedications: async () => {
         await loadPatientBundle('auto');
