@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   getClinicalSummary,
   getReadinessReason,
@@ -6,6 +6,7 @@ import {
   type DataFreshness,
   type RAGStatus,
 } from '../../lib/api/ai';
+import { updatePatient } from '../../lib/api/patients';
 import { copyToClipboard } from '../../lib/clipboard-utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Button } from '../ui/button';
@@ -14,6 +15,11 @@ import {
   FileText,
   Sparkles,
   Copy,
+  X,
+  Plus,
+  Wand2,
+  Save,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -39,6 +45,7 @@ interface PatientSummaryTabProps {
   userRole?: string;
   ragStatus: RAGStatus | null;
   aiReadiness: AIReadiness | null;
+  onPatientUpdate?: (updated: Partial<PatientSummaryTabPatient>) => void;
 }
 
 function DataFreshnessHint({ dataFreshness }: { dataFreshness?: DataFreshness | null }) {
@@ -53,15 +60,89 @@ function DataFreshnessHint({ dataFreshness }: { dataFreshness?: DataFreshness | 
   );
 }
 
-export function PatientSummaryTab({ patient, aiReadiness }: PatientSummaryTabProps) {
+export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: PatientSummaryTabProps) {
   const [aiSummary, setAiSummary] = useState('');
   const [summaryWarnings, setSummaryWarnings] = useState<string[] | null>(null);
   const [summaryFreshness, setSummaryFreshness] = useState<DataFreshness | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
-  const symptoms = Array.isArray(patient.symptoms) ? patient.symptoms : [];
+  // Symptom editing state
+  const initialSymptoms = Array.isArray(patient.symptoms) ? patient.symptoms : [];
+  const [editingSymptoms, setEditingSymptoms] = useState<string[]>(initialSymptoms);
+  const [newSymptom, setNewSymptom] = useState('');
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const hasChanges = JSON.stringify(editingSymptoms) !== JSON.stringify(initialSymptoms);
+
   const canSummary = aiReadiness ? aiReadiness.feature_gates.clinical_summary : true;
   const summaryReason = getReadinessReason(aiReadiness, 'clinical_summary');
+
+  const removeSymptom = useCallback((idx: number) => {
+    setEditingSymptoms((prev) => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  const addSymptom = useCallback((symptom: string) => {
+    const trimmed = symptom.trim();
+    if (!trimmed) return;
+    setEditingSymptoms((prev) => {
+      if (prev.some((s) => s.toLowerCase() === trimmed.toLowerCase())) return prev;
+      return [...prev, trimmed];
+    });
+    setNewSymptom('');
+    // Remove from suggestions if it was there
+    setAiSuggestions((prev) => prev.filter((s) => s.toLowerCase() !== trimmed.toLowerCase()));
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      await updatePatient(patient.id, { symptoms: editingSymptoms } as never);
+      onPatientUpdate?.({ symptoms: editingSymptoms });
+      toast.success('症狀已更新');
+    } catch {
+      toast.error('更新失敗，請稍後再試');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [patient.id, editingSymptoms, onPatientUpdate]);
+
+  const handleAiSuggest = useCallback(async () => {
+    if (!canSummary) {
+      toast.error(summaryReason);
+      return;
+    }
+    setIsLoadingSuggestions(true);
+    setAiSuggestions([]);
+    try {
+      const result = await getClinicalSummary(patient.id);
+      // Extract key findings from structured summary or parse from text
+      const structured = result.summary_structured;
+      let suggestions: string[] = [];
+      if (structured?.key_findings && Array.isArray(structured.key_findings)) {
+        suggestions = structured.key_findings;
+      } else {
+        // Parse bullet points from summary text
+        const lines = (typeof result.summary === 'string' ? result.summary : '')
+          .split('\n')
+          .map((l) => l.replace(/^[-*•]\s*/, '').replace(/^\d+\.\s*/, '').trim())
+          .filter((l) => l.length > 3 && l.length < 100);
+        suggestions = lines.slice(0, 8);
+      }
+      // Filter out symptoms already in the list
+      const existing = new Set(editingSymptoms.map((s) => s.toLowerCase()));
+      suggestions = suggestions.filter((s) => !existing.has(s.toLowerCase()));
+      if (suggestions.length === 0) {
+        toast.info('AI 未發現新的建議症狀');
+      }
+      setAiSuggestions(suggestions);
+    } catch {
+      toast.error('AI 建議生成失敗');
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  }, [patient.id, canSummary, summaryReason, editingSymptoms]);
 
   const infoRows: { label: string; value: string }[] = [
     { label: '床號', value: patient.bedNumber || '-' },
@@ -77,7 +158,7 @@ export function PatientSummaryTab({ patient, aiReadiness }: PatientSummaryTabPro
 
   return (
     <div className="grid gap-3 lg:grid-cols-[3fr_2fr]">
-      {/* ── 左欄：基本資訊 / 症狀 / 入院診斷 ── */}
+      {/* ── 左欄：基本資訊 / 臨床狀態 ── */}
       <div className="space-y-2">
         <Card className="overflow-hidden border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-100/80">
           <CardHeader className="border-b border-slate-200/80 bg-white/70 pb-1.5">
@@ -125,20 +206,111 @@ export function PatientSummaryTab({ patient, aiReadiness }: PatientSummaryTabPro
               <p className="text-sm font-semibold text-slate-500">入院診斷</p>
               <p className="mt-1 text-base font-semibold text-slate-900">{patient.diagnosis || '-'}</p>
             </div>
+
+            {/* ── 症狀（可編輯） ── */}
             <div className="rounded-md border border-slate-200 bg-white px-4 py-3">
-              <p className="text-sm font-semibold text-slate-500">症狀</p>
-              {symptoms.length > 0 ? (
-                <ul className="mt-1.5 space-y-1">
-                  {symptoms.map((symptom: string, idx: number) => (
-                    <li key={idx} className="flex items-start gap-2 text-base leading-snug text-slate-800">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
-                      {symptom}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-1 text-base text-muted-foreground">尚無症狀記錄</p>
-              )}
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-slate-500">症狀</p>
+                {hasChanges && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="h-7 bg-brand hover:bg-brand-hover text-xs"
+                    onClick={handleSave}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Save className="mr-1 h-3 w-3" />}
+                    儲存更新
+                  </Button>
+                )}
+              </div>
+
+              {/* 現有症狀 tags */}
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {editingSymptoms.map((symptom, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-sm text-slate-700"
+                  >
+                    {symptom}
+                    <button
+                      type="button"
+                      onClick={() => removeSymptom(idx)}
+                      className="ml-0.5 rounded-full p-0.5 text-slate-400 transition-colors hover:bg-red-100 hover:text-red-600"
+                      aria-label={`移除 ${symptom}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+                {editingSymptoms.length === 0 && (
+                  <p className="text-sm text-slate-400">尚無症狀記錄</p>
+                )}
+              </div>
+
+              {/* 手動新增 */}
+              <div className="mt-2.5 flex gap-1.5">
+                <input
+                  type="text"
+                  value={newSymptom}
+                  onChange={(e) => setNewSymptom(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addSymptom(newSymptom);
+                    }
+                  }}
+                  placeholder="輸入新症狀..."
+                  className="h-8 flex-1 rounded-md border border-slate-200 bg-white px-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 px-2.5"
+                  onClick={() => addSymptom(newSymptom)}
+                  disabled={!newSymptom.trim()}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+
+              {/* AI 建議按鈕 */}
+              <div className="mt-3 border-t border-slate-100 pt-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs border-brand/30 text-brand hover:bg-brand/5"
+                  onClick={handleAiSuggest}
+                  disabled={isLoadingSuggestions}
+                >
+                  {isLoadingSuggestions ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {isLoadingSuggestions ? 'AI 分析中...' : 'AI 建議症狀'}
+                </Button>
+
+                {/* AI 建議結果 */}
+                {aiSuggestions.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs text-slate-400 mb-1.5">點擊加入：</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {aiSuggestions.map((suggestion, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => addSymptom(suggestion)}
+                          className="inline-flex items-center gap-1 rounded-full border border-brand/20 bg-brand/5 px-2.5 py-1 text-sm text-brand transition-colors hover:bg-brand/10 hover:border-brand/40"
+                        >
+                          <Plus className="h-3 w-3" />
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
