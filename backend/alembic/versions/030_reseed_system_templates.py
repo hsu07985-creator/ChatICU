@@ -1,8 +1,12 @@
-"""Seed system record templates for progress-note, medication-advice, nursing-record.
+"""Re-seed system record templates with valid FK (created_by_id=usr_003).
 
-Revision ID: 029
-Revises: 028
-Create Date: 2026-04-04
+Migration 029 may have failed on production because created_by_id="system"
+violates the FK constraint to users.id. This migration re-runs the same
+idempotent seed logic with a valid user ID.
+
+Revision ID: 030
+Revises: 029
+Create Date: 2026-04-05
 """
 
 import uuid
@@ -11,14 +15,12 @@ from datetime import datetime
 from alembic import op
 import sqlalchemy as sa
 
-revision = "029"
-down_revision = "028"
+revision = "030"
+down_revision = "029"
 branch_labels = None
 depends_on = None
 
-# System templates keyed by (record_type, name)
 SYSTEM_TEMPLATES = [
-    # ── Progress Note ──
     {
         "name": "SOAP 格式",
         "description": "標準 SOAP Progress Note 模板",
@@ -43,7 +45,6 @@ SYSTEM_TEMPLATES = [
         "content": "主訴: ___\n目前狀況: ___\n處置計畫: ___",
         "sort_order": 2,
     },
-    # ── Medication Advice ──
     {
         "name": "劑量調整建議",
         "description": "藥師劑量調整建議模板",
@@ -72,7 +73,6 @@ SYSTEM_TEMPLATES = [
         ),
         "sort_order": 2,
     },
-    # ── Nursing Record ──
     {
         "name": "一般交班",
         "description": "護理一般交班模板",
@@ -159,7 +159,6 @@ def upgrade():
 
     now = datetime.utcnow()
     for t in SYSTEM_TEMPLATES:
-        # Idempotent: skip if already exists
         exists = conn.execute(
             sa.select(tbl.c.id).where(
                 tbl.c.name == t["name"],
@@ -190,9 +189,4 @@ def upgrade():
 
 
 def downgrade():
-    conn = op.get_bind()
-    tbl = sa.table(
-        "record_templates",
-        sa.column("is_system", sa.Boolean),
-    )
-    conn.execute(tbl.delete().where(tbl.c.is_system == True))
+    pass
