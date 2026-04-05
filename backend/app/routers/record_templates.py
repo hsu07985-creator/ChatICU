@@ -177,6 +177,7 @@ async def update_record_template(
     template.updated_by_id = user.id
     template.updated_by_name = user.name
     await db.flush()
+    await db.refresh(template)
 
     await create_audit_log(
         db,
