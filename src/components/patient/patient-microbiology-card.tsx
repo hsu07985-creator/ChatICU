@@ -23,10 +23,6 @@ function isPositiveCulture(panel: CulturePanel): boolean {
   );
 }
 
-function formatDate(dateStr: string | null) {
-  if (!dateStr) return '—';
-  return dateStr.slice(0, 10);
-}
 
 function shortDate(dateStr: string | null) {
   if (!dateStr) return '—';
@@ -39,61 +35,6 @@ function sortSusceptibility(items: SusceptibilityResult[]): SusceptibilityResult
   return [...items].sort((a, b) => (order[a.result] ?? 3) - (order[b.result] ?? 3));
 }
 
-interface OrganismSummary {
-  organism: string;
-  specimens: string[];
-  latestDate: string;
-  resistantCount: number;
-}
-
-function buildOrganismSummaries(panels: CulturePanel[]): OrganismSummary[] {
-  const map = new Map<string, OrganismSummary>();
-  for (const p of panels) {
-    if (!isPositiveCulture(p)) continue;
-    for (const iso of p.isolates) {
-      if (iso.organism === 'Negative' || iso.organism.startsWith('No growth') || iso.organism.startsWith('No salmonella')) continue;
-      const existing = map.get(iso.organism);
-      const date = p.reportedAt ?? '';
-      const rCount = p.susceptibility.filter((s) => s.result === 'R').length;
-      if (!existing) {
-        map.set(iso.organism, {
-          organism: iso.organism,
-          specimens: [p.specimen],
-          latestDate: date,
-          resistantCount: rCount,
-        });
-      } else {
-        if (!existing.specimens.includes(p.specimen)) existing.specimens.push(p.specimen);
-        if (date > existing.latestDate) existing.latestDate = date;
-        existing.resistantCount = Math.max(existing.resistantCount, rCount);
-      }
-    }
-  }
-  return Array.from(map.values());
-}
-
-/* ── Organism Summary Banner ───────────────────────────── */
-
-function OrganismBanner({ summaries, specimenCount }: { summaries: OrganismSummary[]; specimenCount: number }) {
-  if (summaries.length === 0 || specimenCount < 2) return null;
-  return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 mb-3">
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Isolated Organisms</p>
-      <div className="flex flex-wrap gap-2">
-        {summaries.map((s) => (
-          <span
-            key={s.organism}
-            className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs shadow-sm"
-          >
-            <span className="font-semibold text-slate-800 italic">{s.organism}</span>
-            <span className="text-slate-500">{s.specimens.join(', ')}</span>
-            <span className="text-slate-400">{formatDate(s.latestDate)}</span>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 /* ── Susceptibility Pills ──────────────────────────────── */
 
@@ -335,10 +276,7 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
   }, [patientId]);
 
   const cultures = data?.cultures ?? [];
-  const organismSummaries = useMemo(() => buildOrganismSummaries(cultures), [cultures]);
   const categoryGroups = useMemo(() => groupByCategory(cultures), [cultures]);
-
-  const positiveCategoryCount = categoryGroups.filter((g) => g.positive.length > 0).length;
 
   if (loading) {
     return (
@@ -354,11 +292,6 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
 
   return (
     <div className="space-y-3">
-      {/* Organism Summary Banner */}
-      {cultures.length > 0 && (
-        <OrganismBanner summaries={organismSummaries} specimenCount={positiveCategoryCount} />
-      )}
-
       {/* 2x2 Grid: all 4 categories always shown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {categoryGroups.map((group) => {
