@@ -96,6 +96,9 @@ export function PatientLabsTab({
   const activeSection = rawSection && VALID_LABS_SECTIONS.has(rawSection) ? rawSection : 'lab-data';
   const rawMonitor = searchParams.get('monitor');
   const activeMonitor = rawMonitor && VALID_MONITOR_SECTIONS.has(rawMonitor) ? rawMonitor : 'vital-signs';
+  const map = isFiniteNumber(systolicBP) && isFiniteNumber(diastolicBP)
+    ? Math.round((systolicBP + 2 * diastolicBP) / 3)
+    : null;
   const hasAnyVitalSign = [temperature, heartRate, respiratoryRate, systolicBP, diastolicBP, spo2, cvp, icp].some(isFiniteNumber);
   const setActiveSection = useCallback((section: 'lab-data' | 'microbiology') => {
     setSearchParams(prev => {
@@ -209,6 +212,15 @@ export function PatientLabsTab({
               isAbnormal={isFiniteNumber(diastolicBP) && (diastolicBP > 90 || diastolicBP < 60)}
               abnormalDirection={vitalDirection(diastolicBP, 60, 90)}
               onClick={isFiniteNumber(diastolicBP) ? () => onVitalSignClick('BloodPressureDiastolic', diastolicBP, 'mmHg', 'vital') : undefined}
+              timestamp={vitalSignsTimestamp || undefined}
+            />
+            <VitalSignCard
+              label="MAP"
+              value={map}
+              unit="mmHg"
+              isAbnormal={isFiniteNumber(map) && (map > 110 || map < 65)}
+              abnormalDirection={vitalDirection(map, 65, 110)}
+              onClick={isFiniteNumber(map) ? () => onVitalSignClick('MAP', map, 'mmHg', 'vital') : undefined}
               timestamp={vitalSignsTimestamp || undefined}
             />
             <VitalSignCard
