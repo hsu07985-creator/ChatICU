@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bug, Calendar, ChevronDown, ChevronRight } from 'lucide-react';
+import { Bug, Calendar } from 'lucide-react';
 import { getCultureSusceptibility } from '../../lib/api/microbiology';
 import type { CulturePanel, CultureSusceptibilityData, SusceptibilityResult } from '../../lib/api/microbiology';
 import { Badge } from '../ui/badge';
@@ -89,11 +89,6 @@ function OrganismBanner({ summaries, specimenCount }: { summaries: OrganismSumma
           >
             <span className="font-medium text-slate-800 italic">{s.organism}</span>
             <span className="text-xs text-slate-400">{s.specimens.join(', ')}</span>
-            {s.resistantCount > 0 && (
-              <Badge className="text-xs px-1 py-0 bg-red-500 text-white hover:bg-red-500">
-                R x{s.resistantCount}
-              </Badge>
-            )}
             <span className="text-xs text-slate-400">{formatDate(s.latestDate)}</span>
           </span>
         ))}
@@ -223,11 +218,6 @@ function MergedCultureRow({ merged }: { merged: MergedCulture }) {
           {merged.dates.length > 1 && (
             <span className="text-xs text-slate-300">×{merged.dates.length}</span>
           )}
-          {hasResistance && (
-            <Badge className="bg-red-500 px-1.5 py-0 text-xs text-white hover:bg-red-500">
-              R x{merged.resistantCount}
-            </Badge>
-          )}
         </div>
         <div className="flex flex-wrap gap-x-2 gap-y-1">
           {merged.organisms.map((org, idx) => (
@@ -243,37 +233,19 @@ function MergedCultureRow({ merged }: { merged: MergedCulture }) {
   );
 }
 
-/* ── Negative Results Collapsible ────────────────────────── */
+/* ── Negative Results (always visible) ──────────────────── */
 
-function NegativeSection({ panels }: { panels: CulturePanel[] }) {
-  const [expanded, setExpanded] = useState(false);
+function NegativeRows({ panels }: { panels: CulturePanel[] }) {
   if (panels.length === 0) return null;
 
   return (
-    <div>
-      <button
-        type="button"
-        className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
-        onClick={() => setExpanded(!expanded)}
-      >
-        {expanded ? (
-          <ChevronDown className="h-3 w-3" />
-        ) : (
-          <ChevronRight className="h-3 w-3" />
-        )}
-        <span className="font-medium">{panels.length} negative</span>
-      </button>
-
-      {expanded && (
-        <div className="mt-1 space-y-0.5 pl-4">
-          {panels.map((p, idx) => (
-            <div key={idx} className="text-xs text-slate-400">
-              {formatDate(p.reportedAt)}
-              {p.department && <span className="ml-1.5">· {p.department}</span>}
-            </div>
-          ))}
+    <div className="space-y-1">
+      {panels.map((p, idx) => (
+        <div key={idx} className="rounded-lg border border-green-100 bg-green-50/40 px-3.5 py-2 flex items-center gap-2">
+          <span className="text-xs text-slate-400 tabular-nums">{shortDate(p.reportedAt)}</span>
+          <span className="text-xs text-green-600 font-medium">No growth</span>
         </div>
-      )}
+      ))}
     </div>
   );
 }
@@ -469,18 +441,8 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
                           </div>
                         )}
 
-                        {/* Negative-only: No growth */}
-                        {group.negative.length > 0 && !hasPositive && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs text-green-600 font-medium">No growth</span>
-                            <span className="text-xs text-slate-400">
-                              {group.negative.map((p) => formatDate(p.reportedAt)).join(', ')}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Negative section (collapsible) when mixed with positives */}
-                        {hasPositive && <NegativeSection panels={group.negative} />}
+                        {/* Negative cultures — always visible */}
+                        <NegativeRows panels={group.negative} />
 
                         {/* "Other" category: show original specimen names */}
                         {group.category === 'other' && total > 0 && (
