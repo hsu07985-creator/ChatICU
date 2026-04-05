@@ -413,24 +413,7 @@ export function PatientLabsTab({
       </div>
 
       {activeSection === 'lab-data' ? (
-        <>
-          <Card>
-            <CardHeader className="min-h-14 bg-slate-50 border-b py-3">
-              <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                <TestTube className="h-6 w-6 text-brand" />
-                檢驗數據 Lab Data
-              </CardTitle>
-              <CardDescription className="mt-1 text-sm flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
-                {formatDisplayTimestamp(labData?.timestamp)}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-3">
-              <LabDataDisplay labData={labData} patientId={patientId} />
-            </CardContent>
-          </Card>
-
-        </>
+        <LabDataDisplay labData={labData} patientId={patientId} />
       ) : (
         <PatientMicrobiologyCard patientId={patientId} />
       )}
