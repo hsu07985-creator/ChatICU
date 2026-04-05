@@ -21,6 +21,7 @@ interface UsePatientDetailTabsPropsParams {
   onMarkMessageRead: (messageId: string) => void | Promise<void>;
   formatTimestamp: (timestamp: string) => string;
   presetTags: string[];
+  pharmacyTagCategories: { category: string; tags: string[] }[];
   onUpdateTags: (messageId: string, data: { add?: string[]; remove?: string[] }) => void | Promise<void>;
   onRespondToAdvice: (adviceRecordId: string, accepted: boolean) => void | Promise<void>;
 
@@ -84,6 +85,7 @@ export function usePatientDetailTabsProps(params: UsePatientDetailTabsPropsParam
     onMarkMessageRead,
     formatTimestamp,
     presetTags,
+    pharmacyTagCategories,
     onUpdateTags,
     onRespondToAdvice,
     showSessionList,
@@ -189,6 +191,7 @@ export function usePatientDetailTabsProps(params: UsePatientDetailTabsPropsParam
       onMarkMessageRead,
       formatTimestamp,
       presetTags,
+      pharmacyTagCategories,
       onUpdateTags,
       onRespondToAdvice,
     };
@@ -250,6 +253,7 @@ export function usePatientDetailTabsProps(params: UsePatientDetailTabsPropsParam
     onToggleReferences,
     onToggleSessionList,
     patientId,
+    pharmacyTagCategories,
     presetTags,
     selectedSessionId,
     deleteSessionDialogOpen,

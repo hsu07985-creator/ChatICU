@@ -101,6 +101,21 @@ export async function getPresetTags(
   return ensureData(response.data, 'API contract');
 }
 
+// 取得藥事標籤（分類結構）
+export interface PharmacyTagCategory {
+  category: string;
+  tags: string[];
+}
+
+export async function getPharmacyTags(
+  patientId: string
+): Promise<PharmacyTagCategory[]> {
+  const response = await apiClient.get<ApiResponse<PharmacyTagCategory[]>>(
+    `/patients/${patientId}/messages/pharmacy-tags`
+  );
+  return ensureData(response.data, 'API contract');
+}
+
 // @我的留言 — 跨病患查詢被 @到的留言
 export interface MentionMessage {
   id: string;

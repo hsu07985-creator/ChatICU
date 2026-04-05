@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } 
 import { toast } from 'sonner';
 import type { LabTrendData } from '../components/lab-trend-chart';
 import { messagesApi, vitalSignsApi, ventilatorApi, type PatientMessage } from '../lib/api';
+import type { PharmacyTagCategory } from '../lib/api/messages';
 import { respondToAdvice } from '../lib/api/pharmacy';
 import type { UserRole } from '../lib/auth-context';
 import type { SessionChatMessage, SessionListItem } from '../hooks/use-chat-sessions';
@@ -56,12 +57,16 @@ export function usePatientDetailController({
   const [deleteSessionTargetId, setDeleteSessionTargetId] = useState<string | null>(null);
   const [deletingSession, setDeletingSession] = useState(false);
   const [presetTags, setPresetTags] = useState<string[]>([]);
+  const [pharmacyTagCategories, setPharmacyTagCategories] = useState<PharmacyTagCategory[]>([]);
 
   useEffect(() => {
     if (!patientId) return;
     messagesApi.getPresetTags(patientId)
       .then(setPresetTags)
       .catch(() => setPresetTags([]));
+    messagesApi.getPharmacyTags(patientId)
+      .then(setPharmacyTagCategories)
+      .catch(() => setPharmacyTagCategories([]));
   }, [patientId]);
 
   const handleSendBoardMessage = useCallback(async (replyToId?: string, tags?: string[], mentionedRoles?: string[]) => {
@@ -302,6 +307,7 @@ export function usePatientDetailController({
     handleOpenSession,
     handleVitalSignClick,
     presetTags,
+    pharmacyTagCategories,
     handleUpdateMessageTags,
     handleRespondToAdvice,
     formatTimestamp: formatMessageTimestamp,

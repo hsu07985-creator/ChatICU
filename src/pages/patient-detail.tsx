@@ -525,6 +525,7 @@ export function PatientDetailPage() {
   const [messageInput, setMessageInput] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
   const [presetTags, setPresetTags] = useState<string[]>([]);
+  const [pharmacyTagCategories, setPharmacyTagCategories] = useState<{ category: string; tags: string[] }[]>([]);
 
   // 生命徵象狀態
   const [vitalSigns, setVitalSigns] = useState<VitalSigns | null>(null);
@@ -811,6 +812,7 @@ export function PatientDetailPage() {
   useEffect(() => {
     if (!id) return;
     messagesApi.getPresetTags(id).then(setPresetTags).catch(() => setPresetTags([]));
+    messagesApi.getPharmacyTags(id).then(setPharmacyTagCategories).catch(() => setPharmacyTagCategories([]));
   }, [id]);
 
   // 發送留言板留言
@@ -1880,6 +1882,7 @@ export function PatientDetailPage() {
           onMarkMessageRead={handleMarkMessageRead}
           formatTimestamp={formatTimestamp}
           presetTags={presetTags}
+          pharmacyTagCategories={pharmacyTagCategories}
           onUpdateTags={handleUpdateMessageTags}
           onRespondToAdvice={handleRespondToAdvice}
         />

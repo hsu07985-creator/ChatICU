@@ -15,6 +15,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Textarea } from '../ui/textarea';
 import { groupMessagesByWeek } from '../../pages/patient-detail-utils';
 
+interface PharmacyTagCategory {
+  category: string;
+  tags: string[];
+}
+
 interface PatientMessagesTabProps {
   patientId?: string;
   userRole?: UserRole;
@@ -28,6 +33,7 @@ interface PatientMessagesTabProps {
   onMarkMessageRead: (messageId: string) => void | Promise<void>;
   formatTimestamp: (timestamp: string) => string;
   presetTags: string[];
+  pharmacyTagCategories?: PharmacyTagCategory[];
   onUpdateTags: (messageId: string, data: { add?: string[]; remove?: string[] }) => void | Promise<void>;
   onRespondToAdvice: (adviceRecordId: string, accepted: boolean) => void | Promise<void>;
 }
@@ -120,6 +126,101 @@ function TagSelector({
   );
 }
 
+const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  '建議處方': { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
+  '主動建議': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+  '建議監測': { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-300' },
+  '用藥連貫性': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+};
+
+function PharmacyTagSelector({
+  categories,
+  existingTags,
+  onAdd,
+}: {
+  categories: PharmacyTagCategory[];
+  existingTags: string[];
+  onAdd: (tags: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const existingSet = new Set(existingTags);
+
+  const toggleExpand = (cat: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
+
+  const handleSelect = (tag: string, category: string) => {
+    const toAdd: string[] = [];
+    if (!existingSet.has(category)) toAdd.push(category);
+    if (!existingSet.has(tag)) toAdd.push(tag);
+    if (toAdd.length > 0) onAdd(toAdd);
+    setOpen(false);
+  };
+
+  if (categories.length === 0) return null;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 rounded-md px-2 h-7 text-xs text-green-700 hover:bg-green-50 hover:text-green-800 transition-colors"
+        >
+          <Pill className="h-3.5 w-3.5" />
+          藥事標籤
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-0 max-h-80 overflow-y-auto" align="start">
+        {categories.map((cat) => {
+          const colors = CATEGORY_COLORS[cat.category] || CATEGORY_COLORS['建議處方'];
+          const isExpanded = expanded.has(cat.category);
+          const availableTags = cat.tags.filter((t) => !existingSet.has(t));
+          return (
+            <div key={cat.category} className="border-b last:border-b-0">
+              <button
+                type="button"
+                className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium ${colors.bg} ${colors.text} hover:opacity-80 transition-opacity`}
+                onClick={() => toggleExpand(cat.category)}
+              >
+                <span className="flex items-center gap-1.5">
+                  {cat.category}
+                  <span className="text-[10px] opacity-60">({cat.tags.length})</span>
+                </span>
+                <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+              </button>
+              {isExpanded && (
+                <div className="px-2 py-1.5 space-y-0.5">
+                  {availableTags.length === 0 ? (
+                    <div className="text-[10px] text-slate-400 px-1 py-0.5">已全部選取</div>
+                  ) : (
+                    availableTags.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        className={`w-full text-left px-2 py-1 rounded text-xs hover:${colors.bg} transition-colors`}
+                        onClick={() => handleSelect(tag, cat.category)}
+                      >
+                        <Plus className="h-2.5 w-2.5 mr-1 inline" />
+                        {tag}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function PatientMessagesTab({
   patientId,
   userRole,
@@ -133,6 +234,7 @@ export function PatientMessagesTab({
   onMarkMessageRead,
   formatTimestamp,
   presetTags,
+  pharmacyTagCategories,
   onUpdateTags,
   onRespondToAdvice,
 }: PatientMessagesTabProps) {
@@ -252,6 +354,20 @@ export function PatientMessagesTab({
                 existingTags={composeTags}
                 onAdd={(tag) => setComposeTags((prev) => prev.length < 10 ? [...prev, tag] : prev)}
               />
+              {pharmacyTagCategories && pharmacyTagCategories.length > 0 && (
+                <PharmacyTagSelector
+                  categories={pharmacyTagCategories}
+                  existingTags={composeTags}
+                  onAdd={(tags) => setComposeTags((prev) => {
+                    const s = new Set(prev);
+                    const next = [...prev];
+                    for (const t of tags) {
+                      if (!s.has(t) && next.length < 10) { next.push(t); s.add(t); }
+                    }
+                    return next;
+                  })}
+                />
+              )}
             </div>
 
             {/* 角色提及 */}
@@ -414,6 +530,13 @@ export function PatientMessagesTab({
                                 existingTags={message.tags || []}
                                 onAdd={(tag) => onUpdateTags(message.id, { add: [tag] })}
                               />
+                              {pharmacyTagCategories && pharmacyTagCategories.length > 0 && (
+                                <PharmacyTagSelector
+                                  categories={pharmacyTagCategories}
+                                  existingTags={message.tags || []}
+                                  onAdd={(tags) => onUpdateTags(message.id, { add: tags })}
+                                />
+                              )}
                               {!message.isRead && (
                                 <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => onMarkMessageRead(message.id)}>
                                   <CheckCircle2 className="h-3 w-3 mr-1" />
