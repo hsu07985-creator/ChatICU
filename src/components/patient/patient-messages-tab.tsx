@@ -472,7 +472,7 @@ export function PatientMessagesTab({
                                   >
                                     {tag}
                                     <X
-                                      className={`h-2.5 w-2.5 ml-0.5 opacity-0 group-hover/tag:opacity-100 transition-opacity pointer-events-auto ${
+                                      className={`h-2.5 w-2.5 ml-0.5 opacity-0 group-hover/tag:opacity-100 transition-opacity !pointer-events-auto ${
                                         filterTag === tag ? 'text-indigo-200 hover:text-white' : ''
                                       }`}
                                       onClick={(e) => { e.stopPropagation(); onUpdateTags(message.id, { remove: [tag] }); }}
