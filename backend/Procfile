@@ -1,0 +1,1 @@
+web: alembic upgrade head || echo "WARN: migration failed, app will create missing tables" ; uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}

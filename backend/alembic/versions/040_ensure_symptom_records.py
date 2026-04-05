@@ -1,4 +1,4 @@
-"""Ensure symptom_records table exists (idempotent re-run of 039).
+"""Ensure symptom_records table exists (idempotent).
 
 Revision ID: 040
 Revises: 039

@@ -378,6 +378,28 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("[INTG][RAG] Auto-indexing failed (non-fatal): %s", e)
 
+    # Ensure symptom_records table exists (fallback if alembic skipped it)
+    try:
+        async with engine.begin() as _conn:
+            await _conn.execute(sa_text("""
+                CREATE TABLE IF NOT EXISTS symptom_records (
+                    id VARCHAR(50) PRIMARY KEY,
+                    patient_id VARCHAR(50) NOT NULL REFERENCES patients(id) ON DELETE RESTRICT,
+                    recorded_at TIMESTAMPTZ NOT NULL,
+                    symptoms JSONB,
+                    recorded_by JSONB,
+                    notes VARCHAR(1000),
+                    created_at TIMESTAMPTZ DEFAULT now()
+                )
+            """))
+            await _conn.execute(sa_text("""
+                CREATE INDEX IF NOT EXISTS ix_symptom_records_patient_id
+                ON symptom_records (patient_id)
+            """))
+            logger.info("[INTG][DB] symptom_records table ensured")
+    except Exception as e:
+        logger.warning("[INTG][DB] Failed to ensure symptom_records: %s", e)
+
     yield
     # Shutdown
     from app.middleware.auth import _redis_client

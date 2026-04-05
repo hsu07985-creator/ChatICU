@@ -53,24 +53,6 @@ async def list_symptom_records(
     return success_response(data=records)
 
 
-@router.get("/debug")
-async def debug_symptom_records(patient_id: str):
-    """Temporary debug endpoint — remove after fixing."""
-    from sqlalchemy import text
-    from app.database import async_session
-    try:
-        async with async_session() as db:
-            r1 = await db.execute(text("SELECT version_num FROM alembic_version"))
-            ver = [row[0] for row in r1]
-            r2 = await db.execute(
-                text("SELECT tablename FROM pg_tables WHERE tablename = 'symptom_records'")
-            )
-            exists = len(r2.fetchall()) > 0
-            return {"alembic": ver, "table_exists": exists}
-    except Exception as e:
-        return {"error": str(e)}
-
-
 @router.post("")
 async def create_symptom_record(
     patient_id: str,
