@@ -72,6 +72,7 @@ from app.routers import (
     record_templates,
     rules,
     scores,
+    symptom_records,
     team_chat,
     ventilator,
     vital_signs,
@@ -622,3 +623,4 @@ app.include_router(ai_chat.router)
 app.include_router(patients_v2.router)
 app.include_router(scores.router)
 app.include_router(record_templates.router)
+app.include_router(symptom_records.router)

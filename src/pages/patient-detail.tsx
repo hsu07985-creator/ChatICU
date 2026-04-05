@@ -1960,7 +1960,6 @@ export function PatientDetailPage() {
           <PatientSummaryTab
             patient={patient}
             userRole={user?.role}
-            ragStatus={ragStatus}
             aiReadiness={aiReadiness}
           />
         </TabsContent>

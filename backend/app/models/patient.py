@@ -68,3 +68,4 @@ class Patient(Base):
     weaning_assessments = relationship("WeaningAssessment", back_populates="patient")
     messages = relationship("PatientMessage", back_populates="patient")
     culture_results = relationship("CultureResult", back_populates="patient")
+    symptom_records = relationship("SymptomRecord", back_populates="patient")

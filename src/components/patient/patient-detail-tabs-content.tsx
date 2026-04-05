@@ -28,7 +28,6 @@ interface PatientDetailTabsContentProps {
   summary: {
     patient: Patient;
     userRole?: UserRole;
-    ragStatus: RAGStatus | null;
     aiReadiness: AIReadiness | null;
   };
 }
