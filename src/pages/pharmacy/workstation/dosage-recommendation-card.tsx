@@ -1,13 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge } from '../../../components/ui/badge';
-import { Input } from '../../../components/ui/input';
-import { padCalculate } from '../../../lib/api/pharmacy';
 import type { DosageResult } from './types';
 
 interface DosageRecommendationCardProps {
   dose: DosageResult;
   showAdjustmentBadge: boolean;
-  onDoseRecalculated?: (updated: DosageResult) => void;
 }
 
 const statusConfig: Record<DosageResult['status'], { label: string; className: string }> = {
@@ -25,109 +22,61 @@ const statusConfig: Record<DosageResult['status'], { label: string; className: s
   },
 };
 
+/** Pure local rate calculation: rate = dosingWeight × dosePerKgHr / concentration */
+function calcRate(dosingWeight: number, dosePerKgHr: number, conc: number): number {
+  if (conc <= 0) return 0;
+  return parseFloat((dosingWeight * dosePerKgHr / conc).toFixed(1));
+}
+
 export function DosageRecommendationCard({
   dose,
   showAdjustmentBadge,
-  onDoseRecalculated,
 }: DosageRecommendationCardProps) {
   const canAdjust = dose.status === 'calculated' && dose.padKey && dose.doseRangeMin != null && dose.doseRangeMax != null && dose.doseRangeMax > dose.doseRangeMin;
 
-  const [sliderValue, setSliderValue] = useState(dose.currentTargetPerKgHr ?? 0);
-  const [concValue, setConcValue] = useState(dose.concentration ?? 1);
-  const [localRate, setLocalRate] = useState(dose.calculatedRate);
-  const [localDose, setLocalDose] = useState(dose.targetDose);
-  const [localSummary, setLocalSummary] = useState(dose.clinicalSummary);
-  const [localSteps, setLocalSteps] = useState(dose.calculationSteps);
-  const [localRateMin, setLocalRateMin] = useState(dose.rateAtMin ?? 0);
-  const [localRateMax, setLocalRateMax] = useState(dose.rateAtMax ?? 0);
-  const [isRecalculating, setIsRecalculating] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const defaultMin = dose.doseRangeMin ?? 0;
+  const defaultMax = dose.doseRangeMax ?? 1;
+  const defaultConc = dose.defaultConcentration ?? dose.concentration ?? 1;
+  const dosingWt = dose.dosingWeightKg ?? dose.weightKg ?? 0;
 
-  // Sync when parent dose changes (e.g. full re-assessment)
+  const [minDose, setMinDose] = useState(defaultMin);
+  const [maxDose, setMaxDose] = useState(defaultMax);
+  const [conc, setConc] = useState(defaultConc);
+
+  // Sync when parent dose changes (full re-assessment)
   useEffect(() => {
-    setSliderValue(dose.currentTargetPerKgHr ?? 0);
-    setConcValue(dose.concentration ?? 1);
-    setLocalRate(dose.calculatedRate);
-    setLocalDose(dose.targetDose);
-    setLocalSummary(dose.clinicalSummary);
-    setLocalSteps(dose.calculationSteps);
-    setLocalRateMin(dose.rateAtMin ?? 0);
-    setLocalRateMax(dose.rateAtMax ?? 0);
-  }, [dose.currentTargetPerKgHr, dose.concentration, dose.calculatedRate, dose.targetDose, dose.clinicalSummary, dose.calculationSteps, dose.rateAtMin, dose.rateAtMax]);
+    setMinDose(dose.doseRangeMin ?? 0);
+    setMaxDose(dose.doseRangeMax ?? 1);
+    setConc(dose.defaultConcentration ?? dose.concentration ?? 1);
+  }, [dose.doseRangeMin, dose.doseRangeMax, dose.defaultConcentration, dose.concentration]);
 
-  const recalculate = useCallback(async (target: number, conc: number) => {
-    if (!dose.padKey || !dose.weightKg || conc <= 0) return;
-    setIsRecalculating(true);
-    try {
-      const res = await padCalculate({
-        drug: dose.padKey,
-        weight_kg: dose.weightKg,
-        target_dose_per_kg_hr: target,
-        concentration: conc,
-        sex: dose.sex,
-        height_cm: dose.heightCm,
-      }, { suppressErrorToast: true });
-      const rateStr = `${res.rate_ml_hr} ml/hr`;
-      const doseUnit = dose.doseUnit?.replace('/kg', '') || '/hr';
-      const doseStr = `${res.dose_per_hr} ${doseUnit}`;
-      const dosingWt = res.dosing_weight_kg;
-      const rangeMin = dose.doseRangeMin ?? 0;
-      const rangeMax = dose.doseRangeMax ?? 0;
-      const rMin = rangeMin > 0 ? parseFloat((dosingWt * rangeMin / conc).toFixed(1)) : 0;
-      const rMax = rangeMax > 0 ? parseFloat((dosingWt * rangeMax / conc).toFixed(1)) : 0;
+  // Compute rates locally — no API call needed
+  const rateMin = useMemo(() => calcRate(dosingWt, minDose, conc), [dosingWt, minDose, conc]);
+  const rateMax = useMemo(() => calcRate(dosingWt, maxDose, conc), [dosingWt, maxDose, conc]);
 
-      setLocalRate(rateStr);
-      setLocalDose(doseStr);
-      setLocalSummary(`${res.weight_basis} ${dosingWt}kg → ${rateStr}`);
-      setLocalSteps(res.steps);
-      setLocalRateMin(rMin);
-      setLocalRateMax(rMax);
+  // Compute dose per hour for display
+  const dosePerHrMin = useMemo(() => parseFloat((dosingWt * minDose).toFixed(2)), [dosingWt, minDose]);
+  const dosePerHrMax = useMemo(() => parseFloat((dosingWt * maxDose).toFixed(2)), [dosingWt, maxDose]);
 
-      if (onDoseRecalculated) {
-        onDoseRecalculated({
-          ...dose,
-          calculatedRate: rateStr,
-          targetDose: doseStr,
-          clinicalSummary: `${res.weight_basis} ${dosingWt}kg → ${rateStr}`,
-          calculationSteps: res.steps,
-          currentTargetPerKgHr: target,
-          concentration: conc,
-          rateAtMin: rMin,
-          rateAtMax: rMax,
-          orderSummary: `${dose.drugName} ${rateStr}`,
-        });
-      }
-    } catch {
-      // Keep previous values on error
-    } finally {
-      setIsRecalculating(false);
-    }
-  }, [dose, onDoseRecalculated]);
+  // Slider step
+  const sliderStep = parseFloat(Math.max((defaultMax - defaultMin) / 100, 0.001).toPrecision(1));
+  const decimals = sliderStep < 0.01 ? 3 : sliderStep < 0.1 ? 2 : 1;
 
-  const debouncedRecalculate = useCallback((target: number, conc: number) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => recalculate(target, conc), 300);
-  }, [recalculate]);
-
-  const handleSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMinChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value);
-    setSliderValue(val);
-    debouncedRecalculate(val, concValue);
-  }, [debouncedRecalculate, concValue]);
+    setMinDose(val);
+    if (val > maxDose) setMaxDose(val);
+  }, [maxDose]);
+
+  const handleMaxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    setMaxDose(val);
+    if (val < minDose) setMinDose(val);
+  }, [minDose]);
 
   const handleConcChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value);
-    if (isNaN(val) || val <= 0) {
-      setConcValue(val || 0);
-      return;
-    }
-    setConcValue(val);
-    debouncedRecalculate(sliderValue, val);
-  }, [debouncedRecalculate, sliderValue]);
-
-  // Cleanup debounce on unmount
-  useEffect(() => () => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!isNaN(val) && val > 0) setConc(val);
   }, []);
 
   const summaryTone = dose.status === 'calculated'
@@ -136,17 +85,14 @@ export function DosageRecommendationCard({
       ? 'text-red-700'
       : 'text-amber-700';
   const resultBadge = dose.isEquivalentEstimate ? '等效換算' : dose.orderTypeLabel || '連續輸注';
+  const doseUnitShort = dose.doseUnit?.replace('/kg', '') || '/hr';
 
-  // Compute slider step: use 1/100 of range, rounded to nice number
-  const rangeMin = dose.doseRangeMin ?? 0;
-  const rangeMax = dose.doseRangeMax ?? 1;
-  const sliderStep = parseFloat(Math.max((rangeMax - rangeMin) / 100, 0.001).toPrecision(1));
-  const decimals = sliderStep < 0.01 ? 3 : sliderStep < 0.1 ? 2 : 1;
+  const isModified = minDose !== defaultMin || maxDose !== defaultMax || conc !== defaultConc;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
       <div className="flex flex-col gap-3">
-        {/* Header row */}
+        {/* Header */}
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-semibold text-sm sm:text-base">{dose.drugName}</p>
           <Badge className={statusConfig[dose.status].className}>
@@ -160,121 +106,124 @@ export function DosageRecommendationCard({
               調
             </Badge>
           )}
-          {isRecalculating && (
-            <span className="text-xs text-muted-foreground animate-pulse">計算中...</span>
+          {isModified && (
+            <Badge variant="outline" className="text-xs border-blue-400 text-blue-600">
+              已調整
+            </Badge>
           )}
         </div>
 
-        {/* Summary + rate range + rate boxes */}
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-          <div className="min-w-0 space-y-1 flex-1">
-            <p className={`text-sm leading-5 ${summaryTone}`}>{localSummary}</p>
-            {/* Rate range display */}
-            {canAdjust && localRateMin > 0 && localRateMax > 0 && (
-              <p className="text-xs text-muted-foreground">
-                速率範圍：<span className="font-mono font-medium text-slate-600">{localRateMin}</span>
-                {' ~ '}
-                <span className="font-mono font-medium text-slate-600">{localRateMax}</span>
-                {' ml/hr'}
-                <span className="text-slate-400 ml-1">
-                  （{dose.doseUnit} {rangeMin}–{rangeMax}）
-                </span>
-              </p>
-            )}
+        {/* Rate range output — primary display */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 rounded-lg border border-[#ead7e1] bg-[#fdf6fa] px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">輸注速率範圍</p>
+            <p className="text-lg font-bold text-brand">
+              {rateMin} ~ {rateMax} <span className="text-sm font-normal">ml/hr</span>
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {dosePerHrMin} ~ {dosePerHrMax} {doseUnitShort}
+            </p>
           </div>
-
-          <div className="grid min-w-0 shrink-0 grid-cols-2 gap-2 xl:w-[250px]">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                {dose.targetDoseTitle || '原始醫囑'}
-              </p>
-              <p className="mt-1 text-sm font-medium text-slate-900">{localDose || dose.orderSummary || '—'}</p>
-            </div>
-            <div className="rounded-lg border border-[#ead7e1] bg-[#fdf6fa] px-3 py-2">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                {dose.calculatedRateTitle || '建議速率'}
-              </p>
-              <p className="mt-1 text-sm font-semibold text-brand">{localRate}</p>
-            </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-center min-w-[80px]">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">體重</p>
+            <p className="text-sm font-semibold text-slate-700">{dosingWt} kg</p>
+            <p className="text-[10px] text-muted-foreground">{dose.weightBasis || 'TBW'}</p>
           </div>
         </div>
 
-        {/* Inline controls: dose slider + concentration */}
+        {/* Three adjustment controls */}
         {canAdjust && (
-          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-            {/* Dose slider */}
+          <div className="space-y-3 rounded-lg border border-slate-100 bg-slate-50/50 p-3">
+            {/* Min dose slider */}
             <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>目標劑量 ({dose.doseUnit})</span>
-                <span className="font-mono font-medium text-slate-700">
-                  {sliderValue.toFixed(decimals)}
-                </span>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">最小劑量 ({dose.doseUnit})</span>
+                <span className="font-mono font-medium text-slate-700">{minDose.toFixed(decimals)}</span>
               </div>
               <input
                 type="range"
-                min={rangeMin}
-                max={rangeMax}
+                min={defaultMin}
+                max={defaultMax}
                 step={sliderStep}
-                value={sliderValue}
-                onChange={handleSliderChange}
-                className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-brand bg-slate-200"
+                value={minDose}
+                onChange={handleMinChange}
+                className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-emerald-600 bg-slate-200"
               />
               <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>{rangeMin} (min)</span>
-                <span>{rangeMax} (max)</span>
+                <span>{defaultMin}</span>
+                <span>→ {calcRate(dosingWt, minDose, conc)} ml/hr</span>
               </div>
             </div>
 
-            {/* Concentration input */}
-            <div className="flex flex-col gap-1 sm:w-[140px]">
-              <label className="text-xs text-muted-foreground">
-                濃度 ({dose.concentrationUnit || 'mg/ml'})
-              </label>
-              <Input
-                type="number"
-                min={0.01}
-                step={0.1}
-                value={concValue || ''}
-                onChange={handleConcChange}
-                className="h-8 text-sm font-mono"
+            {/* Max dose slider */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">最大劑量 ({dose.doseUnit})</span>
+                <span className="font-mono font-medium text-slate-700">{maxDose.toFixed(decimals)}</span>
+              </div>
+              <input
+                type="range"
+                min={defaultMin}
+                max={defaultMax}
+                step={sliderStep}
+                value={maxDose}
+                onChange={handleMaxChange}
+                className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-brand bg-slate-200"
               />
-              {dose.defaultConcentration && concValue !== dose.defaultConcentration && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConcValue(dose.defaultConcentration!);
-                    debouncedRecalculate(sliderValue, dose.defaultConcentration!);
-                  }}
-                  className="text-[10px] text-brand hover:underline text-left"
-                >
-                  重設預設 ({dose.defaultConcentration})
-                </button>
-              )}
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>{defaultMin}</span>
+                <span>→ {calcRate(dosingWt, maxDose, conc)} ml/hr</span>
+              </div>
             </div>
+
+            {/* Concentration slider */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">濃度 ({dose.concentrationUnit || 'mg/ml'})</span>
+                <span className="font-mono font-medium text-slate-700">{conc}</span>
+              </div>
+              <input
+                type="range"
+                min={Math.max(defaultConc * 0.25, 0.1)}
+                max={defaultConc * 4}
+                step={parseFloat(Math.max(defaultConc * 0.01, 0.01).toPrecision(1))}
+                value={conc}
+                onChange={handleConcChange}
+                className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-violet-600 bg-slate-200"
+              />
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>{parseFloat((defaultConc * 0.25).toFixed(2))}</span>
+                <span>預設 {defaultConc}</span>
+                <span>{parseFloat((defaultConc * 4).toFixed(2))}</span>
+              </div>
+            </div>
+
+            {/* Reset button */}
+            {isModified && (
+              <button
+                type="button"
+                onClick={() => { setMinDose(defaultMin); setMaxDose(defaultMax); setConc(defaultConc); }}
+                className="text-xs text-brand hover:underline"
+              >
+                重設為預設值
+              </button>
+            )}
           </div>
         )}
 
-        {/* Weight basis & calculation steps */}
+        {/* Calculation details */}
         {dose.weightBasis && dose.dosingWeightKg && (
           <p className="text-xs text-muted-foreground">
             體重基準：{dose.weightBasis}（{dose.dosingWeightKg} kg）
           </p>
         )}
-        {dose.supportingNote && (
-          <p className="text-xs leading-5 text-muted-foreground">{dose.supportingNote}</p>
-        )}
-        {localSteps && localSteps.length > 0 && (
+        {dose.calculationSteps && dose.calculationSteps.length > 0 && (
           <details className="text-xs text-muted-foreground">
             <summary className="cursor-pointer hover:text-slate-600">計算步驟</summary>
             <ol className="mt-1 ml-4 list-decimal space-y-0.5">
-              {localSteps.map((step, i) => <li key={i}>{step}</li>)}
+              {dose.calculationSteps.map((step, i) => <li key={i}>{step}</li>)}
             </ol>
           </details>
-        )}
-        {dose.references && (
-          <p className="text-xs leading-5 text-muted-foreground">
-            參考：{dose.references}
-          </p>
         )}
       </div>
     </div>
