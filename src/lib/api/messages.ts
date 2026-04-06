@@ -155,6 +155,44 @@ export async function getMyMentions(
   return ensureData(response.data, 'API contract');
 }
 
+// 自訂共用標籤
+export interface CustomTag {
+  id: string;
+  name: string;
+  createdById: string;
+  createdByName: string;
+  createdAt: string;
+}
+
+export async function getCustomTags(
+  patientId: string
+): Promise<CustomTag[]> {
+  const response = await apiClient.get<ApiResponse<CustomTag[]>>(
+    `/patients/${patientId}/messages/custom-tags`
+  );
+  return ensureData(response.data, 'API contract');
+}
+
+export async function createCustomTag(
+  patientId: string,
+  name: string
+): Promise<CustomTag> {
+  const response = await apiClient.post<ApiResponse<CustomTag>>(
+    `/patients/${patientId}/messages/custom-tags`,
+    { name }
+  );
+  return ensureData(response.data, 'API contract');
+}
+
+export async function deleteCustomTag(
+  patientId: string,
+  tagId: string
+): Promise<void> {
+  await apiClient.delete(
+    `/patients/${patientId}/messages/custom-tags/${tagId}`
+  );
+}
+
 // 更新留言標籤
 export async function updateMessageTags(
   patientId: string,

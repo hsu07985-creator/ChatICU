@@ -78,3 +78,7 @@ class TeamChatResponse(BaseModel):
     pinnedAt: Optional[str] = None
 
     model_config = {"from_attributes": True}
+
+
+class CustomTagCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=30)

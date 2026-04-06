@@ -22,6 +22,9 @@ interface UsePatientDetailTabsPropsParams {
   formatTimestamp: (timestamp: string) => string;
   presetTags: string[];
   pharmacyTagCategories: { category: string; tags: string[] }[];
+  customTags?: { id: string; name: string; createdByName: string }[];
+  onCreateCustomTag?: (name: string) => void | Promise<void>;
+  onDeleteCustomTag?: (tagId: string) => void | Promise<void>;
   onUpdateTags: (messageId: string, data: { add?: string[]; remove?: string[] }) => void | Promise<void>;
   onRespondToAdvice: (adviceRecordId: string, accepted: boolean) => void | Promise<void>;
 
@@ -86,6 +89,9 @@ export function usePatientDetailTabsProps(params: UsePatientDetailTabsPropsParam
     formatTimestamp,
     presetTags,
     pharmacyTagCategories,
+    customTags,
+    onCreateCustomTag,
+    onDeleteCustomTag,
     onUpdateTags,
     onRespondToAdvice,
     showSessionList,
@@ -192,6 +198,9 @@ export function usePatientDetailTabsProps(params: UsePatientDetailTabsPropsParam
       formatTimestamp,
       presetTags,
       pharmacyTagCategories,
+      customTags,
+      onCreateCustomTag,
+      onDeleteCustomTag,
       onUpdateTags,
       onRespondToAdvice,
     };
@@ -246,6 +255,9 @@ export function usePatientDetailTabsProps(params: UsePatientDetailTabsPropsParam
     onSetMessageFeedback,
     onRegenerateMessage,
     onUpdateTags,
+    onCreateCustomTag,
+    onDeleteCustomTag,
+    customTags,
     onSetDisclaimerCollapsed,
     onStartNewSession,
     onToggleDataQuality,

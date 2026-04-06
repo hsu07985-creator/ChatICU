@@ -400,6 +400,26 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("[INTG][DB] Failed to ensure symptom_records: %s", e)
 
+    # Ensure custom_tags table exists (fallback if alembic skipped it)
+    try:
+        async with engine.begin() as _conn:
+            await _conn.execute(sa_text("""
+                CREATE TABLE IF NOT EXISTS custom_tags (
+                    id VARCHAR(50) PRIMARY KEY,
+                    name VARCHAR(30) NOT NULL UNIQUE,
+                    created_by_id VARCHAR(50) NOT NULL,
+                    created_by_name VARCHAR(100) NOT NULL,
+                    created_at TIMESTAMPTZ DEFAULT now()
+                )
+            """))
+            await _conn.execute(sa_text("""
+                CREATE INDEX IF NOT EXISTS ix_custom_tags_name
+                ON custom_tags (name)
+            """))
+            logger.info("[INTG][DB] custom_tags table ensured")
+    except Exception as e:
+        logger.warning("[INTG][DB] Failed to ensure custom_tags: %s", e)
+
     yield
     # Shutdown
     from app.middleware.auth import _redis_client

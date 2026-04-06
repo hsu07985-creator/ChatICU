@@ -15,6 +15,7 @@ from app.models.pharmacy_advice import PharmacyAdvice
 from app.models.pharmacy_favorite import PharmacyCompatibilityFavorite
 from app.models.culture_result import CultureResult
 from app.models.symptom_record import SymptomRecord
+from app.models.custom_tag import CustomTag
 from app.models.rag_chunk import RagChunk
 
 __all__ = [
@@ -39,5 +40,6 @@ __all__ = [
     "PharmacyCompatibilityFavorite",
     "CultureResult",
     "SymptomRecord",
+    "CustomTag",
     "RagChunk",
 ]

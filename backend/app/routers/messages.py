@@ -11,7 +11,8 @@ from app.middleware.audit import create_audit_log
 from app.models.message import PatientMessage
 from app.models.user import User
 from app.routers.patients import normalize_patient_id
-from app.schemas.message import MessageCreate, MessageTagUpdate
+from app.models.custom_tag import CustomTag
+from app.schemas.message import MessageCreate, MessageTagUpdate, CustomTagCreate
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/patients/{patient_id}/messages", tags=["messages"])
@@ -115,11 +116,23 @@ def msg_to_dict(
 async def get_preset_tags(
     patient_id: str,
     user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Return flat preset tag list (backward compatible: data is string[])."""
     tags = list(DEFAULT_PRESET_TAGS)
     if user.role in ("pharmacist", "admin"):
         tags.extend(PHARMACIST_CATEGORY_TAGS)
+
+    # Merge shared custom tags
+    result = await db.execute(
+        select(CustomTag.name).order_by(CustomTag.created_at.asc())
+    )
+    seen = set(tags)
+    for (name,) in result.all():
+        if name not in seen:
+            tags.append(name)
+            seen.add(name)
+
     return success_response(data=tags)
 
 
@@ -151,6 +164,101 @@ async def get_pharmacy_tags(
         },
     ]
     return success_response(data=categories)
+
+
+def custom_tag_to_dict(tag: CustomTag) -> dict:
+    return {
+        "id": tag.id,
+        "name": tag.name,
+        "createdById": tag.created_by_id,
+        "createdByName": tag.created_by_name,
+        "createdAt": tag.created_at.isoformat() if tag.created_at else None,
+    }
+
+
+@router.get("/custom-tags")
+async def list_custom_tags(
+    patient_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all shared custom tags."""
+    result = await db.execute(
+        select(CustomTag).order_by(CustomTag.created_at.asc())
+    )
+    tags = [custom_tag_to_dict(t) for t in result.scalars().all()]
+    return success_response(data=tags)
+
+
+@router.post("/custom-tags")
+async def create_custom_tag(
+    patient_id: str,
+    body: CustomTagCreate,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new shared custom tag visible to the whole team."""
+    name = body.name.strip()
+
+    # Reject if it conflicts with system preset tags
+    all_preset = set(DEFAULT_PRESET_TAGS) | set(PHARMACIST_CATEGORY_TAGS)
+    if name in all_preset:
+        raise HTTPException(status_code=409, detail="此為系統預設標籤，無法重複建立")
+
+    # Check for existing custom tag with same name
+    existing = await db.execute(
+        select(CustomTag).where(CustomTag.name == name)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="此自訂標籤已存在")
+
+    tag = CustomTag(
+        id=f"ctag_{uuid.uuid4().hex[:8]}",
+        name=name,
+        created_by_id=user.id,
+        created_by_name=user.name,
+    )
+    db.add(tag)
+    await db.flush()
+
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="建立共用標籤", target=tag.id, status="success",
+        ip=request.client.host if request.client else None,
+        details={"tag_name": name},
+    )
+
+    return success_response(data=custom_tag_to_dict(tag), message="標籤已建立")
+
+
+@router.delete("/custom-tags/{tag_id}")
+async def delete_custom_tag(
+    patient_id: str,
+    tag_id: str,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a shared custom tag. Existing messages keep their tags unchanged."""
+    result = await db.execute(
+        select(CustomTag).where(CustomTag.id == tag_id)
+    )
+    tag = result.scalar_one_or_none()
+    if not tag:
+        raise HTTPException(status_code=404, detail="自訂標籤不存在")
+
+    tag_name = tag.name
+    await db.delete(tag)
+
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="刪除共用標籤", target=tag_id, status="success",
+        ip=request.client.host if request.client else None,
+        details={"tag_name": tag_name},
+    )
+
+    return success_response(message="標籤已刪除")
 
 
 @router.get("")

@@ -527,6 +527,7 @@ export function PatientDetailPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [presetTags, setPresetTags] = useState<string[]>([]);
   const [pharmacyTagCategories, setPharmacyTagCategories] = useState<{ category: string; tags: string[] }[]>([]);
+  const [customTags, setCustomTags] = useState<{ id: string; name: string; createdByName: string }[]>([]);
 
   // 生命徵象狀態
   const [vitalSigns, setVitalSigns] = useState<VitalSigns | null>(null);
@@ -813,11 +814,37 @@ export function PatientDetailPage() {
   }, [id]);
 
   // 載入預設標籤
+  const refreshTags = useCallback(async () => {
+    if (!id) return;
+    const [preset, custom] = await Promise.all([
+      messagesApi.getPresetTags(id).catch(() => [] as string[]),
+      messagesApi.getCustomTags(id).catch(() => [] as { id: string; name: string; createdById: string; createdByName: string; createdAt: string }[]),
+    ]);
+    setPresetTags(preset);
+    setCustomTags(custom);
+  }, [id]);
+
   useEffect(() => {
     if (!id) return;
-    messagesApi.getPresetTags(id).then(setPresetTags).catch(() => setPresetTags([]));
+    void refreshTags();
     messagesApi.getPharmacyTags(id).then(setPharmacyTagCategories).catch(() => setPharmacyTagCategories([]));
-  }, [id]);
+  }, [id, refreshTags]);
+
+  const handleCreateCustomTag = useCallback(async (name: string) => {
+    if (!id) return;
+    try {
+      await messagesApi.createCustomTag(id, name);
+      await refreshTags();
+    } catch { /* toast handled in component */ }
+  }, [id, refreshTags]);
+
+  const handleDeleteCustomTag = useCallback(async (tagId: string) => {
+    if (!id) return;
+    try {
+      await messagesApi.deleteCustomTag(id, tagId);
+      await refreshTags();
+    } catch { /* toast handled in component */ }
+  }, [id, refreshTags]);
 
   // 發送留言板留言
   const handleSendBoardMessage = useCallback(async (replyToId?: string, tags?: string[], mentionedRoles?: string[]) => {
@@ -1887,6 +1914,9 @@ export function PatientDetailPage() {
           formatTimestamp={formatTimestamp}
           presetTags={presetTags}
           pharmacyTagCategories={pharmacyTagCategories}
+          customTags={customTags}
+          onCreateCustomTag={handleCreateCustomTag}
+          onDeleteCustomTag={handleDeleteCustomTag}
           onUpdateTags={handleUpdateMessageTags}
           onRespondToAdvice={handleRespondToAdvice}
         />

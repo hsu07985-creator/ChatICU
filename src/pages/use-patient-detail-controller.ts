@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } 
 import { toast } from 'sonner';
 import type { LabTrendData } from '../components/lab-trend-chart';
 import { messagesApi, vitalSignsApi, ventilatorApi, type PatientMessage } from '../lib/api';
-import type { PharmacyTagCategory } from '../lib/api/messages';
+import type { PharmacyTagCategory, CustomTag } from '../lib/api/messages';
 import { respondToAdvice } from '../lib/api/pharmacy';
 import type { UserRole } from '../lib/auth-context';
 import type { SessionChatMessage, SessionListItem } from '../hooks/use-chat-sessions';
@@ -58,16 +58,25 @@ export function usePatientDetailController({
   const [deletingSession, setDeletingSession] = useState(false);
   const [presetTags, setPresetTags] = useState<string[]>([]);
   const [pharmacyTagCategories, setPharmacyTagCategories] = useState<PharmacyTagCategory[]>([]);
+  const [customTags, setCustomTags] = useState<CustomTag[]>([]);
+
+  const refreshTags = useCallback(async () => {
+    if (!patientId) return;
+    const [preset, custom] = await Promise.all([
+      messagesApi.getPresetTags(patientId).catch(() => [] as string[]),
+      messagesApi.getCustomTags(patientId).catch(() => [] as CustomTag[]),
+    ]);
+    setPresetTags(preset);
+    setCustomTags(custom);
+  }, [patientId]);
 
   useEffect(() => {
     if (!patientId) return;
-    messagesApi.getPresetTags(patientId)
-      .then(setPresetTags)
-      .catch(() => setPresetTags([]));
+    void refreshTags();
     messagesApi.getPharmacyTags(patientId)
       .then(setPharmacyTagCategories)
       .catch(() => setPharmacyTagCategories([]));
-  }, [patientId]);
+  }, [patientId, refreshTags]);
 
   const handleSendBoardMessage = useCallback(async (replyToId?: string, tags?: string[], mentionedRoles?: string[]) => {
     if (!messageInput.trim() || !patientId) return;
@@ -147,6 +156,33 @@ export function usePatientDetailController({
       toast.error('標記已讀失敗');
     }
   }, [patientId, refreshMessagesOnly]);
+
+  const handleCreateCustomTag = useCallback(async (name: string) => {
+    if (!patientId) return;
+    try {
+      await messagesApi.createCustomTag(patientId, name);
+      await refreshTags();
+      toast.success('共用標籤已建立');
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 409) {
+        toast.error('此標籤已存在');
+      } else {
+        toast.error('建立標籤失敗');
+      }
+    }
+  }, [patientId, refreshTags]);
+
+  const handleDeleteCustomTag = useCallback(async (tagId: string) => {
+    if (!patientId) return;
+    try {
+      await messagesApi.deleteCustomTag(patientId, tagId);
+      await refreshTags();
+      toast.success('共用標籤已刪除');
+    } catch {
+      toast.error('刪除標籤失敗');
+    }
+  }, [patientId, refreshTags]);
 
   const handleUpdateMessageTags = useCallback(async (
     messageId: string,
@@ -308,6 +344,9 @@ export function usePatientDetailController({
     handleVitalSignClick,
     presetTags,
     pharmacyTagCategories,
+    customTags,
+    handleCreateCustomTag,
+    handleDeleteCustomTag,
     handleUpdateMessageTags,
     handleRespondToAdvice,
     formatTimestamp: formatMessageTimestamp,

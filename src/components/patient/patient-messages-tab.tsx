@@ -20,6 +20,12 @@ interface PharmacyTagCategory {
   tags: string[];
 }
 
+interface CustomTagInfo {
+  id: string;
+  name: string;
+  createdByName: string;
+}
+
 interface PatientMessagesTabProps {
   patientId?: string;
   userRole?: UserRole;
@@ -34,6 +40,9 @@ interface PatientMessagesTabProps {
   formatTimestamp: (timestamp: string) => string;
   presetTags: string[];
   pharmacyTagCategories?: PharmacyTagCategory[];
+  customTags?: CustomTagInfo[];
+  onCreateCustomTag?: (name: string) => void | Promise<void>;
+  onDeleteCustomTag?: (tagId: string) => void | Promise<void>;
   onUpdateTags: (messageId: string, data: { add?: string[]; remove?: string[] }) => void | Promise<void>;
   onRespondToAdvice: (adviceRecordId: string, accepted: boolean) => void | Promise<void>;
 }
@@ -54,15 +63,23 @@ function TagSelector({
   presetTags,
   existingTags,
   onAdd,
+  customTags,
+  onCreateCustomTag,
+  onDeleteCustomTag,
 }: {
   presetTags: string[];
   existingTags: string[];
   onAdd: (tag: string) => void;
+  customTags?: CustomTagInfo[];
+  onCreateCustomTag?: (name: string) => void | Promise<void>;
+  onDeleteCustomTag?: (tagId: string) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [showManage, setShowManage] = useState(false);
 
   const existingSet = new Set(existingTags);
+  const customNameSet = new Set((customTags ?? []).map((t) => t.name));
   const suggestions = presetTags.filter((t) => !existingSet.has(t));
 
   const handleSelect = (tag: string) => {
@@ -71,9 +88,13 @@ function TagSelector({
     setOpen(false);
   };
 
-  const handleCustom = () => {
+  const handleCustom = async () => {
     const trimmed = inputValue.trim();
     if (trimmed && !existingSet.has(trimmed) && trimmed.length <= 30) {
+      // If it's not in preset tags, also save as shared custom tag
+      if (!presetTags.includes(trimmed) && onCreateCustomTag) {
+        await onCreateCustomTag(trimmed);
+      }
       onAdd(trimmed);
       setInputValue('');
       setOpen(false);
@@ -81,7 +102,7 @@ function TagSelector({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setShowManage(false); }}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -91,17 +112,17 @@ function TagSelector({
           標籤
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-2" align="start">
+      <PopoverContent className="w-64 p-2" align="start">
         <div className="space-y-2">
           <div className="flex gap-1">
             <Input
               placeholder="新增標籤..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCustom(); } }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleCustom(); } }}
               className="h-7 text-xs"
             />
-            <Button size="sm" className="h-7 px-2" onClick={handleCustom} disabled={!inputValue.trim()}>
+            <Button size="sm" className="h-7 px-2" onClick={() => void handleCustom()} disabled={!inputValue.trim()}>
               <Plus className="h-3 w-3" />
             </Button>
           </div>
@@ -111,7 +132,11 @@ function TagSelector({
                 <Badge
                   key={tag}
                   variant="outline"
-                  className="text-xs cursor-pointer hover:bg-indigo-50"
+                  className={`text-xs cursor-pointer ${
+                    customNameSet.has(tag)
+                      ? 'hover:bg-emerald-50 border-emerald-200 text-emerald-700'
+                      : 'hover:bg-indigo-50'
+                  }`}
                   onClick={() => handleSelect(tag)}
                 >
                   <Plus className="h-2.5 w-2.5 mr-0.5" />
@@ -119,6 +144,43 @@ function TagSelector({
                 </Badge>
               ))}
             </div>
+          )}
+          {(customTags ?? []).length > 0 && onDeleteCustomTag && (
+            <>
+              <Separator />
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left"
+                onClick={() => setShowManage(!showManage)}
+              >
+                {showManage ? '收起' : '管理自訂標籤'}
+                {!showManage && ` (${customTags!.length})`}
+              </button>
+              {showManage && (
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {customTags!.map((ct) => (
+                    <div key={ct.id} className="flex items-center justify-between group px-1 py-0.5 rounded hover:bg-slate-50">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Badge variant="outline" className="text-xs border-emerald-200 text-emerald-700 shrink-0">
+                          {ct.name}
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground truncate">
+                          {ct.createdByName}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600 shrink-0 ml-1"
+                        onClick={() => void onDeleteCustomTag(ct.id)}
+                        title="刪除此共用標籤"
+                      >
+                        <XCircle className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </PopoverContent>
@@ -235,6 +297,9 @@ export function PatientMessagesTab({
   formatTimestamp,
   presetTags,
   pharmacyTagCategories,
+  customTags,
+  onCreateCustomTag,
+  onDeleteCustomTag,
   onUpdateTags,
   onRespondToAdvice,
 }: PatientMessagesTabProps) {
@@ -353,6 +418,9 @@ export function PatientMessagesTab({
                 presetTags={presetTags}
                 existingTags={composeTags}
                 onAdd={(tag) => setComposeTags((prev) => prev.length < 10 ? [...prev, tag] : prev)}
+                customTags={customTags}
+                onCreateCustomTag={onCreateCustomTag}
+                onDeleteCustomTag={onDeleteCustomTag}
               />
               {pharmacyTagCategories && pharmacyTagCategories.length > 0 && (
                 <PharmacyTagSelector
@@ -529,6 +597,9 @@ export function PatientMessagesTab({
                                 presetTags={presetTags}
                                 existingTags={message.tags || []}
                                 onAdd={(tag) => onUpdateTags(message.id, { add: [tag] })}
+                                customTags={customTags}
+                                onCreateCustomTag={onCreateCustomTag}
+                                onDeleteCustomTag={onDeleteCustomTag}
                               />
                               {pharmacyTagCategories && pharmacyTagCategories.length > 0 && (
                                 <PharmacyTagSelector
