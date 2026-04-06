@@ -11,6 +11,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import type { AssessmentResults, ExpandedSections, ExtendedPatientData } from './types';
+import { DosageRecommendationCard } from './dosage-recommendation-card';
 
 interface PatientLite {
   name: string;
@@ -51,6 +52,7 @@ export function AssessmentResultsPanel({
   selectedPatient,
   assessmentResults,
   drugList,
+  extendedData,
 }: AssessmentResultsPanelProps) {
 
   // ── 未選病患 ──
@@ -172,9 +174,13 @@ export function AssessmentResultsPanel({
                     {compatibilitySummary.noData > 0 && (
                       <span className="text-gray-400">? {compatibilitySummary.noData}</span>
                     )}
+                    {compatibilitySummary.queryFailed > 0 && (
+                      <span className="text-amber-500" title="查詢失敗">⚠ {compatibilitySummary.queryFailed}</span>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {compatibilitySummary.pairsChecked} 組中 {compatibilitySummary.compatible + compatibilitySummary.incompatible} 組有資料
+                    {compatibilitySummary.queryFailed > 0 && `，${compatibilitySummary.queryFailed} 組查詢失敗`}
                   </p>
                 </>
               ) : (
@@ -260,18 +266,14 @@ export function AssessmentResultsPanel({
                   <Calculator className="h-5 w-5 text-brand" />
                   PAD 劑量換算
                 </p>
-                <p className="text-xs text-muted-foreground mb-3 leading-relaxed">以劑量範圍中值估算，實際劑量請依臨床調整</p>
-                <div className="space-y-2">
+                <p className="text-xs text-muted-foreground mb-3 leading-relaxed">拖曳滑桿可即時調整目標劑量</p>
+                <div className="space-y-3">
                   {dosage.filter(d => d.status === 'calculated').map((d, idx) => (
-                    <div key={idx} className="flex items-center justify-between text-base py-2 px-3 rounded bg-[#fdf6fa] border border-[#ead7e1]">
-                      <div>
-                        <span className="font-semibold">{d.drugName}</span>
-                        {d.normalDose && d.normalDose !== '—' && (
-                          <span className="text-sm text-muted-foreground ml-2">({d.normalDose})</span>
-                        )}
-                      </div>
-                      <span className="font-bold text-lg text-brand">{d.calculatedRate || d.adjustedDose}</span>
-                    </div>
+                    <DosageRecommendationCard
+                      key={`${d.drugName}-${idx}`}
+                      dose={d}
+                      showAdjustmentBadge={typeof extendedData?.egfr === 'number' && extendedData.egfr < 60}
+                    />
                   ))}
                 </div>
               </div>

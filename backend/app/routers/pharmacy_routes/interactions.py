@@ -161,18 +161,28 @@ async def search_iv_compatibility(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(IVCompatibility).where(
-        or_(
-            IVCompatibility.drug1.ilike(f"%{escape_like(drugA)}%") & IVCompatibility.drug2.ilike(f"%{escape_like(drugB)}%"),
-            IVCompatibility.drug1.ilike(f"%{escape_like(drugB)}%") & IVCompatibility.drug2.ilike(f"%{escape_like(drugA)}%"),
+    try:
+        query = select(IVCompatibility).where(
+            or_(
+                IVCompatibility.drug1.ilike(f"%{escape_like(drugA)}%") & IVCompatibility.drug2.ilike(f"%{escape_like(drugB)}%"),
+                IVCompatibility.drug1.ilike(f"%{escape_like(drugB)}%") & IVCompatibility.drug2.ilike(f"%{escape_like(drugA)}%"),
+            )
         )
-    )
-    if solution and solution != "none":
-        query = query.where(IVCompatibility.solution == solution)
+        if solution and solution != "none":
+            query = query.where(IVCompatibility.solution == solution)
 
-    offset = (page - 1) * limit
-    result = await db.execute(query.offset(offset).limit(limit))
-    compatibilities = result.scalars().all()
+        offset = (page - 1) * limit
+        result = await db.execute(query.offset(offset).limit(limit))
+        compatibilities = result.scalars().all()
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("iv-compatibility query failed for %s / %s", drugA, drugB)
+        return success_response(data={
+            "compatibilities": [],
+            "total": 0,
+            "page": page,
+            "limit": limit,
+        })
 
     return success_response(data={
         "compatibilities": [

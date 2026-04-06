@@ -62,12 +62,25 @@ export interface DosageResult {
   orderSummary?: string;
   orderTypeLabel?: string;
   isEquivalentEstimate?: boolean;
+  // Inline recalculation params
+  padKey?: string;
+  doseRangeMin?: number;
+  doseRangeMax?: number;
+  currentTargetPerKgHr?: number;
+  doseUnit?: string;
+  weightKg?: number;
+  concentration?: number;
+  sex?: string;
+  heightCm?: number;
+  weightBasis?: string;
+  dosingWeightKg?: number;
 }
 
 export interface CompatibilitySummary {
   compatible: number;
   incompatible: number;
   noData: number;
+  queryFailed: number;
   pairsChecked: number;
 }
 

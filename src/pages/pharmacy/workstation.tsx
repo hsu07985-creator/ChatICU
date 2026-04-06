@@ -302,6 +302,7 @@ export function PharmacyWorkstationPage() {
           const limitedPairs = pairs.slice(0, 20);
 
           // Query all pairs in parallel instead of sequential for loop
+          let failedCount = 0;
           const pairResults = await Promise.all(
             limitedPairs.map(async ([a, b]) => {
               try {
@@ -319,6 +320,7 @@ export function PharmacyWorkstationPage() {
                 }));
               } catch (err) {
                 console.warn('相容性查詢失敗:', err);
+                failedCount++;
                 return [] as IVCompatibility[];
               }
             })
@@ -338,7 +340,8 @@ export function PharmacyWorkstationPage() {
           const compatibilitySummary: CompatibilitySummary = {
             compatible: [...compatPairMap.values()].filter(v => v).length,
             incompatible: [...compatPairMap.values()].filter(v => !v).length,
-            noData: limitedPairs.length - compatPairsWithData,
+            noData: limitedPairs.length - compatPairsWithData - failedCount,
+            queryFailed: failedCount,
             pairsChecked: limitedPairs.length,
           };
 
@@ -403,12 +406,18 @@ export function PharmacyWorkstationPage() {
               }
               const isFixed = padInfo.weight_basis === 'fixed';
               let defaultTarget = 0;
+              let rangeMin = 0;
+              let rangeMax = 0;
               if (!isFixed && padInfo.dose_range) {
                 const parts = padInfo.dose_range.split('–');
                 if (parts.length === 2) {
                   const lo = parseFloat(parts[0]);
                   const hi = parseFloat(parts[1]);
-                  if (!isNaN(lo) && !isNaN(hi)) defaultTarget = parseFloat(((lo + hi) / 2).toFixed(4));
+                  if (!isNaN(lo) && !isNaN(hi)) {
+                    rangeMin = lo;
+                    rangeMax = hi;
+                    defaultTarget = parseFloat(((lo + hi) / 2).toFixed(4));
+                  }
                 }
               }
               try {
@@ -437,6 +446,17 @@ export function PharmacyWorkstationPage() {
                   orderSummary: `${padInfo.label} ${rateStr}`,
                   orderTypeLabel: '連續輸注',
                   isEquivalentEstimate: false,
+                  padKey: padInfo.key,
+                  doseRangeMin: rangeMin,
+                  doseRangeMax: rangeMax,
+                  currentTargetPerKgHr: defaultTarget,
+                  doseUnit: padInfo.dose_unit || '',
+                  weightKg: patientWeight,
+                  concentration: padInfo.concentration || 1,
+                  sex: patientSex,
+                  heightCm: patientHeight,
+                  weightBasis: res.weight_basis,
+                  dosingWeightKg: res.dosing_weight_kg,
                 };
               } catch {
                 return {
@@ -468,6 +488,9 @@ export function PharmacyWorkstationPage() {
       if (incompatible > 0) {
         adviceRecommendations.push(`發現 ${incompatible} 組不相容組合，建議分管路或避免同路輸注。`);
       }
+      if (compatibilitySummary.queryFailed > 0) {
+        adviceRecommendations.push(`${compatibilitySummary.queryFailed}/${compatibilitySummary.pairsChecked} 組相容性查詢失敗，結果可能不完整。`);
+      }
       if (typeof extendedData?.egfr === 'number' && extendedData.egfr < 60) {
         adviceRecommendations.push(`腎功能 eGFR ${extendedData.egfr}，建議檢視需腎調整藥物與監測。`);
       }
@@ -482,7 +505,7 @@ export function PharmacyWorkstationPage() {
       }
       const calculatedDosage = dosage.filter(d => d.status === 'calculated');
       if (calculatedDosage.length > 0) {
-        adviceRecommendations.push(`已計算 ${calculatedDosage.length} 項 PAD 藥物輸注速率（使用劑量範圍中值）。至劑量計算頁面可自訂目標劑量。`);
+        adviceRecommendations.push(`已計算 ${calculatedDosage.length} 項 PAD 藥物輸注速率，可拖曳滑桿調整目標劑量。`);
       }
 
       setAssessmentResults({
