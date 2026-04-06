@@ -42,11 +42,6 @@ const RISK_BADGE: Record<string, { className: string; label: string; short: stri
   A: { className: 'bg-green-600 text-white', label: 'A 無交互', short: 'A' },
 };
 
-const SEVERITY_BADGE: Record<string, { className: string; label: string }> = {
-  high: { className: 'border-red-300 text-red-700', label: '高' },
-  medium: { className: 'border-amber-300 text-amber-700', label: '中' },
-  low: { className: 'border-slate-300 text-slate-600', label: '低' },
-};
 
 function formatDrugPair(int: { drugA: string; drugB: string; dependencies?: string[] }): string {
   if (int.dependencies && int.dependencies.length === 2) {
@@ -94,13 +89,11 @@ function InteractionRow({ int }: { int: DrugInteraction }) {
   const [expanded, setExpanded] = useState(false);
   const effectiveRisk = int.riskRating || SEVERITY_TO_RISK[int.severity] || 'C';
   const riskCfg = RISK_BADGE[effectiveRisk];
-  const sevCfg = SEVERITY_BADGE[int.severity] || SEVERITY_BADGE.low;
 
   return (
     <div className="border rounded-lg p-3 space-y-1.5">
       <div className="flex items-center flex-wrap gap-2">
         {riskCfg && <Badge className={`${riskCfg.className} text-xs px-2 py-0.5`}>{riskCfg.label}</Badge>}
-        <Badge variant="outline" className={`text-xs ${sevCfg.className}`}>嚴重度：{sevCfg.label}</Badge>
         <span className="font-semibold text-sm">{formatDrugPair(int)}</span>
       </div>
       {int.clinicalEffect && (
