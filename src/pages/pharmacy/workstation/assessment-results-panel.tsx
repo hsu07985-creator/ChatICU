@@ -87,9 +87,13 @@ function Section({ title, icon, count, countColor, defaultOpen, children }: {
 }
 
 /** Single interaction row */
+/** Map severity to risk rating when riskRating is missing (local DB fallback data) */
+const SEVERITY_TO_RISK: Record<string, string> = { high: 'D', medium: 'C', low: 'B' };
+
 function InteractionRow({ int }: { int: DrugInteraction }) {
   const [expanded, setExpanded] = useState(false);
-  const riskCfg = int.riskRating ? RISK_BADGE[int.riskRating] : null;
+  const effectiveRisk = int.riskRating || SEVERITY_TO_RISK[int.severity] || 'C';
+  const riskCfg = RISK_BADGE[effectiveRisk];
   const sevCfg = SEVERITY_BADGE[int.severity] || SEVERITY_BADGE.low;
 
   return (
@@ -191,20 +195,21 @@ export function AssessmentResultsPanel({
 
   const { interactions, compatibility, dosage, compatibilitySummary } = assessmentResults;
 
-  // Interaction stats
+  // Interaction stats — use effective risk (fallback severity→risk mapping)
+  const getEffectiveRisk = (i: DrugInteraction) => i.riskRating || SEVERITY_TO_RISK[i.severity] || 'C';
   const riskCounts: Record<string, number> = {};
   interactions.forEach(i => {
-    const r = i.riskRating || '';
-    if (r) riskCounts[r] = (riskCounts[r] || 0) + 1;
+    const r = getEffectiveRisk(i);
+    riskCounts[r] = (riskCounts[r] || 0) + 1;
   });
   const highRiskCount = (riskCounts['X'] || 0) + (riskCounts['D'] || 0);
 
-  // Sort interactions: X first, then D, C, B, A, then by severity
+  // Sort interactions: X first, then D, C, B, A
   const riskOrder: Record<string, number> = { X: 0, D: 1, C: 2, B: 3, A: 4 };
   const sevOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
   const sortedInteractions = [...interactions].sort((a, b) => {
-    const ra = riskOrder[a.riskRating || ''] ?? 5;
-    const rb = riskOrder[b.riskRating || ''] ?? 5;
+    const ra = riskOrder[getEffectiveRisk(a)] ?? 5;
+    const rb = riskOrder[getEffectiveRisk(b)] ?? 5;
     if (ra !== rb) return ra - rb;
     return (sevOrder[a.severity] ?? 3) - (sevOrder[b.severity] ?? 3);
   });
