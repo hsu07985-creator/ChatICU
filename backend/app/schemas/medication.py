@@ -16,6 +16,8 @@ class MedicationCreate(BaseModel):
     prn: bool = False
     indication: Optional[str] = None
     startDate: Optional[date] = None
+    concentration: Optional[str] = None
+    concentrationUnit: Optional[str] = None
 
 
 class MedicationUpdate(BaseModel):
@@ -26,6 +28,8 @@ class MedicationUpdate(BaseModel):
     status: Optional[str] = None
     endDate: Optional[date] = None
     sanCategory: Optional[Literal["S", "A", "N"]] = None
+    concentration: Optional[str] = None
+    concentrationUnit: Optional[str] = None
 
 
 class MedicationResponse(BaseModel):
@@ -37,6 +41,8 @@ class MedicationResponse(BaseModel):
     sanCategory: Optional[Literal["S", "A", "N"]] = None
     dose: Optional[str] = None
     unit: Optional[str] = None
+    concentration: Optional[str] = None
+    concentrationUnit: Optional[str] = None
     frequency: Optional[str] = None
     route: Optional[str] = None
     prn: bool = False

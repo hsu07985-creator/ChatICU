@@ -11,6 +11,8 @@ export interface Medication {
   route: string;
   dose: string;
   unit: string;
+  concentration?: string;
+  concentrationUnit?: string;
   frequency: string;
   startDate: string;
   endDate?: string | null;

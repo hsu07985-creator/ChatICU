@@ -22,6 +22,7 @@ const DrugInteractionsPage = lazy(() => import('./pages/pharmacy/interactions').
 const CompatibilityPage = lazy(() => import('./pages/pharmacy/compatibility').then(m => ({ default: m.CompatibilityPage })));
 const DosagePage = lazy(() => import('./pages/pharmacy/dosage').then(m => ({ default: m.DosagePage })));
 const PharmacyAdviceStatisticsPage = lazy(() => import('./pages/pharmacy/advice-statistics').then(m => ({ default: m.PharmacyAdviceStatisticsPage })));
+const ChangePasswordPage = lazy(() => import('./pages/change-password').then(m => ({ default: m.ChangePasswordPage })));
 
 // Admin Pages (lazy)
 const AuditPage = lazy(() => import('./pages/admin/placeholder').then(m => ({ default: m.AuditPage })));
@@ -120,6 +121,16 @@ function AppRoutes() {
       <Route
         path="/login"
         element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />}
+      />
+
+      {/* Change Password (no AppLayout — standalone page) */}
+      <Route
+        path="/change-password"
+        element={
+          <ProtectedRoute>
+            <ChangePasswordPage />
+          </ProtectedRoute>
+        }
       />
 
       {/* Protected Routes */}

@@ -192,6 +192,8 @@ async def update_error_report(
     return success_response(data=report_to_dict(report), message="通報已更新")
 
 
+# NOTE: Despite the path name, this endpoint aggregates ErrorReport (用藥錯誤通報),
+# not PharmacyAdvice. Kept for backwards compatibility.
 @router.get("/advice-statistics")
 async def get_advice_statistics(
     user: User = Depends(require_roles("pharmacist", "admin")),

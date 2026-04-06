@@ -217,6 +217,7 @@ export interface AdviceStatistics {
   };
 }
 
+/** @deprecated Misleading name — this endpoint queries ErrorReport (用藥錯誤通報), not PharmacyAdvice. */
 export async function getAdviceStatistics(): Promise<AdviceStatistics> {
   const response = await apiClient.get<ApiResponse<AdviceStatistics>>(
     '/pharmacy/advice-statistics'

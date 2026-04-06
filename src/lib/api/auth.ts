@@ -23,13 +23,13 @@ interface RefreshResponse {
 }
 
 // 登入 — backend 透過 Set-Cookie 設定 httpOnly JWT cookies
-export async function login(username: string, password: string): Promise<User> {
+export async function login(username: string, password: string): Promise<{ user: User; passwordExpired?: boolean }> {
   const response = await apiClient.post<ApiResponse<LoginResponse>>('/auth/login', {
     username,
     password,
   });
 
-  const { user } = ensureData(response.data, 'API contract');
+  const data = ensureData(response.data, 'API contract');
   // Tokens are now in httpOnly cookies — clear any legacy localStorage
   tokenManager.clearAll();
   // Set non-httpOnly indicator cookie on the frontend domain.
@@ -37,7 +37,12 @@ export async function login(username: string, password: string): Promise<User> {
   // SameSite=None cookies may be blocked by browsers. Setting it here guarantees
   // isLoggedIn() works regardless of third-party cookie policy.
   document.cookie = 'chaticu_logged_in=1; path=/; max-age=604800; SameSite=Lax';
-  return user;
+  return { user: data.user, passwordExpired: data.passwordExpired };
+}
+
+// 修改密碼
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await apiClient.post('/auth/change-password', { currentPassword, newPassword });
 }
 
 // 登出 — backend 讀取 cookie 中的 tokens 進行 blacklist

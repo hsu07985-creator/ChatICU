@@ -60,6 +60,10 @@ class PatientUpdate(BaseModel):
     code_status: Optional[str] = None
     has_dnr: Optional[bool] = None
     is_isolated: Optional[bool] = None
+    symptoms: Optional[List[str]] = None
+    allergies: Optional[List[str]] = None
+    blood_type: Optional[str] = None
+    consent_status: Optional[str] = None
 
 
 class PatientArchiveUpdate(BaseModel):

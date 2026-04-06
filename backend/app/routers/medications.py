@@ -55,6 +55,8 @@ def med_to_dict(med: Medication) -> dict:
         "status": med.status,
         "prescribedBy": med.prescribed_by,
         "warnings": med.warnings or [],
+        "concentration": med.concentration,
+        "concentrationUnit": med.concentration_unit,
     }
 
 
@@ -223,6 +225,8 @@ async def create_medication(
         prn=body.prn,
         indication=body.indication,
         start_date=body.startDate,
+        concentration=body.concentration,
+        concentration_unit=body.concentrationUnit,
         status="active",
         prescribed_by={"id": user.id, "name": user.name},
     )
@@ -255,6 +259,7 @@ async def update_medication(
     field_map = {
         "endDate": "end_date",
         "sanCategory": "san_category",
+        "concentrationUnit": "concentration_unit",
     }
     for field_name, value in update_data.items():
         mapped_field = field_map.get(field_name, field_name)

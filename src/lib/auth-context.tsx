@@ -15,6 +15,7 @@ export interface User {
 
 export interface LoginResult {
   success: boolean;
+  passwordExpired?: boolean;
   status?: number;
   message?: string;
   code?: string;
@@ -71,10 +72,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (username: string, password: string): Promise<LoginResult> => {
     try {
       setLoading(true);
-      const loggedInUser = await authApi.login(username, password);
+      const { user: loggedInUser, passwordExpired } = await authApi.login(username, password);
       setUser(loggedInUser);
       console.info('[INTG][API][AUTH] login success');
-      return { success: true };
+      return { success: true, passwordExpired };
     } catch (error: unknown) {
       const status = (error as { response?: { status?: number } })?.response?.status;
       const data = (error as { response?: { data?: { message?: string; detail?: string; error?: string } } })

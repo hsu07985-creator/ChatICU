@@ -33,6 +33,8 @@ class Medication(Base):
     status: Mapped[str] = mapped_column(String(20), default="active")  # active, inactive, discontinued, completed, on-hold
     prescribed_by: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # {id, name}
     warnings: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of strings
+    concentration: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    concentration_unit: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

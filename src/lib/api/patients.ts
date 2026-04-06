@@ -116,6 +116,9 @@ export async function updatePatient(id: string, data: Partial<Patient>): Promise
   if (data.analgesia !== undefined) body.analgesia = data.analgesia;
   if (data.nmb !== undefined) body.nmb = data.nmb;
   if (data.symptoms !== undefined) body.symptoms = data.symptoms;
+  if (data.allergies !== undefined) body.allergies = data.allergies;
+  if (data.bloodType !== undefined) body.blood_type = data.bloodType;
+  if (data.consentStatus !== undefined) body.consent_status = data.consentStatus;
 
   const response = await apiClient.patch<ApiResponse<Patient>>(`/patients/${id}`, body);
   return ensureData(response.data, 'API contract');

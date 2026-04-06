@@ -52,7 +52,7 @@ export function LoginPage() {
     const result = await login(username, password);
 
     if (result.success) {
-      navigate('/dashboard');
+      navigate(result.passwordExpired ? '/change-password' : '/dashboard');
     } else {
       setError(result.message || '帳號或密碼錯誤');
     }
@@ -187,7 +187,7 @@ export function LoginPage() {
                   setLoading(true);
                   const result = await login('admin', 'ChatICU@2026!Secure');
                   if (result.success) {
-                    navigate('/dashboard');
+                    navigate(result.passwordExpired ? '/change-password' : '/dashboard');
                   } else {
                     setError(result.message || '登入失敗');
                   }
