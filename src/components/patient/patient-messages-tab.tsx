@@ -317,8 +317,34 @@ export function PatientMessagesTab({
   const medicationAdviceCount = filteredMessages.filter((m) => m.messageType === 'medication-advice').length;
   const alertCount = filteredMessages.filter((m) => m.messageType === 'alert').length;
 
-  // Collect all unique tags across messages for the filter selector
-  const allTags = Array.from(new Set(messages.flatMap((m) => m.tags || [])));
+  // Collect all unique tags across messages with counts, grouped by type
+  const tagCounts = new Map<string, number>();
+  for (const m of messages) {
+    for (const t of m.tags || []) {
+      tagCounts.set(t, (tagCounts.get(t) || 0) + 1);
+    }
+  }
+
+  const PHARMACY_CATEGORIES = ['建議處方', '主動建議', '建議監測', '用藥連貫性'];
+  const pharmacySubcodePattern = /^\d+-\d+/;
+
+  const groupedFilterTags = {
+    pharmacy: [] as string[],    // 藥事分類標籤
+    subcodes: [] as string[],    // 藥事子代碼
+    general: [] as string[],     // 一般標籤
+  };
+
+  for (const tag of tagCounts.keys()) {
+    if (PHARMACY_CATEGORIES.includes(tag)) {
+      groupedFilterTags.pharmacy.push(tag);
+    } else if (pharmacySubcodePattern.test(tag)) {
+      groupedFilterTags.subcodes.push(tag);
+    } else {
+      groupedFilterTags.general.push(tag);
+    }
+  }
+
+  const hasAnyTags = tagCounts.size > 0;
 
   const replyToMessage = replyToId ? messages.find((m) => m.id === replyToId) : null;
 
@@ -476,34 +502,112 @@ export function PatientMessagesTab({
           <Separator />
 
           {/* ── 標籤篩選 ── */}
-          {allTags.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <Filter className="h-3.5 w-3.5 text-slate-400" />
-              <span className="text-xs text-slate-500">篩選:</span>
-              {allTags.map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="outline"
-                  className={`text-xs cursor-pointer transition-colors ${
-                    filterTag === tag
-                      ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
-                      : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
-                  }`}
-                  onClick={() => setFilterTag(filterTag === tag ? null : tag)}
-                >
-                  {tag}
-                </Badge>
-              ))}
+          {hasAnyTags && (
+            <div className="flex items-center gap-1.5">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 h-7 text-xs transition-colors ${
+                      filterTag
+                        ? 'border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Filter className="h-3.5 w-3.5" />
+                    篩選標籤
+                    {filterTag && <span className="font-medium">· 1</span>}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-60 p-0" align="start">
+                  <div className="max-h-64 overflow-y-auto p-2 space-y-2">
+                    {groupedFilterTags.general.length > 0 && (
+                      <div>
+                        <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-1">一般</div>
+                        <div className="space-y-0.5">
+                          {groupedFilterTags.general.map((tag) => (
+                            <button
+                              key={tag}
+                              type="button"
+                              className={`flex items-center justify-between w-full rounded px-2 py-1 text-xs transition-colors ${
+                                filterTag === tag
+                                  ? 'bg-indigo-600 text-white'
+                                  : 'hover:bg-slate-50 text-slate-700'
+                              }`}
+                              onClick={() => setFilterTag(filterTag === tag ? null : tag)}
+                            >
+                              <span>{tag}</span>
+                              <span className={`text-[10px] ${filterTag === tag ? 'text-indigo-200' : 'text-slate-400'}`}>
+                                {tagCounts.get(tag)}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {groupedFilterTags.pharmacy.length > 0 && (
+                      <div>
+                        <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-1">藥事分類</div>
+                        <div className="space-y-0.5">
+                          {groupedFilterTags.pharmacy.map((tag) => {
+                            const catColor = CATEGORY_COLORS[tag];
+                            return (
+                              <button
+                                key={tag}
+                                type="button"
+                                className={`flex items-center justify-between w-full rounded px-2 py-1 text-xs transition-colors ${
+                                  filterTag === tag
+                                    ? 'bg-indigo-600 text-white'
+                                    : `hover:${catColor?.bg || 'bg-slate-50'} ${catColor?.text || 'text-slate-700'}`
+                                }`}
+                                onClick={() => setFilterTag(filterTag === tag ? null : tag)}
+                              >
+                                <span>{tag}</span>
+                                <span className={`text-[10px] ${filterTag === tag ? 'text-indigo-200' : 'text-slate-400'}`}>
+                                  {tagCounts.get(tag)}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {groupedFilterTags.subcodes.length > 0 && (
+                      <div>
+                        <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-1">藥事子代碼</div>
+                        <div className="space-y-0.5">
+                          {groupedFilterTags.subcodes.map((tag) => (
+                            <button
+                              key={tag}
+                              type="button"
+                              className={`flex items-center justify-between w-full rounded px-2 py-1 text-xs transition-colors ${
+                                filterTag === tag
+                                  ? 'bg-indigo-600 text-white'
+                                  : 'hover:bg-slate-50 text-slate-600'
+                              }`}
+                              onClick={() => setFilterTag(filterTag === tag ? null : tag)}
+                            >
+                              <span>{tag}</span>
+                              <span className={`text-[10px] ${filterTag === tag ? 'text-indigo-200' : 'text-slate-400'}`}>
+                                {tagCounts.get(tag)}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
               {filterTag && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 text-xs text-slate-500 hover:text-slate-700"
+                <Badge
+                  variant="outline"
+                  className="text-xs bg-indigo-600 text-white border-indigo-600 cursor-pointer hover:bg-indigo-700 gap-1"
                   onClick={() => setFilterTag(null)}
                 >
-                  <X className="h-3 w-3 mr-0.5" />
-                  清除篩選
-                </Button>
+                  {filterTag}
+                  <X className="h-2.5 w-2.5" />
+                </Badge>
               )}
             </div>
           )}
