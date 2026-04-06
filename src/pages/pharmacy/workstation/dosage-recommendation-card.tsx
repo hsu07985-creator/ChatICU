@@ -66,7 +66,7 @@ export function DosageRecommendationCard({
         concentration: conc,
         sex: dose.sex,
         height_cm: dose.heightCm,
-      });
+      }, { suppressErrorToast: true });
       const rateStr = `${res.rate_ml_hr} ml/hr`;
       const doseUnit = dose.doseUnit?.replace('/kg', '') || '/hr';
       const doseStr = `${res.dose_per_hr} ${doseUnit}`;

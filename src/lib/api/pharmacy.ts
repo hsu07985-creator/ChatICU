@@ -197,10 +197,10 @@ export async function getIVCompatibility(params: {
   drugA: string;
   drugB: string;
   solution?: string;
-}): Promise<IVCompatibilitySearchResponse> {
+}, options?: { suppressErrorToast?: boolean }): Promise<IVCompatibilitySearchResponse> {
   const response = await apiClient.get<ApiResponse<IVCompatibilitySearchResponse>>(
     '/pharmacy/iv-compatibility',
-    { params }
+    { params, suppressErrorToast: options?.suppressErrorToast } as any,
   );
   return ensureData(response.data, 'API contract');
 }
@@ -345,10 +345,11 @@ export interface PadCalculateResult {
   steps: string[];
 }
 
-export async function padCalculate(data: PadCalculateRequest): Promise<PadCalculateResult> {
+export async function padCalculate(data: PadCalculateRequest, options?: { suppressErrorToast?: boolean }): Promise<PadCalculateResult> {
   const response = await apiClient.post<ApiResponse<PadCalculateResult>>(
     '/pharmacy/pad-calculate',
-    data
+    data,
+    { suppressErrorToast: options?.suppressErrorToast } as any,
   );
   return ensureData(response.data, 'API contract');
 }

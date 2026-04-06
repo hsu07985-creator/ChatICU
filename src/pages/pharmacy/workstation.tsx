@@ -306,7 +306,7 @@ export function PharmacyWorkstationPage() {
           const pairResults = await Promise.all(
             limitedPairs.map(async ([a, b]) => {
               try {
-                const resp = await getIVCompatibility({ drugA: a, drugB: b });
+                const resp = await getIVCompatibility({ drugA: a, drugB: b }, { suppressErrorToast: true });
                 const rows = resp.compatibilities || [];
                 return rows.map(row => ({
                   id: row.id || '',
