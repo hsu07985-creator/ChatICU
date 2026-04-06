@@ -70,10 +70,14 @@ export interface DosageResult {
   doseUnit?: string;
   weightKg?: number;
   concentration?: number;
+  concentrationUnit?: string;
+  defaultConcentration?: number;
   sex?: string;
   heightCm?: number;
   weightBasis?: string;
   dosingWeightKg?: number;
+  rateAtMin?: number;
+  rateAtMax?: number;
 }
 
 export interface CompatibilitySummary {

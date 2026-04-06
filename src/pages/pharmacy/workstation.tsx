@@ -429,8 +429,13 @@ export function PharmacyWorkstationPage() {
                   sex: patientSex,
                   height_cm: patientHeight,
                 });
+                const conc = padInfo.concentration || 1;
                 const rateStr = `${res.rate_ml_hr} ml/hr`;
                 const doseStr = `${res.dose_per_hr} ${padInfo.dose_unit?.replace('/kg', '') || '/hr'}`;
+                // Compute rate range at min/max dose
+                const dosingWt = res.dosing_weight_kg;
+                const rateAtMin = rangeMin > 0 ? parseFloat((dosingWt * rangeMin / conc).toFixed(1)) : 0;
+                const rateAtMax = rangeMax > 0 ? parseFloat((dosingWt * rangeMax / conc).toFixed(1)) : 0;
                 return {
                   drugName: padInfo.label || drug,
                   normalDose: `${defaultTarget} ${padInfo.dose_unit || ''}`,
@@ -452,11 +457,15 @@ export function PharmacyWorkstationPage() {
                   currentTargetPerKgHr: defaultTarget,
                   doseUnit: padInfo.dose_unit || '',
                   weightKg: patientWeight,
-                  concentration: padInfo.concentration || 1,
+                  concentration: conc,
+                  concentrationUnit: padInfo.concentration_unit || '',
+                  defaultConcentration: conc,
                   sex: patientSex,
                   heightCm: patientHeight,
                   weightBasis: res.weight_basis,
-                  dosingWeightKg: res.dosing_weight_kg,
+                  dosingWeightKg: dosingWt,
+                  rateAtMin,
+                  rateAtMax,
                 };
               } catch {
                 return {
