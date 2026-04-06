@@ -41,21 +41,25 @@ export function AppSidebar() {
     { title: '病人清單', url: '/patients', icon: Users },
   ];
 
-  // 2) 藥事支援中心（藥師/管理者可見）
-  const pharmacyItems = (user?.role === 'pharmacist' || user?.role === 'admin') ? [
+  // 2) 藥事評估（藥師/管理者可見）— 整合性工作台
+  const pharmacyAssessmentItems = (user?.role === 'pharmacist' || user?.role === 'admin') ? [
     { title: '藥事支援工作台', url: '/pharmacy/workstation', icon: Pill },
+  ] : [];
+
+  // 3) 藥事工具（藥師/管理者可見）— 獨立查詢工具
+  const pharmacyToolItems = (user?.role === 'pharmacist' || user?.role === 'admin') ? [
     { title: '交互作用查詢', url: '/pharmacy/interactions', icon: AlertTriangle },
-    { title: '劑量計算與建議', url: '/pharmacy/dosage', icon: Calculator },
     { title: '相容性檢核', url: '/pharmacy/compatibility', icon: Droplets },
+    { title: '劑量計算與建議', url: '/pharmacy/dosage', icon: Calculator },
     { title: '用藥建議與統計', url: '/pharmacy/advice-statistics', icon: BarChart3 },
   ] : [];
 
-  // 3) 溝通（所有角色可見）
+  // 4) 溝通（所有角色可見）
   const communicationItems = [
     { title: '團隊聊天室', url: '/chat', icon: MessageSquare },
   ];
 
-  // 4) 系統管理（僅管理者可見）
+  // 5) 系統管理（僅管理者可見）
   const adminItems = user?.role === 'admin' ? [
     { title: '稽核紀錄', url: '/admin/audit', icon: FileText },
     { title: '帳號與權限', url: '/admin/users', icon: UserCog },
@@ -110,18 +114,23 @@ export function AppSidebar() {
         {/* 1) 病人照護 */}
         {renderMenuGroup('病人照護', patientCareItems)}
 
-        {/* 2) 藥事支援中心 */}
-        {pharmacyItems.length > 0 && (
+        {/* 2) 藥事評估 */}
+        {pharmacyAssessmentItems.length > 0 && (
           <>
             <SidebarSeparator />
-            {renderMenuGroup('藥事支援中心', pharmacyItems)}
+            {renderMenuGroup('藥事評估', pharmacyAssessmentItems)}
           </>
         )}
 
-        {/* 3) 溝通 */}
+        {/* 3) 藥事工具 */}
+        {pharmacyToolItems.length > 0 && (
+          renderMenuGroup('藥事工具', pharmacyToolItems)
+        )}
+
+        {/* 4) 溝通 */}
         {renderMenuGroup('溝通', communicationItems)}
 
-        {/* 4) 系統管理 */}
+        {/* 5) 系統管理 */}
         {adminItems.length > 0 && (
           <>
             <SidebarSeparator />
