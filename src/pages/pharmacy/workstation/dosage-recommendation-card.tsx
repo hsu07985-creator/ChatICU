@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge } from '../../../components/ui/badge';
 import type { DosageResult } from './types';
 
@@ -28,7 +28,7 @@ function calcRate(dosingWeight: number, dosePerKgHr: number, conc: number): numb
   return parseFloat((dosingWeight * dosePerKgHr / conc).toFixed(1));
 }
 
-export function DosageRecommendationCard({
+export const DosageRecommendationCard = memo(function DosageRecommendationCard({
   dose,
   showAdjustmentBadge,
 }: DosageRecommendationCardProps) {
@@ -228,4 +228,4 @@ export function DosageRecommendationCard({
       </div>
     </div>
   );
-}
+});

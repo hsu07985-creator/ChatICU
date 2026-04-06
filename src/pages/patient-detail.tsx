@@ -1,6 +1,6 @@
 // Patient detail page
 import { MedicalRecords } from '../components/medical-records';
-import { LabTrendChart, LabTrendData } from '../components/lab-trend-chart';
+import { LabTrendChart } from '../components/lab-trend-chart';
 import { VitalSignCard } from '../components/vital-signs-card';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -13,18 +13,17 @@ import {
   updateChatSessionTitle,
   updateMessageFeedback,
   deleteChatSession,
-  getRAGStatus,
-  getAIReadiness,
   getReadinessReason,
-  type AIReadiness,
   type ChatResponse,
   type Citation as AiCitation,
   type DataFreshness,
-  type RAGStatus,
 } from '../lib/api/ai';
 import { patientsApi, labDataApi, medicationsApi, messagesApi, vitalSignsApi, ventilatorApi, type Patient, type LabData, type Medication, type PatientMessage, type VitalSigns, type VentilatorSettings, type WeaningAssessment } from '../lib/api';
 import { copyToClipboard } from '../lib/clipboard-utils';
 import { useAuth } from '../lib/auth-context';
+import { usePatientScores } from '../hooks/use-patient-scores';
+import { useAiReadiness } from '../hooks/use-ai-readiness';
+import { useTrendChart, type TrendSource } from '../hooks/use-trend-chart';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -42,7 +41,6 @@ import { PatientLabsTab } from '../components/patient/patient-labs-tab';
 import { PatientMedicationsTab } from '../components/patient/patient-medications-tab';
 import { PatientMessagesTab } from '../components/patient/patient-messages-tab';
 import { respondToAdvice } from '../lib/api/pharmacy';
-import { getLatestScores, recordScore, deleteScore, getScoreTrends } from '../lib/api/scores';
 import {
   ArrowLeft,
   Calendar,
@@ -306,10 +304,6 @@ function formatSnapshotValue(value: number | undefined): string {
   return value !== undefined ? String(value) : 'N/A';
 }
 
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value);
-}
-
 function formatDisplayValue(value: unknown): string {
   if (value === null || value === undefined) return '-';
   if (typeof value === 'string') {
@@ -329,66 +323,6 @@ function formatDisplayTimestamp(timestamp?: string | null): string {
   return parsed.toLocaleString('zh-TW');
 }
 
-type TrendSource = 'vital' | 'ventilator';
-
-function formatTrendAxisLabel(timestamp?: string | null): string {
-  if (!timestamp) return '-';
-  const parsed = new Date(timestamp);
-  if (Number.isNaN(parsed.getTime())) return '-';
-  return parsed.toLocaleString('zh-TW', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-}
-
-function getVitalTrendValue(record: VitalSigns, itemName: string): number | undefined {
-  switch (itemName) {
-    case 'RespiratoryRate':
-      return record.respiratoryRate ?? undefined;
-    case 'Temperature':
-      return record.temperature ?? undefined;
-    case 'BloodPressureSystolic':
-      return record.bloodPressure?.systolic ?? undefined;
-    case 'BloodPressureDiastolic':
-      return record.bloodPressure?.diastolic ?? undefined;
-    case 'HeartRate':
-      return record.heartRate ?? undefined;
-    case 'SpO2':
-      return record.spo2 ?? undefined;
-    case 'EtCO2':
-      return record.etco2 ?? undefined;
-    case 'CVP':
-      return record.cvp ?? undefined;
-    case 'ICP':
-      return record.icp ?? undefined;
-    default:
-      return undefined;
-  }
-}
-
-function getVentilatorTrendValue(record: VentilatorSettings, itemName: string): number | undefined {
-  switch (itemName) {
-    case 'FiO2':
-      return record.fio2;
-    case 'PEEP':
-      return record.peep;
-    case 'TidalVolume':
-      return record.tidalVolume;
-    case 'VentRR':
-      return record.respiratoryRate;
-    case 'PIP':
-      return record.pip ?? undefined;
-    case 'Plateau':
-      return record.plateau ?? undefined;
-    case 'Compliance':
-      return record.compliance ?? undefined;
-    default:
-      return undefined;
-  }
-}
 
 function normalizeSanCategory(raw: unknown): 'S' | 'A' | 'N' | null {
   if (typeof raw !== 'string') return null;
@@ -434,45 +368,6 @@ function deriveMedicationGroups(items: Medication[]): MedicationGroups {
   return grouped;
 }
 
-function createReadinessFallback(reason: string): AIReadiness {
-  return {
-    overall_ready: false,
-    checked_at: new Date().toISOString(),
-    llm: {
-      ready: false,
-      provider: 'unknown',
-      model: 'unknown',
-      reason: 'READINESS_CHECK_FAILED',
-    },
-    evidence: {
-      reachable: false,
-      ready: false,
-      reason: 'READINESS_CHECK_FAILED',
-      last_error: reason,
-    },
-    rag: {
-      ready: false,
-      is_indexed: false,
-      total_chunks: 0,
-      total_documents: 0,
-      engine: 'unknown',
-      clinical_rules_loaded: false,
-    },
-    feature_gates: {
-      chat: false,
-      clinical_summary: false,
-      patient_explanation: false,
-      guideline_interpretation: false,
-      decision_support: false,
-      clinical_polish: false,
-      dose_calculation: false,
-      drug_interactions: false,
-      clinical_query: false,
-    },
-    blocking_reasons: ['READINESS_CHECK_FAILED'],
-    display_reasons: ['AI 服務狀態檢查失敗，已暫時停用 AI 功能。'],
-  };
-}
 
 
 export function PatientDetailPage() {
@@ -494,10 +389,8 @@ export function PatientDetailPage() {
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
 
-  // RAG 索引狀態
-  const [ragStatus, setRagStatus] = useState<RAGStatus | null>(null);
-  const [aiReadiness, setAiReadiness] = useState<AIReadiness | null>(null);
-  const [isCheckingAiReadiness, setIsCheckingAiReadiness] = useState(false);
+  // AI 狀態（hook）
+  const { ragStatus, aiReadiness, isCheckingAiReadiness, refreshAiReadiness } = useAiReadiness();
 
   // 病人資料狀態
   const [patient, setPatient] = useState<PatientWithFrontendFields | null>(null);
@@ -512,13 +405,8 @@ export function PatientDetailPage() {
   const [medicationGroups, setMedicationGroups] = useState<MedicationGroups>(EMPTY_MEDICATION_GROUPS);
   const [medicationsLoading, setMedicationsLoading] = useState(false);
 
-  // 臨床評分狀態
-  const [painScoreValue, setPainScoreValue] = useState<number | null>(null);
-  const [rassScoreValue, setRassScoreValue] = useState<number | null>(null);
-  const [scoreTrendOpen, setScoreTrendOpen] = useState(false);
-  const [scoreTrendType, setScoreTrendType] = useState<'pain' | 'rass'>('pain');
-  const [scoreTrendData, setScoreTrendData] = useState<{ date: string; value: number }[]>([]);
-  const [scoreEntries, setScoreEntries] = useState<import('@/lib/api/scores').ScoreEntry[]>([]);
+  // 臨床評分（hook）
+  const scores = usePatientScores(id);
 
   // 留言板狀態
   const [messages, setMessages] = useState<PatientMessage[]>([]);
@@ -545,17 +433,8 @@ export function PatientDetailPage() {
   const [sessionTitle, setSessionTitle] = useState('');
   const [showSessionList, setShowSessionList] = useState(true);
 
-  // 檢驗數據頁折線圖狀態（生命徵象 / 呼吸器）
-  const [selectedTrendMetric, setSelectedTrendMetric] = useState<{
-    name: string;
-    nameChinese: string;
-    unit: string;
-    value: number;
-    source: TrendSource;
-  } | null>(null);
-
-  // 趨勢資料狀態
-  const [trendChartData, setTrendChartData] = useState<LabTrendData[]>([]);
+  // 趨勢圖表（hook）
+  const { selectedTrendMetric, setSelectedTrendMetric, trendChartData } = useTrendChart(id);
   const metricGridStyle = {
     gridTemplateColumns: 'repeat(auto-fit, minmax(var(--metric-card-size, 124px), 1fr))',
     gap: 'var(--metric-card-gap, 10px)',
@@ -598,14 +477,8 @@ export function PatientDetailPage() {
       setVentilator(ventilatorResult);
       setWeaningAssessment(weaningResult);
 
-      // 載入臨床評分
-      try {
-        const latest = await getLatestScores(id);
-        setPainScoreValue(latest.pain?.value ?? null);
-        setRassScoreValue(latest.rass?.value ?? null);
-      } catch {
-        // scores endpoint may not exist yet — ignore
-      }
+      // 載入臨床評分（via hook）
+      await scores.loadLatestScores();
 
       // 載入對話記錄
       try {
@@ -668,24 +541,6 @@ export function PatientDetailPage() {
     loadPatientBundle('initial');
   }, [loadPatientBundle]);
 
-  const refreshAiReadiness = useCallback(async () => {
-    setIsCheckingAiReadiness(true);
-    try {
-      const readiness = await getAIReadiness();
-      setAiReadiness(readiness);
-    } catch (err) {
-      const reason = err instanceof Error ? err.message : String(err);
-      console.error('[INTG][AI][API][AO-01] readiness check failed:', reason);
-      setAiReadiness(createReadinessFallback(reason));
-    } finally {
-      setIsCheckingAiReadiness(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshAiReadiness();
-  }, [refreshAiReadiness]);
-
   // Auto-scroll to bottom when chat messages update (including during streaming)
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -698,109 +553,6 @@ export function PatientDetailPage() {
     const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     setShowScrollToBottom(distFromBottom > 200);
   }, []);
-
-  // P3-6: 載入 RAG 索引狀態
-  useEffect(() => {
-    getRAGStatus().then(setRagStatus).catch(() => setRagStatus(null));
-  }, []);
-
-  // 檢驗數據頁：選取生命徵象/呼吸器項目時，從對應 API 載入趨勢資料
-  useEffect(() => {
-    if (!selectedTrendMetric || !id) {
-      setTrendChartData([]);
-      return;
-    }
-
-    const fetchTrend = async () => {
-      try {
-        const points: LabTrendData[] = [];
-
-        if (selectedTrendMetric.source === 'vital') {
-          const response = await vitalSignsApi.getVitalSignsTrends(id, { hours: 168 });
-          for (const record of response.trends || []) {
-            const trendValue = getVitalTrendValue(record, selectedTrendMetric.name);
-            if (isFiniteNumber(trendValue)) {
-              points.push({
-                date: formatTrendAxisLabel(record.timestamp),
-                value: trendValue,
-              });
-            }
-          }
-        } else if (selectedTrendMetric.source === 'ventilator') {
-          const response = await ventilatorApi.getVentilatorTrends(id, { hours: 168 });
-          for (const record of response.trends || []) {
-            const trendValue = getVentilatorTrendValue(record, selectedTrendMetric.name);
-            if (isFiniteNumber(trendValue)) {
-              points.push({
-                date: formatTrendAxisLabel(record.timestamp),
-                value: trendValue,
-              });
-            }
-          }
-        }
-
-        if (points.length === 0) {
-          points.push({
-            date: '目前',
-            value: selectedTrendMetric.value,
-          });
-        }
-
-        setTrendChartData(points);
-      } catch {
-        setTrendChartData([
-          {
-            date: '目前',
-            value: selectedTrendMetric.value,
-          },
-        ]);
-      }
-    };
-
-    fetchTrend();
-  }, [selectedTrendMetric, id]);
-
-  const loadScoreTrends = useCallback(async (scoreType: 'pain' | 'rass') => {
-    if (!id) return;
-    try {
-      const result = await getScoreTrends(id, scoreType, 72);
-      setScoreEntries(result.trends);
-      setScoreTrendData(
-        result.trends.map((t) => ({
-          date: new Date(t.timestamp).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }),
-          value: t.value,
-        }))
-      );
-    } catch {
-      setScoreEntries([]);
-      setScoreTrendData([]);
-    }
-  }, [id]);
-
-  const handleRecordScore = useCallback(async (scoreType: 'pain' | 'rass', value: number) => {
-    if (!id) return;
-    await recordScore(id, { score_type: scoreType, value });
-    if (scoreType === 'pain') setPainScoreValue(value);
-    else setRassScoreValue(value);
-    toast.success(`已記錄 ${scoreType === 'pain' ? 'Pain' : 'RASS'} = ${value}`);
-    setScoreTrendType(scoreType);
-    setScoreTrendOpen(true);
-    await loadScoreTrends(scoreType);
-  }, [id, loadScoreTrends]);
-
-  const handleOpenScoreTrend = useCallback(async (scoreType: 'pain' | 'rass') => {
-    if (!id) return;
-    setScoreTrendType(scoreType);
-    setScoreTrendOpen(true);
-    await loadScoreTrends(scoreType);
-  }, [id, loadScoreTrends]);
-
-  const handleDeleteScoreEntry = useCallback(async (scoreId: string) => {
-    if (!id) return;
-    await deleteScore(id, scoreId);
-    toast.success('已刪除紀錄');
-    await loadScoreTrends(scoreTrendType);
-  }, [id, scoreTrendType, loadScoreTrends]);
 
   const handleRefreshMedications = useCallback(async () => {
     if (!id) return;
@@ -1972,16 +1724,16 @@ export function PatientDetailPage() {
           otherMedications={otherMedications}
           formatDisplayValue={formatDisplayValue}
           formatMedicationRegimen={formatMedicationRegimen}
-          painScoreValue={painScoreValue}
-          rassScoreValue={rassScoreValue}
-          onRecordScore={handleRecordScore}
-          onOpenScoreTrend={handleOpenScoreTrend}
-          scoreTrendOpen={scoreTrendOpen}
-          scoreTrendType={scoreTrendType}
-          scoreTrendData={scoreTrendData}
-          scoreEntries={scoreEntries}
-          onDeleteScoreEntry={handleDeleteScoreEntry}
-          onCloseScoreTrend={() => setScoreTrendOpen(false)}
+          painScoreValue={scores.painScoreValue}
+          rassScoreValue={scores.rassScoreValue}
+          onRecordScore={scores.handleRecordScore}
+          onOpenScoreTrend={scores.handleOpenScoreTrend}
+          scoreTrendOpen={scores.scoreTrendOpen}
+          scoreTrendType={scores.scoreTrendType}
+          scoreTrendData={scores.scoreTrendData}
+          scoreEntries={scores.scoreEntries}
+          onDeleteScoreEntry={scores.handleDeleteScoreEntry}
+          onCloseScoreTrend={scores.closeScoreTrend}
           onRefreshMedications={handleRefreshMedications}
         />
 

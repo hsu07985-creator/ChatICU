@@ -498,8 +498,8 @@ export const DRUGS_WITH_DATA: string[] = [
   "Zopiclone",
 ];
 
-/** Hospital drugs WITHOUT interaction data */
-export const DRUGS_WITHOUT_DATA: string[] = [
+/** Hospital drugs WITHOUT interaction data (not exported — only used by DRUG_LIST) */
+const DRUGS_WITHOUT_DATA: string[] = [
   "Acebutolol",
   "Aceclofenac",
   "Acrinol",

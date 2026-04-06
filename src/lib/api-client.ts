@@ -1,6 +1,13 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { toast } from 'sonner';
 
+// Augment axios so custom config fields are type-safe (removes need for `as any`)
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    suppressErrorToast?: boolean;
+  }
+}
+
 // API 配置 — dev 走 Vite proxy（同源），production 可用 VITE_API_URL 覆蓋
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 

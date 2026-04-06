@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Any, List, Optional
+from typing import List, Optional
 
 from pydantic import BaseModel
 
@@ -82,9 +82,9 @@ class PatientResponse(BaseModel):
     symptoms: Optional[List[str]] = None
     intubated: bool
     criticalStatus: Optional[str] = None
-    sedation: Optional[List[Any]] = None
-    analgesia: Optional[List[Any]] = None
-    nmb: Optional[List[Any]] = None
+    sedation: Optional[List[str]] = None
+    analgesia: Optional[List[str]] = None
+    nmb: Optional[List[str]] = None
     admissionDate: Optional[str] = None
     icuAdmissionDate: Optional[str] = None
     ventilatorDays: int = 0

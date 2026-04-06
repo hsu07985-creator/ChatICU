@@ -64,21 +64,27 @@ async def get_tagged_activity(
         p.id: p for p in patient_result.scalars().all()
     }
 
-    # Step 3: for each patient, fetch recent tagged messages for preview + tags
+    # Step 3: batch-fetch all tagged messages for matched patients (was N+1)
+    batch_stmt = (
+        select(PatientMessage)
+        .where(PatientMessage.patient_id.in_(patient_ids))
+        .where(PatientMessage.timestamp >= cutoff)
+        .where(PatientMessage.tags.isnot(None))
+        .where(cast(PatientMessage.tags, String) != '[]')
+        .order_by(PatientMessage.timestamp.desc())
+    )
+    batch_result = await db.execute(batch_stmt)
+    all_tagged_msgs = batch_result.scalars().all()
+
+    # Group by patient_id
+    msgs_by_patient: Dict[str, List[PatientMessage]] = {}
+    for m in all_tagged_msgs:
+        msgs_by_patient.setdefault(m.patient_id, []).append(m)
+
     activity: List[dict] = []
     for row in rows:
         pid = row.patient_id
-
-        detail_stmt = (
-            select(PatientMessage)
-            .where(PatientMessage.patient_id == pid)
-            .where(PatientMessage.timestamp >= cutoff)
-            .where(PatientMessage.tags.isnot(None))
-            .where(cast(PatientMessage.tags, String) != '[]')
-            .order_by(PatientMessage.timestamp.desc())
-        )
-        detail_result = await db.execute(detail_stmt)
-        tagged_msgs = detail_result.scalars().all()
+        tagged_msgs = msgs_by_patient.get(pid, [])
 
         # Collect unique tags
         all_tags: Set[str] = set()

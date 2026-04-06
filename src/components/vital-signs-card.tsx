@@ -20,7 +20,9 @@ interface VitalSignCardProps {
   timestamp?: string;
 }
 
-export function VitalSignCard({ label, value, unit, onClick, isAbnormal, abnormalDirection, secondaryValue, timestamp }: VitalSignCardProps) {
+import { memo } from 'react';
+
+export const VitalSignCard = memo(function VitalSignCard({ label, value, unit, onClick, isAbnormal, abnormalDirection, secondaryValue, timestamp }: VitalSignCardProps) {
   const hasSecondaryValue = typeof secondaryValue === 'string' && secondaryValue.trim() !== '';
   const normalizedValue =
     value === null || value === undefined || (typeof value === 'string' && value.trim() === '')
@@ -86,4 +88,4 @@ export function VitalSignCard({ label, value, unit, onClick, isAbnormal, abnorma
       )}
     </div>
   );
-}
+});

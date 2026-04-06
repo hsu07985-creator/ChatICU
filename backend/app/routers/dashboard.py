@@ -35,34 +35,43 @@ async def get_dashboard_stats(
     intubated_beds = [row[0] for row in intubated_rows.all()]
     intubated_count = len(intubated_beds)
 
-    # Patients with at least one active SAN medication
-    san_patient_result = await db.execute(
+    # SAN stats in 3 queries (was 7 separate queries)
+    # Query 1: distinct patients per SAN category (GROUP BY)
+    san_patient_rows = await db.execute(
+        select(Medication.san_category, func.count(func.distinct(Medication.patient_id)))
+        .where(Medication.status == "active")
+        .where(Medication.san_category.in_(["S", "A", "N"]))
+        .group_by(Medication.san_category)
+    )
+    san_patient_map = dict(san_patient_rows.all())
+    san_patient_counts = {
+        "sedation": san_patient_map.get("S", 0),
+        "analgesia": san_patient_map.get("A", 0),
+        "nmb": san_patient_map.get("N", 0),
+    }
+
+    # Query 2: medication counts per SAN category (GROUP BY)
+    san_med_rows = await db.execute(
+        select(Medication.san_category, func.count(Medication.id))
+        .where(Medication.status == "active")
+        .where(Medication.san_category.in_(["S", "A", "N"]))
+        .group_by(Medication.san_category)
+    )
+    san_med_map = dict(san_med_rows.all())
+    san_counts = {
+        "S": san_med_map.get("S", 0),
+        "A": san_med_map.get("A", 0),
+        "N": san_med_map.get("N", 0),
+    }
+    total_active_meds = san_counts["S"] + san_counts["A"] + san_counts["N"]
+
+    # Query 3: distinct patients with any SAN (cross-category dedup)
+    san_distinct_result = await db.execute(
         select(func.count(func.distinct(Medication.patient_id)))
         .where(Medication.status == "active")
         .where(Medication.san_category.in_(["S", "A", "N"]))
     )
-    with_san = san_patient_result.scalar() or 0
-
-    # Patients with active S/A/N by category
-    san_patient_counts = {"sedation": 0, "analgesia": 0, "nmb": 0}
-    for cat, key in [("S", "sedation"), ("A", "analgesia"), ("N", "nmb")]:
-        cat_patient_result = await db.execute(
-            select(func.count(func.distinct(Medication.patient_id)))
-            .where(Medication.status == "active")
-            .where(Medication.san_category == cat)
-        )
-        san_patient_counts[key] = cat_patient_result.scalar() or 0
-
-    # Active medications by SAN category
-    san_counts = {"S": 0, "A": 0, "N": 0}
-    for cat in ["S", "A", "N"]:
-        cat_result = await db.execute(
-            select(func.count(Medication.id))
-            .where(Medication.status == "active")
-            .where(Medication.san_category == cat)
-        )
-        san_counts[cat] = cat_result.scalar() or 0
-    total_active_meds = san_counts["S"] + san_counts["A"] + san_counts["N"]
+    with_san = san_distinct_result.scalar() or 0
 
     # Unread messages
     unread_result = await db.execute(
@@ -80,15 +89,13 @@ async def get_dashboard_stats(
     )
     today_messages = today_result.scalar() or 0
 
-    # Alerts count
-    alert_patients = await db.execute(
-        select(Patient)
+    # Alerts count — aggregate in DB instead of loading full Patient objects
+    alert_result = await db.execute(
+        select(func.coalesce(func.sum(func.jsonb_array_length(Patient.alerts)), 0))
         .where(Patient.archived == False)
         .where(Patient.alerts != None)
     )
-    alert_count = sum(
-        len(p.alerts) for p in alert_patients.scalars() if p.alerts
-    )
+    alert_count = alert_result.scalar() or 0
 
     # Response matches frontend DashboardStats interface (F09)
     return success_response(data={

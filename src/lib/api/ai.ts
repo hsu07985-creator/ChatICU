@@ -618,7 +618,7 @@ export async function calculateDose(data: {
     patient_context: data.patientContext,
     indication: data.indication,
     dose_target: data.doseTarget,
-  }, { suppressErrorToast: options?.suppressErrorToast } as any);
+  }, { suppressErrorToast: options?.suppressErrorToast });
   return ensureData(response.data, 'API contract');
 }
 
@@ -677,7 +677,7 @@ export async function checkInteractions(data: {
   const response = await apiClient.post<ApiResponse<InteractionCheckResponse>>(
     '/api/v1/clinical/interactions',
     payload,
-    { suppressErrorToast: options?.suppressErrorToast } as any,
+    { suppressErrorToast: options?.suppressErrorToast },
   );
   return ensureData(response.data, 'API contract');
 }

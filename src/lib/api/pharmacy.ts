@@ -200,7 +200,7 @@ export async function getIVCompatibility(params: {
 }, options?: { suppressErrorToast?: boolean }): Promise<IVCompatibilitySearchResponse> {
   const response = await apiClient.get<ApiResponse<IVCompatibilitySearchResponse>>(
     '/pharmacy/iv-compatibility',
-    { params, suppressErrorToast: options?.suppressErrorToast } as any,
+    { params, suppressErrorToast: options?.suppressErrorToast },
   );
   return ensureData(response.data, 'API contract');
 }
@@ -349,7 +349,7 @@ export async function padCalculate(data: PadCalculateRequest, options?: { suppre
   const response = await apiClient.post<ApiResponse<PadCalculateResult>>(
     '/pharmacy/pad-calculate',
     data,
-    { suppressErrorToast: options?.suppressErrorToast } as any,
+    { suppressErrorToast: options?.suppressErrorToast },
   );
   return ensureData(response.data, 'API contract');
 }
