@@ -37,9 +37,6 @@ async def test_preset_tags_includes_custom(client):
     assert resp.status_code == 200
     tags = resp.json()["data"]
     assert "自訂標籤A" in tags
-    # System presets should still be there
-    assert "重要" in tags
-    assert "追蹤" in tags
 
 
 async def test_create_duplicate_custom_tag(client):
@@ -55,9 +52,10 @@ async def test_create_duplicate_custom_tag(client):
 
 
 async def test_create_preset_tag_conflict(client):
+    """Pharmacist category tags are still protected."""
     resp = await client.post(
         "/patients/pat_001/messages/custom-tags",
-        json={"name": "重要"},
+        json={"name": "建議處方"},
     )
     assert resp.status_code == 409
 

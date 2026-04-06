@@ -20,10 +20,7 @@ router = APIRouter(prefix="/patients/{patient_id}/messages", tags=["messages"])
 _UNSET = object()  # sentinel for optional advice_accepted
 
 # ── Default preset tags ──
-DEFAULT_PRESET_TAGS = [
-    "重要", "追蹤", "待處理", "已確認", "用藥相關",
-    "檢驗相關", "會診", "交班", "護理紀錄", "家屬溝通",
-]
+DEFAULT_PRESET_TAGS = []
 
 # Pharmacist category tags (match 4 major categories in pharmacy-master-data)
 PHARMACIST_CATEGORY_TAGS = ["建議處方", "主動建議", "建議監測", "用藥連貫性"]
