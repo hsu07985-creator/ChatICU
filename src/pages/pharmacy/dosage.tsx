@@ -62,6 +62,18 @@ export function DosagePage() {
   const isDoseMaxOutOfRange = doseRange && !isNaN(targetDoseMaxNum) && targetDoseMaxNum > 0 &&
     (targetDoseMaxNum < doseRange[0] || targetDoseMaxNum > doseRange[1]);
 
+  // Clamp: min dose cannot go below drug floor, max dose cannot exceed drug ceiling
+  const handleDoseMinBlur = useCallback(() => {
+    if (!doseRange || !targetDoseMin) return;
+    const val = parseFloat(targetDoseMin);
+    if (!isNaN(val) && val < doseRange[0]) setTargetDoseMin(String(doseRange[0]));
+  }, [doseRange, targetDoseMin]);
+  const handleDoseMaxBlur = useCallback(() => {
+    if (!doseRange || !targetDoseMax) return;
+    const val = parseFloat(targetDoseMax);
+    if (!isNaN(val) && val > doseRange[1]) setTargetDoseMax(String(doseRange[1]));
+  }, [doseRange, targetDoseMax]);
+
   // Concentration deviation check
   const isConcentrationChanged = drugInfo &&
     concentration !== '' &&
@@ -152,6 +164,15 @@ export function DosagePage() {
 
     setLoading(true);
     try {
+      // Clamp doses to allowed range before sending
+      let clampedMin = parseFloat(targetDoseMin);
+      let clampedMax = parseFloat(targetDoseMax);
+      if (doseRange) {
+        clampedMin = Math.max(clampedMin, doseRange[0]);
+        clampedMax = Math.min(clampedMax, doseRange[1]);
+        setTargetDoseMin(String(clampedMin));
+        setTargetDoseMax(String(clampedMax));
+      }
       const common = {
         drug: selectedDrug,
         weight_kg: parseFloat(weight),
@@ -165,8 +186,8 @@ export function DosagePage() {
         setResultMax(null);
       } else {
         const [resMin, resMax] = await Promise.all([
-          padCalculate({ ...common, target_dose_per_kg_hr: parseFloat(targetDoseMin) }),
-          padCalculate({ ...common, target_dose_per_kg_hr: parseFloat(targetDoseMax) }),
+          padCalculate({ ...common, target_dose_per_kg_hr: clampedMin }),
+          padCalculate({ ...common, target_dose_per_kg_hr: clampedMax }),
         ]);
         setResultMin(resMin);
         setResultMax(resMax);
@@ -278,12 +299,12 @@ export function DosagePage() {
                   最小劑量 *
                   {drugInfo && <span className="text-muted-foreground font-normal ml-0.5 text-xs">({drugInfo.dose_unit})</span>}
                 </label>
-                <Input type="number" step="any" className={`h-9 ${isDoseMinOutOfRange ? 'border-red-500 border-2 focus-visible:ring-red-500' : ''}`}
-                  placeholder={doseRange ? String(doseRange[0]) : ''} value={targetDoseMin} onChange={(e) => setTargetDoseMin(e.target.value)} />
-                {isDoseMinOutOfRange && doseRange && (
-                  <p className="text-xs text-red-600 font-medium flex items-center gap-1">
-                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />超出建議 {doseRange[0]}–{doseRange[1]}
-                  </p>
+                <Input type="number" step="any" className="h-9"
+                  min={doseRange ? doseRange[0] : undefined}
+                  placeholder={doseRange ? String(doseRange[0]) : ''} value={targetDoseMin}
+                  onChange={(e) => setTargetDoseMin(e.target.value)} onBlur={handleDoseMinBlur} />
+                {doseRange && (
+                  <p className="text-xs text-muted-foreground">下限 {doseRange[0]}</p>
                 )}
               </div>
               <div className="space-y-1">
@@ -291,12 +312,12 @@ export function DosagePage() {
                   最大劑量 *
                   {drugInfo && <span className="text-muted-foreground font-normal ml-0.5 text-xs">({drugInfo.dose_unit})</span>}
                 </label>
-                <Input type="number" step="any" className={`h-9 ${isDoseMaxOutOfRange ? 'border-red-500 border-2 focus-visible:ring-red-500' : ''}`}
-                  placeholder={doseRange ? String(doseRange[1]) : ''} value={targetDoseMax} onChange={(e) => setTargetDoseMax(e.target.value)} />
-                {isDoseMaxOutOfRange && doseRange && (
-                  <p className="text-xs text-red-600 font-medium flex items-center gap-1">
-                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />超出建議 {doseRange[0]}–{doseRange[1]}
-                  </p>
+                <Input type="number" step="any" className="h-9"
+                  max={doseRange ? doseRange[1] : undefined}
+                  placeholder={doseRange ? String(doseRange[1]) : ''} value={targetDoseMax}
+                  onChange={(e) => setTargetDoseMax(e.target.value)} onBlur={handleDoseMaxBlur} />
+                {doseRange && (
+                  <p className="text-xs text-muted-foreground">上限 {doseRange[1]}</p>
                 )}
               </div>
               <div className="space-y-1">
