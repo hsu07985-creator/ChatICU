@@ -13,7 +13,7 @@ const labChineseNames: Record<string, string> = {
   pH: '酸鹼值', PCO2: '二氧化碳分壓',
   PO2: '氧分壓', HCO3: '碳酸氫根', Lactate: '乳酸',
   BE: '鹼剩餘', SaO2: '動脈血氧飽和度',
-  AST: '天門冬胺酸轉胺酶', ALT: '丙胺酸轉胺酶', TBil: '總膽紅素',
+  AST: '天門冬胺酸轉胺酶', ALT: '丙胺酸轉胺酶', TBil: '總膽紅素', DBil: '直接膽紅素',
   INR: '國際標準化比值', BUN: '血液尿素氮', Scr: '肌酸酐',
   eGFR: '腎絲球過濾率', Clcr: '肌酸酐清除率',
   Glucose: '血糖', LDH: '乳酸脫氫酶', 'Troponin-I': '肌鈣蛋白I',
@@ -60,7 +60,6 @@ const ELECTROLYTES_METRICS: readonly LabMetricDescriptor[] = [
   { category: 'biochemistry', itemName: 'freeCa' },
   { category: 'biochemistry', itemName: 'Mg' },
   { category: 'biochemistry', itemName: 'Cl' },
-  { category: 'biochemistry', itemName: 'CO2' },
   { category: 'biochemistry', itemName: 'Phos' },
 ];
 
@@ -78,11 +77,11 @@ const HEMATOLOGY_METRICS: readonly LabMetricDescriptor[] = [
 
 const INFLAMMATORY_METRICS: readonly LabMetricDescriptor[] = [
   { category: 'biochemistry', itemName: 'Alb' },
+  { category: 'bloodGas', itemName: 'Lactate' },
   { category: 'inflammatory', itemName: 'CRP' },
   { category: 'inflammatory', itemName: 'PCT' },
   { category: 'coagulation', itemName: 'DDimer' },
   { category: 'inflammatory', itemName: 'IL-6' },
-  { category: 'inflammatory', itemName: 'NSE' },
 ];
 
 const ABG_METRICS: readonly LabMetricDescriptor[] = [
@@ -90,7 +89,6 @@ const ABG_METRICS: readonly LabMetricDescriptor[] = [
   { category: 'bloodGas', itemName: 'PCO2' },
   { category: 'bloodGas', itemName: 'PO2' },
   { category: 'bloodGas', itemName: 'HCO3' },
-  { category: 'bloodGas', itemName: 'Lactate' },
   { category: 'bloodGas', itemName: 'BE' },
   { category: 'bloodGas', itemName: 'SaO2' },
 ];
@@ -99,6 +97,7 @@ const LIVER_RENAL_METRICS: readonly LabMetricDescriptor[] = [
   { category: 'biochemistry', itemName: 'AST' },
   { category: 'biochemistry', itemName: 'ALT' },
   { category: 'biochemistry', itemName: 'TBil' },
+  { category: 'biochemistry', itemName: 'DBil' },
   { category: 'coagulation', itemName: 'INR' },
   { category: 'biochemistry', itemName: 'BUN' },
   { category: 'biochemistry', itemName: 'Scr' },
@@ -587,15 +586,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               onClick={() => handleLabClick('Cl', 'biochemistry', getValue('biochemistry', 'Cl'), getUnit('biochemistry', 'Cl', 'mmol/L'))}
             />
             <LabItem
-              labName="CO2"
-              label="CO₂"
-              value={getValue('biochemistry', 'CO2')}
-              unit={getUnit('biochemistry', 'CO2', 'mmol/L')}
-              isAbnormal={isAbnormal('biochemistry', 'CO2')}
-              abnormalDirection={getDirection('biochemistry', 'CO2')}
-              onClick={() => handleLabClick('CO2', 'biochemistry', getValue('biochemistry', 'CO2'), getUnit('biochemistry', 'CO2', 'mmol/L'))}
-            />
-            <LabItem
               labName="Phos"
               label="P"
               value={getValue('biochemistry', 'Phos')}
@@ -709,6 +699,15 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               onClick={() => handleLabClick('Alb', 'biochemistry', getValue('biochemistry', 'Alb'), getUnit('biochemistry', 'Alb', 'g/dL'))}
             />
             <LabItem
+              labName="Lactate"
+              label="Lactate"
+              value={getValue('bloodGas', 'Lactate')}
+              unit={getUnit('bloodGas', 'Lactate', 'mmol/L')}
+              isAbnormal={isAbnormal('bloodGas', 'Lactate')}
+              abnormalDirection={getDirection('bloodGas', 'Lactate')}
+              onClick={() => handleLabClick('Lactate', 'bloodGas', getValue('bloodGas', 'Lactate'), getUnit('bloodGas', 'Lactate', 'mmol/L'))}
+            />
+            <LabItem
               labName="CRP"
               label="CRP"
               value={getValue('inflammatory', 'CRP')}
@@ -743,15 +742,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               isAbnormal={isAbnormal('inflammatory', 'IL-6')}
               abnormalDirection={getDirection('inflammatory', 'IL-6')}
               onClick={() => handleLabClick('IL-6', 'inflammatory', getValue('inflammatory', 'IL-6'), getUnit('inflammatory', 'IL-6', 'pg/mL'))}
-            />
-            <LabItem
-              labName="NSE"
-              label="NSE"
-              value={getValue('inflammatory', 'NSE')}
-              unit={getUnit('inflammatory', 'NSE', 'ng/mL')}
-              isAbnormal={isAbnormal('inflammatory', 'NSE')}
-              abnormalDirection={getDirection('inflammatory', 'NSE')}
-              onClick={() => handleLabClick('NSE', 'inflammatory', getValue('inflammatory', 'NSE'), getUnit('inflammatory', 'NSE', 'ng/mL'))}
             />
           </div>
         </div>
@@ -795,15 +785,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               isAbnormal={isAbnormal('bloodGas', 'HCO3')}
               abnormalDirection={getDirection('bloodGas', 'HCO3')}
               onClick={() => handleLabClick('HCO3', 'bloodGas', getValue('bloodGas', 'HCO3'), getUnit('bloodGas', 'HCO3', 'mEq/L'))}
-            />
-            <LabItem
-              labName="Lactate"
-              label="Lactate"
-              value={getValue('bloodGas', 'Lactate')}
-              unit={getUnit('bloodGas', 'Lactate', 'mmol/L')}
-              isAbnormal={isAbnormal('bloodGas', 'Lactate')}
-              abnormalDirection={getDirection('bloodGas', 'Lactate')}
-              onClick={() => handleLabClick('Lactate', 'bloodGas', getValue('bloodGas', 'Lactate'), getUnit('bloodGas', 'Lactate', 'mmol/L'))}
             />
             <LabItem
               labName="BE"
@@ -856,6 +837,15 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               isAbnormal={isAbnormal('biochemistry', 'TBil')}
               abnormalDirection={getDirection('biochemistry', 'TBil')}
               onClick={() => handleLabClick('TBil', 'biochemistry', getValue('biochemistry', 'TBil'), getUnit('biochemistry', 'TBil', 'mg/dL'))}
+            />
+            <LabItem
+              labName="DBil"
+              label="D-bil"
+              value={getValue('biochemistry', 'DBil')}
+              unit={getUnit('biochemistry', 'DBil', 'mg/dL')}
+              isAbnormal={isAbnormal('biochemistry', 'DBil')}
+              abnormalDirection={getDirection('biochemistry', 'DBil')}
+              onClick={() => handleLabClick('DBil', 'biochemistry', getValue('biochemistry', 'DBil'), getUnit('biochemistry', 'DBil', 'mg/dL'))}
             />
             <LabItem
               labName="INR"
