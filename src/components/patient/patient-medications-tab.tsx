@@ -178,21 +178,16 @@ function SanMedCard({
   patientId?: string;
   onEdit: (med: Medication) => void;
 }) {
-  const concParts = [
-    medication.concentration,
-    medication.concentrationUnit,
-  ].filter(Boolean).join(' ');
-  const infoParts = [
-    concParts || null,
-    medication.route || null,
-    formatMedDate(medication.startDate) || null,
-  ].filter(Boolean).join(' · ');
+  const spec = medication.concentration || null;
   const noteText = medication.notes || null;
 
   return (
     <div className="rounded-md border bg-white px-3 py-2 space-y-1.5">
       <div className="flex items-start justify-between gap-3">
-        <p className="font-medium leading-tight">{medication.name || '—'}</p>
+        <p className="font-medium leading-tight">
+          {medication.name || '—'}
+          {spec && <span className="font-normal text-muted-foreground ml-1.5">{spec}</span>}
+        </p>
         {canEdit && patientId && (
           <Button
             variant="ghost"
@@ -204,9 +199,6 @@ function SanMedCard({
           </Button>
         )}
       </div>
-      {infoParts && (
-        <p className="text-sm text-muted-foreground">{infoParts}</p>
-      )}
       {noteText && (
         <div className="rounded bg-slate-100 px-2.5 py-2">
           <p className="text-[11px] font-medium text-slate-500 mb-1">醫令備註</p>

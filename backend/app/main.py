@@ -446,7 +446,22 @@ async def lifespan(app: FastAPI):
                     "UPDATE medications SET notes = :notes "
                     "WHERE patient_id = :pid AND name = :name AND notes IS NULL"
                 ), {"pid": pid, "name": med_name, "notes": notes})
-            logger.info("[INTG][DB] medications.notes column ensured + %d notes seeded", len(_notes_seed))
+            # Seed concentration (HIS-style drug spec) for S/A/N meds
+            _conc_seed = [
+                ("Morphine", "2mg/1mL inj"),
+                ("Dormicum", "15mg/3mL inj"),
+                ("Propofol", "200mg/20mL inj"),
+                ("Fentanyl", "0.05mg/mL 10mL"),
+                ("Cisatracurium", "2mg/mL 5mL"),
+                ("Dexmedetomidine", "200mcg/2mL inj"),
+                ("Midazolam", "15mg/3mL inj"),
+            ]
+            for med_name, conc in _conc_seed:
+                await conn.execute(_t_notes(
+                    "UPDATE medications SET concentration = :conc "
+                    "WHERE name = :name AND concentration IS NULL"
+                ), {"name": med_name, "conc": conc})
+            logger.info("[INTG][DB] medications.notes + concentration seeded")
     except Exception as e:
         logger.warning("[INTG][DB] medications.notes bootstrap failed (non-fatal): %s", e)
 
