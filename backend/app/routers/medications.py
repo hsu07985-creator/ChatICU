@@ -124,18 +124,16 @@ async def list_medications(
     # Try to fetch notes from DB (column may not exist yet)
     notes_map: dict = {}
     try:
-        med_ids = [m.id for m in medications]
-        if med_ids:
-            from sqlalchemy import text
-            notes_rows = await db.execute(
-                text("SELECT id, notes FROM medications WHERE id = ANY(:ids)"),
-                {"ids": med_ids},
-            )
-            for row in notes_rows:
-                if row[1]:
-                    notes_map[row[0]] = row[1]
+        from sqlalchemy import text
+        notes_rows = await db.execute(
+            text("SELECT id, notes FROM medications WHERE patient_id = :pid"),
+            {"pid": pid},
+        )
+        for row in notes_rows:
+            if row[1]:
+                notes_map[row[0]] = row[1]
     except Exception:
-        pass  # Column doesn't exist yet — notes will be None
+        await db.rollback()  # Reset session after failed query
 
     for med in medications:
         med._notes_value = notes_map.get(med.id)
