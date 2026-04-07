@@ -342,6 +342,22 @@ async def get_cultures(
         .order_by(CultureResult.collected_at.desc())
     )
     rows = result.scalars().all()
+
+    # Fetch q_score/result safely (columns may not exist if migration 044 failed)
+    extra_map: dict = {}
+    try:
+        if rows:
+            from sqlalchemy import text
+            culture_ids = [r.id for r in rows]
+            extra_rows = await db.execute(
+                text("SELECT id, q_score, result FROM culture_results WHERE id = ANY(:ids)"),
+                {"ids": culture_ids},
+            )
+            for er in extra_rows:
+                extra_map[er[0]] = {"qScore": er[1], "result": er[2]}
+    except Exception:
+        pass
+
     cultures = [
         {
             "sheetNumber": r.sheet_number,
@@ -352,8 +368,8 @@ async def get_cultures(
             "department": r.department,
             "isolates": r.isolates or [],
             "susceptibility": r.susceptibility or [],
-            "qScore": r.q_score,
-            "result": r.result,
+            "qScore": extra_map.get(r.id, {}).get("qScore"),
+            "result": extra_map.get(r.id, {}).get("result"),
         }
         for r in rows
     ]
