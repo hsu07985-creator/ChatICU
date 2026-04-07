@@ -16,6 +16,7 @@ export interface LabData {
   biochemistry?: Record<string, LabItem>;
   hematology?: Record<string, LabItem>;
   bloodGas?: Record<string, LabItem>;
+  venousBloodGas?: Record<string, LabItem>;
   inflammatory?: Record<string, LabItem>;
   coagulation?: Record<string, LabItem>;
   cardiac?: Record<string, LabItem>;

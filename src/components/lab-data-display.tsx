@@ -12,7 +12,7 @@ const labChineseNames: Record<string, string> = {
   DDimer: 'D-二聚體', 'IL-6': '介白素-6', NSE: '神經元特異性烯醇化酶',
   pH: '酸鹼值', PCO2: '二氧化碳分壓',
   PO2: '氧分壓', HCO3: '碳酸氫根', Lactate: '乳酸',
-  BE: '鹼剩餘', SaO2: '動脈血氧飽和度',
+  BE: '鹼剩餘', SaO2: '動脈血氧飽和度', SO2C: '靜脈血氧飽和度',
   AST: '天門冬胺酸轉胺酶', ALT: '丙胺酸轉胺酶', TBil: '總膽紅素', DBil: '直接膽紅素', AlkP: '鹼性磷酸酶', rGT: '丙麩氨轉肽酶',
   INR: '國際標準化比值', BUN: '血液尿素氮', Scr: '肌酸酐',
   eGFR: '腎絲球過濾率', Clcr: '肌酸酐清除率',
@@ -94,6 +94,15 @@ const ABG_METRICS: readonly LabMetricDescriptor[] = [
   { category: 'bloodGas', itemName: 'HCO3' },
   { category: 'bloodGas', itemName: 'BE' },
   { category: 'bloodGas', itemName: 'SaO2' },
+];
+
+const VBG_METRICS: readonly LabMetricDescriptor[] = [
+  { category: 'venousBloodGas', itemName: 'pH' },
+  { category: 'venousBloodGas', itemName: 'PCO2' },
+  { category: 'venousBloodGas', itemName: 'PO2' },
+  { category: 'venousBloodGas', itemName: 'HCO3' },
+  { category: 'venousBloodGas', itemName: 'BE' },
+  { category: 'venousBloodGas', itemName: 'SO2C' },
 ];
 
 const LIVER_RENAL_METRICS: readonly LabMetricDescriptor[] = [
@@ -432,13 +441,14 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
   const showHematology = hasVisibleMetrics(HEMATOLOGY_METRICS);
   const showInflammatory = hasVisibleMetrics(INFLAMMATORY_METRICS);
   const showAbg = hasVisibleMetrics(ABG_METRICS);
+  const showVbg = hasVisibleMetrics(VBG_METRICS);
   const showLiverRenal = hasVisibleMetrics(LIVER_RENAL_METRICS);
   const showCoagulation = hasVisibleMetrics(COAGULATION_METRICS);
   const showBiochemExtra = hasVisibleMetrics(BIOCHEM_EXTRA_METRICS);
   const showLipid = Boolean(labData?.lipid && Object.keys(labData.lipid).length > 0) && hasVisibleMetrics(LIPID_METRICS, { requireValue: true });
   const showOther = Boolean(labData?.other && Object.keys(labData.other).length > 0) && hasVisibleMetrics(OTHER_METRICS, { requireValue: true });
   const showThyroidHormone = Boolean(labData?.hormone && Object.keys(labData.hormone).length > 0 && hasVisibleMetrics(THYROID_HORMONE_METRICS, { requireValue: true }));
-  const hasAnyVisibleSection = showElectrolytes || showHematology || showInflammatory || showAbg || showLiverRenal || showCoagulation || showBiochemExtra || showLipid || showOther || showThyroidHormone;
+  const hasAnyVisibleSection = showElectrolytes || showHematology || showInflammatory || showAbg || showVbg || showLiverRenal || showCoagulation || showBiochemExtra || showLipid || showOther || showThyroidHormone;
 
   const handleLabClick = async (labName: string, category: string, value: number | undefined, unit: string) => {
     if (value === undefined || !patientId) return;
@@ -794,6 +804,67 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               isAbnormal={isAbnormal('bloodGas', 'SaO2')}
               abnormalDirection={getDirection('bloodGas', 'SaO2')}
               onClick={() => handleLabClick('SaO2', 'bloodGas', getValue('bloodGas', 'SaO2'), getUnit('bloodGas', 'SaO2', '%'))}
+            />
+          </div>
+        </div>
+
+        {/* 靜脈血氣體分析 */}
+        <div className={showVbg ? 'space-y-2' : 'hidden'}>
+          <h3 className="text-xs font-semibold tracking-wide text-brand">靜脈血氣體分析</h3>
+          <div className={compactGridClass} style={compactGridStyle}>
+            <LabItem
+              labName="pH"
+              label="pH"
+              value={getValue('venousBloodGas', 'pH')}
+              unit={getUnit('venousBloodGas', 'pH', '')}
+              isAbnormal={isAbnormal('venousBloodGas', 'pH')}
+              abnormalDirection={getDirection('venousBloodGas', 'pH')}
+              onClick={() => handleLabClick('pH', 'venousBloodGas', getValue('venousBloodGas', 'pH'), getUnit('venousBloodGas', 'pH', ''))}
+            />
+            <LabItem
+              labName="PCO2"
+              label="PCO₂"
+              value={getValue('venousBloodGas', 'PCO2')}
+              unit={getUnit('venousBloodGas', 'PCO2', 'mmHg')}
+              isAbnormal={isAbnormal('venousBloodGas', 'PCO2')}
+              abnormalDirection={getDirection('venousBloodGas', 'PCO2')}
+              onClick={() => handleLabClick('PCO2', 'venousBloodGas', getValue('venousBloodGas', 'PCO2'), getUnit('venousBloodGas', 'PCO2', 'mmHg'))}
+            />
+            <LabItem
+              labName="PO2"
+              label="PO₂"
+              value={getValue('venousBloodGas', 'PO2')}
+              unit={getUnit('venousBloodGas', 'PO2', 'mmHg')}
+              isAbnormal={isAbnormal('venousBloodGas', 'PO2')}
+              abnormalDirection={getDirection('venousBloodGas', 'PO2')}
+              onClick={() => handleLabClick('PO2', 'venousBloodGas', getValue('venousBloodGas', 'PO2'), getUnit('venousBloodGas', 'PO2', 'mmHg'))}
+            />
+            <LabItem
+              labName="HCO3"
+              label="HCO₃"
+              value={getValue('venousBloodGas', 'HCO3')}
+              unit={getUnit('venousBloodGas', 'HCO3', 'mmol/L')}
+              isAbnormal={isAbnormal('venousBloodGas', 'HCO3')}
+              abnormalDirection={getDirection('venousBloodGas', 'HCO3')}
+              onClick={() => handleLabClick('HCO3', 'venousBloodGas', getValue('venousBloodGas', 'HCO3'), getUnit('venousBloodGas', 'HCO3', 'mmol/L'))}
+            />
+            <LabItem
+              labName="BE"
+              label="BE"
+              value={getValue('venousBloodGas', 'BE')}
+              unit={getUnit('venousBloodGas', 'BE', 'mmol/L')}
+              isAbnormal={isAbnormal('venousBloodGas', 'BE')}
+              abnormalDirection={getDirection('venousBloodGas', 'BE')}
+              onClick={() => handleLabClick('BE', 'venousBloodGas', getValue('venousBloodGas', 'BE'), getUnit('venousBloodGas', 'BE', 'mmol/L'))}
+            />
+            <LabItem
+              labName="SO2C"
+              label="SO₂C"
+              value={getValue('venousBloodGas', 'SO2C')}
+              unit={getUnit('venousBloodGas', 'SO2C', '%')}
+              isAbnormal={isAbnormal('venousBloodGas', 'SO2C')}
+              abnormalDirection={getDirection('venousBloodGas', 'SO2C')}
+              onClick={() => handleLabClick('SO2C', 'venousBloodGas', getValue('venousBloodGas', 'SO2C'), getUnit('venousBloodGas', 'SO2C', '%'))}
             />
           </div>
         </div>
