@@ -14,12 +14,19 @@ function resultColor(result: string) {
   return 'bg-slate-50 text-slate-400 border-slate-200';
 }
 
+function isNormalFlora(panel: CulturePanel): boolean {
+  if (panel.result && /normal\s*(oral\s*)?flora/i.test(panel.result)) return true;
+  return panel.isolates.some((i) => /normal\s*(oral\s*)?flora/i.test(i.organism));
+}
+
 function isPositiveCulture(panel: CulturePanel): boolean {
+  if (isNormalFlora(panel)) return false;
   return panel.isolates.some(
     (i) =>
       i.organism !== 'Negative' &&
       !i.organism.startsWith('No growth') &&
-      !i.organism.startsWith('No salmonella'),
+      !i.organism.startsWith('No salmonella') &&
+      !/normal\s*(oral\s*)?flora/i.test(i.organism),
   );
 }
 
@@ -89,6 +96,34 @@ function SusceptibilityPills({ items }: { items: SusceptibilityResult[] }) {
   );
 }
 
+/* ── Q Score Badge ─────────────────────────────────────── */
+
+function QScoreBadge({ score }: { score: number }) {
+  const color = score <= 1
+    ? 'bg-green-50 text-green-700 border-green-200'
+    : score === 2
+      ? 'bg-amber-50 text-amber-700 border-amber-200'
+      : 'bg-red-50 text-red-700 border-red-200';
+  return (
+    <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${color}`}>
+      Q {score}
+    </span>
+  );
+}
+
+function ColoniesBadge({ colonies }: { colonies: string }) {
+  const color = colonies.toLowerCase() === 'heavy'
+    ? 'bg-red-50 text-red-600 border-red-200'
+    : colonies.toLowerCase() === 'moderate'
+      ? 'bg-amber-50 text-amber-600 border-amber-200'
+      : 'bg-slate-50 text-slate-500 border-slate-200';
+  return (
+    <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${color}`}>
+      {colonies}
+    </span>
+  );
+}
+
 /* ── Merged positive row ───────────────────────────────── */
 
 interface MergedCulture {
@@ -97,6 +132,8 @@ interface MergedCulture {
   panels: CulturePanel[];
   resistantCount: number;
   bestSusceptibility: SusceptibilityResult[];
+  coloniesMap: Record<string, string>;
+  qScore?: number | null;
 }
 
 function mergeConsecutiveCultures(panels: CulturePanel[]): MergedCulture[] {
@@ -105,10 +142,16 @@ function mergeConsecutiveCultures(panels: CulturePanel[]): MergedCulture[] {
   for (const panel of panels) {
     const organisms = panel.isolates
       .map((i) => i.organism)
-      .filter((o) => o !== 'Negative' && !o.startsWith('No growth') && !o.startsWith('No salmonella'))
+      .filter((o) => o !== 'Negative' && !o.startsWith('No growth') && !o.startsWith('No salmonella') && !/normal\s*(oral\s*)?flora/i.test(o))
       .sort();
     const key = organisms.join('|');
     const rCount = panel.susceptibility.filter((s) => s.result === 'R').length;
+
+    // Build colonies map from isolates
+    const coloniesMap: Record<string, string> = {};
+    for (const iso of panel.isolates) {
+      if (iso.colonies) coloniesMap[iso.organism] = iso.colonies;
+    }
 
     const last = result[result.length - 1];
     const lastKey = last?.organisms.sort().join('|');
@@ -128,6 +171,8 @@ function mergeConsecutiveCultures(panels: CulturePanel[]): MergedCulture[] {
         panels: [panel],
         resistantCount: rCount,
         bestSusceptibility: sortSusceptibility(panel.susceptibility),
+        coloniesMap,
+        qScore: panel.qScore,
       });
     }
   }
@@ -146,14 +191,18 @@ function MergedCultureRow({ merged }: { merged: MergedCulture }) {
       className={`rounded-lg border border-slate-200 border-l-[3px] ${borderAccent} px-4 py-3`}
       title={merged.panels.map((p) => `${p.sheetNumber} · ${p.department || ''}`).join('\n')}
     >
-      <div className="flex items-baseline gap-2.5">
+      <div className="flex items-baseline gap-2.5 flex-wrap">
         <span className="text-xs text-slate-400 font-medium tabular-nums shrink-0">
           {merged.dates.map((d) => shortDate(d)).join(', ')}
         </span>
-        <div className="flex flex-wrap gap-x-2">
+        {merged.qScore != null && <QScoreBadge score={merged.qScore} />}
+        <div className="flex flex-wrap gap-x-2 items-baseline">
           {merged.organisms.map((org, idx) => (
-            <span key={idx} className="text-sm font-semibold leading-snug text-slate-800 italic">
-              {org}{idx < merged.organisms.length - 1 ? ',' : ''}
+            <span key={idx} className="inline-flex items-baseline gap-1">
+              <span className="text-sm font-semibold leading-snug text-slate-800 italic">
+                {org}{idx < merged.organisms.length - 1 ? ',' : ''}
+              </span>
+              {merged.coloniesMap[org] && <ColoniesBadge colonies={merged.coloniesMap[org]} />}
             </span>
           ))}
         </div>
@@ -171,10 +220,31 @@ function NegativeRows({ panels }: { panels: CulturePanel[] }) {
   return (
     <div className="space-y-1.5">
       {panels.map((p, idx) => (
-        <div key={idx} className="rounded-lg border border-green-100 bg-green-50/50 px-4 py-2 flex items-center gap-2.5">
+        <div key={idx} className="rounded-lg border border-green-100 bg-green-50/50 px-4 py-2 flex items-center gap-2.5 flex-wrap">
           <span className="text-xs text-slate-500 font-medium tabular-nums">{shortDate(p.reportedAt)}</span>
+          {p.qScore != null && <QScoreBadge score={p.qScore} />}
           <Check className="h-3.5 w-3.5 text-green-500" />
-          <span className="text-xs text-green-600 font-medium">No growth</span>
+          <span className="text-xs text-green-600 font-medium">
+            {p.result || 'No growth'}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Normal Flora Rows ─────────────────────────────────── */
+
+function NormalFloraRows({ panels }: { panels: CulturePanel[] }) {
+  if (panels.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5">
+      {panels.map((p, idx) => (
+        <div key={idx} className="rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-2 flex items-center gap-2.5 flex-wrap">
+          <span className="text-xs text-slate-500 font-medium tabular-nums">{shortDate(p.reportedAt)}</span>
+          {p.qScore != null && <QScoreBadge score={p.qScore} />}
+          <span className="text-xs text-blue-600 font-medium italic">Normal flora</span>
         </div>
       ))}
     </div>
@@ -220,25 +290,29 @@ function classifySpecimen(specimen: string): SpecimenCategory {
   if (s.includes('sputum') || s.includes('痰')) return 'sputum';
   if (s.includes('urine') || s.includes('尿')) return 'urine';
   if (s.includes('blood') || s.includes('血')) return 'blood';
+  if (s.includes('bile') || s.includes('膽')) return 'other';
   return 'other';
 }
 
 interface CategoryGroup {
   category: SpecimenCategory;
   positive: CulturePanel[];
+  normalFlora: CulturePanel[];
   negative: CulturePanel[];
 }
 
 function groupByCategory(panels: CulturePanel[]): CategoryGroup[] {
   const map: Record<SpecimenCategory, CategoryGroup> = {
-    sputum: { category: 'sputum', positive: [], negative: [] },
-    urine:  { category: 'urine',  positive: [], negative: [] },
-    blood:  { category: 'blood',  positive: [], negative: [] },
-    other:  { category: 'other',  positive: [], negative: [] },
+    sputum: { category: 'sputum', positive: [], normalFlora: [], negative: [] },
+    urine:  { category: 'urine',  positive: [], normalFlora: [], negative: [] },
+    blood:  { category: 'blood',  positive: [], normalFlora: [], negative: [] },
+    other:  { category: 'other',  positive: [], normalFlora: [], negative: [] },
   };
   for (const p of panels) {
     const cat = classifySpecimen(p.specimen || 'Unknown');
-    if (isPositiveCulture(p)) {
+    if (isNormalFlora(p)) {
+      map[cat].normalFlora.push(p);
+    } else if (isPositiveCulture(p)) {
       map[cat].positive.push(p);
     } else {
       map[cat].negative.push(p);
@@ -330,12 +404,15 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
         {categoryGroups.map((group) => {
           const meta = CATEGORY_META[group.category];
           const showNegative = !onlyPositive && !onlyResistant;
+          const showFlora = !onlyPositive && !onlyResistant;
           const filteredPositive = onlyResistant
             ? group.positive.filter((p) => p.susceptibility.some((s) => s.result === 'R' || s.result === 'I'))
             : group.positive;
           const hasPositive = filteredPositive.length > 0;
           const merged = hasPositive ? mergeConsecutiveCultures(filteredPositive) : [];
-          const total = filteredPositive.length + (showNegative ? group.negative.length : 0);
+          const total = filteredPositive.length
+            + (showFlora ? group.normalFlora.length : 0)
+            + (showNegative ? group.negative.length : 0);
 
           return (
             <MicroSectionCard key={group.category}>
@@ -355,11 +432,16 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
                   {merged.map((m, mIdx) => (
                     <MergedCultureRow key={mIdx} merged={m} />
                   ))}
+                  {showFlora && <NormalFloraRows panels={group.normalFlora} />}
                   {showNegative && <NegativeRows panels={group.negative} />}
 
                   {group.category === 'other' && total > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-1">
-                      {[...new Set([...filteredPositive, ...(showNegative ? group.negative : [])].map((p) => p.specimen))].map((s) => (
+                      {[...new Set([
+                        ...filteredPositive,
+                        ...(showFlora ? group.normalFlora : []),
+                        ...(showNegative ? group.negative : []),
+                      ].map((p) => p.specimen))].map((s) => (
                         <span key={s} className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-md px-2 py-0.5">{s}</span>
                       ))}
                     </div>

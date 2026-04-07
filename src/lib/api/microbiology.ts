@@ -3,6 +3,7 @@ import apiClient, { ensureData } from '../api-client';
 export interface CultureIsolate {
   code: string;
   organism: string;
+  colonies?: string;
 }
 
 export interface SusceptibilityResult {
@@ -20,6 +21,8 @@ export interface CulturePanel {
   department: string;
   isolates: CultureIsolate[];
   susceptibility: SusceptibilityResult[];
+  qScore?: number | null;
+  result?: string | null;
 }
 
 export interface CultureSusceptibilityData {
