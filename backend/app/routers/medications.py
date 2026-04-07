@@ -127,8 +127,8 @@ async def list_medications(
             for row in notes_rows:
                 if row[1]:
                     notes_map[row[0]] = row[1]
-    except Exception as e:
-        notes_map["_error"] = str(e)
+    except Exception:
+        pass
 
     # Group by SAN category — keys match frontend MedicationsResponse interface
     _SAN_KEY_MAP = {"S": "sedation", "A": "analgesia", "N": "nmb"}
@@ -179,7 +179,6 @@ async def list_medications(
         "medications": all_meds,
         "grouped": grouped,
         "interactions": interactions,
-        "_debug_notes": notes_map,
     })
 
 

@@ -420,6 +420,51 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("[INTG][DB] Failed to ensure custom_tags: %s", e)
 
+    # Ensure medications.notes column exists and seed doctor order notes
+    try:
+        from app.database import engine as _eng_notes
+        from sqlalchemy import text as _t_notes
+        async with _eng_notes.begin() as conn:
+            await conn.execute(_t_notes(
+                "ALTER TABLE medications ADD COLUMN IF NOT EXISTS notes TEXT"
+            ))
+            _notes_seed = [
+                ("pat_001", "Morphine", "Morphine 2mg IV Q4H PRN for pain\nif Pain Score > 4, may repeat x1"),
+                ("pat_001", "Dormicum", "for Dormicum pump, initial bolus 1cc\nrun 0.4cc/hr-3cc/hr, titrate every hour\nkeep RASS -2~-3"),
+                ("pat_001", "Propofol", "Propofol 1% 10mg/mL\nrun 5-30cc/hr, titrate Q30min\nkeep RASS -1~0, hold if MAP < 65"),
+                ("pat_002", "Propofol", "Propofol 2% 20mg/mL\nrun 5-20cc/hr\nkeep RASS -2~-1\nhold if MAP < 60 or HR < 50"),
+                ("pat_002", "Fentanyl", "for fentanyl pump, initial bolus 1cc\nrun 0.5-6cc/hr, titrate every hour\nkeep RASS -2~-3"),
+                ("pat_002", "Cisatracurium", "Cisatracurium 2mg/mL\nrun 1-5cc/hr, titrate by TOF\ntarget TOF 1-2/4"),
+                ("pat_002", "Midazolam", "Midazolam 1mg/mL backup\n0.5-3cc/hr if Propofol insufficient\nkeep RASS -2~-1"),
+                ("pat_003", "Dexmedetomidine", "Precedex 4mcg/mL\nrun 0.2-1.4mcg/kg/hr\nkeep RASS -1~0, monitor HR"),
+                ("pat_003", "Morphine", "Morphine 2mg IV Q4H PRN\nfor breakthrough pain only"),
+                ("pat_003", "Fentanyl", "Fentanyl 10mcg/mL\nrun 1-6cc/hr, titrate Q1H\nkeep Pain Score < 4"),
+                ("pat_004", "Midazolam", "Midazolam 1mg/mL\nrun 0.5-3cc/hr\nkeep RASS -2~-1\ntitrate Q1H, hold if RR < 10"),
+            ]
+            for pid, med_name, notes in _notes_seed:
+                await conn.execute(_t_notes(
+                    "UPDATE medications SET notes = :notes "
+                    "WHERE patient_id = :pid AND name = :name AND notes IS NULL"
+                ), {"pid": pid, "name": med_name, "notes": notes})
+            logger.info("[INTG][DB] medications.notes column ensured + %d notes seeded", len(_notes_seed))
+    except Exception as e:
+        logger.warning("[INTG][DB] medications.notes bootstrap failed (non-fatal): %s", e)
+
+    # Ensure culture_results extra columns exist
+    try:
+        from app.database import engine as _eng_cr
+        from sqlalchemy import text as _t_cr
+        async with _eng_cr.begin() as conn:
+            await conn.execute(_t_cr(
+                "ALTER TABLE culture_results ADD COLUMN IF NOT EXISTS q_score INTEGER"
+            ))
+            await conn.execute(_t_cr(
+                "ALTER TABLE culture_results ADD COLUMN IF NOT EXISTS result VARCHAR(200)"
+            ))
+            logger.info("[INTG][DB] culture_results.q_score/result columns ensured")
+    except Exception as e:
+        logger.warning("[INTG][DB] culture_results columns failed (non-fatal): %s", e)
+
     yield
     # Shutdown
     from app.middleware.auth import _redis_client
