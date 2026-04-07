@@ -11,7 +11,6 @@ from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log
 from app.models.medication import Medication
 from app.models.medication_administration import MedicationAdministration
-from app.models.drug_interaction import DrugInteraction
 from app.models.user import User
 from app.models.patient import Patient
 from app.routers.patients import normalize_patient_id, verify_patient_access
@@ -115,38 +114,69 @@ async def list_medications(
     result = await db.execute(query.order_by(Medication.name))
     medications = result.scalars().all()
 
+    # Fetch notes safely via raw SQL (column may not exist if migration 045/046 failed)
+    notes_map: dict = {}
+    try:
+        med_ids = [m.id for m in medications]
+        if med_ids:
+            from sqlalchemy import text
+            notes_rows = await db.execute(
+                text("SELECT id, notes FROM medications WHERE id = ANY(:ids)"),
+                {"ids": med_ids},
+            )
+            for row in notes_rows:
+                if row[1]:
+                    notes_map[row[0]] = row[1]
+    except Exception:
+        pass
+
     # Group by SAN category — keys match frontend MedicationsResponse interface
     _SAN_KEY_MAP = {"S": "sedation", "A": "analgesia", "N": "nmb"}
     grouped = {"sedation": [], "analgesia": [], "nmb": [], "other": []}
     for med in medications:
+        d = med_to_dict(med)
+        d["notes"] = notes_map.get(med.id)
         cat = normalize_san_category(med.san_category) or "other"
         key = _SAN_KEY_MAP.get(cat, "other")
-        grouped[key].append(med_to_dict(med))
+        grouped[key].append(d)
 
-    # Find drug interactions for active medications (single batch query)
+    # Find drug interactions for active medications (safe — columns may be missing)
     active_meds = [m for m in medications if m.status == "active"]
     interactions = []
-    if len(active_meds) >= 2:
-        med_names = [m.name for m in active_meds]
-        int_result = await db.execute(
-            select(DrugInteraction).where(
-                (DrugInteraction.drug1.in_(med_names))
-                & (DrugInteraction.drug2.in_(med_names))
+    try:
+        if len(active_meds) >= 2:
+            from sqlalchemy import text
+            med_names = [m.name for m in active_meds]
+            int_result = await db.execute(
+                text(
+                    "SELECT id, drug1, drug2, severity, mechanism, "
+                    "clinical_effect, management "
+                    "FROM drug_interactions "
+                    "WHERE drug1 = ANY(:names) AND drug2 = ANY(:names)"
+                ),
+                {"names": med_names},
             )
-        )
-        for interaction in int_result.scalars():
-            interactions.append({
-                "id": interaction.id,
-                "drug1": interaction.drug1,
-                "drug2": interaction.drug2,
-                "severity": interaction.severity,
-                "mechanism": interaction.mechanism,
-                "clinicalEffect": interaction.clinical_effect,
-                "management": interaction.management,
-            })
+            for row in int_result:
+                interactions.append({
+                    "id": row[0],
+                    "drug1": row[1],
+                    "drug2": row[2],
+                    "severity": row[3],
+                    "mechanism": row[4],
+                    "clinicalEffect": row[5],
+                    "management": row[6],
+                })
+    except Exception:
+        interactions = []
+
+    all_meds = []
+    for m in medications:
+        d = med_to_dict(m)
+        d["notes"] = notes_map.get(m.id)
+        all_meds.append(d)
 
     return success_response(data={
-        "medications": [med_to_dict(m, _notes_map) for m in medications],
+        "medications": all_meds,
         "grouped": grouped,
         "interactions": interactions,
     })
@@ -161,7 +191,18 @@ async def get_medication(
 ):
     pid = normalize_patient_id(patient_id)
     med = await _get_medication_or_404(db, pid, medication_id)
-    return success_response(data=med_to_dict(med))
+    d = med_to_dict(med)
+    try:
+        from sqlalchemy import text
+        row = await db.execute(
+            text("SELECT notes FROM medications WHERE id = :mid"),
+            {"mid": med.id},
+        )
+        r = row.first()
+        d["notes"] = r[0] if r else None
+    except Exception:
+        pass
+    return success_response(data=d)
 
 
 @router.get(
