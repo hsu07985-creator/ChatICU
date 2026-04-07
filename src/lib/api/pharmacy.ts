@@ -308,6 +308,7 @@ export interface PadDrugInfo {
   dose_unit: string;
   dose_range: string;
   weight_basis: string;
+  concentration_range?: [number, number];
 }
 
 export interface PadDrugsResponse {

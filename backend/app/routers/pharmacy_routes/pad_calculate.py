@@ -79,11 +79,12 @@ PAD_DRUG_DEFAULTS = {
     },
     "midazolam": {
         "label": "Midazolam",
-        "concentration": 5.0,
+        "concentration": 1.0,
         "concentration_unit": "mg/ml",
         "dose_unit": "mg/kg/hr",
         "dose_range": "0.01–0.2",
         "weight_basis": "AdjBW",
+        "concentration_range": [1.0, 5.0],
     },
     "lorazepam": {
         "label": "Lorazepam",
@@ -260,6 +261,7 @@ async def list_pad_drugs():
                     "dose_unit": v["dose_unit"],
                     "dose_range": v["dose_range"],
                     "weight_basis": v["weight_basis"],
+                    **({"concentration_range": v["concentration_range"]} if "concentration_range" in v else {}),
                 }
                 for k, v in PAD_DRUG_DEFAULTS.items()
             ]

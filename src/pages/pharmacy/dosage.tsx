@@ -65,7 +65,13 @@ export function DosagePage() {
   // Concentration deviation check
   const isConcentrationChanged = drugInfo &&
     concentration !== '' &&
-    parseFloat(concentration) !== drugInfo.concentration;
+    (() => {
+      const val = parseFloat(concentration);
+      if (drugInfo.concentration_range) {
+        return val < drugInfo.concentration_range[0] || val > drugInfo.concentration_range[1];
+      }
+      return val !== drugInfo.concentration;
+    })();
 
   // Load PAD drugs + patients from shared cache (skip if sync cache hit)
   useEffect(() => {
@@ -247,8 +253,8 @@ export function DosagePage() {
               <span className="text-muted-foreground">建議範圍</span>
               <span className="font-medium">{drugInfo.dose_range} {drugInfo.dose_unit}</span>
               <span className="text-muted-foreground mx-1">|</span>
-              <span className="text-muted-foreground">預設濃度</span>
-              <span className="font-medium">{drugInfo.concentration} {drugInfo.concentration_unit}</span>
+              <span className="text-muted-foreground">{drugInfo.concentration_range ? '允許濃度' : '預設濃度'}</span>
+              <span className="font-medium">{drugInfo.concentration_range ? `${drugInfo.concentration_range[0]}–${drugInfo.concentration_range[1]}` : drugInfo.concentration} {drugInfo.concentration_unit}</span>
               <span className="text-muted-foreground mx-1">|</span>
               <span className="text-muted-foreground">計算基準</span>
               <span className="font-medium">{drugInfo.weight_basis}</span>
@@ -302,7 +308,10 @@ export function DosagePage() {
                   placeholder={drugInfo ? String(drugInfo.concentration) : ''} value={concentration} onChange={(e) => setConcentration(e.target.value)} />
                 {isConcentrationChanged && drugInfo && (
                   <p className="text-xs text-red-600 font-medium flex items-center gap-1">
-                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />與預設濃度不同（預設 {drugInfo.concentration} {drugInfo.concentration_unit}）
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                    {drugInfo.concentration_range
+                      ? `超出允許範圍（${drugInfo.concentration_range[0]}–${drugInfo.concentration_range[1]} ${drugInfo.concentration_unit}）`
+                      : `與預設濃度不同（預設 ${drugInfo.concentration} ${drugInfo.concentration_unit}）`}
                   </p>
                 )}
               </div>
