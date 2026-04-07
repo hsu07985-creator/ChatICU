@@ -37,6 +37,12 @@ def normalize_san_category(raw: Optional[str]) -> Optional[str]:
 
 
 def med_to_dict(med: Medication) -> dict:
+    # notes column may not exist yet if migration 045/046 hasn't run
+    notes_value = None
+    try:
+        notes_value = getattr(med, "_notes_value", None)
+    except Exception:
+        pass
     return {
         "id": med.id,
         "patientId": med.patient_id,
@@ -55,7 +61,7 @@ def med_to_dict(med: Medication) -> dict:
         "status": med.status,
         "prescribedBy": med.prescribed_by,
         "warnings": med.warnings or [],
-        "notes": med.notes,
+        "notes": notes_value,
         "concentration": med.concentration,
         "concentrationUnit": med.concentration_unit,
     }
@@ -114,6 +120,25 @@ async def list_medications(
 
     result = await db.execute(query.order_by(Medication.name))
     medications = result.scalars().all()
+
+    # Try to fetch notes from DB (column may not exist yet)
+    notes_map: dict = {}
+    try:
+        med_ids = [m.id for m in medications]
+        if med_ids:
+            from sqlalchemy import text
+            notes_rows = await db.execute(
+                text("SELECT id, notes FROM medications WHERE id = ANY(:ids)"),
+                {"ids": med_ids},
+            )
+            for row in notes_rows:
+                if row[1]:
+                    notes_map[row[0]] = row[1]
+    except Exception:
+        pass  # Column doesn't exist yet — notes will be None
+
+    for med in medications:
+        med._notes_value = notes_map.get(med.id)
 
     # Group by SAN category — keys match frontend MedicationsResponse interface
     _SAN_KEY_MAP = {"S": "sedation", "A": "analgesia", "N": "nmb"}
