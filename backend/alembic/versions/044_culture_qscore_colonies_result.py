@@ -5,6 +5,7 @@ Revises: 043
 Create Date: 2026-04-08
 """
 import json
+import uuid
 
 from alembic import op
 import sqlalchemy as sa
@@ -16,9 +17,15 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # 1. Add new columns
-    op.add_column("culture_results", sa.Column("q_score", sa.Integer(), nullable=True))
-    op.add_column("culture_results", sa.Column("result", sa.String(200), nullable=True))
+    # 1. Add new columns (idempotent)
+    conn = op.get_bind()
+    cols = [r[0] for r in conn.execute(sa.text(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'culture_results'"
+    ))]
+    if "q_score" not in cols:
+        op.add_column("culture_results", sa.Column("q_score", sa.Integer(), nullable=True))
+    if "result" not in cols:
+        op.add_column("culture_results", sa.Column("result", sa.String(200), nullable=True))
 
     # 2. Update existing sputum seed data with q_score and colonies in isolates
     conn = op.get_bind()
@@ -48,7 +55,6 @@ def upgrade() -> None:
     ))
 
     # 3. Insert new Normal flora sputum culture for pat_001
-    import uuid
     cid = f"culture_{uuid.uuid4().hex[:12]}"
     conn.execute(sa.text(
         "INSERT INTO culture_results "

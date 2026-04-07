@@ -33,9 +33,13 @@ SAN_NOTES = [
 
 
 def upgrade() -> None:
-    op.add_column("medications", sa.Column("notes", sa.Text(), nullable=True))
-
     conn = op.get_bind()
+    cols = [r[0] for r in conn.execute(sa.text(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'medications'"
+    ))]
+    if "notes" not in cols:
+        op.add_column("medications", sa.Column("notes", sa.Text(), nullable=True))
+
     for med_id, notes in SAN_NOTES:
         conn.execute(
             sa.text("UPDATE medications SET notes = :notes WHERE id = :mid"),
