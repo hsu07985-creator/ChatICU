@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, String, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -33,6 +33,7 @@ class Medication(Base):
     status: Mapped[str] = mapped_column(String(20), default="active")  # active, inactive, discontinued, completed, on-hold
     prescribed_by: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # {id, name}
     warnings: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of strings
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     concentration: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     concentration_unit: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(

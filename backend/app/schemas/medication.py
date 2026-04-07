@@ -30,6 +30,7 @@ class MedicationUpdate(BaseModel):
     sanCategory: Optional[Literal["S", "A", "N"]] = None
     concentration: Optional[str] = None
     concentrationUnit: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class MedicationResponse(BaseModel):

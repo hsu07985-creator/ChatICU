@@ -55,6 +55,7 @@ def med_to_dict(med: Medication) -> dict:
         "status": med.status,
         "prescribedBy": med.prescribed_by,
         "warnings": med.warnings or [],
+        "notes": med.notes,
         "concentration": med.concentration,
         "concentrationUnit": med.concentration_unit,
     }
