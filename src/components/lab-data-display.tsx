@@ -13,7 +13,7 @@ const labChineseNames: Record<string, string> = {
   pH: '酸鹼值', PCO2: '二氧化碳分壓',
   PO2: '氧分壓', HCO3: '碳酸氫根', Lactate: '乳酸',
   BE: '鹼剩餘', SaO2: '動脈血氧飽和度',
-  AST: '天門冬胺酸轉胺酶', ALT: '丙胺酸轉胺酶', TBil: '總膽紅素', DBil: '直接膽紅素',
+  AST: '天門冬胺酸轉胺酶', ALT: '丙胺酸轉胺酶', TBil: '總膽紅素', DBil: '直接膽紅素', AlkP: '鹼性磷酸酶', rGT: '丙麩氨轉肽酶',
   INR: '國際標準化比值', BUN: '血液尿素氮', Scr: '肌酸酐',
   eGFR: '腎絲球過濾率', Clcr: '肌酸酐清除率',
   Glucose: '血糖', LDH: '乳酸脫氫酶', TnT: '肌鈣蛋白T',
@@ -105,6 +105,8 @@ const LIVER_RENAL_METRICS: readonly LabMetricDescriptor[] = [
   { category: 'biochemistry', itemName: 'Scr' },
   { category: 'biochemistry', itemName: 'eGFR' },
   { category: 'biochemistry', itemName: 'Clcr' },
+  { category: 'biochemistry', itemName: 'AlkP' },
+  { category: 'biochemistry', itemName: 'rGT' },
 ];
 
 const COAGULATION_METRICS: readonly LabMetricDescriptor[] = [
@@ -872,6 +874,24 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               abnormalDirection={getDirection('biochemistry', 'Clcr')}
               onClick={() => handleLabClick('Clcr', 'biochemistry', getValue('biochemistry', 'Clcr'), getUnit('biochemistry', 'Clcr', 'mL/min'))}
             />
+            <LabItem
+              labName="AlkP"
+              label="Alk-P"
+              value={getValue('biochemistry', 'AlkP')}
+              unit={getUnit('biochemistry', 'AlkP', 'U/L')}
+              isAbnormal={isAbnormal('biochemistry', 'AlkP')}
+              abnormalDirection={getDirection('biochemistry', 'AlkP')}
+              onClick={() => handleLabClick('AlkP', 'biochemistry', getValue('biochemistry', 'AlkP'), getUnit('biochemistry', 'AlkP', 'U/L'))}
+            />
+            <LabItem
+              labName="rGT"
+              label="r-GT"
+              value={getValue('biochemistry', 'rGT')}
+              unit={getUnit('biochemistry', 'rGT', 'U/L')}
+              isAbnormal={isAbnormal('biochemistry', 'rGT')}
+              abnormalDirection={getDirection('biochemistry', 'rGT')}
+              onClick={() => handleLabClick('rGT', 'biochemistry', getValue('biochemistry', 'rGT'), getUnit('biochemistry', 'rGT', 'U/L'))}
+            />
           </div>
         </div>
 
@@ -978,7 +998,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
             />
             <LabItem
               labName="freeT4"
-              label="free T4"
+              label="Free T4"
               value={getValue('thyroid', 'freeT4')}
               unit={getUnit('thyroid', 'freeT4', 'ng/dL')}
               isAbnormal={isAbnormal('thyroid', 'freeT4')}
