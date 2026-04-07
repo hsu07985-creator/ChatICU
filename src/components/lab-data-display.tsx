@@ -16,8 +16,12 @@ const labChineseNames: Record<string, string> = {
   AST: '天門冬胺酸轉胺酶', ALT: '丙胺酸轉胺酶', TBil: '總膽紅素', DBil: '直接膽紅素',
   INR: '國際標準化比值', BUN: '血液尿素氮', Scr: '肌酸酐',
   eGFR: '腎絲球過濾率', Clcr: '肌酸酐清除率',
-  Glucose: '血糖', LDH: '乳酸脫氫酶', 'Troponin-I': '肌鈣蛋白I',
-  Uric: '尿酸', Osmolality: '滲透壓',
+  Glucose: '血糖', LDH: '乳酸脫氫酶', TnT: '肌鈣蛋白T',
+  Uric: '尿酸',
+  TSH: '促甲狀腺激素', freeT4: '游離甲狀腺素',
+  TCHO: '總膽固醇', TG: '三酸甘油酯', LDLC: '低密度脂蛋白', HDLC: '高密度脂蛋白',
+  HbA1C: '糖化血色素', NTproBNP: 'N端腦利鈉肽前體',
+  CK: '肌酸激酶', CKMB: '肌酸激酶同工酶',
   PT: '凝血酶原時間', aPTT: '活化部分凝血酶原時間', Fibrinogen: '纖維蛋白原',
 };
 
@@ -80,7 +84,6 @@ const INFLAMMATORY_METRICS: readonly LabMetricDescriptor[] = [
   { category: 'bloodGas', itemName: 'Lactate' },
   { category: 'inflammatory', itemName: 'CRP' },
   { category: 'inflammatory', itemName: 'PCT' },
-  { category: 'coagulation', itemName: 'DDimer' },
   { category: 'inflammatory', itemName: 'IL-6' },
 ];
 
@@ -98,7 +101,6 @@ const LIVER_RENAL_METRICS: readonly LabMetricDescriptor[] = [
   { category: 'biochemistry', itemName: 'ALT' },
   { category: 'biochemistry', itemName: 'TBil' },
   { category: 'biochemistry', itemName: 'DBil' },
-  { category: 'coagulation', itemName: 'INR' },
   { category: 'biochemistry', itemName: 'BUN' },
   { category: 'biochemistry', itemName: 'Scr' },
   { category: 'biochemistry', itemName: 'eGFR' },
@@ -108,35 +110,34 @@ const LIVER_RENAL_METRICS: readonly LabMetricDescriptor[] = [
 const COAGULATION_METRICS: readonly LabMetricDescriptor[] = [
   { category: 'coagulation', itemName: 'PT' },
   { category: 'coagulation', itemName: 'aPTT' },
+  { category: 'coagulation', itemName: 'INR' },
+  { category: 'coagulation', itemName: 'DDimer' },
   { category: 'coagulation', itemName: 'Fibrinogen' },
 ];
 
 const BIOCHEM_EXTRA_METRICS: readonly LabMetricDescriptor[] = [
   { category: 'biochemistry', itemName: 'Glucose' },
   { category: 'biochemistry', itemName: 'LDH' },
-  { category: 'biochemistry', itemName: 'Troponin-I' },
-  { category: 'biochemistry', itemName: 'Uric' },
-  { category: 'biochemistry', itemName: 'Osmolality' },
-];
-
-const CARDIAC_METRICS: readonly LabMetricDescriptor[] = [
   { category: 'cardiac', itemName: 'TnT' },
-  { category: 'cardiac', itemName: 'CKMB' },
-  { category: 'cardiac', itemName: 'CK' },
-  { category: 'cardiac', itemName: 'NTproBNP' },
-];
-
-const LIPID_METRICS: readonly LabMetricDescriptor[] = [
+  { category: 'biochemistry', itemName: 'Uric' },
+  { category: 'thyroid', itemName: 'TSH' },
+  { category: 'thyroid', itemName: 'freeT4' },
   { category: 'lipid', itemName: 'TCHO' },
   { category: 'lipid', itemName: 'TG' },
   { category: 'lipid', itemName: 'LDLC' },
   { category: 'lipid', itemName: 'HDLC' },
+  { category: 'other', itemName: 'HbA1C' },
+  { category: 'cardiac', itemName: 'NTproBNP' },
+  { category: 'cardiac', itemName: 'CK' },
+  { category: 'cardiac', itemName: 'CKMB' },
+];
+
+const LIPID_METRICS: readonly LabMetricDescriptor[] = [
   { category: 'lipid', itemName: 'UA' },
   { category: 'lipid', itemName: 'P' },
 ];
 
 const OTHER_METRICS: readonly LabMetricDescriptor[] = [
-  { category: 'other', itemName: 'HbA1C' },
   { category: 'other', itemName: 'LDH' },
   { category: 'other', itemName: 'NH3' },
   { category: 'other', itemName: 'Amylase' },
@@ -144,8 +145,6 @@ const OTHER_METRICS: readonly LabMetricDescriptor[] = [
 ];
 
 const THYROID_HORMONE_METRICS: readonly LabMetricDescriptor[] = [
-  { category: 'thyroid', itemName: 'TSH' },
-  { category: 'thyroid', itemName: 'freeT4' },
   { category: 'hormone', itemName: 'Cortisol' },
 ];
 
@@ -434,11 +433,10 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
   const showLiverRenal = hasVisibleMetrics(LIVER_RENAL_METRICS);
   const showCoagulation = hasVisibleMetrics(COAGULATION_METRICS);
   const showBiochemExtra = hasVisibleMetrics(BIOCHEM_EXTRA_METRICS);
-  const showCardiac = Boolean(labData?.cardiac && Object.keys(labData.cardiac).length > 0) && hasVisibleMetrics(CARDIAC_METRICS, { requireValue: true });
   const showLipid = Boolean(labData?.lipid && Object.keys(labData.lipid).length > 0) && hasVisibleMetrics(LIPID_METRICS, { requireValue: true });
   const showOther = Boolean(labData?.other && Object.keys(labData.other).length > 0) && hasVisibleMetrics(OTHER_METRICS, { requireValue: true });
-  const showThyroidHormone = Boolean(((labData?.thyroid && Object.keys(labData.thyroid).length > 0) || (labData?.hormone && Object.keys(labData.hormone).length > 0)) && hasVisibleMetrics(THYROID_HORMONE_METRICS, { requireValue: true }));
-  const hasAnyVisibleSection = showElectrolytes || showHematology || showInflammatory || showAbg || showLiverRenal || showCoagulation || showBiochemExtra || showCardiac || showLipid || showOther || showThyroidHormone;
+  const showThyroidHormone = Boolean(labData?.hormone && Object.keys(labData.hormone).length > 0 && hasVisibleMetrics(THYROID_HORMONE_METRICS, { requireValue: true }));
+  const hasAnyVisibleSection = showElectrolytes || showHematology || showInflammatory || showAbg || showLiverRenal || showCoagulation || showBiochemExtra || showLipid || showOther || showThyroidHormone;
 
   const handleLabClick = async (labName: string, category: string, value: number | undefined, unit: string) => {
     if (value === undefined || !patientId) return;
@@ -726,15 +724,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               onClick={() => handleLabClick('PCT', 'inflammatory', getValue('inflammatory', 'PCT'), getUnit('inflammatory', 'PCT', 'ng/mL'))}
             />
             <LabItem
-              labName="DDimer"
-              label="D-dimer"
-              value={getValue('coagulation', 'DDimer')}
-              unit={getUnit('coagulation', 'DDimer', 'μg/mL')}
-              isAbnormal={isAbnormal('coagulation', 'DDimer')}
-              abnormalDirection={getDirection('coagulation', 'DDimer')}
-              onClick={() => handleLabClick('DDimer', 'coagulation', getValue('coagulation', 'DDimer'), getUnit('coagulation', 'DDimer', 'μg/mL'))}
-            />
-            <LabItem
               labName="IL-6"
               label="IL-6"
               value={getValue('inflammatory', 'IL-6')}
@@ -848,15 +837,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               onClick={() => handleLabClick('DBil', 'biochemistry', getValue('biochemistry', 'DBil'), getUnit('biochemistry', 'DBil', 'mg/dL'))}
             />
             <LabItem
-              labName="INR"
-              label="INR"
-              value={getValue('coagulation', 'INR')}
-              unit={getUnit('coagulation', 'INR', '')}
-              isAbnormal={isAbnormal('coagulation', 'INR')}
-              abnormalDirection={getDirection('coagulation', 'INR')}
-              onClick={() => handleLabClick('INR', 'coagulation', getValue('coagulation', 'INR'), getUnit('coagulation', 'INR', ''))}
-            />
-            <LabItem
               labName="BUN"
               label="BUN"
               value={getValue('biochemistry', 'BUN')}
@@ -918,6 +898,24 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               onClick={() => handleLabClick('aPTT', 'coagulation', getValue('coagulation', 'aPTT'), getUnit('coagulation', 'aPTT', 'sec'))}
             />
             <LabItem
+              labName="INR"
+              label="INR"
+              value={getValue('coagulation', 'INR')}
+              unit={getUnit('coagulation', 'INR', '')}
+              isAbnormal={isAbnormal('coagulation', 'INR')}
+              abnormalDirection={getDirection('coagulation', 'INR')}
+              onClick={() => handleLabClick('INR', 'coagulation', getValue('coagulation', 'INR'), getUnit('coagulation', 'INR', ''))}
+            />
+            <LabItem
+              labName="DDimer"
+              label="D-dimer"
+              value={getValue('coagulation', 'DDimer')}
+              unit={getUnit('coagulation', 'DDimer', 'μg/mL')}
+              isAbnormal={isAbnormal('coagulation', 'DDimer')}
+              abnormalDirection={getDirection('coagulation', 'DDimer')}
+              onClick={() => handleLabClick('DDimer', 'coagulation', getValue('coagulation', 'DDimer'), getUnit('coagulation', 'DDimer', 'μg/mL'))}
+            />
+            <LabItem
               labName="Fibrinogen"
               label="Fibrinogen"
               value={getValue('coagulation', 'Fibrinogen')}
@@ -952,13 +950,13 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               onClick={() => handleLabClick('LDH', 'biochemistry', getValue('biochemistry', 'LDH'), getUnit('biochemistry', 'LDH', 'U/L'))}
             />
             <LabItem
-              labName="Troponin-I"
-              label="Tn-I"
-              value={getValue('biochemistry', 'Troponin-I')}
-              unit={getUnit('biochemistry', 'Troponin-I', 'ng/mL')}
-              isAbnormal={isAbnormal('biochemistry', 'Troponin-I')}
-              abnormalDirection={getDirection('biochemistry', 'Troponin-I')}
-              onClick={() => handleLabClick('Troponin-I', 'biochemistry', getValue('biochemistry', 'Troponin-I'), getUnit('biochemistry', 'Troponin-I', 'ng/mL'))}
+              labName="TnT"
+              label="Tn-T"
+              value={getValue('cardiac', 'TnT')}
+              unit={getUnit('cardiac', 'TnT', 'ng/mL')}
+              isAbnormal={isAbnormal('cardiac', 'TnT')}
+              abnormalDirection={getDirection('cardiac', 'TnT')}
+              onClick={() => handleLabClick('TnT', 'cardiac', getValue('cardiac', 'TnT'), getUnit('cardiac', 'TnT', 'ng/mL'))}
             />
             <LabItem
               labName="Uric"
@@ -970,134 +968,103 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               onClick={() => handleLabClick('Uric', 'biochemistry', getValue('biochemistry', 'Uric'), getUnit('biochemistry', 'Uric', 'mg/dL'))}
             />
             <LabItem
-              labName="Osmolality"
-              label="Osm"
-              value={getValue('biochemistry', 'Osmolality')}
-              unit={getUnit('biochemistry', 'Osmolality', 'mOsm/kg')}
-              isAbnormal={isAbnormal('biochemistry', 'Osmolality')}
-              abnormalDirection={getDirection('biochemistry', 'Osmolality')}
-              onClick={() => handleLabClick('Osmolality', 'biochemistry', getValue('biochemistry', 'Osmolality'), getUnit('biochemistry', 'Osmolality', 'mOsm/kg'))}
+              labName="TSH"
+              label="TSH"
+              value={getValue('thyroid', 'TSH')}
+              unit={getUnit('thyroid', 'TSH', 'μIU/mL')}
+              isAbnormal={isAbnormal('thyroid', 'TSH')}
+              abnormalDirection={getDirection('thyroid', 'TSH')}
+              onClick={() => handleLabClick('TSH', 'thyroid', getValue('thyroid', 'TSH'), getUnit('thyroid', 'TSH', 'μIU/mL'))}
+            />
+            <LabItem
+              labName="freeT4"
+              label="free T4"
+              value={getValue('thyroid', 'freeT4')}
+              unit={getUnit('thyroid', 'freeT4', 'ng/dL')}
+              isAbnormal={isAbnormal('thyroid', 'freeT4')}
+              abnormalDirection={getDirection('thyroid', 'freeT4')}
+              onClick={() => handleLabClick('freeT4', 'thyroid', getValue('thyroid', 'freeT4'), getUnit('thyroid', 'freeT4', 'ng/dL'))}
+            />
+            <LabItem
+              labName="TCHO"
+              label="T-CHO"
+              value={getValue('lipid', 'TCHO')}
+              unit={getUnit('lipid', 'TCHO', 'mg/dL')}
+              isAbnormal={isAbnormal('lipid', 'TCHO')}
+              abnormalDirection={getDirection('lipid', 'TCHO')}
+              onClick={() => handleLabClick('TCHO', 'lipid', getValue('lipid', 'TCHO'), getUnit('lipid', 'TCHO', 'mg/dL'))}
+            />
+            <LabItem
+              labName="TG"
+              label="TG"
+              value={getValue('lipid', 'TG')}
+              unit={getUnit('lipid', 'TG', 'mg/dL')}
+              isAbnormal={isAbnormal('lipid', 'TG')}
+              abnormalDirection={getDirection('lipid', 'TG')}
+              onClick={() => handleLabClick('TG', 'lipid', getValue('lipid', 'TG'), getUnit('lipid', 'TG', 'mg/dL'))}
+            />
+            <LabItem
+              labName="LDLC"
+              label="LDL"
+              value={getValue('lipid', 'LDLC')}
+              unit={getUnit('lipid', 'LDLC', 'mg/dL')}
+              isAbnormal={isAbnormal('lipid', 'LDLC')}
+              abnormalDirection={getDirection('lipid', 'LDLC')}
+              onClick={() => handleLabClick('LDLC', 'lipid', getValue('lipid', 'LDLC'), getUnit('lipid', 'LDLC', 'mg/dL'))}
+            />
+            <LabItem
+              labName="HDLC"
+              label="HDL"
+              value={getValue('lipid', 'HDLC')}
+              unit={getUnit('lipid', 'HDLC', 'mg/dL')}
+              isAbnormal={isAbnormal('lipid', 'HDLC')}
+              abnormalDirection={getDirection('lipid', 'HDLC')}
+              onClick={() => handleLabClick('HDLC', 'lipid', getValue('lipid', 'HDLC'), getUnit('lipid', 'HDLC', 'mg/dL'))}
+            />
+            <LabItem
+              labName="HbA1C"
+              label="HbA1C"
+              value={getValue('other', 'HbA1C')}
+              unit={getUnit('other', 'HbA1C', '%')}
+              isAbnormal={isAbnormal('other', 'HbA1C')}
+              abnormalDirection={getDirection('other', 'HbA1C')}
+              onClick={() => handleLabClick('HbA1C', 'other', getValue('other', 'HbA1C'), getUnit('other', 'HbA1C', '%'))}
+            />
+            <LabItem
+              labName="NTproBNP"
+              label="NT-proBNP"
+              value={getValue('cardiac', 'NTproBNP')}
+              unit={getUnit('cardiac', 'NTproBNP', 'pg/mL')}
+              isAbnormal={isAbnormal('cardiac', 'NTproBNP')}
+              abnormalDirection={getDirection('cardiac', 'NTproBNP')}
+              onClick={() => handleLabClick('NTproBNP', 'cardiac', getValue('cardiac', 'NTproBNP'), getUnit('cardiac', 'NTproBNP', 'pg/mL'))}
+            />
+            <LabItem
+              labName="CK"
+              label="CK"
+              value={getValue('cardiac', 'CK')}
+              unit={getUnit('cardiac', 'CK', 'U/L')}
+              isAbnormal={isAbnormal('cardiac', 'CK')}
+              abnormalDirection={getDirection('cardiac', 'CK')}
+              onClick={() => handleLabClick('CK', 'cardiac', getValue('cardiac', 'CK'), getUnit('cardiac', 'CK', 'U/L'))}
+            />
+            <LabItem
+              labName="CKMB"
+              label="CK-MB"
+              value={getValue('cardiac', 'CKMB')}
+              unit={getUnit('cardiac', 'CKMB', 'U/L')}
+              isAbnormal={isAbnormal('cardiac', 'CKMB')}
+              abnormalDirection={getDirection('cardiac', 'CKMB')}
+              onClick={() => handleLabClick('CKMB', 'cardiac', getValue('cardiac', 'CKMB'), getUnit('cardiac', 'CKMB', 'U/L'))}
             />
           </div>
         </div>
-
-        {/* 選擇性追蹤項目 - 心臟標記 */}
-        {showCardiac && (
-          <div className="space-y-2">
-            <h3 className="text-xs font-semibold tracking-wide text-[#f59e0b]">心臟標記（選擇性追蹤）</h3>
-            <div className={compactGridClass} style={compactGridStyle}>
-              {getValue('cardiac', 'TnT') !== undefined && (
-                <LabItem
-                  labName="TnT"
-                  label="Tn-T"
-                  value={getValue('cardiac', 'TnT')}
-                  unit={getUnit('cardiac', 'TnT', 'ng/mL')}
-                  isAbnormal={isAbnormal('cardiac', 'TnT')}
-              abnormalDirection={getDirection('cardiac', 'TnT')}
-                  onClick={() => handleLabClick('TnT', 'cardiac', getValue('cardiac', 'TnT'), getUnit('cardiac', 'TnT', 'ng/mL'))}
-                  isOptional={true}
-                />
-              )}
-
-              {getValue('cardiac', 'CKMB') !== undefined && (
-                <LabItem
-                  labName="CKMB"
-                  label="CK-MB"
-                  value={getValue('cardiac', 'CKMB')}
-                  unit={getUnit('cardiac', 'CKMB', 'U/L')}
-                  isAbnormal={isAbnormal('cardiac', 'CKMB')}
-              abnormalDirection={getDirection('cardiac', 'CKMB')}
-                  onClick={() => handleLabClick('CKMB', 'cardiac', getValue('cardiac', 'CKMB'), getUnit('cardiac', 'CKMB', 'U/L'))}
-                  isOptional={true}
-                />
-              )}
-
-              {getValue('cardiac', 'CK') !== undefined && (
-                <LabItem
-                  labName="CK"
-                  label="CK"
-                  value={getValue('cardiac', 'CK')}
-                  unit={getUnit('cardiac', 'CK', 'U/L')}
-                  isAbnormal={isAbnormal('cardiac', 'CK')}
-              abnormalDirection={getDirection('cardiac', 'CK')}
-                  onClick={() => handleLabClick('CK', 'cardiac', getValue('cardiac', 'CK'), getUnit('cardiac', 'CK', 'U/L'))}
-                  isOptional={true}
-                />
-              )}
-
-              {getValue('cardiac', 'NTproBNP') !== undefined && (
-                <LabItem
-                  labName="NTproBNP"
-                  label="NT-proBNP"
-                  value={getValue('cardiac', 'NTproBNP')}
-                  unit={getUnit('cardiac', 'NTproBNP', 'pg/mL')}
-                  isAbnormal={isAbnormal('cardiac', 'NTproBNP')}
-              abnormalDirection={getDirection('cardiac', 'NTproBNP')}
-                  onClick={() => handleLabClick('NTproBNP', 'cardiac', getValue('cardiac', 'NTproBNP'), getUnit('cardiac', 'NTproBNP', 'pg/mL'))}
-                  isOptional={true}
-                />
-              )}
-            </div>
-          </div>
-        )}
 
         {/* 選擇性追蹤項目 - 血脂與代謝 */}
         {showLipid && (
           <div className="space-y-2">
             <h3 className="text-xs font-semibold tracking-wide text-[#f59e0b]">血脂與代謝（選擇性追蹤）</h3>
             <div className={compactGridClass} style={compactGridStyle}>
-              {getValue('lipid', 'TCHO') !== undefined && (
-                <LabItem
-                  labName="TCHO"
-                  label="T-CHO"
-                  value={getValue('lipid', 'TCHO')}
-                  unit={getUnit('lipid', 'TCHO', 'mg/dL')}
-                  isAbnormal={isAbnormal('lipid', 'TCHO')}
-              abnormalDirection={getDirection('lipid', 'TCHO')}
-                  onClick={() => handleLabClick('TCHO', 'lipid', getValue('lipid', 'TCHO'), getUnit('lipid', 'TCHO', 'mg/dL'))}
-                  isOptional={true}
-                />
-              )}
-
-              {getValue('lipid', 'TG') !== undefined && (
-                <LabItem
-                  labName="TG"
-                  label="TG"
-                  value={getValue('lipid', 'TG')}
-                  unit={getUnit('lipid', 'TG', 'mg/dL')}
-                  isAbnormal={isAbnormal('lipid', 'TG')}
-              abnormalDirection={getDirection('lipid', 'TG')}
-                  onClick={() => handleLabClick('TG', 'lipid', getValue('lipid', 'TG'), getUnit('lipid', 'TG', 'mg/dL'))}
-                  isOptional={true}
-                />
-              )}
-
-              {getValue('lipid', 'LDLC') !== undefined && (
-                <LabItem
-                  labName="LDLC"
-                  label="LDL-C"
-                  value={getValue('lipid', 'LDLC')}
-                  unit={getUnit('lipid', 'LDLC', 'mg/dL')}
-                  isAbnormal={isAbnormal('lipid', 'LDLC')}
-              abnormalDirection={getDirection('lipid', 'LDLC')}
-                  onClick={() => handleLabClick('LDLC', 'lipid', getValue('lipid', 'LDLC'), getUnit('lipid', 'LDLC', 'mg/dL'))}
-                  isOptional={true}
-                />
-              )}
-
-              {getValue('lipid', 'HDLC') !== undefined && (
-                <LabItem
-                  labName="HDLC"
-                  label="HDL-C"
-                  value={getValue('lipid', 'HDLC')}
-                  unit={getUnit('lipid', 'HDLC', 'mg/dL')}
-                  isAbnormal={isAbnormal('lipid', 'HDLC')}
-              abnormalDirection={getDirection('lipid', 'HDLC')}
-                  onClick={() => handleLabClick('HDLC', 'lipid', getValue('lipid', 'HDLC'), getUnit('lipid', 'HDLC', 'mg/dL'))}
-                  isOptional={true}
-                />
-              )}
-
               {getValue('lipid', 'UA') !== undefined && (
                 <LabItem
                   labName="UA"
@@ -1132,19 +1099,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
           <div className="space-y-2">
             <h3 className="text-xs font-semibold tracking-wide text-[#f59e0b]">其他檢驗（選擇性追蹤）</h3>
             <div className={compactGridClass} style={compactGridStyle}>
-              {getValue('other', 'HbA1C') !== undefined && (
-                <LabItem
-                  labName="HbA1C"
-                  label="HbA1C"
-                  value={getValue('other', 'HbA1C')}
-                  unit={getUnit('other', 'HbA1C', '%')}
-                  isAbnormal={isAbnormal('other', 'HbA1C')}
-              abnormalDirection={getDirection('other', 'HbA1C')}
-                  onClick={() => handleLabClick('HbA1C', 'other', getValue('other', 'HbA1C'), getUnit('other', 'HbA1C', '%'))}
-                  isOptional={true}
-                />
-              )}
-
               {getValue('other', 'LDH') !== undefined && (
                 <LabItem
                   labName="LDH"
@@ -1205,32 +1159,6 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
           <div className="space-y-2">
             <h3 className="text-xs font-semibold tracking-wide text-[#f59e0b]">甲狀腺與荷爾蒙（選擇性追蹤）</h3>
             <div className={compactGridClass} style={compactGridStyle}>
-              {getValue('thyroid', 'TSH') !== undefined && (
-                <LabItem
-                  labName="TSH"
-                  label="TSH"
-                  value={getValue('thyroid', 'TSH')}
-                  unit={getUnit('thyroid', 'TSH', 'μIU/mL')}
-                  isAbnormal={isAbnormal('thyroid', 'TSH')}
-              abnormalDirection={getDirection('thyroid', 'TSH')}
-                  onClick={() => handleLabClick('TSH', 'thyroid', getValue('thyroid', 'TSH'), getUnit('thyroid', 'TSH', 'μIU/mL'))}
-                  isOptional={true}
-                />
-              )}
-
-              {getValue('thyroid', 'freeT4') !== undefined && (
-                <LabItem
-                  labName="freeT4"
-                  label="free T4"
-                  value={getValue('thyroid', 'freeT4')}
-                  unit={getUnit('thyroid', 'freeT4', 'ng/dL')}
-                  isAbnormal={isAbnormal('thyroid', 'freeT4')}
-              abnormalDirection={getDirection('thyroid', 'freeT4')}
-                  onClick={() => handleLabClick('freeT4', 'thyroid', getValue('thyroid', 'freeT4'), getUnit('thyroid', 'freeT4', 'ng/dL'))}
-                  isOptional={true}
-                />
-              )}
-
               {getValue('hormone', 'Cortisol') !== undefined && (
                 <LabItem
                   labName="Cortisol"
