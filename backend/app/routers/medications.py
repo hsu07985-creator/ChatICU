@@ -36,7 +36,7 @@ def normalize_san_category(raw: Optional[str]) -> Optional[str]:
     return None
 
 
-def med_to_dict(med: Medication) -> dict:
+def med_to_dict(med: Medication, notes_map: Optional[dict] = None) -> dict:
     return {
         "id": med.id,
         "patientId": med.patient_id,
@@ -55,7 +55,7 @@ def med_to_dict(med: Medication) -> dict:
         "status": med.status,
         "prescribedBy": med.prescribed_by,
         "warnings": med.warnings or [],
-        "notes": None,
+        "notes": (notes_map or {}).get(med.id),
         "concentration": med.concentration,
         "concentrationUnit": med.concentration_unit,
     }
@@ -115,13 +115,30 @@ async def list_medications(
     result = await db.execute(query.order_by(Medication.name))
     medications = result.scalars().all()
 
+    # Fetch notes safely (column added by migration 045/046)
+    _notes_map: dict = {}
+    try:
+        from sqlalchemy import text as sa_text
+        nr = await db.execute(
+            sa_text("SELECT id, notes FROM medications WHERE patient_id = :pid"),
+            {"pid": pid},
+        )
+        for row in nr:
+            if row[1]:
+                _notes_map[row[0]] = row[1]
+    except Exception:
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+
     # Group by SAN category — keys match frontend MedicationsResponse interface
     _SAN_KEY_MAP = {"S": "sedation", "A": "analgesia", "N": "nmb"}
     grouped = {"sedation": [], "analgesia": [], "nmb": [], "other": []}
     for med in medications:
         cat = normalize_san_category(med.san_category) or "other"
         key = _SAN_KEY_MAP.get(cat, "other")
-        grouped[key].append(med_to_dict(med))
+        grouped[key].append(med_to_dict(med, _notes_map))
 
     # Find drug interactions for active medications (single batch query)
     active_meds = [m for m in medications if m.status == "active"]
@@ -146,7 +163,7 @@ async def list_medications(
             })
 
     return success_response(data={
-        "medications": [med_to_dict(m) for m in medications],
+        "medications": [med_to_dict(m, _notes_map) for m in medications],
         "grouped": grouped,
         "interactions": interactions,
     })
