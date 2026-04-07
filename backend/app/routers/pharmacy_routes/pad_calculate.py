@@ -50,7 +50,7 @@ PAD_DRUG_DEFAULTS = {
         "concentration": 10.0,
         "concentration_unit": "mcg/ml",
         "dose_unit": "mcg/kg/hr",
-        "dose_range": "0.7–2",
+        "dose_range": "0.7–10",
         "weight_basis": "AdjBW",
     },
     "morphine": {
@@ -79,10 +79,10 @@ PAD_DRUG_DEFAULTS = {
     },
     "midazolam": {
         "label": "Midazolam",
-        "concentration": 1.0,
+        "concentration": 5.0,
         "concentration_unit": "mg/ml",
         "dose_unit": "mg/kg/hr",
-        "dose_range": "0.01–0.1",
+        "dose_range": "0.01–0.2",
         "weight_basis": "AdjBW",
     },
     "lorazepam": {
