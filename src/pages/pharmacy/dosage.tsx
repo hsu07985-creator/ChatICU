@@ -62,17 +62,30 @@ export function DosagePage() {
   const isDoseMaxOutOfRange = doseRange && !isNaN(targetDoseMaxNum) && targetDoseMaxNum > 0 &&
     (targetDoseMaxNum < doseRange[0] || targetDoseMaxNum > doseRange[1]);
 
-  // Clamp: min dose cannot go below drug floor, max dose cannot exceed drug ceiling
+  // Clamp: min dose stays within [floor, ceiling], max dose stays within [floor, ceiling]
   const handleDoseMinBlur = useCallback(() => {
     if (!doseRange || !targetDoseMin) return;
     const val = parseFloat(targetDoseMin);
-    if (!isNaN(val) && val < doseRange[0]) setTargetDoseMin(String(doseRange[0]));
+    if (isNaN(val)) return;
+    const clamped = Math.min(Math.max(val, doseRange[0]), doseRange[1]);
+    if (clamped !== val) setTargetDoseMin(String(clamped));
   }, [doseRange, targetDoseMin]);
   const handleDoseMaxBlur = useCallback(() => {
     if (!doseRange || !targetDoseMax) return;
     const val = parseFloat(targetDoseMax);
-    if (!isNaN(val) && val > doseRange[1]) setTargetDoseMax(String(doseRange[1]));
+    if (isNaN(val)) return;
+    const clamped = Math.min(Math.max(val, doseRange[0]), doseRange[1]);
+    if (clamped !== val) setTargetDoseMax(String(clamped));
   }, [doseRange, targetDoseMax]);
+
+  // Smart step: based on the magnitude of the dose range minimum
+  const doseStep = useMemo(() => {
+    if (!doseRange) return 0.01;
+    const minVal = doseRange[0];
+    if (minVal >= 1) return 0.1;
+    if (minVal >= 0.1) return 0.01;
+    return 0.001;
+  }, [doseRange]);
 
   // Concentration deviation check
   const isConcentrationChanged = drugInfo &&
@@ -299,12 +312,13 @@ export function DosagePage() {
                   最小劑量 *
                   {drugInfo && <span className="text-muted-foreground font-normal ml-0.5 text-xs">({drugInfo.dose_unit})</span>}
                 </label>
-                <Input type="number" step="any" className="h-9"
+                <Input type="number" step={doseStep} className="h-9"
                   min={doseRange ? doseRange[0] : undefined}
+                  max={doseRange ? doseRange[1] : undefined}
                   placeholder={doseRange ? String(doseRange[0]) : ''} value={targetDoseMin}
                   onChange={(e) => setTargetDoseMin(e.target.value)} onBlur={handleDoseMinBlur} />
                 {doseRange && (
-                  <p className="text-xs text-muted-foreground">下限 {doseRange[0]}</p>
+                  <p className="text-xs text-muted-foreground">範圍 {doseRange[0]}–{doseRange[1]}</p>
                 )}
               </div>
               <div className="space-y-1">
@@ -312,12 +326,13 @@ export function DosagePage() {
                   最大劑量 *
                   {drugInfo && <span className="text-muted-foreground font-normal ml-0.5 text-xs">({drugInfo.dose_unit})</span>}
                 </label>
-                <Input type="number" step="any" className="h-9"
+                <Input type="number" step={doseStep} className="h-9"
+                  min={doseRange ? doseRange[0] : undefined}
                   max={doseRange ? doseRange[1] : undefined}
                   placeholder={doseRange ? String(doseRange[1]) : ''} value={targetDoseMax}
                   onChange={(e) => setTargetDoseMax(e.target.value)} onBlur={handleDoseMaxBlur} />
                 {doseRange && (
-                  <p className="text-xs text-muted-foreground">上限 {doseRange[1]}</p>
+                  <p className="text-xs text-muted-foreground">範圍 {doseRange[0]}–{doseRange[1]}</p>
                 )}
               </div>
               <div className="space-y-1">
