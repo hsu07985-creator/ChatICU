@@ -167,6 +167,56 @@ function ScoreSelector({
   );
 }
 
+function SanMedCard({
+  medication,
+  canEdit,
+  patientId,
+  onEdit,
+}: {
+  medication: Medication;
+  canEdit: boolean;
+  patientId?: string;
+  onEdit: (med: Medication) => void;
+}) {
+  const concParts = [
+    medication.concentration,
+    medication.concentrationUnit,
+  ].filter(Boolean).join(' ');
+  const infoParts = [
+    concParts || null,
+    medication.route || null,
+    formatMedDate(medication.startDate) || null,
+  ].filter(Boolean).join(' · ');
+  const noteText = medication.notes || medication.indication || null;
+
+  return (
+    <div className="rounded-md border bg-white px-3 py-2 space-y-1.5">
+      <div className="flex items-start justify-between gap-3">
+        <p className="font-medium leading-tight">{medication.name || '—'}</p>
+        {canEdit && patientId && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs shrink-0"
+            onClick={() => onEdit(medication)}
+          >
+            編輯
+          </Button>
+        )}
+      </div>
+      {infoParts && (
+        <p className="text-sm text-muted-foreground">{infoParts}</p>
+      )}
+      {noteText && (
+        <div className="rounded bg-slate-100 px-2.5 py-2">
+          <p className="text-[11px] font-medium text-slate-500 mb-1">醫令備註</p>
+          <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{noteText}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface PatientMedicationsTabProps {
   patientId?: string;
   userRole?: UserRole;
@@ -364,25 +414,7 @@ export function PatientMedicationsTab({
                   ) : (
                     <div className="space-y-2">
                       {activePainMeds.map((medication) => (
-                        <div key={medication.id} className="rounded-md border bg-white px-3 py-2">
-                          <div className="flex items-start justify-between gap-3">
-                            <p className="font-medium leading-tight">{formatDisplayValue(medication.name)}</p>
-                            {canEditMedication && patientId && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 text-xs shrink-0"
-                                onClick={() => openMedicationEditor(medication)}
-                              >
-                                編輯
-                              </Button>
-                            )}
-                          </div>
-                          <p className="mt-1 text-sm text-muted-foreground">{formatMedicationRegimen(medication)}</p>
-                          {formatMedicationConcentration(medication) && (
-                            <p className="mt-1 text-xs text-slate-500">濃度 {formatMedicationConcentration(medication)}</p>
-                          )}
-                        </div>
+                        <SanMedCard key={medication.id} medication={medication} canEdit={canEditMedication} patientId={patientId} onEdit={openMedicationEditor} />
                       ))}
                     </div>
                   )}
@@ -424,25 +456,7 @@ export function PatientMedicationsTab({
                   ) : (
                     <div className="space-y-2">
                       {activeSedationMeds.map((medication) => (
-                        <div key={medication.id} className="rounded-md border bg-white px-3 py-2">
-                          <div className="flex items-start justify-between gap-3">
-                            <p className="font-medium leading-tight">{formatDisplayValue(medication.name)}</p>
-                            {canEditMedication && patientId && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 text-xs shrink-0"
-                                onClick={() => openMedicationEditor(medication)}
-                              >
-                                編輯
-                              </Button>
-                            )}
-                          </div>
-                          <p className="mt-1 text-sm text-muted-foreground">{formatMedicationRegimen(medication)}</p>
-                          {formatMedicationConcentration(medication) && (
-                            <p className="mt-1 text-xs text-slate-500">濃度 {formatMedicationConcentration(medication)}</p>
-                          )}
-                        </div>
+                        <SanMedCard key={medication.id} medication={medication} canEdit={canEditMedication} patientId={patientId} onEdit={openMedicationEditor} />
                       ))}
                     </div>
                   )}
@@ -465,25 +479,7 @@ export function PatientMedicationsTab({
                 ) : (
                   <div className="space-y-2">
                     {activeNmbMeds.map((medication) => (
-                      <div key={medication.id} className="rounded-md border bg-white px-3 py-2">
-                        <div className="flex items-start justify-between gap-3">
-                          <p className="font-medium leading-tight">{formatDisplayValue(medication.name)}</p>
-                          {canEditMedication && patientId && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-xs shrink-0"
-                              onClick={() => openMedicationEditor(medication)}
-                            >
-                              編輯
-                            </Button>
-                          )}
-                        </div>
-                        <p className="mt-1 text-sm text-muted-foreground">{formatMedicationRegimen(medication)}</p>
-                        {formatMedicationConcentration(medication) && (
-                          <p className="mt-1 text-xs text-slate-500">濃度 {formatMedicationConcentration(medication)}</p>
-                        )}
-                      </div>
+                      <SanMedCard key={medication.id} medication={medication} canEdit={canEditMedication} patientId={patientId} onEdit={openMedicationEditor} />
                     ))}
                   </div>
                 )}
