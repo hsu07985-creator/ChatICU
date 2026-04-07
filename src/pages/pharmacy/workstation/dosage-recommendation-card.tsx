@@ -182,20 +182,29 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
                 <span className="text-muted-foreground">濃度 ({dose.concentrationUnit || 'mg/ml'})</span>
                 <span className="font-mono font-medium text-slate-700">{conc}</span>
               </div>
-              <input
-                type="range"
-                min={Math.max(defaultConc * 0.25, 0.1)}
-                max={defaultConc * 4}
-                step={parseFloat(Math.max(defaultConc * 0.01, 0.01).toPrecision(1))}
-                value={conc}
-                onChange={handleConcChange}
-                className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-violet-600 bg-slate-200"
-              />
-              <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>{parseFloat((defaultConc * 0.25).toFixed(2))}</span>
-                <span>預設 {defaultConc}</span>
-                <span>{parseFloat((defaultConc * 4).toFixed(2))}</span>
-              </div>
+              {(() => {
+                const concMin = dose.concentrationRange ? dose.concentrationRange[0] : Math.max(defaultConc * 0.25, 0.1);
+                const concMax = dose.concentrationRange ? dose.concentrationRange[1] : defaultConc * 4;
+                const concStep = parseFloat(Math.max((concMax - concMin) / 100, 0.01).toPrecision(1));
+                return (
+                  <>
+                    <input
+                      type="range"
+                      min={concMin}
+                      max={concMax}
+                      step={concStep}
+                      value={conc}
+                      onChange={handleConcChange}
+                      className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-violet-600 bg-slate-200"
+                    />
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>{concMin}</span>
+                      <span>預設 {defaultConc}</span>
+                      <span>{concMax}</span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* Reset button */}

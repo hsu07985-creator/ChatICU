@@ -72,6 +72,7 @@ export interface DosageResult {
   concentration?: number;
   concentrationUnit?: string;
   defaultConcentration?: number;
+  concentrationRange?: [number, number];
   sex?: string;
   heightCm?: number;
   weightBasis?: string;

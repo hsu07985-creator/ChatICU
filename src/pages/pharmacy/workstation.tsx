@@ -460,6 +460,7 @@ export function PharmacyWorkstationPage() {
                   concentration: conc,
                   concentrationUnit: padInfo.concentration_unit || '',
                   defaultConcentration: conc,
+                  concentrationRange: padInfo.concentration_range,
                   sex: patientSex,
                   heightCm: patientHeight,
                   weightBasis: res.weight_basis,
