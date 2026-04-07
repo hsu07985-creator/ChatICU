@@ -187,7 +187,7 @@ function SanMedCard({
     medication.route || null,
     formatMedDate(medication.startDate) || null,
   ].filter(Boolean).join(' · ');
-  const noteText = medication.notes || medication.indication || null;
+  const noteText = medication.notes || null;
 
   return (
     <div className="rounded-md border bg-white px-3 py-2 space-y-1.5">
