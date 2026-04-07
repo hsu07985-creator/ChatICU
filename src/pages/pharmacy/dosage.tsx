@@ -276,7 +276,7 @@ export function DosagePage() {
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium">體重 (kg) *</label>
-              <Input type="number" className="h-9" placeholder="例：70" value={weight} onChange={(e) => setWeight(e.target.value)} />
+              <Input type="number" className="h-9 bg-muted/50" placeholder="選擇病患自動帶入" value={weight} readOnly tabIndex={-1} />
             </div>
           </div>
 
@@ -353,7 +353,7 @@ export function DosagePage() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">身高 (cm)</label>
-                <Input type="number" className="h-9" placeholder="例：170" value={height} onChange={(e) => setHeight(e.target.value)} />
+                <Input type="number" className="h-9 bg-muted/50" placeholder="選擇病患自動帶入" value={height} readOnly tabIndex={-1} />
               </div>
             </div>
           )}
@@ -363,7 +363,7 @@ export function DosagePage() {
             <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">身高 (cm)</label>
-                <Input type="number" className="h-9" placeholder="例：170" value={height} onChange={(e) => setHeight(e.target.value)} />
+                <Input type="number" className="h-9 bg-muted/50" placeholder="選擇病患自動帶入" value={height} readOnly tabIndex={-1} />
               </div>
             </div>
           )}
