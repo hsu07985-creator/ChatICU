@@ -444,6 +444,7 @@ export function UsersPage() {
                 onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                 placeholder="請輸入密碼"
               />
+              <p className="text-xs text-muted-foreground">至少 12 字元，須包含大寫、小寫、數字及特殊字元</p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="new-role">角色 *</Label>

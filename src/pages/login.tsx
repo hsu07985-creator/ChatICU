@@ -113,10 +113,10 @@ export function LoginPage() {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email Field */}
+              {/* Username Field */}
               <div className="space-y-2">
                 <Label htmlFor="username" className="text-sm font-semibold text-muted-foreground">
-                  Email
+                  帳號
                 </Label>
                 <Input
                   id="username"

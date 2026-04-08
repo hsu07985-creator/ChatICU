@@ -81,6 +81,12 @@ export async function getPatients(filters: PatientFilters = {}): Promise<Patient
   return ensureData(response.data, 'API contract');
 }
 
+// 取得所有病人（無分頁）
+export async function getAllPatients(filters: PatientFilters = {}): Promise<Patient[]> {
+  const resp = await getPatients({ ...filters, limit: 200 });
+  return resp.patients;
+}
+
 // 取得單一病人詳情
 export async function getPatient(id: string): Promise<Patient> {
   const response = await apiClient.get<ApiResponse<Patient>>(`/patients/${id}`);
