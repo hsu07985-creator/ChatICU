@@ -336,43 +336,62 @@ async def get_cultures(
 ):
     del user
     pid = patient_id.strip()
-    result = await db.execute(
-        select(CultureResult)
-        .where(CultureResult.patient_id == pid)
-        .order_by(CultureResult.collected_at.desc())
-    )
-    rows = result.scalars().all()
 
-    # Fetch q_score/result safely (columns may not exist if migration 044 failed)
-    extra_map: dict = {}
+    # Single query — fetch all columns including q_score/result (safe fallback if missing)
+    from sqlalchemy import text
     try:
-        if rows:
-            from sqlalchemy import text
-            culture_ids = [r.id for r in rows]
-            extra_rows = await db.execute(
-                text("SELECT id, q_score, result FROM culture_results WHERE id = ANY(:ids)"),
-                {"ids": culture_ids},
-            )
-            for er in extra_rows:
-                extra_map[er[0]] = {"qScore": er[1], "result": er[2]}
+        raw = await db.execute(
+            text(
+                "SELECT id, sheet_number, specimen, specimen_code, collected_at, "
+                "reported_at, department, isolates, susceptibility, q_score, result "
+                "FROM culture_results WHERE patient_id = :pid "
+                "ORDER BY collected_at DESC"
+            ),
+            {"pid": pid},
+        )
+        rows = raw.fetchall()
     except Exception:
-        pass
+        # q_score/result columns may not exist — fall back to ORM without them
+        result = await db.execute(
+            select(CultureResult)
+            .where(CultureResult.patient_id == pid)
+            .order_by(CultureResult.collected_at.desc())
+        )
+        orm_rows = result.scalars().all()
+        rows = None
 
-    cultures = [
-        {
-            "sheetNumber": r.sheet_number,
-            "specimen": r.specimen,
-            "specimenCode": r.specimen_code,
-            "collectedAt": r.collected_at.isoformat() if r.collected_at else None,
-            "reportedAt": r.reported_at.isoformat() if r.reported_at else None,
-            "department": r.department,
-            "isolates": r.isolates or [],
-            "susceptibility": r.susceptibility or [],
-            "qScore": extra_map.get(r.id, {}).get("qScore"),
-            "result": extra_map.get(r.id, {}).get("result"),
-        }
-        for r in rows
-    ]
+    if rows is not None:
+        cultures = [
+            {
+                "sheetNumber": r[1],
+                "specimen": r[2],
+                "specimenCode": r[3],
+                "collectedAt": r[4].isoformat() if r[4] else None,
+                "reportedAt": r[5].isoformat() if r[5] else None,
+                "department": r[6],
+                "isolates": r[7] or [],
+                "susceptibility": r[8] or [],
+                "qScore": r[9],
+                "result": r[10],
+            }
+            for r in rows
+        ]
+    else:
+        cultures = [
+            {
+                "sheetNumber": r.sheet_number,
+                "specimen": r.specimen,
+                "specimenCode": r.specimen_code,
+                "collectedAt": r.collected_at.isoformat() if r.collected_at else None,
+                "reportedAt": r.reported_at.isoformat() if r.reported_at else None,
+                "department": r.department,
+                "isolates": r.isolates or [],
+                "susceptibility": r.susceptibility or [],
+                "qScore": None,
+                "result": None,
+            }
+            for r in orm_rows
+        ]
     return success_response(data={
         "patientId": pid,
         "cultureCount": len(cultures),

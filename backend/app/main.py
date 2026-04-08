@@ -556,7 +556,24 @@ async def lifespan(app: FastAPI):
                 "CREATE INDEX IF NOT EXISTS ix_medications_status_san_category "
                 "ON medications (status, san_category)"
             ))
-            logger.info("[INTG][DB] dashboard performance indexes ensured")
+            await conn.execute(_t_idx(
+                "CREATE INDEX IF NOT EXISTS ix_pharmacy_advices_category_timestamp "
+                "ON pharmacy_advices (category, timestamp)"
+            ))
+            # FK constraints (safe — DO NOTHING if already exists)
+            await conn.execute(_t_idx(
+                "DO $$ BEGIN "
+                "ALTER TABLE clinical_scores ADD CONSTRAINT fk_clinical_scores_patient "
+                "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE; "
+                "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+            ))
+            await conn.execute(_t_idx(
+                "DO $$ BEGIN "
+                "ALTER TABLE custom_tags ADD CONSTRAINT fk_custom_tags_created_by "
+                "FOREIGN KEY (created_by_id) REFERENCES users(id) ON DELETE CASCADE; "
+                "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+            ))
+            logger.info("[INTG][DB] dashboard performance indexes + FK constraints ensured")
     except Exception as e:
         logger.warning("[INTG][DB] dashboard indexes failed (non-fatal): %s", e)
 
