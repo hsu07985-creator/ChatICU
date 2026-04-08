@@ -326,7 +326,7 @@ export function PatientMessagesTab({
   }
 
   const PHARMACY_CATEGORIES = ['建議處方', '主動建議', '建議監測', '用藥連貫性'];
-  const pharmacySubcodePattern = /^\d+-\d+/;
+  const pharmacySubcodePattern = /^\d+-[A-Z\d]+/;
 
   const groupedFilterTags = {
     pharmacy: [] as string[],    // 藥事分類標籤

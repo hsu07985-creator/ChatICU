@@ -96,8 +96,15 @@ CODE_TO_SHORT_LABEL = {
 }
 
 
+_VPN_LETTER_RE = __import__("re").compile(r"^\d+-[A-Z]$")
+
+
+def _is_vpn_letter_code(code: str) -> bool:
+    return bool(_VPN_LETTER_RE.match(code))
+
+
 def format_subcode_tag(code: str) -> str:
-    """Format advice code as readable tag: '1-1' → '1-1 給藥問題'."""
+    """Format advice code as readable tag: '1-A' → '1-A 給藥問題'."""
     label = CODE_TO_SHORT_LABEL.get(code)
     if label:
         return f"{code} {label}"
@@ -171,22 +178,23 @@ async def get_pharmacy_tags(
     if user.role not in ("pharmacist", "admin"):
         return success_response(data=[])
 
+    # Only include VPN letter-format codes (exclude legacy numeric codes)
     categories = [
         {
             "category": "建議處方",
-            "tags": [format_subcode_tag(c) for c in CODE_TO_SHORT_LABEL if c.startswith("1-")],
+            "tags": [format_subcode_tag(c) for c in CODE_TO_SHORT_LABEL if c.startswith("1-") and _is_vpn_letter_code(c)],
         },
         {
             "category": "主動建議",
-            "tags": [format_subcode_tag(c) for c in CODE_TO_SHORT_LABEL if c.startswith("2-")],
+            "tags": [format_subcode_tag(c) for c in CODE_TO_SHORT_LABEL if c.startswith("2-") and _is_vpn_letter_code(c)],
         },
         {
             "category": "建議監測",
-            "tags": [format_subcode_tag(c) for c in CODE_TO_SHORT_LABEL if c.startswith("3-")],
+            "tags": [format_subcode_tag(c) for c in CODE_TO_SHORT_LABEL if c.startswith("3-") and _is_vpn_letter_code(c)],
         },
         {
             "category": "用藥連貫性",
-            "tags": [format_subcode_tag(c) for c in CODE_TO_SHORT_LABEL if c.startswith("4-")],
+            "tags": [format_subcode_tag(c) for c in CODE_TO_SHORT_LABEL if c.startswith("4-") and _is_vpn_letter_code(c)],
         },
     ]
     return success_response(data=categories)
