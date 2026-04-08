@@ -1064,6 +1064,7 @@ export function PatientDetailPage() {
   const sedationMedications = medicationGroups.sedation;
   const nmbMedications = medicationGroups.nmb;
   const otherMedications = medicationGroups.other;
+  const outpatientMedications = medicationGroups.outpatient || [];
 
   const painIndication = painMedications[0]?.indication;
   const sedationIndication = sedationMedications[0]?.indication;
@@ -1722,6 +1723,7 @@ export function PatientDetailPage() {
           sedationMedications={sedationMedications}
           nmbMedications={nmbMedications}
           otherMedications={otherMedications}
+          outpatientMedications={outpatientMedications}
           formatDisplayValue={formatDisplayValue}
           formatMedicationRegimen={formatMedicationRegimen}
           painScoreValue={scores.painScoreValue}

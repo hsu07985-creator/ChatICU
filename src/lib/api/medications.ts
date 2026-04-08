@@ -28,6 +28,14 @@ export interface Medication {
   isHighAlert?: boolean;
   isContinuous?: boolean;
   infusionRate?: string;
+  // Outpatient source fields (048)
+  sourceType?: 'inpatient' | 'outpatient';
+  sourceCampus?: string | null;
+  prescribingHospital?: string | null;
+  prescribingDepartment?: string | null;
+  prescribingDoctorName?: string | null;
+  daysSupply?: number | null;
+  isExternal?: boolean;
 }
 
 export interface MedicationAdministration {
@@ -53,6 +61,7 @@ export interface MedicationsResponse {
     analgesia: Medication[];
     nmb: Medication[];
     other: Medication[];
+    outpatient: Medication[];
   };
   interactions: DrugInteraction[];
 }

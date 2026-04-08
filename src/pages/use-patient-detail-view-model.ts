@@ -42,6 +42,7 @@ export function usePatientDetailViewModel({
       const bDate = b.startDate ? new Date(b.startDate).getTime() : Infinity;
       return aDate - bDate;
     });
+    const outpatientMedications = medicationGroups.outpatient || [];
 
     const painScoreValue = latestScores.pain?.value ?? null;
     const rassScoreValue = latestScores.rass?.value ?? null;
@@ -61,6 +62,7 @@ export function usePatientDetailViewModel({
       sedationMedications,
       nmbMedications,
       otherMedications,
+      outpatientMedications,
       painScoreValue,
       rassScoreValue,
       painIndication,

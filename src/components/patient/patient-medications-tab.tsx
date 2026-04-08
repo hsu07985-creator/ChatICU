@@ -172,17 +172,19 @@ function SanMedCard({
   canEdit,
   patientId,
   onEdit,
+  onDetail,
 }: {
   medication: Medication;
   canEdit: boolean;
   patientId?: string;
   onEdit: (med: Medication) => void;
+  onDetail: (med: Medication) => void;
 }) {
   const spec = medication.concentration || null;
   const noteText = medication.notes || null;
 
   return (
-    <div className="rounded-md border bg-white px-3 py-2 space-y-1.5">
+    <div className="rounded-md border bg-white px-3 py-2 space-y-1.5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => onDetail(medication)}>
       <div className="flex items-start justify-between gap-3">
         <p className="font-medium leading-tight">
           {medication.name || '—'}
@@ -209,6 +211,174 @@ function SanMedCard({
   );
 }
 
+/* ─── Medication Detail Modal ─── */
+function MedicationDetailModal({
+  medication,
+  open,
+  onClose,
+}: {
+  medication: Medication | null;
+  open: boolean;
+  onClose: () => void;
+}) {
+  if (!medication) return null;
+  const med = medication;
+  const isOutpatient = med.sourceType === 'outpatient';
+  const hasSource = isOutpatient || med.prescribingDepartment || med.prescribingDoctorName;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-lg leading-tight">
+            {med.name}
+          </DialogTitle>
+          <DialogDescription className="text-sm">
+            {[med.dose, med.unit, '·', med.frequency].filter(Boolean).join(' ')}
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Status badge */}
+        <div className="flex gap-2 flex-wrap">
+          {med.status === 'active' && (
+            <Badge className="bg-emerald-100 text-emerald-700 border-0">建議繼續使用</Badge>
+          )}
+          {med.status === 'discontinued' && (
+            <Badge className="bg-gray-200 text-gray-600 border-0">已停用</Badge>
+          )}
+          {isOutpatient && (
+            <Badge className="bg-blue-100 text-blue-700 border-0">門診用藥</Badge>
+          )}
+          {med.isExternal && (
+            <Badge className="bg-orange-100 text-orange-700 border-0">院外</Badge>
+          )}
+        </div>
+
+        {/* 處方來源 */}
+        {hasSource && (
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-slate-700">處方來源</p>
+            <div className="rounded-lg border bg-slate-50 p-3">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                {isOutpatient && (
+                  <>
+                    <div className="flex gap-2">
+                      <span className="text-muted-foreground shrink-0">院內/院外</span>
+                      <Badge variant="secondary" className={`text-xs h-5 ${med.isExternal ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {med.isExternal ? '院外' : '院內'}
+                      </Badge>
+                    </div>
+                    <div className="flex gap-2">
+                      <span className="text-muted-foreground shrink-0">開立醫院</span>
+                      <span className="font-medium">{med.prescribingHospital || '—'}</span>
+                    </div>
+                  </>
+                )}
+                {med.prescribingDepartment && (
+                  <div className="flex gap-2">
+                    <span className="text-muted-foreground shrink-0">處方科別</span>
+                    <span className="font-medium">{med.prescribingDepartment}</span>
+                  </div>
+                )}
+                {med.prescribingDoctorName && (
+                  <div className="flex gap-2">
+                    <span className="text-muted-foreground shrink-0">處方醫師</span>
+                    <span className="font-medium">{med.prescribingDoctorName}</span>
+                  </div>
+                )}
+                {med.sourceCampus && (
+                  <div className="flex gap-2">
+                    <span className="text-muted-foreground shrink-0">院區</span>
+                    <span className="font-medium">{med.sourceCampus}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 處方明細 */}
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-slate-700">處方明細</p>
+          <div className="rounded-lg border bg-slate-50 p-3">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+              <div className="flex gap-2">
+                <span className="text-muted-foreground shrink-0">學名</span>
+                <span className="font-medium">{med.genericName || '—'}</span>
+              </div>
+              <div className="flex gap-2">
+                <span className="text-muted-foreground shrink-0">頻率</span>
+                <span className="font-medium">{med.frequency || '—'}</span>
+              </div>
+              <div className="flex gap-2">
+                <span className="text-muted-foreground shrink-0">劑量</span>
+                <span className="font-medium">{[med.dose, med.unit].filter(Boolean).join(' ') || '—'}</span>
+              </div>
+              {med.daysSupply != null && (
+                <div className="flex gap-2">
+                  <span className="text-muted-foreground shrink-0">給藥天數</span>
+                  <span className="font-medium">{med.daysSupply} 天</span>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <span className="text-muted-foreground shrink-0">給藥途徑</span>
+                <span className="font-medium">{med.route || '—'}</span>
+              </div>
+              {med.concentration && (
+                <div className="flex gap-2">
+                  <span className="text-muted-foreground shrink-0">濃度</span>
+                  <span className="font-medium">{[med.concentration, med.concentrationUnit].filter(Boolean).join(' ')}</span>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <span className="text-muted-foreground shrink-0">開始日期</span>
+                <span className="font-medium">{med.startDate ? new Date(med.startDate).toLocaleDateString('zh-TW') : '—'}</span>
+              </div>
+              <div className="flex gap-2">
+                <span className="text-muted-foreground shrink-0">結束日期</span>
+                <span className="font-medium">{med.endDate ? new Date(med.endDate).toLocaleDateString('zh-TW') : '—'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 適應症 / 備註 */}
+        {(med.indication || med.notes) && (
+          <div className="space-y-2">
+            {med.indication && (
+              <div className="text-sm">
+                <span className="text-muted-foreground">適應症：</span>
+                <span>{med.indication}</span>
+              </div>
+            )}
+            {med.notes && (
+              <div className="rounded bg-slate-100 px-2.5 py-2">
+                <p className="text-[11px] font-medium text-slate-500 mb-1">醫令備註</p>
+                <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{med.notes}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Warnings */}
+        {med.warnings && med.warnings.length > 0 && (
+          <div className="space-y-1">
+            {med.warnings.map((w, i) => (
+              <div key={i} className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">
+                <span>⚠</span><span>{w}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex justify-end pt-2">
+          <Button variant="outline" onClick={onClose}>關閉</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 interface PatientMedicationsTabProps {
   patientId?: string;
   userRole?: UserRole;
@@ -220,6 +390,7 @@ interface PatientMedicationsTabProps {
   sedationMedications: Medication[];
   nmbMedications: Medication[];
   otherMedications: Medication[];
+  outpatientMedications?: Medication[];
   formatDisplayValue: (value: unknown) => string;
   formatMedicationRegimen: (medication: Medication) => string;
   painScoreValue: number | null;
@@ -263,6 +434,9 @@ export function PatientMedicationsTab({
   const [medView, setMedView] = useState<'active' | 'discontinued' | 'all'>('active');
   const [filterAbx, setFilterAbx] = useState(false);
   const [filterPrn, setFilterPrn] = useState(false);
+  const [filterRoute, setFilterRoute] = useState<string | null>(null);
+  const [filterOutpatient, setFilterOutpatient] = useState(false);
+  const [detailMedication, setDetailMedication] = useState<Medication | null>(null);
   const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
   const [editForm, setEditForm] = useState({
     dose: '',
@@ -296,10 +470,18 @@ export function PatientMedicationsTab({
   const discontinuedCount = allDiscontinuedMeds.length;
   const totalCount = allOtherMeds.length;
 
+  // Outpatient medications
+  const allOutpatientMeds = outpatientMedications || [];
+  const outpatientCount = allOutpatientMeds.length;
+
   // Current base list depends on view mode
   const baseMeds = medView === 'active' ? activeOtherMeds : medView === 'discontinued' ? allDiscontinuedMeds : allOtherMeds;
   const prnCount = baseMeds.filter(isPrnOrStat).length;
   const abxCount = baseMeds.filter(isAntibiotic).length;
+
+  // Route counts for filter tags
+  const ivCount = baseMeds.filter((m) => /^IV/i.test(m.route || '')).length;
+  const poCount = baseMeds.filter((m) => /^PO/i.test(m.route || '')).length;
 
   // Sort: antibiotics first, then by name
   const sortOtherMeds = (meds: Medication[]) => [...meds].sort((a, b) => {
@@ -311,9 +493,13 @@ export function PatientMedicationsTab({
 
   const applyFilters = (meds: Medication[]) => meds
     .filter((m) => !filterPrn || isPrnOrStat(m))
-    .filter((m) => !filterAbx || isAntibiotic(m));
+    .filter((m) => !filterAbx || isAntibiotic(m))
+    .filter((m) => !filterRoute || (m.route || '').toUpperCase().startsWith(filterRoute))
+    .filter((m) => !filterOutpatient || m.sourceType === 'outpatient');
 
-  const displayedMeds = applyFilters(sortOtherMeds(baseMeds));
+  const clearSubFilters = () => { setFilterAbx(false); setFilterPrn(false); setFilterRoute(null); setFilterOutpatient(false); };
+
+  const displayedMeds = applyFilters(sortOtherMeds(filterOutpatient ? allOutpatientMeds : baseMeds));
   const canEditMedication = userRole === 'doctor' || userRole === 'pharmacist';
 
   const openMedicationEditor = (medication: Medication) => {
@@ -406,7 +592,7 @@ export function PatientMedicationsTab({
                   ) : (
                     <div className="space-y-2">
                       {activePainMeds.map((medication) => (
-                        <SanMedCard key={medication.id} medication={medication} canEdit={canEditMedication} patientId={patientId} onEdit={openMedicationEditor} />
+                        <SanMedCard key={medication.id} medication={medication} canEdit={canEditMedication} patientId={patientId} onEdit={openMedicationEditor} onDetail={setDetailMedication} />
                       ))}
                     </div>
                   )}
@@ -448,7 +634,7 @@ export function PatientMedicationsTab({
                   ) : (
                     <div className="space-y-2">
                       {activeSedationMeds.map((medication) => (
-                        <SanMedCard key={medication.id} medication={medication} canEdit={canEditMedication} patientId={patientId} onEdit={openMedicationEditor} />
+                        <SanMedCard key={medication.id} medication={medication} canEdit={canEditMedication} patientId={patientId} onEdit={openMedicationEditor} onDetail={setDetailMedication} />
                       ))}
                     </div>
                   )}
@@ -471,7 +657,7 @@ export function PatientMedicationsTab({
                 ) : (
                   <div className="space-y-2">
                     {activeNmbMeds.map((medication) => (
-                      <SanMedCard key={medication.id} medication={medication} canEdit={canEditMedication} patientId={patientId} onEdit={openMedicationEditor} />
+                      <SanMedCard key={medication.id} medication={medication} canEdit={canEditMedication} patientId={patientId} onEdit={openMedicationEditor} onDetail={setDetailMedication} />
                     ))}
                   </div>
                 )}
@@ -491,16 +677,16 @@ export function PatientMedicationsTab({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`h-7 px-3 text-xs rounded-md ${medView === 'all' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
-                    onClick={() => { setMedView('all'); setFilterAbx(false); setFilterPrn(false); }}
+                    className={`h-7 px-3 text-xs rounded-md ${medView === 'all' && !filterOutpatient ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                    onClick={() => { setMedView('all'); clearSubFilters(); }}
                   >
                     全部 ({totalCount})
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`h-7 px-3 text-xs rounded-md ${medView === 'active' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
-                    onClick={() => { setMedView('active'); setFilterAbx(false); setFilterPrn(false); }}
+                    className={`h-7 px-3 text-xs rounded-md ${medView === 'active' && !filterOutpatient ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                    onClick={() => { setMedView('active'); clearSubFilters(); }}
                   >
                     使用中 ({activeCount})
                   </Button>
@@ -508,30 +694,60 @@ export function PatientMedicationsTab({
                     variant="ghost"
                     size="sm"
                     disabled={discontinuedCount === 0}
-                    className={`h-7 px-3 text-xs rounded-md ${medView === 'discontinued' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
-                    onClick={() => { setMedView('discontinued'); setFilterAbx(false); setFilterPrn(false); }}
+                    className={`h-7 px-3 text-xs rounded-md ${medView === 'discontinued' && !filterOutpatient ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                    onClick={() => { setMedView('discontinued'); clearSubFilters(); }}
                   >
                     已停用 ({discontinuedCount})
                   </Button>
                 </div>
-                {abxCount > 0 && (
+                {outpatientCount > 0 && (
+                  <Button
+                    variant={filterOutpatient ? 'default' : 'outline'}
+                    size="sm"
+                    className={`h-7 px-2 text-xs ${filterOutpatient ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'border-blue-300 text-blue-700 hover:bg-blue-50'}`}
+                    onClick={() => { setFilterOutpatient(!filterOutpatient); if (!filterOutpatient) { setFilterAbx(false); setFilterPrn(false); setFilterRoute(null); } }}
+                  >
+                    門診用藥 ({outpatientCount})
+                  </Button>
+                )}
+                {abxCount > 0 && !filterOutpatient && (
                   <Button
                     variant={filterAbx ? 'default' : 'outline'}
                     size="sm"
                     className={`h-7 px-2 text-xs ${filterAbx ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'border-amber-300 text-amber-700 hover:bg-amber-50'}`}
-                    onClick={() => { setFilterAbx(!filterAbx); if (!filterAbx) setFilterPrn(false); }}
+                    onClick={() => { setFilterAbx(!filterAbx); if (!filterAbx) { setFilterPrn(false); setFilterRoute(null); } }}
                   >
                     抗生素 ({abxCount})
                   </Button>
                 )}
-                {prnCount > 0 && (
+                {prnCount > 0 && !filterOutpatient && (
                   <Button
                     variant={filterPrn ? 'default' : 'outline'}
                     size="sm"
                     className={`h-7 px-2 text-xs ${filterPrn ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'border-violet-300 text-violet-700 hover:bg-violet-50'}`}
-                    onClick={() => { setFilterPrn(!filterPrn); if (!filterPrn) setFilterAbx(false); }}
+                    onClick={() => { setFilterPrn(!filterPrn); if (!filterPrn) { setFilterAbx(false); setFilterRoute(null); } }}
                   >
                     PRN/STAT ({prnCount})
+                  </Button>
+                )}
+                {ivCount > 0 && !filterOutpatient && (
+                  <Button
+                    variant={filterRoute === 'IV' ? 'default' : 'outline'}
+                    size="sm"
+                    className={`h-7 px-2 text-xs ${filterRoute === 'IV' ? 'bg-teal-600 hover:bg-teal-700 text-white' : 'border-teal-300 text-teal-700 hover:bg-teal-50'}`}
+                    onClick={() => { setFilterRoute(filterRoute === 'IV' ? null : 'IV'); if (filterRoute !== 'IV') { setFilterAbx(false); setFilterPrn(false); } }}
+                  >
+                    IV ({ivCount})
+                  </Button>
+                )}
+                {poCount > 0 && !filterOutpatient && (
+                  <Button
+                    variant={filterRoute === 'PO' ? 'default' : 'outline'}
+                    size="sm"
+                    className={`h-7 px-2 text-xs ${filterRoute === 'PO' ? 'bg-cyan-600 hover:bg-cyan-700 text-white' : 'border-cyan-300 text-cyan-700 hover:bg-cyan-50'}`}
+                    onClick={() => { setFilterRoute(filterRoute === 'PO' ? null : 'PO'); if (filterRoute !== 'PO') { setFilterAbx(false); setFilterPrn(false); } }}
+                  >
+                    PO ({poCount})
                   </Button>
                 )}
               </div>
@@ -556,13 +772,16 @@ export function PatientMedicationsTab({
                     return (
                       <div
                         key={medication.id}
-                        className={`rounded-md border px-3 py-2 ${
+                        className={`rounded-md border px-3 py-2 cursor-pointer hover:shadow-md transition-shadow ${
                           discontinued
                             ? 'border-dashed border-gray-300 bg-gray-50 opacity-75'
-                            : abx
-                              ? 'bg-amber-50 border-amber-200'
-                              : 'bg-[rgba(196,196,196,0.15)]'
+                            : medication.sourceType === 'outpatient'
+                              ? 'bg-blue-50 border-blue-200'
+                              : abx
+                                ? 'bg-amber-50 border-amber-200'
+                                : 'bg-[rgba(196,196,196,0.15)]'
                         }`}
+                        onClick={() => setDetailMedication(medication)}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -587,6 +806,16 @@ export function PatientMedicationsTab({
                             {category && !abx && (
                               <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 ${category.color} ${discontinued ? 'opacity-60' : ''}`}>
                                 {category.label}
+                              </Badge>
+                            )}
+                            {medication.sourceType === 'outpatient' && (
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-blue-100 text-blue-700">
+                                門診
+                              </Badge>
+                            )}
+                            {medication.sourceCampus && (
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-slate-100 text-slate-600">
+                                {medication.sourceCampus}
                               </Badge>
                             )}
                           </div>
@@ -629,6 +858,12 @@ export function PatientMedicationsTab({
             trendData={scoreTrendData}
             scoreEntries={scoreEntries}
             onDeleteEntry={onDeleteScoreEntry}
+          />
+
+          <MedicationDetailModal
+            medication={detailMedication}
+            open={detailMedication !== null}
+            onClose={() => setDetailMedication(null)}
           />
 
           <Dialog open={editingMedication !== null} onOpenChange={(open) => { if (!open) closeMedicationEditor(); }}>
