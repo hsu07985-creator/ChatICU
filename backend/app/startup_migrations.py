@@ -34,6 +34,7 @@ async def run_all(engine: AsyncEngine) -> None:
     await _ensure_vital_signs_advanced(engine)
     await _ensure_medication_source_columns(engine)
     await _ensure_patient_campus(engine)
+    await _seed_outpatient_demo(engine)
     await _ensure_performance_indexes(engine)
 
 
@@ -527,3 +528,49 @@ async def _ensure_performance_indexes(engine: AsyncEngine) -> None:
             logger.info("[INTG][DB] dashboard performance indexes + FK constraints + JSONB migration ensured")
     except Exception as e:
         logger.warning("[INTG][DB] dashboard indexes failed (non-fatal): %s", e)
+
+
+async def _seed_outpatient_demo(engine: AsyncEngine) -> None:
+    """Seed 4 outpatient demo medications for pat_001 (idempotent)."""
+    meds = [
+        ("med_opd_001", "pat_001", "Tamsulosin", "Tamsulosin HCl", "0.4", "mg", "QD", "PO",
+         "BPH (良性攝護腺肥大)", "2025-09-15", "2026-03-15", "active",
+         "outpatient", "仁愛", "臺北市立聯合醫院", "泌尿科", "張德揚", 28, False),
+        ("med_opd_002", "pat_001", "Amlodipine", "Amlodipine Besylate", "5", "mg", "QD", "PO",
+         "Hypertension (高血壓)", "2025-06-01", "2026-06-01", "active",
+         "outpatient", "中興", "臺北市立聯合醫院", "心臟內科", "王建民", 28, False),
+        ("med_opd_003", "pat_001", "Metformin", "Metformin HCl", "500", "mg", "BID", "PO",
+         "DM type 2 (第二型糖尿病)", "2025-04-10", "2026-04-10", "active",
+         "outpatient", "陽明", "臺北市立聯合醫院", "新陳代謝科", "陳美玲", 28, False),
+        ("med_opd_004", "pat_001", "Atorvastatin", "Atorvastatin Calcium", "20", "mg", "QD HS", "PO",
+         "Hyperlipidemia (高血脂)", "2025-07-20", "2026-07-20", "active",
+         "outpatient", "忠孝", "臺北市立聯合醫院", "心臟內科", "林志明", 28, False),
+    ]
+    try:
+        async with engine.begin() as conn:
+            for m in meds:
+                exists = await conn.execute(
+                    text("SELECT 1 FROM medications WHERE id = :id"),
+                    {"id": m[0]},
+                )
+                if exists.fetchone():
+                    continue
+                await conn.execute(
+                    text(
+                        "INSERT INTO medications "
+                        "(id, patient_id, name, generic_name, dose, unit, frequency, route, "
+                        "indication, start_date, end_date, status, "
+                        "source_type, source_campus, prescribing_hospital, "
+                        "prescribing_department, prescribing_doctor_name, days_supply, is_external) "
+                        "VALUES (:id, :pid, :name, :gn, :dose, :unit, :freq, :route, "
+                        ":ind, :sd, :ed, :st, :src, :campus, :hosp, :dept, :doc, :days, :ext)"
+                    ),
+                    {"id": m[0], "pid": m[1], "name": m[2], "gn": m[3],
+                     "dose": m[4], "unit": m[5], "freq": m[6], "route": m[7],
+                     "ind": m[8], "sd": m[9], "ed": m[10], "st": m[11],
+                     "src": m[12], "campus": m[13], "hosp": m[14], "dept": m[15],
+                     "doc": m[16], "days": m[17], "ext": m[18]},
+                )
+            logger.info("[INTG][DB] outpatient demo medications seeded")
+    except Exception as e:
+        logger.warning("[INTG][DB] outpatient seed failed (non-fatal): %s", e)
