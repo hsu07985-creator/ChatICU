@@ -13,37 +13,35 @@ branch_labels = None
 depends_on = None
 
 
+def _add_column_if_not_exists(conn, table: str, column: str, col_type: str, default: str = "") -> None:
+    """Add a column only if it doesn't already exist (PostgreSQL)."""
+    result = conn.execute(sa.text(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name = :tbl AND column_name = :col"
+    ), {"tbl": table, "col": column}).fetchone()
+    if result:
+        return
+    default_clause = f" DEFAULT {default}" if default else ""
+    conn.execute(sa.text(f'ALTER TABLE {table} ADD COLUMN "{column}" {col_type}{default_clause}'))
+
+
 def upgrade() -> None:
+    conn = op.get_bind()
+
     # -- medications: 7 new columns for outpatient source tracking --
-    with op.batch_alter_table("medications") as batch_op:
-        batch_op.add_column(
-            sa.Column("source_type", sa.String(20), nullable=False, server_default="inpatient")
-        )
-        batch_op.add_column(
-            sa.Column("source_campus", sa.String(50), nullable=True)
-        )
-        batch_op.add_column(
-            sa.Column("prescribing_hospital", sa.String(200), nullable=True)
-        )
-        batch_op.add_column(
-            sa.Column("prescribing_department", sa.String(100), nullable=True)
-        )
-        batch_op.add_column(
-            sa.Column("prescribing_doctor_name", sa.String(100), nullable=True)
-        )
-        batch_op.add_column(
-            sa.Column("days_supply", sa.Integer(), nullable=True)
-        )
-        batch_op.add_column(
-            sa.Column("is_external", sa.Boolean(), nullable=False, server_default="0")
-        )
-        batch_op.create_index("ix_medications_source_type", ["source_type"])
+    _add_column_if_not_exists(conn, "medications", "source_type", "VARCHAR(20) NOT NULL", "'inpatient'")
+    _add_column_if_not_exists(conn, "medications", "source_campus", "VARCHAR(50)")
+    _add_column_if_not_exists(conn, "medications", "prescribing_hospital", "VARCHAR(200)")
+    _add_column_if_not_exists(conn, "medications", "prescribing_department", "VARCHAR(100)")
+    _add_column_if_not_exists(conn, "medications", "prescribing_doctor_name", "VARCHAR(100)")
+    _add_column_if_not_exists(conn, "medications", "days_supply", "INTEGER")
+    _add_column_if_not_exists(conn, "medications", "is_external", "BOOLEAN NOT NULL", "false")
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_medications_source_type ON medications (source_type)"
+    ))
 
     # -- patients: campus column --
-    with op.batch_alter_table("patients") as batch_op:
-        batch_op.add_column(
-            sa.Column("campus", sa.String(50), nullable=True)
-        )
+    _add_column_if_not_exists(conn, "patients", "campus", "VARCHAR(50)")
 
 
 def downgrade() -> None:

@@ -125,23 +125,28 @@ _DEMO_REPORTS = [
 
 
 def upgrade() -> None:
-    op.create_table(
-        "diagnostic_reports",
-        sa.Column("id", sa.String(50), primary_key=True),
-        sa.Column("patient_id", sa.String(50), sa.ForeignKey("patients.id", ondelete="RESTRICT"), nullable=False),
-        sa.Column("report_type", sa.String(50), nullable=False),
-        sa.Column("exam_name", sa.String(200), nullable=False),
-        sa.Column("exam_date", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("body_text", sa.Text(), nullable=False),
-        sa.Column("impression", sa.Text(), nullable=True),
-        sa.Column("reporter_name", sa.String(100), nullable=True),
-        sa.Column("status", sa.String(20), nullable=False, server_default=sa.text("'final'")),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-    )
-    op.create_index("ix_diagnostic_reports_patient_id", "diagnostic_reports", ["patient_id"])
+    conn = op.get_bind()
+
+    # Create table idempotently (may already exist from startup_migrations)
+    conn.execute(sa.text(
+        "CREATE TABLE IF NOT EXISTS diagnostic_reports ("
+        "id VARCHAR(50) PRIMARY KEY, "
+        "patient_id VARCHAR(50) NOT NULL REFERENCES patients(id) ON DELETE RESTRICT, "
+        "report_type VARCHAR(50) NOT NULL, "
+        "exam_name VARCHAR(200) NOT NULL, "
+        "exam_date TIMESTAMPTZ NOT NULL, "
+        "body_text TEXT NOT NULL, "
+        "impression TEXT, "
+        "reporter_name VARCHAR(100), "
+        "status VARCHAR(20) NOT NULL DEFAULT 'final', "
+        "created_at TIMESTAMPTZ DEFAULT NOW())"
+    ))
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_diagnostic_reports_patient_id "
+        "ON diagnostic_reports (patient_id)"
+    ))
 
     # Seed demo data
-    conn = op.get_bind()
     for r in _DEMO_REPORTS:
         exists = conn.execute(
             sa.text("SELECT 1 FROM diagnostic_reports WHERE id = :id"),
