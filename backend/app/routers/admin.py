@@ -526,73 +526,76 @@ async def fix_diagnostic_reports(
     db: AsyncSession = Depends(get_db),
 ):
     """One-time fix: create diagnostic_reports table and seed demo data."""
+    import traceback
     from sqlalchemy import text as sa_text
 
-    # Check alembic version
+    steps = []
     try:
-        result = await db.execute(sa_text("SELECT version_num FROM alembic_version"))
-        version = result.scalar()
-    except Exception:
-        version = "unknown"
+        # Step 1: Create table
+        await db.execute(sa_text(
+            "CREATE TABLE IF NOT EXISTS diagnostic_reports ("
+            "id VARCHAR(50) PRIMARY KEY, "
+            "patient_id VARCHAR(50) NOT NULL REFERENCES patients(id) ON DELETE RESTRICT, "
+            "report_type VARCHAR(50) NOT NULL, "
+            "exam_name VARCHAR(200) NOT NULL, "
+            "exam_date TIMESTAMPTZ NOT NULL, "
+            "body_text TEXT NOT NULL, "
+            "impression TEXT, "
+            "reporter_name VARCHAR(100), "
+            "status VARCHAR(20) NOT NULL DEFAULT 'final', "
+            "created_at TIMESTAMPTZ DEFAULT NOW())"
+        ))
+        await db.commit()
+        steps.append("table_created")
 
-    # Create table
-    await db.execute(sa_text(
-        "CREATE TABLE IF NOT EXISTS diagnostic_reports ("
-        "id VARCHAR(50) PRIMARY KEY, "
-        "patient_id VARCHAR(50) NOT NULL REFERENCES patients(id) ON DELETE RESTRICT, "
-        "report_type VARCHAR(50) NOT NULL, "
-        "exam_name VARCHAR(200) NOT NULL, "
-        "exam_date TIMESTAMPTZ NOT NULL, "
-        "body_text TEXT NOT NULL, "
-        "impression TEXT, "
-        "reporter_name VARCHAR(100), "
-        "status VARCHAR(20) NOT NULL DEFAULT 'final', "
-        "created_at TIMESTAMPTZ DEFAULT NOW())"
-    ))
-    await db.execute(sa_text(
-        "CREATE INDEX IF NOT EXISTS ix_diagnostic_reports_patient_id "
-        "ON diagnostic_reports (patient_id)"
-    ))
+        # Step 2: Create index
+        await db.execute(sa_text(
+            "CREATE INDEX IF NOT EXISTS ix_diagnostic_reports_patient_id "
+            "ON diagnostic_reports (patient_id)"
+        ))
+        await db.commit()
+        steps.append("index_created")
 
-    # Seed demo data
-    demos = [
-        ("rpt_001", "pat_001", "imaging", "CT Without C.M. Brain", "2025-10-20 10:30:00+08",
-         "CT of head without contrast enhancement shows:\n- s/p right lateral ventricle drainage. s/p left craniotomy and a left burr hole.\n- brain atrophy with prominent sulci, fissures and ventricles.\n- confluent hypodensity at the periventricular white matter.\n- old insult in the left patietal-occipital-temporal lobes.\n- lacunes at bilateral basal ganglia, thalami, and pons.\n- atherosclerosis with mural calcification in the intracranial arteries.",
-         "Brain atrophy. old insults and lacunes. post-operative changes.\nSuggest clinical correlation.",
-         "RAD12-王志明"),
-        ("rpt_002", "pat_001", "imaging", "Chest X-ray (Portable)", "2025-10-18 08:15:00+08",
-         "Portable AP view of the chest:\n- ETT tip at approximately 3 cm above the carina.\n- NG tube tip in the stomach.\n- Right subclavian CVC with tip in the SVC.\n- Bilateral diffuse ground-glass opacities, more prominent in the lower lobes.\n- No pneumothorax identified.\n- Mild cardiomegaly.",
-         "Bilateral diffuse infiltrates, compatible with ARDS or pulmonary edema.\nLines and tubes in satisfactory position.",
-         "RAD08-陳怡安"),
-        ("rpt_003", "pat_001", "procedure", "清醒腦波 EEG", "2025-11-05 14:00:00+08",
-         "Indication: conscious change\n\nFinding:\n1. Diffuse background slowing, theta predominant (5-6 Hz, 20-30 uV).\n2. Beta wave: 14-16 Hz, 5-10 uV.\n3. Hyperventilation: cannot cooperate.\n4. Photic sensitivity: no photic drive response.\n5. No epiletiform discharge.\n\nConclusion: the EEG findings suggest diffuse cortical dysfunction.",
-         "Diffuse cortical dysfunction. No epileptiform discharge.",
-         "DAX32-廖岐禮"),
-        ("rpt_004", "pat_001", "procedure", "Echocardiography (TTE)", "2025-10-25 11:00:00+08",
-         "Transthoracic echocardiography:\n- LV systolic function: mildly reduced, estimated EF 45%.\n- LV wall motion: global hypokinesis.\n- RV size and function: normal.\n- Valvular: mild MR, mild TR. No significant AS or AI.\n- No pericardial effusion.\n- IVC: dilated with <50% respiratory variation, estimated RAP 10-15 mmHg.",
-         "Mildly reduced LV systolic function with global hypokinesis (EF ~45%).\nMild MR/TR. Elevated estimated RAP.",
-         "CV05-林書豪"),
-        ("rpt_005", "pat_001", "imaging", "Chest CT with contrast", "2025-11-10 09:45:00+08",
-         "CT chest with IV contrast:\n- No pulmonary embolism identified.\n- Bilateral pleural effusions, moderate on right, small on left.\n- Bilateral dependent consolidations, likely atelectasis vs infection.\n- Diffuse ground-glass opacity in both lungs.\n- Mediastinal lymph nodes, borderline size (short axis up to 10mm).\n- ETT, CVC and NG tube in satisfactory position.",
-         "No PE. Bilateral pleural effusions and consolidations.\nDifferential includes atelectasis, infection, or ARDS.",
-         "RAD12-王志明"),
-    ]
-    inserted = 0
-    for d in demos:
-        exists = await db.execute(sa_text("SELECT 1 FROM diagnostic_reports WHERE id = :id"), {"id": d[0]})
-        if exists.fetchone():
-            continue
-        await db.execute(
-            sa_text(
-                "INSERT INTO diagnostic_reports (id, patient_id, report_type, exam_name, exam_date, body_text, impression, reporter_name) "
-                "VALUES (:id, :pid, :rt, :en, :ed, :bt, :imp, :rn)"
-            ),
-            {"id": d[0], "pid": d[1], "rt": d[2], "en": d[3], "ed": d[4], "bt": d[5], "imp": d[6], "rn": d[7]},
+        # Step 3: Seed demo data
+        demos = [
+            {"id": "rpt_001", "pid": "pat_001", "rt": "imaging", "en": "CT Without C.M. Brain", "ed": "2025-10-20 10:30:00+08",
+             "bt": "CT of head without contrast enhancement shows:\n- s/p right lateral ventricle drainage.\n- brain atrophy with prominent sulci.\n- confluent hypodensity at periventricular white matter.\n- old insult in left patietal-occipital-temporal lobes.\n- lacunes at bilateral basal ganglia, thalami, pons.\n- atherosclerosis in intracranial arteries.",
+             "imp": "Brain atrophy. old insults and lacunes. post-operative changes.\nSuggest clinical correlation.", "rn": "RAD12-王志明"},
+            {"id": "rpt_002", "pid": "pat_001", "rt": "imaging", "en": "Chest X-ray (Portable)", "ed": "2025-10-18 08:15:00+08",
+             "bt": "Portable AP view of the chest:\n- ETT tip at approximately 3 cm above carina.\n- NG tube tip in stomach.\n- Right subclavian CVC with tip in SVC.\n- Bilateral diffuse ground-glass opacities.\n- No pneumothorax. Mild cardiomegaly.",
+             "imp": "Bilateral diffuse infiltrates, compatible with ARDS or pulmonary edema.\nLines and tubes in satisfactory position.", "rn": "RAD08-陳怡安"},
+            {"id": "rpt_003", "pid": "pat_001", "rt": "procedure", "en": "清醒腦波 EEG", "ed": "2025-11-05 14:00:00+08",
+             "bt": "Indication: conscious change\n\nFinding:\n1. Diffuse background slowing, theta predominant.\n2. No epileptiform discharge.\n\nConclusion: diffuse cortical dysfunction.",
+             "imp": "Diffuse cortical dysfunction. No epileptiform discharge.", "rn": "DAX32-廖岐禮"},
+            {"id": "rpt_004", "pid": "pat_001", "rt": "procedure", "en": "Echocardiography (TTE)", "ed": "2025-10-25 11:00:00+08",
+             "bt": "TTE:\n- LV systolic function: mildly reduced, EF 45%.\n- Global hypokinesis.\n- Mild MR, mild TR.\n- No pericardial effusion.\n- IVC dilated, estimated RAP 10-15 mmHg.",
+             "imp": "Mildly reduced LV systolic function (EF ~45%).\nMild MR/TR. Elevated RAP.", "rn": "CV05-林書豪"},
+            {"id": "rpt_005", "pid": "pat_001", "rt": "imaging", "en": "Chest CT with contrast", "ed": "2025-11-10 09:45:00+08",
+             "bt": "CT chest with IV contrast:\n- No PE identified.\n- Bilateral pleural effusions.\n- Bilateral dependent consolidations.\n- Diffuse ground-glass opacity.\n- ETT, CVC and NG tube in satisfactory position.",
+             "imp": "No PE. Bilateral pleural effusions and consolidations.\nDifferential: atelectasis, infection, or ARDS.", "rn": "RAD12-王志明"},
+        ]
+        inserted = 0
+        for d in demos:
+            exists = await db.execute(sa_text("SELECT 1 FROM diagnostic_reports WHERE id = :id"), {"id": d["id"]})
+            if exists.fetchone():
+                continue
+            await db.execute(
+                sa_text(
+                    "INSERT INTO diagnostic_reports (id, patient_id, report_type, exam_name, exam_date, body_text, impression, reporter_name) "
+                    "VALUES (:id, :pid, :rt, :en, :ed, :bt, :imp, :rn)"
+                ), d,
+            )
+            inserted += 1
+        await db.commit()
+        steps.append(f"seeded_{inserted}")
+
+        return success_response(
+            data={"steps": steps, "inserted": inserted},
+            message=f"OK: {', '.join(steps)}",
         )
-        inserted += 1
-    await db.commit()
-
-    return success_response(
-        data={"alembic_version": version, "inserted": inserted},
-        message=f"diagnostic_reports table ensured, {inserted} reports seeded",
-    )
+    except Exception as e:
+        tb = traceback.format_exc()
+        return success_response(
+            data={"steps": steps, "error": str(e), "traceback": tb},
+            message=f"Failed at step after {steps}: {e}",
+        )
