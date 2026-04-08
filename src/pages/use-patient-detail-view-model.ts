@@ -7,6 +7,7 @@ interface MedicationGroups {
   sedation: Medication[];
   nmb: Medication[];
   other: Medication[];
+  outpatient: Medication[];
 }
 
 interface UsePatientDetailViewModelParams {

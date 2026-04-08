@@ -157,6 +157,7 @@ interface MedicationGroups {
   analgesia: Medication[];
   nmb: Medication[];
   other: Medication[];
+  outpatient: Medication[];
 }
 
 const EMPTY_MEDICATION_GROUPS: MedicationGroups = {
@@ -164,6 +165,7 @@ const EMPTY_MEDICATION_GROUPS: MedicationGroups = {
   analgesia: [],
   nmb: [],
   other: [],
+  outpatient: [],
 };
 
 const MED_CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
@@ -350,18 +352,23 @@ function deriveMedicationGroups(items: Medication[]): MedicationGroups {
     analgesia: [],
     nmb: [],
     other: [],
+    outpatient: [],
   };
 
   for (const med of items) {
-    const san = normalizeSanCategory(med.sanCategory);
-    if (san === 'S') {
-      grouped.sedation.push(med);
-    } else if (san === 'A') {
-      grouped.analgesia.push(med);
-    } else if (san === 'N') {
-      grouped.nmb.push(med);
+    if (med.sourceType === 'outpatient') {
+      grouped.outpatient.push(med);
     } else {
-      grouped.other.push(med);
+      const san = normalizeSanCategory(med.sanCategory);
+      if (san === 'S') {
+        grouped.sedation.push(med);
+      } else if (san === 'A') {
+        grouped.analgesia.push(med);
+      } else if (san === 'N') {
+        grouped.nmb.push(med);
+      } else {
+        grouped.other.push(med);
+      }
     }
   }
 
