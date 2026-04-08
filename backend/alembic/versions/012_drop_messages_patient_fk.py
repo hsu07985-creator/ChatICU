@@ -10,6 +10,7 @@ Create Date: 2026-03-04
 """
 
 from alembic import op
+from sqlalchemy import text
 
 revision = "012_drop_messages_patient_fk"
 down_revision = "011_medication_order_code"
@@ -18,11 +19,19 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.drop_constraint(
-        "patient_messages_patient_id_fkey",
-        "patient_messages",
-        type_="foreignkey",
-    )
+    conn = op.get_bind()
+    # Find the actual FK constraint name (may differ from assumed name)
+    result = conn.execute(text(
+        "SELECT conname FROM pg_constraint "
+        "WHERE conrelid = 'patient_messages'::regclass "
+        "AND contype = 'f' AND conkey @> ARRAY["
+        "(SELECT attnum FROM pg_attribute WHERE attrelid = 'patient_messages'::regclass AND attname = 'patient_id')"
+        "]"
+    ))
+    row = result.fetchone()
+    if row:
+        op.drop_constraint(row[0], "patient_messages", type_="foreignkey")
+    # If no FK exists, nothing to drop — safe to continue
 
 
 def downgrade() -> None:

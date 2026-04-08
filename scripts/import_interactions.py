@@ -12,6 +12,7 @@ the drug_interactions table. Replaces all existing rows.
 import asyncio
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -38,16 +39,25 @@ async def main():
     data = json.loads(seed_path.read_text("utf-8"))
     print(f"Loaded {len(data)} interactions")
 
-    # Import database engine
-    from app.database import engine
+    # Support direct DATABASE_URL override for remote DB import
+    remote_url = os.environ.get("REMOTE_DATABASE_URL")
+    if remote_url:
+        from sqlalchemy.ext.asyncio import create_async_engine
+        engine = create_async_engine(
+            remote_url, echo=False,
+            connect_args={
+                "command_timeout": 300,
+                "server_settings": {"statement_timeout": "300000"},
+                "statement_cache_size": 0,  # required for Supabase pooler
+            },
+        )
+        print(f"Using REMOTE_DATABASE_URL: {remote_url[:40]}...")
+    else:
+        from app.database import engine
     from sqlalchemy import text
 
+    # Ensure new columns exist (migration 028 fallback)
     async with engine.begin() as conn:
-        # Clear existing data
-        result = await conn.execute(text("DELETE FROM drug_interactions"))
-        print(f"Deleted {result.rowcount} existing rows")
-
-        # Ensure new columns exist (migration 028 fallback)
         for col, col_type in [
             ("dependencies", "TEXT"),
             ("dependency_types", "TEXT"),
@@ -63,47 +73,57 @@ async def main():
             except Exception:
                 pass
 
-        # Batch insert in chunks of 500
-        BATCH_SIZE = 500
-        inserted = 0
+    # For remote DB: skip DELETE, rely on ON CONFLICT to handle duplicates
+    if not remote_url:
+        async with engine.begin() as conn:
+            result = await conn.execute(text("DELETE FROM drug_interactions"))
+            print(f"Deleted {result.rowcount} existing rows")
+    else:
+        print("Remote DB: skipping DELETE, using ON CONFLICT DO NOTHING")
 
-        for batch_start in range(0, len(data), BATCH_SIZE):
-            batch = data[batch_start:batch_start + BATCH_SIZE]
-            rows = []
-            for ix in batch:
-                dedup_key = ix.get("dedup_key", "")
-                if not dedup_key:
-                    dedup_key = "||".join(sorted([
-                        ix["drug1"].lower(), ix["drug2"].lower()
-                    ]))
-                _id = "ddi_" + hashlib.sha1(dedup_key.encode()).hexdigest()[:12]
+    # Batch insert in chunks of 200 (each batch = separate transaction)
+    BATCH_SIZE = 200
+    inserted = 0
+    skipped = 0
 
-                rows.append({
-                    "id": _id,
-                    "drug1": ix["drug1"],
-                    "drug2": ix["drug2"],
-                    "severity": ix["severity"],
-                    "mechanism": ix.get("mechanism", ""),
-                    "clinical_effect": ix.get("clinical_effect", ""),
-                    "management": ix.get("management", ""),
-                    "references": ix.get("references", ""),
-                    "risk_rating": ix.get("risk_rating", ""),
-                    "risk_rating_description": ix.get("risk_rating_description", ""),
-                    "severity_label": ix.get("severity_label", ""),
-                    "reliability_rating": ix.get("reliability_rating", ""),
-                    "route_dependency": ix.get("route_dependency", ""),
-                    "discussion": ix.get("discussion", ""),
-                    "footnotes": ix.get("footnotes", ""),
-                    "dependencies": json.dumps(ix.get("dependencies", []), ensure_ascii=False) if ix.get("dependencies") else None,
-                    "dependency_types": json.dumps(ix.get("dependency_types", []), ensure_ascii=False) if ix.get("dependency_types") else None,
-                    "interacting_members": json.dumps(ix.get("interacting_members", []), ensure_ascii=False) if ix.get("interacting_members") else None,
-                    "pubmed_ids": json.dumps(ix.get("pubmed_ids", []), ensure_ascii=False) if ix.get("pubmed_ids") else None,
-                    "dedup_key": dedup_key,
-                    "body_hash": ix.get("body_hash", ""),
-                })
+    for batch_start in range(0, len(data), BATCH_SIZE):
+        batch = data[batch_start:batch_start + BATCH_SIZE]
+        rows = []
+        for ix in batch:
+            dedup_key = ix.get("dedup_key", "")
+            if not dedup_key:
+                dedup_key = "||".join(sorted([
+                    ix["drug1"].lower(), ix["drug2"].lower()
+                ]))
+            _id = "ddi_" + hashlib.sha1(dedup_key.encode()).hexdigest()[:12]
 
-            # Use executemany-style insert
-            if rows:
+            rows.append({
+                "id": _id,
+                "drug1": ix["drug1"],
+                "drug2": ix["drug2"],
+                "severity": ix["severity"],
+                "mechanism": ix.get("mechanism", ""),
+                "clinical_effect": ix.get("clinical_effect", ""),
+                "management": ix.get("management", ""),
+                "references": ix.get("references", ""),
+                "risk_rating": ix.get("risk_rating", ""),
+                "risk_rating_description": ix.get("risk_rating_description", ""),
+                "severity_label": ix.get("severity_label", ""),
+                "reliability_rating": ix.get("reliability_rating", ""),
+                "route_dependency": ix.get("route_dependency", ""),
+                "discussion": ix.get("discussion", ""),
+                "footnotes": ix.get("footnotes", ""),
+                "dependencies": json.dumps(ix.get("dependencies", []), ensure_ascii=False) if ix.get("dependencies") else None,
+                "dependency_types": json.dumps(ix.get("dependency_types", []), ensure_ascii=False) if ix.get("dependency_types") else None,
+                "interacting_members": json.dumps(ix.get("interacting_members", []), ensure_ascii=False) if ix.get("interacting_members") else None,
+                "pubmed_ids": json.dumps(ix.get("pubmed_ids", []), ensure_ascii=False) if ix.get("pubmed_ids") else None,
+                "dedup_key": dedup_key,
+                "body_hash": ix.get("body_hash", ""),
+            })
+
+        # Each batch in its own transaction to avoid long-held locks
+        if rows:
+            async with engine.begin() as conn:
                 cols = list(rows[0].keys())
                 placeholders = ", ".join(f":{c}" for c in cols)
                 col_names = ", ".join(f'"{c}"' for c in cols)
@@ -112,12 +132,15 @@ async def main():
                     f"ON CONFLICT (id) DO NOTHING"
                 )
                 for row in rows:
-                    await conn.execute(stmt.bindparams(**row))
-                inserted += len(rows)
+                    result = await conn.execute(stmt.bindparams(**row))
+                    if result.rowcount > 0:
+                        inserted += 1
+                    else:
+                        skipped += 1
 
-            print(f"  Inserted {inserted}/{len(data)}...", end="\r")
+        print(f"  Progress: {batch_start + len(batch)}/{len(data)} (inserted={inserted}, skipped={skipped})...", end="\r")
 
-        print(f"\nDone! Inserted {inserted} rows into drug_interactions")
+    print(f"\nDone! Inserted {inserted}, skipped {skipped} (duplicates)")
 
     # Verify
     async with engine.connect() as conn:

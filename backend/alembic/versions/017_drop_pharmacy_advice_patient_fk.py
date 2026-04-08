@@ -6,14 +6,21 @@ branch_labels = None
 depends_on = None
 
 from alembic import op
+from sqlalchemy import text
 
 
 def upgrade():
-    op.drop_constraint(
-        "fk_pharmacy_advices_patient_id",
-        "pharmacy_advices",
-        type_="foreignkey",
-    )
+    conn = op.get_bind()
+    result = conn.execute(text(
+        "SELECT conname FROM pg_constraint "
+        "WHERE conrelid = 'pharmacy_advices'::regclass "
+        "AND contype = 'f' AND conkey @> ARRAY["
+        "(SELECT attnum FROM pg_attribute WHERE attrelid = 'pharmacy_advices'::regclass AND attname = 'patient_id')"
+        "]"
+    ))
+    row = result.fetchone()
+    if row:
+        op.drop_constraint(row[0], "pharmacy_advices", type_="foreignkey")
 
 
 def downgrade():

@@ -76,6 +76,12 @@ def upgrade() -> None:
     # Clear any partial data from 024's failed seed attempt
     op.execute(sa.text("DELETE FROM culture_results"))
 
+    # Only seed if patients exist (they may not on fresh DB — seed_data.py handles later)
+    conn = op.get_bind()
+    patient_count = conn.execute(sa.text("SELECT count(*) FROM patients")).scalar()
+    if patient_count == 0:
+        return
+
     # Re-seed with proper JSONB casting
     for pid, sheet, spec, spec_code, dept, col_at, rep_at, iso, susc in SEED_CULTURES:
         cid = f"culture_{uuid.uuid4().hex[:12]}"

@@ -107,6 +107,12 @@ def upgrade() -> None:
     )
 
     # Seed demo culture data via raw SQL for reliable JSONB handling
+    # Only seed if patients exist (fresh DB may not have them yet)
+    conn = op.get_bind()
+    patient_count = conn.execute(sa.text("SELECT count(*) FROM patients")).scalar()
+    if patient_count == 0:
+        return
+
     for pid, sheet, spec, spec_code, dept, col_at, rep_at, iso, susc in SEED_CULTURES:
         cid = f"culture_{uuid.uuid4().hex[:12]}"
         op.execute(

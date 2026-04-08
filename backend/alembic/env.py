@@ -39,10 +39,20 @@ def do_run_migrations(connection) -> None:
 
 
 async def run_async_migrations() -> None:
+    # Supabase pooler compatibility: disable prepared statement cache
+    connect_args = {}
+    db_url = config.get_main_option("sqlalchemy.url", "")
+    if "pooler.supabase.com" in db_url or "supabase" in db_url:
+        connect_args = {
+            "statement_cache_size": 0,
+            "command_timeout": 300,
+            "server_settings": {"statement_timeout": "300000"},
+        }
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=connect_args,
     )
 
     async with connectable.connect() as connection:
