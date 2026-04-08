@@ -169,10 +169,10 @@ export interface DrugInteractionSearchResponse {
 export async function getDrugInteractions(params: {
   drugA: string;
   drugB?: string;
-}): Promise<DrugInteractionSearchResponse> {
+}, options?: { suppressErrorToast?: boolean }): Promise<DrugInteractionSearchResponse> {
   const response = await apiClient.get<ApiResponse<DrugInteractionSearchResponse>>(
     '/pharmacy/drug-interactions',
-    { params }
+    { params, suppressErrorToast: options?.suppressErrorToast }
   );
   return ensureData(response.data, 'API contract');
 }
@@ -293,6 +293,25 @@ export interface AdviceRecordStats {
 export async function getAdviceRecordStats(params?: { month?: string }): Promise<AdviceRecordStats> {
   const response = await apiClient.get<ApiResponse<AdviceRecordStats>>(
     '/pharmacy/advice-records/stats',
+    { params }
+  );
+  return ensureData(response.data, 'API contract');
+}
+
+// ========== 標籤統計 ==========
+
+export interface TagStatItem {
+  tag: string;
+  count: number;
+}
+
+export interface TagStatsResponse {
+  tagStats: TagStatItem[];
+}
+
+export async function getAdviceTagStats(params?: { month?: string }): Promise<TagStatsResponse> {
+  const response = await apiClient.get<ApiResponse<TagStatsResponse>>(
+    '/pharmacy/advice-records/tag-stats',
     { params }
   );
   return ensureData(response.data, 'API contract');

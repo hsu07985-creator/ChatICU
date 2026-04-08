@@ -161,7 +161,7 @@ export function DrugInteractionsPage() {
       for (let i = 0; i < validDrugs.length; i++) {
         for (let j = i + 1; j < validDrugs.length; j++) {
           try {
-            const resp = await getDrugInteractions({ drugA: validDrugs[i], drugB: validDrugs[j] });
+            const resp = await getDrugInteractions({ drugA: validDrugs[i], drugB: validDrugs[j] }, { suppressErrorToast: true });
             const rows = resp.interactions || [];
             for (let idx = 0; idx < rows.length; idx++) {
               const r = rows[idx] as any;

@@ -120,21 +120,25 @@ async def search_drug_interactions(
     db: AsyncSession = Depends(get_db),
 ):
     # 1) Try drug graph first
-    resolved_a = drug_graph_bridge.resolve_drug(drugA)
-    resolved_b = drug_graph_bridge.resolve_drug(drugB) if drugB else None
+    try:
+        resolved_a = drug_graph_bridge.resolve_drug(drugA)
+        resolved_b = drug_graph_bridge.resolve_drug(drugB) if drugB else None
 
-    if resolved_a:
-        graph_results = drug_graph_bridge.search_interactions(
-            drugA=resolved_a, drugB=resolved_b,
-        )
-        if graph_results:
-            return success_response(data={
-                "interactions": graph_results,
-                "total": len(graph_results),
-                "page": 1,
-                "limit": limit,
-                "source": "drug_graph",
-            })
+        if resolved_a:
+            graph_results = drug_graph_bridge.search_interactions(
+                drugA=resolved_a, drugB=resolved_b,
+            )
+            if graph_results:
+                return success_response(data={
+                    "interactions": graph_results,
+                    "total": len(graph_results),
+                    "page": 1,
+                    "limit": limit,
+                    "source": "drug_graph",
+                })
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("drug_graph_bridge error (falling back to DB): %s", e)
 
     # 2) Fallback to database
     query = select(DrugInteraction).where(_drug_match(drugA))
