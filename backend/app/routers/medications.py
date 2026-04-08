@@ -58,13 +58,13 @@ def med_to_dict(med: Medication) -> dict:
         "notes": med.notes,
         "concentration": med.concentration,
         "concentrationUnit": med.concentration_unit,
-        "sourceType": med.source_type or "inpatient",
-        "sourceCampus": med.source_campus,
-        "prescribingHospital": med.prescribing_hospital,
-        "prescribingDepartment": med.prescribing_department,
-        "prescribingDoctorName": med.prescribing_doctor_name,
-        "daysSupply": med.days_supply,
-        "isExternal": med.is_external or False,
+        "sourceType": getattr(med, "source_type", None) or "inpatient",
+        "sourceCampus": getattr(med, "source_campus", None),
+        "prescribingHospital": getattr(med, "prescribing_hospital", None),
+        "prescribingDepartment": getattr(med, "prescribing_department", None),
+        "prescribingDoctorName": getattr(med, "prescribing_doctor_name", None),
+        "daysSupply": getattr(med, "days_supply", None),
+        "isExternal": getattr(med, "is_external", False) or False,
     }
 
 
@@ -127,7 +127,7 @@ async def list_medications(
     grouped = {"sedation": [], "analgesia": [], "nmb": [], "other": [], "outpatient": []}
     for med in medications:
         d = med_to_dict(med)
-        if (med.source_type or "inpatient") == "outpatient":
+        if (getattr(med, "source_type", None) or "inpatient") == "outpatient":
             grouped["outpatient"].append(d)
         else:
             cat = normalize_san_category(med.san_category) or "other"

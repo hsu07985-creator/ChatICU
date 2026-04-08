@@ -32,6 +32,8 @@ async def run_all(engine: AsyncEngine) -> None:
     await _ensure_culture_extra_columns(engine)
     await _ensure_venous_blood_gas(engine)
     await _ensure_vital_signs_advanced(engine)
+    await _ensure_medication_source_columns(engine)
+    await _ensure_patient_campus(engine)
     await _ensure_performance_indexes(engine)
 
 
@@ -440,6 +442,49 @@ async def _ensure_vital_signs_advanced(engine: AsyncEngine) -> None:
             ))
     except Exception as e:
         logger.warning("[INTG][DB] vital_signs advanced columns failed (non-fatal): %s", e)
+
+
+async def _ensure_medication_source_columns(engine: AsyncEngine) -> None:
+    """Migration 048 fallback: add outpatient source columns to medications."""
+    new_cols = [
+        ("source_type", "VARCHAR(20) NOT NULL DEFAULT 'inpatient'"),
+        ("source_campus", "VARCHAR(50)"),
+        ("prescribing_hospital", "VARCHAR(200)"),
+        ("prescribing_department", "VARCHAR(100)"),
+        ("prescribing_doctor_name", "VARCHAR(100)"),
+        ("days_supply", "INTEGER"),
+        ("is_external", "BOOLEAN NOT NULL DEFAULT FALSE"),
+    ]
+    try:
+        async with engine.begin() as conn:
+            for col_name, col_type in new_cols:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE medications ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                    ))
+                except Exception:
+                    pass
+            try:
+                await conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS ix_medications_source_type ON medications (source_type)"
+                ))
+            except Exception:
+                pass
+        logger.info("[INTG][DB] medications source columns ensured (migration 048 fallback)")
+    except Exception as e:
+        logger.warning("[INTG][DB] medications source columns failed (non-fatal): %s", e)
+
+
+async def _ensure_patient_campus(engine: AsyncEngine) -> None:
+    """Migration 048 fallback: add campus column to patients."""
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text(
+                "ALTER TABLE patients ADD COLUMN IF NOT EXISTS campus VARCHAR(50)"
+            ))
+        logger.info("[INTG][DB] patients.campus column ensured (migration 048 fallback)")
+    except Exception as e:
+        logger.warning("[INTG][DB] patients.campus column failed (non-fatal): %s", e)
 
 
 async def _ensure_performance_indexes(engine: AsyncEngine) -> None:
