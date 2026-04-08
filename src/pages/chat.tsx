@@ -4,9 +4,9 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Textarea } from '../components/ui/textarea';
 import { ScrollArea } from '../components/ui/scroll-area';
-import { Send, Pin, MessageSquare, RefreshCw, AtSign, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
+import { Send, Pin, MessageSquare, RefreshCw, AtSign, ChevronDown, ChevronRight, ExternalLink, Trash2 } from 'lucide-react';
 import { useAuth } from '../lib/auth-context';
-import { getTeamChatMessages, sendTeamChatMessage, postAnnouncement, togglePinMessage, TeamChatMessage } from '../lib/api/team-chat';
+import { getTeamChatMessages, sendTeamChatMessage, postAnnouncement, togglePinMessage, deleteTeamChatMessage, TeamChatMessage } from '../lib/api/team-chat';
 import { getMyMentions, type MentionGroup } from '../lib/api/messages';
 import { LoadingSpinner } from '../components/ui/state-display';
 import { toast } from 'sonner';
@@ -196,6 +196,16 @@ export function ChatPage() {
     }
   };
 
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      await deleteTeamChatMessage(messageId);
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      toast.success('訊息已刪除');
+    } catch {
+      toast.error('刪除失敗，請稍後再試');
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -274,16 +284,29 @@ export function ChatPage() {
                             </Badge>
                           )}
                         </div>
-                        {/* 釘選按鈕 - hover 時顯示 */}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={`opacity-0 group-hover:opacity-100 transition-opacity ${msg.pinned ? 'text-[#f59e0b]' : 'text-muted-foreground hover:text-[#f59e0b]'}`}
-                          onClick={() => handleTogglePin(msg.id)}
-                          title={msg.pinned ? '取消釘選' : '釘選此訊息'}
-                        >
-                          <Pin className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          {/* 釘選按鈕 - hover 時顯示 */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={`opacity-0 group-hover:opacity-100 transition-opacity ${msg.pinned ? 'text-[#f59e0b]' : 'text-muted-foreground hover:text-[#f59e0b]'}`}
+                            onClick={() => handleTogglePin(msg.id)}
+                            title={msg.pinned ? '取消釘選' : '釘選此訊息'}
+                          >
+                            <Pin className="h-4 w-4" />
+                          </Button>
+                          {user?.role === 'admin' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600 hover:bg-red-50"
+                              onClick={() => handleDeleteMessage(msg.id)}
+                              title="刪除訊息"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <p className="text-base text-foreground leading-relaxed">{msg.content}</p>
                     </div>

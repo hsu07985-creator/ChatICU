@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.middleware.auth import get_current_user
+from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log
 from app.models.message import PatientMessage
 from app.models.user import User
@@ -540,3 +540,28 @@ async def update_message_tags(
     )
 
     return success_response(data=msg_to_dict(msg), message="標籤已更新")
+
+
+@router.delete("/{message_id}")
+async def delete_patient_message(
+    patient_id: str,
+    message_id: str,
+    request: Request,
+    user: User = Depends(require_roles("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(PatientMessage).where(PatientMessage.id == message_id)
+    )
+    msg = result.scalar_one_or_none()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    await db.delete(msg)
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="刪除病患留言", target=message_id, status="success",
+        ip=request.client.host if request.client else None,
+        details={"patient_id": patient_id},
+    )
+    return success_response(message="訊息已刪除")

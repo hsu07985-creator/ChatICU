@@ -193,6 +193,14 @@ export async function deleteCustomTag(
   );
 }
 
+// 刪除留言（admin only）
+export async function deletePatientMessage(
+  patientId: string,
+  messageId: string
+): Promise<void> {
+  await apiClient.delete(`/patients/${patientId}/messages/${messageId}`);
+}
+
 // 更新留言標籤
 export async function updateMessageTags(
   patientId: string,

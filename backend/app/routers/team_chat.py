@@ -7,7 +7,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.middleware.auth import get_current_user
+from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log
 from app.models.chat_message import TeamChatMessage
 from app.models.user import User
@@ -232,3 +232,27 @@ async def toggle_pin_message(
 
     action = "已置頂" if msg.pinned else "已取消置頂"
     return success_response(data=chat_to_dict(msg), message=f"訊息{action}")
+
+
+@router.delete("/{message_id}")
+async def delete_team_chat_message(
+    message_id: str,
+    request: Request,
+    user: User = Depends(require_roles("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(TeamChatMessage).where(TeamChatMessage.id == message_id)
+    )
+    msg = result.scalar_one_or_none()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    await db.delete(msg)
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="刪除團隊訊息", target=message_id, status="success",
+        ip=request.client.host if request.client else None,
+    )
+    await db.commit()
+    return success_response(message="訊息已刪除")

@@ -701,6 +701,19 @@ export function PatientDetailPage() {
     }
   }, [id, refreshMessagesOnly]);
 
+  // 刪除留言（admin only）
+  const handleDeleteMessage = useCallback(async (messageId: string) => {
+    if (!id) return;
+    try {
+      await messagesApi.deletePatientMessage(id, messageId);
+      toast.success('留言已刪除');
+      await refreshMessagesOnly();
+    } catch (err) {
+      console.error('刪除留言失敗:', err);
+      toast.error('刪除留言失敗');
+    }
+  }, [id, refreshMessagesOnly]);
+
   // 全部標為已讀
   const handleMarkAllRead = useCallback(async () => {
     if (!id) return;
@@ -1681,6 +1694,7 @@ export function PatientDetailPage() {
           onDeleteCustomTag={handleDeleteCustomTag}
           onUpdateTags={handleUpdateMessageTags}
           onRespondToAdvice={handleRespondToAdvice}
+          onDeleteMessage={handleDeleteMessage}
         />
 
         {/* 病歷記錄 */}

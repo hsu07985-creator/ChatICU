@@ -59,6 +59,13 @@ export async function togglePinMessage(messageId: string): Promise<{ messageId: 
   return ensureData(response.data, 'API contract');
 }
 
+/**
+ * 刪除團隊聊天訊息（admin only）
+ */
+export async function deleteTeamChatMessage(messageId: string): Promise<void> {
+  await apiClient.delete(`/team/chat/${messageId}`);
+}
+
 // 導出所有 API 函數
 export const teamChatApi = {
   getMessages: getTeamChatMessages,

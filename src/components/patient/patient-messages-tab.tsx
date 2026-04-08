@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, AlertCircle, CheckCircle2, ChevronRight, Clock, Filter, MessagesSquare, Pill, Plus, Reply, Shield, Stethoscope, Tag, ThumbsDown, ThumbsUp, User, Send, X, XCircle } from 'lucide-react';
+import { Activity, AlertCircle, CheckCircle2, ChevronRight, Clock, Filter, MessagesSquare, Pill, Plus, Reply, Shield, Stethoscope, Tag, ThumbsDown, ThumbsUp, Trash2, User, Send, X, XCircle } from 'lucide-react';
 import type { UserRole } from '../../lib/auth-context';
 import type { PatientMessage } from '../../lib/api';
 import { Badge } from '../ui/badge';
@@ -45,6 +45,7 @@ interface PatientMessagesTabProps {
   onDeleteCustomTag?: (tagId: string) => void | Promise<void>;
   onUpdateTags: (messageId: string, data: { add?: string[]; remove?: string[] }) => void | Promise<void>;
   onRespondToAdvice: (adviceRecordId: string, accepted: boolean) => void | Promise<void>;
+  onDeleteMessage?: (messageId: string) => void | Promise<void>;
 }
 
 const ROLE_CONFIG: Record<string, { icon: typeof Pill; color: string; label: string }> = {
@@ -302,6 +303,7 @@ export function PatientMessagesTab({
   onDeleteCustomTag,
   onUpdateTags,
   onRespondToAdvice,
+  onDeleteMessage,
 }: PatientMessagesTabProps) {
   const [replyToId, setReplyToId] = useState<string | null>(null);
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
@@ -739,6 +741,17 @@ export function PatientMessagesTab({
                                     不接受
                                   </Button>
                                 </>
+                              )}
+                              {userRole === 'admin' && onDeleteMessage && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs text-red-500 hover:bg-red-50 hover:text-red-700"
+                                  onClick={() => onDeleteMessage(message.id)}
+                                >
+                                  <Trash2 className="h-3 w-3 mr-1" />
+                                  刪除
+                                </Button>
                               )}
                             </div>
                           </div>
