@@ -781,7 +781,7 @@ async def _ensure_diagnostic_reports(engine: AsyncEngine) -> None:
 
 
 async def _migrate_vpn_letter_codes(engine: AsyncEngine) -> None:
-    """Migrate advice_code from numeric to VPN letter format (idempotent)."""
+    """Migrate advice_code and tags from numeric to VPN letter format (idempotent)."""
     CODE_MAP = {
         "1-1": "1-A", "1-2": "1-B", "1-3": "1-C", "1-4": "1-D",
         "1-5": "1-E", "1-6": "1-F", "1-7": "1-G", "1-8": "1-H",
@@ -794,23 +794,68 @@ async def _migrate_vpn_letter_codes(engine: AsyncEngine) -> None:
     }
     try:
         async with engine.begin() as conn:
-            # Check if any old-format codes still exist
+            migrated = 0
+
+            # 1. Migrate pharmacy_advices.advice_code
             result = await conn.execute(text(
                 "SELECT COUNT(*) FROM pharmacy_advices WHERE advice_code ~ '^[0-9]+-[0-9]+$'"
             ))
-            old_count = result.scalar() or 0
-            if old_count == 0:
+            old_advice_count = result.scalar() or 0
+            if old_advice_count > 0:
+                for old, new in CODE_MAP.items():
+                    await conn.execute(text(
+                        "UPDATE pharmacy_advices SET advice_code = :new WHERE advice_code = :old"
+                    ), {"old": old, "new": new})
+                migrated += old_advice_count
+
+            # 2. Migrate patient_messages.advice_code
+            result = await conn.execute(text(
+                "SELECT COUNT(*) FROM patient_messages WHERE advice_code ~ '^[0-9]+-[0-9]+$'"
+            ))
+            old_msg_code_count = result.scalar() or 0
+            if old_msg_code_count > 0:
+                for old, new in CODE_MAP.items():
+                    await conn.execute(text(
+                        "UPDATE patient_messages SET advice_code = :new WHERE advice_code = :old"
+                    ), {"old": old, "new": new})
+                migrated += old_msg_code_count
+
+            # 3. Migrate tags JSONB array in patient_messages
+            # Replace old-format tags like "1-1 給藥問題" → "1-A 給藥問題"
+            result = await conn.execute(text(
+                "SELECT COUNT(*) FROM patient_messages "
+                "WHERE tags IS NOT NULL AND tags::text ~ '\"[0-9]+-[0-9]'"
+            ))
+            old_tag_count = result.scalar() or 0
+            if old_tag_count > 0:
+                for old, new in CODE_MAP.items():
+                    # Simple text replacement in the JSONB text representation
+                    # Replace "OLD " prefix (with space, for readable tags like "1-1 給藥問題")
+                    await conn.execute(text(
+                        "UPDATE patient_messages "
+                        "SET tags = replace(tags::text, :old_tag, :new_tag)::jsonb "
+                        "WHERE tags::text LIKE :search"
+                    ), {
+                        "old_tag": f'"{old} ',
+                        "new_tag": f'"{new} ',
+                        "search": f'%"{old} %',
+                    })
+                    # Replace bare "OLD" code (exact match in array)
+                    await conn.execute(text(
+                        "UPDATE patient_messages "
+                        "SET tags = replace(tags::text, :old_bare, :new_bare)::jsonb "
+                        "WHERE tags::text LIKE :search"
+                    ), {
+                        "old_bare": f'"{old}"',
+                        "new_bare": f'"{new}"',
+                        "search": f'%"{old}"%',
+                    })
+                migrated += old_tag_count
+
+            if migrated > 0:
+                logger.info("[INTG][DB] VPN letter codes migrated (%d advice + %d msg codes + %d msg tags)",
+                            old_advice_count, old_msg_code_count, old_tag_count)
+            else:
                 logger.info("[INTG][DB] VPN letter codes already migrated, skipping")
-                return
-
-            for old, new in CODE_MAP.items():
-                await conn.execute(text(
-                    "UPDATE pharmacy_advices SET advice_code = :new WHERE advice_code = :old"
-                ), {"old": old, "new": new})
-                await conn.execute(text(
-                    "UPDATE patient_messages SET advice_code = :new WHERE advice_code = :old"
-                ), {"old": old, "new": new})
-
-            logger.info("[INTG][DB] VPN letter codes migrated (%d records)", old_count)
     except Exception as e:
         logger.warning("[INTG][DB] VPN letter code migration failed (non-fatal): %s", e)
