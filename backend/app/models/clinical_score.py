@@ -12,7 +12,7 @@ class ClinicalScore(Base):
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
     patient_id: Mapped[str] = mapped_column(
-        String(50), ForeignKey("patients.id", ondelete="CASCADE"), index=True
+        String(50), ForeignKey("patients.id", ondelete="RESTRICT"), index=True
     )
     score_type: Mapped[str] = mapped_column(String(20))  # "pain" or "rass"
     value: Mapped[int] = mapped_column(Integer)

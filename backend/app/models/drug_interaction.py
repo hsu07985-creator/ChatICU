@@ -2,6 +2,7 @@ from typing import Optional
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -25,10 +26,10 @@ class DrugInteraction(Base):
     route_dependency: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     discussion: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     footnotes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    dependencies: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array of dependency strings
-    dependency_types: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array e.g. ["Route","Age"]
-    interacting_members: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array of groups
-    pubmed_ids: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON array of PubMed ID strings
+    dependencies: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    dependency_types: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    interacting_members: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    pubmed_ids: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     dedup_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True, unique=True)
     body_hash: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(

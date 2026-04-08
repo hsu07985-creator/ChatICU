@@ -589,7 +589,7 @@ async def interaction_check(
 
     def _pair_on_different_sides(row, da: str, db_: str) -> bool:
         """Ensure da and db_ match different sides of the interaction."""
-        members = json.loads(row.interacting_members) if row.interacting_members else []
+        members = row.interacting_members if isinstance(row.interacting_members, list) else (json.loads(row.interacting_members) if row.interacting_members else [])
         d1_l = (row.drug1 or "").lower()
         d2_l = (row.drug2 or "").lower()
         side1 = {d1_l}
@@ -641,10 +641,10 @@ async def interaction_check(
                     "route_dependency": row.route_dependency or "",
                     "discussion": row.discussion or "",
                     "footnotes": row.footnotes or "",
-                    "dependencies": json.loads(row.dependencies) if row.dependencies else [],
-                    "dependency_types": json.loads(row.dependency_types) if row.dependency_types else [],
-                    "interacting_members": json.loads(row.interacting_members) if row.interacting_members else [],
-                    "pubmed_ids": json.loads(row.pubmed_ids) if row.pubmed_ids else [],
+                    "dependencies": row.dependencies if isinstance(row.dependencies, list) else (json.loads(row.dependencies) if row.dependencies else []),
+                    "dependency_types": row.dependency_types if isinstance(row.dependency_types, list) else (json.loads(row.dependency_types) if row.dependency_types else []),
+                    "interacting_members": row.interacting_members if isinstance(row.interacting_members, list) else (json.loads(row.interacting_members) if row.interacting_members else []),
+                    "pubmed_ids": row.pubmed_ids if isinstance(row.pubmed_ids, list) else (json.loads(row.pubmed_ids) if row.pubmed_ids else []),
                     "source": "database",
                 })
 

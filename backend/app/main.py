@@ -564,16 +564,25 @@ async def lifespan(app: FastAPI):
             await conn.execute(_t_idx(
                 "DO $$ BEGIN "
                 "ALTER TABLE clinical_scores ADD CONSTRAINT fk_clinical_scores_patient "
-                "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE; "
+                "FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE RESTRICT; "
                 "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
             ))
             await conn.execute(_t_idx(
                 "DO $$ BEGIN "
                 "ALTER TABLE custom_tags ADD CONSTRAINT fk_custom_tags_created_by "
-                "FOREIGN KEY (created_by_id) REFERENCES users(id) ON DELETE CASCADE; "
+                "FOREIGN KEY (created_by_id) REFERENCES users(id) ON DELETE RESTRICT; "
                 "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
             ))
-            logger.info("[INTG][DB] dashboard performance indexes + FK constraints ensured")
+            # Convert drug_interactions JSON-as-Text columns to JSONB
+            for col in ("dependencies", "dependency_types", "interacting_members", "pubmed_ids"):
+                try:
+                    await conn.execute(_t_idx(
+                        f"ALTER TABLE drug_interactions "
+                        f"ALTER COLUMN {col} TYPE JSONB USING {col}::jsonb"
+                    ))
+                except Exception:
+                    pass  # already JSONB or column missing
+            logger.info("[INTG][DB] dashboard performance indexes + FK constraints + JSONB migration ensured")
     except Exception as e:
         logger.warning("[INTG][DB] dashboard indexes failed (non-fatal): %s", e)
 

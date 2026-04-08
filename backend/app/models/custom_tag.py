@@ -12,7 +12,7 @@ class CustomTag(Base):
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
     name: Mapped[str] = mapped_column(String(30), unique=True, index=True)
     created_by_id: Mapped[str] = mapped_column(
-        String(50), ForeignKey("users.id", ondelete="CASCADE")
+        String(50), ForeignKey("users.id", ondelete="RESTRICT")
     )
     created_by_name: Mapped[str] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(

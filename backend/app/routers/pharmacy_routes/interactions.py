@@ -30,9 +30,12 @@ def _drug_match(drug_name: str):
     )
 
 
-def _parse_json_field(val: str) -> list:
+def _parse_json_field(val) -> list:
+    """Parse a field that may be JSONB (already list) or legacy Text (JSON string)."""
     if not val:
         return []
+    if isinstance(val, list):
+        return val
     try:
         return _json.loads(val)
     except Exception:
