@@ -10,6 +10,7 @@ import { Calculator, Loader2, AlertTriangle, User, X, RotateCcw, ChevronRight, C
 import { toast } from 'sonner';
 import { padCalculate, type PadDrugInfo, type PadCalculateResult } from '../../lib/api/pharmacy';
 import { type Patient } from '../../lib/api/patients';
+import { vitalSignsApi } from '../../lib/api';
 import { getCachedPatients, getCachedPatientsSync } from '../../lib/patients-cache';
 import { getCachedPadDrugs, getCachedPadDrugsSync } from '../../lib/pad-drugs-cache';
 import { isAxiosError } from 'axios';
@@ -138,16 +139,32 @@ export function DosagePage() {
   }, [padDrugs]);
 
   // When patient selected, fill weight/sex/height
-  const handlePatientSelect = useCallback((patientId: string) => {
+  const handlePatientSelect = useCallback(async (patientId: string) => {
     setSelectedPatientId(patientId);
     if (!patientId) return;
     const p = patients.find(pt => pt.id === patientId);
     if (p) {
-      if (p.weight) setWeight(String(p.weight));
       if (p.height) setHeight(String(p.height));
       if (p.gender === '男') setSex('male');
       else if (p.gender === '女') setSex('female');
-      toast.success(`已帶入 ${p.name} 的基本資料`);
+      // Prefer latest measured body weight from vital signs
+      let weightSource = '';
+      try {
+        const vs = await vitalSignsApi.getLatestVitalSigns(patientId);
+        if (vs?.bodyWeight) {
+          setWeight(String(vs.bodyWeight));
+          weightSource = '（來自最近量測）';
+        } else if (p.weight) {
+          setWeight(String(p.weight));
+          weightSource = '（來自基本資料）';
+        }
+      } catch {
+        if (p.weight) {
+          setWeight(String(p.weight));
+          weightSource = '（來自基本資料）';
+        }
+      }
+      toast.success(`已帶入 ${p.name} 的基本資料${weightSource}`);
     }
   }, [patients]);
 

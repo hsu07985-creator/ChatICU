@@ -29,6 +29,7 @@ function getVitalTrendValue(record: VitalSigns, itemName: string): number | unde
     case 'EtCO2': return record.etco2 ?? undefined;
     case 'CVP': return record.cvp ?? undefined;
     case 'ICP': return record.icp ?? undefined;
+    case 'BodyWeight': return record.bodyWeight ?? undefined;
     default: return undefined;
   }
 }

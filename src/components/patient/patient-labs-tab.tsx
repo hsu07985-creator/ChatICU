@@ -28,6 +28,7 @@ interface PatientLabsTabProps {
   spo2?: number | null;
   cvp?: number | null;
   icp?: number | null;
+  bodyWeight?: number | null;
   ventilatorLoading: boolean;
   ventTimestamp?: string | null;
   ventMode?: unknown;
@@ -77,6 +78,7 @@ export function PatientLabsTab({
   spo2,
   cvp,
   icp,
+  bodyWeight,
   ventilatorLoading,
   ventTimestamp,
   ventMode,
@@ -100,7 +102,7 @@ export function PatientLabsTab({
   const map = isFiniteNumber(systolicBP) && isFiniteNumber(diastolicBP)
     ? Math.round((systolicBP + 2 * diastolicBP) / 3)
     : null;
-  const hasAnyVitalSign = [temperature, heartRate, respiratoryRate, systolicBP, diastolicBP, spo2, cvp, icp].some(isFiniteNumber);
+  const hasAnyVitalSign = [temperature, heartRate, respiratoryRate, systolicBP, diastolicBP, spo2, cvp, icp, bodyWeight].some(isFiniteNumber);
   const [monitorOnlyAbnormal, setMonitorOnlyAbnormal] = useState(false);
   const [monitorHideMissing, setMonitorHideMissing] = useState(false);
 
@@ -120,7 +122,8 @@ export function PatientLabsTab({
     { label: 'SpO₂', value: spo2, unit: '%', isAbnormal: isFiniteNumber(spo2) && spo2 < 94, abnormalDirection: vitalDirection(spo2, 94, Infinity), clickName: 'SpO2', source: 'vital', timestamp: vitalSignsTimestamp || undefined },
     { label: 'CVP', value: cvp, unit: 'mmHg', isAbnormal: isFiniteNumber(cvp) && (cvp > 12 || cvp < 2), abnormalDirection: vitalDirection(cvp, 2, 12), clickName: 'CVP', source: 'vital', timestamp: vitalSignsTimestamp || undefined },
     { label: 'ICP', value: icp, unit: 'mmHg', isAbnormal: isFiniteNumber(icp) && icp > 20, abnormalDirection: vitalDirection(icp, -Infinity, 20), clickName: 'ICP', source: 'vital', timestamp: vitalSignsTimestamp || undefined },
-  ], [temperature, heartRate, respiratoryRate, systolicBP, diastolicBP, map, spo2, cvp, icp, vitalSignsTimestamp]);
+    { label: 'BW', value: bodyWeight, unit: 'kg', isAbnormal: false, abnormalDirection: 'normal' as const, clickName: 'BodyWeight', source: 'vital' as TrendSource, timestamp: vitalSignsTimestamp || undefined },
+  ], [temperature, heartRate, respiratoryRate, systolicBP, diastolicBP, map, spo2, cvp, icp, bodyWeight, vitalSignsTimestamp]);
 
   const ventItems: VitalItem[] = useMemo(() => [
     { label: 'FiO₂', value: ventFiO2, unit: '%', isAbnormal: isFiniteNumber(ventFiO2) && ventFiO2 > 60, abnormalDirection: vitalDirection(ventFiO2, -Infinity, 60), clickName: 'FiO2', source: 'ventilator' as TrendSource, timestamp: ventTimestamp || undefined },

@@ -22,6 +22,7 @@ REFERENCE_RANGES = {
     "diastolicBP": {"min": 60, "max": 90, "unit": "mmHg"},
     "respiratoryRate": {"min": 12, "max": 20, "unit": "breaths/min"},
     "spo2": {"min": 95, "max": 100, "unit": "%"},
+    "bodyWeight": {"min": 30, "max": 150, "unit": "kg"},
 }
 
 
@@ -43,6 +44,7 @@ def vital_to_dict(vs: VitalSign) -> dict:
         "cvp": vs.cvp,
         "icp": vs.icp,
         "cpp": vs.cpp,
+        "bodyWeight": vs.body_weight,
         "referenceRanges": REFERENCE_RANGES,
     }
 

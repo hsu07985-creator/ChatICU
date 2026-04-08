@@ -18,6 +18,7 @@ export interface VitalSigns {
   cvp?: number | null;
   icp?: number | null;
   cpp?: number | null;
+  bodyWeight?: number | null;
 }
 
 export interface VitalSignsTrendsResponse {

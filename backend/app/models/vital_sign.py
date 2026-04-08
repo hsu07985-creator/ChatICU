@@ -30,6 +30,7 @@ class VitalSign(Base):
     cvp: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     icp: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     cpp: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    body_weight: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # kg
     reference_ranges: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

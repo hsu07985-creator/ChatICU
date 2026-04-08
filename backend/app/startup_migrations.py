@@ -445,6 +445,45 @@ async def _ensure_vital_signs_advanced(engine: AsyncEngine) -> None:
     except Exception as e:
         logger.warning("[INTG][DB] vital_signs advanced columns failed (non-fatal): %s", e)
 
+    # body_weight column + seed weight history
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text(
+                "ALTER TABLE vital_signs ADD COLUMN IF NOT EXISTS body_weight FLOAT"
+            ))
+            # Update existing records with baseline weights
+            _bw = [("pat_001", 63.2), ("pat_002", 55.0), ("pat_003", 68.5), ("pat_004", 78.0)]
+            for pid, w in _bw:
+                await conn.execute(text(
+                    "UPDATE vital_signs SET body_weight = :w "
+                    "WHERE patient_id = :pid AND body_weight IS NULL"
+                ), {"w": w, "pid": pid})
+            # Seed 5-point weight history per patient for trend charts
+            _bw_history = [
+                ("pat_001", 63.2, [0.3, 0.0, -0.4, -0.2, 0.0]),
+                ("pat_002", 55.0, [1.5, 1.0, 0.5, 0.2, 0.0]),
+                ("pat_003", 68.5, [3.5, 2.0, 1.0, 0.5, 0.0]),
+                ("pat_004", 78.0, [0.0, 0.2, 0.5, 0.3, 0.0]),
+            ]
+            from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+            tz8 = _tz(_td(hours=8))
+            now = _dt.now(tz8)
+            for pid, base_w, offsets in _bw_history:
+                for i, offset in enumerate(offsets):
+                    rid = f"vs_bw_{pid}_{i:02d}"
+                    exists = await conn.execute(text("SELECT 1 FROM vital_signs WHERE id = :id"), {"id": rid})
+                    if exists.fetchone():
+                        continue
+                    w = round(base_w + offset, 1)
+                    ts = now - _td(days=4 - i)
+                    await conn.execute(text(
+                        "INSERT INTO vital_signs (id, patient_id, timestamp, body_weight) "
+                        "VALUES (:id, :pid, :ts, :w)"
+                    ), {"id": rid, "pid": pid, "ts": ts, "w": w})
+            logger.info("[INTG][DB] vital_signs body_weight column + history ensured")
+    except Exception as e:
+        logger.warning("[INTG][DB] vital_signs body_weight failed (non-fatal): %s", e)
+
 
 async def _ensure_medication_source_columns(engine: AsyncEngine) -> None:
     """Migration 048 fallback: add outpatient source columns to medications."""
