@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -37,6 +37,16 @@ class Medication(Base):
     concentration: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     concentration_unit: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Outpatient source tracking (048)
+    source_type: Mapped[str] = mapped_column(String(20), default="inpatient")  # inpatient / outpatient
+    source_campus: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # 院區
+    prescribing_hospital: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    prescribing_department: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    prescribing_doctor_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    days_supply: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    is_external: Mapped[bool] = mapped_column(Boolean, default=False)  # True = 非聯醫體系
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

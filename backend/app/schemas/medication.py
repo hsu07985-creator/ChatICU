@@ -54,6 +54,14 @@ class MedicationResponse(BaseModel):
     prescribedBy: Optional[dict] = None
     warnings: Optional[List[str]] = None
     notes: Optional[str] = None
+    # Outpatient source fields (048)
+    sourceType: str = "inpatient"
+    sourceCampus: Optional[str] = None
+    prescribingHospital: Optional[str] = None
+    prescribingDepartment: Optional[str] = None
+    prescribingDoctorName: Optional[str] = None
+    daysSupply: Optional[int] = None
+    isExternal: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -91,3 +99,27 @@ class MedicationAdministrationListEnvelope(BaseModel):
     success: Literal[True] = True
     data: List[MedicationAdministrationResponse]
     message: Optional[str] = None
+
+
+# ─── Outpatient Import (048) ───────────────────────────
+
+class OutpatientMedicationItem(BaseModel):
+    name: str
+    genericName: Optional[str] = None
+    dose: Optional[str] = None
+    unit: Optional[str] = None
+    frequency: Optional[str] = None
+    route: Optional[str] = None
+    indication: Optional[str] = None
+    startDate: Optional[date] = None
+    endDate: Optional[date] = None
+    sourceCampus: Optional[str] = None
+    prescribingHospital: Optional[str] = None
+    prescribingDepartment: Optional[str] = None
+    prescribingDoctorName: Optional[str] = None
+    daysSupply: Optional[int] = None
+    isExternal: bool = False
+
+
+class OutpatientImportRequest(BaseModel):
+    medications: List[OutpatientMedicationItem]

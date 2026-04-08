@@ -47,6 +47,7 @@ class Patient(Base):
     has_dnr: Mapped[bool] = mapped_column(Boolean, default=False)
     is_isolated: Mapped[bool] = mapped_column(Boolean, default=False)
     archived: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    campus: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # 院區
     last_update: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

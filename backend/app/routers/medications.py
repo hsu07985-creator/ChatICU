@@ -20,6 +20,7 @@ from app.schemas.medication import (
     MedicationAdministrationUpdate,
     MedicationCreate,
     MedicationUpdate,
+    OutpatientImportRequest,
 )
 from app.utils.response import success_response
 
@@ -57,6 +58,13 @@ def med_to_dict(med: Medication) -> dict:
         "notes": med.notes,
         "concentration": med.concentration,
         "concentrationUnit": med.concentration_unit,
+        "sourceType": med.source_type or "inpatient",
+        "sourceCampus": med.source_campus,
+        "prescribingHospital": med.prescribing_hospital,
+        "prescribingDepartment": med.prescribing_department,
+        "prescribingDoctorName": med.prescribing_doctor_name,
+        "daysSupply": med.days_supply,
+        "isExternal": med.is_external or False,
     }
 
 
@@ -116,12 +124,15 @@ async def list_medications(
 
     # Group by SAN category — keys match frontend MedicationsResponse interface
     _SAN_KEY_MAP = {"S": "sedation", "A": "analgesia", "N": "nmb"}
-    grouped = {"sedation": [], "analgesia": [], "nmb": [], "other": []}
+    grouped = {"sedation": [], "analgesia": [], "nmb": [], "other": [], "outpatient": []}
     for med in medications:
         d = med_to_dict(med)
-        cat = normalize_san_category(med.san_category) or "other"
-        key = _SAN_KEY_MAP.get(cat, "other")
-        grouped[key].append(d)
+        if (med.source_type or "inpatient") == "outpatient":
+            grouped["outpatient"].append(d)
+        else:
+            cat = normalize_san_category(med.san_category) or "other"
+            key = _SAN_KEY_MAP.get(cat, "other")
+            grouped[key].append(d)
 
     # Find drug interactions for active medications (safe — columns may be missing)
     active_meds = [m for m in medications if m.status == "active"]
@@ -344,4 +355,61 @@ async def record_medication_administration(
     return success_response(
         data=administration_to_dict(administration),
         message="給藥記錄已更新",
+    )
+
+
+@router.post("/import-outpatient")
+async def import_outpatient_medications(
+    patient_id: str,
+    body: OutpatientImportRequest,
+    request: Request,
+    user: User = Depends(require_roles("doctor", "pharmacist", "admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Import outpatient medications (門診用藥) for a patient."""
+    pid = normalize_patient_id(patient_id)
+    pat_result = await db.execute(select(Patient).where(Patient.id == pid))
+    patient_obj = pat_result.scalar_one_or_none()
+    if not patient_obj:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    verify_patient_access(user, patient_obj)
+
+    created = []
+    for item in body.medications:
+        med = Medication(
+            id=f"med_opd_{uuid.uuid4().hex[:6]}",
+            patient_id=pid,
+            name=item.name,
+            generic_name=item.genericName,
+            dose=item.dose,
+            unit=item.unit,
+            frequency=item.frequency,
+            route=item.route,
+            indication=item.indication,
+            start_date=item.startDate,
+            end_date=item.endDate,
+            status="active",
+            source_type="outpatient",
+            source_campus=item.sourceCampus,
+            prescribing_hospital=item.prescribingHospital,
+            prescribing_department=item.prescribingDepartment,
+            prescribing_doctor_name=item.prescribingDoctorName,
+            days_supply=item.daysSupply,
+            is_external=item.isExternal,
+        )
+        db.add(med)
+        created.append(med)
+
+    await db.flush()
+
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="匯入門診用藥", target=pid, status="success",
+        ip=request.client.host if request.client else None,
+        details={"count": len(created), "names": [m.name for m in created]},
+    )
+
+    return success_response(
+        data=[med_to_dict(m) for m in created],
+        message=f"已匯入 {len(created)} 筆門診用藥",
     )
