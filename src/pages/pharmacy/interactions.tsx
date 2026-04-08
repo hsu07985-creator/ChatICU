@@ -155,52 +155,58 @@ export function DrugInteractionsPage() {
     setLoading(true);
     setHasSearched(true);
 
-    // Helper: query local DB for all pairwise combinations
+    // Helper: query local DB for all pairwise combinations (parallel)
     const queryDatabase = async () => {
-      const allResults: DisplayInteraction[] = [];
+      const pairs: Array<[string, string, number, number]> = [];
       for (let i = 0; i < validDrugs.length; i++) {
         for (let j = i + 1; j < validDrugs.length; j++) {
-          try {
-            const resp = await getDrugInteractions({ drugA: validDrugs[i], drugB: validDrugs[j] }, { suppressErrorToast: true });
-            const rows = resp.interactions || [];
-            for (let idx = 0; idx < rows.length; idx++) {
-              const r = rows[idx] as any;
-              allResults.push({
-                id: r.id || `db-int-${i}-${j}-${idx}`,
-                drug1: r.drug1 || validDrugs[i],
-                drug2: r.drug2 || validDrugs[j],
-                severity: mapSeverity(r.severity || ''),
-                mechanism: r.mechanism || '',
-                clinicalEffect: r.clinicalEffect || '',
-                management: r.management || '',
-                references: r.references || '',
-                riskRating: r.riskRating || '',
-                riskRatingDescription: r.riskRatingDescription || '',
-                severityLabel: r.severityLabel || '',
-                reliabilityRating: r.reliabilityRating || '',
-                routeDependency: r.routeDependency || '',
-                discussion: r.discussion || '',
-                footnotes: r.footnotes || '',
-                dependencies: r.dependencies || [],
-                dependencyTypes: r.dependencyTypes || [],
-                interactingMembers: r.interactingMembers || [],
-                pubmedIds: r.pubmedIds || [],
-              });
-            }
-          } catch {
-            // Skip failed individual pair queries
-          }
+          pairs.push([validDrugs[i], validDrugs[j], i, j]);
         }
       }
-      return allResults;
+      const pairResults = await Promise.all(
+        pairs.map(async ([drugA, drugB, i, j]) => {
+          try {
+            const resp = await getDrugInteractions({ drugA, drugB }, { suppressErrorToast: true });
+            return (resp.interactions || []).map((r: any, idx: number) => ({
+              id: r.id || `db-int-${i}-${j}-${idx}`,
+              drug1: r.drug1 || drugA,
+              drug2: r.drug2 || drugB,
+              severity: mapSeverity(r.severity || ''),
+              mechanism: r.mechanism || '',
+              clinicalEffect: r.clinicalEffect || '',
+              management: r.management || '',
+              references: r.references || '',
+              riskRating: r.riskRating || '',
+              riskRatingDescription: r.riskRatingDescription || '',
+              severityLabel: r.severityLabel || '',
+              reliabilityRating: r.reliabilityRating || '',
+              routeDependency: r.routeDependency || '',
+              discussion: r.discussion || '',
+              footnotes: r.footnotes || '',
+              dependencies: r.dependencies || [],
+              dependencyTypes: r.dependencyTypes || [],
+              interactingMembers: r.interactingMembers || [],
+              pubmedIds: r.pubmedIds || [],
+            }));
+          } catch {
+            return [];
+          }
+        })
+      );
+      return pairResults.flat();
     };
 
     try {
-      const result: InteractionCheckResponse = await checkInteractions({ drugList: validDrugs }, { suppressErrorToast: true });
-      const aiFindings = result.findings || [];
+      // Fire AI and DB queries in parallel — use AI results if available, else DB
+      const [aiResult, dbResults] = await Promise.all([
+        checkInteractions({ drugList: validDrugs }, { suppressErrorToast: true }).catch(() => null),
+        queryDatabase(),
+      ]);
+
+      const aiFindings = aiResult?.findings || [];
 
       if (aiFindings.length > 0) {
-        setOverallSeverity(result.overall_severity || 'none');
+        setOverallSeverity(aiResult?.overall_severity || 'none');
         const mapped: DisplayInteraction[] = aiFindings.map((f, idx) => ({
           id: `int-${idx}`,
           drug1: f.drugA || f.drug_a || validDrugs[0],
@@ -222,13 +228,10 @@ export function DrugInteractionsPage() {
           interactingMembers: f.interacting_members || [],
           pubmedIds: f.pubmed_ids || [],
         }));
-        // Sort by risk rating: X > D > C > B > A
         const riskOrder: Record<string, number> = { X: 0, D: 1, C: 2, B: 3, A: 4 };
         mapped.sort((a, b) => (riskOrder[a.riskRating] ?? 5) - (riskOrder[b.riskRating] ?? 5));
         setSearchResults(mapped);
       } else {
-        // AI returned no findings — fallback to DB
-        const dbResults = await queryDatabase();
         if (dbResults.length) {
           const rank: Record<string, number> = { low: 1, medium: 2, high: 3 };
           const max = dbResults.reduce((acc: string, it: DisplayInteraction) => (rank[it.severity] > rank[acc] ? it.severity : acc), 'low');
@@ -240,21 +243,8 @@ export function DrugInteractionsPage() {
       }
     } catch (err) {
       console.error('查詢交互作用失敗:', err);
-      try {
-        const dbResults = await queryDatabase();
-        if (dbResults.length) {
-          const rank: Record<string, number> = { low: 1, medium: 2, high: 3 };
-          const max = dbResults.reduce((acc: string, it: DisplayInteraction) => (rank[it.severity] > rank[acc] ? it.severity : acc), 'low');
-          setOverallSeverity(max);
-        } else {
-          setOverallSeverity('none');
-        }
-        setSearchResults(dbResults);
-      } catch (fallbackErr) {
-        console.error('DB fallback 查詢交互作用失敗:', fallbackErr);
-        toast.error('查詢失敗，請確認後端服務是否正常運行');
-        setSearchResults([]);
-      }
+      toast.error('查詢失敗，請確認後端服務是否正常運行');
+      setSearchResults([]);
     } finally {
       setLoading(false);
     }

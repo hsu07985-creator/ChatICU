@@ -114,11 +114,28 @@ export function DashboardPage() {
     if (!getCachedPatientsSync()) {
       fetchPatients();
     }
-    // Stats: skip fetch if sync cache already populated state
-    if (!_statsCache) {
-      fetchStats();
-    }
+    // Stats: always fetch (don't skip — cache may contain stale zeros)
+    fetchStats();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fallback: compute stats from patient list when API stats unavailable
+  const effectiveStats: DashboardStats | null = stats ?? (patients.length > 0 ? {
+    patients: {
+      total: patients.length,
+      intubated: patients.filter(p => p.intubated).length,
+      intubatedBeds: patients.filter(p => p.intubated).map(p => p.bedNumber),
+      withSAN: patients.filter(p => (p.sanSummary?.sedation?.length ?? 0) + (p.sanSummary?.analgesia?.length ?? 0) + (p.sanSummary?.nmb?.length ?? 0) > 0).length,
+      sanByCategory: {
+        sedation: patients.filter(p => (p.sanSummary?.sedation?.length ?? 0) > 0).length,
+        analgesia: patients.filter(p => (p.sanSummary?.analgesia?.length ?? 0) > 0).length,
+        nmb: patients.filter(p => (p.sanSummary?.nmb?.length ?? 0) > 0).length,
+      },
+    },
+    alerts: { total: patients.reduce((sum, p) => sum + p.alerts.length, 0) },
+    medications: { active: 0, sedation: 0, analgesia: 0, nmb: 0 },
+    messages: { today: 0, unread: 0 },
+    timestamp: new Date().toISOString(),
+  } : null);
 
   // 開啟編輯對話框
   const handleEditClick = (e: React.MouseEvent, patient: Patient) => {
@@ -219,30 +236,30 @@ export function DashboardPage() {
                 className="grid"
                 style={{ minWidth: '760px', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}
               >
-                <div className="bg-brand/[0.04] px-4 py-4">
+                <div className="px-4 py-4">
                   <p className="text-xs font-medium text-muted-foreground">病患總數</p>
-                  <p className="mt-1 text-3xl font-bold leading-none text-foreground">{stats?.patients?.total ?? 0}</p>
+                  <p className="mt-1 text-3xl font-bold leading-none text-foreground">{effectiveStats?.patients?.total ?? 0}</p>
                 </div>
                 <div className="border-l border-border px-4 py-4">
                   <p className="text-xs font-medium text-muted-foreground">插管人數</p>
-                  <p className="mt-1 text-3xl font-bold leading-none text-foreground">{stats?.patients?.intubated ?? 0}</p>
+                  <p className="mt-1 text-3xl font-bold leading-none text-foreground">{effectiveStats?.patients?.intubated ?? 0}</p>
                 </div>
                 <div className="border-l border-border px-4 py-4">
-                  <p className="text-xs font-semibold text-foreground">S 鎮靜</p>
+                  <p className="text-xs font-medium text-muted-foreground">S 鎮靜</p>
                   <p className="mt-1 text-3xl font-bold leading-none text-foreground">
-                    {stats?.patients?.sanByCategory?.sedation ?? 0}
+                    {effectiveStats?.patients?.sanByCategory?.sedation ?? 0}
                   </p>
                 </div>
                 <div className="border-l border-border px-4 py-4">
-                  <p className="text-xs font-semibold text-emerald-700">A 止痛</p>
-                  <p className="mt-1 text-3xl font-bold leading-none text-emerald-900">
-                    {stats?.patients?.sanByCategory?.analgesia ?? 0}
+                  <p className="text-xs font-medium text-muted-foreground">A 止痛</p>
+                  <p className="mt-1 text-3xl font-bold leading-none text-foreground">
+                    {effectiveStats?.patients?.sanByCategory?.analgesia ?? 0}
                   </p>
                 </div>
                 <div className="border-l border-border px-4 py-4">
-                  <p className="text-xs font-semibold text-violet-700">N 阻斷</p>
-                  <p className="mt-1 text-3xl font-bold leading-none text-violet-900">
-                    {stats?.patients?.sanByCategory?.nmb ?? 0}
+                  <p className="text-xs font-medium text-muted-foreground">N 阻斷</p>
+                  <p className="mt-1 text-3xl font-bold leading-none text-foreground">
+                    {effectiveStats?.patients?.sanByCategory?.nmb ?? 0}
                   </p>
                 </div>
               </div>
