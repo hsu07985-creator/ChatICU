@@ -488,6 +488,38 @@ async def rebuild_vector_index(
     )
 
 
+@router.get("/db-status")
+async def db_status(
+    user: User = Depends(require_roles("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Check DB migration status and table existence."""
+    from sqlalchemy import text as sa_text
+    info = {}
+    try:
+        result = await db.execute(sa_text("SELECT version_num FROM alembic_version"))
+        info["alembic_version"] = result.scalar()
+    except Exception as e:
+        info["alembic_version"] = f"error: {e}"
+    try:
+        result = await db.execute(sa_text(
+            "SELECT table_name FROM information_schema.tables "
+            "WHERE table_schema = 'public' AND table_name = 'diagnostic_reports'"
+        ))
+        info["diagnostic_reports_exists"] = result.fetchone() is not None
+    except Exception as e:
+        info["diagnostic_reports_exists"] = f"error: {e}"
+    try:
+        result = await db.execute(sa_text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'medications' AND column_name = 'source_type'"
+        ))
+        info["medications_source_type_exists"] = result.fetchone() is not None
+    except Exception as e:
+        info["medications_source_type_exists"] = f"error: {e}"
+    return success_response(data=info)
+
+
 @router.post("/fix-diagnostic-reports")
 async def fix_diagnostic_reports(
     user: User = Depends(require_roles("admin")),
