@@ -11,16 +11,11 @@ const TYPE_LABELS: Record<string, { label: string; color: string }> = {
   other: { label: '其他', color: 'bg-slate-100 text-slate-600' },
 };
 
-const MAX_COLLAPSED_LINES = 6;
+const COLLAPSED_HEIGHT = 120; // px for body text area
 
 function ReportCard({ report }: { report: DiagnosticReport }) {
   const [expanded, setExpanded] = useState(false);
   const typeInfo = TYPE_LABELS[report.reportType] || TYPE_LABELS.other;
-  const lines = (report.bodyText || '').split('\n');
-  const isLong = lines.length > MAX_COLLAPSED_LINES;
-  const displayText = expanded || !isLong
-    ? report.bodyText
-    : lines.slice(0, MAX_COLLAPSED_LINES).join('\n') + '\n...';
 
   const examDate = report.examDate
     ? new Date(report.examDate).toLocaleDateString('zh-TW', {
@@ -30,46 +25,54 @@ function ReportCard({ report }: { report: DiagnosticReport }) {
     : '';
 
   return (
-    <Card className="border-border">
-      <CardHeader className="pb-2 pt-3 px-4">
-        <div className="flex items-start justify-between gap-2">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-sm font-semibold text-slate-800">{report.examName}</h3>
-              <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 ${typeInfo.color}`}>
-                {typeInfo.label}
+    <Card className="border-border flex flex-col w-[340px] min-w-[340px] max-w-[340px] h-[420px] overflow-hidden">
+      {/* Header — fixed height */}
+      <CardHeader className="pb-2 pt-3 px-4 flex-shrink-0">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-sm font-semibold text-slate-800 line-clamp-1">{report.examName}</h3>
+            <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 flex-shrink-0 ${typeInfo.color}`}>
+              {typeInfo.label}
+            </Badge>
+            {report.status === 'preliminary' && (
+              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 flex-shrink-0 bg-amber-100 text-amber-700">
+                初步報告
               </Badge>
-              {report.status === 'preliminary' && (
-                <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-amber-100 text-amber-700">
-                  初步報告
-                </Badge>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {examDate}
-              {report.reporterName && <span> · 報告者: {report.reporterName}</span>}
-            </p>
+            )}
           </div>
+          <p className="text-xs text-muted-foreground truncate">
+            {examDate}
+            {report.reporterName && <span> · 報告者: {report.reporterName}</span>}
+          </p>
         </div>
       </CardHeader>
-      <CardContent className="pt-0 px-4 pb-3 space-y-2">
-        <pre className="text-sm text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
-          {displayText}
-        </pre>
-        {isLong && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs text-muted-foreground"
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded ? <><ChevronUp className="h-3 w-3 mr-1" />收合</> : <><ChevronDown className="h-3 w-3 mr-1" />展開全文</>}
-          </Button>
-        )}
+
+      {/* Body — scrollable / collapsible */}
+      <CardContent className="pt-0 px-4 pb-3 flex-1 overflow-hidden flex flex-col gap-2">
+        <div className={`relative flex-1 overflow-hidden ${!expanded ? 'max-h-[' + COLLAPSED_HEIGHT + 'px]' : ''}`}
+          style={!expanded ? { maxHeight: `${COLLAPSED_HEIGHT}px` } : undefined}
+        >
+          <pre className="text-xs text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
+            {report.bodyText}
+          </pre>
+          {!expanded && (
+            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent" />
+          )}
+        </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 text-xs text-muted-foreground flex-shrink-0 self-start"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? <><ChevronUp className="h-3 w-3 mr-1" />收合</> : <><ChevronDown className="h-3 w-3 mr-1" />展開全文</>}
+        </Button>
+
         {report.impression && (
-          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
-            <p className="text-xs font-semibold text-amber-800 mb-1">IMP</p>
-            <pre className="text-sm text-amber-900 whitespace-pre-wrap font-sans leading-relaxed">
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 flex-shrink-0">
+            <p className="text-xs font-semibold text-amber-800 mb-0.5">IMP</p>
+            <pre className="text-xs text-amber-900 whitespace-pre-wrap font-sans leading-relaxed line-clamp-3">
               {report.impression}
             </pre>
           </div>
@@ -153,7 +156,7 @@ export function PatientDiagnosticReports({ patientId }: { patientId: string }) {
           {reports.length === 0 ? '尚無檢查報告' : '無符合篩選條件的報告'}
         </p>
       ) : (
-        <div className="space-y-3">
+        <div className="flex flex-wrap gap-3">
           {filtered.map((report) => (
             <ReportCard key={report.id} report={report} />
           ))}
