@@ -300,7 +300,7 @@ export function ChatPage() {
               </div>
               <div className="flex gap-3">
                 <Textarea
-                  placeholder="例如：I-1 床病患血鉀偏低，已補充 KCl..."
+                  placeholder=""
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={(e) => {
@@ -497,7 +497,7 @@ export function ChatPage() {
           </DialogHeader>
           <div className="py-4">
             <Textarea
-              placeholder="輸入公告內容..."
+              placeholder=""
               value={announcementContent}
               onChange={(e) => setAnnouncementContent(e.target.value)}
               className="min-h-[120px] border border-[#f59e0b] focus:border-[#f59e0b] focus:ring-2 focus:ring-[#f59e0b]/20"
