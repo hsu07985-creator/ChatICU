@@ -36,7 +36,6 @@ import {
   Info,
   Pill,
   User,
-  Zap,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -805,7 +804,6 @@ export function PharmacyWorkstationPage() {
                   className="w-full h-12 bg-brand hover:bg-brand-hover"
                   size="lg"
                 >
-                  <Zap className="mr-2 h-5 w-5" />
                   {isAssessing ? '評估中...' : '執行全面評估'}
                 </Button>
 
