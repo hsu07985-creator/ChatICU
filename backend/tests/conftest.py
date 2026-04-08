@@ -14,6 +14,16 @@ from app.database import Base, get_db
 from app.main import app
 from app.models import *  # noqa: F401, F403  — register all models
 from app.models.user import User
+# Workaround: bcrypt 4.x removed __about__ and changed hashpw to reject >72 bytes,
+# breaking passlib's wrap-bug detection on Python 3.14. Patch before passlib loads.
+import bcrypt as _bcrypt
+_orig_hashpw = _bcrypt.hashpw
+def _safe_hashpw(password, salt):
+    if isinstance(password, (bytes, bytearray)) and len(password) > 72:
+        password = password[:72]
+    return _orig_hashpw(password, salt)
+_bcrypt.hashpw = _safe_hashpw
+
 from app.utils.security import hash_password
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
