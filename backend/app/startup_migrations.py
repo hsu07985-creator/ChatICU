@@ -458,28 +458,31 @@ async def _ensure_vital_signs_advanced(engine: AsyncEngine) -> None:
                     "UPDATE vital_signs SET body_weight = :w "
                     "WHERE patient_id = :pid AND body_weight IS NULL"
                 ), {"w": w, "pid": pid})
-            # Seed 5-point weight history per patient for trend charts
-            _bw_history = [
-                ("pat_001", 63.2, [0.3, 0.0, -0.4, -0.2, 0.0]),
-                ("pat_002", 55.0, [1.5, 1.0, 0.5, 0.2, 0.0]),
-                ("pat_003", 68.5, [3.5, 2.0, 1.0, 0.5, 0.0]),
-                ("pat_004", 78.0, [0.0, 0.2, 0.5, 0.3, 0.0]),
-            ]
-            from datetime import datetime as _dt, timedelta as _td, timezone as _tz
-            tz8 = _tz(_td(hours=8))
-            now = _dt.now(tz8)
-            for pid, base_w, offsets in _bw_history:
-                for i, offset in enumerate(offsets):
-                    rid = f"vs_bw_{pid}_{i:02d}"
-                    exists = await conn.execute(text("SELECT 1 FROM vital_signs WHERE id = :id"), {"id": rid})
-                    if exists.fetchone():
-                        continue
+            # Clean up any weight-only records that may have been created before
+            await conn.execute(text(
+                "DELETE FROM vital_signs WHERE id LIKE 'vs_bw_%'"
+            ))
+            # Spread different weights across existing records for trend data
+            # (each patient's existing vital_signs get sequential weight values)
+            _bw_offsets = {
+                "pat_001": [0.3, 0.0, -0.4, -0.2, 0.0],
+                "pat_002": [1.5, 1.0, 0.5, 0.2, 0.0],
+                "pat_003": [3.5, 2.0, 1.0, 0.5, 0.0],
+                "pat_004": [0.0, 0.2, 0.5, 0.3, 0.0],
+            }
+            for pid, base_w in _bw:
+                rows = await conn.execute(text(
+                    "SELECT id FROM vital_signs WHERE patient_id = :pid "
+                    "ORDER BY timestamp ASC"
+                ), {"pid": pid})
+                ids = [r[0] for r in rows.fetchall()]
+                offsets = _bw_offsets.get(pid, [0.0])
+                for i, rid in enumerate(ids):
+                    offset = offsets[i] if i < len(offsets) else offsets[-1]
                     w = round(base_w + offset, 1)
-                    ts = now - _td(days=4 - i)
                     await conn.execute(text(
-                        "INSERT INTO vital_signs (id, patient_id, timestamp, body_weight) "
-                        "VALUES (:id, :pid, :ts, :w)"
-                    ), {"id": rid, "pid": pid, "ts": ts, "w": w})
+                        "UPDATE vital_signs SET body_weight = :w WHERE id = :id"
+                    ), {"w": w, "id": rid})
             logger.info("[INTG][DB] vital_signs body_weight column + history ensured")
     except Exception as e:
         logger.warning("[INTG][DB] vital_signs body_weight failed (non-fatal): %s", e)

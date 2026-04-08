@@ -49,22 +49,21 @@ def upgrade() -> None:
             "WHERE patient_id = :pid AND body_weight IS NULL"
         ), {"w": base_weight, "pid": pid})
 
-    # 3. Insert weight-history vital_signs records (5 per patient, daily)
+    # 3. Clean up any stale weight-only records
+    conn.execute(sa.text("DELETE FROM vital_signs WHERE id LIKE 'vs_bw_%'"))
+
+    # 4. Spread different weights across existing records for trend data
     for pid, base_weight, offsets in _WEIGHT_SEEDS:
-        for i, offset in enumerate(offsets):
-            rid = f"vs_bw_{pid}_{i:02d}"
-            exists = conn.execute(
-                sa.text("SELECT 1 FROM vital_signs WHERE id = :id"),
-                {"id": rid},
-            ).fetchone()
-            if exists:
-                continue
-            weight = round(base_weight + offset, 1)
-            days_ago = 4 - i
+        rows = conn.execute(sa.text(
+            "SELECT id FROM vital_signs WHERE patient_id = :pid "
+            "ORDER BY timestamp ASC"
+        ), {"pid": pid}).fetchall()
+        for i, row in enumerate(rows):
+            offset = offsets[i] if i < len(offsets) else offsets[-1]
+            w = round(base_weight + offset, 1)
             conn.execute(sa.text(
-                "INSERT INTO vital_signs (id, patient_id, timestamp, body_weight) "
-                f"VALUES (:id, :pid, NOW() - INTERVAL '{days_ago} days', :w)"
-            ), {"id": rid, "pid": pid, "w": weight})
+                "UPDATE vital_signs SET body_weight = :w WHERE id = :id"
+            ), {"w": w, "id": row[0]})
 
 
 def downgrade() -> None:
