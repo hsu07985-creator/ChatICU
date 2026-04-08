@@ -37,6 +37,7 @@ async def run_all(engine: AsyncEngine) -> None:
     await _seed_outpatient_demo(engine)
     await _ensure_diagnostic_reports(engine)
     await _migrate_vpn_letter_codes(engine)
+    await _clear_messages_once(engine)
     await _ensure_performance_indexes(engine)
 
 
@@ -530,6 +531,28 @@ async def _ensure_patient_campus(engine: AsyncEngine) -> None:
         logger.info("[INTG][DB] patients.campus column ensured (migration 048 fallback)")
     except Exception as e:
         logger.warning("[INTG][DB] patients.campus column failed (non-fatal): %s", e)
+
+
+async def _clear_messages_once(engine: AsyncEngine) -> None:
+    """One-time: delete all patient_messages and team_chat_messages."""
+    try:
+        async with engine.begin() as conn:
+            # Use a flag row to avoid re-running on every restart
+            done = await conn.execute(text(
+                "SELECT 1 FROM alembic_version WHERE version_num = '053'"
+            ))
+            if done.scalar():
+                return  # already done via migration or previous startup
+            r1 = await conn.execute(text("DELETE FROM patient_messages"))
+            r2 = await conn.execute(text("DELETE FROM team_chat_messages"))
+            # Mark as done so it won't repeat
+            await conn.execute(text(
+                "INSERT INTO alembic_version (version_num) VALUES ('053') "
+                "ON CONFLICT DO NOTHING"
+            ))
+            log.info("Cleared %d patient_messages, %d team_chat_messages", r1.rowcount, r2.rowcount)
+    except Exception:
+        log.warning("_clear_messages_once failed (non-fatal)", exc_info=True)
 
 
 async def _ensure_performance_indexes(engine: AsyncEngine) -> None:
