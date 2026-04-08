@@ -8,6 +8,7 @@ from typing import Any, Dict
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -22,6 +23,7 @@ from app.routers.lab_data import lab_to_dict
 from app.routers.vital_signs import vital_to_dict
 from app.routers.medications import med_to_dict
 from app.routers.ventilator import vent_to_dict
+from app.config import settings
 from app.schemas.clinical import (
     ClinicalQueryRequest,
     DecisionRequest,
@@ -29,10 +31,14 @@ from app.schemas.clinical import (
     ExplanationRequest,
     GuidelineRequest,
     InteractionCheckRequest,
+    NhiRequest,
     PolishRequest,
     SummaryRequest,
+    UnifiedCitationItem,
+    UnifiedQueryRequest,
 )
 from app.services.evidence_client import evidence_client
+from app.services.nhi_client import nhi_client
 from app.services.llm_services.clinical_summary import generate_clinical_summary
 from app.services.llm_services.patient_explanation import generate_patient_explanation
 from app.services.llm_services.rag_service import rag_service
@@ -43,6 +49,7 @@ from app.utils.structured_output import (
     build_explanation_structured,
     build_summary_structured,
 )
+from app.utils.ddi_check import extract_ddi_warnings, format_ddi_metadata
 from app.utils.llm_errors import llm_unavailable_detail
 from app.utils.request_context import evidence_trace_kwargs
 from app.middleware.rate_limit import limiter
@@ -410,6 +417,13 @@ async def multi_agent_decision(
     patient_data = await _get_patient_dict(req.patient_id, db)
     data_freshness = build_data_freshness(patient_data)
 
+    # ── Drug-drug interaction auto-check ──
+    ddi_warnings = []
+    try:
+        ddi_warnings = await asyncio.to_thread(extract_ddi_warnings, patient_data)
+    except Exception as exc:
+        logger.warning("[INTG][AI][DDI] Drug interaction check failed in /decision: %s", exc)
+
     rag_context = ""
     try:
         hybrid = await asyncio.to_thread(
@@ -424,6 +438,11 @@ async def multi_agent_decision(
         if rag_service.is_indexed:
             results = rag_service.retrieve(req.question, top_k=3)
             rag_context = "\n\n---\n\n".join([r["text"] for r in results])
+
+    # Append DDI context to evidence so LLM sees interaction warnings
+    ddi_block = format_ddi_metadata(ddi_warnings)
+    if ddi_block:
+        rag_context = rag_context + "\n\n" + ddi_block if rag_context else ddi_block
 
     result = await asyncio.to_thread(
         call_llm,
@@ -462,6 +481,7 @@ async def multi_agent_decision(
         "decision_structured": structured,
         "metadata": result.get("metadata", {}),
         "safetyWarnings": guardrail["warnings"] if guardrail["flagged"] else None,
+        "ddiWarnings": ddi_warnings if ddi_warnings else None,
         "dataFreshness": data_freshness,
     })
 
@@ -755,3 +775,217 @@ async def clinical_query(
     )
 
     return success_response(data=result)
+
+
+# ── B07: Unified Clinical Query (Orchestrator) ───────────────────────────
+
+@router.post("/query")
+@limiter.limit(settings.RATE_LIMIT_AI_CLINICAL if hasattr(settings, "RATE_LIMIT_AI_CLINICAL") else "10/minute")
+async def unified_clinical_query(
+    req: UnifiedQueryRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Unified clinical query — orchestrates multi-source evidence + LLM synthesis."""
+    if not settings.ORCHESTRATOR_ENABLED:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": False,
+                "error": "Orchestrator not enabled",
+                "message": "Set ORCHESTRATOR_ENABLED=true to enable the unified query endpoint.",
+            },
+        )
+
+    from app.services.orchestrator import orchestrate_query
+    from app.services.citation_builder import build_citations_from_evidence
+
+    try:
+        orch_result = await orchestrate_query(
+            question=req.question,
+            patient_context={"context": req.context} if req.context else None,
+            user_role=user.role,
+        )
+
+        # Build citations from evidence items
+        evidence_dicts = [item.model_dump() for item in orch_result.evidence_items]
+        citations = build_citations_from_evidence(
+            evidence_dicts, source_system="mixed", max_citations=10,
+        )
+        # Re-assign per-item source_system from original evidence
+        for i, c in enumerate(citations):
+            if i < len(orch_result.evidence_items):
+                c.source_system = orch_result.evidence_items[i].source_system
+
+        # LLM synthesis
+        evidence_text = "\n".join(
+            f"[{item.source_system}] {item.text}" for item in orch_result.evidence_items
+        )
+        llm_result = await asyncio.to_thread(
+            call_llm,
+            task="unified_clinical_query",
+            input_data={
+                "question": req.question,
+                "evidence": evidence_text,
+                "intent": orch_result.intent,
+                "detected_drugs": orch_result.detected_drugs,
+            },
+        )
+
+        if llm_result.get("status") == "success":
+            answer = llm_result.get("content", "")
+        else:
+            # LLM failed — fallback to raw evidence
+            answer = evidence_text if evidence_text else "無法產生回答。"
+
+        confidence = orch_result.intent_confidence
+        requires_expert_review = confidence < 0.5 or len(orch_result.sources_failed) > 0
+
+        resp_data = {
+            "intent": orch_result.intent,
+            "answer": answer,
+            "citations": [c.model_dump() for c in citations],
+            "confidence": confidence,
+            "sources_used": orch_result.sources_succeeded,
+            "detected_drugs": orch_result.detected_drugs,
+            "requires_expert_review": requires_expert_review,
+        }
+
+    except Exception as exc:
+        logger.warning("[INTG][AI][API] unified_query orchestrator error: %s", str(exc)[:200])
+        # Graceful fallback — try LLM alone
+        llm_result = await asyncio.to_thread(
+            call_llm,
+            task="unified_clinical_query",
+            input_data={
+                "question": req.question,
+                "evidence": "",
+                "intent": "general_pharmacology",
+                "detected_drugs": [],
+            },
+        )
+        answer = llm_result.get("content", "") if llm_result.get("status") == "success" else ""
+
+        resp_data = {
+            "intent": "general_pharmacology",
+            "answer": answer,
+            "citations": [],
+            "confidence": 0.3,
+            "sources_used": [],
+            "detected_drugs": [],
+            "requires_expert_review": True,
+        }
+
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="統一臨床查詢", target=req.question[:50], status="success",
+        ip=request.client.host if request.client else None,
+    )
+
+    return success_response(data=resp_data)
+
+
+# ── P3-4: NHI Reimbursement Query ─────────────────────────────────────────
+
+# Common English→Chinese drug name mapping for NHI context
+_DRUG_NAME_ZH_MAP: Dict[str, str] = {
+    "pembrolizumab": "吉舒達",
+    "nivolumab": "保疾伏",
+    "atezolizumab": "癌自禦",
+    "durvalumab": "抑癌寧",
+    "rituximab": "莫須瘤",
+    "trastuzumab": "賀癌平",
+    "bevacizumab": "癌思停",
+}
+
+
+@router.post("/nhi")
+@limiter.limit("10/minute")
+async def nhi_reimbursement_query(
+    req: NhiRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Query NHI reimbursement rules for a drug via the NHI RAG microservice."""
+    service_available = await nhi_client.health()
+
+    if service_available:
+        search_results = await nhi_client.search(req.drug_name, top_k=5)
+        ask_question = req.drug_name + (f" 於 {req.indication}" if req.indication else "")
+        ask_results = await nhi_client.ask(ask_question)
+    else:
+        search_results = {"results": [], "query": req.drug_name}
+        ask_results = {"answer": ""}
+
+    normalised_chunks = nhi_client.parse_chunks(search_results.get("results", []))
+
+    # Build reimbursement rules from chunks
+    reimbursement_rules = []
+    for chunk in normalised_chunks:
+        requires_prior_auth = "事前審查" in chunk.get("text", "")
+        reimbursement_rules.append({
+            "requires_prior_auth": requires_prior_auth,
+            "conditions": chunk.get("text", ""),
+            "applicable_indications": req.indication or "",
+            "source_section": chunk.get("section", ""),
+        })
+
+    # Compute confidence from chunk scores
+    if normalised_chunks:
+        scores = [c.get("score", 0.0) for c in normalised_chunks]
+        confidence = min(sum(scores) / len(scores), 0.95)
+    else:
+        confidence = 0.0
+
+    # Drug name mapping
+    drug_name_zh = _DRUG_NAME_ZH_MAP.get(req.drug_name.lower())
+
+    # Build response
+    message = None
+    if service_available:
+        source_chunks = [
+            {
+                "chunk_id": c.get("chunk_id"),
+                "text_snippet": c.get("text"),
+                "relevance_score": c.get("score"),
+            }
+            for c in normalised_chunks
+        ]
+    else:
+        source_chunks = []
+        message = "NHI 服務暫時無法連線，此回答僅供參考"
+        # LLM fallback
+        if not ask_results.get("answer"):
+            try:
+                llm_result = await asyncio.to_thread(
+                    call_llm,
+                    task="nhi_fallback",
+                    input_data={
+                        "drug_name": req.drug_name,
+                        "indication": req.indication,
+                    },
+                )
+                ask_results["answer"] = llm_result.get("content", "")
+            except Exception:
+                ask_results["answer"] = ""
+
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="NHI查詢", target=req.drug_name, status="success" if service_available else "degraded",
+        ip=request.client.host if request.client else None,
+        details={"drug_name": req.drug_name, "service_available": service_available},
+    )
+
+    resp_data: Dict[str, Any] = {
+        "drug_name": req.drug_name,
+        "reimbursement_rules": reimbursement_rules,
+        "source_chunks": source_chunks,
+        "confidence": confidence,
+        "answer": ask_results.get("answer", ""),
+    }
+    if drug_name_zh:
+        resp_data["drug_name_zh"] = drug_name_zh
+
+    return success_response(data=resp_data, message=message)

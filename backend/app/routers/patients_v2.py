@@ -621,7 +621,7 @@ async def update_medication(
     medication_id: str,
     body: MedicationUpdate,
     request: Request,
-    user: User = Depends(require_roles("doctor", "pharmacist")),
+    user: User = Depends(require_roles("admin", "doctor", "pharmacist")),
     db: AsyncSession = Depends(get_db),
 ):
     _load_or_503()

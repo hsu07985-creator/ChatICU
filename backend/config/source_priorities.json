@@ -1,0 +1,144 @@
+{
+  "dose_calculation": {
+    "strategy": "parallel",
+    "sources": [
+      {"source": "source_a_pad", "priority": 1, "required": false},
+      {"source": "source_b_qdrant", "priority": 2, "required": true}
+    ],
+    "min_sources_for_confidence": 1,
+    "refuse_if_no_results": false,
+    "confidence_threshold": 0.75,
+    "cascade_condition": null
+  },
+  "pair_interaction": {
+    "strategy": "parallel",
+    "sources": [
+      {"source": "source_c_graph", "priority": 1, "required": false},
+      {"source": "source_b_qdrant", "priority": 2, "required": false}
+    ],
+    "min_sources_for_confidence": 1,
+    "refuse_if_no_results": false,
+    "confidence_threshold": 0.60,
+    "cascade_condition": null
+  },
+  "multi_drug_rx": {
+    "strategy": "parallel",
+    "sources": [
+      {"source": "source_c_graph", "priority": 1, "required": false},
+      {"source": "source_b_qdrant", "priority": 2, "required": false}
+    ],
+    "min_sources_for_confidence": 1,
+    "refuse_if_no_results": false,
+    "confidence_threshold": 0.60,
+    "cascade_condition": null
+  },
+  "iv_compatibility": {
+    "strategy": "sequential",
+    "sources": [
+      {"source": "source_c_graph", "priority": 1, "required": true}
+    ],
+    "min_sources_for_confidence": 1,
+    "refuse_if_no_results": true,
+    "confidence_threshold": 0.90,
+    "cascade_condition": null
+  },
+  "drug_monograph": {
+    "strategy": "sequential",
+    "sources": [
+      {"source": "source_b_qdrant", "priority": 1, "required": true}
+    ],
+    "min_sources_for_confidence": 1,
+    "refuse_if_no_results": false,
+    "confidence_threshold": 0.55,
+    "cascade_condition": null
+  },
+  "single_drug_interactions": {
+    "strategy": "parallel",
+    "sources": [
+      {"source": "source_c_graph", "priority": 1, "required": false},
+      {"source": "source_b_qdrant", "priority": 2, "required": false}
+    ],
+    "min_sources_for_confidence": 1,
+    "refuse_if_no_results": false,
+    "confidence_threshold": 0.60,
+    "cascade_condition": null
+  },
+  "nhi_reimbursement": {
+    "strategy": "sequential",
+    "sources": [
+      {"source": "source_a_nhi", "priority": 1, "required": true},
+      {"source": "source_b_qdrant", "priority": 2, "required": false, "cascade_condition": "drug_id_only"}
+    ],
+    "min_sources_for_confidence": 1,
+    "refuse_if_no_results": false,
+    "confidence_threshold": 0.65,
+    "cascade_condition": null
+  },
+  "clinical_guideline": {
+    "strategy": "sequential",
+    "sources": [
+      {"source": "source_a_guideline", "priority": 1, "required": true},
+      {"source": "source_b_qdrant", "priority": 2, "required": false, "cascade_condition": "primary_insufficient"}
+    ],
+    "min_sources_for_confidence": 1,
+    "refuse_if_no_results": false,
+    "confidence_threshold": 0.55,
+    "cascade_condition": "primary_insufficient"
+  },
+  "clinical_decision": {
+    "strategy": "parallel",
+    "sources": [
+      {"source": "source_a_guideline", "priority": 1, "required": false},
+      {"source": "source_a_pad", "priority": 2, "required": false},
+      {"source": "source_b_qdrant", "priority": 2, "required": false},
+      {"source": "source_c_graph", "priority": 3, "required": false}
+    ],
+    "min_sources_for_confidence": 2,
+    "refuse_if_no_results": false,
+    "confidence_threshold": 0.60,
+    "cascade_condition": null
+  },
+  "patient_education": {
+    "strategy": "parallel",
+    "sources": [
+      {"source": "source_b_qdrant", "priority": 1, "required": false},
+      {"source": "source_a_guideline", "priority": 2, "required": false}
+    ],
+    "min_sources_for_confidence": 1,
+    "refuse_if_no_results": false,
+    "confidence_threshold": 0.45,
+    "cascade_condition": null
+  },
+  "clinical_summary": {
+    "strategy": "parallel",
+    "sources": [
+      {"source": "source_a_guideline", "priority": 1, "required": false},
+      {"source": "source_b_qdrant", "priority": 2, "required": false}
+    ],
+    "min_sources_for_confidence": 0,
+    "refuse_if_no_results": false,
+    "confidence_threshold": 0.45,
+    "cascade_condition": null
+  },
+  "drug_comparison": {
+    "strategy": "parallel",
+    "sources": [
+      {"source": "source_b_qdrant", "priority": 1, "required": true}
+    ],
+    "min_sources_for_confidence": 1,
+    "refuse_if_no_results": false,
+    "confidence_threshold": 0.55,
+    "cascade_condition": null
+  },
+  "general_pharmacology": {
+    "strategy": "parallel",
+    "sources": [
+      {"source": "source_b_qdrant", "priority": 1, "required": false},
+      {"source": "source_a_guideline", "priority": 2, "required": false}
+    ],
+    "min_sources_for_confidence": 0,
+    "refuse_if_no_results": false,
+    "confidence_threshold": 0.45,
+    "cascade_condition": null
+  }
+}

@@ -117,7 +117,7 @@ async def list_error_reports(
 async def create_error_report(
     request: Request,
     body: ErrorReportCreate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles("pharmacist", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
     report = ErrorReport(

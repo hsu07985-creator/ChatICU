@@ -90,8 +90,9 @@ async def get_dashboard_stats(
     today_messages = today_result.scalar() or 0
 
     # Alerts count — aggregate in DB instead of loading full Patient objects
+    # Use json_array_length (works on both PostgreSQL and SQLite)
     alert_result = await db.execute(
-        select(func.coalesce(func.sum(func.jsonb_array_length(Patient.alerts)), 0))
+        select(func.coalesce(func.sum(func.json_array_length(Patient.alerts)), 0))
         .where(Patient.archived == False)
         .where(Patient.alerts != None)
     )

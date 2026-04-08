@@ -1,5 +1,5 @@
 import json as _json
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import or_, select
@@ -9,6 +9,8 @@ from app.database import get_db
 from app.middleware.auth import get_current_user
 from app.models.drug_interaction import DrugInteraction, IVCompatibility
 from app.models.user import User
+from app.services.drug_graph_bridge import drug_graph_bridge
+from app.services.drug_rag_client import drug_rag_client
 from app.utils.response import escape_like, success_response
 
 router = APIRouter(tags=["pharmacy"])
@@ -43,38 +45,26 @@ def _parse_json_field(val) -> list:
 
 
 def _relevance_score(interaction, drug_a: str, drug_b: str) -> tuple:
-    """Return a sort key: (direct_match_priority, risk_rank, severity_rank).
-
-    Direct matches (drug name in drug1/drug2) rank higher than
-    indirect matches (drug name only in interacting_members).
-    """
+    """Return a sort key: (direct_match_priority, risk_rank, severity_rank)."""
     d1 = (interaction.drug1 or "").lower()
     d2 = (interaction.drug2 or "").lower()
     a_lower = drug_a.lower()
     b_lower = drug_b.lower() if drug_b else ""
 
-    # Count how many search terms appear directly in drug1/drug2
     direct = 0
     if a_lower in d1 or a_lower in d2:
         direct += 1
     if b_lower and (b_lower in d1 or b_lower in d2):
         direct += 1
 
-    # 0 = both direct, 1 = one direct, 2 = neither direct (both via members)
     direct_priority = 2 - direct
-
     risk = _RISK_RANK.get(interaction.risk_rating or "", 5)
     sev = _SEVERITY_RANK.get((interaction.severity or "").lower(), 5)
     return (direct_priority, risk, sev)
 
 
 def _pair_on_different_sides(interaction, drug_a: str, drug_b: str) -> bool:
-    """Ensure drug_a and drug_b match different sides of the interaction.
-
-    Without this filter, two drugs that belong to the same broad class
-    (e.g. both are 'Blood Pressure Lowering Agents') would match rows
-    where neither drug1 nor drug2 is one of the queried drugs.
-    """
+    """Ensure drug_a and drug_b match different sides of the interaction."""
     members = _parse_json_field(interaction.interacting_members)
     d1_l = (interaction.drug1 or "").lower()
     d2_l = (interaction.drug2 or "").lower()
@@ -95,62 +85,79 @@ def _pair_on_different_sides(interaction, drug_a: str, drug_b: str) -> bool:
     return (a_s1 and b_s2) or (a_s2 and b_s1)
 
 
+def _interaction_to_dict(i: DrugInteraction) -> dict:
+    return {
+        "id": i.id,
+        "drug1": i.drug1,
+        "drug2": i.drug2,
+        "severity": i.severity,
+        "mechanism": i.mechanism,
+        "clinicalEffect": i.clinical_effect,
+        "management": i.management,
+        "references": i.references,
+        "riskRating": i.risk_rating,
+        "riskRatingDescription": i.risk_rating_description,
+        "severityLabel": i.severity_label,
+        "reliabilityRating": i.reliability_rating,
+        "routeDependency": i.route_dependency,
+        "discussion": i.discussion,
+        "footnotes": i.footnotes,
+        "dependencies": _parse_json_field(i.dependencies),
+        "dependencyTypes": _parse_json_field(i.dependency_types),
+        "interactingMembers": _parse_json_field(i.interacting_members),
+        "pubmedIds": _parse_json_field(i.pubmed_ids),
+    }
+
+
 @router.get("/drug-interactions")
 async def search_drug_interactions(
     drugA: str = Query(..., min_length=1),
     drugB: str = Query(None),
+    allowRag: bool = Query(False),
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # 1) Try drug graph first
+    resolved_a = drug_graph_bridge.resolve_drug(drugA)
+    resolved_b = drug_graph_bridge.resolve_drug(drugB) if drugB else None
+
+    if resolved_a:
+        graph_results = drug_graph_bridge.search_interactions(
+            drugA=resolved_a, drugB=resolved_b,
+        )
+        if graph_results:
+            return success_response(data={
+                "interactions": graph_results,
+                "total": len(graph_results),
+                "page": 1,
+                "limit": limit,
+                "source": "drug_graph",
+            })
+
+    # 2) Fallback to database
     query = select(DrugInteraction).where(_drug_match(drugA))
     if drugB:
         query = query.where(_drug_match(drugB))
 
-    # Fetch more rows than needed so we can sort by relevance in Python
     result = await db.execute(query.limit(500))
     interactions: List[DrugInteraction] = list(result.scalars().all())
 
-    # Filter: ensure both drugs match different sides of the interaction
     if drugB:
         interactions = [i for i in interactions if _pair_on_different_sides(i, drugA, drugB)]
 
-    # Sort: direct name matches first, then by risk rating, then severity
     interactions.sort(key=lambda i: _relevance_score(i, drugA, drugB))
 
-    # Paginate after sorting
     offset = (page - 1) * limit
     page_items = interactions[offset:offset + limit]
 
     return success_response(data={
-        "interactions": [
-            {
-                "id": i.id,
-                "drug1": i.drug1,
-                "drug2": i.drug2,
-                "severity": i.severity,
-                "mechanism": i.mechanism,
-                "clinicalEffect": i.clinical_effect,
-                "management": i.management,
-                "references": i.references,
-                "riskRating": i.risk_rating,
-                "riskRatingDescription": i.risk_rating_description,
-                "severityLabel": i.severity_label,
-                "reliabilityRating": i.reliability_rating,
-                "routeDependency": i.route_dependency,
-                "discussion": i.discussion,
-                "footnotes": i.footnotes,
-                "dependencies": _parse_json_field(i.dependencies),
-                "dependencyTypes": _parse_json_field(i.dependency_types),
-                "interactingMembers": _parse_json_field(i.interacting_members),
-                "pubmedIds": _parse_json_field(i.pubmed_ids),
-            }
-            for i in page_items
-        ],
+        "interactions": [_interaction_to_dict(i) for i in page_items],
         "total": len(interactions),
         "page": page,
         "limit": limit,
+        "source": "database",
     })
 
 
@@ -164,6 +171,24 @@ async def search_iv_compatibility(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # 1) Try drug graph first
+    resolved_a = drug_graph_bridge.resolve_drug(drugA)
+    resolved_b = drug_graph_bridge.resolve_drug(drugB)
+
+    if resolved_a and resolved_b:
+        graph_result = drug_graph_bridge.check_compatibility(
+            drugA=resolved_a, drugB=resolved_b, solution=solution,
+        )
+        if graph_result:
+            return success_response(data={
+                "compatibilities": [graph_result],
+                "total": 1,
+                "page": 1,
+                "limit": limit,
+                "source": "drug_graph",
+            })
+
+    # 2) Fallback to database
     try:
         query = select(IVCompatibility).where(
             or_(
@@ -185,6 +210,7 @@ async def search_iv_compatibility(
             "total": 0,
             "page": page,
             "limit": limit,
+            "source": "database",
         })
 
     return success_response(data={
@@ -204,4 +230,5 @@ async def search_iv_compatibility(
         "total": len(compatibilities),
         "page": page,
         "limit": limit,
+        "source": "database",
     })

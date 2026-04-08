@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
@@ -22,6 +22,17 @@ class TeamChatMessage(Base):
     pinned: Mapped[bool] = mapped_column(Boolean, default=False)
     pinned_by: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # {userId, userName}
     pinned_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Reply threading
+    reply_to_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
+
+    # Read tracking
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False)
+    read_by: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True, default=list)
+
+    # Role mentions
+    mentioned_roles: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True, default=list)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

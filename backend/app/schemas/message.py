@@ -47,6 +47,18 @@ class MessageTagUpdate(BaseModel):
 class TeamChatCreate(BaseModel):
     content: str = Field(..., min_length=1, max_length=10000)
     pinned: bool = False
+    replyToId: Optional[str] = Field(None, max_length=50)
+    mentionedRoles: Optional[List[str]] = None
+
+    @field_validator("mentionedRoles")
+    @classmethod
+    def check_team_mentioned_roles(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        if v is not None:
+            allowed = {"doctor", "nurse", "pharmacist", "admin"}
+            for role in v:
+                if role not in allowed:
+                    raise ValueError(f"角色須為 {', '.join(sorted(allowed))} 之一")
+        return v
 
 
 class MessageResponse(BaseModel):

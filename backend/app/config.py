@@ -151,6 +151,17 @@ class Settings(BaseSettings):
     FUNC_API_RETRY_COUNT: int = 2
     FUNC_API_RETRY_BACKOFF_SECONDS: float = 0.5
 
+    # Drug RAG microservices (Source A = guideline, Source B = drug-specific)
+    SOURCE_A_URL: str = "http://127.0.0.1:8003"
+    SOURCE_B_URL: str = "http://127.0.0.1:8004"
+    SOURCE_PRIORITIES_PATH: str = "config/source_priorities.json"
+
+    # Orchestrator (B07) — unified query endpoint
+    ORCHESTRATOR_ENABLED: bool = False
+
+    # NHI reimbursement RAG microservice
+    NHI_SERVICE_URL: str = "http://127.0.0.1:8002"
+
     # Alerting (T28) — Webhook URL for severe error notifications (Slack/PagerDuty/email)
     ALERT_WEBHOOK_URL: str = ""
 

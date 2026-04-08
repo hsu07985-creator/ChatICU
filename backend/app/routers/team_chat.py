@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime, timezone
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -16,7 +17,7 @@ from app.utils.response import success_response
 router = APIRouter(prefix="/team/chat", tags=["team-chat"])
 
 
-def chat_to_dict(msg: TeamChatMessage) -> dict:
+def chat_to_dict(msg: TeamChatMessage, replies: Optional[List[dict]] = None) -> dict:
     return {
         "id": msg.id,
         "userId": msg.user_id,
@@ -27,7 +28,44 @@ def chat_to_dict(msg: TeamChatMessage) -> dict:
         "pinned": msg.pinned,
         "pinnedBy": msg.pinned_by,
         "pinnedAt": msg.pinned_at.isoformat() if msg.pinned_at else None,
+        "replyToId": msg.reply_to_id,
+        "isRead": msg.is_read or False,
+        "readBy": msg.read_by or [],
+        "mentionedRoles": msg.mentioned_roles or [],
+        "replyCount": len(replies) if replies is not None else 0,
+        "replies": replies if replies is not None else [],
     }
+
+
+@router.get("/mentions/count")
+async def mentions_count(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Count unread messages that mention the current user's role."""
+    result = await db.execute(
+        select(func.count(TeamChatMessage.id)).where(
+            and_(
+                TeamChatMessage.is_read == False,  # noqa: E712
+                TeamChatMessage.mentioned_roles.isnot(None),
+            )
+        )
+    )
+    all_unread_mentioned = (await db.execute(
+        select(TeamChatMessage).where(
+            and_(
+                TeamChatMessage.is_read == False,  # noqa: E712
+                TeamChatMessage.mentioned_roles.isnot(None),
+            )
+        )
+    )).scalars().all()
+
+    count = sum(
+        1 for m in all_unread_mentioned
+        if m.mentioned_roles and user.role in m.mentioned_roles
+    )
+
+    return success_response(data={"count": count})
 
 
 @router.get("")
@@ -36,21 +74,43 @@ async def list_team_chat(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Total count for frontend pagination (F13)
+    # Only count top-level messages (no reply_to_id)
     total_result = await db.execute(
-        select(func.count(TeamChatMessage.id))
+        select(func.count(TeamChatMessage.id)).where(
+            TeamChatMessage.reply_to_id.is_(None)
+        )
     )
     total = total_result.scalar() or 0
 
+    # Fetch top-level messages
     result = await db.execute(
         select(TeamChatMessage)
+        .where(TeamChatMessage.reply_to_id.is_(None))
         .order_by(TeamChatMessage.timestamp.asc(), TeamChatMessage.id.asc())
         .limit(limit)
     )
-    messages = result.scalars().all()
+    top_messages = result.scalars().all()
+    top_ids = [m.id for m in top_messages]
+
+    # Fetch all replies for these parents
+    replies_map: dict = {mid: [] for mid in top_ids}
+    if top_ids:
+        reply_result = await db.execute(
+            select(TeamChatMessage)
+            .where(TeamChatMessage.reply_to_id.in_(top_ids))
+            .order_by(TeamChatMessage.timestamp.asc())
+        )
+        for r in reply_result.scalars().all():
+            if r.reply_to_id in replies_map:
+                replies_map[r.reply_to_id].append(chat_to_dict(r))
+
+    messages = [
+        chat_to_dict(m, replies=replies_map.get(m.id, []))
+        for m in top_messages
+    ]
 
     return success_response(data={
-        "messages": [chat_to_dict(m) for m in messages],
+        "messages": messages,
         "total": total,
     })
 
@@ -62,6 +122,20 @@ async def send_team_chat(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    reply_to_id = body.replyToId
+
+    # Validate and flatten reply chain
+    if reply_to_id:
+        parent_result = await db.execute(
+            select(TeamChatMessage).where(TeamChatMessage.id == reply_to_id)
+        )
+        parent = parent_result.scalar_one_or_none()
+        if not parent:
+            raise HTTPException(status_code=404, detail="Parent message not found")
+        # Flatten: if parent is itself a reply, use its parent (root)
+        if parent.reply_to_id:
+            reply_to_id = parent.reply_to_id
+
     msg = TeamChatMessage(
         id=f"tchat_{uuid.uuid4().hex[:8]}",
         user_id=user.id,
@@ -70,6 +144,10 @@ async def send_team_chat(
         content=body.content,
         timestamp=datetime.now(timezone.utc),
         pinned=body.pinned,
+        reply_to_id=reply_to_id,
+        is_read=False,
+        read_by=[],
+        mentioned_roles=body.mentionedRoles or [],
     )
 
     if body.pinned:
@@ -86,6 +164,38 @@ async def send_team_chat(
     await db.commit()
 
     return success_response(data=chat_to_dict(msg), message="訊息已發送")
+
+
+@router.patch("/{message_id}/read")
+async def mark_read(
+    message_id: str,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(TeamChatMessage).where(TeamChatMessage.id == message_id)
+    )
+    msg = result.scalar_one_or_none()
+
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    read_by = list(msg.read_by or [])
+    # Avoid duplicate entries
+    if not any(entry.get("userId") == user.id for entry in read_by):
+        read_by.append({
+            "userId": user.id,
+            "userName": user.name,
+            "readAt": datetime.now(timezone.utc).isoformat(),
+        })
+
+    msg.is_read = True
+    msg.read_by = read_by
+    await db.commit()
+    await db.refresh(msg)
+
+    return success_response(data=chat_to_dict(msg), message="已標記已讀")
 
 
 @router.patch("/{message_id}/pin")

@@ -105,6 +105,33 @@ class ClinicalQueryRequest(BaseModel):
     dose_target: Optional[dict] = None
 
 
+# ─── Unified Citation (B11) ───────────────────────────
+
+class UnifiedCitationItem(BaseModel):
+    citation_id: str = ""
+    source_system: str = ""
+    source_file: Optional[str] = None
+    text_snippet: str = ""
+    evidence_grade: str = "unknown"
+    relevance_score: float = 0.0
+    drug_names: List[str] = Field(default_factory=list)
+
+
+# ─── Unified Query (B07) ─────────────────────────────
+
+class UnifiedQueryRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=2000)
+    patient_id: Optional[int] = None
+    context: Optional[str] = Field(None, max_length=5000)
+
+
+# ─── NHI Reimbursement Query (B08) ────────────────────
+
+class NhiRequest(BaseModel):
+    drug_name: str = Field(..., min_length=1, max_length=200)
+    indication: Optional[str] = Field(None, max_length=500)
+
+
 # ─── AI Chat ─────────────────────────────────────────
 
 class AIChatRequest(BaseModel):
