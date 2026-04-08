@@ -2,6 +2,7 @@
 export * from './auth';
 export * from './patients';
 export * from './lab-data';
+export * from './diagnostic-reports';
 export * from './vital-signs';
 export * from './ventilator';
 export * from './medications';

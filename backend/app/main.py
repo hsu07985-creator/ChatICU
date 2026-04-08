@@ -60,6 +60,7 @@ from app.routers import (
     auth,
     clinical,
     dashboard,
+    diagnostic_reports,
     health,
     lab_data,
     medications,
@@ -377,6 +378,7 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(patients.router)
 app.include_router(lab_data.router)
+app.include_router(diagnostic_reports.router)
 app.include_router(vital_signs.router)
 app.include_router(ventilator.router)
 app.include_router(medications.router)

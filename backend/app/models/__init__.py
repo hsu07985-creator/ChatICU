@@ -17,6 +17,7 @@ from app.models.culture_result import CultureResult
 from app.models.symptom_record import SymptomRecord
 from app.models.custom_tag import CustomTag
 from app.models.rag_chunk import RagChunk
+from app.models.diagnostic_report import DiagnosticReport
 
 __all__ = [
     "User",
@@ -42,4 +43,5 @@ __all__ = [
     "SymptomRecord",
     "CustomTag",
     "RagChunk",
+    "DiagnosticReport",
 ]
