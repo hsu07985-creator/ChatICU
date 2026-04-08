@@ -267,15 +267,29 @@ export function AssessmentResultsPanel({
               </div>
               {compatibilitySummary ? (
                 <>
-                  <div className="flex justify-center gap-2 text-sm font-bold">
-                    <span className="text-green-600">✓{compatibilitySummary.compatible}</span>
-                    <span className="text-red-600">✗{compatibilitySummary.incompatible}</span>
-                    {compatibilitySummary.noData > 0 && <span className="text-gray-400">?{compatibilitySummary.noData}</span>}
-                    {compatibilitySummary.queryFailed > 0 && <span className="text-amber-500">⚠{compatibilitySummary.queryFailed}</span>}
+                  <p className="text-xl font-bold">
+                    {compatibilitySummary.incompatible > 0 ? (
+                      <span className="text-red-600">{compatibilitySummary.incompatible} <span className="text-xs font-normal">組不相容</span></span>
+                    ) : (
+                      <span className="text-green-600">全部相容</span>
+                    )}
+                  </p>
+                  <div className="flex justify-center gap-3 mt-1.5 text-[11px]">
+                    <span className="text-green-600">相容 {compatibilitySummary.compatible}</span>
+                    <span className="text-slate-300">|</span>
+                    <span className="text-red-600">不相容 {compatibilitySummary.incompatible}</span>
+                    {compatibilitySummary.noData > 0 && (
+                      <>
+                        <span className="text-slate-300">|</span>
+                        <span className="text-gray-400">無資料 {compatibilitySummary.noData}</span>
+                      </>
+                    )}
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {compatibilitySummary.pairsChecked} 組
-                    {compatibilitySummary.queryFailed > 0 && `・${compatibilitySummary.queryFailed} 失敗`}
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    共 {compatibilitySummary.pairsChecked} 組檢查
+                    {compatibilitySummary.queryFailed > 0 && (
+                      <span className="text-amber-500 ml-1">（{compatibilitySummary.queryFailed} 組查詢失敗）</span>
+                    )}
                   </p>
                 </>
               ) : (
