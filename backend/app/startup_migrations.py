@@ -635,6 +635,103 @@ async def _ensure_diagnostic_reports(engine: AsyncEngine) -> None:
                     ),
                     {"id": d[0], "pid": d[1], "rt": d[2], "en": d[3], "ed": d[4], "bt": d[5], "imp": d[6], "rn": d[7]},
                 )
-            logger.info("[INTG][DB] diagnostic_reports table + demo data ensured")
+            # --- pat_002 林小姐: 敗血性休克併多重器官衰竭 ---
+            demos_002 = [
+                ("rpt_006", "pat_002", "imaging", "Chest X-ray (Portable)", _dt(2025, 11, 2, 7, 30, tzinfo=tz8),
+                 "Portable AP view of the chest:\n- ETT tip 4 cm above the carina.\n- Right IJV CVC with tip in the SVC.\n- NG tube tip in the stomach.\n- Bilateral diffuse alveolar infiltrates, worse on the right.\n- Small bilateral pleural effusions.\n- No pneumothorax.",
+                 "Bilateral alveolar infiltrates with small pleural effusions.\nConsider ARDS vs fluid overload in the setting of septic shock.",
+                 "RAD08-陳怡安"),
+                ("rpt_007", "pat_002", "imaging", "CT Abdomen & Pelvis with contrast", _dt(2025, 11, 3, 14, 20, tzinfo=tz8),
+                 "CT abdomen and pelvis with IV contrast:\n- Diffuse bowel wall thickening involving the ascending and transverse colon.\n- Mild pericolonic fat stranding.\n- Bilateral small pleural effusions with adjacent atelectasis.\n- Mild ascites in the pelvis.\n- No free air or abscess formation.\n- Liver, spleen, and pancreas appear unremarkable.\n- Bilateral kidneys show normal size with mildly delayed nephrogram.",
+                 "Diffuse colitis with pericolonic inflammatory changes.\nDifferential: infectious colitis, ischemic colitis.\nNo drainable abscess or free air.",
+                 "RAD12-王志明"),
+                ("rpt_008", "pat_002", "procedure", "Echocardiography (TTE)", _dt(2025, 11, 4, 10, 0, tzinfo=tz8),
+                 "Transthoracic echocardiography:\n- LV systolic function: hyperdynamic, estimated EF 70%.\n- LV wall motion: normal.\n- RV size and function: mildly dilated, TAPSE 14mm (mildly reduced).\n- Valvular: trace MR, mild TR (estimated RVSP 42 mmHg).\n- No pericardial effusion.\n- IVC: dilated 2.3 cm with <50% respiratory variation.",
+                 "Hyperdynamic LV function (sepsis physiology).\nMild RV dysfunction with elevated RVSP.\nElevated estimated RAP.",
+                 "CV05-林書豪"),
+                ("rpt_009", "pat_002", "imaging", "Chest CT with contrast (CTPA)", _dt(2025, 11, 6, 9, 0, tzinfo=tz8),
+                 "CT pulmonary angiography:\n- No pulmonary embolism.\n- Bilateral moderate pleural effusions with compressive atelectasis.\n- Diffuse ground-glass opacity in both lungs, compatible with ARDS.\n- Mediastinal lymphadenopathy (short axis up to 12mm).\n- ETT, CVC in satisfactory position.\n- Small pericardial effusion.",
+                 "No PE. Bilateral ARDS pattern with pleural effusions.\nReactive mediastinal lymphadenopathy.\nSmall pericardial effusion.",
+                 "RAD12-王志明"),
+            ]
+            for d in demos_002:
+                exists = await conn.execute(text("SELECT 1 FROM diagnostic_reports WHERE id = :id"), {"id": d[0]})
+                if exists.fetchone():
+                    continue
+                await conn.execute(
+                    text(
+                        "INSERT INTO diagnostic_reports (id, patient_id, report_type, exam_name, exam_date, body_text, impression, reporter_name) "
+                        "VALUES (:id, :pid, :rt, :en, :ed, :bt, :imp, :rn)"
+                    ),
+                    {"id": d[0], "pid": d[1], "rt": d[2], "en": d[3], "ed": d[4], "bt": d[5], "imp": d[6], "rn": d[7]},
+                )
+
+            # --- pat_003 陳女士: 急性腎衰竭併肺水腫 ---
+            demos_003 = [
+                ("rpt_010", "pat_003", "imaging", "Chest X-ray (Portable)", _dt(2025, 10, 28, 6, 45, tzinfo=tz8),
+                 "Portable AP view of the chest:\n- No ETT. NG tube tip in the stomach.\n- Right subclavian double-lumen dialysis catheter with tip in the RA.\n- Bilateral perihilar haziness with Kerley B lines.\n- Bilateral pleural effusions, moderate.\n- Upper lobe pulmonary venous distention.\n- Cardiomegaly (CTR ~0.60).",
+                 "Pulmonary edema with bilateral pleural effusions.\nCardiomegaly. Dialysis catheter in satisfactory position.",
+                 "RAD08-陳怡安"),
+                ("rpt_011", "pat_003", "imaging", "Renal Ultrasound", _dt(2025, 10, 29, 10, 30, tzinfo=tz8),
+                 "Renal ultrasound:\n- Right kidney: 10.2 cm, normal cortical thickness, no hydronephrosis.\n- Left kidney: 10.5 cm, normal cortical thickness, no hydronephrosis.\n- Bilateral increased renal cortical echogenicity.\n- No renal mass or calculus identified.\n- Bladder: Foley catheter in situ, minimal residual.",
+                 "Bilateral increased renal cortical echogenicity, compatible with medical renal disease.\nNo hydronephrosis or obstructive uropathy.",
+                 "RAD15-張雅婷"),
+                ("rpt_012", "pat_003", "procedure", "Echocardiography (TTE)", _dt(2025, 10, 30, 11, 30, tzinfo=tz8),
+                 "Transthoracic echocardiography:\n- LV systolic function: preserved, estimated EF 55%.\n- Concentric LV hypertrophy (IVSd 13mm).\n- Diastolic dysfunction: E/e' ratio 18 (Grade II).\n- Valvular: moderate MR, mild TR.\n- Moderate pericardial effusion without tamponade physiology.\n- IVC: dilated 2.5 cm, no respiratory variation.",
+                 "Preserved LVEF with concentric hypertrophy.\nGrade II diastolic dysfunction (elevated filling pressure).\nModerate pericardial effusion. Volume overload physiology.",
+                 "CV05-林書豪"),
+                ("rpt_013", "pat_003", "imaging", "Chest X-ray post-HD", _dt(2025, 11, 1, 16, 0, tzinfo=tz8),
+                 "Portable AP view of the chest (post-hemodialysis):\n- Dialysis catheter unchanged.\n- Interval improvement of pulmonary edema.\n- Decreased bilateral pleural effusions.\n- Persistent cardiomegaly.\n- No new consolidation or pneumothorax.",
+                 "Interval improvement of pulmonary edema post-hemodialysis.\nPersistent cardiomegaly and small residual effusions.",
+                 "RAD08-陳怡安"),
+            ]
+            for d in demos_003:
+                exists = await conn.execute(text("SELECT 1 FROM diagnostic_reports WHERE id = :id"), {"id": d[0]})
+                if exists.fetchone():
+                    continue
+                await conn.execute(
+                    text(
+                        "INSERT INTO diagnostic_reports (id, patient_id, report_type, exam_name, exam_date, body_text, impression, reporter_name) "
+                        "VALUES (:id, :pid, :rt, :en, :ed, :bt, :imp, :rn)"
+                    ),
+                    {"id": d[0], "pid": d[1], "rt": d[2], "en": d[3], "ed": d[4], "bt": d[5], "imp": d[6], "rn": d[7]},
+                )
+
+            # --- pat_004 黃先生: 創傷性腦損傷 ---
+            demos_004 = [
+                ("rpt_014", "pat_004", "imaging", "CT Without C.M. Brain", _dt(2025, 11, 12, 2, 15, tzinfo=tz8),
+                 "Non-contrast CT of the head (trauma protocol):\n- Right frontotemporal acute epidural hematoma (max thickness 15mm).\n- Midline shift 6mm to the left.\n- Right temporal bone linear fracture.\n- Diffuse cerebral edema with effacement of sulci and basal cisterns.\n- No intraventricular hemorrhage.\n- Pneumocephalus in the right frontal region.",
+                 "Acute right frontotemporal epidural hematoma with mass effect.\nMidline shift 6mm. Right temporal bone fracture.\nDiffuse cerebral edema. Neurosurgical emergency.",
+                 "RAD12-王志明"),
+                ("rpt_015", "pat_004", "imaging", "CT C-spine without contrast", _dt(2025, 11, 12, 2, 30, tzinfo=tz8),
+                 "Non-contrast CT of the cervical spine:\n- No acute cervical spine fracture or dislocation.\n- Mild degenerative changes at C5-C6 and C6-C7.\n- Prevertebral soft tissue within normal limits.\n- Spinal canal patent at all levels.\n- Bilateral vertebral artery foramina intact.",
+                 "No acute cervical spine injury.\nMild degenerative changes at C5-C7.",
+                 "RAD12-王志明"),
+                ("rpt_016", "pat_004", "imaging", "CT Brain post-op follow-up", _dt(2025, 11, 13, 8, 0, tzinfo=tz8),
+                 "Non-contrast CT of the head (post-craniotomy):\n- s/p right frontotemporal craniotomy for EDH evacuation.\n- Residual thin subdural collection along the right convexity (5mm).\n- Improved midline shift (now 2mm).\n- Persistent diffuse cerebral edema.\n- Right frontal EVD catheter with tip in the frontal horn of the right lateral ventricle.\n- Pneumocephalus decreased compared to prior.",
+                 "Post-craniotomy changes with near-complete EDH evacuation.\nResidual thin subdural collection. Improved mass effect.\nEVD in satisfactory position.",
+                 "RAD08-陳怡安"),
+                ("rpt_017", "pat_004", "procedure", "清醒腦波 EEG", _dt(2025, 11, 16, 14, 0, tzinfo=tz8),
+                 "Indication: post-traumatic brain injury, consciousness evaluation\n\nFinding:\n1. Background: diffuse theta-delta slowing (3-5 Hz, 20-50 uV), no posterior dominant rhythm.\n2. Right hemisphere: intermittent polymorphic delta activity (IPDA) over right frontotemporal region.\n3. Reactivity: minimal attenuation with painful stimulation.\n4. No definite epileptiform discharges.\n5. No electrographic seizures recorded during 30 minutes of monitoring.\n\nConclusion: severe diffuse encephalopathy with right hemispheric emphasis, consistent with structural lesion.",
+                 "Severe diffuse encephalopathy with focal right hemispheric dysfunction.\nNo epileptiform discharges or electrographic seizures.",
+                 "DAX32-廖岐禮"),
+                ("rpt_018", "pat_004", "imaging", "Chest X-ray (Portable)", _dt(2025, 11, 14, 7, 0, tzinfo=tz8),
+                 "Portable AP view of the chest:\n- ETT tip 3.5 cm above the carina.\n- NG tube tip in the stomach.\n- Right subclavian CVC with tip in the SVC.\n- Lungs: clear bilateral lung fields.\n- No pleural effusion or pneumothorax.\n- Heart size normal.",
+                 "Lines and tubes in satisfactory position.\nNo acute cardiopulmonary abnormality.",
+                 "RAD08-陳怡安"),
+            ]
+            for d in demos_004:
+                exists = await conn.execute(text("SELECT 1 FROM diagnostic_reports WHERE id = :id"), {"id": d[0]})
+                if exists.fetchone():
+                    continue
+                await conn.execute(
+                    text(
+                        "INSERT INTO diagnostic_reports (id, patient_id, report_type, exam_name, exam_date, body_text, impression, reporter_name) "
+                        "VALUES (:id, :pid, :rt, :en, :ed, :bt, :imp, :rn)"
+                    ),
+                    {"id": d[0], "pid": d[1], "rt": d[2], "en": d[3], "ed": d[4], "bt": d[5], "imp": d[6], "rn": d[7]},
+                )
+
+            logger.info("[INTG][DB] diagnostic_reports table + demo data ensured (pat_001-004)")
     except Exception as e:
         logger.warning("[INTG][DB] diagnostic_reports failed (non-fatal): %s", e)
