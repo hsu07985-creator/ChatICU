@@ -105,7 +105,8 @@ const LAB_CHINESE_NAMES_MAP: Record<string, string> = {
   PIP: '尖峰吸氣壓', Plateau: '平台壓', Compliance: '肺順應性',
   Na: '鈉', K: '鉀', Cl: '氯', BUN: '血中尿素氮', Scr: '肌酐酸',
   WBC: '白血球', Hb: '血紅素', PLT: '血小板', CRP: 'C反應蛋白',
-  pH: '酸鹼值', PCO2: '二氧化碳分壓', PO2: '氧分壓', Lactate: '乳酸'
+  pH: '酸鹼值', PCO2: '二氧化碳分壓', PO2: '氧分壓', Lactate: '乳酸',
+  BodyWeight: '體重',
 };
 
 // 擴展 Patient 類型以包含前端需要的額外欄位
