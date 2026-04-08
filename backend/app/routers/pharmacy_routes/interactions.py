@@ -1,8 +1,10 @@
 import json as _json
+import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy import or_, select
+from fastapi import APIRouter, Body, Depends, Query
+from pydantic import BaseModel, Field
+from sqlalchemy import or_, select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -236,3 +238,84 @@ async def search_iv_compatibility(
         "limit": limit,
         "source": "database",
     })
+
+
+# ── Batch IV compatibility (single round-trip for N pairs) ──────────
+
+class _PairItem(BaseModel):
+    drugA: str = Field(..., min_length=1)
+    drugB: str = Field(..., min_length=1)
+    solution: Optional[str] = None
+
+
+class _BatchRequest(BaseModel):
+    pairs: List[_PairItem] = Field(..., max_length=30)
+
+
+def _compat_to_dict(c: IVCompatibility) -> dict:
+    return {
+        "id": c.id,
+        "drug1": c.drug1,
+        "drug2": c.drug2,
+        "solution": c.solution,
+        "compatible": c.compatible,
+        "timeStability": c.time_stability,
+        "notes": c.notes,
+        "references": c.references,
+    }
+
+
+@router.post("/iv-compatibility/batch")
+async def batch_iv_compatibility(
+    body: _BatchRequest = Body(...),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Check IV compatibility for multiple drug pairs in one request."""
+    log = logging.getLogger(__name__)
+    results: List[dict] = []
+
+    for pair in body.pairs:
+        drug_a, drug_b, sol = pair.drugA, pair.drugB, pair.solution
+
+        # 1) Try graph
+        try:
+            ra = drug_graph_bridge.resolve_drug(drug_a)
+            rb = drug_graph_bridge.resolve_drug(drug_b)
+            if ra and rb:
+                gr = drug_graph_bridge.check_compatibility(drugA=ra, drugB=rb, solution=sol)
+                if gr:
+                    results.append({
+                        "drugA": drug_a, "drugB": drug_b,
+                        "compatibilities": [gr], "source": "drug_graph",
+                    })
+                    continue
+        except Exception as e:
+            log.warning("drug_graph_bridge error for %s/%s: %s", drug_a, drug_b, e)
+
+        # 2) Fallback DB
+        try:
+            q = select(IVCompatibility).where(
+                or_(
+                    and_(IVCompatibility.drug1.ilike(f"%{escape_like(drug_a)}%"),
+                         IVCompatibility.drug2.ilike(f"%{escape_like(drug_b)}%")),
+                    and_(IVCompatibility.drug1.ilike(f"%{escape_like(drug_b)}%"),
+                         IVCompatibility.drug2.ilike(f"%{escape_like(drug_a)}%")),
+                )
+            )
+            if sol and sol != "none":
+                q = q.where(IVCompatibility.solution == sol)
+            rows = (await db.execute(q.limit(100))).scalars().all()
+            results.append({
+                "drugA": drug_a, "drugB": drug_b,
+                "compatibilities": [_compat_to_dict(c) for c in rows],
+                "source": "database",
+            })
+        except Exception:
+            log.exception("batch iv-compat query failed for %s/%s", drug_a, drug_b)
+            results.append({
+                "drugA": drug_a, "drugB": drug_b,
+                "compatibilities": [], "source": "error",
+            })
+
+    return success_response(data={"results": results, "total": len(results)})

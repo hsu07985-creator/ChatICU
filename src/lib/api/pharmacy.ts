@@ -205,6 +205,38 @@ export async function getIVCompatibility(params: {
   return ensureData(response.data, 'API contract');
 }
 
+// ========== 批次相容性查詢 ==========
+
+export interface IVCompatibilityBatchPair {
+  drugA: string;
+  drugB: string;
+  solution?: string;
+}
+
+export interface IVCompatibilityBatchResultItem {
+  drugA: string;
+  drugB: string;
+  compatibilities: IVCompatibilitySearchItem[];
+  source: string;
+}
+
+export interface IVCompatibilityBatchResponse {
+  results: IVCompatibilityBatchResultItem[];
+  total: number;
+}
+
+export async function getIVCompatibilityBatch(
+  pairs: IVCompatibilityBatchPair[],
+  options?: { suppressErrorToast?: boolean },
+): Promise<IVCompatibilityBatchResponse> {
+  const response = await apiClient.post<ApiResponse<IVCompatibilityBatchResponse>>(
+    '/pharmacy/iv-compatibility/batch',
+    { pairs },
+    { suppressErrorToast: options?.suppressErrorToast },
+  );
+  return ensureData(response.data, 'API contract');
+}
+
 // ========== 用藥建議統計 ==========
 
 export interface AdviceStatistics {

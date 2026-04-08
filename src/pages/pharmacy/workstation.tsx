@@ -7,7 +7,7 @@ import { useAuth } from '../../lib/auth-context';
 import { getLatestLabData, type LabData as ApiLabData } from '../../lib/api/lab-data';
 import { getLatestVitalSigns, type VitalSigns as ApiVitalSigns } from '../../lib/api/vital-signs';
 import { checkInteractions, polishClinicalText, type PatientContext } from '../../lib/api/ai';
-import { createAdviceRecord, getDrugInteractions, getIVCompatibility, padCalculate, type PadDrugInfo } from '../../lib/api/pharmacy';
+import { createAdviceRecord, getDrugInteractions, getIVCompatibilityBatch, padCalculate, type PadDrugInfo } from '../../lib/api/pharmacy';
 import { getMedications } from '../../lib/api/medications';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -290,7 +290,7 @@ export function PharmacyWorkstationPage() {
           }
         })(),
 
-        // Task 2: IV Compatibility (all pairs in parallel)
+        // Task 2: IV Compatibility (single batch request)
         (async () => {
           const pairs: Array<[string, string]> = [];
           for (let i = 0; i < uniqueDrugs.length; i++) {
@@ -300,30 +300,31 @@ export function PharmacyWorkstationPage() {
           }
           const limitedPairs = pairs.slice(0, 20);
 
-          // Query all pairs in parallel instead of sequential for loop
           let failedCount = 0;
-          const pairResults = await Promise.all(
-            limitedPairs.map(async ([a, b]) => {
-              try {
-                const resp = await getIVCompatibility({ drugA: a, drugB: b }, { suppressErrorToast: true });
-                const rows = resp.compatibilities || [];
-                return rows.map(row => ({
-                  id: row.id || '',
-                  drugA: row.drug1 || a,
-                  drugB: row.drug2 || b,
-                  solution: (row.solution as IVCompatibility['solution']) || 'multiple',
-                  compatible: Boolean(row.compatible),
-                  timeStability: row.timeStability || undefined,
-                  notes: row.notes || undefined,
-                  references: row.references || undefined,
-                }));
-              } catch (err) {
-                console.warn('相容性查詢失敗:', err);
-                failedCount++;
-                return [] as IVCompatibility[];
-              }
-            })
-          );
+          let pairResults: IVCompatibility[][] = [];
+          try {
+            const batchResp = await getIVCompatibilityBatch(
+              limitedPairs.map(([a, b]) => ({ drugA: a, drugB: b })),
+              { suppressErrorToast: true },
+            );
+            pairResults = (batchResp.results || []).map(item => {
+              if (item.source === 'error') { failedCount++; return []; }
+              return (item.compatibilities || []).map(row => ({
+                id: row.id || '',
+                drugA: row.drug1 || item.drugA,
+                drugB: row.drug2 || item.drugB,
+                solution: (row.solution as IVCompatibility['solution']) || 'multiple',
+                compatible: Boolean(row.compatible),
+                timeStability: row.timeStability || undefined,
+                notes: row.notes || undefined,
+                references: row.references || undefined,
+              }));
+            });
+          } catch (err) {
+            console.warn('批次相容性查詢失敗:', err);
+            failedCount = limitedPairs.length;
+            pairResults = limitedPairs.map(() => []);
+          }
 
           const compatibility: IVCompatibility[] = pairResults.flat();
           const compatPairsWithData = pairResults.filter(rows => rows.length > 0).length;
