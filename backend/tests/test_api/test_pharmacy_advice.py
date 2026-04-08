@@ -19,7 +19,7 @@ async def test_create_advice_record(client):
     """POST /pharmacy/advice-records creates a new advice record."""
     payload = {
         "patientId": "pat_001",
-        "adviceCode": "1-4",
+        "adviceCode": "1-D",
         "adviceLabel": "用藥劑量/頻次問題",
         "category": "1. 建議處方",
         "content": "建議 Vancomycin 劑量調整為 1g Q24H",
@@ -33,7 +33,7 @@ async def test_create_advice_record(client):
     assert record["patientId"] == "pat_001"
     assert record["patientName"] == "許先生"
     assert record["bedNumber"] == "I-1"
-    assert record["adviceCode"] == "1-4"
+    assert record["adviceCode"] == "1-D"
     assert record["adviceLabel"] == "用藥劑量/頻次問題"
     assert record["category"] == "1. 建議處方"
     assert record["content"] == "建議 Vancomycin 劑量調整為 1g Q24H"
@@ -49,7 +49,7 @@ async def test_create_advice_record_autoposts_message(client):
     marker = "E2E_AUTOSYNC_MARKER"
     payload = {
         "patientId": "pat_001",
-        "adviceCode": "1-9",
+        "adviceCode": "1-I",
         "adviceLabel": "藥品交互作用",
         "category": "1. 建議處方",
         "content": f"建議檢視 Propofol + Fentanyl 交互作用\n\n{marker}",
@@ -70,7 +70,7 @@ async def test_create_then_list_advice_records(client):
     # Create
     payload = {
         "patientId": "pat_001",
-        "adviceCode": "2-3",
+        "adviceCode": "2-L",
         "adviceLabel": "建議用藥/建議增加用藥",
         "category": "2. 主動建議",
         "content": "建議增加 Pantoprazole 40mg IV Q12H 預防消化道出血",
@@ -94,14 +94,14 @@ async def test_list_advice_records_filter_category(client):
     # Create two records in different categories
     await client.post("/pharmacy/advice-records", json={
         "patientId": "pat_001",
-        "adviceCode": "1-1",
+        "adviceCode": "1-A",
         "adviceLabel": "建議更適當用藥",
         "category": "1. 建議處方",
         "content": "Test content A",
     })
     await client.post("/pharmacy/advice-records", json={
         "patientId": "pat_001",
-        "adviceCode": "3-1",
+        "adviceCode": "3-R",
         "adviceLabel": "建議藥品濃度監測",
         "category": "3. 建議監測",
         "content": "Test content B",
@@ -119,7 +119,7 @@ async def test_create_advice_record_invalid_patient(client):
     """Creating a record with non-existent patient returns 404."""
     payload = {
         "patientId": "NONEXIST",
-        "adviceCode": "1-4",
+        "adviceCode": "1-D",
         "adviceLabel": "用藥劑量/頻次問題",
         "category": "1. 建議處方",
         "content": "Some content",
@@ -133,7 +133,7 @@ async def test_create_advice_record_invalid_category(client):
     """Creating a record with invalid category returns 422."""
     payload = {
         "patientId": "pat_001",
-        "adviceCode": "1-4",
+        "adviceCode": "1-D",
         "adviceLabel": "Test",
         "category": "無效類別",
         "content": "Some content",

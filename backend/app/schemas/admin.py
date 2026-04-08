@@ -116,7 +116,7 @@ class ErrorReportUpdate(BaseModel):
     resolution: Optional[str] = Field(None, max_length=5000)
 
 
-_ADVICE_CODE_RE = re.compile(r"^\d{1,2}-\d{1,2}$")
+_ADVICE_CODE_RE = re.compile(r"^\d{1,2}-[A-Z]$|^\d{1,2}-\d{1,2}$")
 _ADVICE_CATEGORIES = {
     "1. 建議處方", "2. 主動建議", "3. 建議監測", "4. 用藥連貫性",
     # legacy alias
@@ -137,7 +137,7 @@ class AdviceRecordCreate(BaseModel):
     @classmethod
     def check_advice_code_format(cls, v: str) -> str:
         if not _ADVICE_CODE_RE.match(v):
-            raise ValueError("建議代碼格式不正確，應為 X-Y（如 1-4、3-1）")
+            raise ValueError("建議代碼格式不正確，應為 X-Y（如 1-A、3-R）")
         return v
 
     @field_validator("category")

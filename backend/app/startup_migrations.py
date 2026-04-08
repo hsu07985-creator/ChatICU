@@ -36,6 +36,7 @@ async def run_all(engine: AsyncEngine) -> None:
     await _ensure_patient_campus(engine)
     await _seed_outpatient_demo(engine)
     await _ensure_diagnostic_reports(engine)
+    await _migrate_vpn_letter_codes(engine)
     await _ensure_performance_indexes(engine)
 
 
@@ -777,3 +778,39 @@ async def _ensure_diagnostic_reports(engine: AsyncEngine) -> None:
             logger.info("[INTG][DB] diagnostic_reports table + demo data ensured (pat_001-004)")
     except Exception as e:
         logger.warning("[INTG][DB] diagnostic_reports failed (non-fatal): %s", e)
+
+
+async def _migrate_vpn_letter_codes(engine: AsyncEngine) -> None:
+    """Migrate advice_code from numeric to VPN letter format (idempotent)."""
+    CODE_MAP = {
+        "1-1": "1-A", "1-2": "1-B", "1-3": "1-C", "1-4": "1-D",
+        "1-5": "1-E", "1-6": "1-F", "1-7": "1-G", "1-8": "1-H",
+        "1-9": "1-I", "1-10": "1-J", "1-11": "1-K", "1-12": "1-L",
+        "1-13": "1-M",
+        "2-1": "2-J", "2-2": "2-K", "2-3": "2-L", "2-4": "2-M",
+        "2-5": "2-N", "2-6": "2-O", "2-7": "2-P", "2-8": "2-Q",
+        "3-1": "3-R", "3-2": "3-S", "3-3": "3-T",
+        "4-1": "4-U", "4-2": "4-V", "4-3": "4-W",
+    }
+    try:
+        async with engine.begin() as conn:
+            # Check if any old-format codes still exist
+            result = await conn.execute(text(
+                "SELECT COUNT(*) FROM pharmacy_advices WHERE advice_code ~ '^[0-9]+-[0-9]+$'"
+            ))
+            old_count = result.scalar() or 0
+            if old_count == 0:
+                logger.info("[INTG][DB] VPN letter codes already migrated, skipping")
+                return
+
+            for old, new in CODE_MAP.items():
+                await conn.execute(text(
+                    "UPDATE pharmacy_advices SET advice_code = :new WHERE advice_code = :old"
+                ), {"old": old, "new": new})
+                await conn.execute(text(
+                    "UPDATE patient_messages SET advice_code = :new WHERE advice_code = :old"
+                ), {"old": old, "new": new})
+
+            logger.info("[INTG][DB] VPN letter codes migrated (%d records)", old_count)
+    except Exception as e:
+        logger.warning("[INTG][DB] VPN letter code migration failed (non-fatal): %s", e)

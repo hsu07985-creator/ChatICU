@@ -34,8 +34,8 @@ async def seeded_messages(seeded_db):
         content="Suggest dose reduction",
         timestamp=now,
         is_read=True,
-        advice_code="1-1",
-        tags=["建議處方", "1-1 給藥問題"],
+        advice_code="1-A",
+        tags=["建議處方", "1-A 給藥問題"],
     )
     db.add_all([msg1, msg2])
     await db.commit()
