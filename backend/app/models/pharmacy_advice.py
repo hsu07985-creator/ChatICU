@@ -21,7 +21,7 @@ class PharmacyAdvice(Base):
         String(50), ForeignKey("users.id", ondelete="RESTRICT"), index=True
     )
     pharmacist_name: Mapped[str] = mapped_column(String(100))
-    advice_code: Mapped[str] = mapped_column(String(10))  # e.g. '1-4', '2-1'
+    advice_code: Mapped[str] = mapped_column(String(10))  # e.g. '1-D', '2-L'
     advice_label: Mapped[str] = mapped_column(String(200))
     category: Mapped[str] = mapped_column(String(50), index=True)  # '1. 建議處方', etc.
     content: Mapped[str] = mapped_column(Text)

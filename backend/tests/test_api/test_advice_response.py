@@ -7,7 +7,7 @@ async def _create_advice(client, patient_id="pat_001"):
     """Helper: create an advice record and return its ID."""
     payload = {
         "patientId": patient_id,
-        "adviceCode": "1-4",
+        "adviceCode": "1-D",
         "adviceLabel": "藥品併用問題",
         "category": "1. 建議處方",
         "content": "建議調整 Vancomycin 劑量",
