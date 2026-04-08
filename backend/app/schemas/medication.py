@@ -53,6 +53,7 @@ class MedicationResponse(BaseModel):
     status: str = "active"
     prescribedBy: Optional[dict] = None
     warnings: Optional[List[str]] = None
+    notes: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

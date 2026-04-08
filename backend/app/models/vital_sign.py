@@ -26,6 +26,10 @@ class VitalSign(Base):
     respiratory_rate: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     spo2: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     temperature: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    etco2: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    cvp: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    icp: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    cpp: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     reference_ranges: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

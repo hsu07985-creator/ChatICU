@@ -54,7 +54,7 @@ def med_to_dict(med: Medication) -> dict:
         "status": med.status,
         "prescribedBy": med.prescribed_by,
         "warnings": med.warnings or [],
-        "notes": None,
+        "notes": med.notes,
         "concentration": med.concentration,
         "concentrationUnit": med.concentration_unit,
     }
@@ -114,28 +114,11 @@ async def list_medications(
     result = await db.execute(query.order_by(Medication.name))
     medications = result.scalars().all()
 
-    # Fetch notes safely via raw SQL (column may not exist if migration 045/046 failed)
-    notes_map: dict = {}
-    try:
-        med_ids = [m.id for m in medications]
-        if med_ids:
-            from sqlalchemy import text
-            notes_rows = await db.execute(
-                text("SELECT id, notes FROM medications WHERE id = ANY(:ids)"),
-                {"ids": med_ids},
-            )
-            for row in notes_rows:
-                if row[1]:
-                    notes_map[row[0]] = row[1]
-    except Exception:
-        pass
-
     # Group by SAN category — keys match frontend MedicationsResponse interface
     _SAN_KEY_MAP = {"S": "sedation", "A": "analgesia", "N": "nmb"}
     grouped = {"sedation": [], "analgesia": [], "nmb": [], "other": []}
     for med in medications:
         d = med_to_dict(med)
-        d["notes"] = notes_map.get(med.id)
         cat = normalize_san_category(med.san_category) or "other"
         key = _SAN_KEY_MAP.get(cat, "other")
         grouped[key].append(d)
@@ -169,11 +152,7 @@ async def list_medications(
     except Exception:
         interactions = []
 
-    all_meds = []
-    for m in medications:
-        d = med_to_dict(m)
-        d["notes"] = notes_map.get(m.id)
-        all_meds.append(d)
+    all_meds = [med_to_dict(m) for m in medications]
 
     return success_response(data={
         "medications": all_meds,
@@ -191,18 +170,7 @@ async def get_medication(
 ):
     pid = normalize_patient_id(patient_id)
     med = await _get_medication_or_404(db, pid, medication_id)
-    d = med_to_dict(med)
-    try:
-        from sqlalchemy import text
-        row = await db.execute(
-            text("SELECT notes FROM medications WHERE id = :mid"),
-            {"mid": med.id},
-        )
-        r = row.first()
-        d["notes"] = r[0] if r else None
-    except Exception:
-        pass
-    return success_response(data=d)
+    return success_response(data=med_to_dict(med))
 
 
 @router.get(

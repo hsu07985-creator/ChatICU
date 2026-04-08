@@ -26,6 +26,7 @@ def lab_to_dict(lab: LabData) -> dict:
         "biochemistry": lab.biochemistry,
         "hematology": lab.hematology,
         "bloodGas": lab.blood_gas,
+        "venousBloodGas": lab.venous_blood_gas or {},
         "inflammatory": lab.inflammatory,
         "coagulation": lab.coagulation,
         "cardiac": lab.cardiac,
@@ -117,7 +118,8 @@ async def correct_lab_data(
     lab.corrections = corrections
 
     # Update the actual value in the category
-    category_data = getattr(lab, body.category.replace("bloodGas", "blood_gas"), None)
+    _col_name = body.category.replace("venousBloodGas", "venous_blood_gas").replace("bloodGas", "blood_gas")
+    category_data = getattr(lab, _col_name, None)
     if category_data and body.item in category_data:
         category_data[body.item]["value"] = body.correctedValue
         category_data[body.item]["corrected"] = True

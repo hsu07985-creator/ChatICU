@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, String, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -35,6 +35,7 @@ class Medication(Base):
     warnings: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of strings
     concentration: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     concentration_unit: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

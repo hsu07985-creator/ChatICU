@@ -480,6 +480,69 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("[INTG][DB] culture_results columns failed (non-fatal): %s", e)
 
+    # Ensure venous_blood_gas JSONB column exists on lab_data
+    try:
+        from app.database import engine as _eng_vbg
+        from sqlalchemy import text as _t_vbg
+        async with _eng_vbg.begin() as conn:
+            await conn.execute(_t_vbg(
+                "ALTER TABLE lab_data ADD COLUMN IF NOT EXISTS venous_blood_gas JSONB"
+            ))
+            logger.info("[INTG][DB] lab_data.venous_blood_gas column ensured")
+
+            # Seed venous blood gas data for demo patients if missing
+            import json as _json_vbg
+            _vbg_pat_001 = {
+                "pH": {"value": 7.32, "unit": "", "referenceRange": "7.31-7.41", "status": "normal"},
+                "PCO2": {"value": 48.0, "unit": "mmHg", "referenceRange": "41-51", "status": "normal"},
+                "PO2": {"value": 38.0, "unit": "mmHg", "referenceRange": "30-50", "status": "normal"},
+                "HCO3": {"value": 24.1, "unit": "mEq/L", "referenceRange": "22-26", "status": "normal"},
+                "BE": {"value": -1.2, "unit": "mEq/L", "referenceRange": "-2 to 2", "status": "normal"},
+                "SO2C": {"value": 68.0, "unit": "%", "referenceRange": "60-80", "status": "normal"},
+            }
+            _vbg_pat_002 = {
+                "pH": {"value": 7.28, "unit": "", "referenceRange": "7.31-7.41", "status": "low"},
+                "PCO2": {"value": 55.0, "unit": "mmHg", "referenceRange": "41-51", "status": "high"},
+                "PO2": {"value": 32.0, "unit": "mmHg", "referenceRange": "30-50", "status": "normal"},
+                "HCO3": {"value": 25.5, "unit": "mEq/L", "referenceRange": "22-26", "status": "normal"},
+                "BE": {"value": -0.5, "unit": "mEq/L", "referenceRange": "-2 to 2", "status": "normal"},
+                "SO2C": {"value": 58.0, "unit": "%", "referenceRange": "60-80", "status": "low"},
+            }
+            for _pid, _vbg_data in [("pat_001", _vbg_pat_001), ("pat_002", _vbg_pat_002)]:
+                await conn.execute(_t_vbg(
+                    "UPDATE lab_data SET venous_blood_gas = :vbg "
+                    "WHERE patient_id = :pid AND venous_blood_gas IS NULL"
+                ), {"vbg": _json_vbg.dumps(_vbg_data), "pid": _pid})
+            logger.info("[INTG][DB] venous_blood_gas seed data applied for pat_001/pat_002")
+    except Exception as e:
+        logger.warning("[INTG][DB] venous_blood_gas bootstrap failed (non-fatal): %s", e)
+
+    # ── Ensure vital_signs advanced monitoring columns ──
+    try:
+        from app.database import engine as _eng_vs
+        from sqlalchemy import text as _t_vs
+        async with _eng_vs.begin() as conn:
+            for _vcol in ("etco2", "cvp", "icp", "cpp"):
+                await conn.execute(_t_vs(
+                    f"ALTER TABLE vital_signs ADD COLUMN IF NOT EXISTS {_vcol} FLOAT"
+                ))
+            logger.info("[INTG][DB] vital_signs etco2/cvp/icp/cpp columns ensured")
+            # Seed demo data for advanced monitoring fields
+            await conn.execute(_t_vs(
+                "UPDATE vital_signs SET etco2 = 38.0, cvp = 10.0 "
+                "WHERE patient_id = 'pat_001' AND etco2 IS NULL"
+            ))
+            await conn.execute(_t_vs(
+                "UPDATE vital_signs SET etco2 = 42.0, cvp = 9.0 "
+                "WHERE patient_id = 'pat_002' AND etco2 IS NULL"
+            ))
+            await conn.execute(_t_vs(
+                "UPDATE vital_signs SET etco2 = 40.0, cvp = 11.0, icp = 18.0, cpp = 62.0 "
+                "WHERE patient_id = 'pat_004' AND etco2 IS NULL"
+            ))
+    except Exception as e:
+        logger.warning("[INTG][DB] vital_signs advanced columns failed (non-fatal): %s", e)
+
     yield
     # Shutdown
     from app.middleware.auth import _redis_client

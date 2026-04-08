@@ -19,6 +19,7 @@ class LabData(Base):
     biochemistry: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     hematology: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     blood_gas: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    venous_blood_gas: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     inflammatory: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     coagulation: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     cardiac: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)

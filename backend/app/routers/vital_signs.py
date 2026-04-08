@@ -39,6 +39,10 @@ def vital_to_dict(vs: VitalSign) -> dict:
         "respiratoryRate": vs.respiratory_rate,
         "spo2": vs.spo2,
         "temperature": vs.temperature,
+        "etco2": vs.etco2,
+        "cvp": vs.cvp,
+        "icp": vs.icp,
+        "cpp": vs.cpp,
         "referenceRanges": REFERENCE_RANGES,
     }
 
