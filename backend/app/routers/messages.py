@@ -120,9 +120,9 @@ async def get_preset_tags(
     if user.role in ("pharmacist", "admin"):
         tags.extend(PHARMACIST_CATEGORY_TAGS)
 
-    # Merge shared custom tags
+    # Merge shared custom tags (cap at 500 to bound memory)
     result = await db.execute(
-        select(CustomTag.name).order_by(CustomTag.created_at.asc())
+        select(CustomTag.name).order_by(CustomTag.created_at.asc()).limit(500)
     )
     seen = set(tags)
     for (name,) in result.all():
@@ -181,7 +181,7 @@ async def list_custom_tags(
 ):
     """List all shared custom tags."""
     result = await db.execute(
-        select(CustomTag).order_by(CustomTag.created_at.asc())
+        select(CustomTag).order_by(CustomTag.created_at.asc()).limit(500)
     )
     tags = [custom_tag_to_dict(t) for t in result.scalars().all()]
     return success_response(data=tags)
@@ -294,6 +294,7 @@ async def list_messages(
             select(PatientMessage)
             .where(PatientMessage.reply_to_id.in_(top_ids))
             .order_by(PatientMessage.timestamp.asc())
+            .limit(50 * len(top_ids))
         )
         for reply in replies_result.scalars().all():
             replies_map.setdefault(reply.reply_to_id, []).append(msg_to_dict(reply))

@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -10,6 +10,9 @@ from app.database import Base
 
 class PatientMessage(Base):
     __tablename__ = "patient_messages"
+    __table_args__ = (
+        Index("ix_patient_messages_patient_is_read", "patient_id", "is_read"),
+    )
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
     patient_id: Mapped[str] = mapped_column(

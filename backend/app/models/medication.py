@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -12,6 +12,7 @@ class Medication(Base):
     __tablename__ = "medications"
     __table_args__ = (
         CheckConstraint("status IN ('active','inactive','discontinued','completed','on-hold')", name="ck_medications_status_valid"),
+        Index("ix_medications_status_san_category", "status", "san_category"),
     )
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True)

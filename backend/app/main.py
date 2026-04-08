@@ -543,6 +543,23 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("[INTG][DB] vital_signs advanced columns failed (non-fatal): %s", e)
 
+    # ── Ensure performance indexes for dashboard queries ──
+    try:
+        from app.database import engine as _eng_idx
+        from sqlalchemy import text as _t_idx
+        async with _eng_idx.begin() as conn:
+            await conn.execute(_t_idx(
+                "CREATE INDEX IF NOT EXISTS ix_patient_messages_patient_is_read "
+                "ON patient_messages (patient_id, is_read)"
+            ))
+            await conn.execute(_t_idx(
+                "CREATE INDEX IF NOT EXISTS ix_medications_status_san_category "
+                "ON medications (status, san_category)"
+            ))
+            logger.info("[INTG][DB] dashboard performance indexes ensured")
+    except Exception as e:
+        logger.warning("[INTG][DB] dashboard indexes failed (non-fatal): %s", e)
+
     yield
     # Shutdown
     from app.middleware.auth import _redis_client
