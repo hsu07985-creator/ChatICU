@@ -666,11 +666,11 @@ export function PatientMedicationsTab({
             </Card>
           </div>
 
-          {/* Other Medications */}
+          {/* Inpatient Medications */}
           <Card className={`border-border ${medView === 'discontinued' ? 'border-dashed' : ''}`}>
             <CardHeader className="pb-2 space-y-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold leading-tight text-slate-800">其他藥物 Other Medications</CardTitle>
+                <CardTitle className="text-base font-semibold leading-tight text-slate-800">住院用藥 Inpatient Medications</CardTitle>
               </div>
               {/* Primary toggle: active vs discontinued */}
               <div className="flex items-center gap-2 flex-wrap">
@@ -759,7 +759,7 @@ export function PatientMedicationsTab({
               )}
               {displayedMeds.length === 0 ? (
                 <p className="py-3 text-sm text-muted-foreground">
-                  {filterAbx ? '無抗生素藥物' : filterPrn ? '無 PRN/STAT 藥物' : medView === 'discontinued' ? '無已停用藥物' : medView === 'all' ? '無藥物' : '無其他藥物'}
+                  {filterAbx ? '無抗生素藥物' : filterPrn ? '無 PRN/STAT 藥物' : medView === 'discontinued' ? '無已停用藥物' : medView === 'all' ? '無藥物' : '無住院用藥'}
                 </p>
               ) : (
                 <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
