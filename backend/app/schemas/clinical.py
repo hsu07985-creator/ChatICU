@@ -125,12 +125,6 @@ class UnifiedQueryRequest(BaseModel):
     context: Optional[str] = Field(None, max_length=5000)
 
 
-# ─── NHI Reimbursement Query (B08) ────────────────────
-
-class NhiRequest(BaseModel):
-    drug_name: str = Field(..., min_length=1, max_length=200)
-    indication: Optional[str] = Field(None, max_length=500)
-
 
 # ─── AI Chat ─────────────────────────────────────────
 

@@ -728,55 +728,6 @@ export async function updateMessageFeedback(
 }
 
 
-// ─── NHI Reimbursement Query (B08) ──────────────────────────────────
-
-export interface NhiReimbursementRule {
-  section?: string;
-  section_name?: string;
-  requires_prior_auth: boolean;
-  conditions: string[];
-  applicable_indications: string[];
-}
-
-export interface NhiSourceChunk {
-  chunk_id: string;
-  text_snippet: string;
-  relevance_score: number;
-}
-
-export interface NhiQueryData {
-  drug_name: string;
-  drug_name_zh?: string | null;
-  reimbursement_rules: NhiReimbursementRule[];
-  source_chunks: NhiSourceChunk[];
-  answer: string;
-  confidence: number;
-}
-
-export interface NhiQueryResult {
-  data: NhiQueryData;
-  warning?: string;
-}
-
-export interface NhiQueryRequest {
-  drug_name: string;
-  indication?: string;
-}
-
-export async function queryNhiReimbursement(
-  request: NhiQueryRequest,
-): Promise<NhiQueryResult> {
-  const response = await apiClient.post<ApiResponse<NhiQueryData>>(
-    '/api/v1/clinical/nhi',
-    request,
-  );
-  const data = ensureData(response.data, 'NHI query');
-  return {
-    data,
-    warning: (response.data as { message?: string }).message || undefined,
-  };
-}
-
 
 // ─── Unified Clinical Query Types (for ClinicalQueryPanel) ──────────
 

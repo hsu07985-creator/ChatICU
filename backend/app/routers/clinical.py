@@ -31,14 +31,12 @@ from app.schemas.clinical import (
     ExplanationRequest,
     GuidelineRequest,
     InteractionCheckRequest,
-    NhiRequest,
     PolishRequest,
     SummaryRequest,
     UnifiedCitationItem,
     UnifiedQueryRequest,
 )
 from app.services.evidence_client import evidence_client
-from app.services.nhi_client import nhi_client
 from app.services.llm_services.clinical_summary import generate_clinical_summary
 from app.services.llm_services.patient_explanation import generate_patient_explanation
 from app.services.llm_services.rag_service import rag_service
@@ -884,108 +882,3 @@ async def unified_clinical_query(
     )
 
     return success_response(data=resp_data)
-
-
-# ── P3-4: NHI Reimbursement Query ─────────────────────────────────────────
-
-# Common English→Chinese drug name mapping for NHI context
-_DRUG_NAME_ZH_MAP: Dict[str, str] = {
-    "pembrolizumab": "吉舒達",
-    "nivolumab": "保疾伏",
-    "atezolizumab": "癌自禦",
-    "durvalumab": "抑癌寧",
-    "rituximab": "莫須瘤",
-    "trastuzumab": "賀癌平",
-    "bevacizumab": "癌思停",
-}
-
-
-@router.post("/nhi")
-@limiter.limit("10/minute")
-async def nhi_reimbursement_query(
-    req: NhiRequest,
-    request: Request,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Query NHI reimbursement rules for a drug via the NHI RAG microservice."""
-    service_available = await nhi_client.health()
-
-    if service_available:
-        search_results = await nhi_client.search(req.drug_name, top_k=5)
-        ask_question = req.drug_name + (f" 於 {req.indication}" if req.indication else "")
-        ask_results = await nhi_client.ask(ask_question)
-    else:
-        search_results = {"results": [], "query": req.drug_name}
-        ask_results = {"answer": ""}
-
-    normalised_chunks = nhi_client.parse_chunks(search_results.get("results", []))
-
-    # Build reimbursement rules from chunks
-    reimbursement_rules = []
-    for chunk in normalised_chunks:
-        requires_prior_auth = "事前審查" in chunk.get("text", "")
-        reimbursement_rules.append({
-            "requires_prior_auth": requires_prior_auth,
-            "conditions": chunk.get("text", ""),
-            "applicable_indications": req.indication or "",
-            "source_section": chunk.get("section", ""),
-        })
-
-    # Compute confidence from chunk scores
-    if normalised_chunks:
-        scores = [c.get("score", 0.0) for c in normalised_chunks]
-        confidence = min(sum(scores) / len(scores), 0.95)
-    else:
-        confidence = 0.0
-
-    # Drug name mapping
-    drug_name_zh = _DRUG_NAME_ZH_MAP.get(req.drug_name.lower())
-
-    # Build response
-    message = None
-    if service_available:
-        source_chunks = [
-            {
-                "chunk_id": c.get("chunk_id"),
-                "text_snippet": c.get("text"),
-                "relevance_score": c.get("score"),
-            }
-            for c in normalised_chunks
-        ]
-    else:
-        source_chunks = []
-        message = "NHI 服務暫時無法連線，此回答僅供參考"
-        # LLM fallback
-        if not ask_results.get("answer"):
-            try:
-                llm_result = await asyncio.to_thread(
-                    call_llm,
-                    task="nhi_fallback",
-                    input_data={
-                        "drug_name": req.drug_name,
-                        "indication": req.indication,
-                    },
-                )
-                ask_results["answer"] = llm_result.get("content", "")
-            except Exception:
-                ask_results["answer"] = ""
-
-    await create_audit_log(
-        db, user_id=user.id, user_name=user.name, role=user.role,
-        action="NHI查詢", target=req.drug_name, status="success" if service_available else "degraded",
-        ip=request.client.host if request.client else None,
-        details={"drug_name": req.drug_name, "service_available": service_available},
-    )
-
-    resp_data: Dict[str, Any] = {
-        "drug_name": req.drug_name,
-        "reimbursement_rules": reimbursement_rules,
-        "source_chunks": source_chunks,
-        "confidence": confidence,
-        "answer": ask_results.get("answer", ""),
-    }
-    if drug_name_zh:
-        resp_data["drug_name_zh"] = drug_name_zh
-
-    return success_response(data=resp_data, message=message)
