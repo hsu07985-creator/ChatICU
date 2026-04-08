@@ -122,7 +122,7 @@
     }
   ],
   "framework": "vite",
-  "buildCommand": "rm -rf node_modules/.vite && VITE_API_URL= npm run build",
+  "buildCommand": "rm -rf node_modules/.vite && rm -rf build && VITE_API_URL= npm run build",
   "outputDirectory": "build",
   "installCommand": "npm install"
 }
