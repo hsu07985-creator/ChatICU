@@ -119,16 +119,17 @@ export function DashboardPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fallback: compute stats from patient list when API stats unavailable
+  // Patient API returns sedation/analgesia/nmb arrays (not sanSummary)
   const effectiveStats: DashboardStats | null = stats ?? (patients.length > 0 ? {
     patients: {
       total: patients.length,
       intubated: patients.filter(p => p.intubated).length,
       intubatedBeds: patients.filter(p => p.intubated).map(p => p.bedNumber),
-      withSAN: patients.filter(p => (p.sanSummary?.sedation?.length ?? 0) + (p.sanSummary?.analgesia?.length ?? 0) + (p.sanSummary?.nmb?.length ?? 0) > 0).length,
+      withSAN: patients.filter(p => (p.sedation?.length ?? 0) + (p.analgesia?.length ?? 0) + (p.nmb?.length ?? 0) > 0).length,
       sanByCategory: {
-        sedation: patients.filter(p => (p.sanSummary?.sedation?.length ?? 0) > 0).length,
-        analgesia: patients.filter(p => (p.sanSummary?.analgesia?.length ?? 0) > 0).length,
-        nmb: patients.filter(p => (p.sanSummary?.nmb?.length ?? 0) > 0).length,
+        sedation: patients.filter(p => (p.sedation?.length ?? 0) > 0).length,
+        analgesia: patients.filter(p => (p.analgesia?.length ?? 0) > 0).length,
+        nmb: patients.filter(p => (p.nmb?.length ?? 0) > 0).length,
       },
     },
     alerts: { total: patients.reduce((sum, p) => sum + p.alerts.length, 0) },
