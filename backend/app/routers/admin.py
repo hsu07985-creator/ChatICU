@@ -556,21 +556,28 @@ async def fix_diagnostic_reports(
         await db.commit()
         steps.append("index_created")
 
-        # Step 3: Seed demo data
+        # Step 3: Seed demo data (asyncpg needs real datetime objects, not strings)
+        from datetime import timezone as tz, timedelta
+        tz8 = tz(timedelta(hours=8))
         demos = [
-            {"id": "rpt_001", "pid": "pat_001", "rt": "imaging", "en": "CT Without C.M. Brain", "ed": "2025-10-20 10:30:00+08",
+            {"id": "rpt_001", "pid": "pat_001", "rt": "imaging", "en": "CT Without C.M. Brain",
+             "ed": datetime(2025, 10, 20, 10, 30, 0, tzinfo=tz8),
              "bt": "CT of head without contrast enhancement shows:\n- s/p right lateral ventricle drainage.\n- brain atrophy with prominent sulci.\n- confluent hypodensity at periventricular white matter.\n- old insult in left patietal-occipital-temporal lobes.\n- lacunes at bilateral basal ganglia, thalami, pons.\n- atherosclerosis in intracranial arteries.",
              "imp": "Brain atrophy. old insults and lacunes. post-operative changes.\nSuggest clinical correlation.", "rn": "RAD12-王志明"},
-            {"id": "rpt_002", "pid": "pat_001", "rt": "imaging", "en": "Chest X-ray (Portable)", "ed": "2025-10-18 08:15:00+08",
+            {"id": "rpt_002", "pid": "pat_001", "rt": "imaging", "en": "Chest X-ray (Portable)",
+             "ed": datetime(2025, 10, 18, 8, 15, 0, tzinfo=tz8),
              "bt": "Portable AP view of the chest:\n- ETT tip at approximately 3 cm above carina.\n- NG tube tip in stomach.\n- Right subclavian CVC with tip in SVC.\n- Bilateral diffuse ground-glass opacities.\n- No pneumothorax. Mild cardiomegaly.",
              "imp": "Bilateral diffuse infiltrates, compatible with ARDS or pulmonary edema.\nLines and tubes in satisfactory position.", "rn": "RAD08-陳怡安"},
-            {"id": "rpt_003", "pid": "pat_001", "rt": "procedure", "en": "清醒腦波 EEG", "ed": "2025-11-05 14:00:00+08",
+            {"id": "rpt_003", "pid": "pat_001", "rt": "procedure", "en": "清醒腦波 EEG",
+             "ed": datetime(2025, 11, 5, 14, 0, 0, tzinfo=tz8),
              "bt": "Indication: conscious change\n\nFinding:\n1. Diffuse background slowing, theta predominant.\n2. No epileptiform discharge.\n\nConclusion: diffuse cortical dysfunction.",
              "imp": "Diffuse cortical dysfunction. No epileptiform discharge.", "rn": "DAX32-廖岐禮"},
-            {"id": "rpt_004", "pid": "pat_001", "rt": "procedure", "en": "Echocardiography (TTE)", "ed": "2025-10-25 11:00:00+08",
+            {"id": "rpt_004", "pid": "pat_001", "rt": "procedure", "en": "Echocardiography (TTE)",
+             "ed": datetime(2025, 10, 25, 11, 0, 0, tzinfo=tz8),
              "bt": "TTE:\n- LV systolic function: mildly reduced, EF 45%.\n- Global hypokinesis.\n- Mild MR, mild TR.\n- No pericardial effusion.\n- IVC dilated, estimated RAP 10-15 mmHg.",
              "imp": "Mildly reduced LV systolic function (EF ~45%).\nMild MR/TR. Elevated RAP.", "rn": "CV05-林書豪"},
-            {"id": "rpt_005", "pid": "pat_001", "rt": "imaging", "en": "Chest CT with contrast", "ed": "2025-11-10 09:45:00+08",
+            {"id": "rpt_005", "pid": "pat_001", "rt": "imaging", "en": "Chest CT with contrast",
+             "ed": datetime(2025, 11, 10, 9, 45, 0, tzinfo=tz8),
              "bt": "CT chest with IV contrast:\n- No PE identified.\n- Bilateral pleural effusions.\n- Bilateral dependent consolidations.\n- Diffuse ground-glass opacity.\n- ETT, CVC and NG tube in satisfactory position.",
              "imp": "No PE. Bilateral pleural effusions and consolidations.\nDifferential: atelectasis, infection, or ARDS.", "rn": "RAD12-王志明"},
         ]
