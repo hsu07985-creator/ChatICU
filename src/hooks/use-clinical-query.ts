@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query';
+import { useApiMutation } from './use-api-query';
 import {
   clinicalUnifiedQuery,
   type UnifiedQueryRequest,
@@ -16,7 +16,7 @@ import {
  *   mutate({ question: '...', patient_id: 123 });
  */
 export function useClinicalQuery() {
-  return useMutation<UnifiedQueryData, Error, UnifiedQueryRequest>({
+  return useApiMutation<UnifiedQueryData, Error, UnifiedQueryRequest>({
     mutationFn: clinicalUnifiedQuery,
   });
 }

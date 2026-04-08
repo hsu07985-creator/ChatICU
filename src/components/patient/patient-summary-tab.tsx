@@ -21,6 +21,7 @@ import {
   createSymptomRecord,
   type SymptomRecord,
 } from '../../lib/api/symptom-records';
+import { ClinicalQueryPanel } from './clinical-query-panel';
 
 interface PatientSummaryTabPatient {
   id: string;
@@ -207,6 +208,8 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: Pat
 
   const canSummary = aiReadiness ? aiReadiness.feature_gates.clinical_summary : true;
   const summaryReason = getReadinessReason(aiReadiness, 'clinical_summary');
+  const canQuery = aiReadiness ? aiReadiness.feature_gates.clinical_query : true;
+  const queryReason = getReadinessReason(aiReadiness, 'clinical_query');
 
   // Load symptom history
   useEffect(() => {
@@ -323,6 +326,7 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: Pat
   ];
 
   return (
+    <div className="space-y-3">
     <div className="grid gap-3 lg:grid-cols-[3fr_2fr]">
       {/* ── 左欄：基本資訊 ── */}
       <div className="space-y-2">
@@ -540,6 +544,14 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: Pat
           </div>
         </CardContent>
       </Card>
+    </div>
+
+    {/* ── 統整知識庫查詢 ── */}
+    <ClinicalQueryPanel
+      patientId={Number(patient.id.replace(/\D/g, '')) || undefined}
+      canQuery={canQuery}
+      disabledReason={queryReason}
+    />
     </div>
   );
 }

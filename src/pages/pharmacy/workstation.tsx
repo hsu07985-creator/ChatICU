@@ -20,6 +20,7 @@ import { ScrollArea } from '../../components/ui/scroll-area';
 import { AssessmentResultsPanel } from './workstation/assessment-results-panel';
 import { PharmacyReportView } from './workstation/pharmacy-report-view';
 import { AdviceSubmitDialog } from './workstation/advice-submit-dialog';
+import { NhiReimbursementPanel } from '../../components/patient/nhi-reimbursement-panel';
 import {
   adviceCategories,
   type AssessmentResults,
@@ -852,6 +853,9 @@ export function PharmacyWorkstationPage() {
             onSaveAdvice={handleSaveAdvice}
           />
         )}
+
+        {/* 健保給付查詢 */}
+        <NhiReimbursementPanel />
       </div>
 
       <AdviceSubmitDialog

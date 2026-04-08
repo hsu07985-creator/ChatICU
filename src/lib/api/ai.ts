@@ -726,3 +726,123 @@ export async function updateMessageFeedback(
 ): Promise<void> {
   await apiClient.patch(`/ai/chat/messages/${messageId}/feedback`, { feedback });
 }
+
+
+// ─── NHI Reimbursement Query (B08) ──────────────────────────────────
+
+export interface NhiReimbursementRule {
+  section?: string;
+  section_name?: string;
+  requires_prior_auth: boolean;
+  conditions: string[];
+  applicable_indications: string[];
+}
+
+export interface NhiSourceChunk {
+  chunk_id: string;
+  text_snippet: string;
+  relevance_score: number;
+}
+
+export interface NhiQueryData {
+  drug_name: string;
+  drug_name_zh?: string | null;
+  reimbursement_rules: NhiReimbursementRule[];
+  source_chunks: NhiSourceChunk[];
+  answer: string;
+  confidence: number;
+}
+
+export interface NhiQueryResult {
+  data: NhiQueryData;
+  warning?: string;
+}
+
+export interface NhiQueryRequest {
+  drug_name: string;
+  indication?: string;
+}
+
+export async function queryNhiReimbursement(
+  request: NhiQueryRequest,
+): Promise<NhiQueryResult> {
+  const response = await apiClient.post<ApiResponse<NhiQueryData>>(
+    '/api/v1/clinical/nhi',
+    request,
+  );
+  const data = ensureData(response.data, 'NHI query');
+  return {
+    data,
+    warning: (response.data as { message?: string }).message || undefined,
+  };
+}
+
+
+// ─── Unified Clinical Query Types (for ClinicalQueryPanel) ──────────
+
+export interface UnifiedCitationItem {
+  citation_id: string;
+  source_system: string;
+  text_snippet: string;
+  evidence_grade?: string;
+  relevance_score: number;
+  source_file?: string;
+  drug_names?: string[];
+}
+
+export interface UnifiedQueryData {
+  request_id: string;
+  intent: string;
+  status: string;
+  confidence: number;
+  answer: string;
+  warnings: string[];
+  requires_expert_review: boolean;
+  sources_used: string[];
+  detected_drugs: string[];
+  citations: UnifiedCitationItem[];
+}
+
+export interface UnifiedQueryRequest {
+  question: string;
+  patient_id?: number;
+  intent?: string;
+}
+
+export async function clinicalUnifiedQuery(
+  request: UnifiedQueryRequest,
+): Promise<UnifiedQueryData> {
+  const payload: Record<string, unknown> = {
+    question: request.question,
+  };
+  if (request.intent) payload.intent = request.intent;
+
+  const response = await apiClient.post<ApiResponse<Record<string, unknown>>>(
+    '/api/v1/clinical/clinical-query',
+    payload,
+  );
+  const raw = ensureData(response.data, 'clinical query');
+
+  // Map backend response to the UnifiedQueryData shape expected by the panel
+  const rag = (raw.rag as Record<string, unknown>) || {};
+  return {
+    request_id: (raw.request_id as string) || '',
+    intent: (raw.intent as string) || 'general_pharmacology',
+    status: (raw.status as string) || 'ok',
+    confidence: (raw.confidence as number) || 0,
+    answer: (rag.answer as string) || (raw.rag ? JSON.stringify(raw.rag) : '無法取得回答'),
+    warnings: (raw.warnings as string[]) || [],
+    requires_expert_review: (raw.confidence as number) < 0.5,
+    sources_used: (raw.sources_used as string[]) || Object.keys(raw).filter(k => raw[k] && ['rag', 'dose_result', 'interaction_result'].includes(k)),
+    detected_drugs: (raw.detected_drugs as string[]) || [],
+    citations: ((raw.citations as UnifiedCitationItem[]) || []).map((c, i) => ({
+      citation_id: c.citation_id || `cite_${i}`,
+      source_system: c.source_system || 'unknown',
+      text_snippet: c.text_snippet || '',
+      evidence_grade: c.evidence_grade,
+      relevance_score: c.relevance_score || 0,
+      source_file: c.source_file,
+      drug_names: c.drug_names,
+    })),
+  };
+}
