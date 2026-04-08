@@ -537,18 +537,20 @@ async def _clear_messages_once(engine: AsyncEngine) -> None:
     """One-time: delete all patient_messages and team_chat_messages."""
     try:
         async with engine.begin() as conn:
-            # Use a flag row to avoid re-running on every restart
+            # Use a dedicated flag table to track one-time operations
+            await conn.execute(text(
+                "CREATE TABLE IF NOT EXISTS _startup_flags "
+                "(flag VARCHAR(100) PRIMARY KEY)"
+            ))
             done = await conn.execute(text(
-                "SELECT 1 FROM alembic_version WHERE version_num = '053'"
+                "SELECT 1 FROM _startup_flags WHERE flag = 'clear_messages_053'"
             ))
             if done.scalar():
-                return  # already done via migration or previous startup
+                return
             r1 = await conn.execute(text("DELETE FROM patient_messages"))
             r2 = await conn.execute(text("DELETE FROM team_chat_messages"))
-            # Mark as done so it won't repeat
             await conn.execute(text(
-                "INSERT INTO alembic_version (version_num) VALUES ('053') "
-                "ON CONFLICT DO NOTHING"
+                "INSERT INTO _startup_flags (flag) VALUES ('clear_messages_053')"
             ))
             log.info("Cleared %d patient_messages, %d team_chat_messages", r1.rowcount, r2.rowcount)
     except Exception:
