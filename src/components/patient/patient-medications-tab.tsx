@@ -24,6 +24,23 @@ import { toast } from 'sonner';
 
 const PRN_FREQ_PATTERN = /PRN|STAT/i;
 
+/** 判定門診藥物是否已過期（endDate 已過） */
+function isOutpatientExpired(med: Medication): boolean {
+  if (!med.endDate) return false;
+  const end = new Date(med.endDate);
+  if (isNaN(end.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return end < today;
+}
+
+/** 取得門診藥物的服用狀態 */
+function getOutpatientStatus(med: Medication): { label: string; color: string } {
+  if (med.status === 'discontinued') return { label: '已停用', color: 'bg-gray-200 text-gray-600' };
+  if (isOutpatientExpired(med)) return { label: '已過期', color: 'bg-orange-100 text-orange-700' };
+  return { label: '服用中', color: 'bg-emerald-100 text-emerald-700' };
+}
+
 function isPrnOrStat(med: Medication): boolean {
   if (med.prn) return true;
   if (med.frequency && PRN_FREQ_PATTERN.test(med.frequency)) return true;
@@ -240,14 +257,22 @@ function MedicationDetailModal({
 
         {/* Status badge */}
         <div className="flex gap-2 flex-wrap">
-          {med.status === 'active' && (
-            <Badge className="bg-emerald-100 text-emerald-700 border-0">建議繼續使用</Badge>
-          )}
-          {med.status === 'discontinued' && (
-            <Badge className="bg-gray-200 text-gray-600 border-0">已停用</Badge>
-          )}
-          {isOutpatient && (
-            <Badge className="bg-blue-100 text-blue-700 border-0">門診用藥</Badge>
+          {isOutpatient ? (
+            <>
+              {(() => { const s = getOutpatientStatus(med); return <Badge className={`${s.color} border-0`}>{s.label}</Badge>; })()}
+              <Badge className="bg-blue-100 text-blue-700 border-0">門診用藥</Badge>
+            </>
+          ) : (
+            <>
+              {med.status === 'active' && (
+                <Badge className="bg-emerald-100 text-emerald-700 border-0">使用中</Badge>
+              )}
+              {(med.status === 'discontinued' || med.status === 'completed' || med.status === 'inactive') && (
+                <Badge className="bg-gray-200 text-gray-600 border-0">
+                  {med.status === 'completed' ? '療程完成' : '已停用'}
+                </Badge>
+              )}
+            </>
           )}
           {med.isExternal && (
             <Badge className="bg-orange-100 text-orange-700 border-0">院外</Badge>
@@ -436,7 +461,6 @@ export function PatientMedicationsTab({
   const [filterAbx, setFilterAbx] = useState(false);
   const [filterPrn, setFilterPrn] = useState(false);
   const [filterRoute, setFilterRoute] = useState<string | null>(null);
-  const [filterOutpatient, setFilterOutpatient] = useState(false);
   const [detailMedication, setDetailMedication] = useState<Medication | null>(null);
   const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
   const [editForm, setEditForm] = useState({
@@ -471,8 +495,12 @@ export function PatientMedicationsTab({
   const discontinuedCount = allDiscontinuedMeds.length;
   const totalCount = allOtherMeds.length;
 
-  // Outpatient medications
+  // Outpatient medications — separate view state
+  const [opdView, setOpdView] = useState<'all' | 'active' | 'expired'>('all');
   const allOutpatientMeds = outpatientMedications || [];
+  const activeOutpatientMeds = allOutpatientMeds.filter((m) => !isOutpatientExpired(m) && m.status !== 'discontinued');
+  const expiredOutpatientMeds = allOutpatientMeds.filter((m) => isOutpatientExpired(m) || m.status === 'discontinued');
+  const opdDisplayMeds = opdView === 'active' ? activeOutpatientMeds : opdView === 'expired' ? expiredOutpatientMeds : allOutpatientMeds;
   const outpatientCount = allOutpatientMeds.length;
 
   // Current base list depends on view mode
@@ -495,12 +523,11 @@ export function PatientMedicationsTab({
   const applyFilters = (meds: Medication[]) => meds
     .filter((m) => !filterPrn || isPrnOrStat(m))
     .filter((m) => !filterAbx || isAntibiotic(m))
-    .filter((m) => !filterRoute || (m.route || '').toUpperCase().startsWith(filterRoute))
-    .filter((m) => !filterOutpatient || m.sourceType === 'outpatient');
+    .filter((m) => !filterRoute || (m.route || '').toUpperCase().startsWith(filterRoute));
 
-  const clearSubFilters = () => { setFilterAbx(false); setFilterPrn(false); setFilterRoute(null); setFilterOutpatient(false); };
+  const clearSubFilters = () => { setFilterAbx(false); setFilterPrn(false); setFilterRoute(null); };
 
-  const displayedMeds = applyFilters(sortOtherMeds(filterOutpatient ? allOutpatientMeds : baseMeds));
+  const displayedMeds = applyFilters(sortOtherMeds(baseMeds));
   const canEditMedication = userRole === 'doctor' || userRole === 'pharmacist';
 
   const openMedicationEditor = (medication: Medication) => {
@@ -678,7 +705,7 @@ export function PatientMedicationsTab({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`h-7 px-3 text-xs rounded-md ${medView === 'all' && !filterOutpatient ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`h-7 px-3 text-xs rounded-md ${medView === 'all' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
                     onClick={() => { setMedView('all'); clearSubFilters(); }}
                   >
                     全部 ({totalCount})
@@ -686,7 +713,7 @@ export function PatientMedicationsTab({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`h-7 px-3 text-xs rounded-md ${medView === 'active' && !filterOutpatient ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`h-7 px-3 text-xs rounded-md ${medView === 'active' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
                     onClick={() => { setMedView('active'); clearSubFilters(); }}
                   >
                     使用中 ({activeCount})
@@ -695,23 +722,13 @@ export function PatientMedicationsTab({
                     variant="ghost"
                     size="sm"
                     disabled={discontinuedCount === 0}
-                    className={`h-7 px-3 text-xs rounded-md ${medView === 'discontinued' && !filterOutpatient ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`h-7 px-3 text-xs rounded-md ${medView === 'discontinued' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
                     onClick={() => { setMedView('discontinued'); clearSubFilters(); }}
                   >
                     已停用 ({discontinuedCount})
                   </Button>
                 </div>
-                {outpatientCount > 0 && (
-                  <Button
-                    variant={filterOutpatient ? 'default' : 'outline'}
-                    size="sm"
-                    className={`h-7 px-2 text-xs ${filterOutpatient ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'border-blue-300 text-blue-700 hover:bg-blue-50'}`}
-                    onClick={() => { setFilterOutpatient(!filterOutpatient); if (!filterOutpatient) { setFilterAbx(false); setFilterPrn(false); setFilterRoute(null); } }}
-                  >
-                    門診用藥 ({outpatientCount})
-                  </Button>
-                )}
-                {abxCount > 0 && !filterOutpatient && (
+                {abxCount > 0 && (
                   <Button
                     variant={filterAbx ? 'default' : 'outline'}
                     size="sm"
@@ -721,7 +738,7 @@ export function PatientMedicationsTab({
                     抗生素 ({abxCount})
                   </Button>
                 )}
-                {prnCount > 0 && !filterOutpatient && (
+                {prnCount > 0 && (
                   <Button
                     variant={filterPrn ? 'default' : 'outline'}
                     size="sm"
@@ -731,7 +748,7 @@ export function PatientMedicationsTab({
                     PRN/STAT ({prnCount})
                   </Button>
                 )}
-                {ivCount > 0 && !filterOutpatient && (
+                {ivCount > 0 && (
                   <Button
                     variant={filterRoute === 'IV' ? 'default' : 'outline'}
                     size="sm"
@@ -741,7 +758,7 @@ export function PatientMedicationsTab({
                     IV ({ivCount})
                   </Button>
                 )}
-                {poCount > 0 && !filterOutpatient && (
+                {poCount > 0 && (
                   <Button
                     variant={filterRoute === 'PO' ? 'default' : 'outline'}
                     size="sm"
@@ -776,11 +793,9 @@ export function PatientMedicationsTab({
                         className={`rounded-md border px-3 py-2 cursor-pointer hover:shadow-md transition-shadow ${
                           discontinued
                             ? 'border-dashed border-gray-300 bg-gray-50 opacity-75'
-                            : medication.sourceType === 'outpatient'
-                              ? 'bg-blue-50 border-blue-200'
-                              : abx
-                                ? 'bg-amber-50 border-amber-200'
-                                : 'bg-[rgba(196,196,196,0.15)]'
+                            : abx
+                              ? 'bg-amber-50 border-amber-200'
+                              : 'bg-[rgba(196,196,196,0.15)]'
                         }`}
                         onClick={() => setDetailMedication(medication)}
                       >
@@ -789,9 +804,13 @@ export function PatientMedicationsTab({
                             <p className={`font-medium leading-tight ${discontinued ? 'text-gray-500 line-through' : ''}`}>
                               {formatDisplayValue(medication.name)}
                             </p>
-                            {discontinued && (
+                            {discontinued ? (
                               <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-gray-200 text-gray-600">
                                 {statusLabel}
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-emerald-100 text-emerald-700">
+                                使用中
                               </Badge>
                             )}
                             {abx && (
@@ -807,16 +826,6 @@ export function PatientMedicationsTab({
                             {category && !abx && (
                               <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 ${category.color} ${discontinued ? 'opacity-60' : ''}`}>
                                 {category.label}
-                              </Badge>
-                            )}
-                            {medication.sourceType === 'outpatient' && (
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-blue-100 text-blue-700">
-                                門診
-                              </Badge>
-                            )}
-                            {medication.sourceCampus && (
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-slate-100 text-slate-600">
-                                {medication.sourceCampus}
                               </Badge>
                             )}
                           </div>
@@ -850,6 +859,97 @@ export function PatientMedicationsTab({
               )}
             </CardContent>
           </Card>
+
+          {/* Outpatient Medications — independent section */}
+          {outpatientCount > 0 && (
+            <Card className="border-blue-200 bg-blue-50/30">
+              <CardHeader className="pb-2 space-y-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-semibold leading-tight text-slate-800">門診用藥 Outpatient Medications</CardTitle>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="inline-flex rounded-lg border border-slate-200 p-0.5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-7 px-3 text-xs rounded-md ${opdView === 'all' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                      onClick={() => setOpdView('all')}
+                    >
+                      全部 ({allOutpatientMeds.length})
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-7 px-3 text-xs rounded-md ${opdView === 'active' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                      onClick={() => setOpdView('active')}
+                    >
+                      服用中 ({activeOutpatientMeds.length})
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={expiredOutpatientMeds.length === 0}
+                      className={`h-7 px-3 text-xs rounded-md ${opdView === 'expired' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                      onClick={() => setOpdView('expired')}
+                    >
+                      已過期 ({expiredOutpatientMeds.length})
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {opdDisplayMeds.length === 0 ? (
+                  <p className="py-3 text-sm text-muted-foreground">
+                    {opdView === 'active' ? '無服用中的門診用藥' : opdView === 'expired' ? '無已過期的門診用藥' : '無門診用藥'}
+                  </p>
+                ) : (
+                  <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+                    {opdDisplayMeds.map((medication) => {
+                      const opdStatus = getOutpatientStatus(medication);
+                      const expired = isOutpatientExpired(medication) || medication.status === 'discontinued';
+                      return (
+                        <div
+                          key={medication.id}
+                          className={`rounded-md border px-3 py-2 cursor-pointer hover:shadow-md transition-shadow ${
+                            expired ? 'border-dashed border-gray-300 bg-gray-50 opacity-75' : 'bg-blue-50 border-blue-200'
+                          }`}
+                          onClick={() => setDetailMedication(medication)}
+                        >
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className={`font-medium leading-tight ${expired ? 'text-gray-500' : ''}`}>
+                              {formatDisplayValue(medication.name)}
+                            </p>
+                            <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 ${opdStatus.color}`}>
+                              {opdStatus.label}
+                            </Badge>
+                            {medication.sourceCampus && (
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-blue-100 text-blue-700">
+                                {medication.sourceCampus}
+                              </Badge>
+                            )}
+                            {medication.prescribingDepartment && (
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-slate-100 text-slate-600">
+                                {medication.prescribingDepartment}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className={`mt-1 flex items-center gap-2 text-sm ${expired ? 'text-gray-400' : 'text-muted-foreground'}`}>
+                            <span>{formatMedicationRegimen(medication)}</span>
+                          </div>
+                          {(medication.startDate || medication.endDate) && (
+                            <div className={`mt-0.5 text-xs ${expired ? 'text-gray-400' : 'text-muted-foreground'}`}>
+                              {medication.startDate && formatMedDate(medication.startDate)}
+                              {medication.endDate && <span> → {formatMedDate(medication.endDate)}</span>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Score Trend Chart Dialog */}
           <ScoreTrendChart
