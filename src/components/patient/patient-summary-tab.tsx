@@ -21,7 +21,6 @@ import {
   createSymptomRecord,
   type SymptomRecord,
 } from '../../lib/api/symptom-records';
-import { ClinicalQueryPanel } from './clinical-query-panel';
 
 interface PatientSummaryTabPatient {
   id: string;
@@ -208,8 +207,6 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: Pat
 
   const canSummary = aiReadiness ? aiReadiness.feature_gates.clinical_summary : true;
   const summaryReason = getReadinessReason(aiReadiness, 'clinical_summary');
-  const canQuery = aiReadiness ? aiReadiness.feature_gates.clinical_query : true;
-  const queryReason = getReadinessReason(aiReadiness, 'clinical_query');
 
   // Load symptom history
   useEffect(() => {
@@ -346,58 +343,25 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: Pat
 
             {/* ── 臨床旗標 ── */}
             <div className="flex flex-wrap gap-2">
-              <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ${
-                patient.intubated
-                  ? 'border border-red-200 bg-red-50 text-red-700'
-                  : 'border border-green-200 bg-green-50 text-green-700'
-              }`}>
-                <span className={`h-2 w-2 rounded-full ${patient.intubated ? 'bg-red-500' : 'bg-green-500'}`} />
-                {patient.intubated ? '插管中' : '未插管'}
-              </span>
-              <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ${
-                patient.hasDNR
-                  ? 'border border-red-200 bg-red-50 text-red-700'
-                  : 'border border-slate-200 bg-slate-50 text-slate-600'
-              }`}>
-                <span className={`h-2 w-2 rounded-full ${patient.hasDNR ? 'bg-red-500' : 'bg-slate-400'}`} />
-                {patient.hasDNR ? 'DNR' : '無 DNR'}
-              </span>
+              {patient.intubated && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-sm font-medium text-red-700">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  插管中
+                </span>
+              )}
+              {patient.hasDNR && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-sm font-medium text-red-700">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  DNR
+                </span>
+              )}
               {patient.isIsolated && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-medium text-amber-700">
                   <span className="h-2 w-2 rounded-full bg-amber-500" />
                   隔離中
                 </span>
               )}
-              {patient.codeStatus && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-medium text-slate-600">
-                  {patient.codeStatus}
-                </span>
-              )}
             </div>
-
-            {/* ── 時間軸 ── */}
-            {(patient.admissionDate || patient.icuAdmissionDate || patient.ventilatorDays !== undefined) && (
-              <div className="grid grid-cols-3 gap-2 rounded-md border border-slate-200 bg-white px-4 py-2.5">
-                {patient.admissionDate && (
-                  <div>
-                    <p className="text-xs text-slate-400">入院日</p>
-                    <p className="text-sm font-semibold text-slate-700">{shortDate(patient.admissionDate)}</p>
-                  </div>
-                )}
-                {patient.icuAdmissionDate && (
-                  <div>
-                    <p className="text-xs text-slate-400">ICU 入院</p>
-                    <p className="text-sm font-semibold text-slate-700">{shortDate(patient.icuAdmissionDate)}</p>
-                  </div>
-                )}
-                {patient.ventilatorDays !== undefined && (
-                  <div>
-                    <p className="text-xs text-slate-400">呼吸器</p>
-                    <p className="text-sm font-semibold text-slate-700">{patient.ventilatorDays} 天</p>
-                  </div>
-                )}
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>
@@ -546,12 +510,6 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: Pat
       </Card>
     </div>
 
-    {/* ── 統整知識庫查詢 ── */}
-    <ClinicalQueryPanel
-      patientId={Number(patient.id.replace(/\D/g, '')) || undefined}
-      canQuery={canQuery}
-      disabledReason={queryReason}
-    />
     </div>
   );
 }
