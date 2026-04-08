@@ -417,6 +417,7 @@ export function PatientMedicationsTab({
   sedationMedications,
   nmbMedications,
   otherMedications,
+  outpatientMedications,
   formatDisplayValue,
   formatMedicationRegimen,
   painScoreValue,
