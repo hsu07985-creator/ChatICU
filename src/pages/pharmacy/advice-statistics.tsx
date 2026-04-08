@@ -6,12 +6,14 @@ import { Textarea } from '../../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { ScrollArea } from '../../components/ui/scroll-area';
 import { LoadingSpinner, EmptyState } from '../../components/ui/state-display';
-import { FileText, Loader2, User, Tag, Pill, Send, TrendingUp, CheckCircle2, XCircle, CircleDot, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Loader2, User, Tag, Pill, Send, CheckCircle2, XCircle, CircleDot, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getAdviceRecords,
   createAdviceRecord,
+  getAdviceTagStats,
   type PharmacyAdviceRecord,
+  type TagStatItem,
 } from '../../lib/api/pharmacy';
 import { type Patient } from '../../lib/api/patients';
 import { getCachedPatients, getCachedPatientsSync } from '../../lib/patients-cache';
@@ -53,6 +55,10 @@ export function PharmacyAdviceStatisticsPage() {
   const [records, setRecords] = useState<PharmacyAdviceRecord[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(true);
 
+  // ── 留言板標籤統計 ──
+  const [tagStats, setTagStats] = useState<TagStatItem[]>([]);
+  const [tagStatsLoading, setTagStatsLoading] = useState(true);
+
   // 載入病患清單（共用快取，sync cache 命中則跳過）
   useEffect(() => {
     if (getCachedPatientsSync()) return;
@@ -79,6 +85,17 @@ export function PharmacyAdviceStatisticsPage() {
   useEffect(() => {
     fetchRecords();
   }, [fetchRecords]);
+
+  // 載入留言板標籤統計
+  useEffect(() => {
+    let cancelled = false;
+    setTagStatsLoading(true);
+    getAdviceTagStats({ month: selectedMonth })
+      .then(res => { if (!cancelled) setTagStats(res.tagStats || []); })
+      .catch(() => { if (!cancelled) setTagStats([]); })
+      .finally(() => { if (!cancelled) setTagStatsLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedMonth]);
 
   // 取得選中的類別物件
   const selectedCategory = selectedCategoryKey
@@ -333,7 +350,6 @@ export function PharmacyAdviceStatisticsPage() {
         <Card className="border-brand">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{monthLabel}總計</CardTitle>
-            <TrendingUp className="h-5 w-5 text-brand" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-brand">{totalAdvices}</div>
@@ -520,6 +536,35 @@ export function PharmacyAdviceStatisticsPage() {
           </Card>
         </div>
       )}
+
+      {/* ── 留言板標籤統計 ── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Tag className="h-4 w-4" /> 留言板標籤統計
+            {tagStats.length > 0 && <Badge variant="secondary">{tagStats.length} 個標籤</Badge>}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {tagStatsLoading ? (
+            <LoadingSpinner text="載入標籤統計..." />
+          ) : tagStats.length > 0 ? (
+            <div className="space-y-4">
+              <ResponsiveContainer width="100%" height={Math.max(200, tagStats.length * 36)}>
+                <BarChart data={tagStats} layout="vertical" margin={{ top: 4, right: 40, left: 0, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+                  <XAxis type="number" allowDecimals={false} stroke="#6b7280" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="tag" width={160} stroke="#6b7280" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip formatter={(value: number) => [`${value} 筆`, '使用次數']} />
+                  <Bar dataKey="count" fill="var(--color-brand)" radius={[0, 6, 6, 0]} barSize={24} label={{ position: 'right', fontSize: 12, fontWeight: 600 }} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <EmptyState icon={Tag} title="尚無標籤資料" description={`${monthLabel}的留言板沒有使用標籤`} />
+          )}
+        </CardContent>
+      </Card>
 
       {/* ── 紀錄清單 ── */}
       <Card>
