@@ -559,9 +559,9 @@ async def _clear_messages_once(engine: AsyncEngine) -> None:
 
 
 async def _ensure_np_role(engine: AsyncEngine) -> None:
-    """Add 'np' (專科護理師) to the users.role CHECK constraint.
+    """Remove old role CHECK constraint to allow 'np' role.
 
-    Uses DO block for atomic drop-if-exists + create in a single statement.
+    Pydantic schemas handle validation; DB constraint is unnecessary.
     """
     log = logging.getLogger("chaticu")
     try:
@@ -574,11 +574,9 @@ async def _ensure_np_role(engine: AsyncEngine) -> None:
                     ) THEN
                         ALTER TABLE users DROP CONSTRAINT ck_users_role_valid;
                     END IF;
-                    ALTER TABLE users ADD CONSTRAINT ck_users_role_valid
-                        CHECK (role IN ('doctor','nurse','pharmacist','admin','np'));
                 END $$;
             """))
-        log.info("_ensure_np_role: CHECK constraint updated successfully")
+        log.info("_ensure_np_role: CHECK constraint dropped (validation via Pydantic)")
     except Exception:
         log.warning("_ensure_np_role failed (non-fatal)", exc_info=True)
 

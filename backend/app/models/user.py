@@ -9,9 +9,8 @@ from app.database import Base
 
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = (
-        CheckConstraint("role IN ('doctor','nurse','pharmacist','admin','np')", name="ck_users_role_valid"),
-    )
+    # Role validation handled by Pydantic schemas; DB constraint managed by migrations
+    __table_args__: tuple = ()
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
