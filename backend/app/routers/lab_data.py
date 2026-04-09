@@ -38,6 +38,38 @@ def lab_to_dict(lab: LabData) -> dict:
     }
 
 
+_CATEGORY_COLS = [
+    "biochemistry", "hematology", "blood_gas", "venous_blood_gas",
+    "inflammatory", "coagulation", "cardiac", "thyroid", "hormone",
+    "lipid", "other",
+]
+_COL_TO_CAMEL = {
+    "blood_gas": "bloodGas",
+    "venous_blood_gas": "venousBloodGas",
+}
+
+
+def _merge_latest_categories(labs: list) -> dict:
+    """Merge the most recent non-null value for each category across records.
+
+    HIS data produces one record per blood draw, each with only a few
+    categories filled.  The frontend expects a single composite object.
+    """
+    merged: dict = {}
+    latest_ts = None
+    for lab in labs:  # already ordered desc by timestamp
+        if latest_ts is None and lab.timestamp:
+            latest_ts = lab.timestamp
+        for col in _CATEGORY_COLS:
+            camel = _COL_TO_CAMEL.get(col, col)
+            if camel in merged:
+                continue
+            data = getattr(lab, col, None)
+            if data:
+                merged[camel] = data
+    return merged, latest_ts
+
+
 @router.get("/latest")
 async def get_latest_lab_data(
     patient_id: str,
@@ -56,14 +88,27 @@ async def get_latest_lab_data(
         select(LabData)
         .where(LabData.patient_id == pid)
         .order_by(LabData.timestamp.desc())
-        .limit(1)
+        .limit(50)  # enough to cover all categories across recent draws
     )
-    lab = result.scalar_one_or_none()
+    labs = result.scalars().all()
 
-    if not lab:
+    if not labs:
         return success_response(data=None, message="No lab data found")
 
-    return success_response(data=lab_to_dict(lab))
+    # If only 1 record (seed data), return as-is for backward compat
+    if len(labs) == 1:
+        return success_response(data=lab_to_dict(labs[0]))
+
+    # Merge latest non-null category from each record
+    merged, latest_ts = _merge_latest_categories(labs)
+    data = {
+        "id": labs[0].id,
+        "patientId": pid,
+        "timestamp": latest_ts.isoformat() if latest_ts else None,
+        **{_COL_TO_CAMEL.get(c, c): merged.get(_COL_TO_CAMEL.get(c, c)) for c in _CATEGORY_COLS},
+        "corrections": labs[0].corrections,
+    }
+    return success_response(data=data)
 
 
 @router.get("/trends")
