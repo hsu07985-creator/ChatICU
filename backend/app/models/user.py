@@ -10,7 +10,7 @@ from app.database import Base
 class User(Base):
     __tablename__ = "users"
     __table_args__ = (
-        CheckConstraint("role IN ('doctor','nurse','pharmacist','admin')", name="ck_users_role_valid"),
+        CheckConstraint("role IN ('doctor','nurse','pharmacist','admin','np')", name="ck_users_role_valid"),
     )
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True)

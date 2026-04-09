@@ -409,7 +409,7 @@ async def guideline_interpretation(
 async def multi_agent_decision(
     req: DecisionRequest,
     request: Request,
-    user: User = Depends(require_roles("doctor", "admin")),
+    user: User = Depends(require_roles("doctor", "np", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
     patient_data = await _get_patient_dict(req.patient_id, db)

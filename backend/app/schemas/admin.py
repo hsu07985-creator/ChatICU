@@ -42,7 +42,7 @@ class UserCreate(BaseModel):
     @field_validator("role")
     @classmethod
     def check_valid_role(cls, v):
-        allowed = {"nurse", "doctor", "admin", "pharmacist"}
+        allowed = {"nurse", "doctor", "np", "admin", "pharmacist"}
         if v not in allowed:
             raise ValueError(f"角色須為 {', '.join(sorted(allowed))} 之一")
         return v
@@ -76,7 +76,7 @@ class UserUpdate(BaseModel):
     @classmethod
     def check_valid_role(cls, v):
         if v is not None:
-            allowed = {"nurse", "doctor", "admin", "pharmacist"}
+            allowed = {"nurse", "doctor", "np", "admin", "pharmacist"}
             if v not in allowed:
                 raise ValueError(f"角色須為 {', '.join(sorted(allowed))} 之一")
         return v

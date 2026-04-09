@@ -230,7 +230,7 @@ async def update_patient(
     patient_id: str,
     body: PatientUpdate,
     request: Request,
-    user: User = Depends(require_roles("admin", "doctor", "nurse")),
+    user: User = Depends(require_roles("admin", "doctor", "np", "nurse")),
     db: AsyncSession = Depends(get_db),
 ):
     pid = normalize_patient_id(patient_id)
@@ -275,7 +275,7 @@ async def archive_patient(
     patient_id: str,
     request: Request,
     body: Optional[PatientArchiveUpdate] = None,
-    user: User = Depends(require_roles("admin", "doctor")),
+    user: User = Depends(require_roles("admin", "doctor", "np")),
     db: AsyncSession = Depends(get_db),
 ):
     pid = normalize_patient_id(patient_id)

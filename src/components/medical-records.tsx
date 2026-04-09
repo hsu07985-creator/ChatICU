@@ -265,7 +265,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
     if (name in BUILTIN_TEMPLATES[recordType]) { toast.error(`「${name}」與內建模板名稱重複，請使用其他名稱`); return; }
     try {
       const roleMap: Record<string, RecordTemplate['roleScope']> = {
-        doctor: 'doctor', nurse: 'nurse', pharmacist: 'pharmacist', admin: 'admin',
+        doctor: 'doctor', np: 'np', nurse: 'nurse', pharmacist: 'pharmacist', admin: 'admin',
       };
       await createRecordTemplate({
         name,

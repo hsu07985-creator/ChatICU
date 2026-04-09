@@ -38,6 +38,7 @@ async def run_all(engine: AsyncEngine) -> None:
     await _ensure_diagnostic_reports(engine)
     await _migrate_vpn_letter_codes(engine)
     await _clear_messages_once(engine)
+    await _ensure_np_role(engine)
     await _ensure_performance_indexes(engine)
 
 
@@ -555,6 +556,24 @@ async def _clear_messages_once(engine: AsyncEngine) -> None:
             log.info("Cleared %d patient_messages, %d team_chat_messages", r1.rowcount, r2.rowcount)
     except Exception:
         log.warning("_clear_messages_once failed (non-fatal)", exc_info=True)
+
+
+async def _ensure_np_role(engine: AsyncEngine) -> None:
+    """Add 'np' (專科護理師) to the users.role CHECK constraint."""
+    log = logging.getLogger("chaticu")
+    try:
+        async with engine.begin() as conn:
+            # Drop old constraint and add new one (idempotent: if already updated, no-op)
+            await conn.execute(text(
+                "ALTER TABLE users DROP CONSTRAINT IF EXISTS ck_users_role_valid"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE users ADD CONSTRAINT ck_users_role_valid "
+                "CHECK (role IN ('doctor','nurse','pharmacist','admin','np'))"
+            ))
+        log.info("_ensure_np_role: CHECK constraint updated")
+    except Exception:
+        log.warning("_ensure_np_role failed (non-fatal)", exc_info=True)
 
 
 async def _ensure_performance_indexes(engine: AsyncEngine) -> None:

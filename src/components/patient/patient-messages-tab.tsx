@@ -51,6 +51,7 @@ interface PatientMessagesTabProps {
 const ROLE_CONFIG: Record<string, { icon: typeof Pill; color: string; label: string }> = {
   pharmacist: { icon: Pill, color: 'text-green-600', label: '藥師' },
   doctor: { icon: Stethoscope, color: 'text-blue-600', label: '醫師' },
+  np: { icon: Stethoscope, color: 'text-teal-600', label: '專科護理師' },
   nurse: { icon: Activity, color: 'text-purple-600', label: '護理師' },
   admin: { icon: Shield, color: 'text-orange-600', label: '管理者' },
 };
@@ -469,7 +470,7 @@ export function PatientMessagesTab({
             {/* 角色提及 */}
             <div className="flex flex-wrap items-center gap-1">
               <span className="text-xs font-medium text-slate-500">提及:</span>
-              {(['doctor', 'nurse', 'pharmacist', 'admin'] as const).map((role) => {
+              {(['doctor', 'np', 'nurse', 'pharmacist', 'admin'] as const).map((role) => {
                 const selected = composeMentionedRoles.includes(role);
                 const cfg = ROLE_CONFIG[role];
                 return (
@@ -720,7 +721,7 @@ export function PatientMessagesTab({
                                   已讀
                                 </Button>
                               )}
-                              {message.messageType === 'medication-advice' && message.adviceRecordId && message.adviceAccepted == null && (userRole === 'doctor' || userRole === 'admin') && (
+                              {message.messageType === 'medication-advice' && message.adviceRecordId && message.adviceAccepted == null && (userRole === 'doctor' || userRole === 'np' || userRole === 'admin') && (
                                 <>
                                   <Button
                                     variant="ghost"

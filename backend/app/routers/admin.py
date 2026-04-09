@@ -192,7 +192,7 @@ async def list_users(
     # Compute stats from full (unfiltered) user set (F18)
     all_result = await db.execute(select(User))
     all_users = all_result.scalars().all()
-    role_counts = {"admin": 0, "doctor": 0, "nurse": 0, "pharmacist": 0}
+    role_counts = {"admin": 0, "doctor": 0, "np": 0, "nurse": 0, "pharmacist": 0}
     active_count = 0
     for u in all_users:
         if u.active:

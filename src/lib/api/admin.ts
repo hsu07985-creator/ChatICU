@@ -60,7 +60,7 @@ export interface User {
   id: string;
   username: string;
   name: string;
-  role: 'admin' | 'doctor' | 'nurse' | 'pharmacist';
+  role: 'admin' | 'doctor' | 'np' | 'nurse' | 'pharmacist';
   unit: string;
   email: string;
   active: boolean;

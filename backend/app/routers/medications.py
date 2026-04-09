@@ -228,7 +228,7 @@ async def create_medication(
     patient_id: str,
     body: MedicationCreate,
     request: Request,
-    user: User = Depends(require_roles("doctor", "admin")),
+    user: User = Depends(require_roles("doctor", "np", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
     pid = normalize_patient_id(patient_id)
@@ -270,7 +270,7 @@ async def update_medication(
     medication_id: str,
     body: MedicationUpdate,
     request: Request,
-    user: User = Depends(require_roles("doctor", "pharmacist", "admin")),
+    user: User = Depends(require_roles("doctor", "np", "pharmacist", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
     pid = normalize_patient_id(patient_id)
@@ -363,7 +363,7 @@ async def import_outpatient_medications(
     patient_id: str,
     body: OutpatientImportRequest,
     request: Request,
-    user: User = Depends(require_roles("doctor", "pharmacist", "admin")),
+    user: User = Depends(require_roles("doctor", "np", "pharmacist", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
     """Import outpatient medications (門診用藥) for a patient."""

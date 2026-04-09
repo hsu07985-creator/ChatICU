@@ -53,6 +53,7 @@ LOCKOUT_SECONDS = settings.LOCKOUT_SECONDS
 ROLE_PERMISSIONS = {
     "nurse": ["view_patients", "chat_ai", "edit_nursing_records", "view_medications", "team_chat"],
     "doctor": ["view_patients", "chat_ai", "edit_nursing_records", "view_medications", "team_chat", "progress_note", "prescribe_medications"],
+    "np": ["view_patients", "chat_ai", "edit_nursing_records", "view_medications", "team_chat", "progress_note", "prescribe_medications"],
     "admin": ["view_patients", "chat_ai", "edit_nursing_records", "view_medications", "team_chat", "progress_note", "prescribe_medications", "manage_users", "manage_vectors", "view_audit_logs", "pharmacy_tools"],
     "pharmacist": ["view_medications", "team_chat", "pharmacy_tools", "medication_advice", "error_reports"],
 }

@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 
 RecordType = Literal["progress-note", "medication-advice", "nursing-record"]
-RoleScope = Literal["doctor", "nurse", "pharmacist", "admin", "all"]
+RoleScope = Literal["doctor", "np", "nurse", "pharmacist", "admin", "all"]
 
 
 class RecordTemplateCreate(BaseModel):

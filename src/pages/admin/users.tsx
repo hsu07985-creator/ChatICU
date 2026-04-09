@@ -47,7 +47,7 @@ interface User {
   id: string;
   username: string;
   name: string;
-  role: 'admin' | 'doctor' | 'nurse' | 'pharmacist';
+  role: 'admin' | 'doctor' | 'np' | 'nurse' | 'pharmacist';
   unit: string;
   email: string;
   active: boolean;
@@ -100,6 +100,7 @@ export function UsersPage() {
     byRole: {
       admin: users.filter(u => u.role === 'admin').length,
       doctor: users.filter(u => u.role === 'doctor').length,
+      np: users.filter(u => u.role === 'np').length,
       nurse: users.filter(u => u.role === 'nurse').length,
       pharmacist: users.filter(u => u.role === 'pharmacist').length,
     },
@@ -116,6 +117,7 @@ export function UsersPage() {
     const config = {
       admin: { label: '系統管理員', color: 'bg-brand text-white', icon: ShieldCheck },
       doctor: { label: '醫師', color: 'bg-blue-100 text-blue-800', icon: Shield },
+      np: { label: '專科護理師', color: 'bg-teal-100 text-teal-800', icon: Shield },
       nurse: { label: '護理師', color: 'bg-green-100 text-green-800', icon: Shield },
       pharmacist: { label: '藥師', color: 'bg-purple-100 text-purple-800', icon: Shield }
     };
@@ -454,6 +456,7 @@ export function UsersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="doctor">醫師</SelectItem>
+                  <SelectItem value="np">專科護理師</SelectItem>
                   <SelectItem value="nurse">護理師</SelectItem>
                   <SelectItem value="pharmacist">藥師</SelectItem>
                   <SelectItem value="admin">系統管理員</SelectItem>

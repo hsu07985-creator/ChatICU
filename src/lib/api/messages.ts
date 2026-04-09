@@ -6,7 +6,7 @@ export interface PatientMessage {
   patientId: string;
   authorId: string;
   authorName: string;
-  authorRole: 'doctor' | 'nurse' | 'pharmacist' | 'admin';
+  authorRole: 'doctor' | 'np' | 'nurse' | 'pharmacist' | 'admin';
   messageType: 'general' | 'medication-advice' | 'alert' | 'urgent' | 'note' | 'progress-note' | 'nursing-record';
   content: string;
   timestamp: string;

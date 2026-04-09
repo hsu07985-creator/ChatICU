@@ -416,7 +416,7 @@ async def create_message(
     # Phase 3: adviceAction — doctor accept/reject via bulletin board reply
     advice_synced = False
     if body.adviceAction and body.replyToId and parent:
-        if user.role not in ("doctor", "admin"):
+        if user.role not in ("doctor", "np", "admin"):
             raise HTTPException(status_code=403, detail="只有醫師可以接受或拒絕藥事建議")
         if parent.message_type != "medication-advice":
             raise HTTPException(status_code=422, detail="只能對藥事建議訊息進行接受/拒絕操作")

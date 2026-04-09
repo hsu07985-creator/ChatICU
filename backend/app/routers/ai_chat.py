@@ -43,6 +43,7 @@ from app.utils.data_freshness import build_data_freshness
 from app.utils.llm_errors import llm_unavailable_detail
 from app.utils.request_context import evidence_trace_kwargs
 from app.middleware.rate_limit import limiter
+from app.utils.ddi_check import extract_ddi_warnings
 from app.utils.response import success_response
 from pydantic import BaseModel, Field
 
@@ -55,6 +56,7 @@ router = APIRouter(prefix="/ai", tags=["AI"])
 def _build_metadata_block(
     data_freshness: Optional[dict],
     citations: List[Dict[str, Any]],
+    ddi_warnings: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """Format evidence quality + data freshness as metadata for LLM.
 
@@ -89,6 +91,17 @@ def _build_metadata_block(
             lines.append(f"- 缺值欄位: {', '.join(missing[:8])}")
     else:
         lines.append("- 病患資料狀態: 無病患資料")
+
+    # Drug-drug interaction warnings
+    if ddi_warnings:
+        lines.append(f"\n[藥物交互作用警示] (共 {len(ddi_warnings)} 筆高風險)")
+        for w in ddi_warnings[:10]:
+            risk = w.get("riskLevel", "?")
+            d1 = w.get("drug1", "?")
+            d2 = w.get("drug2", "?")
+            sev = w.get("severity", "?")
+            mgmt = (w.get("management") or "")[:120]
+            lines.append(f"  ⚠ [{risk}] {d1} ↔ {d2} ({sev}): {mgmt}")
 
     return "\n".join(lines)
 
@@ -668,9 +681,19 @@ async def ai_chat(
                 req.patientId,
             )
 
+    # ── Drug-drug interaction auto-check ──
+    ddi_warnings: List[Dict[str, Any]] = []
+    if patient_context:
+        try:
+            ddi_warnings = await asyncio.to_thread(
+                extract_ddi_warnings, patient_context,
+            )
+        except Exception as exc:
+            logger.warning("[INTG][AI][DDI] Drug interaction check failed: %s", exc)
+
     logger.info(
-        "[INTG][AI][API] /ai/chat request_id=%s trace_id=%s session_id=%s user_id=%s patient_id=%s",
-        request_id, trace_id, session_id, user.id, req.patientId,
+        "[INTG][AI][API] /ai/chat request_id=%s trace_id=%s session_id=%s user_id=%s patient_id=%s ddi_count=%d",
+        request_id, trace_id, session_id, user.id, req.patientId, len(ddi_warnings),
     )
 
     # ── RAG retrieval (single path with fallback) ──
@@ -679,7 +702,7 @@ async def ai_chat(
     evidence_gate = _passive_evidence_gate(citations)
 
     # ── Build metadata + messages ──
-    metadata_block = _build_metadata_block(data_freshness, citations)
+    metadata_block = _build_metadata_block(data_freshness, citations, ddi_warnings)
     chat_messages = _build_chat_messages(
         session_summary=session.summary,
         history=all_messages,
@@ -1175,7 +1198,7 @@ from app.middleware.auth import require_roles
 async def review_ai_message(
     message_id: str,
     request: Request,
-    user: User = Depends(require_roles("doctor", "admin")),
+    user: User = Depends(require_roles("doctor", "np", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
     """Mark an AI message as reviewed by a medical expert.

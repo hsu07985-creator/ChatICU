@@ -94,7 +94,7 @@ async def correct_lab_data(
     lab_data_id: str,
     body: LabCorrectionRequest,
     request: Request,
-    user: User = Depends(require_roles("admin", "doctor")),
+    user: User = Depends(require_roles("admin", "doctor", "np")),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(LabData).where(LabData.id == lab_data_id))

@@ -134,7 +134,7 @@ async def get_weaning_assessment(
 async def create_weaning_assessment(
     patient_id: str,
     request: Request,
-    user: User = Depends(require_roles("doctor", "admin")),
+    user: User = Depends(require_roles("doctor", "np", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
     pid = normalize_patient_id(patient_id)

@@ -320,7 +320,7 @@ async def create_advice_record(
 async def respond_to_advice(
     advice_id: str,
     request: Request,
-    user: User = Depends(require_roles("doctor", "admin")),
+    user: User = Depends(require_roles("doctor", "np", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
     """Doctor/admin accepts or rejects a pharmacy advice record."""

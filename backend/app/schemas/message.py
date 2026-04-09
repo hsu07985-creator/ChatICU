@@ -32,7 +32,7 @@ class MessageCreate(BaseModel):
     @classmethod
     def check_mentioned_roles(cls, v: Optional[List[str]]) -> Optional[List[str]]:
         if v is not None:
-            allowed = {"doctor", "nurse", "pharmacist", "admin"}
+            allowed = {"doctor", "np", "nurse", "pharmacist", "admin"}
             for role in v:
                 if role not in allowed:
                     raise ValueError(f"角色須為 {', '.join(sorted(allowed))} 之一")
@@ -54,7 +54,7 @@ class TeamChatCreate(BaseModel):
     @classmethod
     def check_team_mentioned_roles(cls, v: Optional[List[str]]) -> Optional[List[str]]:
         if v is not None:
-            allowed = {"doctor", "nurse", "pharmacist", "admin"}
+            allowed = {"doctor", "np", "nurse", "pharmacist", "admin"}
             for role in v:
                 if role not in allowed:
                     raise ValueError(f"角色須為 {', '.join(sorted(allowed))} 之一")

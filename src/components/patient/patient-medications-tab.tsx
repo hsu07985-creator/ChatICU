@@ -528,7 +528,7 @@ export function PatientMedicationsTab({
   const clearSubFilters = () => { setFilterAbx(false); setFilterPrn(false); setFilterRoute(null); };
 
   const displayedMeds = applyFilters(sortOtherMeds(baseMeds));
-  const canEditMedication = userRole === 'doctor' || userRole === 'pharmacist';
+  const canEditMedication = userRole === 'doctor' || userRole === 'np' || userRole === 'pharmacist';
 
   const openMedicationEditor = (medication: Medication) => {
     setEditingMedication(medication);

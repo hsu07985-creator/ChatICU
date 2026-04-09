@@ -5,7 +5,7 @@ export interface TeamChatMessage {
   id: string;
   userId: string;
   userName: string;
-  userRole: 'doctor' | 'nurse' | 'pharmacist' | 'admin';
+  userRole: 'doctor' | 'np' | 'nurse' | 'pharmacist' | 'admin';
   content: string;
   timestamp: string;
   pinned?: boolean;

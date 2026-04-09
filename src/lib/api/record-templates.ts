@@ -1,7 +1,7 @@
 import apiClient, { ensureData } from '../api-client';
 
 export type RecordTemplateType = 'progress-note' | 'medication-advice' | 'nursing-record';
-export type RecordTemplateRoleScope = 'doctor' | 'nurse' | 'pharmacist' | 'admin' | 'all';
+export type RecordTemplateRoleScope = 'doctor' | 'np' | 'nurse' | 'pharmacist' | 'admin' | 'all';
 
 export interface RecordTemplate {
   id: string;
