@@ -70,10 +70,11 @@ export interface DrugInteraction {
   id: string;
   drug1: string;
   drug2: string;
-  severity: 'high' | 'moderate' | 'low';
+  severity: string;
   mechanism: string;
   clinicalEffect: string;
   management: string;
+  riskRating?: string | null; // X, D, C, B, A
 }
 
 // API 回應類型

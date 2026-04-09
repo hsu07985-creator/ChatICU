@@ -50,6 +50,7 @@ export interface ChatMessage {
   upstreamStatus?: string | null;
   evidenceGate?: EvidenceGate | null;
   dataFreshness?: DataFreshness | null;
+  graphMeta?: GraphMeta | null;
 }
 
 export interface Citation {
@@ -113,6 +114,17 @@ export interface DataFreshness {
   };
   missing_fields: string[];
   hints: string[];
+}
+
+export interface GraphMeta {
+  interactions: {
+    drug_a: string;
+    drug_b: string;
+    risk: string;
+    title: string;
+    severity?: string;
+  }[];
+  has_risk_x: boolean;
 }
 
 export interface ChatSession {

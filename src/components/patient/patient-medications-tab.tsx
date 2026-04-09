@@ -1,8 +1,10 @@
 import { useState, useCallback } from 'react';
 import type { Medication } from '../../lib/api';
+import type { DrugInteraction as ApiDrugInteraction } from '../../lib/api/medications';
 import type { UserRole } from '../../lib/auth-context';
 import { isAntibiotic } from '../../lib/antibiotic-codes';
 import { updateMedication } from '../../lib/api/medications';
+import { DrugInteractionBadges, type DrugInteraction as BadgeDrugInteraction } from './drug-interaction-badges';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
@@ -267,9 +269,12 @@ function MedicationDetailModal({
               {med.status === 'active' && (
                 <Badge className="bg-emerald-100 text-emerald-700 border-0">使用中</Badge>
               )}
+              {med.status === 'on-hold' && (
+                <Badge className="bg-yellow-100 text-yellow-700 border-0">暫停</Badge>
+              )}
               {(med.status === 'discontinued' || med.status === 'completed' || med.status === 'inactive') && (
                 <Badge className="bg-gray-200 text-gray-600 border-0">
-                  {med.status === 'completed' ? '療程完成' : '已停用'}
+                  {med.status === 'completed' ? '療程完成' : med.status === 'inactive' ? '未啟用' : '已停用'}
                 </Badge>
               )}
             </>
@@ -416,6 +421,7 @@ interface PatientMedicationsTabProps {
   nmbMedications: Medication[];
   otherMedications: Medication[];
   outpatientMedications?: Medication[];
+  drugInteractions?: ApiDrugInteraction[];
   formatDisplayValue: (value: unknown) => string;
   formatMedicationRegimen: (medication: Medication) => string;
   painScoreValue: number | null;
@@ -443,6 +449,7 @@ export function PatientMedicationsTab({
   nmbMedications,
   otherMedications,
   outpatientMedications,
+  drugInteractions,
   formatDisplayValue,
   formatMedicationRegimen,
   painScoreValue,
@@ -475,7 +482,7 @@ export function PatientMedicationsTab({
   const [isSavingMedication, setIsSavingMedication] = useState(false);
 
   const isDiscontinued = (med: Medication) =>
-    med.status === 'discontinued' || med.status === 'completed' || med.status === 'inactive';
+    med.status === 'discontinued' || med.status === 'completed' || med.status === 'inactive' || med.status === 'on-hold';
 
   // Separate active vs discontinued across all groups
   const activePainMeds = painMedications.filter((m) => !isDiscontinued(m));
@@ -771,6 +778,17 @@ export function PatientMedicationsTab({
               </div>
             </CardHeader>
             <CardContent className="pt-0">
+              {drugInteractions && drugInteractions.length > 0 && medView !== 'discontinued' && (() => {
+                const mapped: BadgeDrugInteraction[] = drugInteractions.map((i) => ({
+                  drug_a: i.drug1,
+                  drug_b: i.drug2,
+                  risk: i.riskRating || (i.severity === 'major' ? 'D' : i.severity === 'moderate' ? 'C' : 'B'),
+                  title: i.clinicalEffect || i.mechanism || '',
+                  severity: i.severity,
+                }));
+                const hasRiskX = mapped.some((m) => m.risk.toUpperCase() === 'X');
+                return <DrugInteractionBadges interactions={mapped} hasRiskX={hasRiskX} />;
+              })()}
               {medView === 'discontinued' && (
                 <p className="mb-2 text-xs text-muted-foreground">本次住院期間曾使用，現已停用的藥品</p>
               )}
@@ -786,7 +804,7 @@ export function PatientMedicationsTab({
                     const prn = isPrnOrStat(medication);
                     const isStat = medication.frequency?.toUpperCase() === 'STAT';
                     const discontinued = isDiscontinued(medication);
-                    const statusLabel = medication.status === 'completed' ? '療程完成' : medication.status === 'inactive' ? '未啟用' : '已停用';
+                    const statusLabel = medication.status === 'completed' ? '療程完成' : medication.status === 'inactive' ? '未啟用' : medication.status === 'on-hold' ? '暫停' : '已停用';
                     return (
                       <div
                         key={medication.id}

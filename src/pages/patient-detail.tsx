@@ -411,6 +411,7 @@ export function PatientDetailPage() {
 
   // 用藥數據狀態
   const [medicationGroups, setMedicationGroups] = useState<MedicationGroups>(EMPTY_MEDICATION_GROUPS);
+  const [drugInteractions, setDrugInteractions] = useState<import('../lib/api/medications').DrugInteraction[]>([]);
   const [medicationsLoading, setMedicationsLoading] = useState(false);
 
   // 臨床評分（hook）
@@ -479,6 +480,7 @@ export function PatientDetailPage() {
       setPatient(patientData as PatientWithFrontendFields);
       setLabData(labDataResult);
       setMedicationGroups(medicationsResult.grouped || deriveMedicationGroups(medicationsResult.medications));
+      setDrugInteractions(medicationsResult.interactions || []);
       setMessages(messagesResult.messages);
       setUnreadCount(messagesResult.unreadCount);
       setVitalSigns(vitalSignsResult);
@@ -568,6 +570,7 @@ export function PatientDetailPage() {
     try {
       const result = await medicationsApi.getMedications(id, { status: 'all' });
       setMedicationGroups(result.grouped || deriveMedicationGroups(result.medications));
+      setDrugInteractions(result.interactions || []);
     } catch { /* ignore */ } finally {
       setMedicationsLoading(false);
     }
@@ -1740,6 +1743,7 @@ export function PatientDetailPage() {
           patientId={id}
           userRole={user?.role}
           medicationsLoading={medicationsLoading}
+          drugInteractions={drugInteractions}
           painIndication={painIndication}
           sedationIndication={sedationIndication}
           nmbIndication={nmbIndication}

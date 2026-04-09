@@ -144,7 +144,7 @@ async def list_medications(
             int_result = await db.execute(
                 text(
                     "SELECT id, drug1, drug2, severity, mechanism, "
-                    "clinical_effect, management "
+                    "clinical_effect, management, risk_rating "
                     "FROM drug_interactions "
                     "WHERE drug1 = ANY(:names) AND drug2 = ANY(:names)"
                 ),
@@ -159,6 +159,7 @@ async def list_medications(
                     "mechanism": row[4],
                     "clinicalEffect": row[5],
                     "management": row[6],
+                    "riskRating": row[7],
                 })
     except Exception:
         interactions = []

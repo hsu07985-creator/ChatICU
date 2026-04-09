@@ -818,6 +818,21 @@ async def ai_chat(
             "upstreamStatus": llm_status,
             "evidenceGate": evidence_gate,
             "dataFreshness": data_freshness,
+            "graphMeta": {
+                "interactions": [
+                    {
+                        "drug_a": w.get("drug1", ""),
+                        "drug_b": w.get("drug2", ""),
+                        "risk": w.get("riskLevel", "C"),
+                        "title": (w.get("management") or "")[:200],
+                        "severity": w.get("severity"),
+                    }
+                    for w in ddi_warnings
+                ],
+                "has_risk_x": any(
+                    w.get("riskLevel") == "X" for w in ddi_warnings
+                ),
+            } if ddi_warnings else None,
         },
         "sessionId": session_id,
     })
@@ -898,13 +913,23 @@ async def ai_chat_stream(
             citations = _merge_citations_by_source(citations)
             evidence_gate = _passive_evidence_gate(citations)
 
+            # ── DDI check ──
+            ddi_warnings: List[Dict[str, Any]] = []
+            if patient_context:
+                try:
+                    ddi_warnings = await asyncio.to_thread(
+                        extract_ddi_warnings, patient_context,
+                    )
+                except Exception:
+                    pass
+
             ai_msg_id = f"msg_{uuid.uuid4().hex[:8]}"
             yield _sse_event("start", {"sessionId": session_id, "messageId": ai_msg_id})
 
             # ── Phase 2: LLM streaming (always, no gates) ──
             yield _sse_event("thinking", {"phase": "generating", "detail": "正在生成回答…"})
 
-            metadata_block = _build_metadata_block(data_freshness, citations)
+            metadata_block = _build_metadata_block(data_freshness, citations, ddi_warnings)
             chat_messages = _build_chat_messages(
                 session_summary=session.summary,
                 history=all_messages,
@@ -1034,6 +1059,21 @@ async def ai_chat_stream(
                     "degradedReason": degraded_reason if degraded else None,
                     "evidenceGate": evidence_gate,
                     "dataFreshness": data_freshness,
+                    "graphMeta": {
+                        "interactions": [
+                            {
+                                "drug_a": w.get("drug1", ""),
+                                "drug_b": w.get("drug2", ""),
+                                "risk": w.get("riskLevel", "C"),
+                                "title": (w.get("management") or "")[:200],
+                                "severity": w.get("severity"),
+                            }
+                            for w in ddi_warnings
+                        ],
+                        "has_risk_x": any(
+                            w.get("riskLevel") == "X" for w in ddi_warnings
+                        ),
+                    } if ddi_warnings else None,
                 },
                 "sessionId": session_id,
                 "timings": timings_rounded,
