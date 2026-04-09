@@ -190,7 +190,12 @@ async def import_patients(patient_dirs: List[Path]) -> None:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
     db_url = get_database_url()
-    engine = create_async_engine(db_url, echo=False)
+    engine = create_async_engine(
+        db_url, echo=False,
+        # Supabase uses PgBouncer in transaction mode — disable prepared statements
+        connect_args={"prepared_statement_cache_size": 0,
+                      "statement_cache_size": 0},
+    )
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     print(f"=== IMPORTING {len(patient_dirs)} patients ===\n")

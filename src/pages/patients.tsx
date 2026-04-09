@@ -71,7 +71,7 @@ export function PatientsPage() {
 
   const filteredPatients = useMemo(
     () => patients.filter(patient => {
-      const matchSearch = patient.name.includes(searchTerm) || patient.bedNumber.includes(searchTerm);
+      const matchSearch = (patient.name || '').includes(searchTerm) || (patient.bedNumber || '').includes(searchTerm);
       if (filterStatus === 'intubated') return matchSearch && patient.intubated;
       if (filterStatus === 'san') {
         return matchSearch && (getSedation(patient).length > 0 || getAnalgesia(patient).length > 0 || getNmb(patient).length > 0);
@@ -87,15 +87,15 @@ export function PatientsPage() {
     return Math.ceil(Math.abs(today.getTime() - admission.getTime()) / (1000 * 60 * 60 * 24));
   };
 
-  const getDepartmentBgColor = (department: string) => {
-    if (department.includes('內科')) return 'bg-blue-50 hover:bg-blue-100/70';
-    if (department.includes('外科')) return 'bg-amber-50 hover:bg-amber-100/70';
+  const getDepartmentBgColor = (department: string | null | undefined) => {
+    if (department?.includes('內科')) return 'bg-blue-50 hover:bg-blue-100/70';
+    if (department?.includes('外科')) return 'bg-amber-50 hover:bg-amber-100/70';
     return 'hover:bg-muted/50';
   };
 
-  const getDepartmentBadgeColor = (department: string) => {
-    if (department.includes('內科')) return 'bg-blue-600 text-white';
-    if (department.includes('外科')) return 'bg-amber-600 text-white';
+  const getDepartmentBadgeColor = (department: string | null | undefined) => {
+    if (department?.includes('內科')) return 'bg-blue-600 text-white';
+    if (department?.includes('外科')) return 'bg-amber-600 text-white';
     return 'bg-gray-600 text-white';
   };
 
