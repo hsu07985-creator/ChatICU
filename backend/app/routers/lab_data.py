@@ -50,10 +50,11 @@ _COL_TO_CAMEL = {
 
 
 def _merge_latest_categories(labs: list) -> dict:
-    """Merge the most recent non-null value for each category across records.
+    """Merge the most recent non-null value for each *item* across records.
 
-    HIS data produces one record per blood draw, each with only a few
-    categories filled.  The frontend expects a single composite object.
+    HIS data produces one record per blood draw.  Even within a single
+    category (e.g. biochemistry), different items may appear in different
+    draws.  We merge at the item level so nothing is lost.
     """
     merged: dict = {}
     latest_ts = None
@@ -62,11 +63,16 @@ def _merge_latest_categories(labs: list) -> dict:
             latest_ts = lab.timestamp
         for col in _CATEGORY_COLS:
             camel = _COL_TO_CAMEL.get(col, col)
-            if camel in merged:
-                continue
             data = getattr(lab, col, None)
-            if data:
-                merged[camel] = data
+            if not data or not isinstance(data, dict):
+                continue
+            if camel not in merged:
+                merged[camel] = dict(data)  # copy so we don't mutate the ORM
+            else:
+                # Add items not yet present (most-recent-first wins)
+                for key, val in data.items():
+                    if key not in merged[camel]:
+                        merged[camel][key] = val
     return merged, latest_ts
 
 
