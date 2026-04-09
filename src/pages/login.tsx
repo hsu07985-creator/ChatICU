@@ -137,7 +137,7 @@ export function LoginPage() {
               {/* Password Field */}
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-semibold text-muted-foreground">
-                  Password
+                  密碼
                 </Label>
                 <Input
                   id="password"
@@ -168,37 +168,7 @@ export function LoginPage() {
                 className="w-full h-12 bg-brand hover:bg-brand-hover text-white text-lg font-extrabold"
                 disabled={loading}
               >
-                {loading ? '登入中...' : 'Login'}
-              </Button>
-
-              {/* Demo Quick Login */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-2 text-muted-foreground">快速登入</span>
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full h-12 border-brand text-brand hover:bg-brand/10 font-semibold"
-                disabled={loading}
-                onClick={async () => {
-                  setError('');
-                  setLoading(true);
-                  const result = await login('admin', 'ChatICU@2026!Secure');
-                  if (result.success) {
-                    getCachedPatients().catch(() => {});
-                    navigate(result.passwordExpired ? '/change-password' : '/dashboard');
-                  } else {
-                    setError(result.message || '登入失敗');
-                  }
-                  setLoading(false);
-                }}
-              >
-                {loading ? '登入中...' : 'Demo 管理者登入'}
+                {loading ? '登入中...' : '登入'}
               </Button>
             </form>
           </div>
