@@ -4,6 +4,7 @@ Revision ID: 049
 Revises: 048
 Create Date: 2026-04-08
 """
+from datetime import date
 from alembic import op
 import sqlalchemy as sa
 
@@ -110,6 +111,11 @@ def upgrade() -> None:
         ).fetchone()
         if exists:
             continue
+        # Convert string dates to date objects for asyncpg
+        params = dict(med)
+        for dk in ("start_date", "end_date"):
+            if isinstance(params.get(dk), str):
+                params[dk] = date.fromisoformat(params[dk])
         conn.execute(
             sa.text(
                 "INSERT INTO medications "
@@ -122,7 +128,7 @@ def upgrade() -> None:
                 ":source_type, :source_campus, :prescribing_hospital, "
                 ":prescribing_department, :prescribing_doctor_name, :days_supply, :is_external)"
             ),
-            med,
+            params,
         )
 
 

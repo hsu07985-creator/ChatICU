@@ -4,6 +4,7 @@ Revision ID: 050
 Revises: 049
 Create Date: 2026-04-08
 """
+from datetime import datetime, timezone, timedelta
 from alembic import op
 import sqlalchemy as sa
 
@@ -441,6 +442,7 @@ def upgrade() -> None:
     ))
 
     # Seed demo data
+    _TW = timezone(timedelta(hours=8))
     for r in _DEMO_REPORTS:
         exists = conn.execute(
             sa.text("SELECT 1 FROM diagnostic_reports WHERE id = :id"),
@@ -448,13 +450,17 @@ def upgrade() -> None:
         ).fetchone()
         if exists:
             continue
+        params = dict(r)
+        # Convert string datetime to proper datetime for asyncpg
+        if isinstance(params.get("exam_date"), str):
+            params["exam_date"] = datetime.fromisoformat(params["exam_date"].replace("+08", "+08:00"))
         conn.execute(
             sa.text(
                 "INSERT INTO diagnostic_reports "
                 "(id, patient_id, report_type, exam_name, exam_date, body_text, impression, reporter_name, status) "
                 "VALUES (:id, :patient_id, :report_type, :exam_name, :exam_date, :body_text, :impression, :reporter_name, :status)"
             ),
-            r,
+            params,
         )
 
 
