@@ -253,11 +253,11 @@ function AppRoutes() {
       <Route
         path="/pharmacy/dosage"
         element={
-          <PharmacyRoute>
+          <ProtectedRoute>
             <AppLayout>
               <DosagePage />
             </AppLayout>
-          </PharmacyRoute>
+          </ProtectedRoute>
         }
       />
       <Route

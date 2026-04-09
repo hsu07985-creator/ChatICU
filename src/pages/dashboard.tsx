@@ -6,10 +6,10 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Label } from '../components/ui/label';
-import { Search, AlertCircle, Pencil, Loader2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Search, AlertCircle, Pencil, ZoomIn, ZoomOut } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Patient, updatePatient } from '../lib/api/patients';
-import { getCachedPatients, getCachedPatientsSync, isPatientsCacheFresh, invalidatePatients } from '../lib/patients-cache';
+import { getCachedPatientsSync, invalidatePatients } from '../lib/patients-cache';
 import { getDashboardStats, DashboardStats } from '../lib/api/dashboard';
 import { toast } from 'sonner';
 import {
@@ -59,7 +59,6 @@ export function DashboardPage() {
   });
   const [saving, setSaving] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(_statsCache);
-  const [statsLoading, setStatsLoading] = useState(!_statsCache);
 
   // 卡片欄數: 2=大卡(2欄), 3=標準(3欄), 4=小卡(4欄), 6=迷你(6欄)
   const GRID_OPTIONS = [2, 3, 4, 6] as const;
@@ -90,11 +89,10 @@ export function DashboardPage() {
     }
   }, []);
 
-  // 從 API 獲取儀表板統計（帶快取）
+  // 從 API 獲取儀表板統計（帶快取，背景靜默更新）
   const fetchStats = useCallback(async () => {
     if (_statsCache && Date.now() - _statsTimestamp < STATS_STALE_MS) {
       setStats(_statsCache);
-      setStatsLoading(false);
       return;
     }
     try {
@@ -104,8 +102,6 @@ export function DashboardPage() {
       setStats(data);
     } catch (err) {
       console.error('載入統計數據失敗:', err);
-    } finally {
-      setStatsLoading(false);
     }
   }, []);
 
@@ -227,45 +223,39 @@ export function DashboardPage() {
       {/* ICU 指標（水平高密度） */}
       <Card className="overflow-hidden">
         <CardContent className="p-0">
-          {statsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <div
-                className="grid"
-                style={{ minWidth: '760px', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}
-              >
-                <div className="px-4 py-4">
-                  <p className="text-xs font-medium text-muted-foreground">病患總數</p>
-                  <p className="mt-1 text-3xl font-bold leading-none text-foreground">{effectiveStats?.patients?.total ?? 0}</p>
-                </div>
-                <div className="border-l border-border px-4 py-4">
-                  <p className="text-xs font-medium text-muted-foreground">插管人數</p>
-                  <p className="mt-1 text-3xl font-bold leading-none text-foreground">{effectiveStats?.patients?.intubated ?? 0}</p>
-                </div>
-                <div className="border-l border-border px-4 py-4">
-                  <p className="text-xs font-medium text-muted-foreground">S 鎮靜</p>
-                  <p className="mt-1 text-3xl font-bold leading-none text-foreground">
-                    {effectiveStats?.patients?.sanByCategory?.sedation ?? 0}
-                  </p>
-                </div>
-                <div className="border-l border-border px-4 py-4">
-                  <p className="text-xs font-medium text-muted-foreground">A 止痛</p>
-                  <p className="mt-1 text-3xl font-bold leading-none text-foreground">
-                    {effectiveStats?.patients?.sanByCategory?.analgesia ?? 0}
-                  </p>
-                </div>
-                <div className="border-l border-border px-4 py-4">
-                  <p className="text-xs font-medium text-muted-foreground">N 阻斷</p>
-                  <p className="mt-1 text-3xl font-bold leading-none text-foreground">
-                    {effectiveStats?.patients?.sanByCategory?.nmb ?? 0}
-                  </p>
-                </div>
+          <div className="overflow-x-auto">
+            <div
+              className="grid"
+              style={{ minWidth: '760px', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}
+            >
+              <div className="px-4 py-4">
+                <p className="text-xs font-medium text-muted-foreground">病患總數</p>
+                <p className="mt-1 text-3xl font-bold leading-none text-foreground">{effectiveStats?.patients?.total ?? 0}</p>
+              </div>
+              <div className="border-l border-border px-4 py-4">
+                <p className="text-xs font-medium text-muted-foreground">插管人數</p>
+                <p className="mt-1 text-3xl font-bold leading-none text-foreground">{effectiveStats?.patients?.intubated ?? 0}</p>
+              </div>
+              <div className="border-l border-border px-4 py-4">
+                <p className="text-xs font-medium text-muted-foreground">S 鎮靜</p>
+                <p className="mt-1 text-3xl font-bold leading-none text-foreground">
+                  {effectiveStats?.patients?.sanByCategory?.sedation ?? 0}
+                </p>
+              </div>
+              <div className="border-l border-border px-4 py-4">
+                <p className="text-xs font-medium text-muted-foreground">A 止痛</p>
+                <p className="mt-1 text-3xl font-bold leading-none text-foreground">
+                  {effectiveStats?.patients?.sanByCategory?.analgesia ?? 0}
+                </p>
+              </div>
+              <div className="border-l border-border px-4 py-4">
+                <p className="text-xs font-medium text-muted-foreground">N 阻斷</p>
+                <p className="mt-1 text-3xl font-bold leading-none text-foreground">
+                  {effectiveStats?.patients?.sanByCategory?.nmb ?? 0}
+                </p>
               </div>
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
 

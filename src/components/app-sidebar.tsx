@@ -39,6 +39,7 @@ export function AppSidebar() {
   const patientCareItems = [
     { title: '總覽', url: '/dashboard', icon: Home },
     { title: '病人清單', url: '/patients', icon: Users },
+    { title: '劑量計算與建議', url: '/pharmacy/dosage', icon: Calculator },
   ];
 
   // 2) 藥事評估（藥師/管理者可見）— 整合性工作台
@@ -50,7 +51,6 @@ export function AppSidebar() {
   const pharmacyToolItems = (user?.role === 'pharmacist' || user?.role === 'admin') ? [
     { title: '交互作用查詢', url: '/pharmacy/interactions', icon: AlertTriangle },
     { title: '相容性檢核', url: '/pharmacy/compatibility', icon: Droplets },
-    { title: '劑量計算與建議', url: '/pharmacy/dosage', icon: Calculator },
     { title: '用藥建議與統計', url: '/pharmacy/advice-statistics', icon: BarChart3 },
   ] : [];
 

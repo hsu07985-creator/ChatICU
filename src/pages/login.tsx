@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth-context';
+import { getCachedPatients } from '../lib/patients-cache';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
@@ -52,6 +53,8 @@ export function LoginPage() {
     const result = await login(username, password);
 
     if (result.success) {
+      // Prefetch patients so dashboard renders instantly
+      getCachedPatients().catch(() => {});
       navigate(result.passwordExpired ? '/change-password' : '/dashboard');
     } else {
       setError(result.message || '帳號或密碼錯誤');
@@ -187,6 +190,7 @@ export function LoginPage() {
                   setLoading(true);
                   const result = await login('admin', 'ChatICU@2026!Secure');
                   if (result.success) {
+                    getCachedPatients().catch(() => {});
                     navigate(result.passwordExpired ? '/change-password' : '/dashboard');
                   } else {
                     setError(result.message || '登入失敗');
