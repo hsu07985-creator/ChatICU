@@ -233,7 +233,13 @@ async def create_user(
     # Check username uniqueness
     existing = await db.execute(select(User).where(User.username == body.username))
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Username already exists")
+        raise HTTPException(status_code=400, detail="此帳號已存在")
+
+    # Check email uniqueness
+    if body.email:
+        existing_email = await db.execute(select(User).where(User.email == body.email))
+        if existing_email.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="此電子郵件已被使用")
 
     new_user = User(
         id=f"usr_{uuid.uuid4().hex[:6]}",
