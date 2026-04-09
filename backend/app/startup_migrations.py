@@ -20,6 +20,19 @@ logger = logging.getLogger("chaticu")
 
 async def run_all(engine: AsyncEngine) -> None:
     """Run all startup migration fallbacks sequentially."""
+    # Drop role constraint FIRST (before anything else can fail)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname='ck_users_role_valid') THEN
+                        ALTER TABLE users DROP CONSTRAINT ck_users_role_valid;
+                    END IF;
+                END $$
+            """))
+            logger.info("Dropped ck_users_role_valid constraint (np role support)")
+    except Exception as e:
+        logger.warning("Failed to drop role constraint: %s", e)
     await _ensure_updated_at_columns(engine)
     await _ensure_ai_messages_feedback(engine)
     await _ensure_culture_results(engine)
