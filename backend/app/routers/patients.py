@@ -95,21 +95,6 @@ async def list_patients(
 ):
     query = select(Patient).where(Patient.archived == False)
 
-    # ── T09: Data-level access control — non-admin users see their unit's patients ──
-    if user.role not in ("admin", "pharmacist"):
-        # Doctors: see patients they attend OR in their unit
-        if user.role == "doctor":
-            query = query.where(
-                or_(
-                    Patient.unit.ilike(f"%{escape_like(user.unit)}%") if user.unit else False,
-                    Patient.attending_physician.ilike(f"%{escape_like(user.name)}%"),
-                )
-            )
-        else:
-            # Nurses and other roles: see patients in their unit only
-            if user.unit:
-                query = query.where(Patient.unit.ilike(f"%{escape_like(user.unit)}%"))
-
     if search:
         query = query.where(
             or_(
