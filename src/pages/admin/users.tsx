@@ -528,6 +528,7 @@ export function UsersPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="doctor">醫師</SelectItem>
+                    <SelectItem value="np">專科護理師</SelectItem>
                     <SelectItem value="nurse">護理師</SelectItem>
                     <SelectItem value="pharmacist">藥師</SelectItem>
                     <SelectItem value="admin">系統管理員</SelectItem>
