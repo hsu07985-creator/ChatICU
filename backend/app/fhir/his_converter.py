@@ -862,7 +862,7 @@ class HISConverter:
         raw = p.get("DNR_CONSENT")
         if not raw or not raw.strip():
             if p.get("DNR_IC_FLAG"):
-                return "DNR signed", ["DNR: 依 DNR_IC_FLAG 紀錄"]
+                return "DNR signed", ["DNR: 已簽署意願書"]
             return None, []
 
         parts = raw.strip().split(",")

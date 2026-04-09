@@ -52,7 +52,7 @@ def patient_to_dict(patient: Patient, unread_count: int = 0) -> dict:
         "hasDNR": patient.has_dnr,
         "isIsolated": patient.is_isolated,
         "hasUnreadMessages": unread_count > 0,
-        "lastUpdate": patient.last_update.isoformat() if patient.last_update else None,
+        "lastUpdate": (patient.last_update or patient.updated_at).isoformat() if (patient.last_update or patient.updated_at) else None,
     }
 
 

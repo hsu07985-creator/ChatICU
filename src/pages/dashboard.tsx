@@ -359,18 +359,18 @@ export function DashboardPage() {
                         )}
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {patient.age} 歲 · 住院 {Math.floor((new Date().getTime() - new Date(patient.admissionDate).getTime()) / (1000 * 60 * 60 * 24))} 天
+                        {patient.age} 歲 · {patient.admissionDate ? `住院 ${Math.floor((new Date().getTime() - new Date(patient.admissionDate).getTime()) / (1000 * 60 * 60 * 24))} 天` : '住'}
                       </p>
                     </div>
                     <div className="h-12 w-12 rounded-full bg-brand text-white flex items-center justify-center font-bold text-lg shadow-lg">
-                      {patient.bedNumber}
+                      {patient.bedNumber || patient.name?.charAt(0) || '?'}
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="bg-slate-50 p-3 rounded-lg border border-border">
                     <p className="text-xs font-medium text-muted-foreground mb-1">入院診斷</p>
-                    <p className="text-sm font-medium text-foreground">{patient.diagnosis}</p>
+                    <p className="text-sm font-medium text-foreground line-clamp-3" title={patient.diagnosis || ''}>{patient.diagnosis || '-'}</p>
                   </div>
 
                   {/* S/A/N 標記 - 緊湊顯示 */}
@@ -397,16 +397,16 @@ export function DashboardPage() {
                   {patient.alerts.length > 0 && (
                     <div className="flex flex-wrap gap-1 pt-2 border-t">
                       {patient.alerts.map((alert, idx) => (
-                        <Badge key={idx} className="text-xs bg-rose-100 text-rose-700 border border-rose-200 hover:bg-rose-200/80">
-                          <AlertCircle className="h-3.5 w-3.5 mr-1" />
-                          {alert}
+                        <Badge key={idx} className="text-xs bg-rose-100 text-rose-700 border border-rose-200 hover:bg-rose-200/80 max-w-full" title={alert}>
+                          <AlertCircle className="h-3.5 w-3.5 mr-1 shrink-0" />
+                          <span className="truncate">{alert}</span>
                         </Badge>
                       ))}
                     </div>
                   )}
 
                   <div className="text-xs text-muted-foreground pt-2 border-t">
-                    <span>最後更新：{new Date(patient.lastUpdate).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                    <span>最後更新：{patient.lastUpdate ? new Date(patient.lastUpdate).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}</span>
                   </div>
                 </CardContent>
               </Card>
