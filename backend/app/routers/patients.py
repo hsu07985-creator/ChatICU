@@ -63,23 +63,11 @@ def normalize_patient_id(patient_id: str) -> str:
 
 
 def verify_patient_access(user: User, patient: "Patient") -> None:
-    """T09: Verify the user has access to this patient's data.
+    """Verify the user has access to this patient's data.
 
-    Raises HTTPException 403 if access is denied.
-    Admin and pharmacist roles have full access.
+    All authenticated users can access all patients (shared ICU).
     """
-    if user.role in ("admin", "pharmacist"):
-        return
-    has_access = False
-    if user.role == "doctor":
-        if (user.unit and user.unit in (patient.unit or "")) or \
-           (user.name in (patient.attending_physician or "")):
-            has_access = True
-    else:
-        if user.unit and user.unit in (patient.unit or ""):
-            has_access = True
-    if not has_access:
-        raise HTTPException(status_code=403, detail="無權限查看此病患資料")
+    return
 
 
 @router.get("")
