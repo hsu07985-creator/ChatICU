@@ -297,10 +297,18 @@ function formatShortTimestamp(ts?: string): string {
   return `${mm}/${dd} ${hh}:${min}`;
 }
 
+function getItemTimestamp(input: unknown): string | undefined {
+  if (!input || typeof input !== 'object') return undefined;
+  const record = input as Record<string, unknown>;
+  if (typeof record._ts === 'string') return record._ts;
+  return undefined;
+}
+
 function LabItem({ labName, label, value, unit, isAbnormal, abnormalDirection, onClick, isOptional }: LabItemProps) {
   const { hideMissing, onlyAbnormal, timestamp } = useContext(LabDisplayFilterContext);
   const displayValue = toDisplayText(value);
   const hasValue = displayValue !== '-';
+  const itemTimestamp = getItemTimestamp(value) || timestamp;
   const canOpenTrend = hasValue && !!onClick;
   const isMissing = !hasValue;
   const valueToneClass = isMissing
@@ -358,12 +366,12 @@ function LabItem({ labName, label, value, unit, isAbnormal, abnormalDirection, o
           </span>
         )}
       </div>
-      {timestamp && (
+      {itemTimestamp && (
         <span
           className="mt-auto text-center leading-none text-slate-400"
           style={{ fontSize: '0.55rem' }}
         >
-          {formatShortTimestamp(timestamp)}
+          {formatShortTimestamp(itemTimestamp)}
         </span>
       )}
     </div>

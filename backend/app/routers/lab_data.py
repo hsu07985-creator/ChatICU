@@ -55,10 +55,14 @@ def _merge_latest_categories(labs: list) -> dict:
     HIS data produces one record per blood draw.  Even within a single
     category (e.g. biochemistry), different items may appear in different
     draws.  We merge at the item level so nothing is lost.
+
+    Each item dict gets a ``_ts`` field with its source record's timestamp
+    so the frontend can display per-item draw times.
     """
     merged: dict = {}
     latest_ts = None
     for lab in labs:  # already ordered desc by timestamp
+        ts_iso = lab.timestamp.isoformat() if lab.timestamp else None
         if latest_ts is None and lab.timestamp:
             latest_ts = lab.timestamp
         for col in _CATEGORY_COLS:
@@ -67,12 +71,20 @@ def _merge_latest_categories(labs: list) -> dict:
             if not data or not isinstance(data, dict):
                 continue
             if camel not in merged:
-                merged[camel] = dict(data)  # copy so we don't mutate the ORM
+                merged[camel] = {}
+                for key, val in data.items():
+                    item = dict(val) if isinstance(val, dict) else val
+                    if isinstance(item, dict):
+                        item["_ts"] = ts_iso
+                    merged[camel][key] = item
             else:
                 # Add items not yet present (most-recent-first wins)
                 for key, val in data.items():
                     if key not in merged[camel]:
-                        merged[camel][key] = val
+                        item = dict(val) if isinstance(val, dict) else val
+                        if isinstance(item, dict):
+                            item["_ts"] = ts_iso
+                        merged[camel][key] = item
     return merged, latest_ts
 
 
