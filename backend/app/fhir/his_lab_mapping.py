@@ -86,12 +86,12 @@ HIS_LAB_MAP: Dict[str, Tuple[str, str, str]] = {
     "9031":   ("biochemistry", "rGT",      "r-GT"),
     # --- LDH ---
     "9033E":  ("biochemistry", "LDH",      "LDH"),
-    # --- Amylase ---
-    "9017E":  ("biochemistry", "Amylase",  "Amylase"),
-    # --- Lipase ---
-    "9064E":  ("biochemistry", "Lipase",   "Lipase"),
-    # --- Ammonia ---
-    "9037E":  ("biochemistry", "Ammonia",  "ammonia"),
+    # --- Amylase --- (frontend expects other.Amylase)
+    "9017E":  ("other", "Amylase",  "Amylase"),
+    # --- Lipase --- (frontend expects other.Lipase)
+    "9064E":  ("other", "Lipase",   "Lipase"),
+    # --- Ammonia --- (frontend expects other.NH3)
+    "9037E":  ("other", "NH3",      "ammonia"),
     # --- Uric Acid ---
     "9013":   ("biochemistry", "Uric",     "Uric Acid"),
     # --- Lactate (serum, from biochemistry panel) ---

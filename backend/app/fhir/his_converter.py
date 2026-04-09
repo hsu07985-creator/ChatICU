@@ -17,7 +17,7 @@ import json
 import os
 import re
 from collections import defaultdict
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from app.fhir.his_lab_mapping import HIS_LAB_MAP
@@ -60,7 +60,11 @@ def _roc_to_date(roc_str: Optional[str]) -> Optional[date]:
 
 
 def _roc_to_datetime(roc_date: Optional[str], time_str: Optional[str] = None) -> Optional[datetime]:
-    """民國年日期 + HHMM 時間 → datetime(UTC)。"""
+    """民國年日期 + HHMM 時間 → datetime(UTC)。
+
+    HIS timestamps are Taiwan local time (UTC+8).  We parse as local
+    then convert to UTC for storage.
+    """
     d = _roc_to_date(roc_date)
     if d is None:
         return None
@@ -68,10 +72,11 @@ def _roc_to_datetime(roc_date: Optional[str], time_str: Optional[str] = None) ->
     if time_str and len(time_str) >= 4 and time_str[:4].isdigit():
         hour = int(time_str[:2])
         minute = int(time_str[2:4])
+    _TW = timezone(timedelta(hours=8))
     try:
-        return datetime(d.year, d.month, d.day, hour, minute, tzinfo=timezone.utc)
+        return datetime(d.year, d.month, d.day, hour, minute, tzinfo=_TW).astimezone(timezone.utc)
     except ValueError:
-        return datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
+        return datetime(d.year, d.month, d.day, tzinfo=_TW).astimezone(timezone.utc)
 
 
 def _roc_birthday_to_age(birthday: Optional[str]) -> Optional[int]:
@@ -588,7 +593,7 @@ class HISConverter:
 
                 # Map to parent category if not in our JSONB columns
                 if cat in ("glycated",):
-                    cat = "biochemistry"
+                    cat = "other"  # frontend expects HbA1C in "other"
                 elif cat in ("serology", "tumor_marker", "allergy", "tdm"):
                     cat = "other"
                 elif cat in ("urinalysis", "stool", "pleural_fluid"):
