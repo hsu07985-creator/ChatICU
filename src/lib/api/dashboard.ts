@@ -38,7 +38,7 @@ export interface DashboardStats {
  * 獲取儀表板統計數據
  */
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const response = await apiClient.get<ApiResponse<DashboardStats>>('/dashboard/stats');
+  const response = await apiClient.get<ApiResponse<DashboardStats>>('/dashboard/stats', { suppressErrorToast: true });
   const raw = (response.data.data || {}) as Partial<DashboardStats>;
   return {
     patients: {
