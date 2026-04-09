@@ -559,33 +559,25 @@ async def _clear_messages_once(engine: AsyncEngine) -> None:
 
 
 async def _ensure_np_role(engine: AsyncEngine) -> None:
-    """Add 'np' (專科護理師) to the users.role CHECK constraint."""
+    """Add 'np' (專科護理師) to the users.role CHECK constraint.
+
+    Uses DO block for atomic drop-if-exists + create in a single statement.
+    """
     log = logging.getLogger("chaticu")
     try:
-        # Step 1: check if already done
         async with engine.begin() as conn:
-            result = await conn.execute(text(
-                "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
-                "WHERE conname = 'ck_users_role_valid'"
-            ))
-            row = result.scalar()
-            if row and "'np'" in row:
-                log.info("_ensure_np_role: constraint already includes np, skipping")
-                return
-
-        # Step 2: drop old constraint in its own transaction
-        try:
-            async with engine.begin() as conn:
-                await conn.execute(text("ALTER TABLE users DROP CONSTRAINT ck_users_role_valid"))
-        except Exception:
-            log.info("_ensure_np_role: old constraint not found or already dropped")
-
-        # Step 3: add new constraint in its own transaction
-        async with engine.begin() as conn:
-            await conn.execute(text(
-                "ALTER TABLE users ADD CONSTRAINT ck_users_role_valid "
-                "CHECK (role IN ('doctor','nurse','pharmacist','admin','np'))"
-            ))
+            await conn.execute(text("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM pg_constraint WHERE conname = 'ck_users_role_valid'
+                    ) THEN
+                        ALTER TABLE users DROP CONSTRAINT ck_users_role_valid;
+                    END IF;
+                    ALTER TABLE users ADD CONSTRAINT ck_users_role_valid
+                        CHECK (role IN ('doctor','nurse','pharmacist','admin','np'));
+                END $$;
+            """))
         log.info("_ensure_np_role: CHECK constraint updated successfully")
     except Exception:
         log.warning("_ensure_np_role failed (non-fatal)", exc_info=True)
