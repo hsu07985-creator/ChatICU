@@ -562,8 +562,8 @@ async def _ensure_np_role(engine: AsyncEngine) -> None:
     """Add 'np' (專科護理師) to the users.role CHECK constraint."""
     log = logging.getLogger("chaticu")
     try:
+        # Step 1: check if already done
         async with engine.begin() as conn:
-            # Check if constraint already includes 'np'
             result = await conn.execute(text(
                 "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
                 "WHERE conname = 'ck_users_role_valid'"
@@ -572,16 +572,21 @@ async def _ensure_np_role(engine: AsyncEngine) -> None:
             if row and "'np'" in row:
                 log.info("_ensure_np_role: constraint already includes np, skipping")
                 return
-            # Drop and recreate
-            try:
+
+        # Step 2: drop old constraint in its own transaction
+        try:
+            async with engine.begin() as conn:
                 await conn.execute(text("ALTER TABLE users DROP CONSTRAINT ck_users_role_valid"))
-            except Exception:
-                pass  # constraint may not exist
+        except Exception:
+            log.info("_ensure_np_role: old constraint not found or already dropped")
+
+        # Step 3: add new constraint in its own transaction
+        async with engine.begin() as conn:
             await conn.execute(text(
                 "ALTER TABLE users ADD CONSTRAINT ck_users_role_valid "
                 "CHECK (role IN ('doctor','nurse','pharmacist','admin','np'))"
             ))
-        log.info("_ensure_np_role: CHECK constraint updated")
+        log.info("_ensure_np_role: CHECK constraint updated successfully")
     except Exception:
         log.warning("_ensure_np_role failed (non-fatal)", exc_info=True)
 
