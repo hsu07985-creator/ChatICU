@@ -563,10 +563,20 @@ async def _ensure_np_role(engine: AsyncEngine) -> None:
     log = logging.getLogger("chaticu")
     try:
         async with engine.begin() as conn:
-            # Drop old constraint and add new one (idempotent: if already updated, no-op)
-            await conn.execute(text(
-                "ALTER TABLE users DROP CONSTRAINT IF EXISTS ck_users_role_valid"
+            # Check if constraint already includes 'np'
+            result = await conn.execute(text(
+                "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+                "WHERE conname = 'ck_users_role_valid'"
             ))
+            row = result.scalar()
+            if row and "'np'" in row:
+                log.info("_ensure_np_role: constraint already includes np, skipping")
+                return
+            # Drop and recreate
+            try:
+                await conn.execute(text("ALTER TABLE users DROP CONSTRAINT ck_users_role_valid"))
+            except Exception:
+                pass  # constraint may not exist
             await conn.execute(text(
                 "ALTER TABLE users ADD CONSTRAINT ck_users_role_valid "
                 "CHECK (role IN ('doctor','nurse','pharmacist','admin','np'))"
