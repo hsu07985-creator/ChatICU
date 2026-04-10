@@ -528,6 +528,7 @@ class HISConverter:
                 "patient_id": pat_id,
                 "name": clean_name,
                 "generic_name": generic,
+                "order_code": (m.get("ODR_CODE") or "").strip() or None,
                 "category": _classify_category(raw_name),
                 "san_category": _classify_san(raw_name),
                 "dose": str(m["DOSE"]) if m.get("DOSE") is not None else None,

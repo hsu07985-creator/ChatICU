@@ -21,6 +21,7 @@ class Medication(Base):
     )
     name: Mapped[str] = mapped_column(String(200))
     generic_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    order_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     san_category: Mapped[Optional[str]] = mapped_column(String(5), nullable=True)  # S, A, N
     dose: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)

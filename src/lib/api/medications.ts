@@ -6,6 +6,7 @@ export interface Medication {
   patientId: string;
   name: string;
   genericName: string;
+  orderCode?: string | null;
   category: string;  // 'analgesic' | 'sedative' | 'antibiotic' | 'neuromuscular_blocker' | 'vasopressor' 等
   sanCategory: 'S' | 'A' | 'N' | null;  // S=Sedation, A=Analgesia, N=Neuromuscular Blocker
   route: string;

@@ -42,6 +42,7 @@ def med_to_dict(med: Medication) -> dict:
         "patientId": med.patient_id,
         "name": med.name,
         "genericName": med.generic_name,
+        "orderCode": getattr(med, "order_code", None),
         "category": med.category,
         "sanCategory": normalize_san_category(med.san_category),
         "dose": med.dose,

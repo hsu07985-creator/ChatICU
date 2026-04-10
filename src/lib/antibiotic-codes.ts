@@ -19,35 +19,21 @@ export const ANTIBIOTIC_ORDER_CODES = new Set([
   'OMORC1', 'OODEF1', 'OPARA2', 'OPICO1', 'OPYRA3', 'ORIFA6', 'OTAIG1', 'OTAMI1',
   'OTRIU1', 'OTRUV1', 'OULEX2', 'OVALA1', 'OVALC1', 'OVEML1', 'OXOFL1', 'OZITH1',
   'OZITH2', 'OZYVO1',
+  // Topical antibiotics (外用抗生素)
+  'TBIOM1', 'TSPER2', 'ONYST1', 'TSSD1', 'TEARF1',
 ]);
+
+const ABX_NAME_PATTERN = /\(抗[1-4]\)/;
 
 /**
  * Check if a medication is an antibiotic.
  * Matching strategy (any match = antibiotic):
- * 1. orderCode exact match in the Excel list
- * 2. orderCode prefix match (e.g. ISINT3 matches ISINT1 via prefix ISINT)
- * 3. category === 'antibiotic'
- * 4. Name contains (抗1)/(抗2)/(抗3)/(抗4) — Taiwan antimicrobial tier marking
+ * 1. orderCode exact match in the Excel list (including topical)
+ * 2. category === 'antibiotic'
+ * 3. Name contains (抗1)/(抗2)/(抗3)/(抗4) — Taiwan antimicrobial tier marking
  */
-const _prefixCache = new Set<string>();
-function _buildPrefixes(): Set<string> {
-  if (_prefixCache.size > 0) return _prefixCache;
-  for (const code of ANTIBIOTIC_ORDER_CODES) {
-    // Strip trailing digits to get prefix, e.g. ISINT1 → ISINT, IAMOC2P → IAMOC
-    const prefix = code.replace(/[\dP]+$/, '');
-    if (prefix.length >= 3) _prefixCache.add(prefix);
-  }
-  return _prefixCache;
-}
-
-const ABX_NAME_PATTERN = /\(抗[1-4]\)/;
-
 export function isAntibiotic(med: { orderCode?: string | null; category?: string; name?: string }): boolean {
   if (med.orderCode && ANTIBIOTIC_ORDER_CODES.has(med.orderCode)) return true;
-  if (med.orderCode) {
-    const prefix = med.orderCode.replace(/[\dP]+$/, '');
-    if (prefix.length >= 3 && _buildPrefixes().has(prefix)) return true;
-  }
   if (med.category === 'antibiotic') return true;
   if (med.name && ABX_NAME_PATTERN.test(med.name)) return true;
   return false;
