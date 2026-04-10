@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -20,18 +20,15 @@ from app.utils.response import escape_like, success_response
 router = APIRouter(prefix="/patients", tags=["patients"])
 
 
-def patient_to_dict(patient: Patient, unread_count: int = 0) -> dict:
-    # Safely access intubation_date (deferred column, may not exist in DB yet)
-    try:
-        intub_date = patient.intubation_date
-    except Exception:
-        intub_date = None
-
+def patient_to_dict(patient: Patient, unread_count: int = 0, intubation_date=None) -> dict:
     # Auto-calculate ventilator_days from intubation_date when available
     vent_days = patient.ventilator_days
-    if intub_date and patient.intubated:
+    if intubation_date and patient.intubated:
         today = datetime.now(timezone.utc).date()
-        vent_days = max((today - intub_date).days, 0)
+        if isinstance(intubation_date, str):
+            from datetime import date as _date
+            intubation_date = _date.fromisoformat(intubation_date)
+        vent_days = max((today - intubation_date).days, 0)
 
     return {
         "id": patient.id,
@@ -46,7 +43,7 @@ def patient_to_dict(patient: Patient, unread_count: int = 0) -> dict:
         "diagnosis": patient.diagnosis,
         "symptoms": patient.symptoms or [],
         "intubated": patient.intubated,
-        "intubationDate": intub_date.isoformat() if intub_date else None,
+        "intubationDate": intubation_date.isoformat() if intubation_date and hasattr(intubation_date, 'isoformat') else intubation_date,
         "criticalStatus": patient.critical_status,
         "sedation": patient.sedation or [],
         "analgesia": patient.analgesia or [],
@@ -67,6 +64,20 @@ def patient_to_dict(patient: Patient, unread_count: int = 0) -> dict:
         "hasUnreadMessages": unread_count > 0,
         "lastUpdate": (patient.last_update or patient.updated_at).isoformat() if (patient.last_update or patient.updated_at) else None,
     }
+
+
+async def _fetch_intubation_dates(db: AsyncSession, patient_ids: list) -> dict:
+    """Fetch intubation_date via raw SQL (column not in ORM to avoid async issues)."""
+    if not patient_ids:
+        return {}
+    try:
+        result = await db.execute(
+            text("SELECT id, intubation_date FROM patients WHERE id = ANY(:ids)"),
+            {"ids": patient_ids},
+        )
+        return {row[0]: row[1] for row in result if row[1] is not None}
+    except Exception:
+        return {}
 
 
 def normalize_patient_id(patient_id: str) -> str:
@@ -136,8 +147,12 @@ async def list_patients(
         for pid, count in unread_result:
             unread_counts[pid] = count
 
+    # Fetch intubation_dates via raw SQL (not in ORM model)
+    intub_dates = await _fetch_intubation_dates(db, patient_ids)
+
     patient_list = [
-        patient_to_dict(p, unread_counts.get(p.id, 0)) for p in patients
+        patient_to_dict(p, unread_counts.get(p.id, 0), intubation_date=intub_dates.get(p.id))
+        for p in patients
     ]
 
     return success_response(data={
@@ -176,7 +191,6 @@ async def create_patient(
         diagnosis=body.diagnosis,
         symptoms=body.symptoms,
         intubated=body.intubated,
-        intubation_date=body.intubation_date,
         critical_status=body.critical_status,
         sedation=body.sedation,
         analgesia=body.analgesia,
@@ -202,6 +216,16 @@ async def create_patient(
     )
     db.add(patient)
     await db.flush()
+
+    # Set intubation_date via raw SQL if provided
+    if body.intubation_date:
+        try:
+            await db.execute(
+                text("UPDATE patients SET intubation_date = :val WHERE id = :pid"),
+                {"val": body.intubation_date, "pid": patient_id},
+            )
+        except Exception:
+            pass
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
@@ -236,7 +260,8 @@ async def get_patient(
     unread_result = await db.execute(unread_query)
     unread_count = unread_result.scalar() or 0
 
-    return success_response(data=patient_to_dict(patient, unread_count))
+    intub_dates = await _fetch_intubation_dates(db, [pid])
+    return success_response(data=patient_to_dict(patient, unread_count, intubation_date=intub_dates.get(pid)))
 
 
 @router.patch("/{patient_id}")
@@ -263,7 +288,6 @@ async def update_patient(
         "admission_date": "admission_date",
         "icu_admission_date": "icu_admission_date",
         "ventilator_days": "ventilator_days",
-        "intubation_date": "intubation_date",
         "has_dnr": "has_dnr",
         "is_isolated": "is_isolated",
         "code_status": "code_status",
@@ -283,11 +307,20 @@ async def update_patient(
     elif not h or not w:
         patient.bmi = None
 
+    # Handle intubation_date via raw SQL (not in ORM model)
+    intub_date_val = update_data.pop("intubation_date", None)
+    if intub_date_val is not None or "intubation_date" in body.model_fields_set:
+        try:
+            await db.execute(
+                text("UPDATE patients SET intubation_date = :val WHERE id = :pid"),
+                {"val": intub_date_val, "pid": pid},
+            )
+        except Exception:
+            pass  # Column may not exist yet
+
     # Auto-calculate ventilator_days from intubation_date
-    try:
-        intub_date = patient.intubation_date
-    except Exception:
-        intub_date = None
+    intub_dates = await _fetch_intubation_dates(db, [pid])
+    intub_date = intub_dates.get(pid)
     if intub_date and patient.intubated:
         today = datetime.now(timezone.utc).date()
         patient.ventilator_days = max((today - intub_date).days, 0)
@@ -301,7 +334,7 @@ async def update_patient(
         details={"fields_changed": list(update_data.keys())},
     )
 
-    return success_response(data=patient_to_dict(patient), message="病患資料已更新")
+    return success_response(data=patient_to_dict(patient, intubation_date=intub_date), message="病患資料已更新")
 
 
 @router.patch("/{patient_id}/archive")

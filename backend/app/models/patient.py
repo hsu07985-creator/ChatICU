@@ -28,7 +28,8 @@ class Patient(Base):
     diagnosis: Mapped[str] = mapped_column(String(500))
     symptoms: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of strings
     intubated: Mapped[bool] = mapped_column(Boolean, default=False)
-    intubation_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True, deferred=True)
+    # intubation_date lives in DB (migration 056) but accessed via raw SQL
+    # to avoid async lazy-load issues with deferred columns
     critical_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     sedation: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of strings
     analgesia: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of strings
