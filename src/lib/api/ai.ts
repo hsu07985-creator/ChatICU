@@ -591,6 +591,7 @@ export async function getRAGStatus(): Promise<RAGStatus> {
 
 export interface PatientContext {
   age_years?: number;
+  height_cm?: number;
   weight_kg?: number;
   sex?: string;
   crcl_ml_min?: number;

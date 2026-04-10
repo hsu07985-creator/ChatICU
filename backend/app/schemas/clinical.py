@@ -68,6 +68,7 @@ class CKDStageRequest(BaseModel):
 
 class PatientContext(BaseModel):
     age_years: Optional[float] = None
+    height_cm: Optional[float] = None
     weight_kg: Optional[float] = None
     sex: Optional[str] = None
     crcl_ml_min: Optional[float] = None

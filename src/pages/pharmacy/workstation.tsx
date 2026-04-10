@@ -94,6 +94,7 @@ export function PharmacyWorkstationPage() {
   }, [selectedPatientId]);
 
   const extendedData: ExtendedPatientData | null = selectedPatient ? {
+    height: selectedPatient.height ?? null,
     weight: selectedPatient.weight ?? null,
     egfr: latestLab?.biochemistry?.eGFR?.value ?? null,
     hepaticFunction,
@@ -198,6 +199,7 @@ export function PharmacyWorkstationPage() {
 
       const patientContext: PatientContext = {
         age_years: selectedPatient.age,
+        height_cm: extendedData?.height ?? undefined,
         weight_kg: extendedData?.weight ?? undefined,
         sex: selectedPatient.gender === '男' ? 'male' : 'female',
         crcl_ml_min: extendedData?.egfr ?? undefined,
@@ -710,9 +712,9 @@ export function PharmacyWorkstationPage() {
                       <p className="font-semibold">{selectedPatient.name}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground text-xs">年齡/體重</p>
+                      <p className="text-muted-foreground text-xs">年齡/身高/體重</p>
                       <p className="font-semibold">
-                        {selectedPatient.age}歲 / {typeof extendedData.weight === 'number' ? `${extendedData.weight}kg` : 'N/A'}
+                        {selectedPatient.age}歲 / {typeof extendedData.height === 'number' ? `${extendedData.height}cm` : 'N/A'} / {typeof extendedData.weight === 'number' ? `${extendedData.weight}kg` : 'N/A'}
                       </p>
                     </div>
                     <div className="col-span-2">

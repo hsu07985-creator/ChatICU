@@ -33,6 +33,7 @@ export interface IVCompatibility {
 }
 
 export interface ExtendedPatientData {
+  height: number | null;
   weight: number | null;
   egfr: number | null;
   hepaticFunction: 'normal' | 'mild' | 'moderate' | 'severe';
