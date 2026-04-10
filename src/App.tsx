@@ -8,6 +8,7 @@ import { AppSidebar } from './components/app-sidebar';
 import { SidebarToggle } from './components/sidebar-toggle';
 import { Toaster } from './components/ui/sonner';
 import { ErrorBoundary } from './components/error-boundary';
+import { ThemeProvider } from 'next-themes';
 
 // Eagerly loaded pages (small, critical path)
 import { LoginPage } from './pages/login';
@@ -282,14 +283,16 @@ function AppRoutes() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <AuthProvider>
-            <AppRoutes />
-            <Toaster />
-          </AuthProvider>
-        </BrowserRouter>
-      </QueryClientProvider>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            <AuthProvider>
+              <AppRoutes />
+              <Toaster />
+            </AuthProvider>
+          </BrowserRouter>
+        </QueryClientProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }

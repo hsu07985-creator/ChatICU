@@ -1,4 +1,5 @@
-import { Home, Users, MessageSquare, Database, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Settings } from 'lucide-react';
+import { Home, Users, MessageSquare, Database, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Moon, Sun } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import logoImage from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 import {
   Sidebar,
@@ -23,6 +24,7 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { state, toggleSidebar } = useSidebar();
+  const { theme, setTheme } = useTheme();
 
   const handleLogout = async () => {
     await logout();
@@ -139,11 +141,19 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t">
+      <SidebarFooter className="p-4 border-t space-y-2">
+        <Button
+          variant="outline"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className="w-full border-border text-foreground hover:bg-muted"
+        >
+          {theme === 'dark' ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
+          {!isCollapsed && (theme === 'dark' ? '淺色模式' : '深色模式')}
+        </Button>
         <Button
           variant="outline"
           onClick={handleLogout}
-          className="w-full border-border text-foreground hover:bg-slate-50"
+          className="w-full border-border text-foreground hover:bg-muted"
         >
           登出
         </Button>

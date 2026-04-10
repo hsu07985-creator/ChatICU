@@ -36,9 +36,9 @@ function sortSusceptibility(items: SusceptibilityResult[]): SusceptibilityResult
 
 /** Q score badge color: Q3=good(teal), Q2=acceptable(amber), Q0-1=poor(rose) */
 function qScoreBg(q: number): string {
-  if (q >= 3) return 'bg-teal-50 text-teal-700 border-teal-400';
-  if (q === 2) return 'bg-amber-50 text-amber-700 border-amber-300';
-  return 'bg-rose-50 text-rose-700 border-rose-300';
+  if (q >= 3) return 'bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border-teal-400 dark:border-teal-600';
+  if (q === 2) return 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-600';
+  return 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-600';
 }
 
 /** Group panels by Q score (descending). Returns [label, panels][] — single group with '' key if no Q scores */
@@ -136,12 +136,12 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
   const sItems = merged.bestSusceptibility.filter((s) => s.result === 'S');
 
   const cardStyle = hasR
-    ? 'border border-slate-200 border-l-[3px] border-l-rose-400 bg-white shadow-sm'
-    : 'border border-slate-200 border-l-[3px] border-l-teal-400 bg-white shadow-sm';
+    ? 'border border-slate-200 dark:border-slate-700 border-l-[3px] border-l-rose-400 dark:border-l-rose-500 bg-white dark:bg-slate-900 shadow-sm'
+    : 'border border-slate-200 dark:border-slate-700 border-l-[3px] border-l-teal-400 dark:border-l-teal-500 bg-white dark:bg-slate-900 shadow-sm';
 
-  const headerStyle = 'hover:bg-slate-50/80';
+  const headerStyle = 'hover:bg-slate-50/80 dark:hover:bg-slate-800/60';
 
-  const bodyBorder = 'border-slate-100';
+  const bodyBorder = 'border-slate-100 dark:border-slate-800';
 
   const coloniesStr = merged.organisms
     .map((o) => merged.coloniesMap[o])
@@ -158,11 +158,11 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
         onClick={() => setOpen((v) => !v)}
       >
         {open
-          ? <ChevronDown className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-          : <ChevronRight className="h-3.5 w-3.5 text-slate-500 shrink-0" />}
+          ? <ChevronDown className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
+          : <ChevronRight className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 shrink-0" />}
 
         {/* Organism name */}
-        <span className="text-sm font-semibold text-slate-800 italic truncate">
+        <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 italic truncate">
           {merged.organisms.join(', ')}
         </span>
 
@@ -191,7 +191,7 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
         </span>
 
         {/* Date */}
-        <span className="text-xs text-slate-500 font-medium tabular-nums shrink-0">
+        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium tabular-nums shrink-0">
           {merged.dates.map((d) => shortDate(d)).join(', ')}
         </span>
       </button>
@@ -201,7 +201,7 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
         <div className={`border-t ${bodyBorder} px-3 py-2 space-y-1 text-[13px]`}>
           {/* Meta line: colonies */}
           {coloniesStr && (
-            <div className="text-[11px] text-slate-500 pb-0.5">
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 pb-0.5">
               Colonies: {coloniesStr}
             </div>
           )}
@@ -209,22 +209,22 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
           {/* R line */}
           {rItems.length > 0 && (
             <div className="flex gap-2 items-start">
-              <span className="font-bold text-rose-600 shrink-0 w-4">R</span>
-              <span className="text-rose-800">{rItems.map((s) => s.antibiotic).join(', ')}</span>
+              <span className="font-bold text-rose-600 dark:text-rose-400 shrink-0 w-4">R</span>
+              <span className="text-rose-800 dark:text-rose-300">{rItems.map((s) => s.antibiotic).join(', ')}</span>
             </div>
           )}
           {/* I line */}
           {iItems.length > 0 && (
             <div className="flex gap-2 items-start">
-              <span className="font-semibold text-amber-600 shrink-0 w-4">I</span>
-              <span className="text-amber-700">{iItems.map((s) => s.antibiotic).join(', ')}</span>
+              <span className="font-semibold text-amber-600 dark:text-amber-400 shrink-0 w-4">I</span>
+              <span className="text-amber-700 dark:text-amber-300">{iItems.map((s) => s.antibiotic).join(', ')}</span>
             </div>
           )}
           {/* S line */}
           {sItems.length > 0 && (
             <div className="flex gap-2 items-start">
-              <span className="font-medium text-teal-600 shrink-0 w-4">S</span>
-              <span className="text-teal-700">{sItems.map((s) => s.antibiotic).join(', ')}</span>
+              <span className="font-medium text-teal-600 dark:text-teal-400 shrink-0 w-4">S</span>
+              <span className="text-teal-700 dark:text-teal-300">{sItems.map((s) => s.antibiotic).join(', ')}</span>
             </div>
           )}
         </div>
@@ -260,41 +260,41 @@ function CategorySection({
   const [open, setOpen] = useState(true);
 
   return (
-    <div className="rounded-xl border-2 border-slate-200 bg-white shadow-sm overflow-hidden">
+    <div className="rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
       {/* ── Section Header (clickable) ── */}
       <button
         type="button"
         className={`w-full text-left px-4 py-3 flex items-center gap-2.5 transition-colors ${open ? 'border-b' : ''} ${
           hasPositive
-            ? 'bg-gradient-to-r from-rose-50/30 to-white border-slate-200 hover:from-rose-50/50'
-            : 'bg-gradient-to-r from-slate-50 to-white border-slate-100 hover:from-slate-100/80'
+            ? 'bg-gradient-to-r from-rose-50/30 to-white dark:from-rose-950/20 dark:to-slate-900 border-slate-200 dark:border-slate-700 hover:from-rose-50/50 dark:hover:from-rose-950/30'
+            : 'bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-900 border-slate-100 dark:border-slate-700 hover:from-slate-100/80 dark:hover:from-slate-800/70'
         }`}
         onClick={() => setOpen((v) => !v)}
       >
         {open
-          ? <ChevronDown className="h-4 w-4 text-slate-500 shrink-0" />
-          : <ChevronRight className="h-4 w-4 text-slate-500 shrink-0" />}
-        <Icon className={`h-4.5 w-4.5 shrink-0 ${hasPositive ? 'text-rose-400' : 'text-slate-400'}`} />
-        <h4 className="text-base font-bold text-slate-700">{label}</h4>
+          ? <ChevronDown className="h-4 w-4 text-slate-500 dark:text-slate-400 shrink-0" />
+          : <ChevronRight className="h-4 w-4 text-slate-500 dark:text-slate-400 shrink-0" />}
+        <Icon className={`h-4.5 w-4.5 shrink-0 ${hasPositive ? 'text-rose-400 dark:text-rose-500' : 'text-slate-400 dark:text-slate-500'}`} />
+        <h4 className="text-base font-bold text-slate-700 dark:text-slate-200">{label}</h4>
 
         {/* Summary count badges */}
         <span className="flex items-center gap-2 ml-auto text-xs">
           {posCount > 0 && (
-            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-bold bg-white text-rose-600 border border-slate-200">
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-bold bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 border border-slate-200 dark:border-slate-600">
               陽性 {posCount}
             </span>
           )}
           {negCount > 0 && (
-            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-white text-slate-500 border border-slate-200">
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600">
               陰性 {negCount}
             </span>
           )}
           {floraCount > 0 && (
-            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-blue-50 text-blue-500 border border-blue-200">
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-blue-50 dark:bg-blue-950/40 text-blue-500 dark:text-blue-400 border border-blue-200 dark:border-blue-700">
               正常菌 {floraCount}
             </span>
           )}
-          {total === 0 && <span className="text-slate-300">0</span>}
+          {total === 0 && <span className="text-slate-300 dark:text-slate-600">0</span>}
         </span>
       </button>
 
@@ -302,7 +302,7 @@ function CategorySection({
       {open && (
         <div className="px-3 py-2.5 space-y-2">
           {total === 0 ? (
-            <p className="text-[13px] text-slate-300 py-2 text-center">
+            <p className="text-[13px] text-slate-300 dark:text-slate-600 py-2 text-center">
               {(onlyPositive || onlyResistant) ? '篩選條件下無結果' : '無培養資料'}
             </p>
           ) : (
@@ -311,27 +311,27 @@ function CategorySection({
                 <CultureCard key={mIdx} merged={m} defaultOpen={m.resistantCount > 0} forceOpen={forceOpen} />
               ))}
               {showFlora && group.normalFlora.length > 0 && groupByQScore(group.normalFlora).map(([qLabel, panels]) => (
-                <div key={`flora-${qLabel}`} className="text-[13px] text-blue-700 py-1.5 px-3 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-1.5">
+                <div key={`flora-${qLabel}`} className="text-[13px] text-blue-700 dark:text-blue-300 py-1.5 px-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
                   <span className="font-semibold italic">Normal flora</span>
                   {qLabel && (
                     <span className={`inline-flex items-center rounded border px-1 text-[10px] font-bold leading-tight ${qScoreBg(parseInt(qLabel.slice(1)))}`}>
                       {qLabel}
                     </span>
                   )}
-                  <span className="text-blue-400">
+                  <span className="text-blue-400 dark:text-blue-500">
                     {panels.map((p) => shortDate(p.reportedAt)).join(', ')}
                   </span>
                 </div>
               ))}
               {showNegative && group.negative.length > 0 && groupByQScore(group.negative).map(([qLabel, panels]) => (
-                <div key={`neg-${qLabel}`} className="text-[13px] text-teal-700 py-1.5 px-3 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-1.5">
+                <div key={`neg-${qLabel}`} className="text-[13px] text-teal-700 dark:text-teal-300 py-1.5 px-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
                   <span className="font-semibold">Negative</span>
                   {qLabel && (
                     <span className={`inline-flex items-center rounded border px-1 text-[10px] font-bold leading-tight ${qScoreBg(parseInt(qLabel.slice(1)))}`}>
                       {qLabel}
                     </span>
                   )}
-                  <span className="text-teal-400">
+                  <span className="text-teal-400 dark:text-teal-500">
                     {panels.map((p) => shortDate(p.reportedAt)).join(', ')}
                   </span>
                 </div>
@@ -343,7 +343,7 @@ function CategorySection({
                     ...(showFlora ? group.normalFlora : []),
                     ...(showNegative ? group.negative : []),
                   ].map((p) => p.specimen))].map((s) => (
-                    <span key={s} className="text-[11px] text-slate-400">{s}</span>
+                    <span key={s} className="text-[11px] text-slate-400 dark:text-slate-500">{s}</span>
                   ))}
                 </div>
               )}
@@ -451,7 +451,7 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
   }
 
   if (error) {
-    return <p className="text-sm text-red-600 py-4">{error}</p>;
+    return <p className="text-sm text-red-600 dark:text-red-400 py-4">{error}</p>;
   }
 
   return (
@@ -463,7 +463,7 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
           className={`rounded-md border px-2.5 py-1 text-sm font-medium transition-colors ${
             onlyPositive
               ? 'border-brand bg-brand text-white'
-              : 'border-slate-300 bg-white text-slate-700 hover:border-brand/40'
+              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-brand/40 dark:hover:border-brand/50'
           }`}
           aria-pressed={onlyPositive}
           onClick={() => setOnlyPositive((prev) => !prev)}
@@ -475,7 +475,7 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
           className={`rounded-md border px-2.5 py-1 text-sm font-medium transition-colors ${
             onlyResistant
               ? 'border-brand bg-brand text-white'
-              : 'border-slate-300 bg-white text-slate-700 hover:border-brand/40'
+              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-brand/40 dark:hover:border-brand/50'
           }`}
           aria-pressed={onlyResistant}
           onClick={() => setOnlyResistant((prev) => !prev)}
@@ -484,7 +484,7 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
         </button>
         <button
           type="button"
-          className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-sm font-medium text-slate-700 hover:border-brand/40 transition-colors ml-auto"
+          className="rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2.5 py-1 text-sm font-medium text-slate-700 dark:text-slate-300 hover:border-brand/40 dark:hover:border-brand/50 transition-colors ml-auto"
           onClick={toggleExpandAll}
         >
           {expandAll ? '全部收合' : '全部展開'}
