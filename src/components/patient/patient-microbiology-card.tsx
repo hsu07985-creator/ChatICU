@@ -1,18 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Check, Wind, Droplets, FlaskConical, FileText } from 'lucide-react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { Wind, Droplets, FlaskConical, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import { getCultureSusceptibility } from '../../lib/api/microbiology';
 import type { CulturePanel, CultureSusceptibilityData, SusceptibilityResult } from '../../lib/api/microbiology';
 import { LoadingSpinner } from '../ui/state-display';
 import type { LucideIcon } from 'lucide-react';
 
 /* ── helpers ─────────────────────────────────────────────── */
-
-function resultColor(result: string) {
-  if (result === 'R') return 'bg-red-100 text-red-800 border-red-300 font-bold';
-  if (result === 'I') return 'bg-amber-100 text-amber-800 border-amber-300 font-semibold';
-  if (result === 'S') return 'bg-green-50 text-green-700 border-green-200';
-  return 'bg-slate-50 text-slate-400 border-slate-200';
-}
 
 function isNormalFlora(panel: CulturePanel): boolean {
   if (panel.result && /normal\s*(oral\s*)?flora/i.test(panel.result)) return true;
@@ -30,7 +23,6 @@ function isPositiveCulture(panel: CulturePanel): boolean {
   );
 }
 
-
 function shortDate(dateStr: string | null) {
   if (!dateStr) return '—';
   const parts = dateStr.slice(5, 10).split('-');
@@ -42,95 +34,15 @@ function sortSusceptibility(items: SusceptibilityResult[]): SusceptibilityResult
   return [...items].sort((a, b) => (order[a.result] ?? 3) - (order[b.result] ?? 3));
 }
 
-
-/* ── Susceptibility Pills ──────────────────────────────── */
-
-function SusceptibilityPills({ items }: { items: SusceptibilityResult[] }) {
-  const sorted = sortSusceptibility(items);
-  const [expanded, setExpanded] = useState(false);
-
-  const riPills = sorted.filter((s) => s.result === 'R' || s.result === 'I');
-  const sPills = sorted.filter((s) => s.result === 'S');
-  const shouldCollapse = sPills.length > 4;
-  const showAll = expanded || !shouldCollapse;
-
-  return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
-      {riPills.map((s, idx) => (
-        <span
-          key={`ri-${idx}`}
-          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs leading-none ${resultColor(s.result)}`}
-        >
-          <span>{s.result}</span>
-          <span>{s.antibiotic}</span>
-        </span>
-      ))}
-      {showAll && sPills.map((s, idx) => (
-        <span
-          key={`s-${idx}`}
-          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs leading-none ${resultColor(s.result)}`}
-        >
-          <span>{s.result}</span>
-          <span>{s.antibiotic}</span>
-        </span>
-      ))}
-      {shouldCollapse && !expanded && (
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium leading-none text-slate-500 transition-colors hover:bg-slate-100"
-          onClick={() => setExpanded(true)}
-        >
-          +{sPills.length} S
-        </button>
-      )}
-      {shouldCollapse && expanded && (
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium leading-none text-slate-500 transition-colors hover:bg-slate-100"
-          onClick={() => setExpanded(false)}
-        >
-          收合
-        </button>
-      )}
-    </div>
-  );
-}
-
-/* ── Q Score Badge ─────────────────────────────────────── */
-
-function QScoreBadge({ score }: { score: number }) {
-  const color = score <= 1
-    ? 'bg-green-50 text-green-700 border-green-200'
-    : score === 2
-      ? 'bg-amber-50 text-amber-700 border-amber-200'
-      : 'bg-red-50 text-red-700 border-red-200';
-  return (
-    <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${color}`}>
-      Q {score}
-    </span>
-  );
-}
-
-function ColoniesBadge({ colonies }: { colonies: string }) {
-  const color = colonies.toLowerCase() === 'heavy'
-    ? 'bg-red-50 text-red-600 border-red-200'
-    : colonies.toLowerCase() === 'moderate'
-      ? 'bg-amber-50 text-amber-600 border-amber-200'
-      : 'bg-slate-50 text-slate-500 border-slate-200';
-  return (
-    <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium ${color}`}>
-      {colonies}
-    </span>
-  );
-}
-
-/* ── Merged positive row ───────────────────────────────── */
+/* ── Merged culture type ─────────────────────────────────── */
 
 interface MergedCulture {
   organisms: string[];
   dates: string[];
   panels: CulturePanel[];
   resistantCount: number;
+  intermediateCount: number;
+  sensitiveCount: number;
   bestSusceptibility: SusceptibilityResult[];
   coloniesMap: Record<string, string>;
   qScore?: number | null;
@@ -146,8 +58,9 @@ function mergeConsecutiveCultures(panels: CulturePanel[]): MergedCulture[] {
       .sort();
     const key = organisms.join('|');
     const rCount = panel.susceptibility.filter((s) => s.result === 'R').length;
+    const iCount = panel.susceptibility.filter((s) => s.result === 'I').length;
+    const sCount = panel.susceptibility.filter((s) => s.result === 'S').length;
 
-    // Build colonies map from isolates
     const coloniesMap: Record<string, string> = {};
     for (const iso of panel.isolates) {
       if (iso.colonies) coloniesMap[iso.organism] = iso.colonies;
@@ -170,6 +83,8 @@ function mergeConsecutiveCultures(panels: CulturePanel[]): MergedCulture[] {
         dates: [panel.reportedAt ?? ''],
         panels: [panel],
         resistantCount: rCount,
+        intermediateCount: iCount,
+        sensitiveCount: sCount,
         bestSusceptibility: sortSusceptibility(panel.susceptibility),
         coloniesMap,
         qScore: panel.qScore,
@@ -180,94 +95,208 @@ function mergeConsecutiveCultures(panels: CulturePanel[]): MergedCulture[] {
   return result;
 }
 
-function MergedCultureRow({ merged }: { merged: MergedCulture }) {
-  const hasResistance = merged.resistantCount > 0;
-  const borderAccent = hasResistance
-    ? 'border-l-red-400 bg-red-50/30'
-    : 'border-l-emerald-400 bg-white';
+/* ── Collapsible Culture Card ────────────────────────────── */
+
+function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture; defaultOpen?: boolean; forceOpen?: boolean | null }) {
+  const [open, setOpen] = useState(defaultOpen ?? false);
+
+  // Respond to global expand/collapse toggle
+  useEffect(() => {
+    if (forceOpen !== null && forceOpen !== undefined) setOpen(forceOpen);
+  }, [forceOpen]);
+  const hasR = merged.resistantCount > 0;
+  const hasI = merged.intermediateCount > 0;
+
+  const rItems = merged.bestSusceptibility.filter((s) => s.result === 'R');
+  const iItems = merged.bestSusceptibility.filter((s) => s.result === 'I');
+  const sItems = merged.bestSusceptibility.filter((s) => s.result === 'S');
+
+  const borderColor = hasR ? 'border-red-300 bg-red-50/40' : 'border-slate-200 bg-white';
+
+  const coloniesStr = merged.organisms
+    .map((o) => merged.coloniesMap[o])
+    .filter(Boolean)
+    .map((c) => { const lc = c.toLowerCase(); return lc === 'heavy' ? 'Heavy' : lc === 'moderate' ? 'Mod' : c; })
+    .join(', ');
 
   return (
-    <div
-      className={`rounded-lg border border-slate-200 border-l-[3px] ${borderAccent} px-4 py-3`}
-      title={merged.panels.map((p) => `${p.sheetNumber} · ${p.department || ''}`).join('\n')}
-    >
-      <div className="flex items-baseline gap-2.5 flex-wrap">
-        <span className="text-xs text-slate-400 font-medium tabular-nums shrink-0">
+    <div className={`rounded-lg border ${borderColor} overflow-hidden`}>
+      {/* ── Card Header (always visible, clickable) ── */}
+      <button
+        type="button"
+        className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-slate-50/60 transition-colors"
+        onClick={() => setOpen((v) => !v)}
+      >
+        {open
+          ? <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+          : <ChevronRight className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+
+        {/* Organism name */}
+        <span className="text-[13px] font-semibold text-slate-800 italic truncate">
+          {merged.organisms.join(', ')}
+        </span>
+
+        {/* R / I / S count badges */}
+        <span className="flex items-center gap-1 ml-auto shrink-0">
+          {hasR && (
+            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-700">
+              R{merged.resistantCount}
+            </span>
+          )}
+          {hasI && (
+            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700">
+              I{merged.intermediateCount}
+            </span>
+          )}
+          {merged.sensitiveCount > 0 && (
+            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-green-50 text-green-600">
+              S{merged.sensitiveCount}
+            </span>
+          )}
+        </span>
+
+        {/* Date */}
+        <span className="text-[10px] text-slate-400 tabular-nums shrink-0">
           {merged.dates.map((d) => shortDate(d)).join(', ')}
         </span>
-        {merged.qScore != null && <QScoreBadge score={merged.qScore} />}
-        <div className="flex flex-wrap gap-x-2 items-baseline">
-          {merged.organisms.map((org, idx) => (
-            <span key={idx} className="inline-flex items-baseline gap-1">
-              <span className="text-sm font-semibold leading-snug text-slate-800 italic">
-                {org}{idx < merged.organisms.length - 1 ? ',' : ''}
-              </span>
-              {merged.coloniesMap[org] && <ColoniesBadge colonies={merged.coloniesMap[org]} />}
-            </span>
-          ))}
+      </button>
+
+      {/* ── Card Body (expanded) ── */}
+      {open && (
+        <div className="border-t border-slate-100 px-3 py-2 space-y-1 text-xs">
+          {/* Meta line: colonies, Q score */}
+          {(coloniesStr || merged.qScore != null) && (
+            <div className="flex items-center gap-3 text-[10px] text-slate-500 pb-0.5">
+              {coloniesStr && <span>Colonies: {coloniesStr}</span>}
+              {merged.qScore != null && (
+                <span className={`font-medium ${
+                  merged.qScore <= 1 ? 'text-green-600' : merged.qScore === 2 ? 'text-amber-600' : 'text-red-600'
+                }`}>Q{merged.qScore}</span>
+              )}
+            </div>
+          )}
+
+          {/* R line */}
+          {rItems.length > 0 && (
+            <div className="flex gap-1.5">
+              <span className="font-bold text-red-600 shrink-0 w-4">R</span>
+              <span className="text-red-700">{rItems.map((s) => s.antibiotic).join(', ')}</span>
+            </div>
+          )}
+          {/* I line */}
+          {iItems.length > 0 && (
+            <div className="flex gap-1.5">
+              <span className="font-semibold text-amber-600 shrink-0 w-4">I</span>
+              <span className="text-amber-700">{iItems.map((s) => s.antibiotic).join(', ')}</span>
+            </div>
+          )}
+          {/* S line */}
+          {sItems.length > 0 && (
+            <div className="flex gap-1.5">
+              <span className="font-medium text-green-600 shrink-0 w-4">S</span>
+              <span className="text-green-600/80">{sItems.map((s) => s.antibiotic).join(', ')}</span>
+            </div>
+          )}
         </div>
-      </div>
-      {merged.bestSusceptibility.length > 0 && <SusceptibilityPills items={merged.bestSusceptibility} />}
+      )}
     </div>
   );
 }
 
-/* ── Negative Results (always visible) ──────────────────── */
+/* ── Collapsible Specimen Category Section ────────────────── */
 
-function NegativeRows({ panels }: { panels: CulturePanel[] }) {
-  if (panels.length === 0) return null;
+function CategorySection({
+  label, Icon, group, onlyPositive, onlyResistant, forceOpen,
+}: {
+  label: string;
+  Icon: LucideIcon;
+  group: CategoryGroup;
+  onlyPositive: boolean;
+  onlyResistant: boolean;
+  forceOpen?: boolean | null;
+}) {
+  const showNegative = !onlyPositive && !onlyResistant;
+  const showFlora = !onlyPositive && !onlyResistant;
+  const filteredPositive = onlyResistant
+    ? group.positive.filter((p) => p.susceptibility.some((s) => s.result === 'R' || s.result === 'I'))
+    : group.positive;
+  const hasPositive = filteredPositive.length > 0;
+  const merged = hasPositive ? mergeConsecutiveCultures(filteredPositive) : [];
+  const posCount = filteredPositive.length;
+  const negCount = showNegative ? group.negative.length : 0;
+  const floraCount = showFlora ? group.normalFlora.length : 0;
+  const total = posCount + negCount + floraCount;
+
+  const [open, setOpen] = useState(true);
 
   return (
-    <div className="space-y-1.5">
-      {panels.map((p, idx) => (
-        <div key={idx} className="rounded-lg border border-green-100 bg-green-50/50 px-4 py-2 flex items-center gap-2.5 flex-wrap">
-          <span className="text-xs text-slate-500 font-medium tabular-nums">{shortDate(p.reportedAt)}</span>
-          {p.qScore != null && <QScoreBadge score={p.qScore} />}
-          <Check className="h-3.5 w-3.5 text-green-500" />
-          <span className="text-xs text-green-600 font-medium">
-            {p.result || 'No growth'}
-          </span>
+    <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+      {/* ── Section Header (clickable) ── */}
+      <button
+        type="button"
+        className={`w-full text-left px-3 py-2.5 flex items-center gap-2 transition-colors ${
+          hasPositive ? 'bg-red-50/50 hover:bg-red-50/80' : 'bg-slate-50/50 hover:bg-slate-50/80'
+        }`}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {open
+          ? <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
+          : <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />}
+        <Icon className={`h-4 w-4 shrink-0 ${hasPositive ? 'text-red-500' : 'text-slate-400'}`} />
+        <h4 className="text-sm font-semibold text-slate-700">{label}</h4>
+
+        {/* Summary counts */}
+        <span className="flex items-center gap-1.5 ml-auto text-[10px]">
+          {posCount > 0 && <span className="text-red-600 font-semibold">陽性 {posCount}</span>}
+          {negCount > 0 && <span className="text-green-600">陰性 {negCount}</span>}
+          {floraCount > 0 && <span className="text-blue-500">正常菌 {floraCount}</span>}
+          {total === 0 && <span className="text-slate-300">0</span>}
+        </span>
+      </button>
+
+      {/* ── Section Body ── */}
+      {open && (
+        <div className="px-3 py-2 space-y-1.5">
+          {total === 0 ? (
+            <p className="text-xs text-slate-300 py-2 text-center">
+              {(onlyPositive || onlyResistant) ? '篩選條件下無結果' : '無培養資料'}
+            </p>
+          ) : (
+            <>
+              {merged.map((m, mIdx) => (
+                <CultureCard key={mIdx} merged={m} defaultOpen={m.resistantCount > 0} forceOpen={forceOpen} />
+              ))}
+              {showFlora && group.normalFlora.length > 0 && (
+                <div className="text-xs text-blue-500 py-1 px-2 rounded bg-blue-50/50">
+                  <span className="font-medium italic">Normal flora</span>
+                  <span className="text-slate-400 ml-1.5">
+                    {group.normalFlora.map((p) => shortDate(p.reportedAt)).join(', ')}
+                  </span>
+                </div>
+              )}
+              {showNegative && group.negative.length > 0 && (
+                <div className="text-xs text-green-600 py-1 px-2 rounded bg-green-50/50">
+                  <span className="font-medium">Negative</span>
+                  <span className="text-slate-400 ml-1.5">
+                    {group.negative.map((p) => shortDate(p.reportedAt)).join(', ')}
+                  </span>
+                </div>
+              )}
+              {group.category === 'other' && total > 0 && (
+                <div className="flex flex-wrap gap-1.5 px-1">
+                  {[...new Set([
+                    ...filteredPositive,
+                    ...(showFlora ? group.normalFlora : []),
+                    ...(showNegative ? group.negative : []),
+                  ].map((p) => p.specimen))].map((s) => (
+                    <span key={s} className="text-[10px] text-slate-400">{s}</span>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </div>
-      ))}
-    </div>
-  );
-}
-
-/* ── Normal Flora Rows ─────────────────────────────────── */
-
-function NormalFloraRows({ panels }: { panels: CulturePanel[] }) {
-  if (panels.length === 0) return null;
-
-  return (
-    <div className="space-y-1.5">
-      {panels.map((p, idx) => (
-        <div key={idx} className="rounded-lg border border-blue-100 bg-blue-50/50 px-4 py-2 flex items-center gap-2.5 flex-wrap">
-          <span className="text-xs text-slate-500 font-medium tabular-nums">{shortDate(p.reportedAt)}</span>
-          {p.qScore != null && <QScoreBadge score={p.qScore} />}
-          <span className="text-xs text-blue-600 font-medium italic">Normal flora</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ── Section Card & Label ──────────────────────────────── */
-
-function MicroSectionCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`rounded-lg border border-slate-200 bg-white px-4 py-3.5 shadow-sm ${className}`}>
-      {children}
-    </div>
-  );
-}
-
-function SectionLabel({ label, count, hasPositive, Icon }: { label: string; count: number; hasPositive?: boolean; Icon: LucideIcon }) {
-  const borderColor = hasPositive ? 'border-red-400' : 'border-slate-300';
-  return (
-    <div className={`flex items-center gap-2 border-l-[3px] ${borderColor} pl-2.5 mb-3`}>
-      <Icon className="h-4 w-4 text-slate-500 shrink-0" />
-      <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-700">{label}</h4>
-      <span className="text-xs text-slate-400 font-medium">{count}</span>
+      )}
     </div>
   );
 }
@@ -290,7 +319,6 @@ function classifySpecimen(specimen: string): SpecimenCategory {
   if (s.includes('sputum') || s.includes('痰')) return 'sputum';
   if (s.includes('urine') || s.includes('尿')) return 'urine';
   if (s.includes('blood') || s.includes('血')) return 'blood';
-  if (s.includes('bile') || s.includes('膽')) return 'other';
   return 'other';
 }
 
@@ -354,6 +382,12 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
   const [onlyPositive, setOnlyPositive] = useState(false);
   const [onlyResistant, setOnlyResistant] = useState(false);
 
+  /* global expand / collapse all culture cards */
+  const [expandAll, setExpandAll] = useState<boolean | null>(null);
+  const toggleExpandAll = useCallback(() => {
+    setExpandAll((prev) => (prev === true ? false : true));
+  }, []);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -368,87 +402,55 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
 
   return (
     <div className="space-y-3">
-      {/* 篩選按鈕 */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white/80 px-3 py-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
-              onlyPositive
-                ? 'border-brand bg-brand text-white'
-                : 'border-slate-300 bg-white text-slate-700 hover:border-brand/40'
-            }`}
-            aria-pressed={onlyPositive}
-            onClick={() => setOnlyPositive((prev) => !prev)}
-          >
-            只看陽性
-          </button>
-          <button
-            type="button"
-            className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
-              onlyResistant
-                ? 'border-brand bg-brand text-white'
-                : 'border-slate-300 bg-white text-slate-700 hover:border-brand/40'
-            }`}
-            aria-pressed={onlyResistant}
-            onClick={() => setOnlyResistant((prev) => !prev)}
-          >
-            只看抗藥
-          </button>
-        </div>
-        <span className="text-xs text-slate-500">高效率篩選</span>
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-2 px-1">
+        <button
+          type="button"
+          className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+            onlyPositive
+              ? 'border-brand bg-brand text-white'
+              : 'border-slate-300 bg-white text-slate-700 hover:border-brand/40'
+          }`}
+          aria-pressed={onlyPositive}
+          onClick={() => setOnlyPositive((prev) => !prev)}
+        >
+          只看陽性
+        </button>
+        <button
+          type="button"
+          className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+            onlyResistant
+              ? 'border-brand bg-brand text-white'
+              : 'border-slate-300 bg-white text-slate-700 hover:border-brand/40'
+          }`}
+          aria-pressed={onlyResistant}
+          onClick={() => setOnlyResistant((prev) => !prev)}
+        >
+          只看抗藥
+        </button>
+        <button
+          type="button"
+          className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:border-brand/40 transition-colors ml-auto"
+          onClick={toggleExpandAll}
+        >
+          {expandAll ? '全部收合' : '全部展開'}
+        </button>
       </div>
 
-      {/* 2x2 Grid: all 4 categories always shown */}
+      {/* 2x2 Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {categoryGroups.map((group) => {
           const meta = CATEGORY_META[group.category];
-          const showNegative = !onlyPositive && !onlyResistant;
-          const showFlora = !onlyPositive && !onlyResistant;
-          const filteredPositive = onlyResistant
-            ? group.positive.filter((p) => p.susceptibility.some((s) => s.result === 'R' || s.result === 'I'))
-            : group.positive;
-          const hasPositive = filteredPositive.length > 0;
-          const merged = hasPositive ? mergeConsecutiveCultures(filteredPositive) : [];
-          const total = filteredPositive.length
-            + (showFlora ? group.normalFlora.length : 0)
-            + (showNegative ? group.negative.length : 0);
-
           return (
-            <MicroSectionCard key={group.category}>
-              <SectionLabel
-                label={meta.label}
-                count={total}
-                hasPositive={hasPositive}
-                Icon={meta.Icon}
-              />
-
-              {total === 0 ? (
-                <p className="text-sm text-slate-300 py-4 text-center">
-                  {(onlyPositive || onlyResistant) ? '篩選條件下無結果' : '無培養資料'}
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {merged.map((m, mIdx) => (
-                    <MergedCultureRow key={mIdx} merged={m} />
-                  ))}
-                  {showFlora && <NormalFloraRows panels={group.normalFlora} />}
-                  {showNegative && <NegativeRows panels={group.negative} />}
-
-                  {group.category === 'other' && total > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {[...new Set([
-                        ...filteredPositive,
-                        ...(showFlora ? group.normalFlora : []),
-                        ...(showNegative ? group.negative : []),
-                      ].map((p) => p.specimen))].map((s) => (
-                        <span key={s} className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-md px-2 py-0.5">{s}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </MicroSectionCard>
+            <CategorySection
+              key={group.category}
+              label={meta.label}
+              Icon={meta.Icon}
+              group={group}
+              onlyPositive={onlyPositive}
+              onlyResistant={onlyResistant}
+              forceOpen={expandAll}
+            />
           );
         })}
       </div>
