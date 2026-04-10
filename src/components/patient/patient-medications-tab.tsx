@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Copy } from 'lucide-react';
 import type { Medication } from '../../lib/api';
 import type { DrugInteraction as ApiDrugInteraction } from '../../lib/api/medications';
 import type { UserRole } from '../../lib/auth-context';
@@ -815,7 +814,6 @@ export function PatientMedicationsTab({
                     className={`h-7 px-2 text-xs ${medView === 'duplicate' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-300 text-orange-700 hover:bg-orange-50'}`}
                     onClick={() => { setMedView(medView === 'duplicate' ? 'active' : 'duplicate'); clearSubFilters(); }}
                   >
-                    <Copy className="h-3 w-3 mr-1" />
                     重複用藥 ({duplicateMeds.length})
                   </Button>
                 )}
