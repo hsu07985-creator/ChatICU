@@ -489,16 +489,27 @@ class HISConverter:
             # Determine PRN
             is_prn = "PRN" in freq_code
 
+            # Source type
+            opd_sw = m.get("OPD_SW", "I")
+            source_type = _OPD_SW_MAP.get(opd_sw, "inpatient")
+
             # Determine status
             dc_flag = m.get("DC_FLAG")
             if dc_flag == "Y" or m.get("END_DATE"):
                 status = "discontinued"
+            elif source_type == "outpatient":
+                # Outpatient Rx: expired when START_DATE + DAYS < today
+                start_dt = _roc_to_date(m.get("START_DATE"))
+                days_supply = int(float(m["DAYS"])) if m.get("DAYS") else None
+                if start_dt and days_supply:
+                    if (start_dt + timedelta(days=days_supply)) < date.today():
+                        status = "discontinued"
+                    else:
+                        status = "active"
+                else:
+                    status = "active"
             else:
                 status = "active"
-
-            # Source type
-            opd_sw = m.get("OPD_SW", "I")
-            source_type = _OPD_SW_MAP.get(opd_sw, "inpatient")
 
             med_id = _gen_id("med", self.pat_no, str(m.get("ODR_SEQ", "")),
                              m.get("PAT_SEQ", ""), m.get("ODR_CODE", ""))

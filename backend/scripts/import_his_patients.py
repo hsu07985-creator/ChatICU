@@ -192,6 +192,7 @@ async def import_patients(patient_dirs: List[Path]) -> None:
     db_url = get_database_url()
     engine = create_async_engine(
         db_url, echo=False,
+        pool_size=1, max_overflow=0,
         # Supabase uses PgBouncer in transaction mode — disable prepared statements
         connect_args={"prepared_statement_cache_size": 0,
                       "statement_cache_size": 0,
