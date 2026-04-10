@@ -30,7 +30,7 @@ function shortDate(dateStr: string | null) {
 }
 
 function sortSusceptibility(items: SusceptibilityResult[]): SusceptibilityResult[] {
-  const order: Record<string, number> = { R: 0, I: 1, S: 2 };
+  const order: Record<string, number> = { S: 0, I: 1, R: 2 };
   return [...items].sort((a, b) => (order[a.result] ?? 3) - (order[b.result] ?? 3));
 }
 
@@ -166,11 +166,11 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
           {merged.organisms.join(', ')}
         </span>
 
-        {/* R / I / S count badges */}
+        {/* S / I / R count badges */}
         <span className="flex items-center gap-1.5 shrink-0">
-          {hasR && (
-            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold bg-rose-600 text-white">
-              R {merged.resistantCount}
+          {merged.sensitiveCount > 0 && (
+            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium bg-teal-600 text-white">
+              S {merged.sensitiveCount}
             </span>
           )}
           {hasI && (
@@ -178,9 +178,9 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
               I {merged.intermediateCount}
             </span>
           )}
-          {merged.sensitiveCount > 0 && (
-            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium bg-teal-600 text-white">
-              S {merged.sensitiveCount}
+          {hasR && (
+            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold bg-rose-600 text-white">
+              R {merged.resistantCount}
             </span>
           )}
           {merged.qScore != null && (
@@ -206,11 +206,11 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
             </div>
           )}
 
-          {/* R line */}
-          {rItems.length > 0 && (
+          {/* S line */}
+          {sItems.length > 0 && (
             <div className="flex gap-2 items-start">
-              <span className="font-bold text-rose-600 dark:text-rose-400 shrink-0 w-4">R</span>
-              <span className="text-rose-800 dark:text-rose-300">{rItems.map((s) => s.antibiotic).join(', ')}</span>
+              <span className="font-medium text-teal-600 dark:text-teal-400 shrink-0 w-4">S</span>
+              <span className="text-teal-700 dark:text-teal-300">{sItems.map((s) => s.antibiotic).join(', ')}</span>
             </div>
           )}
           {/* I line */}
@@ -220,11 +220,11 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
               <span className="text-amber-700 dark:text-amber-300">{iItems.map((s) => s.antibiotic).join(', ')}</span>
             </div>
           )}
-          {/* S line */}
-          {sItems.length > 0 && (
+          {/* R line */}
+          {rItems.length > 0 && (
             <div className="flex gap-2 items-start">
-              <span className="font-medium text-teal-600 dark:text-teal-400 shrink-0 w-4">S</span>
-              <span className="text-teal-700 dark:text-teal-300">{sItems.map((s) => s.antibiotic).join(', ')}</span>
+              <span className="font-bold text-rose-600 dark:text-rose-400 shrink-0 w-4">R</span>
+              <span className="text-rose-800 dark:text-rose-300">{rItems.map((s) => s.antibiotic).join(', ')}</span>
             </div>
           )}
         </div>
