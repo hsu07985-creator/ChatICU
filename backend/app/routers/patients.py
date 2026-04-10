@@ -295,6 +295,9 @@ async def update_patient(
         "weight": "weight",
     }
 
+    # Extract intubation_date before ORM loop (not in ORM model)
+    intub_date_val = update_data.pop("intubation_date", None)
+
     for key, value in update_data.items():
         db_key = field_mapping.get(key, key)
         setattr(patient, db_key, value)
@@ -307,8 +310,7 @@ async def update_patient(
     elif not h or not w:
         patient.bmi = None
 
-    # Handle intubation_date via raw SQL (not in ORM model)
-    intub_date_val = update_data.pop("intubation_date", None)
+    # Handle intubation_date via raw SQL
     if intub_date_val is not None or "intubation_date" in body.model_fields_set:
         try:
             await db.execute(
