@@ -242,7 +242,7 @@ function CategorySection({
       {/* ── Section Header (clickable) ── */}
       <button
         type="button"
-        className={`w-full text-left px-4 py-3 flex items-center gap-2.5 transition-colors border-b ${
+        className={`w-full text-left px-4 py-3 flex items-center gap-2.5 transition-colors ${open ? 'border-b' : ''} ${
           hasPositive
             ? 'bg-gradient-to-r from-red-50 to-red-50/30 border-red-200 hover:from-red-100/80'
             : 'bg-gradient-to-r from-slate-50 to-white border-slate-100 hover:from-slate-100/80'
@@ -460,7 +460,7 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
       </div>
 
       {/* 2x2 Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
         {categoryGroups.map((group) => {
           const meta = CATEGORY_META[group.category];
           return (
