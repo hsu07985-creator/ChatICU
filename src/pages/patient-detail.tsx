@@ -37,6 +37,7 @@ import { LoadingSpinner, ErrorDisplay, EmptyState } from '../components/ui/state
 import { AiMarkdown, SafetyWarnings } from '../components/ui/ai-markdown';
 import { LabDataSkeleton, MedicationsSkeleton, MessageListSkeleton } from '../components/ui/skeletons';
 import { PatientSummaryTab } from '../components/patient/patient-summary-tab';
+import { PatientEditDialog } from '../components/patient/dialogs/patient-edit-dialog';
 import { PatientLabsTab } from '../components/patient/patient-labs-tab';
 import { PatientMedicationsTab } from '../components/patient/patient-medications-tab';
 import { PatientMessagesTab } from '../components/patient/patient-messages-tab';
@@ -404,6 +405,20 @@ export function PatientDetailPage() {
   const [patient, setPatient] = useState<PatientWithFrontendFields | null>(null);
   const [patientLoading, setPatientLoading] = useState(true);
   const [patientError, setPatientError] = useState<string | null>(null);
+
+  // 編輯病人資料
+  const [editingPatient, setEditingPatient] = useState<PatientWithFrontendFields | null>(null);
+  const handleEditSave = async () => {
+    if (!editingPatient || !patient) return;
+    try {
+      const updated = await patientsApi.updatePatient(patient.id, editingPatient);
+      setPatient(updated as PatientWithFrontendFields);
+      setEditingPatient(null);
+      toast.success('病人資料已更新');
+    } catch {
+      toast.error('更新失敗，請稍後再試');
+    }
+  };
 
   // 檢驗數據狀態
   const [labData, setLabData] = useState<LabData>(defaultLabData);
@@ -1187,7 +1202,7 @@ export function PatientDetailPage() {
                 </Badge>
               )}
               {user?.role === 'admin' && (
-                <Button className="bg-brand hover:bg-brand-hover">編輯基本資料</Button>
+                <Button className="bg-brand hover:bg-brand-hover" onClick={() => setEditingPatient({ ...patient })}>編輯基本資料</Button>
               )}
             </div>
           </div>
@@ -1836,6 +1851,14 @@ export function PatientDetailPage() {
           trendData={trendChartData}
         />
       )}
+
+      {/* 編輯病人資料對話框 */}
+      <PatientEditDialog
+        patient={editingPatient}
+        onPatientChange={setEditingPatient}
+        onCancel={() => setEditingPatient(null)}
+        onSave={handleEditSave}
+      />
     </div>
   );
 }
