@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime, timezone
 
@@ -6,6 +7,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.database import get_db
 from app.middleware.auth import get_current_user, require_roles
@@ -71,12 +74,20 @@ async def _fetch_intubation_dates(db: AsyncSession, patient_ids: list) -> dict:
     if not patient_ids:
         return {}
     try:
-        result = await db.execute(
-            text("SELECT id, intubation_date FROM patients WHERE id = ANY(:ids)"),
-            {"ids": patient_ids},
-        )
-        return {row[0]: row[1] for row in result if row[1] is not None}
-    except Exception:
+        nested = await db.begin_nested()
+        try:
+            result = await db.execute(
+                text("SELECT id, intubation_date FROM patients WHERE id = ANY(:ids)"),
+                {"ids": patient_ids},
+            )
+            data = {row[0]: row[1] for row in result if row[1] is not None}
+            await nested.commit()
+            return data
+        except Exception:
+            await nested.rollback()
+            return {}
+    except Exception as exc:
+        logger.warning("_fetch_intubation_dates failed: %s", exc)
         return {}
 
 
@@ -217,15 +228,21 @@ async def create_patient(
     db.add(patient)
     await db.flush()
 
-    # Set intubation_date via raw SQL if provided
+    # Set intubation_date via raw SQL if provided (savepoint to avoid aborting transaction)
     if body.intubation_date:
         try:
-            await db.execute(
-                text("UPDATE patients SET intubation_date = :val WHERE id = :pid"),
-                {"val": body.intubation_date, "pid": patient_id},
-            )
-        except Exception:
-            pass
+            nested = await db.begin_nested()
+            try:
+                await db.execute(
+                    text("UPDATE patients SET intubation_date = :val WHERE id = :pid"),
+                    {"val": body.intubation_date, "pid": patient_id},
+                )
+                await nested.commit()
+            except Exception as exc:
+                logger.warning("create_patient intubation_date failed: %s", exc)
+                await nested.rollback()
+        except Exception as exc:
+            logger.warning("create_patient savepoint setup failed: %s", exc)
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
@@ -280,6 +297,8 @@ async def update_patient(
         raise HTTPException(status_code=404, detail="Patient not found")
 
     update_data = body.model_dump(exclude_unset=True)
+    logger.info("update_patient %s fields=%s", pid, list(update_data.keys()))
+
     field_mapping = {
         "bed_number": "bed_number",
         "medical_record_number": "medical_record_number",
@@ -310,15 +329,21 @@ async def update_patient(
     elif not h or not w:
         patient.bmi = None
 
-    # Handle intubation_date via raw SQL
+    # Handle intubation_date via raw SQL (use savepoint to avoid aborting transaction)
     if intub_date_val is not None or "intubation_date" in body.model_fields_set:
         try:
-            await db.execute(
-                text("UPDATE patients SET intubation_date = :val WHERE id = :pid"),
-                {"val": intub_date_val, "pid": pid},
-            )
-        except Exception:
-            pass  # Column may not exist yet
+            nested = await db.begin_nested()
+            try:
+                await db.execute(
+                    text("UPDATE patients SET intubation_date = :val WHERE id = :pid"),
+                    {"val": intub_date_val, "pid": pid},
+                )
+                await nested.commit()
+            except Exception as exc:
+                logger.warning("intubation_date UPDATE failed (savepoint rollback): %s", exc)
+                await nested.rollback()
+        except Exception as exc:
+            logger.warning("intubation_date savepoint setup failed: %s", exc)
 
     # Auto-calculate ventilator_days from intubation_date
     intub_dates = await _fetch_intubation_dates(db, [pid])
@@ -328,6 +353,13 @@ async def update_patient(
         patient.ventilator_days = max((today - intub_date).days, 0)
 
     patient.last_update = datetime.now(timezone.utc)
+
+    # Flush ORM changes before audit log to catch DB errors early
+    try:
+        await db.flush()
+    except Exception as exc:
+        logger.error("update_patient flush failed for %s: %s", pid, exc, exc_info=True)
+        raise
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
