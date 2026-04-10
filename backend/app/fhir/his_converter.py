@@ -674,28 +674,87 @@ class HISConverter:
             first = items[0]
             cul_id = _gen_id("cul", self.pat_no, sheet_no)
 
-            # Extract organism
-            isolates = []
+            # First pass: collect metadata, colonies, isolates
+            isolate_map: Dict[str, dict] = {}  # _Isolate1 → {organism, code, colonies}
+            colonies_map: Dict[str, str] = {}  # _Colonies1 → value
             susceptibility = []
+            q_score = None
+            result_text = None
+            alerts: List[str] = []
+            aerobic_result = None
+            anaerobic_result = None
+
             for item in items:
                 mapping = HIS_LAB_MAP.get(item.get("LAB_CODE", ""))
                 if not mapping:
                     continue
                 cat, key, name = mapping
+                lab_code = item.get("LAB_CODE", "")
                 result_val = item.get("RESULT", "")
 
-                if cat == "culture" and key in ("_Isolate1", "_Isolate2", "_Isolate3"):
-                    if result_val and result_val.strip():
-                        isolates.append({
-                            "organism": result_val.strip(),
-                            "quantity": "",
-                        })
+                if cat == "culture":
+                    if key in ("_Isolate1", "_Isolate2", "_Isolate3"):
+                        if result_val and result_val.strip():
+                            isolate_map[key] = {
+                                "code": lab_code,
+                                "organism": result_val.strip(),
+                            }
+                    elif key in ("_Colonies1", "_Colonies2", "_Colonies3"):
+                        if result_val and result_val.strip():
+                            colonies_map[key] = result_val.strip().lstrip(":")
+                    elif key == "_QScore":
+                        try:
+                            q_score = int(result_val)
+                        except (ValueError, TypeError):
+                            pass
+                    elif key == "_Result":
+                        if result_val and result_val.strip():
+                            result_text = result_val.strip()
+                    elif key == "_AerobicResult":
+                        if result_val and result_val.strip():
+                            aerobic_result = result_val.strip()
+                    elif key == "_AnaerobicResult":
+                        if result_val and result_val.strip():
+                            anaerobic_result = result_val.strip()
+                    elif key in ("_Comment", "_Comment2") and result_val:
+                        val = result_val.strip()
+                        if val and ("抗藥" in val or "MDR" in val or "Carbapenem" in val or "危急" in val):
+                            alerts.append(val)
+                    elif key == "_CriticalAlert" and result_val and result_val.strip():
+                        alerts.append(result_val.strip())
+
                 elif cat == "susceptibility" and not key.endswith("_MIC"):
                     if result_val and result_val.strip():
                         susceptibility.append({
                             "antibiotic": name,
+                            "code": lab_code,
                             "result": result_val.strip(),  # S, I, R
                         })
+
+            # Pair isolates with colonies: _Isolate1↔_Colonies1, etc.
+            isolates = []
+            for iso_key in ("_Isolate1", "_Isolate2", "_Isolate3"):
+                if iso_key not in isolate_map:
+                    continue
+                iso = isolate_map[iso_key]
+                col_key = iso_key.replace("_Isolate", "_Colonies")
+                colonies_val = colonies_map.get(col_key, "")
+                isolates.append({
+                    "code": iso["code"],
+                    "organism": iso["organism"],
+                    "colonies": colonies_val,
+                })
+
+            # For blood cultures with both aerobic+anaerobic negative, synthesize result
+            if result_text is None and aerobic_result and anaerobic_result:
+                if aerobic_result == "Negative" and anaerobic_result == "Negative":
+                    result_text = "No growth to date"
+
+            # Note: alerts / aerobic_result / anaerobic_result are intentionally
+            # NOT included in the output dict because the DB table has no columns
+            # for them.  The import script dynamically maps dict keys → SQL columns,
+            # so extra keys would cause a crash.  These values remain accessible in
+            # the raw HIS JSON if needed in the future.
 
             results.append({
                 "id": cul_id,
@@ -708,6 +767,8 @@ class HISConverter:
                 "reported_at": _roc_to_datetime(first.get("REPORT_DATE"), first.get("REPORT_TIME")),
                 "isolates": isolates,
                 "susceptibility": susceptibility,
+                "q_score": q_score,
+                "result": result_text,
             })
 
         return results

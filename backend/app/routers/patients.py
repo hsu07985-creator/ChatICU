@@ -360,8 +360,8 @@ async def get_cultures(
                 "department": r.department,
                 "isolates": r.isolates or [],
                 "susceptibility": r.susceptibility or [],
-                "qScore": None,
-                "result": None,
+                "qScore": getattr(r, "q_score", None),
+                "result": getattr(r, "result", None),
             }
             for r in orm_rows
         ]
