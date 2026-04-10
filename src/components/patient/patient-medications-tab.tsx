@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { Copy } from 'lucide-react';
 import type { Medication } from '../../lib/api';
 import type { DrugInteraction as ApiDrugInteraction } from '../../lib/api/medications';
 import type { UserRole } from '../../lib/auth-context';
@@ -409,6 +410,72 @@ function MedicationDetailModal({
   );
 }
 
+/** Extract a comparison key for duplicate detection.
+ *  Priority: actual generic from parentheses > genericName field > brand prefix.
+ *  Returns alpha-only lowercase string to handle Tall Man Lettering. */
+function medCompareKey(med: Medication): string {
+  // 1. Try to extract actual generic from parenthesized content in drug name
+  //    e.g. "Seroquel [25mg] tab (Quetiapine)" → "quetiapine"
+  //    e.g. "[包] Actein 發泡顆粒 600mg (Acetylcysteine)" → "acetylcysteine"
+  const parens = [...(med.name || '').matchAll(/\(([^)]+)\)/g)].map(m => m[1].trim());
+  for (let i = parens.length - 1; i >= 0; i--) {
+    const p = parens[i];
+    // Skip non-drug markers: 抗3, 軟袋, digits, ml suffix
+    if (/^[抗軟]/.test(p) || /^\d/.test(p) || /ml$/i.test(p)) continue;
+    // Take first semicolon segment if compound
+    const first = p.includes(';') ? p.split(';')[0].trim() : p;
+    const alpha = first.replace(/[^a-zA-Z]/g, '').toLowerCase();
+    if (alpha.length >= 3) return alpha;
+  }
+  // 2. Fall back to genericName field (brand prefix from converter)
+  const gn = (med.genericName || '').replace(/[^a-zA-Z]/g, '').toLowerCase();
+  if (gn.length >= 3) return gn;
+  // 3. Last resort: first English word from name
+  const fw = (med.name || '').match(/^(?:\[.*?\]\s*)*([A-Za-z]{3,})/);
+  return fw ? fw[1].toLowerCase() : '';
+}
+
+interface DuplicateMedGroup {
+  generic: string;        // display name (actual generic when available)
+  inpatient: Medication[];
+  outpatient: Medication[];
+}
+
+function detectDuplicates(
+  inpatientMeds: Medication[],
+  outpatientMeds: Medication[],
+): DuplicateMedGroup[] {
+  // Build map: comparison key → inpatient meds
+  const inpMap = new Map<string, Medication[]>();
+  for (const m of inpatientMeds) {
+    const key = medCompareKey(m);
+    if (!key) continue;
+    const arr = inpMap.get(key) || [];
+    arr.push(m);
+    inpMap.set(key, arr);
+  }
+
+  // Check outpatient meds against the inpatient map
+  const result = new Map<string, DuplicateMedGroup>();
+  for (const m of outpatientMeds) {
+    const key = medCompareKey(m);
+    if (!key || !inpMap.has(key)) continue;
+    if (!result.has(key)) {
+      // Display the actual generic from parentheses if available
+      const parens = [...(m.name || '').matchAll(/\(([^)]+)\)/g)].map(p => p[1].trim());
+      const displayGeneric = parens.filter(p => /^[A-Za-z]/.test(p) && !/^[抗軟]/.test(p)).pop();
+      result.set(key, {
+        generic: displayGeneric || m.genericName || m.name,
+        inpatient: inpMap.get(key)!,
+        outpatient: [],
+      });
+    }
+    result.get(key)!.outpatient.push(m);
+  }
+
+  return [...result.values()];
+}
+
 interface PatientMedicationsTabProps {
   patientId?: string;
   userRole?: UserRole;
@@ -536,6 +603,12 @@ export function PatientMedicationsTab({
 
   const displayedMeds = applyFilters(sortOtherMeds(baseMeds));
   const canEditMedication = userRole === 'doctor' || userRole === 'np' || userRole === 'pharmacist';
+
+  // Duplicate medication detection: same generic across inpatient ↔ outpatient (active only)
+  const duplicateMeds = useMemo(() => {
+    const allActiveInpatient = [...activePainMeds, ...activeSedationMeds, ...activeNmbMeds, ...activeOtherMeds];
+    return detectDuplicates(allActiveInpatient, activeOutpatientMeds);
+  }, [activePainMeds, activeSedationMeds, activeNmbMeds, activeOtherMeds, activeOutpatientMeds]);
 
   const openMedicationEditor = (medication: Medication) => {
     setEditingMedication(medication);
@@ -877,6 +950,54 @@ export function PatientMedicationsTab({
               )}
             </CardContent>
           </Card>
+
+          {/* Duplicate Medication Alert */}
+          {duplicateMeds.length > 0 && (
+            <Card className="border-orange-300 bg-orange-50/60">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <Copy className="h-4 w-4 text-orange-600" />
+                  <CardTitle className="text-base font-semibold text-orange-800">
+                    重複用藥提醒
+                  </CardTitle>
+                  <Badge className="bg-orange-200 text-orange-800 hover:bg-orange-200">
+                    {duplicateMeds.length} 組
+                  </Badge>
+                </div>
+                <CardDescription className="text-orange-700 text-sm">
+                  以下藥物同時出現在住院醫令與門診處方中（以學名比對），請確認是否需要調整
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-2">
+                {duplicateMeds.map((dup) => (
+                  <div key={dup.generic} className="rounded-md border border-orange-200 bg-white px-3 py-2">
+                    <p className="font-semibold text-orange-900 text-sm">{dup.generic}</p>
+                    <div className="mt-1.5 grid gap-x-4 gap-y-1 sm:grid-cols-2 text-xs">
+                      <div>
+                        <span className="font-medium text-slate-600">住院：</span>
+                        {dup.inpatient.map((m) => (
+                          <span key={m.id} className="ml-1 text-slate-700">
+                            {m.name} {m.dose && m.unit ? `${m.dose}${m.unit}` : ''} {m.frequency || ''}
+                            {m.route ? ` (${m.route})` : ''}
+                          </span>
+                        ))}
+                      </div>
+                      <div>
+                        <span className="font-medium text-blue-600">門診：</span>
+                        {dup.outpatient.map((m) => (
+                          <span key={m.id} className="ml-1 text-slate-700">
+                            {m.name} {m.dose && m.unit ? `${m.dose}${m.unit}` : ''} {m.frequency || ''}
+                            {m.route ? ` (${m.route})` : ''}
+                            {m.prescribingDepartment ? ` [${m.prescribingDepartment}]` : ''}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Outpatient Medications — independent section */}
           {outpatientCount > 0 && (
