@@ -58,21 +58,57 @@ const MIN_DRUGS = 2;
 // Pre-compute alpha-only lowercase for Tall Man Lettering matching
 const DRUG_LIST_ALPHA = DRUG_LIST.map(d => ({ original: d, alpha: d.replace(/[^a-zA-Z]/g, '').toLowerCase() }));
 
-function matchDrugName(medName: string): string | null {
-  const lower = medName.toLowerCase();
-  // 1. Exact match
+// Common brand→generic aliases not derivable from parentheses
+const DRUG_ALIASES: Record<string, string> = {
+  'l-thyroxine': 'Levothyroxine',
+  'valproate': 'Valproic Acid and Derivatives',
+  'valproic': 'Valproic Acid and Derivatives',
+  'piperaci': 'Piperacillin',
+};
+
+function tryMatch(name: string): string | null {
+  const lower = name.toLowerCase();
+  // Exact
   const exact = DRUG_LIST.find(d => d.toLowerCase() === lower);
   if (exact) return exact;
-  // 2. Alpha-only match (handles Tall Man Lettering: "Fentanyl" → "FentaNYL")
-  const alpha = medName.replace(/[^a-zA-Z]/g, '').toLowerCase();
+  // Alpha-only (Tall Man Lettering)
+  const alpha = name.replace(/[^a-zA-Z]/g, '').toLowerCase();
   const found = DRUG_LIST_ALPHA.find(d => d.alpha === alpha);
   if (found) return found.original;
-  // 3. First word prefix match (handles "Acetaminophen 500mg" → "Acetaminophen")
-  const firstWord = lower.split(/[\s(,/]/)[0];
+  // Alias lookup
+  const alias = DRUG_ALIASES[lower];
+  if (alias) {
+    const aliasMatch = DRUG_LIST.find(d => d.toLowerCase() === alias.toLowerCase());
+    if (aliasMatch) return aliasMatch;
+  }
+  // First word prefix (split on space, parens, comma, slash, hyphen-before-digit, plus)
+  const firstWord = lower.split(/[\s(,/+]|(?<=[a-z])-(?=\d)/)[0].replace(/[^a-z]/g, '');
   if (firstWord.length >= 3) {
-    const fw = firstWord.replace(/[^a-z]/g, '');
-    const prefixMatch = DRUG_LIST_ALPHA.find(d => d.alpha.startsWith(fw));
+    const prefixMatch = DRUG_LIST_ALPHA.find(d => d.alpha.startsWith(firstWord));
     if (prefixMatch) return prefixMatch.original;
+  }
+  return null;
+}
+
+function matchDrugName(medName: string): string | null {
+  // Strip leading bracket tags like [抗血栓], [包], [公費/3價]
+  const cleaned = medName.replace(/^\[.*?\]\s*/g, '').replace(/^(發泡錠|包)\s*/g, '');
+  // 1-3. Try full name
+  const direct = tryMatch(cleaned);
+  if (direct) return direct;
+  // 4. Extract ALL parenthesized groups, try last (most specific) first
+  //    e.g. "SintRIX inj 1gm (抗3)(Ceftriaxone)" → ["抗3", "Ceftriaxone"]
+  const allParens = [...cleaned.matchAll(/\(([^)]+)\)/g)].map(m => m[1].trim());
+  for (let i = allParens.length - 1; i >= 0; i--) {
+    const generic = allParens[i];
+    // Skip non-drug markers like 抗3, 抗4, 軟袋
+    if (/^[抗軟]/.test(generic) || /^\d/.test(generic) || /ml\)$/i.test(generic)) continue;
+    // Handle semicolons: "Acetylsalicylic acid; Aspirin; ASA" → try each
+    const candidates = generic.includes(';') ? generic.split(';').map(s => s.trim()) : [generic];
+    for (const candidate of candidates) {
+      const result = tryMatch(candidate);
+      if (result) return result;
+    }
   }
   return null;
 }
