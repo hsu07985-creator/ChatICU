@@ -123,7 +123,7 @@ function SourceRow({ source }: { source: SourceState }) {
           'text-xs font-medium transition-colors duration-300',
           source.status === 'done'    ? 'text-emerald-700' : '',
           source.status === 'querying' ? 'text-indigo-700 animate-pulse' : '',
-          source.status === 'waiting'  ? 'text-slate-400' : '',
+          source.status === 'waiting'  ? 'text-slate-400 dark:text-slate-500' : '',
         ].join(' ')}
       >
         {source.label}
@@ -136,7 +136,7 @@ function SourceRow({ source }: { source: SourceState }) {
             'text-xs font-mono rounded px-1 py-0.5 transition-colors duration-300',
             source.status === 'done'    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : '',
             source.status === 'querying' ? 'bg-indigo-50 text-indigo-500 border border-indigo-200' : '',
-            source.status === 'waiting'  ? 'bg-slate-50 text-slate-400 border border-slate-200' : '',
+            source.status === 'waiting'  ? 'bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700' : '',
           ].join(' ')}
         >
           {source.subLabel}
@@ -184,7 +184,7 @@ export function MultiSourceLoader({ isLoading, startTime }: MultiSourceLoaderPro
   const headline = phaseHeadline(phase, isLoading);
 
   return (
-    <div className="rounded-lg border border-indigo-100 bg-slate-50/70 px-3 py-2.5 space-y-2">
+    <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-slate-50/70 dark:bg-slate-800/70 px-3 py-2.5 space-y-2">
       {/* Headline row */}
       <div className="flex items-center gap-2">
         {isLoading ? (
@@ -192,7 +192,7 @@ export function MultiSourceLoader({ isLoading, startTime }: MultiSourceLoaderPro
         ) : (
           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
         )}
-        <span className="text-xs font-medium text-slate-600">{headline}</span>
+        <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{headline}</span>
       </div>
 
       {/* Source list */}

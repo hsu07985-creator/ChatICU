@@ -126,9 +126,9 @@ export function PatientChatTab({
         {showSessionList && (
           <div className="w-[320px] shrink-0">
             <Card className="border">
-              <CardHeader className="border-b bg-slate-50 px-3 py-2">
+              <CardHeader className="border-b bg-slate-50 dark:bg-slate-800 px-3 py-2">
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-sm font-semibold text-[#374151]">
+                  <span className="flex items-center gap-1.5 text-sm font-semibold text-[#374151] dark:text-slate-300">
                     <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
                     對話記錄
                   </span>
@@ -136,7 +136,7 @@ export function PatientChatTab({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-[#374151]"
+                      className="h-7 w-7 text-muted-foreground hover:text-[#374151] dark:hover:text-slate-200"
                       onClick={onToggleSessionList}
                       title="收合對話記錄"
                     >
@@ -171,10 +171,10 @@ export function PatientChatTab({
                           onClick={() => {
                             void onOpenSession(session);
                           }}
-                          className={`group w-full rounded-xl border px-3 py-2.5 text-left transition-all hover:bg-slate-50 ${
+                          className={`group w-full rounded-xl border px-3 py-2.5 text-left transition-all hover:bg-slate-50 dark:hover:bg-slate-800 ${
                             selectedSessionId === session.id
-                              ? 'border-[#d7dce5] bg-slate-50 shadow-[0_1px_2px_rgba(15,23,42,0.05)]'
-                              : 'border-[#edf0f4] bg-white'
+                              ? 'border-[#d7dce5] dark:border-slate-600 bg-slate-50 dark:bg-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)]'
+                              : 'border-[#edf0f4] dark:border-slate-700 bg-white dark:bg-slate-900'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -192,7 +192,7 @@ export function PatientChatTab({
                               )}
                             </div>
                             <div className="flex shrink-0 flex-col items-end gap-1.5">
-                              <Badge className="h-5 min-w-[1.5rem] justify-center border border-border bg-gray-100 px-1.5 text-xs text-[#374151]">
+                              <Badge className="h-5 min-w-[1.5rem] justify-center border border-border bg-gray-100 dark:bg-slate-800 px-1.5 text-xs text-[#374151] dark:text-slate-300">
                                 {session.messageCount ?? session.messages.length}
                               </Badge>
                               <button
@@ -220,13 +220,13 @@ export function PatientChatTab({
         {/* 右側對話區 */}
         <div className="min-w-0 flex-1">
           <Card className="border">
-            <CardHeader className="bg-slate-50 border-b py-1 px-3" style={{ paddingBottom: '4px' }}>
+            <CardHeader className="bg-slate-50 dark:bg-slate-800 border-b py-1 px-3" style={{ paddingBottom: '4px' }}>
               <div className="flex items-center gap-1.5">
                 {!showSessionList && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 text-xs text-muted-foreground hover:text-[#374151]"
+                    className="h-7 px-2 text-xs text-muted-foreground hover:text-[#374151] dark:hover:text-slate-200"
                     onClick={onToggleSessionList}
                     title="顯示對話記錄"
                   >
@@ -294,7 +294,7 @@ export function PatientChatTab({
                 />
 
                 {/* 輸入區 */}
-                <div className="flex-none px-4 pb-1.5 pt-0 border-t border-border bg-white">
+                <div className="flex-none px-4 pb-1.5 pt-0 border-t border-border bg-white dark:bg-slate-900">
                   <div className="flex gap-2 pt-1.5 items-end">
                     <Textarea
                       ref={chatInputRef}
@@ -310,7 +310,7 @@ export function PatientChatTab({
                       className={`min-h-[120px] border text-sm transition-colors rounded-xl ${
                         canSendAiChat
                           ? 'border-border'
-                          : 'border-border bg-slate-50 text-[#9ca3af] cursor-not-allowed'
+                          : 'border-border bg-slate-50 dark:bg-slate-800 text-[#9ca3af] cursor-not-allowed'
                       }`}
                       disabled={!canSendAiChat}
                     />

@@ -32,21 +32,21 @@ export const VitalSignCard = memo(function VitalSignCard({ label, value, unit, o
   const isMissing = displayValue === '-';
   const canClick = typeof onClick === 'function' && displayValue !== '-';
   const valueToneClass = isMissing
-    ? 'font-medium text-slate-400'
+    ? 'font-medium text-slate-400 dark:text-slate-500'
     : isAbnormal
       ? abnormalDirection === 'low'
-        ? 'font-semibold text-blue-600'
-        : 'font-semibold text-red-600'
-      : 'font-semibold text-[#0f172a]';
+        ? 'font-semibold text-blue-600 dark:text-blue-400'
+        : 'font-semibold text-red-600 dark:text-red-400'
+      : 'font-semibold text-[#0f172a] dark:text-slate-100';
 
   return (
     <div
       className={`group relative flex aspect-square flex-col rounded-xl border px-2.5 py-2 ${
         isAbnormal
           ? abnormalDirection === 'low'
-            ? 'border-blue-400 bg-gradient-to-br from-blue-50 to-sky-50/70'
-            : 'border-red-400 bg-gradient-to-br from-red-50 to-rose-50/70'
-          : 'border-border bg-gradient-to-br from-white to-slate-50'
+            ? 'border-blue-400 bg-gradient-to-br from-blue-50 to-sky-50/70 dark:from-blue-950/40 dark:to-sky-950/30'
+            : 'border-red-400 bg-gradient-to-br from-red-50 to-rose-50/70 dark:from-red-950/40 dark:to-rose-950/30'
+          : 'border-border bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800'
       } ${
         canClick
           ? 'cursor-pointer transition-all hover:-translate-y-0.5 hover:border-brand/45 hover:shadow-sm'
@@ -56,7 +56,7 @@ export const VitalSignCard = memo(function VitalSignCard({ label, value, unit, o
     >
       <div className="flex items-start gap-1">
         <p
-          className="font-semibold leading-tight tracking-tight text-slate-500"
+          className="font-semibold leading-tight tracking-tight text-slate-500 dark:text-slate-400"
           style={{ fontSize: 'calc(var(--metric-card-label-size) + 0.1rem)' }}
         >
           {label}
@@ -71,7 +71,7 @@ export const VitalSignCard = memo(function VitalSignCard({ label, value, unit, o
         </span>
         {unit && (
           <span
-            className={`mt-0.5 leading-tight ${isMissing ? 'text-slate-400' : 'text-[#64748b]'}`}
+            className={`mt-0.5 leading-tight ${isMissing ? 'text-slate-400 dark:text-slate-500' : 'text-[#64748b] dark:text-slate-400'}`}
             style={{ fontSize: 'calc(var(--metric-card-unit-size) + 0.12rem)' }}
           >
             {unit}
@@ -80,7 +80,7 @@ export const VitalSignCard = memo(function VitalSignCard({ label, value, unit, o
       </div>
       {timestamp && (
         <span
-          className="mt-auto text-center leading-none text-slate-400"
+          className="mt-auto text-center leading-none text-slate-400 dark:text-slate-500"
           style={{ fontSize: '0.55rem' }}
         >
           {formatShortTimestamp(timestamp)}

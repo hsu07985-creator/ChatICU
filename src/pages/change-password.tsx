@@ -51,7 +51,7 @@ export function ChangePasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>變更密碼</CardTitle>
@@ -60,35 +60,35 @@ export function ChangePasswordPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">目前密碼</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">目前密碼</label>
               <input
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 required
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                className="w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm dark:bg-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">新密碼</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">新密碼</label>
               <input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
                 minLength={12}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                className="w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm dark:bg-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand"
               />
               <p className="text-xs text-muted-foreground mt-1">至少 12 字元，含大小寫字母、數字及特殊字元</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">確認新密碼</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">確認新密碼</label>
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                className="w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm dark:bg-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand"
               />
             </div>
             {error && (

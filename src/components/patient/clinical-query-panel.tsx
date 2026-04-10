@@ -55,7 +55,7 @@ function SourceBadges({ sourcesUsed }: { sourcesUsed: string[] }) {
   if (!sourcesUsed || sourcesUsed.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-1 items-center">
-      <span className="text-xs text-slate-500">來源：</span>
+      <span className="text-xs text-slate-500 dark:text-slate-400">來源：</span>
       {sourcesUsed.map((src) => {
         const info = SOURCE_LABELS[src];
         if (!info) {
@@ -80,7 +80,7 @@ function SourceBadges({ sourcesUsed }: { sourcesUsed: string[] }) {
 function CitationCard({ citation }: { citation: UnifiedCitationItem }) {
   const sourceInfo = SOURCE_LABELS[citation.source_system];
   return (
-    <div className="rounded-md border border-slate-200 bg-white p-2.5 space-y-1">
+    <div className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2.5 space-y-1">
       <div className="flex flex-wrap items-center gap-1.5">
         {sourceInfo ? (
           <Badge className={`text-xs border ${sourceInfo.colorClasses}`}>
@@ -96,16 +96,16 @@ function CitationCard({ citation }: { citation: UnifiedCitationItem }) {
             {citation.evidence_grade}
           </Badge>
         )}
-        <span className="text-xs text-slate-400 ml-auto">
+        <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto">
           相關度 {Math.round(citation.relevance_score * 100)}%
         </span>
       </div>
       {citation.source_file && (
-        <p className="text-xs font-medium text-slate-700 truncate" title={citation.source_file}>
+        <p className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate" title={citation.source_file}>
           {citation.source_file}
         </p>
       )}
-      <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">
+      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-3">
         {citation.text_snippet}
       </p>
       {citation.drug_names && citation.drug_names.length > 0 && (
@@ -113,7 +113,7 @@ function CitationCard({ citation }: { citation: UnifiedCitationItem }) {
           {citation.drug_names.map((drug) => (
             <span
               key={drug}
-              className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600"
+              className="rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-400"
             >
               {drug}
             </span>
@@ -139,7 +139,7 @@ function QueryResult({ data }: { data: UnifiedQueryData }) {
       <ExpertReviewWarning show={data.requires_expert_review} />
 
       {/* Main answer */}
-      <div className="rounded-md border border-indigo-100 bg-white p-3">
+      <div className="rounded-md border border-indigo-100 dark:border-indigo-800 bg-white dark:bg-slate-900 p-3">
         <AiMarkdown content={data.answer} className="text-sm" />
       </div>
 
@@ -151,7 +151,7 @@ function QueryResult({ data }: { data: UnifiedQueryData }) {
       {/* Detected drugs */}
       {data.detected_drugs && data.detected_drugs.length > 0 && (
         <div className="flex flex-wrap items-center gap-1">
-          <span className="text-xs text-slate-500">偵測到的藥物：</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">偵測到的藥物：</span>
           {data.detected_drugs.map((drug) => (
             <span
               key={drug}

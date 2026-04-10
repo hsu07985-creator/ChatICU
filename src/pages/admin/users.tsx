@@ -116,10 +116,10 @@ export function UsersPage() {
   const getRoleBadge = (role: User['role']) => {
     const config = {
       admin: { label: '系統管理員', color: 'bg-brand text-white', icon: ShieldCheck },
-      doctor: { label: '醫師', color: 'bg-blue-100 text-blue-800', icon: Shield },
-      np: { label: '專科護理師', color: 'bg-teal-100 text-teal-800', icon: Shield },
-      nurse: { label: '護理師', color: 'bg-green-100 text-green-800', icon: Shield },
-      pharmacist: { label: '藥師', color: 'bg-purple-100 text-purple-800', icon: Shield }
+      doctor: { label: '醫師', color: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200', icon: Shield },
+      np: { label: '專科護理師', color: 'bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200', icon: Shield },
+      nurse: { label: '護理師', color: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200', icon: Shield },
+      pharmacist: { label: '藥師', color: 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200', icon: Shield }
     };
 
     const { label, color, icon: Icon } = config[role];
@@ -134,14 +134,14 @@ export function UsersPage() {
   const getStatusBadge = (active: boolean) => {
     if (active) {
       return (
-        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+        <Badge variant="outline" className="bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800">
           <Unlock className="h-3.5 w-3.5 mr-1" />
           啟用中
         </Badge>
       );
     }
     return (
-      <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-200">
+      <Badge variant="outline" className="bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-slate-700">
         <Lock className="h-3.5 w-3.5 mr-1" />
         停用
       </Badge>
@@ -295,7 +295,7 @@ export function UsersPage() {
 
       {/* 用戶列表 */}
       <Card>
-        <CardHeader className="bg-slate-50 border-b">
+        <CardHeader className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-xl">
@@ -350,7 +350,7 @@ export function UsersPage() {
                           setSelectedUser(user);
                           setIsEditDialogOpen(true);
                         }}
-                        className="text-brand hover:text-brand hover:bg-slate-50"
+                        className="text-brand hover:text-brand hover:bg-slate-50 dark:hover:bg-slate-800"
                       >
                         <Edit2 className="h-4 w-4" />
                       </Button>
@@ -371,7 +371,7 @@ export function UsersPage() {
                         size="sm"
                         onClick={() => handleDeleteUser(user.id)}
                         disabled={user.role === 'admin'}
-                        className="text-red-500 hover:text-red-500 hover:bg-red-50"
+                        className="text-red-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

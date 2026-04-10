@@ -88,15 +88,15 @@ export function PatientsPage() {
   };
 
   const getDepartmentBgColor = (department: string | null | undefined) => {
-    if (department?.includes('內科')) return 'bg-blue-50 hover:bg-blue-100/70';
-    if (department?.includes('外科')) return 'bg-amber-50 hover:bg-amber-100/70';
+    if (department?.includes('內科')) return 'bg-blue-50 hover:bg-blue-100/70 dark:bg-blue-950/30 dark:hover:bg-blue-900/40';
+    if (department?.includes('外科')) return 'bg-amber-50 hover:bg-amber-100/70 dark:bg-amber-950/30 dark:hover:bg-amber-900/40';
     return 'hover:bg-muted/50';
   };
 
   const getDepartmentBadgeColor = (department: string | null | undefined) => {
-    if (department?.includes('內科')) return 'bg-blue-600 text-white';
-    if (department?.includes('外科')) return 'bg-amber-600 text-white';
-    return 'bg-gray-600 text-white';
+    if (department?.includes('內科')) return 'bg-blue-600 text-white dark:bg-blue-700';
+    if (department?.includes('外科')) return 'bg-amber-600 text-white dark:bg-amber-700';
+    return 'bg-gray-600 text-white dark:bg-gray-700';
   };
 
   const [editingPatientId, setEditingPatientId] = useState<string | null>(null);
@@ -397,7 +397,7 @@ export function PatientsPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="bg-purple-50 border-purple-200 text-purple-700">
+                    <Badge variant="outline" className="bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/30 dark:border-purple-700 dark:text-purple-300">
                       {patient.ventilatorDays} 天
                     </Badge>
                   </TableCell>
@@ -450,7 +450,7 @@ export function PatientsPage() {
                               e.stopPropagation();
                               handleEdit(patient);
                             }}
-                            className="text-brand hover:text-brand hover:bg-slate-50"
+                            className="text-brand hover:text-brand hover:bg-slate-50 dark:hover:bg-slate-800"
                             title="編輯"
                           >
                             <Edit2 className="h-4 w-4" />
@@ -462,7 +462,7 @@ export function PatientsPage() {
                               e.stopPropagation();
                               handleArchivePatient(patient.id);
                             }}
-                            className="text-muted-foreground hover:text-brand hover:bg-slate-50"
+                            className="text-muted-foreground hover:text-brand hover:bg-slate-50 dark:hover:bg-slate-800"
                             title="封存"
                           >
                             <Archive className="h-4 w-4" />

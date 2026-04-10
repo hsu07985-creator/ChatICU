@@ -64,9 +64,9 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-white">
+    <div className="min-h-screen flex bg-white dark:bg-slate-950">
       {/* 左側裝飾區 */}
-      <div className="hidden lg:flex flex-1 bg-slate-50 items-center justify-center p-12 relative">
+      <div className="hidden lg:flex flex-1 bg-slate-50 dark:bg-slate-900 items-center justify-center p-12 relative">
         <div className="absolute inset-0 opacity-5">
           <div className="absolute top-[15%] left-[20%] w-32 h-32 rounded-full bg-brand" />
           <div className="absolute top-[35%] right-[15%] w-24 h-24 rounded-full bg-[#f59e0b]" />
@@ -94,7 +94,7 @@ export function LoginPage() {
       </div>
 
       {/* 右側登入表單 */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-white">
+      <div className="flex-1 flex items-center justify-center p-8 bg-white dark:bg-slate-950">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
           <div className="lg:hidden mb-8 text-center">
@@ -127,7 +127,7 @@ export function LoginPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="請輸入帳號"
-                  className="h-12 border-border bg-white"
+                  className="h-12 border-border bg-white dark:bg-slate-900"
                   required
                   minLength={1}
                   autoComplete="username"
@@ -145,7 +145,7 @@ export function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="請輸入密碼"
-                  className="h-12 border-border bg-white"
+                  className="h-12 border-border bg-white dark:bg-slate-900"
                   required
                   minLength={1}
                   autoComplete="current-password"

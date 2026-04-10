@@ -125,10 +125,10 @@ interface MatrixCell {
 }
 
 const STATUS_CONFIG: Record<CompatStatus, { label: string; short: string; color: string; bg: string }> = {
-  C: { label: '相容 (Compatible)', short: 'C', color: 'text-green-700', bg: 'bg-green-100 border-green-300' },
-  I: { label: '不相容 (Incompatible)', short: 'I', color: 'text-red-700', bg: 'bg-red-100 border-red-300' },
-  '-': { label: '無資料', short: '-', color: 'text-gray-500', bg: 'bg-gray-50 border-gray-200' },
-  '?': { label: '查詢中', short: '?', color: 'text-gray-400', bg: 'bg-gray-50 border-gray-200' },
+  C: { label: '相容 (Compatible)', short: 'C', color: 'text-green-700 dark:text-green-300', bg: 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700' },
+  I: { label: '不相容 (Incompatible)', short: 'I', color: 'text-red-700 dark:text-red-300', bg: 'bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700' },
+  '-': { label: '無資料', short: '-', color: 'text-gray-500 dark:text-gray-400', bg: 'bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700' },
+  '?': { label: '查詢中', short: '?', color: 'text-gray-400 dark:text-gray-500', bg: 'bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700' },
 };
 
 const MIN_DRUGS = 2;
@@ -426,15 +426,15 @@ export function CompatibilityPage() {
                         <span>不相容：<strong className="text-red-600">{summary.I}</strong> 對</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <HelpCircle className="h-4 w-4 text-gray-400" />
+                        <HelpCircle className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                         <span>無資料：<strong>{summary['-']}</strong> 對</span>
                       </div>
                     </div>
 
                     {summary.I > 0 && (
-                      <Alert className="mt-3 border-red-200 bg-red-50">
-                        <XCircle className="h-4 w-4 text-red-600" />
-                        <AlertDescription className="text-red-800">
+                      <Alert className="mt-3 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30">
+                        <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                        <AlertDescription className="text-red-800 dark:text-red-200">
                           發現 <strong>{summary.I}</strong> 對不相容組合，請勿混合或並行輸注，建議使用不同管路。
                         </AlertDescription>
                       </Alert>
@@ -449,9 +449,9 @@ export function CompatibilityPage() {
                   <CardHeader>
                     <CardTitle>相容性矩陣</CardTitle>
                     <CardDescription>
-                      <span className="inline-flex items-center gap-1 mr-3"><span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-green-100 text-green-700 border border-green-300">C</span> 相容</span>
-                      <span className="inline-flex items-center gap-1 mr-3"><span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-red-100 text-red-700 border border-red-300">I</span> 不相容</span>
-                      <span className="inline-flex items-center gap-1"><span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-gray-50 text-gray-500 border border-gray-200">-</span> 無資料</span>
+                      <span className="inline-flex items-center gap-1 mr-3"><span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-700">C</span> 相容</span>
+                      <span className="inline-flex items-center gap-1 mr-3"><span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700">I</span> 不相容</span>
+                      <span className="inline-flex items-center gap-1"><span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-slate-700">-</span> 無資料</span>
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="overflow-x-auto">
@@ -474,7 +474,7 @@ export function CompatibilityPage() {
                             </td>
                             {validDrugs.map((colDrug, ci) => {
                               if (ri === ci) {
-                                return <td key={colDrug} className="px-2 py-1.5 text-center bg-gray-50">—</td>;
+                                return <td key={colDrug} className="px-2 py-1.5 text-center bg-gray-50 dark:bg-slate-800">—</td>;
                               }
                               const status = ri < ci ? getCell(rowDrug, colDrug) : getCell(colDrug, rowDrug);
                               const notes = ri < ci ? getCellNotes(rowDrug, colDrug) : getCellNotes(colDrug, rowDrug);
@@ -503,7 +503,7 @@ export function CompatibilityPage() {
                   <h2>不相容組合</h2>
                   <div className="grid gap-3">
                     {matrixResults.filter(r => r.status === 'I').map((r, i) => (
-                      <Card key={i} className="border-red-200">
+                      <Card key={i} className="border-red-200 dark:border-red-800">
                         <CardContent className="py-3 flex items-center gap-3">
                           <XCircle className="h-5 w-5 text-red-600 shrink-0" />
                           <div>

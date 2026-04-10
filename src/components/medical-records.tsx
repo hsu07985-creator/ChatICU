@@ -316,17 +316,17 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
   return (
     <div className="space-y-6">
       {/* 記錄類型選擇 */}
-      <Card className="border-slate-300">
-        <CardHeader className="bg-slate-50">
+      <Card className="border-slate-300 dark:border-slate-600">
+        <CardHeader className="bg-slate-50 dark:bg-slate-800">
           <CardTitle className="flex items-center gap-2">
-            <FileText className="h-6 w-6 text-slate-700" />
+            <FileText className="h-6 w-6 text-slate-700 dark:text-slate-300" />
             新增病歷記錄
           </CardTitle>
           <CardDescription>{config.description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {!canPolish && (
-            <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <div className="rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-sm text-amber-800 dark:text-amber-400">
               {polishReason}
             </div>
           )}
@@ -353,12 +353,12 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
 
           {/* 統一表單 */}
           <div className="space-y-4">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-4">
               <div className="flex items-start gap-3 mb-3">
-                <Icon className="h-6 w-6 text-slate-700 mt-1" />
+                <Icon className="h-6 w-6 text-slate-700 dark:text-slate-300 mt-1" />
                 <div>
-                  <h3 className="font-semibold text-slate-900">{config.label} 輔助</h3>
-                  <p className="text-sm text-slate-600 mt-1">{config.description}</p>
+                  <h3 className="font-semibold text-slate-900 dark:text-slate-100">{config.label} 輔助</h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{config.description}</p>
                 </div>
               </div>
 
@@ -372,7 +372,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                       const tpl = { ...BUILTIN_TEMPLATES[recordType], ...serverTemplateMap }[value];
                       if (tpl) setInputContent(tpl);
                     }}>
-                      <SelectTrigger className="border-slate-300">
+                      <SelectTrigger className="border-slate-300 dark:border-slate-600">
                         <SelectValue placeholder="請選擇記錄模板" />
                       </SelectTrigger>
                       <SelectContent>
@@ -381,7 +381,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                         ))}
                         {customTemplateNames.length > 0 && (
                           <>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 border-t mt-1 pt-2">自訂模板</div>
+                            <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 border-t mt-1 pt-2">自訂模板</div>
                             {customTemplateNames.map((name) => (
                               <SelectItem key={`custom-${name}`} value={name}>{name}</SelectItem>
                             ))}
@@ -403,35 +403,35 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
 
                 {/* 新增模板面板（獨立區塊） */}
                 {showNewTemplate && (
-                  <div className="rounded-md border border-dashed border-slate-300 bg-white p-3 space-y-2">
-                    <p className="text-sm font-semibold text-slate-700">建立自訂模板</p>
+                  <div className="rounded-md border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 p-3 space-y-2">
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">建立自訂模板</p>
                     <input
                       type="text"
                       placeholder="模板名稱"
                       value={newTemplateName}
                       onChange={(e) => setNewTemplateName(e.target.value)}
-                      className="w-full h-9 rounded-md border border-slate-300 px-3 text-sm"
+                      className="w-full h-9 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-slate-100 px-3 text-sm"
                     />
                     <Textarea
                       placeholder="模板內容（欄位用 ___ 表示待填空位）"
                       value={newTemplateContent}
                       onChange={(e) => setNewTemplateContent(e.target.value)}
-                      className="min-h-[100px] border-slate-300"
+                      className="min-h-[100px] border-slate-300 dark:border-slate-600"
                     />
                     <div className="flex items-center gap-2">
                       <Button size="sm" onClick={handleSaveAsTemplate}>儲存模板</Button>
                       <Button size="sm" variant="ghost" onClick={() => { setShowNewTemplate(false); setNewTemplateName(''); setNewTemplateContent(''); }}>取消</Button>
                     </div>
                     {customTemplateNames.length > 0 && (
-                      <div className="border-t border-slate-200 pt-2 mt-1">
-                        <p className="text-xs text-slate-500 mb-1">已建立的自訂模板</p>
+                      <div className="border-t border-slate-200 dark:border-slate-700 pt-2 mt-1">
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">已建立的自訂模板</p>
                         <div className="flex flex-wrap gap-1.5">
                           {customTemplateNames.map((name) => (
-                            <span key={name} className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">
+                            <span key={name} className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 text-xs text-slate-700 dark:text-slate-300">
                               {name}
                               <button
                                 type="button"
-                                className="ml-0.5 text-slate-400 hover:text-red-500 transition-colors"
+                                className="ml-0.5 text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"
                                 onClick={() => handleDeleteTemplate(name)}
                                 title={`刪除模板「${name}」`}
                               >
@@ -452,7 +452,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                     placeholder={config.placeholder}
                     value={inputContent}
                     onChange={(e) => setInputContent(e.target.value)}
-                    className="min-h-[150px] mt-2 border-slate-300"
+                    className="min-h-[150px] mt-2 border-slate-300 dark:border-slate-600"
                   />
                   {selectedTemplate && serverTemplates.find((t) => t.name === selectedTemplate && t.canEdit) && inputContent !== allTemplates[selectedTemplate] && (
                     <Button
@@ -502,7 +502,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                   {recordType === 'medication-advice' && '修飾後的用藥建議'}
                   {recordType === 'nursing-record' && '檢查後的護理記錄'}
                 </Label>
-                <div className="mt-2 rounded-lg border border-slate-300 bg-slate-50 p-4">
+                <div className="mt-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 p-4">
                   <AiMarkdown content={polishedContent} className="text-sm" />
                 </div>
 
@@ -558,9 +558,9 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
 
       {/* 歷史記錄 */}
       <Card>
-        <CardHeader className="bg-slate-50">
+        <CardHeader className="bg-slate-50 dark:bg-slate-800">
           <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-6 w-6 text-slate-700" />
+            <Calendar className="h-6 w-6 text-slate-700 dark:text-slate-300" />
             病歷記錄歷史
           </CardTitle>
           <CardDescription>
@@ -579,7 +579,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
-                      <Badge className="bg-slate-100 text-slate-800 border border-slate-200">
+                      <Badge className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
                         {getRecordTypeLabel(record.type)}
                       </Badge>
                       <span className="text-sm text-muted-foreground">
@@ -621,7 +621,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="bg-slate-50 p-3 rounded-lg">
+                  <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg">
                     <AiMarkdown content={record.polishedContent || record.content} className="text-sm" />
                   </div>
                 </CardContent>

@@ -24,28 +24,28 @@ interface RiskConfig {
 const RISK_CONFIG: Record<string, RiskConfig> = {
   X: {
     label: '禁忌',
-    badgeClass: 'bg-red-100 text-red-800 border-red-300',
-    borderClass: 'border-red-300',
+    badgeClass: 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-400 border-red-300 dark:border-red-900',
+    borderClass: 'border-red-300 dark:border-red-900',
   },
   D: {
     label: '重大',
-    badgeClass: 'bg-orange-100 text-orange-800 border-orange-300',
-    borderClass: 'border-orange-300',
+    badgeClass: 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-400 border-orange-300 dark:border-orange-700',
+    borderClass: 'border-orange-300 dark:border-orange-700',
   },
   C: {
     label: '監測',
-    badgeClass: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-    borderClass: 'border-yellow-300',
+    badgeClass: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-400 border-yellow-300 dark:border-yellow-700',
+    borderClass: 'border-yellow-300 dark:border-yellow-700',
   },
   B: {
     label: '輕微',
-    badgeClass: 'bg-blue-100 text-blue-800 border-blue-300',
-    borderClass: 'border-blue-300',
+    badgeClass: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-400 border-blue-300 dark:border-blue-700',
+    borderClass: 'border-blue-300 dark:border-blue-700',
   },
   A: {
     label: '無交互',
-    badgeClass: 'bg-green-100 text-green-800 border-green-300',
-    borderClass: 'border-green-300',
+    badgeClass: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-400 border-green-300 dark:border-green-700',
+    borderClass: 'border-green-300 dark:border-green-700',
   },
 };
 
@@ -54,8 +54,8 @@ const RISK_ORDER: Record<string, number> = { X: 0, D: 1, C: 2, B: 3, A: 4 };
 function getRiskConfig(risk: string): RiskConfig {
   return RISK_CONFIG[risk.toUpperCase()] ?? {
     label: risk,
-    badgeClass: 'bg-gray-100 text-gray-800 border-gray-300',
-    borderClass: 'border-gray-300',
+    badgeClass: 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-300 border-gray-300 dark:border-gray-600',
+    borderClass: 'border-gray-300 dark:border-gray-600',
   };
 }
 
@@ -74,25 +74,25 @@ function InteractionBadge({ interaction }: InteractionBadgeProps) {
       <div
         className={cn(
           'rounded-lg border-2 px-3 py-2 text-xs',
-          'bg-red-50 border-red-400 text-red-900',
+          'bg-red-50 dark:bg-red-950/30 border-red-400 dark:border-red-900 text-red-900 dark:text-red-400',
           'flex flex-col gap-1',
         )}
       >
         <div className="flex items-center gap-1.5 font-bold text-[13px]">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-700" />
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-700 dark:text-red-400" />
           <span>X 禁忌</span>
-          <span className="font-normal text-red-700">
+          <span className="font-normal text-red-700 dark:text-red-400">
             {interaction.drug_a} + {interaction.drug_b}
           </span>
         </div>
-        <p className="text-red-800 font-medium text-[11px]">
+        <p className="text-red-800 dark:text-red-400 font-medium text-[11px]">
           禁忌組合 — 應避免合併使用
         </p>
         {interaction.title && (
-          <p className="text-red-700 text-[11px] leading-relaxed">{interaction.title}</p>
+          <p className="text-red-700 dark:text-red-400 text-[11px] leading-relaxed">{interaction.title}</p>
         )}
         {interaction.severity && (
-          <p className="text-red-600 text-xs">{interaction.severity}</p>
+          <p className="text-red-600 dark:text-red-400 text-xs">{interaction.severity}</p>
         )}
       </div>
     );
@@ -146,7 +146,7 @@ export function DrugInteractionBadges({
   return (
     <div className="mb-2 space-y-1.5">
       {hasRiskX && (
-        <div className="flex items-center gap-1 text-[11px] font-semibold text-red-700">
+        <div className="flex items-center gap-1 text-[11px] font-semibold text-red-700 dark:text-red-400">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
           <span>偵測到禁忌藥物組合</span>
         </div>

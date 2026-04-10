@@ -6,7 +6,7 @@ import { cn } from './utils';
 
 export function PatientCardSkeleton() {
   return (
-    <Card className="border-gray-200">
+    <Card className="border-gray-200 dark:border-slate-700">
       <CardContent className="p-4">
         <div className="flex items-center gap-4">
           <Skeleton className="h-12 w-12 rounded-full" />
@@ -160,7 +160,7 @@ export function TableSkeleton({ rows = 5, columns = 5 }: { rows?: number; column
   return (
     <div className="border rounded-lg overflow-hidden">
       <table className="w-full">
-        <thead className="bg-gray-50">
+        <thead className="bg-gray-50 dark:bg-slate-800">
           <tr>
             {Array.from({ length: columns }).map((_, i) => (
               <th key={i} className="p-3">

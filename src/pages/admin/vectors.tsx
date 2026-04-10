@@ -137,21 +137,21 @@ export function VectorsPage() {
     switch (status) {
       case 'active':
         return (
-          <Badge className="bg-green-100 text-green-800 border-green-200">
+          <Badge className="bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800">
             <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
             正常運行
           </Badge>
         );
       case 'updating':
         return (
-          <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+          <Badge className="bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800">
             <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
             更新中
           </Badge>
         );
       case 'error':
         return (
-          <Badge className="bg-red-100 text-red-800 border-red-200">
+          <Badge className="bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800">
             <AlertCircle className="h-3.5 w-3.5 mr-1" />
             異常
           </Badge>
@@ -168,7 +168,7 @@ export function VectorsPage() {
 
       {/* 文件上傳區 */}
       <Card className="border-brand">
-        <CardHeader className="bg-slate-50">
+        <CardHeader className="bg-slate-50 dark:bg-slate-800">
           <CardTitle className="flex items-center gap-2 text-xl">
             <FileUp className="h-6 w-6 text-brand" />
             上傳 PDF 文件
@@ -265,7 +265,7 @@ export function VectorsPage() {
 
       {/* 向量資料庫列表 */}
       <Card>
-        <CardHeader className="bg-slate-50 border-b">
+        <CardHeader className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
           <CardTitle className="flex items-center gap-2 text-xl">
             <Database className="h-6 w-6 text-brand" />
             向量資料庫清單
@@ -294,14 +294,14 @@ export function VectorsPage() {
 
           {!loading && !error && vectorDatabases.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
-              <Database className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <Database className="h-12 w-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
               <p>尚無向量資料庫</p>
             </div>
           )}
 
           <div className="divide-y">
             {vectorDatabases.map((db) => (
-              <div key={db.id} className="p-6 hover:bg-slate-50 transition-colors">
+              <div key={db.id} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">

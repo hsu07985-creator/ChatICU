@@ -229,7 +229,7 @@ export function ChatPage() {
       <div className="grid gap-6 md:grid-cols-3">
         {/* 主聊天區 */}
         <Card className="md:col-span-2">
-          <CardHeader className="bg-slate-50 border-b flex flex-row items-center justify-between">
+          <CardHeader className="bg-slate-50 dark:bg-slate-800 border-b flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <MessageSquare className="h-6 w-6 text-brand" />
               全體頻道
@@ -268,7 +268,7 @@ export function ChatPage() {
                     <div
                       key={msg.id}
                       data-testid="team-chat-message"
-                      className={`group space-y-2 p-3 rounded-lg ${msg.pinned ? 'border-l-4 border-[#f59e0b] bg-slate-50' : 'bg-white border border-slate-200'}`}
+                      className={`group space-y-2 p-3 rounded-lg ${msg.pinned ? 'border-l-4 border-[#f59e0b] bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700'}`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -316,7 +316,7 @@ export function ChatPage() {
             </ScrollArea>
 
             {/* 輸入區 */}
-            <div className="space-y-2 border-t border-slate-200 pt-4">
+            <div className="space-y-2 border-t border-slate-200 dark:border-slate-700 pt-4">
               <div className="flex items-center gap-2">
                 <Send className="h-5 w-5 text-brand" />
                 <label className="font-semibold text-foreground">發送訊息給團隊</label>
@@ -356,8 +356,8 @@ export function ChatPage() {
         {/* 側邊欄 — Tabs: @我的留言 / 釘選訊息 */}
         <div className="space-y-4">
           <Card>
-            <CardHeader className="bg-slate-50 pb-0">
-              <div className="flex border-b border-slate-200">
+            <CardHeader className="bg-slate-50 dark:bg-slate-800 pb-0">
+              <div className="flex border-b border-slate-200 dark:border-slate-700">
                 <button
                   className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                     sidebarTab === 'mentions'
@@ -394,7 +394,7 @@ export function ChatPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <button
-                      className={`text-xs px-2 py-1 rounded ${mentionsUnreadOnly ? 'bg-brand text-white' : 'bg-slate-50 text-muted-foreground'}`}
+                      className={`text-xs px-2 py-1 rounded ${mentionsUnreadOnly ? 'bg-brand text-white' : 'bg-slate-50 dark:bg-slate-800 text-muted-foreground'}`}
                       onClick={() => setMentionsUnreadOnly(!mentionsUnreadOnly)}
                     >
                       {mentionsUnreadOnly ? '僅未讀' : '全部'}
@@ -416,10 +416,10 @@ export function ChatPage() {
                         {mentionGroups.map((group) => {
                           const isExpanded = expandedPatients.has(group.patientId);
                           return (
-                            <div key={group.patientId} className="rounded-lg border border-slate-200 overflow-hidden">
+                            <div key={group.patientId} className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
                               {/* Patient header */}
                               <button
-                                className="w-full flex items-center gap-2 px-3 py-2.5 bg-white hover:bg-slate-50 transition-colors text-left"
+                                className="w-full flex items-center gap-2 px-3 py-2.5 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left"
                                 onClick={() => setExpandedPatients(prev => {
                                   const next = new Set(prev);
                                   if (next.has(group.patientId)) next.delete(group.patientId);
@@ -439,11 +439,11 @@ export function ChatPage() {
                               </button>
                               {/* Expanded messages */}
                               {isExpanded && (
-                                <div className="border-t border-slate-200 bg-slate-50">
+                                <div className="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                                   {group.messages.map((msg) => (
                                     <div
                                       key={msg.id}
-                                      className={`px-3 py-2 border-b border-slate-200 last:border-b-0 ${!msg.isRead ? 'bg-orange-50/60' : ''}`}
+                                      className={`px-3 py-2 border-b border-slate-200 dark:border-slate-700 last:border-b-0 ${!msg.isRead ? 'bg-orange-50/60 dark:bg-orange-950/30' : ''}`}
                                     >
                                       <div className="flex items-center gap-1.5 mb-1">
                                         <span className="text-xs font-medium text-foreground">{msg.authorName}</span>
@@ -454,7 +454,7 @@ export function ChatPage() {
                                     </div>
                                   ))}
                                   <button
-                                    className="w-full flex items-center justify-center gap-1 py-2 text-xs text-brand hover:bg-white transition-colors font-medium"
+                                    className="w-full flex items-center justify-center gap-1 py-2 text-xs text-brand hover:bg-white dark:hover:bg-slate-900 transition-colors font-medium"
                                     onClick={() => navigate(`/patient/${group.patientId}?tab=messages`)}
                                   >
                                     <ExternalLink className="h-3 w-3" />
@@ -477,7 +477,7 @@ export function ChatPage() {
                   <ScrollArea className="max-h-[500px]">
                     <div className="space-y-3">
                       {messages.filter(m => m.pinned).map((msg) => (
-                        <div key={msg.id} className="group p-3 bg-white border border-[#f59e0b] rounded-lg relative">
+                        <div key={msg.id} className="group p-3 bg-white dark:bg-slate-900 border border-[#f59e0b] rounded-lg relative">
                           <Button
                             variant="ghost"
                             size="sm"

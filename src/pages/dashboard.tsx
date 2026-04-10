@@ -202,13 +202,13 @@ export function DashboardPage() {
     const nmb = patient.nmb || patient.sanSummary?.nmb || [];
 
     if (sedation.length > 0) {
-      badges.push({ label: 'S', items: sedation, color: 'bg-blue-100 text-blue-800' });
+      badges.push({ label: 'S', items: sedation, color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' });
     }
     if (analgesia.length > 0) {
-      badges.push({ label: 'A', items: analgesia, color: 'bg-green-100 text-green-800' });
+      badges.push({ label: 'A', items: analgesia, color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' });
     }
     if (nmb.length > 0) {
-      badges.push({ label: 'N', items: nmb, color: 'bg-purple-100 text-purple-800' });
+      badges.push({ label: 'N', items: nmb, color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' });
     }
     return badges;
   };
@@ -333,7 +333,7 @@ export function DashboardPage() {
             {filteredPatients.map((patient) => (
               <Card
                 key={patient.id}
-                className="group cursor-pointer hover:shadow-xl transition-all duration-200 hover:border-primary/30 bg-white relative"
+                className="group cursor-pointer hover:shadow-xl transition-all duration-200 hover:border-primary/30 bg-white dark:bg-slate-900 relative"
                 onClick={() => navigate(`/patient/${patient.id}`)}
               >
                 {/* 編輯按鈕 */}
@@ -353,7 +353,7 @@ export function DashboardPage() {
                       <div className="flex items-center gap-2 mb-2">
                         <CardTitle className="text-xl text-foreground">{patient.name}</CardTitle>
                         {patient.intubated && (
-                          <Badge variant="secondary" className="bg-slate-50 text-brand border border-border">
+                          <Badge variant="secondary" className="bg-slate-50 dark:bg-slate-800 text-brand border border-border">
                             插管中
                           </Badge>
                         )}
@@ -368,7 +368,7 @@ export function DashboardPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="bg-slate-50 p-3 rounded-lg border border-border">
+                  <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-border">
                     <p className="text-xs font-medium text-muted-foreground mb-1">入院診斷</p>
                     <p className="text-sm font-medium text-foreground line-clamp-3" title={patient.diagnosis || ''}>{patient.diagnosis || '-'}</p>
                   </div>
@@ -397,7 +397,7 @@ export function DashboardPage() {
                   {patient.alerts.length > 0 && (
                     <div className="flex flex-wrap gap-1 pt-2 border-t">
                       {patient.alerts.map((alert, idx) => (
-                        <Badge key={idx} className="text-xs bg-rose-100 text-rose-700 border border-rose-200 hover:bg-rose-200/80 max-w-full" title={alert}>
+                        <Badge key={idx} className="text-xs bg-rose-100 text-rose-700 border border-rose-200 hover:bg-rose-200/80 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-700 max-w-full" title={alert}>
                           <AlertCircle className="h-3.5 w-3.5 mr-1 shrink-0" />
                           <span className="truncate">{alert}</span>
                         </Badge>
@@ -421,8 +421,8 @@ export function DashboardPage() {
 
           {!loading && error && (
             <div className="text-center py-12">
-              <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-400" />
-              <p className="text-red-600 font-medium">{error}</p>
+              <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-400 dark:text-red-500" />
+              <p className="text-red-600 dark:text-red-400 font-medium">{error}</p>
               <Button variant="outline" className="mt-4" onClick={fetchPatients}>
                 重新載入
               </Button>

@@ -312,12 +312,12 @@ function LabItem({ labName, label, value, unit, isAbnormal, abnormalDirection, o
   const canOpenTrend = hasValue && !!onClick;
   const isMissing = !hasValue;
   const valueToneClass = isMissing
-    ? 'font-medium text-slate-400'
+    ? 'font-medium text-slate-400 dark:text-slate-500'
     : isAbnormal
       ? abnormalDirection === 'low'
         ? 'font-semibold text-blue-600'
         : 'font-semibold text-red-600'
-      : 'font-semibold text-slate-900';
+      : 'font-semibold text-slate-900 dark:text-slate-100';
 
   if (hideMissing && isMissing) {
     return null;
@@ -330,12 +330,12 @@ function LabItem({ labName, label, value, unit, isAbnormal, abnormalDirection, o
   return (
     <div
       className={`group relative flex aspect-square flex-col rounded-xl border px-2.5 py-2 ${
-        isOptional ? 'border-amber-200/80 bg-gradient-to-br from-amber-50 to-orange-50/70' : 'border-slate-200 bg-gradient-to-br from-white to-slate-50'
+        isOptional ? 'border-amber-200/80 bg-gradient-to-br from-amber-50 to-orange-50/70 dark:border-amber-700/60 dark:from-amber-950/40 dark:to-orange-950/30' : 'border-slate-200 dark:border-slate-700 bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800'
       } ${
         isAbnormal
           ? abnormalDirection === 'low'
-            ? 'border-blue-400 bg-gradient-to-br from-blue-50 to-sky-50/70'
-            : 'border-red-400 bg-gradient-to-br from-red-50 to-rose-50/70'
+            ? 'border-blue-400 bg-gradient-to-br from-blue-50 to-sky-50/70 dark:border-blue-500 dark:from-blue-950/40 dark:to-sky-950/30'
+            : 'border-red-400 bg-gradient-to-br from-red-50 to-rose-50/70 dark:border-red-500 dark:from-red-950/40 dark:to-rose-950/30'
           : ''
       } ${
         canOpenTrend ? 'cursor-pointer transition-all hover:-translate-y-0.5 hover:border-brand/45 hover:shadow-sm' : ''
@@ -344,7 +344,7 @@ function LabItem({ labName, label, value, unit, isAbnormal, abnormalDirection, o
     >
       <div className="flex items-start gap-1">
         <p
-          className="font-semibold leading-tight tracking-tight text-slate-500"
+          className="font-semibold leading-tight tracking-tight text-slate-500 dark:text-slate-400"
           style={{ fontSize: 'calc(var(--metric-card-label-size) + 0.1rem)' }}
         >
           {label}
@@ -359,7 +359,7 @@ function LabItem({ labName, label, value, unit, isAbnormal, abnormalDirection, o
         </span>
         {unit && (
           <span
-            className={`mt-0.5 max-w-full break-words leading-tight ${isMissing ? 'text-slate-400' : 'text-slate-500'}`}
+            className={`mt-0.5 max-w-full break-words leading-tight ${isMissing ? 'text-slate-400 dark:text-slate-500' : 'text-slate-500 dark:text-slate-400'}`}
             style={{ fontSize: 'calc(var(--metric-card-unit-size) + 0.12rem)' }}
           >
             {unit}
@@ -368,7 +368,7 @@ function LabItem({ labName, label, value, unit, isAbnormal, abnormalDirection, o
       </div>
       {itemTimestamp && (
         <span
-          className="mt-auto text-center leading-none text-slate-400"
+          className="mt-auto text-center leading-none text-slate-400 dark:text-slate-500"
           style={{ fontSize: '0.55rem' }}
         >
           {formatShortTimestamp(itemTimestamp)}
@@ -518,14 +518,14 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
     <>
       <LabDisplayFilterContext.Provider value={{ onlyAbnormal, hideMissing, timestamp: labData?.timestamp }}>
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white/80 px-3 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 px-3 py-2">
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
                 onlyAbnormal
                   ? 'border-brand bg-brand text-white'
-                  : 'border-slate-300 bg-white text-slate-700 hover:border-brand/40'
+                  : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-brand/40'
               }`}
               aria-pressed={onlyAbnormal}
               onClick={() => setOnlyAbnormal((prev) => !prev)}
@@ -537,7 +537,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
                 hideMissing
                   ? 'border-brand bg-brand text-white'
-                  : 'border-slate-300 bg-white text-slate-700 hover:border-brand/40'
+                  : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-brand/40'
               }`}
               aria-pressed={hideMissing}
               onClick={() => setHideMissing((prev) => !prev)}
@@ -545,11 +545,11 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               隱藏無資料
             </button>
           </div>
-          <span className="text-xs text-slate-500">高效率篩選</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">高效率篩選</span>
         </div>
 
         {!hasAnyVisibleSection && (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">
+          <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
             目前篩選條件下沒有可顯示的檢驗項目
           </div>
         )}

@@ -49,10 +49,10 @@ const adviceCategories = {
   },
   monitoring: {
     label: PHARMACY_ADVICE_CATEGORIES.monitoring.label,
-    color: 'bg-gray-100 border-gray-300 hover:bg-gray-200',
+    color: 'bg-gray-100 dark:bg-slate-800 border-gray-300 dark:border-slate-600 hover:bg-gray-200 dark:hover:bg-slate-700',
     activeColor: 'bg-gray-700 text-white',
     icon: Info,
-    iconColor: 'text-gray-700',
+    iconColor: 'text-gray-700 dark:text-gray-300',
     codes: PHARMACY_ADVICE_CATEGORIES.monitoring.codes,
   },
   continuity: {
@@ -240,7 +240,7 @@ export function PharmacistAdviceWidget({
               <Separator />
               <div className="space-y-3">
                 <label className="font-semibold text-foreground">修飾後的用藥建議</label>
-                <div className="bg-slate-50 border-2 border-green-600 rounded-lg p-4">
+                <div className="bg-slate-50 dark:bg-slate-800 border-2 border-green-600 rounded-lg p-4">
                   <AiMarkdown content={polishedAdvice} className="text-[15px]" />
                 </div>
 	                <div className="flex gap-2">
@@ -383,7 +383,7 @@ export function PharmacistAdviceWidget({
                   className={`border-2 cursor-pointer transition-all ${
                     selectedCategory === 'monitoring'
                       ? 'ring-4 ring-offset-2 ring-gray-500/50 bg-gray-700 text-white'
-                      : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+                      : 'bg-gray-100 dark:bg-slate-800 border-gray-300 dark:border-slate-600 hover:bg-gray-200 dark:hover:bg-slate-700'
                   }`}
                   onClick={() => {
                     setSelectedCategory('monitoring');
@@ -392,7 +392,7 @@ export function PharmacistAdviceWidget({
                 >
                   <CardHeader className="pb-3">
                     <CardTitle className="flex items-center gap-2 text-lg">
-                      <Info className={`h-6 w-6 ${selectedCategory === 'monitoring' ? 'text-white' : 'text-gray-700'}`} />
+                      <Info className={`h-6 w-6 ${selectedCategory === 'monitoring' ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`} />
                       3. 建議監測
                     </CardTitle>
                   </CardHeader>
@@ -407,8 +407,8 @@ export function PharmacistAdviceWidget({
                             variant={selectedCode === codeItem.code ? 'default' : 'outline'}
                             className={`justify-start text-left h-auto py-2.5 text-sm ${
                               selectedCode === codeItem.code 
-                                ? 'bg-white text-gray-700 hover:bg-white/90' 
-                                : 'bg-gray-50 text-foreground border-gray-200 hover:bg-gray-100'
+                                ? 'bg-white text-gray-700 hover:bg-white/90'
+                                : 'bg-gray-50 dark:bg-slate-800 text-foreground border-gray-200 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-700'
                             }`}
                             onClick={(e) => {
                               e.stopPropagation();

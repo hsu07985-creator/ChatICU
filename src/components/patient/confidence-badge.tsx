@@ -37,7 +37,7 @@ export function ConfidenceBadge({
     return (
       <Badge
         className={cn(
-          'border border-green-300 bg-green-50 text-green-800 gap-1',
+          'border border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950/30 text-green-800 dark:text-green-400 gap-1',
           isMd ? 'px-2.5 py-1 text-sm' : 'px-1.5 py-0.5 text-xs',
           className,
         )}
@@ -53,7 +53,7 @@ export function ConfidenceBadge({
     return (
       <Badge
         className={cn(
-          'border border-yellow-300 bg-yellow-50 text-yellow-800 gap-1',
+          'border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-950/30 text-yellow-800 dark:text-yellow-400 gap-1',
           isMd ? 'px-2.5 py-1 text-sm' : 'px-1.5 py-0.5 text-xs',
           className,
         )}
@@ -73,7 +73,7 @@ export function ConfidenceBadge({
   return (
     <Badge
       className={cn(
-        'border border-red-300 bg-red-50 text-red-800 gap-1',
+        'border border-red-300 dark:border-red-900 bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-400 gap-1',
         isMd ? 'px-2.5 py-1 text-sm' : 'px-1.5 py-0.5 text-xs',
         className,
       )}

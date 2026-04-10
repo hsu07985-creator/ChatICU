@@ -89,8 +89,8 @@ export function ScoreTrendChart({
                 content={({ active, payload, label }: TooltipProps<number, string>) => {
                   if (!active || !payload?.[0]) return null;
                   return (
-                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-md">
-                      <p className="text-xs text-slate-500">{label}</p>
+                    <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 shadow-md">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
                       <p className="text-sm font-semibold" style={{ color: 'var(--color-brand)' }}>
                         {payload[0].value} {unit}
                       </p>
@@ -139,23 +139,23 @@ export function ScoreTrendChart({
         {/* History table */}
         {scoreEntries.length > 0 && (
           <div className="mt-4">
-            <h4 className="mb-2 text-sm font-semibold text-slate-700">歷史紀錄</h4>
-            <div className="rounded-lg border border-slate-200 overflow-hidden">
+            <h4 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-300">歷史紀錄</h4>
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50">
+                <thead className="bg-slate-50 dark:bg-slate-800">
                   <tr>
-                    <th className="px-3 py-2 text-left font-medium text-slate-600">時間</th>
-                    <th className="px-3 py-2 text-center font-medium text-slate-600">分數</th>
-                    <th className="px-3 py-2 text-left font-medium text-slate-600">記錄者</th>
+                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-400">時間</th>
+                    <th className="px-3 py-2 text-center font-medium text-slate-600 dark:text-slate-400">分數</th>
+                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-400">記錄者</th>
                     {onDeleteEntry && (
-                      <th className="px-3 py-2 text-center font-medium text-slate-600 w-16">操作</th>
+                      <th className="px-3 py-2 text-center font-medium text-slate-600 dark:text-slate-400 w-16">操作</th>
                     )}
                   </tr>
                 </thead>
                 <tbody>
                   {scoreEntries.map((entry) => (
-                    <tr key={entry.id} className="border-t border-slate-100 hover:bg-slate-50">
-                      <td className="px-3 py-2 text-slate-700">
+                    <tr key={entry.id} className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800">
+                      <td className="px-3 py-2 text-slate-700 dark:text-slate-300">
                         {new Date(entry.timestamp).toLocaleString('zh-TW', {
                           month: '2-digit',
                           day: '2-digit',
@@ -165,7 +165,7 @@ export function ScoreTrendChart({
                         })}
                       </td>
                       <td className="px-3 py-2 text-center font-semibold">{entry.value}</td>
-                      <td className="px-3 py-2 text-slate-500">{entry.recordedBy}</td>
+                      <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{entry.recordedBy}</td>
                       {onDeleteEntry && (
                         <td className="px-3 py-2 text-center">
                           <Button

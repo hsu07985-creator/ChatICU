@@ -112,12 +112,12 @@ function CompatResultCard({ result }: CompatResultCardProps) {
 
   // status === '-'
   return (
-    <div className="rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 space-y-1">
-      <div className="flex items-center gap-2 text-gray-600 font-medium text-sm">
-        <HelpCircle className="h-4 w-4 shrink-0 text-gray-400" />
+    <div className="rounded-lg border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-4 py-3 space-y-1">
+      <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 font-medium text-sm">
+        <HelpCircle className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
         <span>無資料</span>
       </div>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-gray-500 dark:text-gray-400">
         <span className="font-medium">{drug1}</span>
         {' '}&{' '}
         <span className="font-medium">{drug2}</span>
@@ -136,15 +136,15 @@ interface MatrixCellProps {
 function MatrixCell({ status }: MatrixCellProps) {
   if (status === 'self') {
     return (
-      <div className="flex h-8 w-full items-center justify-center rounded bg-gray-100 text-gray-400 text-xs font-bold">
+      <div className="flex h-8 w-full items-center justify-center rounded bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-gray-500 text-xs font-bold">
         —
       </div>
     );
   }
   if (status === 'loading') {
     return (
-      <div className="flex h-8 w-full items-center justify-center rounded bg-gray-50">
-        <Loader2 className="h-3 w-3 animate-spin text-gray-400" />
+      <div className="flex h-8 w-full items-center justify-center rounded bg-gray-50 dark:bg-slate-800">
+        <Loader2 className="h-3 w-3 animate-spin text-gray-400 dark:text-gray-500" />
       </div>
     );
   }
@@ -164,7 +164,7 @@ function MatrixCell({ status }: MatrixCellProps) {
   }
   // '-'
   return (
-    <div className="flex h-8 w-full items-center justify-center rounded bg-gray-50 text-gray-400 text-xs border border-gray-200">
+    <div className="flex h-8 w-full items-center justify-center rounded bg-gray-50 dark:bg-slate-800 text-gray-400 dark:text-gray-500 text-xs border border-gray-200 dark:border-slate-700">
       ?
     </div>
   );
@@ -338,7 +338,7 @@ function IVCompatibilityMatrix({ drugs }: IVCompatibilityMatrixProps) {
               不相容
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block w-4 h-4 rounded bg-gray-50 border border-gray-200 text-center text-gray-400 font-bold leading-4">?</span>
+              <span className="inline-block w-4 h-4 rounded bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-center text-gray-400 dark:text-gray-500 font-bold leading-4">?</span>
               無資料
             </span>
           </div>
@@ -481,7 +481,7 @@ export function IvCompatibilityChecker({ ivMedications }: IvCompatibilityChecker
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <FlaskConical className="h-4 w-4 text-brand" />
-            <CardTitle className="text-base font-semibold leading-tight text-slate-800">IV 相容性快速檢查</CardTitle>
+            <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">IV 相容性快速檢查</CardTitle>
           </div>
           {hasIVMeds && (
             <div className="flex gap-1">

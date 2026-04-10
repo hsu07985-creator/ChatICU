@@ -80,17 +80,17 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
   }, []);
 
   const summaryTone = dose.status === 'calculated'
-    ? 'text-slate-700'
+    ? 'text-slate-700 dark:text-slate-300'
     : dose.status === 'service_unavailable'
-      ? 'text-red-700'
-      : 'text-amber-700';
+      ? 'text-red-700 dark:text-red-300'
+      : 'text-amber-700 dark:text-amber-300';
   const resultBadge = dose.isEquivalentEstimate ? '等效換算' : dose.orderTypeLabel || '連續輸注';
   const doseUnitShort = dose.doseUnit?.replace('/kg', '') || '/hr';
 
   const isModified = minDose !== defaultMin || maxDose !== defaultMax || conc !== defaultConc;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 shadow-sm">
       <div className="flex flex-col gap-3">
         {/* Header */}
         <div className="flex flex-wrap items-center gap-2">
@@ -98,7 +98,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
           <Badge className={statusConfig[dose.status].className}>
             {statusConfig[dose.status].label}
           </Badge>
-          <Badge variant="outline" className="text-xs border-slate-400 text-slate-600">
+          <Badge variant="outline" className="text-xs border-slate-400 dark:border-slate-600 text-slate-600 dark:text-slate-400">
             {resultBadge}
           </Badge>
           {showAdjustmentBadge && (
@@ -124,21 +124,21 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
               {dosePerHrMin} ~ {dosePerHrMax} {doseUnitShort}
             </p>
           </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-center min-w-[80px]">
+          <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-center min-w-[80px]">
             <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">體重</p>
-            <p className="text-sm font-semibold text-slate-700">{dosingWt} kg</p>
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{dosingWt} kg</p>
             <p className="text-[10px] text-muted-foreground">{dose.weightBasis || 'TBW'}</p>
           </div>
         </div>
 
         {/* Three adjustment controls */}
         {canAdjust && (
-          <div className="space-y-3 rounded-lg border border-slate-100 bg-slate-50/50 p-3">
+          <div className="space-y-3 rounded-lg border border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 p-3">
             {/* Min dose slider */}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">最小劑量 ({dose.doseUnit})</span>
-                <span className="font-mono font-medium text-slate-700">{minDose.toFixed(decimals)}</span>
+                <span className="font-mono font-medium text-slate-700 dark:text-slate-300">{minDose.toFixed(decimals)}</span>
               </div>
               <input
                 type="range"
@@ -147,7 +147,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
                 step={sliderStep}
                 value={minDose}
                 onChange={handleMinChange}
-                className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-emerald-600 bg-slate-200"
+                className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-emerald-600 bg-slate-200 dark:bg-slate-700"
               />
               <div className="flex justify-between text-[10px] text-muted-foreground">
                 <span>{defaultMin}</span>
@@ -159,7 +159,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">最大劑量 ({dose.doseUnit})</span>
-                <span className="font-mono font-medium text-slate-700">{maxDose.toFixed(decimals)}</span>
+                <span className="font-mono font-medium text-slate-700 dark:text-slate-300">{maxDose.toFixed(decimals)}</span>
               </div>
               <input
                 type="range"
@@ -168,7 +168,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
                 step={sliderStep}
                 value={maxDose}
                 onChange={handleMaxChange}
-                className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-brand bg-slate-200"
+                className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-brand bg-slate-200 dark:bg-slate-700"
               />
               <div className="flex justify-between text-[10px] text-muted-foreground">
                 <span>{defaultMin}</span>
@@ -180,7 +180,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">濃度 ({dose.concentrationUnit || 'mg/ml'})</span>
-                <span className="font-mono font-medium text-slate-700">{conc}</span>
+                <span className="font-mono font-medium text-slate-700 dark:text-slate-300">{conc}</span>
               </div>
               {(() => {
                 const concMin = dose.concentrationRange ? dose.concentrationRange[0] : Math.max(defaultConc * 0.25, 0.1);
@@ -195,7 +195,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
                       step={concStep}
                       value={conc}
                       onChange={handleConcChange}
-                      className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-violet-600 bg-slate-200"
+                      className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-violet-600 bg-slate-200 dark:bg-slate-700"
                     />
                     <div className="flex justify-between text-[10px] text-muted-foreground">
                       <span>{concMin}</span>

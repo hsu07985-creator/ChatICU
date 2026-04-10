@@ -672,7 +672,7 @@ export function PharmacyWorkstationPage() {
         <div className="lg:col-span-2 space-y-4">
           {/* 病患選擇 */}
           <Card className="border-brand">
-            <CardHeader className="bg-slate-50 py-3">
+            <CardHeader className="bg-slate-50 dark:bg-slate-800 py-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <User className="h-5 w-5 text-brand" />
                 選擇病患
@@ -728,7 +728,7 @@ export function PharmacyWorkstationPage() {
           {/* 用藥列表管理 */}
           {selectedPatient && (
             <Card className="border-brand">
-              <CardHeader className="bg-slate-50 py-3">
+              <CardHeader className="bg-slate-50 dark:bg-slate-800 py-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Pill className="h-5 w-5 text-brand" />
@@ -769,7 +769,7 @@ export function PharmacyWorkstationPage() {
                       {drugList.map((drug, index) => (
                         <div 
                           key={index}
-                          className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg border"
+                          className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800 rounded-lg border dark:border-slate-700"
                         >
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-medium text-muted-foreground w-5 text-right">{index + 1}.</span>

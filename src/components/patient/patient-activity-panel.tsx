@@ -59,7 +59,7 @@ export function PatientActivityPanel({
 
   return (
     <Card>
-      <CardHeader className="bg-slate-50 pb-2">
+      <CardHeader className="bg-slate-50 dark:bg-slate-800 pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Activity className="h-4 w-4 text-brand" />
@@ -70,7 +70,7 @@ export function PatientActivityPanel({
           </CardTitle>
           <div className="flex items-center gap-1">
             <select
-              className="text-xs border border-slate-200 rounded px-1.5 py-0.5 bg-white text-slate-600"
+              className="text-xs border border-slate-200 dark:border-slate-700 rounded px-1.5 py-0.5 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400"
               value={hoursBack}
               onChange={(e) => onHoursBackChange(Number(e.target.value))}
             >
@@ -114,14 +114,14 @@ export function PatientActivityPanel({
         {/* Activity list */}
         <ScrollArea className="max-h-[300px]">
           {loading ? (
-            <div className="flex items-center justify-center py-6 text-sm text-slate-400">
+            <div className="flex items-center justify-center py-6 text-sm text-slate-400 dark:text-slate-500">
               <RefreshCw className="h-4 w-4 animate-spin mr-2" />
               載入中...
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-6 text-center">
               <Activity className="h-12 w-12 text-slate-300 mb-4" />
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-400 dark:text-slate-500">
                 {selectedTag
                   ? `目前無「${selectedTag}」標籤的留言動態`
                   : `過去 ${HOURS_OPTIONS.find(o => o.value === hoursBack)?.label || hoursBack + 'h'} 內無標籤留言`}
@@ -133,12 +133,12 @@ export function PatientActivityPanel({
                 <button
                   key={item.patientId}
                   type="button"
-                  className="w-full text-left rounded-lg border border-slate-200 p-2.5 hover:border-brand hover:bg-[#faf5f8] transition-colors group"
+                  className="w-full text-left rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 hover:border-brand hover:bg-[#faf5f8] dark:hover:bg-slate-800 transition-colors group"
                   onClick={() => onPatientClick(item.patientId)}
                 >
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-sm text-slate-900">{item.patientName}</span>
+                      <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">{item.patientName}</span>
                       {item.bedNumber && (
                         <Badge variant="outline" className="text-xs">{item.bedNumber}</Badge>
                       )}
@@ -162,18 +162,18 @@ export function PatientActivityPanel({
                         {tag}
                       </Badge>
                     ))}
-                    <Badge variant="outline" className="text-[9px] bg-slate-50 text-slate-500 border-slate-200">
+                    <Badge variant="outline" className="text-[9px] bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700">
                       {item.taggedCount} 則
                     </Badge>
                   </div>
 
                   {/* Preview */}
-                  <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2">
                     {item.latestContent}
                   </p>
 
                   {/* Meta */}
-                  <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-400">
+                  <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-400 dark:text-slate-500">
                     <User className="h-2.5 w-2.5" />
                     <span>{item.latestAuthorName}</span>
                     <span className="text-slate-300">·</span>

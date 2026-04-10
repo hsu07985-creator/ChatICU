@@ -169,13 +169,13 @@ export function PatientLabsTab({
     <TabsContent value="labs" className="space-y-3">
       {/* 生命徵象 / 呼吸器 切換按鈕 */}
       <div className="flex justify-start">
-        <div className="inline-flex flex-wrap items-center gap-1 rounded-xl border border-border bg-slate-50 p-1">
+        <div className="inline-flex flex-wrap items-center gap-1 rounded-xl border border-border bg-slate-50 dark:bg-slate-800 p-1">
           <button
             type="button"
             className={`flex h-10 min-w-[136px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors ${
               activeMonitor === 'vital-signs'
                 ? 'bg-brand text-white shadow-sm'
-                : 'bg-transparent text-slate-600 hover:bg-white hover:text-brand'
+                : 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-brand'
             }`}
             onClick={() => setActiveMonitor('vital-signs')}
             aria-pressed={activeMonitor === 'vital-signs'}
@@ -189,7 +189,7 @@ export function PatientLabsTab({
               className={`flex h-10 min-w-[136px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors ${
                 activeMonitor === 'ventilator'
                   ? 'bg-brand text-white shadow-sm'
-                  : 'bg-transparent text-slate-600 hover:bg-white hover:text-brand'
+                  : 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-brand'
               }`}
               onClick={() => setActiveMonitor('ventilator')}
               aria-pressed={activeMonitor === 'ventilator'}
@@ -202,14 +202,14 @@ export function PatientLabsTab({
       </div>
 
       {/* 篩選按鈕（生命徵象 & 呼吸器共用） */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white/80 px-3 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
               monitorOnlyAbnormal
                 ? 'border-brand bg-brand text-white'
-                : 'border-slate-300 bg-white text-slate-700 hover:border-brand/40'
+                : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-brand/40'
             }`}
             aria-pressed={monitorOnlyAbnormal}
             onClick={() => setMonitorOnlyAbnormal((prev) => !prev)}
@@ -221,7 +221,7 @@ export function PatientLabsTab({
             className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
               monitorHideMissing
                 ? 'border-brand bg-brand text-white'
-                : 'border-slate-300 bg-white text-slate-700 hover:border-brand/40'
+                : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-brand/40'
             }`}
             aria-pressed={monitorHideMissing}
             onClick={() => setMonitorHideMissing((prev) => !prev)}
@@ -229,7 +229,7 @@ export function PatientLabsTab({
             隱藏無資料
           </button>
         </div>
-        <span className="text-xs text-slate-500">高效率篩選</span>
+        <span className="text-xs text-slate-500 dark:text-slate-400">高效率篩選</span>
       </div>
 
       {/* 生命徵象 / 呼吸器 內容 */}
@@ -239,9 +239,9 @@ export function PatientLabsTab({
             <LoadingSpinner size="md" text="載入生命徵象..." />
           </div>
         ) : !hasAnyVitalSign ? (
-          <p className="py-2 text-center text-sm text-slate-400">尚無生命徵象資料</p>
+          <p className="py-2 text-center text-sm text-slate-400 dark:text-slate-500">尚無生命徵象資料</p>
         ) : filterItems(vitalItems).length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">
+          <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
             目前篩選條件下沒有可顯示的項目
           </div>
         ) : (
@@ -268,7 +268,7 @@ export function PatientLabsTab({
         ) : (
           <div className="space-y-3">
             {filterItems(ventItems).length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">
+              <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
                 目前篩選條件下沒有可顯示的項目
               </div>
             ) : (
@@ -290,10 +290,10 @@ export function PatientLabsTab({
 
             {/* 脫機評估 */}
             {weaningAssessment && (
-              <Card className="bg-blue-50 border-blue-200">
+              <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Stethoscope className="h-5 w-5 text-blue-600" />
+                    <Stethoscope className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                     脫機評估 Weaning Assessment
                   </CardTitle>
                   <CardDescription>
@@ -304,25 +304,25 @@ export function PatientLabsTab({
                   <div className="grid gap-4 md:grid-cols-4 mb-4">
                     <div className="text-center">
                       <p className="text-sm text-muted-foreground">RSBI</p>
-                      <p className={`text-2xl font-bold ${weaningAssessment.rsbi > 105 ? 'text-red-600' : 'text-green-600'}`}>
+                      <p className={`text-2xl font-bold ${weaningAssessment.rsbi > 105 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                         {weaningAssessment.rsbi}
                       </p>
                     </div>
                     <div className="text-center">
                       <p className="text-sm text-muted-foreground">NIF</p>
-                      <p className={`text-2xl font-bold ${weaningAssessment.nif > -25 ? 'text-red-600' : 'text-green-600'}`}>
+                      <p className={`text-2xl font-bold ${weaningAssessment.nif > -25 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                         {weaningAssessment.nif} cmH₂O
                       </p>
                     </div>
                     <div className="text-center">
                       <p className="text-sm text-muted-foreground">準備度分數</p>
-                      <p className={`text-2xl font-bold ${weaningAssessment.readinessScore >= 70 ? 'text-green-600' : 'text-orange-600'}`}>
+                      <p className={`text-2xl font-bold ${weaningAssessment.readinessScore >= 70 ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
                         {weaningAssessment.readinessScore}%
                       </p>
                     </div>
                     <div className="text-center">
                       <p className="text-sm text-muted-foreground">建議</p>
-                      <Badge className={weaningAssessment.recommendation.includes('可以') ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}>
+                      <Badge className={weaningAssessment.recommendation.includes('可以') ? 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300' : 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300'}>
                         {weaningAssessment.recommendation}
                       </Badge>
                     </div>
@@ -335,13 +335,13 @@ export function PatientLabsTab({
       ) : null}
 
       <div className="flex justify-start">
-        <div className="inline-flex flex-wrap items-center gap-1 rounded-xl border border-border bg-slate-50 p-1">
+        <div className="inline-flex flex-wrap items-center gap-1 rounded-xl border border-border bg-slate-50 dark:bg-slate-800 p-1">
           <button
             type="button"
             className={`flex h-10 min-w-[136px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors ${
               activeSection === 'lab-data'
                 ? 'bg-brand text-white shadow-sm'
-                : 'bg-transparent text-slate-600 hover:bg-white hover:text-brand'
+                : 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-brand'
             }`}
             onClick={() => setActiveSection('lab-data')}
             aria-pressed={activeSection === 'lab-data'}
@@ -354,7 +354,7 @@ export function PatientLabsTab({
             className={`flex h-10 min-w-[136px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors ${
               activeSection === 'microbiology'
                 ? 'bg-brand text-white shadow-sm'
-                : 'bg-transparent text-slate-600 hover:bg-white hover:text-brand'
+                : 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-brand'
             }`}
             onClick={() => setActiveSection('microbiology')}
             aria-pressed={activeSection === 'microbiology'}
@@ -367,7 +367,7 @@ export function PatientLabsTab({
             className={`flex h-10 min-w-[136px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors ${
               activeSection === 'reports'
                 ? 'bg-brand text-white shadow-sm'
-                : 'bg-transparent text-slate-600 hover:bg-white hover:text-brand'
+                : 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-brand'
             }`}
             onClick={() => setActiveSection('reports')}
             aria-pressed={activeSection === 'reports'}

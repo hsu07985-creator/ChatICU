@@ -170,22 +170,22 @@ const EMPTY_MEDICATION_GROUPS: MedicationGroups = {
 };
 
 const MED_CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
-  antibiotic: { label: '抗生素', color: 'bg-amber-100 text-amber-800' },
-  antifungal: { label: '抗黴菌', color: 'bg-amber-100 text-amber-800' },
-  antiviral: { label: '抗病毒', color: 'bg-amber-100 text-amber-800' },
-  vasopressor: { label: '升壓劑', color: 'bg-red-100 text-red-800' },
-  anticoagulant: { label: '抗凝血', color: 'bg-rose-100 text-rose-800' },
-  steroid: { label: '類固醇', color: 'bg-orange-100 text-orange-800' },
-  ppi: { label: 'PPI', color: 'bg-sky-100 text-sky-800' },
-  h2_blocker: { label: 'H2 Blocker', color: 'bg-sky-100 text-sky-800' },
-  diuretic: { label: '利尿劑', color: 'bg-cyan-100 text-cyan-800' },
-  insulin: { label: '胰島素', color: 'bg-teal-100 text-teal-800' },
-  electrolyte: { label: '電解質', color: 'bg-emerald-100 text-emerald-800' },
-  bronchodilator: { label: '支氣管擴張', color: 'bg-indigo-100 text-indigo-800' },
-  antiarrhythmic: { label: '抗心律不整', color: 'bg-pink-100 text-pink-800' },
-  antiepileptic: { label: '抗癲癇', color: 'bg-purple-100 text-purple-800' },
-  laxative: { label: '緩瀉劑', color: 'bg-lime-100 text-lime-800' },
-  antiemetic: { label: '止吐', color: 'bg-green-100 text-green-800' },
+  antibiotic: { label: '抗生素', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' },
+  antifungal: { label: '抗黴菌', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' },
+  antiviral: { label: '抗病毒', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' },
+  vasopressor: { label: '升壓劑', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' },
+  anticoagulant: { label: '抗凝血', color: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300' },
+  steroid: { label: '類固醇', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' },
+  ppi: { label: 'PPI', color: 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300' },
+  h2_blocker: { label: 'H2 Blocker', color: 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300' },
+  diuretic: { label: '利尿劑', color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300' },
+  insulin: { label: '胰島素', color: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300' },
+  electrolyte: { label: '電解質', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' },
+  bronchodilator: { label: '支氣管擴張', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' },
+  antiarrhythmic: { label: '抗心律不整', color: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300' },
+  antiepileptic: { label: '抗癲癇', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' },
+  laxative: { label: '緩瀉劑', color: 'bg-lime-100 text-lime-800 dark:bg-lime-900/30 dark:text-lime-300' },
+  antiemetic: { label: '止吐', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' },
 };
 
 function formatAiDegradedReason(reason?: string | null, upstreamStatus?: string | null): string {
@@ -1132,43 +1132,91 @@ export function PatientDetailPage() {
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/patients')} className="hover:bg-slate-50" title="返回病人清單">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/patients')} className="hover:bg-slate-50 dark:hover:bg-slate-800" title="返回病人清單">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div className="flex items-center gap-4">
                 <div className="h-16 w-16 rounded-full bg-brand text-white flex items-center justify-center font-bold text-2xl shadow-lg">
-                  {patient.bedNumber}
+                  {patient.bedNumber || '-'}
                 </div>
                 <div>
                   <div className="flex items-center gap-3">
                     <h1 className="text-3xl font-bold text-[#3c7acb]">{patient.name}</h1>
-                    {patient.intubated && (
-                      <Badge className="bg-[#d1cbf7] text-brand hover:bg-[#d1cbf7]/90">
-                        插管中
+                    <span className="text-base text-slate-500 dark:text-slate-400">
+                      {patient.age}歲 / {patient.gender === 'M' || patient.gender === '男' ? '男' : '女'}
+                    </span>
+                    {patient.bloodType && (
+                      <Badge variant="outline" className="border-red-200 text-red-700 font-semibold dark:border-red-700 dark:text-red-300">
+                        <Droplet className="mr-1 h-3 w-3" />{patient.bloodType}
                       </Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1 bg-white px-3 py-1 rounded-full">
-                      <Clock className="h-4 w-4" />
+                  <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground flex-wrap">
+                    {patient.medicalRecordNumber && (
+                      <span className="text-slate-500 dark:text-slate-400">病歷號 {patient.medicalRecordNumber}</span>
+                    )}
+                    {patient.department && (
+                      <span className="text-slate-500 dark:text-slate-400">{patient.department}</span>
+                    )}
+                    {patient.attendingPhysician && (
+                      <span className="text-slate-500 dark:text-slate-400">主治：{patient.attendingPhysician}</span>
+                    )}
+                    <span className="flex items-center gap-1 bg-white dark:bg-slate-800 px-3 py-1 rounded-full">
+                      <Clock className="h-3.5 w-3.5" />
                       住院 {daysAdmitted} 天
                     </span>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+              {/* 臨床旗標 badges */}
+              {patient.intubated && (
+                <Badge className="bg-[#d1cbf7] text-brand hover:bg-[#d1cbf7]/90">
+                  插管中
+                </Badge>
+              )}
+              {patient.hasDNR && (
+                <Badge className="bg-red-100 text-red-700 hover:bg-red-100/90 border border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700">
+                  <Shield className="mr-1 h-3 w-3" />DNR
+                </Badge>
+              )}
+              {patient.isIsolated && (
+                <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100/90 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700">
+                  隔離中
+                </Badge>
+              )}
               {user?.role === 'admin' && (
                 <Button className="bg-brand hover:bg-brand-hover">編輯基本資料</Button>
               )}
             </div>
           </div>
+          {/* 診斷 + alerts */}
+          {(patient.diagnosis || (patient.alerts && patient.alerts.length > 0)) && (
+            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-1.5">
+              {patient.diagnosis && patient.diagnosis !== '待確認' && (
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">診斷：</span>{patient.diagnosis}
+                </p>
+              )}
+              {patient.alerts && patient.alerts.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+                  {patient.alerts.map((alert: string, idx: number) => (
+                    <Badge key={idx} variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 text-xs dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700">
+                      {alert}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* 分頁內容 */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-6 h-[44px] bg-slate-50 border border-border gap-0.5 p-0.5">
+        <TabsList className="grid w-full grid-cols-6 h-[44px] bg-slate-50 dark:bg-slate-800 border border-border gap-0.5 p-0.5">
           <TabsTrigger value="chat" className="text-xs font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
             <MessageSquare className="mr-1.5 h-4 w-4" />
             對話助手
@@ -1207,7 +1255,7 @@ export function PatientDetailPage() {
             {showSessionList && (
               <div className="col-span-3">
                 <Card className="border">
-                  <CardHeader className="bg-slate-50 border-b py-1.5 px-3" style={{ paddingBottom: '6px' }}>
+                  <CardHeader className="bg-slate-50 dark:bg-slate-800 border-b py-1.5 px-3" style={{ paddingBottom: '6px' }}>
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-1 text-xs font-semibold text-[#374151]">
                         <History className="h-3.5 w-3.5 text-muted-foreground" />
@@ -1230,7 +1278,7 @@ export function PatientDetailPage() {
                         {!isSelectMode && (
                           <Button
                             size="sm"
-                            className="h-6 px-2 text-xs bg-gray-700 hover:bg-gray-700 text-white"
+                            className="h-6 px-2 text-xs bg-gray-700 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500 text-white"
                             onClick={() => {
                               setSelectedSession(null);
                               setChatMessages([]);
@@ -1320,11 +1368,11 @@ export function PatientDetailPage() {
 	                                  setChatMessages([]);
 	                                }
 	                              }}
-	                              className={`group w-full text-left px-2.5 py-2 rounded-lg border transition-all hover:bg-slate-50 ${
+	                              className={`group w-full text-left px-2.5 py-2 rounded-lg border transition-all hover:bg-slate-50 dark:hover:bg-slate-800 ${
 	                                isSelectMode && selectedSessionIds.includes(session.id)
-	                                  ? 'bg-red-50 border-red-200'
+	                                  ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-700'
 	                                  : selectedSession?.id === session.id
-	                                    ? 'bg-slate-50 border-border'
+	                                    ? 'bg-slate-50 border-border dark:bg-slate-800'
 	                                    : 'border-transparent'
                               }`}
                             >
@@ -1355,12 +1403,12 @@ export function PatientDetailPage() {
                                 </div>
                                 {!isSelectMode && (
                                   <div className="flex items-center gap-1 shrink-0">
-	                                  <Badge className="text-xs bg-gray-100 text-[#374151] border border-border">
+	                                  <Badge className="text-xs bg-gray-100 dark:bg-gray-700 text-[#374151] dark:text-gray-200 border border-border">
 	                                    {session.messageCount ?? session.messages.length}
 	                                  </Badge>
                                     <button
                                       onClick={(e) => handleDeleteSession(e, session.id)}
-                                      className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 text-muted-foreground hover:text-red-600"
+                                      className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
                                       title="刪除對話"
                                     >
                                       <Trash2 className="h-3.5 w-3.5" />
@@ -1381,7 +1429,7 @@ export function PatientDetailPage() {
             {/* 右側對話區 */}
             <div className={showSessionList ? "col-span-9" : "col-span-12"}>
               <Card className="border">
-                <CardHeader className="bg-slate-50 border-b py-1 px-3" style={{ paddingBottom: '4px' }}>
+                <CardHeader className="bg-slate-50 dark:bg-slate-800 border-b py-1 px-3" style={{ paddingBottom: '4px' }}>
                   <div className="flex items-center gap-1.5">
                     <div className="flex-1" />
                     <div className="flex items-center gap-1">
@@ -1421,7 +1469,7 @@ export function PatientDetailPage() {
                         return (
                           <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}${isFirstOfRound ? ' mt-3' : ''}`}>
                             {msg.role === 'user' ? (
-                              <div className="max-w-[65%] w-fit rounded-2xl px-4 py-2.5 bg-white border border-border">
+                              <div className="max-w-[65%] w-fit rounded-2xl px-4 py-2.5 bg-white dark:bg-slate-900 border border-border">
                                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1F2937]">{msg.content}</p>
                                 {msg.timestamp && (
                                   <p className="text-xs text-[#9ca3af] mt-1.5 text-right">{msg.timestamp}</p>
@@ -1431,7 +1479,7 @@ export function PatientDetailPage() {
                               <div className="flex items-start gap-2 max-w-[92%]">
                                 {/* AI avatar */}
                                 <img src={chatBotAvatar} alt="AI" className="h-8 w-8 rounded-full shadow-sm shrink-0 mt-0.5 object-cover" />
-                              <div className="flex flex-1 min-w-0 rounded-2xl bg-white border border-border overflow-hidden">
+                              <div className="flex flex-1 min-w-0 rounded-2xl bg-white dark:bg-slate-900 border border-border overflow-hidden">
                                 {/* Accent bar */}
                                 <div className="w-[3px] shrink-0 rounded-l-full" style={{ backgroundColor: '#d1d5db' }} />
                                 {/* Content */}
@@ -1455,7 +1503,7 @@ export function PatientDetailPage() {
                                         <AiMarkdown content={msg.explanation} className="text-xs" />
                                         <SafetyWarnings warnings={msg.warnings} />
                                         {msg.requiresExpertReview && (
-                                          <div className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                                          <div className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700">
                                             此回覆包含潛在高風險資訊，建議醫師/藥師覆核。
                                           </div>
                                         )}
@@ -1464,7 +1512,7 @@ export function PatientDetailPage() {
 
                                     {/* References panel */}
                                     {isRefsExpanded && (
-                                      <div className="mt-2 rounded-md bg-slate-50 border border-border p-2.5">
+                                      <div className="mt-2 rounded-md bg-slate-50 dark:bg-slate-800 border border-border p-2.5">
                                         {references.length === 0 ? (
                                           <p className="text-xs text-muted-foreground">本次回答未擷取到可顯示的文獻段落，可改用更具體關鍵詞再詢問。</p>
                                         ) : (
@@ -1488,7 +1536,7 @@ export function PatientDetailPage() {
                                                           <span className="font-medium text-[#374151]">重點：</span>{ref.summary}
                                                         </p>
                                                         {ref.keyQuote && (
-                                                          <div className="rounded border border-[#d1d5db] bg-white px-2 py-1.5 text-xs leading-relaxed text-muted-foreground italic">
+                                                          <div className="rounded border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs leading-relaxed text-muted-foreground italic">
                                                             「{ref.keyQuote}」
                                                           </div>
                                                         )}
@@ -1499,14 +1547,14 @@ export function PatientDetailPage() {
                                                     ) : Array.isArray(ref.snippets) && ref.snippets.length > 1 ? (
                                                       <div className="mt-1 space-y-1.5">
                                                         {ref.snippets.map((s, si) => (
-                                                          <div key={si} className="rounded border border-[#d1d5db] bg-white p-2 text-xs leading-relaxed text-[#374151] whitespace-pre-wrap">
+                                                          <div key={si} className="rounded border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 p-2 text-xs leading-relaxed text-[#374151] dark:text-slate-200 whitespace-pre-wrap">
                                                             <span className="inline-block text-xs font-medium mb-0.5 text-muted-foreground">段落 {si + 1}</span>
                                                             <div>{compactSnippet(s)}</div>
                                                           </div>
                                                         ))}
                                                       </div>
                                                     ) : ref.snippet && ref.snippet.trim().length > 0 ? (
-                                                      <div className="mt-1 rounded border border-[#d1d5db] bg-white p-2 text-xs leading-relaxed text-[#374151] whitespace-pre-wrap max-h-32 overflow-y-auto">
+                                                      <div className="mt-1 rounded border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 p-2 text-xs leading-relaxed text-[#374151] dark:text-slate-200 whitespace-pre-wrap max-h-32 overflow-y-auto">
                                                         {compactSnippet(ref.snippet)}
                                                       </div>
                                                     ) : (
@@ -1523,7 +1571,7 @@ export function PatientDetailPage() {
 
                                     {/* Data quality panel */}
                                     {isQualityExpanded && hasDataQuality && (
-                                      <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 px-2.5 py-2 text-xs text-amber-700 flex items-start gap-1.5">
+                                      <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 px-2.5 py-2 text-xs text-amber-700 flex items-start gap-1.5 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300">
                                         <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                                         <div className="space-y-0.5">
                                           {msg.degraded && <p>系統狀態：{formatAiDegradedReason(msg.degradedReason, msg.upstreamStatus)}</p>}
@@ -1622,7 +1670,7 @@ export function PatientDetailPage() {
                     {showScrollToBottom && (
                       <button
                         onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                        className="sticky bottom-2 ml-auto flex items-center gap-1 text-white text-xs rounded-full px-3 py-1.5 shadow-lg transition-colors z-10 bg-gray-700 hover:bg-gray-700"
+                        className="sticky bottom-2 ml-auto flex items-center gap-1 text-white text-xs rounded-full px-3 py-1.5 shadow-lg transition-colors z-10 bg-gray-700 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500"
                         aria-label="跳到最新訊息"
                       >
                         <ArrowDown className="h-3.5 w-3.5" />
@@ -1632,7 +1680,7 @@ export function PatientDetailPage() {
                   </div>
 
                   {/* 輸入區 */}
-                  <div className="flex-none px-4 pb-1.5 pt-0 border-t border-border bg-white">
+                  <div className="flex-none px-4 pb-1.5 pt-0 border-t border-border bg-white dark:bg-slate-900">
                     <div className="flex gap-2 pt-1.5 items-end">
                       <Textarea
                         ref={chatInputRef}
@@ -1648,7 +1696,7 @@ export function PatientDetailPage() {
                         className={`min-h-[36px] border text-xs transition-colors rounded-xl ${
                           canSendAiChat
                             ? 'border-border'
-                            : 'border-border bg-slate-50 text-[#9ca3af] cursor-not-allowed'
+                            : 'border-border bg-slate-50 dark:bg-slate-800 text-[#9ca3af] cursor-not-allowed'
                         }`}
                         disabled={!canSendAiChat}
                       />
@@ -1657,8 +1705,8 @@ export function PatientDetailPage() {
                         size="icon"
                         className={`h-[36px] w-[36px] shrink-0 transition-colors rounded-xl ${
                           canSendAiChat
-                            ? 'bg-gray-700 hover:bg-gray-700'
-                            : 'bg-[#d1d5db] cursor-not-allowed'
+                            ? 'bg-gray-700 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500'
+                            : 'bg-[#d1d5db] dark:bg-gray-600 cursor-not-allowed'
                         }`}
                         disabled={isSending || !chatInput.trim() || !canSendAiChat}>
                         <Send className={`h-4.5 w-4.5 ${isSending ? 'opacity-40' : ''}`} />

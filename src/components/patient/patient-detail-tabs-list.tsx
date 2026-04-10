@@ -8,7 +8,7 @@ interface PatientDetailTabsListProps {
 
 export function PatientDetailTabsList({ unreadMessagesCount }: PatientDetailTabsListProps) {
   return (
-    <TabsList className="grid w-full grid-cols-6 h-[44px] bg-slate-50 border border-border gap-0.5 p-0.5">
+    <TabsList className="grid w-full grid-cols-6 h-[44px] bg-slate-50 dark:bg-slate-800 border border-border gap-0.5 p-0.5">
       <TabsTrigger value="chat" className="text-[13px] font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
         <MessageSquare className="mr-1.5 h-4 w-4" />
         對話助手

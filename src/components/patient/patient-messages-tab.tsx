@@ -383,7 +383,7 @@ export function PatientMessagesTab({
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2 text-base font-semibold text-slate-800">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold text-slate-800 dark:text-slate-200">
                 <MessagesSquare className="h-4 w-4 text-slate-600" />
                 病患留言板
               </CardTitle>
@@ -403,10 +403,10 @@ export function PatientMessagesTab({
         </CardHeader>
         <CardContent className="space-y-3 pt-0">
           {/* ── 新增留言 ── */}
-          <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
+          <div className="space-y-2 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3">
             <div className="flex items-center gap-1.5">
-              <Send className="h-3.5 w-3.5 text-slate-500" />
-              <span className="text-sm font-medium text-slate-600">新增留言</span>
+              <Send className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+              <span className="text-sm font-medium text-slate-600 dark:text-slate-400">新增留言</span>
             </div>
 
             {/* 回覆指示條 */}
@@ -431,7 +431,7 @@ export function PatientMessagesTab({
 
             {/* 標籤選擇 */}
             <div className="flex flex-wrap items-center gap-1">
-              <span className="text-xs font-medium text-slate-500">標籤:</span>
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">標籤:</span>
               {composeTags.map((tag) => (
                 <Badge
                   key={tag}
@@ -469,7 +469,7 @@ export function PatientMessagesTab({
 
             {/* 角色提及 */}
             <div className="flex flex-wrap items-center gap-1">
-              <span className="text-xs font-medium text-slate-500">提及:</span>
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">提及:</span>
               {(['doctor', 'np', 'nurse', 'pharmacist', 'admin'] as const).map((role) => {
                 const selected = composeMentionedRoles.includes(role);
                 const cfg = ROLE_CONFIG[role];
@@ -481,7 +481,7 @@ export function PatientMessagesTab({
                     className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium border transition-colors ${
                       selected
                         ? 'bg-orange-100 text-orange-800 border-orange-300'
-                        : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                        : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
                     }`}
                   >
                     @{cfg.label}
@@ -514,7 +514,7 @@ export function PatientMessagesTab({
                     className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 h-7 text-xs transition-colors ${
                       filterTag
                         ? 'border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
-                        : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                     }`}
                   >
                     <Filter className="h-3.5 w-3.5" />
@@ -535,7 +535,7 @@ export function PatientMessagesTab({
                               className={`flex items-center justify-between w-full rounded px-2 py-1 text-xs transition-colors ${
                                 filterTag === tag
                                   ? 'bg-indigo-600 text-white'
-                                  : 'hover:bg-slate-50 text-slate-700'
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
                               }`}
                               onClick={() => setFilterTag(filterTag === tag ? null : tag)}
                             >
@@ -618,7 +618,7 @@ export function PatientMessagesTab({
           {/* ── 留言列表 ── */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-slate-700">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                 團隊留言 ({filteredMessages.length})
                 {filterTag && (
                   <span className="ml-1 font-normal text-xs text-indigo-600">
@@ -658,7 +658,7 @@ export function PatientMessagesTab({
 
                     return (
                       <div key={message.id}>
-                        <div className={`rounded-md border border-slate-200 border-l-[3px] ${
+                        <div className={`rounded-md border border-slate-200 dark:border-slate-700 border-l-[3px] ${
                           userRole && message.mentionedRoles?.includes(userRole)
                             ? 'border-l-orange-400 bg-orange-50/30'
                             : typeStyle
@@ -666,7 +666,7 @@ export function PatientMessagesTab({
                           <div className="flex items-center justify-between gap-2 px-3 pt-2.5 pb-1">
                             <div className="flex items-center gap-2 min-w-0">
                               <RoleIcon className={`h-4 w-4 shrink-0 ${roleCfg.color}`} />
-                              <span className="text-sm font-medium text-slate-900 truncate">{message.authorName}</span>
+                              <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{message.authorName}</span>
                               <Badge variant="outline" className="text-xs shrink-0">{roleCfg.label}</Badge>
                               {message.messageType === 'medication-advice' && (
                                 <Badge className="bg-green-600 text-white text-xs shrink-0 hover:bg-green-600">用藥建議</Badge>
@@ -757,7 +757,7 @@ export function PatientMessagesTab({
                             </div>
                           </div>
                           <div className="px-3 pb-2.5">
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap text-slate-800">{message.content}</p>
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap text-slate-800 dark:text-slate-200">{message.content}</p>
                             <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
                               <Clock className="h-3.5 w-3.5" />
                               <span>{formatTimestamp(message.timestamp)}</span>
@@ -810,14 +810,14 @@ export function PatientMessagesTab({
                               const replyRoleCfg = ROLE_CONFIG[reply.authorRole ?? ''] ?? { icon: User, color: 'text-slate-500', label: '使用者' };
                               const ReplyRoleIcon = replyRoleCfg.icon;
                               return (
-                                <div key={reply.id} className="rounded-md border border-slate-100 bg-slate-50/50 px-2.5 py-2">
+                                <div key={reply.id} className="rounded-md border border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 px-2.5 py-2">
                                   <div className="flex items-center gap-1.5 text-xs">
                                     <ReplyRoleIcon className={`h-3.5 w-3.5 ${replyRoleCfg.color}`} />
-                                    <span className="font-medium text-slate-800">{reply.authorName}</span>
+                                    <span className="font-medium text-slate-800 dark:text-slate-200">{reply.authorName}</span>
                                     <Badge variant="outline" className="text-xs">{replyRoleCfg.label}</Badge>
                                     <span className="text-muted-foreground ml-auto">{formatTimestamp(reply.timestamp)}</span>
                                   </div>
-                                  <p className="text-sm leading-relaxed whitespace-pre-wrap text-slate-700 mt-1">{reply.content}</p>
+                                  <p className="text-sm leading-relaxed whitespace-pre-wrap text-slate-700 dark:text-slate-300 mt-1">{reply.content}</p>
                                 </div>
                               );
                             })}
@@ -830,7 +830,7 @@ export function PatientMessagesTab({
                   if (group.isRecent) {
                     return (
                       <div key={group.key} className="space-y-2">
-                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                           <Clock className="h-3.5 w-3.5" />
                           <span className="font-medium">{group.label}</span>
                         </div>
@@ -841,10 +841,10 @@ export function PatientMessagesTab({
 
                   return (
                     <Collapsible key={group.key}>
-                      <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-left hover:bg-slate-100 transition-colors group">
+                      <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group">
                         <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-data-[state=open]:rotate-90" />
-                        <span className="text-sm font-medium text-slate-700">{group.label}</span>
-                        <span className="text-xs text-slate-500">{group.messages.length} 則留言</span>
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{group.label}</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">{group.messages.length} 則留言</span>
                         <div className="flex items-center gap-1.5 ml-auto">
                           {group.unreadCount > 0 && (
                             <Badge variant="destructive" className="text-xs">{group.unreadCount} 未讀</Badge>

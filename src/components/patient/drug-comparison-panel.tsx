@@ -33,11 +33,11 @@ const INTENT_LABELS: Record<string, string> = {
 };
 
 const SOURCE_LABELS: Record<string, { label: string; colorClasses: string }> = {
-  clinical_rag_guideline: { label: '指引', colorClasses: 'border-blue-300 bg-blue-50 text-blue-800' },
-  clinical_rag_pad: { label: 'PAD', colorClasses: 'border-blue-300 bg-blue-50 text-blue-800' },
-  clinical_rag_nhi: { label: '健保', colorClasses: 'border-teal-300 bg-teal-50 text-teal-800' },
-  drug_rag_qdrant: { label: '藥品DB', colorClasses: 'border-green-300 bg-green-50 text-green-800' },
-  drug_graph: { label: '交互作用圖', colorClasses: 'border-orange-300 bg-orange-50 text-orange-800' },
+  clinical_rag_guideline: { label: '指引', colorClasses: 'border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30 text-blue-800 dark:text-blue-400' },
+  clinical_rag_pad: { label: 'PAD', colorClasses: 'border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30 text-blue-800 dark:text-blue-400' },
+  clinical_rag_nhi: { label: '健保', colorClasses: 'border-teal-300 dark:border-teal-700 bg-teal-50 dark:bg-teal-950/30 text-teal-800 dark:text-teal-400' },
+  drug_rag_qdrant: { label: '藥品DB', colorClasses: 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950/30 text-green-800 dark:text-green-400' },
+  drug_graph: { label: '交互作用圖', colorClasses: 'border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-950/30 text-orange-800 dark:text-orange-400' },
 };
 
 // ─── Sub-components ─────────────────────────────────────────────
@@ -45,7 +45,7 @@ const SOURCE_LABELS: Record<string, { label: string; colorClasses: string }> = {
 function IntentTag({ intent }: { intent: string }) {
   const label = INTENT_LABELS[intent] ?? intent;
   return (
-    <Badge className="border-teal-300 bg-teal-50 text-teal-800 border text-xs">
+    <Badge className="border-teal-300 dark:border-teal-700 bg-teal-50 dark:bg-teal-950/30 text-teal-800 dark:text-teal-400 border text-xs">
       {label}
     </Badge>
   );
@@ -55,7 +55,7 @@ function SourceBadges({ sourcesUsed }: { sourcesUsed: string[] }) {
   if (!sourcesUsed || sourcesUsed.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-1 items-center">
-      <span className="text-xs text-slate-500">來源：</span>
+      <span className="text-xs text-slate-500 dark:text-slate-400">來源：</span>
       {sourcesUsed.map((src) => {
         const info = SOURCE_LABELS[src];
         if (!info) {
@@ -78,7 +78,7 @@ function SourceBadges({ sourcesUsed }: { sourcesUsed: string[] }) {
 function CitationCard({ citation }: { citation: UnifiedCitationItem }) {
   const sourceInfo = SOURCE_LABELS[citation.source_system];
   return (
-    <div className="rounded-md border border-slate-200 bg-white p-2.5 space-y-1">
+    <div className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2.5 space-y-1">
       <div className="flex flex-wrap items-center gap-1.5">
         {sourceInfo ? (
           <Badge className={`text-xs border ${sourceInfo.colorClasses}`}>
@@ -90,20 +90,20 @@ function CitationCard({ citation }: { citation: UnifiedCitationItem }) {
           </Badge>
         )}
         {citation.evidence_grade && (
-          <Badge variant="outline" className="text-xs border-slate-300 text-slate-600">
+          <Badge variant="outline" className="text-xs border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400">
             {citation.evidence_grade}
           </Badge>
         )}
-        <span className="text-xs text-slate-400 ml-auto">
+        <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto">
           相關度 {Math.round(citation.relevance_score * 100)}%
         </span>
       </div>
       {citation.source_file && (
-        <p className="text-xs font-medium text-slate-700 truncate" title={citation.source_file}>
+        <p className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate" title={citation.source_file}>
           {citation.source_file}
         </p>
       )}
-      <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">
+      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-3">
         {citation.text_snippet}
       </p>
       {citation.drug_names && citation.drug_names.length > 0 && (
@@ -111,7 +111,7 @@ function CitationCard({ citation }: { citation: UnifiedCitationItem }) {
           {citation.drug_names.map((drug) => (
             <span
               key={drug}
-              className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600"
+              className="rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[11px] text-slate-600 dark:text-slate-400"
             >
               {drug}
             </span>
@@ -126,7 +126,7 @@ function ComparisonResult({ data }: { data: UnifiedQueryData }) {
   const [citationsOpen, setCitationsOpen] = useState(false);
 
   return (
-    <div className="space-y-3 rounded-lg border border-teal-200 bg-teal-50/30 p-3">
+    <div className="space-y-3 rounded-lg border border-teal-200 dark:border-teal-800 bg-teal-50/30 dark:bg-teal-950/20 p-3">
       {/* Intent + Confidence row */}
       <div className="flex flex-wrap items-center gap-2">
         <IntentTag intent={data.intent} />
@@ -137,7 +137,7 @@ function ComparisonResult({ data }: { data: UnifiedQueryData }) {
       <ExpertReviewWarning show={data.requires_expert_review} />
 
       {/* Main answer */}
-      <div className="rounded-md border border-teal-100 bg-white p-3">
+      <div className="rounded-md border border-teal-100 dark:border-teal-800 bg-white dark:bg-slate-900 p-3">
         <AiMarkdown content={data.answer} className="text-sm" />
       </div>
 
@@ -149,11 +149,11 @@ function ComparisonResult({ data }: { data: UnifiedQueryData }) {
       {/* Detected drugs as pill badges */}
       {data.detected_drugs && data.detected_drugs.length > 0 && (
         <div className="flex flex-wrap items-center gap-1">
-          <span className="text-xs text-slate-500">偵測到的藥物：</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">偵測到的藥物：</span>
           {data.detected_drugs.map((drug) => (
             <span
               key={drug}
-              className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] text-teal-700"
+              className="rounded-full bg-teal-100 dark:bg-teal-900/40 px-2 py-0.5 text-[11px] text-teal-700 dark:text-teal-400"
             >
               {drug}
             </span>
@@ -167,7 +167,7 @@ function ComparisonResult({ data }: { data: UnifiedQueryData }) {
           <CollapsibleTrigger asChild>
             <button
               type="button"
-              className="flex items-center gap-1 text-xs text-teal-700 hover:text-teal-900 transition-colors"
+              className="flex items-center gap-1 text-xs text-teal-700 dark:text-teal-400 hover:text-teal-900 dark:hover:text-teal-300 transition-colors"
             >
               {citationsOpen ? (
                 <ChevronUp className="h-3.5 w-3.5" />
@@ -223,7 +223,7 @@ export function DrugComparisonPanel() {
   }
 
   return (
-    <Card className="border border-teal-200">
+    <Card className="border border-teal-200 dark:border-teal-800">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <GitCompareArrows className="h-4 w-4 text-teal-600" />
@@ -237,7 +237,7 @@ export function DrugComparisonPanel() {
         {/* Side-by-side drug inputs */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
-            <label className="text-xs text-slate-500 font-medium">藥品 A</label>
+            <label className="text-xs text-slate-500 dark:text-slate-400 font-medium">藥品 A</label>
             <Input
               placeholder="藥品 A（例：Lipitor）"
               value={drugA}
@@ -247,7 +247,7 @@ export function DrugComparisonPanel() {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-slate-500 font-medium">藥品 B</label>
+            <label className="text-xs text-slate-500 dark:text-slate-400 font-medium">藥品 B</label>
             <Input
               placeholder="藥品 B（例：Crestor）"
               value={drugB}

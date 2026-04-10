@@ -25,7 +25,7 @@ export function PatientDetailHeader({
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={onBackToPatients} className="hover:bg-slate-50" title="返回病人清單">
+            <Button variant="ghost" size="icon" onClick={onBackToPatients} className="hover:bg-slate-50 dark:hover:bg-slate-800" title="返回病人清單">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex items-center gap-4">
@@ -34,7 +34,7 @@ export function PatientDetailHeader({
               </div>
               <div>
                 <div className="flex items-center gap-3">
-                  <h1 className="text-3xl font-bold text-[#3c7acb]">{patientName}</h1>
+                  <h1 className="text-3xl font-bold text-[#3c7acb] dark:text-[#6fa3e8]">{patientName}</h1>
                   {isIntubated && (
                     <Badge className="bg-[#d1cbf7] text-brand hover:bg-[#d1cbf7]/90">
                       插管中
@@ -42,7 +42,7 @@ export function PatientDetailHeader({
                   )}
                 </div>
                 <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1 bg-white px-3 py-1 rounded-full">
+                  <span className="flex items-center gap-1 bg-white dark:bg-slate-900 px-3 py-1 rounded-full">
                     <Clock className="h-4 w-4" />
                     住院 {daysAdmitted} 天
                   </span>

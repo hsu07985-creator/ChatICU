@@ -102,8 +102,8 @@ export function ChatMessageThread({
               }`}
             >
               {msg.role === 'user' ? (
-                <div className="max-w-[65%] w-fit rounded-2xl px-4 py-2.5 bg-white border border-border">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1F2937]">
+                <div className="max-w-[65%] w-fit rounded-2xl px-4 py-2.5 bg-white dark:bg-slate-900 border border-border">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1F2937] dark:text-slate-200">
                     {msg.content}
                   </p>
                   {msg.timestamp && (
@@ -117,7 +117,7 @@ export function ChatMessageThread({
                     alt="AI"
                     className="h-8 w-8 rounded-full shadow-sm shrink-0 mt-0.5 object-cover"
                   />
-                  <div className="flex flex-1 min-w-0 rounded-2xl bg-white border border-border overflow-hidden">
+                  <div className="flex flex-1 min-w-0 rounded-2xl bg-white dark:bg-slate-900 border border-border overflow-hidden">
                     <div
                       className="w-[3px] shrink-0 rounded-l-full"
                       style={{ backgroundColor: '#d1d5db' }}
@@ -153,7 +153,7 @@ export function ChatMessageThread({
                               hasRiskX={msg.graphMeta.has_risk_x}
                             />
                           )}
-                          <AiMarkdown content={displayContent} className="text-sm leading-relaxed text-[#1F2937]" />
+                          <AiMarkdown content={displayContent} className="text-sm leading-relaxed text-[#1F2937] dark:text-slate-200" />
                           {msg.requiresExpertReview && (
                             <ExpertReviewWarning show={msg.requiresExpertReview} />
                           )}
@@ -163,7 +163,7 @@ export function ChatMessageThread({
                       {!isStreamingThis && (
                         <>
                           {isDetailExpanded && msg.explanation && msg.explanation.trim().length > 0 && (
-                            <div className="mt-2 rounded-md bg-[#F7F8F9] border border-[#E5E7EB] px-3 py-2.5">
+                            <div className="mt-2 rounded-md bg-[#F7F8F9] dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 px-3 py-2.5">
                               <AiMarkdown content={msg.explanation} className="text-sm" />
                               <SafetyWarnings warnings={msg.warnings} />
                               {msg.requiresExpertReview && (
@@ -175,7 +175,7 @@ export function ChatMessageThread({
                           )}
 
                           {isRefsExpanded && (
-                            <div className="mt-2 rounded-md bg-slate-50 border border-border p-2.5">
+                            <div className="mt-2 rounded-md bg-slate-50 dark:bg-slate-800 border border-border p-2.5">
                               {references.length === 0 ? (
                                 <p className="text-xs text-muted-foreground">
                                   本次回答未擷取到可顯示的文獻段落，可改用更具體關鍵詞再詢問。
@@ -190,7 +190,7 @@ export function ChatMessageThread({
                                       <div className="flex items-start gap-1">
                                         <span className="mt-0.5 text-muted-foreground">•</span>
                                         <div className="flex-1">
-                                          <p className="font-medium text-[#374151]">
+                                          <p className="font-medium text-[#374151] dark:text-slate-300">
                                             {ref.title || ref.sourceFile || 'unknown'}
                                           </p>
                                           <p className="text-xs text-muted-foreground mt-0.5">
@@ -205,12 +205,12 @@ export function ChatMessageThread({
                                           </p>
                                           {ref.summary ? (
                                             <div className="mt-1 space-y-1">
-                                              <p className="text-xs text-[#374151] leading-relaxed">
-                                                <span className="font-medium text-[#374151]">重點：</span>
+                                              <p className="text-xs text-[#374151] dark:text-slate-300 leading-relaxed">
+                                                <span className="font-medium text-[#374151] dark:text-slate-300">重點：</span>
                                                 {ref.summary}
                                               </p>
                                               {ref.keyQuote && (
-                                                <div className="rounded border border-[#d1d5db] bg-white px-2 py-1.5 text-xs leading-relaxed text-muted-foreground italic">
+                                                <div className="rounded border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1.5 text-xs leading-relaxed text-muted-foreground italic">
                                                   「{ref.keyQuote}」
                                                 </div>
                                               )}
@@ -225,7 +225,7 @@ export function ChatMessageThread({
                                               {ref.snippets.map((snippet, snippetIndex) => (
                                                 <div
                                                   key={snippetIndex}
-                                                  className="rounded border border-[#d1d5db] bg-white p-2 text-xs leading-relaxed text-[#374151] whitespace-pre-wrap"
+                                                  className="rounded border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-800 p-2 text-xs leading-relaxed text-[#374151] dark:text-slate-300 whitespace-pre-wrap"
                                                 >
                                                   <span className="inline-block text-xs font-medium mb-0.5 text-muted-foreground">
                                                     段落 {snippetIndex + 1}
@@ -235,7 +235,7 @@ export function ChatMessageThread({
                                               ))}
                                             </div>
                                           ) : ref.snippet && ref.snippet.trim().length > 0 ? (
-                                            <div className="mt-1 rounded border border-[#d1d5db] bg-white p-2 text-xs leading-relaxed text-[#374151] whitespace-pre-wrap max-h-32 overflow-y-auto">
+                                            <div className="mt-1 rounded border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-800 p-2 text-xs leading-relaxed text-[#374151] dark:text-slate-300 whitespace-pre-wrap max-h-32 overflow-y-auto">
                                               {compactSnippet(ref.snippet)}
                                             </div>
                                           ) : (
@@ -256,7 +256,7 @@ export function ChatMessageThread({
                       )}
 
                       {!isStreamingThis && (
-                        <div className="mt-2 flex items-center gap-2.5 border-t border-[#F0F0F0] pt-1.5 text-xs text-[#9CA3AF]">
+                        <div className="mt-2 flex items-center gap-2.5 border-t border-[#F0F0F0] dark:border-slate-700 pt-1.5 text-xs text-[#9CA3AF]">
                           {msg.explanation && msg.explanation.trim().length > 0 && (
                             <button
                               onClick={() => onToggleExplanation(idx)}

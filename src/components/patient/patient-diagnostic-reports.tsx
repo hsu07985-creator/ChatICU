@@ -30,7 +30,7 @@ function ReportCard({ report }: { report: DiagnosticReport }) {
       <CardHeader className="pb-2 pt-3 px-4 flex-shrink-0">
         <div className="space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-sm font-semibold text-slate-800 line-clamp-1">{report.examName}</h3>
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 line-clamp-1">{report.examName}</h3>
             <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 flex-shrink-0 ${typeInfo.color}`}>
               {typeInfo.label}
             </Badge>
@@ -52,11 +52,11 @@ function ReportCard({ report }: { report: DiagnosticReport }) {
         <div className={`relative flex-1 overflow-hidden ${!expanded ? 'max-h-[' + COLLAPSED_HEIGHT + 'px]' : ''}`}
           style={!expanded ? { maxHeight: `${COLLAPSED_HEIGHT}px` } : undefined}
         >
-          <pre className="text-xs text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
+          <pre className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-sans leading-relaxed">
             {report.bodyText}
           </pre>
           {!expanded && (
-            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white dark:from-slate-900 to-transparent" />
           )}
         </div>
 
@@ -118,11 +118,11 @@ export function PatientDiagnosticReports({ patientId }: { patientId: string }) {
     <div className="space-y-3">
       {reports.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="inline-flex rounded-lg border border-slate-200 p-0.5">
+          <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5">
             <Button
               variant="ghost"
               size="sm"
-              className={`h-7 px-3 text-xs rounded-md ${filterType === null ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`h-7 px-3 text-xs rounded-md ${filterType === null ? 'bg-white dark:bg-slate-800 shadow-sm text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
               onClick={() => setFilterType(null)}
             >
               全部 ({reports.length})
@@ -131,7 +131,7 @@ export function PatientDiagnosticReports({ patientId }: { patientId: string }) {
               <Button
                 variant="ghost"
                 size="sm"
-                className={`h-7 px-3 text-xs rounded-md ${filterType === 'imaging' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`h-7 px-3 text-xs rounded-md ${filterType === 'imaging' ? 'bg-white dark:bg-slate-800 shadow-sm text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                 onClick={() => setFilterType(filterType === 'imaging' ? null : 'imaging')}
               >
                 影像 ({imagingCount})
@@ -141,7 +141,7 @@ export function PatientDiagnosticReports({ patientId }: { patientId: string }) {
               <Button
                 variant="ghost"
                 size="sm"
-                className={`h-7 px-3 text-xs rounded-md ${filterType === 'procedure' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`h-7 px-3 text-xs rounded-md ${filterType === 'procedure' ? 'bg-white dark:bg-slate-800 shadow-sm text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                 onClick={() => setFilterType(filterType === 'procedure' ? null : 'procedure')}
               >
                 檢查 ({procedureCount})

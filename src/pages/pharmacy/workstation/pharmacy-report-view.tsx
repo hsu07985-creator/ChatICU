@@ -208,19 +208,19 @@ export function PharmacyReportView({
             <p className="text-muted-foreground text-xs mb-1.5">
               評估藥物（{drugList.length} 項）
             </p>
-            <div className="rounded-lg border border-slate-200 bg-white">
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
               {groupedDrugEntries.map((group) => (
-                <details key={group.category} className="group border-b border-slate-200 px-3 last:border-b-0" open>
+                <details key={group.category} className="group border-b border-slate-200 dark:border-slate-700 px-3 last:border-b-0" open>
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-3 marker:hidden">
                     <div className="flex min-w-0 flex-1 items-center gap-2">
                       <span className="rounded-full bg-brand/10 px-2 py-0.5 text-xs font-semibold text-brand">
                         {group.items.length} 項
                       </span>
-                      <span className="text-sm font-semibold text-slate-800">
+                      <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                         {group.category}
                       </span>
                     </div>
-                    <span className="shrink-0 text-xs font-medium text-slate-500 transition-transform group-open:rotate-180">
+                    <span className="shrink-0 text-xs font-medium text-slate-500 dark:text-slate-400 transition-transform group-open:rotate-180">
                       ∨
                     </span>
                   </summary>
@@ -229,12 +229,12 @@ export function PharmacyReportView({
                       {group.items.map(({ drug, index }) => (
                         <div
                           key={`${group.category}-${index}-${drug}`}
-                          className="flex min-w-0 items-start gap-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2 text-sm"
+                          className="flex min-w-0 items-start gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-2 text-sm"
                         >
                           <span className="mt-0.5 shrink-0 text-xs font-semibold text-brand">
                             {index + 1}.
                           </span>
-                          <span className="min-w-0 break-words leading-5 text-slate-700">
+                          <span className="min-w-0 break-words leading-5 text-slate-700 dark:text-slate-300">
                             {drug}
                           </span>
                         </div>
@@ -266,7 +266,7 @@ export function PharmacyReportView({
 
       {/* ── Section 1: Drug Interactions ── */}
       <Card>
-        <CardHeader className="bg-slate-50 py-3">
+        <CardHeader className="bg-slate-50 dark:bg-slate-800 py-3">
           <div className="flex items-center gap-2">
             <AlertTriangle className={`h-5 w-5 ${assessmentResults.interactions.length > 0 ? 'text-[#f59e0b]' : 'text-brand'}`} />
             <CardTitle className="text-base">藥物交互作用</CardTitle>
@@ -319,7 +319,7 @@ export function PharmacyReportView({
 
       {/* ── Section 2: IV Compatibility ── */}
       <Card>
-        <CardHeader className="bg-slate-50 py-3">
+        <CardHeader className="bg-slate-50 dark:bg-slate-800 py-3">
           <div className="flex items-center gap-2">
             <Droplets className={`h-5 w-5 ${incompatiblePairs.length > 0 ? 'text-[#f59e0b]' : 'text-brand'}`} />
             <CardTitle className="text-base">靜脈注射相容性</CardTitle>
@@ -343,7 +343,7 @@ export function PharmacyReportView({
               {incompatiblePairs.length > 0 ? (
                 <div className="space-y-2">
                   {incompatiblePairs.map((pair, idx) => (
-                    <div key={idx} className="border rounded-lg p-3 bg-red-50/50">
+                    <div key={idx} className="border dark:border-slate-700 rounded-lg p-3 bg-red-50/50 dark:bg-red-900/20">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <XCircle className="h-4 w-4 text-[#f59e0b]" />
@@ -374,7 +374,7 @@ export function PharmacyReportView({
 
       {/* ── Section 3: Dosage Adjustments (PAD 9 drugs only) ── */}
       <Card>
-        <CardHeader className="bg-slate-50 py-3">
+        <CardHeader className="bg-slate-50 dark:bg-slate-800 py-3">
           <div className="flex items-center gap-2">
             <Calculator className="h-5 w-5 text-brand" />
             <CardTitle className="text-base">劑量調整建議</CardTitle>
@@ -421,7 +421,7 @@ export function PharmacyReportView({
       {/* ── Section 4: Recommendations ── */}
       {assessmentResults.adviceRecommendations.length > 0 && (
         <Card className="border-l-4 border-l-brand">
-          <CardHeader className="bg-slate-50 py-3">
+          <CardHeader className="bg-slate-50 dark:bg-slate-800 py-3">
             <div className="flex items-center gap-2">
               <Lightbulb className="h-5 w-5 text-brand" />
               <CardTitle className="text-base">綜合建議</CardTitle>

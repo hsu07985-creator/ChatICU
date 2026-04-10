@@ -65,7 +65,7 @@ function Section({ title, icon, count, countColor, defaultOpen, children }: {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
       >
         <div className="flex items-center gap-2">
           {icon}
@@ -97,11 +97,11 @@ function InteractionRow({ int }: { int: DrugInteraction }) {
         <span className="font-semibold text-sm">{formatDrugPair(int)}</span>
       </div>
       {int.clinicalEffect && (
-        <p className="text-xs text-slate-600 leading-relaxed">{int.clinicalEffect}</p>
+        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{int.clinicalEffect}</p>
       )}
       {int.management && (
         <p className="text-xs text-muted-foreground leading-relaxed">
-          <span className="font-medium text-slate-700">處置：</span>
+          <span className="font-medium text-slate-700 dark:text-slate-300">處置：</span>
           {int.management.length > 120 && !expanded
             ? <>{int.management.slice(0, 120)}… <button type="button" onClick={() => setExpanded(true)} className="text-brand hover:underline">展開</button></>
             : int.management
@@ -111,10 +111,10 @@ function InteractionRow({ int }: { int: DrugInteraction }) {
       {expanded && (
         <>
           {int.mechanism && (
-            <p className="text-xs text-muted-foreground"><span className="font-medium text-slate-700">機轉：</span>{int.mechanism}</p>
+            <p className="text-xs text-muted-foreground"><span className="font-medium text-slate-700 dark:text-slate-300">機轉：</span>{int.mechanism}</p>
           )}
           {int.discussion && (
-            <p className="text-xs text-muted-foreground leading-relaxed"><span className="font-medium text-slate-700">說明：</span>{int.discussion}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed"><span className="font-medium text-slate-700 dark:text-slate-300">說明：</span>{int.discussion}</p>
           )}
           <button type="button" onClick={() => setExpanded(false)} className="text-xs text-brand hover:underline">收合</button>
         </>
@@ -126,7 +126,7 @@ function InteractionRow({ int }: { int: DrugInteraction }) {
 /** Single compatibility row */
 function CompatibilityRow({ c }: { c: IVCompatibility }) {
   return (
-    <div className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm ${c.compatible ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+    <div className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm ${c.compatible ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800'}`}>
       <div className="flex items-center gap-2 min-w-0">
         {c.compatible
           ? <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
@@ -276,12 +276,12 @@ export function AssessmentResultsPanel({
                   </p>
                   <div className="flex justify-center gap-3 mt-1.5 text-[11px]">
                     <span className="text-green-600">相容 {compatibilitySummary.compatible}</span>
-                    <span className="text-slate-300">|</span>
-                    <span className="text-red-600">不相容 {compatibilitySummary.incompatible}</span>
+                    <span className="text-slate-300 dark:text-slate-600">|</span>
+                    <span className="text-red-600 dark:text-red-400">不相容 {compatibilitySummary.incompatible}</span>
                     {compatibilitySummary.noData > 0 && (
                       <>
-                        <span className="text-slate-300">|</span>
-                        <span className="text-gray-400">無資料 {compatibilitySummary.noData}</span>
+                        <span className="text-slate-300 dark:text-slate-600">|</span>
+                        <span className="text-gray-400 dark:text-gray-500">無資料 {compatibilitySummary.noData}</span>
                       </>
                     )}
                   </div>
@@ -379,7 +379,7 @@ export function AssessmentResultsPanel({
               />
             ))}
             {dosage.filter(d => d.status !== 'calculated').map((d, idx) => (
-              <div key={`fail-${idx}`} className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-amber-50 border-amber-200 text-sm">
+              <div key={`fail-${idx}`} className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-sm">
                 <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
                 <span className="font-medium">{d.drugName}</span>
                 <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">{d.status === 'requires_input' ? '待補資料' : '計算失敗'}</Badge>

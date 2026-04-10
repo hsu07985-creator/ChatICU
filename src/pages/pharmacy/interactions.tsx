@@ -46,11 +46,11 @@ interface DisplayInteraction {
 }
 
 const RISK_RATING_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
-  X: { label: 'Risk X 避免併用', color: 'text-red-900', bgColor: 'bg-red-100 border-red-300' },
-  D: { label: 'Risk D 考慮調整', color: 'text-orange-900', bgColor: 'bg-orange-100 border-orange-300' },
-  C: { label: 'Risk C 監測治療', color: 'text-yellow-900', bgColor: 'bg-yellow-100 border-yellow-300' },
-  B: { label: 'Risk B 不需處置', color: 'text-green-900', bgColor: 'bg-green-100 border-green-300' },
-  A: { label: 'Risk A 無交互作用', color: 'text-gray-700', bgColor: 'bg-gray-100 border-gray-300' },
+  X: { label: 'Risk X 避免併用', color: 'text-red-900 dark:text-red-200', bgColor: 'bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700' },
+  D: { label: 'Risk D 考慮調整', color: 'text-orange-900 dark:text-orange-200', bgColor: 'bg-orange-100 dark:bg-orange-900/40 border-orange-300 dark:border-orange-700' },
+  C: { label: 'Risk C 監測治療', color: 'text-yellow-900 dark:text-yellow-200', bgColor: 'bg-yellow-100 dark:bg-yellow-900/40 border-yellow-300 dark:border-yellow-700' },
+  B: { label: 'Risk B 不需處置', color: 'text-green-900 dark:text-green-200', bgColor: 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700' },
+  A: { label: 'Risk A 無交互作用', color: 'text-gray-700 dark:text-gray-300', bgColor: 'bg-gray-100 dark:bg-slate-800 border-gray-300 dark:border-slate-600' },
 };
 
 const MIN_DRUGS = 2;
@@ -336,7 +336,7 @@ export function DrugInteractionsPage() {
       case 'high':
         return <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3.5 w-3.5" />高風險</Badge>;
       case 'medium':
-        return <Badge variant="secondary" className="gap-1 bg-orange-100 text-orange-800"><AlertCircle className="h-3.5 w-3.5" />中風險</Badge>;
+        return <Badge variant="secondary" className="gap-1 bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200"><AlertCircle className="h-3.5 w-3.5" />中風險</Badge>;
       case 'low':
         return <Badge variant="outline" className="gap-1"><Info className="h-3.5 w-3.5" />低風險</Badge>;
       default:
@@ -660,9 +660,9 @@ export function DrugInteractionsPage() {
                     <CardContent className="space-y-4">
                       {/* 給藥途徑警示 */}
                       {interaction.routeDependency && (
-                        <Alert className="border-amber-300 bg-amber-50">
-                          <Route className="h-4 w-4 text-amber-600" />
-                          <AlertDescription className="text-amber-800">
+                        <Alert className="border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30">
+                          <Route className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                          <AlertDescription className="text-amber-800 dark:text-amber-200">
                             <span className="font-medium">給藥途徑注意：</span>{interaction.routeDependency}
                           </AlertDescription>
                         </Alert>
@@ -674,7 +674,7 @@ export function DrugInteractionsPage() {
                           <h4 className="font-medium mb-1 text-sm text-muted-foreground">依賴條件</h4>
                           <div className="flex flex-wrap gap-1.5">
                             {interaction.dependencies.map((dep, i) => (
-                              <Badge key={i} variant="outline" className="text-xs bg-slate-50">
+                              <Badge key={i} variant="outline" className="text-xs bg-slate-50 dark:bg-slate-800">
                                 {dep}
                               </Badge>
                             ))}
@@ -721,9 +721,9 @@ export function DrugInteractionsPage() {
                           <Separator />
                           <div>
                             <h4 className="font-medium mb-2 text-sm text-muted-foreground">臨床處置建議</h4>
-                            <Alert className="border-blue-200 bg-blue-50">
-                              <AlertTriangle className="h-4 w-4 text-blue-600" />
-                              <AlertDescription className="text-sm text-blue-900 leading-relaxed">{interaction.management}</AlertDescription>
+                            <Alert className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30">
+                              <AlertTriangle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                              <AlertDescription className="text-sm text-blue-900 dark:text-blue-200 leading-relaxed">{interaction.management}</AlertDescription>
                             </Alert>
                           </div>
                         </>

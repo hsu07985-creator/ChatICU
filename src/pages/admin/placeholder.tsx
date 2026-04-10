@@ -63,17 +63,17 @@ export function AuditPage() {
 
   const getStatusBadge = (status: 'success' | 'failed') => {
     if (status === 'success') {
-      return <Badge className="bg-green-100 text-green-800 border-green-200">成功</Badge>;
+      return <Badge className="bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800">成功</Badge>;
     }
-    return <Badge className="bg-red-100 text-red-800 border-red-200">失敗</Badge>;
+    return <Badge className="bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800">失敗</Badge>;
   };
 
   const getRoleBadge = (role: string) => {
     const config: Record<string, { label: string; color: string; icon: typeof ShieldCheck }> = {
       '管理者': { label: '系統管理員', color: 'bg-brand text-white', icon: ShieldCheck },
-      '醫師': { label: '醫師', color: 'bg-blue-100 text-blue-800', icon: Shield },
-      '護理師': { label: '護理師', color: 'bg-green-100 text-green-800', icon: Shield },
-      '藥師': { label: '藥師', color: 'bg-purple-100 text-purple-800', icon: Shield },
+      '醫師': { label: '醫師', color: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200', icon: Shield },
+      '護理師': { label: '護理師', color: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200', icon: Shield },
+      '藥師': { label: '藥師', color: 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200', icon: Shield },
     };
 
     const entry = config[role];
@@ -87,7 +87,7 @@ export function AuditPage() {
       );
     }
     return (
-      <Badge className="bg-gray-100 text-gray-800">
+      <Badge className="bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-200">
         <Shield className="h-3.5 w-3.5 mr-1" />
         {role}
       </Badge>
@@ -152,7 +152,7 @@ export function AuditPage() {
 
       {/* 稽核記錄列表 */}
       <Card>
-        <CardHeader className="bg-slate-50 border-b">
+        <CardHeader className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-xl">
@@ -254,7 +254,7 @@ export function AuditPage() {
 
           {!loading && !error && filteredLogs.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
-              <AlertCircle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <AlertCircle className="h-12 w-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
               <p>沒有符合條件的稽核記錄</p>
             </div>
           )}

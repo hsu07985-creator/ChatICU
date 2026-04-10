@@ -49,7 +49,7 @@ export function LoadingCard({ title = '載入中', description, className }: Loa
 
 export function LoadingOverlay({ text = '載入中...' }: { text?: string }) {
   return (
-    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
+    <div className="absolute inset-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
       <LoadingSpinner size="lg" text={text} />
     </div>
   );
@@ -89,7 +89,7 @@ export function ErrorDisplay({
 
   return (
     <div className={cn('flex flex-col items-center justify-center py-12 px-4', className)}>
-      <div className={cn('p-4 rounded-full bg-gray-100 mb-4', config.color)}>
+      <div className={cn('p-4 rounded-full bg-gray-100 dark:bg-slate-800 mb-4', config.color)}>
         <Icon className="h-12 w-12" />
       </div>
       <h3 className="text-lg font-semibold text-foreground mb-2">{title || config.defaultTitle}</h3>
@@ -106,7 +106,7 @@ export function ErrorDisplay({
 
 export function ErrorCard({ type, title, message, onRetry, className }: ErrorDisplayProps) {
   return (
-    <Card className={cn('border-red-200 bg-red-50/50', className)}>
+    <Card className={cn('border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/30', className)}>
       <CardContent className="p-0">
         <ErrorDisplay type={type} title={title} message={message} onRetry={onRetry} />
       </CardContent>
@@ -130,8 +130,8 @@ interface EmptyStateProps {
 export function EmptyState({ icon: Icon = Inbox, title, description, action, className }: EmptyStateProps) {
   return (
     <div className={cn('flex flex-col items-center justify-center py-12 px-4', className)}>
-      <div className="p-4 rounded-full bg-gray-100 mb-4">
-        <Icon className="h-12 w-12 text-gray-400" />
+      <div className="p-4 rounded-full bg-gray-100 dark:bg-slate-800 mb-4">
+        <Icon className="h-12 w-12 text-gray-400 dark:text-slate-500" />
       </div>
       <h3 className="text-lg font-medium text-foreground mb-1">{title}</h3>
       {description && <p className="text-sm text-muted-foreground text-center max-w-md mb-4">{description}</p>}

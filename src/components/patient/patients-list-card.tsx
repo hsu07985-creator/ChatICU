@@ -144,7 +144,7 @@ export function PatientsListCard({
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="bg-purple-50 border-purple-200 text-purple-700">
+                    <Badge variant="outline" className="bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/30 dark:border-purple-700 dark:text-purple-300">
                       {patient.ventilatorDays} 天
                     </Badge>
                   </TableCell>
@@ -201,7 +201,7 @@ export function PatientsListCard({
                               event.stopPropagation();
                               onEditPatient(patient);
                             }}
-                            className="text-brand hover:text-brand hover:bg-slate-50"
+                            className="text-brand hover:text-brand hover:bg-slate-50 dark:hover:bg-slate-800"
                             title="編輯"
                           >
                             <Edit2 className="h-4 w-4" />
@@ -213,7 +213,7 @@ export function PatientsListCard({
                               event.stopPropagation();
                               onArchivePatient(patient.id);
                             }}
-                            className="text-muted-foreground hover:text-brand hover:bg-slate-50"
+                            className="text-muted-foreground hover:text-brand hover:bg-slate-50 dark:hover:bg-slate-800"
                             title="封存"
                           >
                             <Archive className="h-4 w-4" />

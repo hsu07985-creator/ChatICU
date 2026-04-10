@@ -357,10 +357,10 @@ export function DosagePage() {
                   濃度 *
                   {drugInfo && <span className="text-muted-foreground font-normal ml-0.5 text-xs">({drugInfo.concentration_unit})</span>}
                 </label>
-                <Input type="number" step="any" className={`h-9 ${isConcentrationChanged ? 'border-red-500 border-2 focus-visible:ring-red-500' : ''}`}
+                <Input type="number" step="any" className={`h-9 ${isConcentrationChanged ? 'border-red-500 dark:border-red-400 border-2 focus-visible:ring-red-500' : ''}`}
                   placeholder={drugInfo ? String(drugInfo.concentration) : ''} value={concentration} onChange={(e) => setConcentration(e.target.value)} />
                 {isConcentrationChanged && drugInfo && (
-                  <p className="text-xs text-red-600 font-medium flex items-center gap-1">
+                  <p className="text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-1">
                     <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                     {drugInfo.concentration_range
                       ? `超出允許範圍（${drugInfo.concentration_range[0]}–${drugInfo.concentration_range[1]} ${drugInfo.concentration_unit}）`

@@ -38,9 +38,9 @@ function isOutpatientExpired(med: Medication): boolean {
 
 /** 取得門診藥物的服用狀態 */
 function getOutpatientStatus(med: Medication): { label: string; color: string } {
-  if (med.status === 'discontinued') return { label: '已停用', color: 'bg-gray-200 text-gray-600' };
-  if (isOutpatientExpired(med)) return { label: '已過期', color: 'bg-orange-100 text-orange-700' };
-  return { label: '服用中', color: 'bg-emerald-100 text-emerald-700' };
+  if (med.status === 'discontinued') return { label: '已停用', color: 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300' };
+  if (isOutpatientExpired(med)) return { label: '已過期', color: 'bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400' };
+  return { label: '服用中', color: 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400' };
 }
 
 function isPrnOrStat(med: Medication): boolean {
@@ -63,40 +63,40 @@ function formatMedicationConcentration(medication: Medication): string | null {
 }
 
 const MED_CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
-  antibiotic: { label: '抗生素', color: 'bg-amber-100 text-amber-800' },
-  antifungal: { label: '抗黴菌', color: 'bg-amber-100 text-amber-800' },
-  antiviral: { label: '抗病毒', color: 'bg-amber-100 text-amber-800' },
-  vasopressor: { label: '升壓劑', color: 'bg-red-100 text-red-800' },
-  anticoagulant: { label: '抗凝血', color: 'bg-rose-100 text-rose-800' },
-  steroid: { label: '類固醇', color: 'bg-orange-100 text-orange-800' },
-  ppi: { label: 'PPI', color: 'bg-sky-100 text-sky-800' },
-  h2_blocker: { label: 'H2 Blocker', color: 'bg-sky-100 text-sky-800' },
-  diuretic: { label: '利尿劑', color: 'bg-cyan-100 text-cyan-800' },
-  insulin: { label: '胰島素', color: 'bg-teal-100 text-teal-800' },
-  electrolyte: { label: '電解質', color: 'bg-emerald-100 text-emerald-800' },
-  bronchodilator: { label: '支氣管擴張', color: 'bg-indigo-100 text-indigo-800' },
-  antiarrhythmic: { label: '抗心律不整', color: 'bg-pink-100 text-pink-800' },
-  antiepileptic: { label: '抗癲癇', color: 'bg-purple-100 text-purple-800' },
-  laxative: { label: '緩瀉劑', color: 'bg-lime-100 text-lime-800' },
-  antiemetic: { label: '止吐', color: 'bg-green-100 text-green-800' },
+  antibiotic: { label: '抗生素', color: 'bg-amber-100 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300' },
+  antifungal: { label: '抗黴菌', color: 'bg-amber-100 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300' },
+  antiviral: { label: '抗病毒', color: 'bg-amber-100 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300' },
+  vasopressor: { label: '升壓劑', color: 'bg-red-100 dark:bg-red-950/30 text-red-800 dark:text-red-300' },
+  anticoagulant: { label: '抗凝血', color: 'bg-rose-100 dark:bg-rose-950/30 text-rose-800 dark:text-rose-300' },
+  steroid: { label: '類固醇', color: 'bg-orange-100 dark:bg-orange-950/30 text-orange-800 dark:text-orange-300' },
+  ppi: { label: 'PPI', color: 'bg-sky-100 dark:bg-sky-950/30 text-sky-800 dark:text-sky-300' },
+  h2_blocker: { label: 'H2 Blocker', color: 'bg-sky-100 dark:bg-sky-950/30 text-sky-800 dark:text-sky-300' },
+  diuretic: { label: '利尿劑', color: 'bg-cyan-100 dark:bg-cyan-950/30 text-cyan-800 dark:text-cyan-300' },
+  insulin: { label: '胰島素', color: 'bg-teal-100 dark:bg-teal-950/30 text-teal-800 dark:text-teal-300' },
+  electrolyte: { label: '電解質', color: 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300' },
+  bronchodilator: { label: '支氣管擴張', color: 'bg-indigo-100 dark:bg-indigo-950/30 text-indigo-800 dark:text-indigo-300' },
+  antiarrhythmic: { label: '抗心律不整', color: 'bg-pink-100 dark:bg-pink-950/30 text-pink-800 dark:text-pink-300' },
+  antiepileptic: { label: '抗癲癇', color: 'bg-purple-100 dark:bg-purple-950/30 text-purple-800 dark:text-purple-300' },
+  laxative: { label: '緩瀉劑', color: 'bg-lime-100 dark:bg-lime-950/30 text-lime-800 dark:text-lime-300' },
+  antiemetic: { label: '止吐', color: 'bg-green-100 dark:bg-green-950/30 text-green-800 dark:text-green-300' },
 };
 
 /** Pain 0-10 色階：綠→黃→橙→紅 */
 function painColor(v: number): string {
-  if (v <= 1) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-  if (v <= 3) return 'bg-lime-100 text-lime-700 border-lime-200';
-  if (v <= 5) return 'bg-amber-100 text-amber-700 border-amber-200';
-  if (v <= 7) return 'bg-orange-100 text-orange-700 border-orange-200';
-  return 'bg-red-100 text-red-700 border-red-200';
+  if (v <= 1) return 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800';
+  if (v <= 3) return 'bg-lime-100 dark:bg-lime-950/30 text-lime-700 dark:text-lime-400 border-lime-200 dark:border-lime-800';
+  if (v <= 5) return 'bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800';
+  if (v <= 7) return 'bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800';
+  return 'bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800';
 }
 
 /** RASS -5~+4 色階：深藍(深鎮靜)→淡藍→綠(平靜)→橙→紅(躁動) */
 function rassColor(v: number): string {
-  if (v <= -3) return 'bg-indigo-100 text-indigo-700 border-indigo-200';
-  if (v <= -1) return 'bg-sky-100 text-sky-700 border-sky-200';
-  if (v === 0) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-  if (v <= 2) return 'bg-amber-100 text-amber-700 border-amber-200';
-  return 'bg-red-100 text-red-700 border-red-200';
+  if (v <= -3) return 'bg-indigo-100 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800';
+  if (v <= -1) return 'bg-sky-100 dark:bg-sky-950/30 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-800';
+  if (v === 0) return 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800';
+  if (v <= 2) return 'bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800';
+  return 'bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800';
 }
 
 function ScoreSelector({
@@ -137,7 +137,7 @@ function ScoreSelector({
       <div className="flex gap-[3px]">
         {values.map((v) => {
           const isSelected = v === pending || (pending === null && v === currentValue);
-          const color = colorFn ? colorFn(v) : 'bg-emerald-100 text-emerald-700 border-emerald-200';
+          const color = colorFn ? colorFn(v) : 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800';
           return (
             <button
               key={v}
@@ -147,7 +147,7 @@ function ScoreSelector({
               className={`flex-1 py-1.5 text-xs font-semibold tabular-nums rounded transition-all border
                 ${isSelected
                   ? `${color} ring-2 ring-brand ring-offset-1 scale-105 shadow-sm`
-                  : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-700 hover:scale-105'
+                  : 'bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-gray-300 hover:scale-105'
                 }
                 disabled:pointer-events-none disabled:opacity-40
               `}
@@ -203,7 +203,7 @@ function SanMedCard({
   const noteText = medication.notes || null;
 
   return (
-    <div className="rounded-md border bg-white px-3 py-2 space-y-1.5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => onDetail(medication)}>
+    <div className="rounded-md border dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 space-y-1.5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => onDetail(medication)}>
       <div className="flex items-start justify-between gap-3">
         <p className="font-medium leading-tight">
           {medication.name || '—'}
@@ -221,9 +221,9 @@ function SanMedCard({
         )}
       </div>
       {noteText && (
-        <div className="rounded bg-slate-100 px-2.5 py-2">
-          <p className="text-[11px] font-medium text-slate-500 mb-1">醫令備註</p>
-          <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{noteText}</p>
+        <div className="rounded bg-slate-100 dark:bg-slate-800 px-2.5 py-2">
+          <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">醫令備註</p>
+          <p className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{noteText}</p>
         </div>
       )}
     </div>
@@ -262,39 +262,39 @@ function MedicationDetailModal({
           {isOutpatient ? (
             <>
               {(() => { const s = getOutpatientStatus(med); return <Badge className={`${s.color} border-0`}>{s.label}</Badge>; })()}
-              <Badge className="bg-blue-100 text-blue-700 border-0">門診用藥</Badge>
+              <Badge className="bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-0">門診用藥</Badge>
             </>
           ) : (
             <>
               {med.status === 'active' && (
-                <Badge className="bg-emerald-100 text-emerald-700 border-0">使用中</Badge>
+                <Badge className="bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-0">使用中</Badge>
               )}
               {med.status === 'on-hold' && (
-                <Badge className="bg-yellow-100 text-yellow-700 border-0">暫停</Badge>
+                <Badge className="bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-400 border-0">暫停</Badge>
               )}
               {(med.status === 'discontinued' || med.status === 'completed' || med.status === 'inactive') && (
-                <Badge className="bg-gray-200 text-gray-600 border-0">
+                <Badge className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-0">
                   {med.status === 'completed' ? '療程完成' : med.status === 'inactive' ? '未啟用' : '已停用'}
                 </Badge>
               )}
             </>
           )}
           {med.isExternal && (
-            <Badge className="bg-orange-100 text-orange-700 border-0">院外</Badge>
+            <Badge className="bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border-0">院外</Badge>
           )}
         </div>
 
         {/* 處方來源 */}
         {hasSource && (
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-slate-700">處方來源</p>
-            <div className="rounded-lg border bg-slate-50 p-3">
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">處方來源</p>
+            <div className="rounded-lg border dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3">
               <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                 {isOutpatient && (
                   <>
                     <div className="flex gap-2">
                       <span className="text-muted-foreground shrink-0">院內/院外</span>
-                      <Badge variant="secondary" className={`text-xs h-5 ${med.isExternal ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                      <Badge variant="secondary" className={`text-xs h-5 ${med.isExternal ? 'bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400' : 'bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'}`}>
                         {med.isExternal ? '院外' : '院內'}
                       </Badge>
                     </div>
@@ -329,8 +329,8 @@ function MedicationDetailModal({
 
         {/* 處方明細 */}
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-slate-700">處方明細</p>
-          <div className="rounded-lg border bg-slate-50 p-3">
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">處方明細</p>
+          <div className="rounded-lg border dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3">
             <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
               <div className="flex gap-2">
                 <span className="text-muted-foreground shrink-0">學名</span>
@@ -382,9 +382,9 @@ function MedicationDetailModal({
               </div>
             )}
             {med.notes && (
-              <div className="rounded bg-slate-100 px-2.5 py-2">
-                <p className="text-[11px] font-medium text-slate-500 mb-1">醫令備註</p>
-                <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{med.notes}</p>
+              <div className="rounded bg-slate-100 dark:bg-slate-800 px-2.5 py-2">
+                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">醫令備註</p>
+                <p className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{med.notes}</p>
               </div>
             )}
           </div>
@@ -394,7 +394,7 @@ function MedicationDetailModal({
         {med.warnings && med.warnings.length > 0 && (
           <div className="space-y-1">
             {med.warnings.map((w, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">
+              <div key={i} className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded px-2 py-1">
                 <span>⚠</span><span>{w}</span>
               </div>
             ))}
@@ -670,7 +670,7 @@ export function PatientMedicationsTab({
             <Card className="border-border">
               <CardHeader className="pb-2 space-y-1">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold leading-tight text-slate-800">Pain 止痛</CardTitle>
+                  <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">Pain 止痛</CardTitle>
                   <Button
                     variant="outline"
                     size="sm"
@@ -711,7 +711,7 @@ export function PatientMedicationsTab({
             <Card className="border-border">
               <CardHeader className="pb-2 space-y-1">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold leading-tight text-slate-800">Sedation 鎮靜</CardTitle>
+                  <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">Sedation 鎮靜</CardTitle>
                   <Button
                     variant="outline"
                     size="sm"
@@ -752,7 +752,7 @@ export function PatientMedicationsTab({
             {/* Neuromuscular Blockade (N) */}
             <Card className="border-border">
               <CardHeader className="pb-2 space-y-1">
-                <CardTitle className="text-base font-semibold leading-tight text-slate-800">Neuromuscular Blockade 神經肌肉阻斷</CardTitle>
+                <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">Neuromuscular Blockade 神經肌肉阻斷</CardTitle>
                 <CardDescription className="text-sm leading-tight">
                   {nmbIndication || '-'}
                 </CardDescription>
@@ -776,15 +776,15 @@ export function PatientMedicationsTab({
           <Card className={`border-border ${medView === 'discontinued' ? 'border-dashed' : ''}`}>
             <CardHeader className="pb-2 space-y-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold leading-tight text-slate-800">住院用藥 Inpatient Medications</CardTitle>
+                <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">住院用藥 Inpatient Medications</CardTitle>
               </div>
               {/* Primary toggle: active vs discontinued */}
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="inline-flex rounded-lg border border-slate-200 p-0.5">
+                <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`h-7 px-3 text-xs rounded-md ${medView === 'all' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`h-7 px-3 text-xs rounded-md ${medView === 'all' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     onClick={() => { setMedView('all'); clearSubFilters(); }}
                   >
                     全部 ({totalCount})
@@ -792,7 +792,7 @@ export function PatientMedicationsTab({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`h-7 px-3 text-xs rounded-md ${medView === 'active' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`h-7 px-3 text-xs rounded-md ${medView === 'active' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     onClick={() => { setMedView('active'); clearSubFilters(); }}
                   >
                     使用中 ({activeCount})
@@ -801,7 +801,7 @@ export function PatientMedicationsTab({
                     variant="ghost"
                     size="sm"
                     disabled={discontinuedCount === 0}
-                    className={`h-7 px-3 text-xs rounded-md ${medView === 'discontinued' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`h-7 px-3 text-xs rounded-md ${medView === 'discontinued' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     onClick={() => { setMedView('discontinued'); clearSubFilters(); }}
                   >
                     已停用 ({discontinuedCount})
@@ -811,7 +811,7 @@ export function PatientMedicationsTab({
                   <Button
                     variant={medView === 'duplicate' ? 'default' : 'outline'}
                     size="sm"
-                    className={`h-7 px-2 text-xs ${medView === 'duplicate' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-300 text-orange-700 hover:bg-orange-50'}`}
+                    className={`h-7 px-2 text-xs ${medView === 'duplicate' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30'}`}
                     onClick={() => { setMedView(medView === 'duplicate' ? 'active' : 'duplicate'); clearSubFilters(); }}
                   >
                     重複用藥 ({duplicateMeds.length})
@@ -821,7 +821,7 @@ export function PatientMedicationsTab({
                   <Button
                     variant={filterAbx ? 'default' : 'outline'}
                     size="sm"
-                    className={`h-7 px-2 text-xs ${filterAbx ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'border-amber-300 text-amber-700 hover:bg-amber-50'}`}
+                    className={`h-7 px-2 text-xs ${filterAbx ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30'}`}
                     onClick={() => { setFilterAbx(!filterAbx); if (!filterAbx) { setFilterPrn(false); setFilterRoute(null); } }}
                   >
                     抗生素 ({abxCount})
@@ -831,7 +831,7 @@ export function PatientMedicationsTab({
                   <Button
                     variant={filterPrn ? 'default' : 'outline'}
                     size="sm"
-                    className={`h-7 px-2 text-xs ${filterPrn ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'border-violet-300 text-violet-700 hover:bg-violet-50'}`}
+                    className={`h-7 px-2 text-xs ${filterPrn ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30'}`}
                     onClick={() => { setFilterPrn(!filterPrn); if (!filterPrn) { setFilterAbx(false); setFilterRoute(null); } }}
                   >
                     PRN/STAT ({prnCount})
@@ -841,7 +841,7 @@ export function PatientMedicationsTab({
                   <Button
                     variant={filterRoute === 'IV' ? 'default' : 'outline'}
                     size="sm"
-                    className={`h-7 px-2 text-xs ${filterRoute === 'IV' ? 'bg-teal-600 hover:bg-teal-700 text-white' : 'border-teal-300 text-teal-700 hover:bg-teal-50'}`}
+                    className={`h-7 px-2 text-xs ${filterRoute === 'IV' ? 'bg-teal-600 hover:bg-teal-700 text-white' : 'border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/30'}`}
                     onClick={() => { setFilterRoute(filterRoute === 'IV' ? null : 'IV'); if (filterRoute !== 'IV') { setFilterAbx(false); setFilterPrn(false); } }}
                   >
                     IV ({ivCount})
@@ -851,7 +851,7 @@ export function PatientMedicationsTab({
                   <Button
                     variant={filterRoute === 'PO' ? 'default' : 'outline'}
                     size="sm"
-                    className={`h-7 px-2 text-xs ${filterRoute === 'PO' ? 'bg-cyan-600 hover:bg-cyan-700 text-white' : 'border-cyan-300 text-cyan-700 hover:bg-cyan-50'}`}
+                    className={`h-7 px-2 text-xs ${filterRoute === 'PO' ? 'bg-cyan-600 hover:bg-cyan-700 text-white' : 'border-cyan-300 dark:border-cyan-700 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-950/30'}`}
                     onClick={() => { setFilterRoute(filterRoute === 'PO' ? null : 'PO'); if (filterRoute !== 'PO') { setFilterAbx(false); setFilterPrn(false); } }}
                   >
                     PO ({poCount})
@@ -873,14 +873,14 @@ export function PatientMedicationsTab({
               })()}
               {medView === 'duplicate' ? (
                 <div className="space-y-2">
-                  <p className="text-xs text-orange-700 mb-2">
+                  <p className="text-xs text-orange-700 dark:text-orange-400 mb-2">
                     以下藥物同時出現在住院醫令與門診處方中（以學名比對），請確認是否需要調整
                   </p>
                   {duplicateMeds.map((dup) => (
-                    <div key={dup.generic} className="rounded-md border border-orange-200 bg-orange-50/50 px-3 py-2.5">
+                    <div key={dup.generic} className="rounded-md border border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/20 px-3 py-2.5">
                       <div className="flex items-center gap-2 mb-2">
-                        <p className="font-semibold text-sm text-orange-900">{dup.generic}</p>
-                        <Badge className="bg-orange-200 text-orange-800 hover:bg-orange-200 text-xs px-1.5 py-0 h-4">
+                        <p className="font-semibold text-sm text-orange-900 dark:text-orange-300">{dup.generic}</p>
+                        <Badge className="bg-orange-200 dark:bg-orange-950/30 text-orange-800 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-950/30 text-xs px-1.5 py-0 h-4">
                           住院+門診
                         </Badge>
                       </div>
@@ -888,11 +888,11 @@ export function PatientMedicationsTab({
                         {dup.inpatient.map((m) => (
                           <div
                             key={m.id}
-                            className="rounded border border-slate-200 bg-white px-2.5 py-1.5 cursor-pointer hover:shadow-sm transition-shadow"
+                            className="rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 cursor-pointer hover:shadow-sm transition-shadow"
                             onClick={() => setDetailMedication(m)}
                           >
                             <div className="flex items-center gap-1.5">
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-emerald-100 text-emerald-700 shrink-0">住院</Badge>
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 shrink-0">住院</Badge>
                               <span className="text-sm font-medium truncate">{m.name}</span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
@@ -904,11 +904,11 @@ export function PatientMedicationsTab({
                         {dup.outpatient.map((m) => (
                           <div
                             key={m.id}
-                            className="rounded border border-blue-200 bg-blue-50/50 px-2.5 py-1.5 cursor-pointer hover:shadow-sm transition-shadow"
+                            className="rounded border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 px-2.5 py-1.5 cursor-pointer hover:shadow-sm transition-shadow"
                             onClick={() => setDetailMedication(m)}
                           >
                             <div className="flex items-center gap-1.5">
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-blue-100 text-blue-700 shrink-0">門診</Badge>
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 shrink-0">門診</Badge>
                               <span className="text-sm font-medium truncate">{m.name}</span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
@@ -944,34 +944,34 @@ export function PatientMedicationsTab({
                         key={medication.id}
                         className={`rounded-md border px-3 py-2 cursor-pointer hover:shadow-md transition-shadow ${
                           discontinued
-                            ? 'border-dashed border-gray-300 bg-gray-50 opacity-75'
+                            ? 'border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 opacity-75'
                             : abx
-                              ? 'bg-amber-50 border-amber-200'
-                              : 'bg-[rgba(196,196,196,0.15)]'
+                              ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800'
+                              : 'bg-[rgba(196,196,196,0.15)] dark:bg-slate-800/50'
                         }`}
                         onClick={() => setDetailMedication(medication)}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className={`font-medium leading-tight ${discontinued ? 'text-gray-500 line-through' : ''}`}>
+                            <p className={`font-medium leading-tight ${discontinued ? 'text-gray-500 dark:text-gray-400 line-through' : ''}`}>
                               {formatDisplayValue(medication.name)}
                             </p>
                             {discontinued ? (
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-gray-200 text-gray-600">
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                                 {statusLabel}
                               </Badge>
                             ) : (
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-emerald-100 text-emerald-700">
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
                                 使用中
                               </Badge>
                             )}
                             {abx && (
-                              <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 bg-amber-100 text-amber-800 ${discontinued ? 'opacity-60' : ''}`}>
+                              <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 bg-amber-100 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 ${discontinued ? 'opacity-60' : ''}`}>
                                 抗生素
                               </Badge>
                             )}
                             {prn && !discontinued && (
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-violet-100 text-violet-800">
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-violet-100 dark:bg-violet-950/30 text-violet-800 dark:text-violet-300">
                                 {isStat ? 'STAT' : 'PRN'}
                               </Badge>
                             )}
@@ -992,7 +992,7 @@ export function PatientMedicationsTab({
                             </Button>
                           )}
                         </div>
-                        <div className={`mt-1 flex items-center gap-2 text-sm ${discontinued ? 'text-gray-400' : 'text-muted-foreground'}`}>
+                        <div className={`mt-1 flex items-center gap-2 text-sm ${discontinued ? 'text-gray-400 dark:text-gray-500' : 'text-muted-foreground'}`}>
                           <span>{formatMedicationRegimen(medication)}</span>
                           {medication.startDate && (
                             <span className="text-xs">{formatMedDate(medication.startDate)}</span>
@@ -1002,7 +1002,7 @@ export function PatientMedicationsTab({
                           )}
                         </div>
                         {!discontinued && formatMedicationConcentration(medication) && (
-                          <p className="mt-1 text-xs text-slate-500">濃度 {formatMedicationConcentration(medication)}</p>
+                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">濃度 {formatMedicationConcentration(medication)}</p>
                         )}
                       </div>
                     );
@@ -1016,17 +1016,17 @@ export function PatientMedicationsTab({
 
           {/* Outpatient Medications — independent section */}
           {outpatientCount > 0 && (
-            <Card className="border-blue-200 bg-blue-50/30">
+            <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20">
               <CardHeader className="pb-2 space-y-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold leading-tight text-slate-800">門診用藥 Outpatient Medications</CardTitle>
+                  <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">門診用藥 Outpatient Medications</CardTitle>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <div className="inline-flex rounded-lg border border-slate-200 p-0.5">
+                  <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`h-7 px-3 text-xs rounded-md ${opdView === 'all' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                      className={`h-7 px-3 text-xs rounded-md ${opdView === 'all' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                       onClick={() => setOpdView('all')}
                     >
                       全部 ({allOutpatientMeds.length})
@@ -1034,7 +1034,7 @@ export function PatientMedicationsTab({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`h-7 px-3 text-xs rounded-md ${opdView === 'active' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                      className={`h-7 px-3 text-xs rounded-md ${opdView === 'active' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                       onClick={() => setOpdView('active')}
                     >
                       服用中 ({activeOutpatientMeds.length})
@@ -1043,7 +1043,7 @@ export function PatientMedicationsTab({
                       variant="ghost"
                       size="sm"
                       disabled={expiredOutpatientMeds.length === 0}
-                      className={`h-7 px-3 text-xs rounded-md ${opdView === 'expired' ? 'bg-white shadow-sm text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-700'}`}
+                      className={`h-7 px-3 text-xs rounded-md ${opdView === 'expired' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                       onClick={() => setOpdView('expired')}
                     >
                       已過期 ({expiredOutpatientMeds.length})
@@ -1065,33 +1065,33 @@ export function PatientMedicationsTab({
                         <div
                           key={medication.id}
                           className={`rounded-md border px-3 py-2 cursor-pointer hover:shadow-md transition-shadow ${
-                            expired ? 'border-dashed border-gray-300 bg-gray-50 opacity-75' : 'bg-blue-50 border-blue-200'
+                            expired ? 'border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 opacity-75' : 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
                           }`}
                           onClick={() => setDetailMedication(medication)}
                         >
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className={`font-medium leading-tight ${expired ? 'text-gray-500' : ''}`}>
+                            <p className={`font-medium leading-tight ${expired ? 'text-gray-500 dark:text-gray-400' : ''}`}>
                               {formatDisplayValue(medication.name)}
                             </p>
                             <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 ${opdStatus.color}`}>
                               {opdStatus.label}
                             </Badge>
                             {medication.sourceCampus && (
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-blue-100 text-blue-700">
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400">
                                 {medication.sourceCampus}
                               </Badge>
                             )}
                             {medication.prescribingDepartment && (
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-slate-100 text-slate-600">
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                                 {medication.prescribingDepartment}
                               </Badge>
                             )}
                           </div>
-                          <div className={`mt-1 flex items-center gap-2 text-sm ${expired ? 'text-gray-400' : 'text-muted-foreground'}`}>
+                          <div className={`mt-1 flex items-center gap-2 text-sm ${expired ? 'text-gray-400 dark:text-gray-500' : 'text-muted-foreground'}`}>
                             <span>{formatMedicationRegimen(medication)}</span>
                           </div>
                           {(medication.startDate || medication.endDate) && (
-                            <div className={`mt-0.5 text-xs ${expired ? 'text-gray-400' : 'text-muted-foreground'}`}>
+                            <div className={`mt-0.5 text-xs ${expired ? 'text-gray-400 dark:text-gray-500' : 'text-muted-foreground'}`}>
                               {medication.startDate && formatMedDate(medication.startDate)}
                               {medication.endDate && <span> → {formatMedDate(medication.endDate)}</span>}
                             </div>
@@ -1131,9 +1131,9 @@ export function PatientMedicationsTab({
               </DialogHeader>
 
               <div className="space-y-4">
-                <div className="rounded-lg border bg-slate-50 px-3 py-2">
-                  <p className="text-sm font-medium text-slate-900">{editingMedication?.name || '—'}</p>
-                  <p className="mt-1 text-xs text-slate-500">{editingMedication?.genericName || '未提供 generic name'}</p>
+                <div className="rounded-lg border dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2">
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{editingMedication?.name || '—'}</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{editingMedication?.genericName || '未提供 generic name'}</p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">

@@ -135,8 +135,8 @@ export function LabTrendChart({
                 content={({ active, payload, label }: TooltipProps<number, string>) => {
                   if (!active || !payload?.[0]) return null;
                   return (
-                    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-md">
-                      <p className="text-xs text-slate-500">{formatChartDate(label ?? '')}</p>
+                    <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 shadow-md">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{formatChartDate(label ?? '')}</p>
                       <p className="text-sm font-semibold" style={{ color: 'var(--color-brand)' }}>
                         {payload[0].value} {unit}
                       </p>

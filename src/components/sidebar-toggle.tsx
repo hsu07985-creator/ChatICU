@@ -15,7 +15,7 @@ export function SidebarToggle() {
       size="icon"
       onClick={toggleSidebar}
       onMouseUp={(event) => event.currentTarget.blur()}
-      className="fixed top-3 z-50 h-9 w-9 border border-gray-200 bg-white shadow-sm transition-all duration-200 hover:border-brand/30 hover:bg-slate-50"
+      className="fixed top-3 z-50 h-9 w-9 border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm transition-all duration-200 hover:border-brand/30 hover:bg-slate-50 dark:hover:bg-slate-800"
       style={{ left: leftPosition }}
       aria-label={isCollapsed ? '展開側邊欄' : '收起側邊欄'}
       title={isCollapsed ? '展開側邊欄' : '收起側邊欄'}
