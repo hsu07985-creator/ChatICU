@@ -50,59 +50,83 @@ export function PatientEditDialog({
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="bedNumber" className="text-right">
-              床號
-            </Label>
+            <Label htmlFor="bedNumber" className="text-right">床號</Label>
             <Input
               id="bedNumber"
               value={patient.bedNumber}
-              onChange={(event) => updatePatientField('bedNumber', event.target.value)}
+              onChange={(e) => updatePatientField('bedNumber', e.target.value)}
               className="col-span-3"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="height" className="text-right">
-              身高 (cm)
-            </Label>
+            <Label htmlFor="name" className="text-right">姓名</Label>
+            <Input
+              id="name"
+              value={patient.name}
+              onChange={(e) => updatePatientField('name', e.target.value)}
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="gender" className="text-right">性別</Label>
+            <Select
+              value={patient.gender}
+              onValueChange={(value) => updatePatientField('gender', value)}
+            >
+              <SelectTrigger className="col-span-3">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="男">男</SelectItem>
+                <SelectItem value="女">女</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="age" className="text-right">年齡</Label>
+            <Input
+              id="age"
+              type="number"
+              value={patient.age}
+              onChange={(e) => updatePatientField('age', parseInt(e.target.value) || 0)}
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="height" className="text-right">身高 (cm)</Label>
             <Input
               id="height"
               type="number"
               step="0.1"
               placeholder="例: 170"
               value={patient.height ?? ''}
-              onChange={(event) => updatePatientField('height', event.target.value ? Number(event.target.value) : null)}
+              onChange={(e) => updatePatientField('height', e.target.value ? Number(e.target.value) : null)}
               className="col-span-3"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="weight" className="text-right">
-              體重 (kg)
-            </Label>
+            <Label htmlFor="weight" className="text-right">體重 (kg)</Label>
             <Input
               id="weight"
               type="number"
               step="0.1"
               placeholder="例: 65"
               value={patient.weight ?? ''}
-              onChange={(event) => updatePatientField('weight', event.target.value ? Number(event.target.value) : null)}
+              onChange={(e) => updatePatientField('weight', e.target.value ? Number(e.target.value) : null)}
               className="col-span-3"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="attendingPhysician" className="text-right">
-              主治醫師
-            </Label>
+            <Label htmlFor="attendingPhysician" className="text-right">主治醫師</Label>
             <Input
               id="attendingPhysician"
               value={patient.attendingPhysician}
-              onChange={(event) => updatePatientField('attendingPhysician', event.target.value)}
+              onChange={(e) => updatePatientField('attendingPhysician', e.target.value)}
               className="col-span-3"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="department" className="text-right">
-              科別
-            </Label>
+            <Label htmlFor="department" className="text-right">科別</Label>
             <Select value={patient.department} onValueChange={(value) => updatePatientField('department', value)}>
               <SelectTrigger className="col-span-3">
                 <SelectValue />
@@ -117,33 +141,46 @@ export function PatientEditDialog({
             </Select>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="admissionDate" className="text-right">
-              入院日期
-            </Label>
+            <Label htmlFor="diagnosis" className="text-right">入院診斷</Label>
+            <Input
+              id="diagnosis"
+              value={patient.diagnosis}
+              onChange={(e) => updatePatientField('diagnosis', e.target.value)}
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="admissionDate" className="text-right">入院日期</Label>
             <Input
               id="admissionDate"
               type="date"
               value={patient.admissionDate}
-              onChange={(event) => updatePatientField('admissionDate', event.target.value)}
+              onChange={(e) => updatePatientField('admissionDate', e.target.value)}
               className="col-span-3"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="icuAdmissionDate" className="text-right">
-              ICU入院日期
-            </Label>
+            <Label htmlFor="icuAdmissionDate" className="text-right">ICU入院日期</Label>
             <Input
               id="icuAdmissionDate"
               type="date"
               value={patient.icuAdmissionDate}
-              onChange={(event) => updatePatientField('icuAdmissionDate', event.target.value)}
+              onChange={(e) => updatePatientField('icuAdmissionDate', e.target.value)}
               className="col-span-3"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="intubated" className="text-right">
-              插管狀態
-            </Label>
+            <Label htmlFor="ventilatorDays" className="text-right">呼吸器天數</Label>
+            <Input
+              id="ventilatorDays"
+              type="number"
+              value={patient.ventilatorDays}
+              onChange={(e) => updatePatientField('ventilatorDays', parseInt(e.target.value) || 0)}
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="intubated" className="text-right">插管狀態</Label>
             <div className="col-span-3 flex items-center gap-2">
               <Checkbox
                 id="intubated"
@@ -152,6 +189,52 @@ export function PatientEditDialog({
               />
               <span className="text-sm text-muted-foreground">勾選表示插管中</span>
             </div>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="sedation" className="text-right">鎮靜劑 (S)</Label>
+            <Input
+              id="sedation"
+              value={(patient.sedation ?? []).join(', ')}
+              onChange={(e) => updatePatientField('sedation', e.target.value ? e.target.value.split(',').map(s => s.trim()) : [])}
+              className="col-span-3"
+              placeholder="多個藥品用逗號分隔"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="analgesia" className="text-right">止痛劑 (A)</Label>
+            <Input
+              id="analgesia"
+              value={(patient.analgesia ?? []).join(', ')}
+              onChange={(e) => updatePatientField('analgesia', e.target.value ? e.target.value.split(',').map(s => s.trim()) : [])}
+              className="col-span-3"
+              placeholder="多個藥品用逗號分隔"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="nmb" className="text-right">肌肉鬆弛劑 (N)</Label>
+            <Input
+              id="nmb"
+              value={(patient.nmb ?? []).join(', ')}
+              onChange={(e) => updatePatientField('nmb', e.target.value ? e.target.value.split(',').map(s => s.trim()) : [])}
+              className="col-span-3"
+              placeholder="多個藥品用逗號分隔"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="consentStatus" className="text-right">同意書狀態</Label>
+            <Select
+              value={patient.consentStatus ?? 'none'}
+              onValueChange={(value) => updatePatientField('consentStatus', value)}
+            >
+              <SelectTrigger className="col-span-3">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="valid">已同意</SelectItem>
+                <SelectItem value="expired">已過期</SelectItem>
+                <SelectItem value="none">未簽署</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <DialogFooter>

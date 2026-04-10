@@ -363,7 +363,7 @@ export function DashboardPage() {
                       </p>
                     </div>
                     <div className="h-12 w-12 rounded-full bg-brand text-white flex items-center justify-center font-bold text-lg shadow-lg">
-                      {patient.bedNumber || patient.name?.charAt(0) || '?'}
+                      {patient.bedNumber || '-'}
                     </div>
                   </div>
                 </CardHeader>
