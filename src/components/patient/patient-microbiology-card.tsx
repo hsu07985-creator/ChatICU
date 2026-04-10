@@ -186,23 +186,23 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
 
           {/* R line */}
           {rItems.length > 0 && (
-            <div className="flex gap-2 items-start rounded bg-red-50 px-2 py-1">
-              <span className="font-bold text-red-700 shrink-0 w-4">R</span>
-              <span className="text-red-800 font-medium">{rItems.map((s) => s.antibiotic).join(', ')}</span>
+            <div className="flex gap-2 items-start">
+              <span className="font-bold text-red-600 shrink-0 w-4">R</span>
+              <span className="text-red-700">{rItems.map((s) => s.antibiotic).join(', ')}</span>
             </div>
           )}
           {/* I line */}
           {iItems.length > 0 && (
-            <div className="flex gap-2 items-start rounded bg-amber-50 px-2 py-1">
-              <span className="font-semibold text-amber-700 shrink-0 w-4">I</span>
-              <span className="text-amber-800">{iItems.map((s) => s.antibiotic).join(', ')}</span>
+            <div className="flex gap-2 items-start">
+              <span className="font-semibold text-amber-600 shrink-0 w-4">I</span>
+              <span className="text-amber-700">{iItems.map((s) => s.antibiotic).join(', ')}</span>
             </div>
           )}
           {/* S line */}
           {sItems.length > 0 && (
-            <div className="flex gap-2 items-start rounded bg-emerald-50 px-2 py-1">
-              <span className="font-medium text-emerald-700 shrink-0 w-4">S</span>
-              <span className="text-emerald-700/80">{sItems.map((s) => s.antibiotic).join(', ')}</span>
+            <div className="flex gap-2 items-start">
+              <span className="font-medium text-emerald-600 shrink-0 w-4">S</span>
+              <span className="text-emerald-600">{sItems.map((s) => s.antibiotic).join(', ')}</span>
             </div>
           )}
         </div>
