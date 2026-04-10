@@ -531,7 +531,7 @@ export function PatientMedicationsTab({
   onCloseScoreTrend,
   onRefreshMedications,
 }: PatientMedicationsTabProps) {
-  const [medView, setMedView] = useState<'active' | 'discontinued' | 'all'>('active');
+  const [medView, setMedView] = useState<'active' | 'discontinued' | 'all' | 'duplicate'>('active');
   const [filterAbx, setFilterAbx] = useState(false);
   const [filterPrn, setFilterPrn] = useState(false);
   const [filterRoute, setFilterRoute] = useState<string | null>(null);
@@ -808,6 +808,17 @@ export function PatientMedicationsTab({
                     已停用 ({discontinuedCount})
                   </Button>
                 </div>
+                {duplicateMeds.length > 0 && (
+                  <Button
+                    variant={medView === 'duplicate' ? 'default' : 'outline'}
+                    size="sm"
+                    className={`h-7 px-2 text-xs ${medView === 'duplicate' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-300 text-orange-700 hover:bg-orange-50'}`}
+                    onClick={() => { setMedView(medView === 'duplicate' ? 'active' : 'duplicate'); clearSubFilters(); }}
+                  >
+                    <Copy className="h-3 w-3 mr-1" />
+                    重複用藥 ({duplicateMeds.length})
+                  </Button>
+                )}
                 {abxCount > 0 && (
                   <Button
                     variant={filterAbx ? 'default' : 'outline'}
@@ -851,7 +862,7 @@ export function PatientMedicationsTab({
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              {drugInteractions && drugInteractions.length > 0 && medView !== 'discontinued' && (() => {
+              {drugInteractions && drugInteractions.length > 0 && medView !== 'discontinued' && medView !== 'duplicate' && (() => {
                 const mapped: BadgeDrugInteraction[] = drugInteractions.map((i) => ({
                   drug_a: i.drug1,
                   drug_b: i.drug2,
@@ -862,6 +873,58 @@ export function PatientMedicationsTab({
                 const hasRiskX = mapped.some((m) => m.risk.toUpperCase() === 'X');
                 return <DrugInteractionBadges interactions={mapped} hasRiskX={hasRiskX} />;
               })()}
+              {medView === 'duplicate' ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-orange-700 mb-2">
+                    以下藥物同時出現在住院醫令與門診處方中（以學名比對），請確認是否需要調整
+                  </p>
+                  {duplicateMeds.map((dup) => (
+                    <div key={dup.generic} className="rounded-md border border-orange-200 bg-orange-50/50 px-3 py-2.5">
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="font-semibold text-sm text-orange-900">{dup.generic}</p>
+                        <Badge className="bg-orange-200 text-orange-800 hover:bg-orange-200 text-xs px-1.5 py-0 h-4">
+                          住院+門診
+                        </Badge>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {dup.inpatient.map((m) => (
+                          <div
+                            key={m.id}
+                            className="rounded border border-slate-200 bg-white px-2.5 py-1.5 cursor-pointer hover:shadow-sm transition-shadow"
+                            onClick={() => setDetailMedication(m)}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-emerald-100 text-emerald-700 shrink-0">住院</Badge>
+                              <span className="text-sm font-medium truncate">{m.name}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {[m.dose && m.unit ? `${m.dose} ${m.unit}` : null, m.frequency, m.route].filter(Boolean).join(' / ')}
+                              {m.startDate && ` (${formatMedDate(m.startDate)})`}
+                            </p>
+                          </div>
+                        ))}
+                        {dup.outpatient.map((m) => (
+                          <div
+                            key={m.id}
+                            className="rounded border border-blue-200 bg-blue-50/50 px-2.5 py-1.5 cursor-pointer hover:shadow-sm transition-shadow"
+                            onClick={() => setDetailMedication(m)}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-blue-100 text-blue-700 shrink-0">門診</Badge>
+                              <span className="text-sm font-medium truncate">{m.name}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {[m.dose && m.unit ? `${m.dose} ${m.unit}` : null, m.frequency, m.route].filter(Boolean).join(' / ')}
+                              {m.prescribingDepartment && ` [${m.prescribingDepartment}]`}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+              <>
               {medView === 'discontinued' && (
                 <p className="mb-2 text-xs text-muted-foreground">本次住院期間曾使用，現已停用的藥品</p>
               )}
@@ -948,56 +1011,10 @@ export function PatientMedicationsTab({
                   })}
                 </div>
               )}
+              </>
+              )}
             </CardContent>
           </Card>
-
-          {/* Duplicate Medication Alert */}
-          {duplicateMeds.length > 0 && (
-            <Card className="border-orange-300 bg-orange-50/60">
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                  <Copy className="h-4 w-4 text-orange-600" />
-                  <CardTitle className="text-base font-semibold text-orange-800">
-                    重複用藥提醒
-                  </CardTitle>
-                  <Badge className="bg-orange-200 text-orange-800 hover:bg-orange-200">
-                    {duplicateMeds.length} 組
-                  </Badge>
-                </div>
-                <CardDescription className="text-orange-700 text-sm">
-                  以下藥物同時出現在住院醫令與門診處方中（以學名比對），請確認是否需要調整
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0 space-y-2">
-                {duplicateMeds.map((dup) => (
-                  <div key={dup.generic} className="rounded-md border border-orange-200 bg-white px-3 py-2">
-                    <p className="font-semibold text-orange-900 text-sm">{dup.generic}</p>
-                    <div className="mt-1.5 grid gap-x-4 gap-y-1 sm:grid-cols-2 text-xs">
-                      <div>
-                        <span className="font-medium text-slate-600">住院：</span>
-                        {dup.inpatient.map((m) => (
-                          <span key={m.id} className="ml-1 text-slate-700">
-                            {m.name} {m.dose && m.unit ? `${m.dose}${m.unit}` : ''} {m.frequency || ''}
-                            {m.route ? ` (${m.route})` : ''}
-                          </span>
-                        ))}
-                      </div>
-                      <div>
-                        <span className="font-medium text-blue-600">門診：</span>
-                        {dup.outpatient.map((m) => (
-                          <span key={m.id} className="ml-1 text-slate-700">
-                            {m.name} {m.dose && m.unit ? `${m.dose}${m.unit}` : ''} {m.frequency || ''}
-                            {m.route ? ` (${m.route})` : ''}
-                            {m.prescribingDepartment ? ` [${m.prescribingDepartment}]` : ''}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
 
           {/* Outpatient Medications — independent section */}
           {outpatientCount > 0 && (
