@@ -34,6 +34,30 @@ function sortSusceptibility(items: SusceptibilityResult[]): SusceptibilityResult
   return [...items].sort((a, b) => (order[a.result] ?? 3) - (order[b.result] ?? 3));
 }
 
+/** Q score badge color: Q3=good(green), Q2=acceptable(amber), Q0-1=poor(red) */
+function qScoreBg(q: number): string {
+  if (q >= 3) return 'bg-emerald-50 text-emerald-700 border-emerald-400';
+  if (q === 2) return 'bg-amber-50 text-amber-700 border-amber-400';
+  return 'bg-red-50 text-red-700 border-red-400';
+}
+
+/** Group panels by Q score (descending). Returns [label, panels][] — single group with '' key if no Q scores */
+function groupByQScore(panels: CulturePanel[]): [string, CulturePanel[]][] {
+  const hasQ = panels.some((p) => p.qScore != null);
+  if (!hasQ) return [['', panels]];
+  const byQ = new Map<string, CulturePanel[]>();
+  for (const p of panels) {
+    const key = p.qScore != null ? `Q${p.qScore}` : '';
+    if (!byQ.has(key)) byQ.set(key, []);
+    byQ.get(key)!.push(p);
+  }
+  return [...byQ.entries()].sort((a, b) => {
+    const aNum = a[0] ? parseInt(a[0].slice(1)) : -1;
+    const bNum = b[0] ? parseInt(b[0].slice(1)) : -1;
+    return bNum - aNum;
+  });
+}
+
 /* ── Merged culture type ─────────────────────────────────── */
 
 interface MergedCulture {
@@ -161,6 +185,11 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
               S {merged.sensitiveCount}
             </span>
           )}
+          {merged.qScore != null && (
+            <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${qScoreBg(merged.qScore)}`}>
+              Q{merged.qScore}
+            </span>
+          )}
         </span>
 
         {/* Date */}
@@ -172,15 +201,10 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
       {/* ── Card Body (expanded) ── */}
       {open && (
         <div className={`border-t ${bodyBorder} bg-white/70 px-3 py-2 space-y-1 text-xs`}>
-          {/* Meta line: colonies, Q score */}
-          {(coloniesStr || merged.qScore != null) && (
-            <div className="flex items-center gap-3 text-[10px] text-slate-500 pb-0.5">
-              {coloniesStr && <span>Colonies: {coloniesStr}</span>}
-              {merged.qScore != null && (
-                <span className={`font-medium ${
-                  merged.qScore <= 1 ? 'text-green-600' : merged.qScore === 2 ? 'text-amber-600' : 'text-red-600'
-                }`}>Q{merged.qScore}</span>
-              )}
+          {/* Meta line: colonies */}
+          {coloniesStr && (
+            <div className="text-[10px] text-slate-500 pb-0.5">
+              Colonies: {coloniesStr}
             </div>
           )}
 
@@ -288,22 +312,32 @@ function CategorySection({
               {merged.map((m, mIdx) => (
                 <CultureCard key={mIdx} merged={m} defaultOpen={m.resistantCount > 0} forceOpen={forceOpen} />
               ))}
-              {showFlora && group.normalFlora.length > 0 && (
-                <div className="text-xs text-blue-600 py-1.5 px-3 rounded-lg bg-blue-50 border border-blue-200">
+              {showFlora && group.normalFlora.length > 0 && groupByQScore(group.normalFlora).map(([qLabel, panels]) => (
+                <div key={`flora-${qLabel}`} className="text-xs text-blue-600 py-1.5 px-3 rounded-lg bg-blue-50 border border-blue-200 flex items-center gap-1.5">
                   <span className="font-semibold italic">Normal flora</span>
-                  <span className="text-blue-400 ml-2">
-                    {group.normalFlora.map((p) => shortDate(p.reportedAt)).join(', ')}
+                  {qLabel && (
+                    <span className={`inline-flex items-center rounded border px-1 text-[9px] font-bold leading-tight ${qScoreBg(parseInt(qLabel.slice(1)))}`}>
+                      {qLabel}
+                    </span>
+                  )}
+                  <span className="text-blue-400">
+                    {panels.map((p) => shortDate(p.reportedAt)).join(', ')}
                   </span>
                 </div>
-              )}
-              {showNegative && group.negative.length > 0 && (
-                <div className="text-xs text-emerald-600 py-1.5 px-3 rounded-lg bg-emerald-50 border border-emerald-200">
+              ))}
+              {showNegative && group.negative.length > 0 && groupByQScore(group.negative).map(([qLabel, panels]) => (
+                <div key={`neg-${qLabel}`} className="text-xs text-emerald-600 py-1.5 px-3 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center gap-1.5">
                   <span className="font-semibold">Negative</span>
-                  <span className="text-emerald-400 ml-2">
-                    {group.negative.map((p) => shortDate(p.reportedAt)).join(', ')}
+                  {qLabel && (
+                    <span className={`inline-flex items-center rounded border px-1 text-[9px] font-bold leading-tight ${qScoreBg(parseInt(qLabel.slice(1)))}`}>
+                      {qLabel}
+                    </span>
+                  )}
+                  <span className="text-emerald-400">
+                    {panels.map((p) => shortDate(p.reportedAt)).join(', ')}
                   </span>
                 </div>
-              )}
+              ))}
               {group.category === 'other' && total > 0 && (
                 <div className="flex flex-wrap gap-1.5 px-1">
                   {[...new Set([
