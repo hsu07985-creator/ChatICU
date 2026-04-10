@@ -233,6 +233,64 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
   );
 }
 
+/* ── Chronological timeline item ─────────────────────────── */
+
+type ChronoItem =
+  | { kind: 'card'; merged: MergedCulture }
+  | { kind: 'flora'; panel: CulturePanel }
+  | { kind: 'negative'; panel: CulturePanel };
+
+/** Build a single chronological list from all panels in a category. */
+function buildChronologicalList(
+  group: CategoryGroup,
+  onlyPositive: boolean,
+  onlyResistant: boolean,
+): ChronoItem[] {
+  const showAll = !onlyPositive && !onlyResistant;
+  const filteredPositive = onlyResistant
+    ? group.positive.filter((p) => p.susceptibility.some((s) => s.result === 'R' || s.result === 'I'))
+    : group.positive;
+
+  // Tag every panel with its type
+  const tagged: { panel: CulturePanel; ptype: 'positive' | 'flora' | 'negative' }[] = [];
+  for (const p of filteredPositive) tagged.push({ panel: p, ptype: 'positive' });
+  if (showAll) {
+    for (const p of group.normalFlora) tagged.push({ panel: p, ptype: 'flora' });
+    for (const p of group.negative) tagged.push({ panel: p, ptype: 'negative' });
+  }
+
+  // Sort by collectedAt descending (newest first)
+  tagged.sort((a, b) => {
+    const dateA = a.panel.collectedAt ?? a.panel.reportedAt ?? '';
+    const dateB = b.panel.collectedAt ?? b.panel.reportedAt ?? '';
+    return dateB.localeCompare(dateA);
+  });
+
+  // Walk in order: merge consecutive positives with same organisms+susceptibility
+  const items: ChronoItem[] = [];
+  let pendingPositive: CulturePanel[] = [];
+
+  const flushPositive = () => {
+    if (pendingPositive.length === 0) return;
+    for (const m of mergeConsecutiveCultures(pendingPositive)) {
+      items.push({ kind: 'card', merged: m });
+    }
+    pendingPositive = [];
+  };
+
+  for (const { panel, ptype } of tagged) {
+    if (ptype === 'positive') {
+      pendingPositive.push(panel);
+    } else {
+      flushPositive();
+      items.push({ kind: ptype, panel });
+    }
+  }
+  flushPositive();
+
+  return items;
+}
+
 /* ── Collapsible Specimen Category Section ────────────────── */
 
 function CategorySection({
@@ -245,17 +303,20 @@ function CategorySection({
   onlyResistant: boolean;
   forceOpen?: boolean | null;
 }) {
-  const showNegative = !onlyPositive && !onlyResistant;
-  const showFlora = !onlyPositive && !onlyResistant;
+  const showAll = !onlyPositive && !onlyResistant;
   const filteredPositive = onlyResistant
     ? group.positive.filter((p) => p.susceptibility.some((s) => s.result === 'R' || s.result === 'I'))
     : group.positive;
   const hasPositive = filteredPositive.length > 0;
-  const merged = hasPositive ? mergeConsecutiveCultures(filteredPositive) : [];
   const posCount = filteredPositive.length;
-  const negCount = showNegative ? group.negative.length : 0;
-  const floraCount = showFlora ? group.normalFlora.length : 0;
+  const negCount = showAll ? group.negative.length : 0;
+  const floraCount = showAll ? group.normalFlora.length : 0;
   const total = posCount + negCount + floraCount;
+
+  const chronoItems = useMemo(
+    () => buildChronologicalList(group, onlyPositive, onlyResistant),
+    [group, onlyPositive, onlyResistant],
+  );
 
   const [open, setOpen] = useState(true);
 
@@ -298,7 +359,7 @@ function CategorySection({
         </span>
       </button>
 
-      {/* ── Section Body ── */}
+      {/* ── Section Body (chronological) ── */}
       {open && (
         <div className="px-3 py-2.5 space-y-2">
           {total === 0 ? (
@@ -307,41 +368,44 @@ function CategorySection({
             </p>
           ) : (
             <>
-              {merged.map((m, mIdx) => (
-                <CultureCard key={mIdx} merged={m} defaultOpen={m.resistantCount > 0} forceOpen={forceOpen} />
-              ))}
-              {showFlora && group.normalFlora.length > 0 && groupByQScore(group.normalFlora).map(([qLabel, panels]) => (
-                <div key={`flora-${qLabel}`} className="text-[13px] text-blue-700 dark:text-blue-300 py-1.5 px-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
-                  <span className="font-semibold italic">Normal flora</span>
-                  {qLabel && (
-                    <span className={`inline-flex items-center rounded border px-1 text-[10px] font-bold leading-tight ${qScoreBg(parseInt(qLabel.slice(1)))}`}>
-                      {qLabel}
-                    </span>
-                  )}
-                  <span className="text-blue-400 dark:text-blue-500">
-                    {panels.map((p) => shortDate(p.reportedAt)).join(', ')}
-                  </span>
-                </div>
-              ))}
-              {showNegative && group.negative.length > 0 && groupByQScore(group.negative).map(([qLabel, panels]) => (
-                <div key={`neg-${qLabel}`} className="text-[13px] text-teal-700 dark:text-teal-300 py-1.5 px-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
-                  <span className="font-semibold">Negative</span>
-                  {qLabel && (
-                    <span className={`inline-flex items-center rounded border px-1 text-[10px] font-bold leading-tight ${qScoreBg(parseInt(qLabel.slice(1)))}`}>
-                      {qLabel}
-                    </span>
-                  )}
-                  <span className="text-teal-400 dark:text-teal-500">
-                    {panels.map((p) => shortDate(p.reportedAt)).join(', ')}
-                  </span>
-                </div>
-              ))}
+              {chronoItems.map((item, idx) => {
+                if (item.kind === 'card') {
+                  return <CultureCard key={idx} merged={item.merged} defaultOpen={item.merged.resistantCount > 0} forceOpen={forceOpen} />;
+                }
+                if (item.kind === 'flora') {
+                  const p = item.panel;
+                  return (
+                    <div key={idx} className="text-[13px] text-blue-700 dark:text-blue-300 py-1.5 px-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
+                      <span className="font-semibold italic">Normal flora</span>
+                      {p.qScore != null && (
+                        <span className={`inline-flex items-center rounded border px-1 text-[10px] font-bold leading-tight ${qScoreBg(p.qScore)}`}>
+                          Q{p.qScore}
+                        </span>
+                      )}
+                      <span className="text-blue-400 dark:text-blue-500">{shortDate(p.collectedAt ?? p.reportedAt)}</span>
+                    </div>
+                  );
+                }
+                // negative
+                const p = item.panel;
+                return (
+                  <div key={idx} className="text-[13px] text-teal-700 dark:text-teal-300 py-1.5 px-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
+                    <span className="font-semibold">Negative</span>
+                    {p.qScore != null && (
+                      <span className={`inline-flex items-center rounded border px-1 text-[10px] font-bold leading-tight ${qScoreBg(p.qScore)}`}>
+                        Q{p.qScore}
+                      </span>
+                    )}
+                    <span className="text-teal-400 dark:text-teal-500">{shortDate(p.collectedAt ?? p.reportedAt)}</span>
+                  </div>
+                );
+              })}
               {group.category === 'other' && total > 0 && (
                 <div className="flex flex-wrap gap-1.5 px-1">
                   {[...new Set([
                     ...filteredPositive,
-                    ...(showFlora ? group.normalFlora : []),
-                    ...(showNegative ? group.negative : []),
+                    ...(showAll ? group.normalFlora : []),
+                    ...(showAll ? group.negative : []),
                   ].map((p) => p.specimen))].map((s) => (
                     <span key={s} className="text-[11px] text-slate-400 dark:text-slate-500">{s}</span>
                   ))}
