@@ -144,8 +144,8 @@ const BIOCHEM_EXTRA_METRICS: readonly LabMetricDescriptor[] = [
 ];
 
 const LIPID_METRICS: readonly LabMetricDescriptor[] = [
-  { category: 'lipid', itemName: 'UA' },
-  { category: 'lipid', itemName: 'P' },
+  { category: 'biochemistry', itemName: 'Uric' },
+  { category: 'biochemistry', itemName: 'Phos' },
 ];
 
 const OTHER_METRICS: readonly LabMetricDescriptor[] = [
@@ -261,14 +261,14 @@ function getAbnormalDirection(
 
   const trimmed = referenceRange.trim();
 
-  // "<5" 格式 → 超過上限 = high
-  const ltMatch = trimmed.match(/^<\s*([\d.]+)/);
+  // "<5" / "≤5" 格式 → 超過上限 = high
+  const ltMatch = trimmed.match(/^[<≤]\s*([\d.]+)/);
   if (ltMatch) {
     return value >= parseFloat(ltMatch[1]) ? 'high' : 'normal';
   }
 
-  // ">60" 格式 → 低於下限 = low
-  const gtMatch = trimmed.match(/^>\s*([\d.]+)/);
+  // ">60" / "≥60" 格式 → 低於下限 = low
+  const gtMatch = trimmed.match(/^[>≥]\s*([\d.]+)/);
   if (gtMatch) {
     return value <= parseFloat(gtMatch[1]) ? 'low' : 'normal';
   }
@@ -384,6 +384,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
     nameChinese: string;
     unit: string;
     trendData: LabTrendData[];
+    referenceRange?: string;
   } | null>(null);
   const [trendLoading, setTrendLoading] = useState(false);
   const [onlyAbnormal, setOnlyAbnormal] = useState(false);
@@ -424,6 +425,12 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
     return getAbnormalDirection(val, ref, abnormal);
   };
 
+  // 輔助函數：取得參考範圍
+  const getRefRange = (category: keyof LabData, itemName: string): string | undefined => {
+    const item = getItem(category, itemName);
+    return getReferenceRange(item);
+  };
+
   const hasVisibleMetrics = (
     metrics: readonly LabMetricDescriptor[],
     options?: { requireValue?: boolean },
@@ -453,12 +460,12 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
   const showLiverRenal = hasVisibleMetrics(LIVER_RENAL_METRICS);
   const showCoagulation = hasVisibleMetrics(COAGULATION_METRICS);
   const showBiochemExtra = hasVisibleMetrics(BIOCHEM_EXTRA_METRICS);
-  const showLipid = Boolean(labData?.lipid && Object.keys(labData.lipid).length > 0) && hasVisibleMetrics(LIPID_METRICS, { requireValue: true });
+  const showLipid = hasVisibleMetrics(LIPID_METRICS, { requireValue: true });
   const showOther = Boolean(labData?.other && Object.keys(labData.other).length > 0) && hasVisibleMetrics(OTHER_METRICS, { requireValue: true });
   const showThyroidHormone = Boolean(labData?.hormone && Object.keys(labData.hormone).length > 0 && hasVisibleMetrics(THYROID_HORMONE_METRICS, { requireValue: true }));
   const hasAnyVisibleSection = showElectrolytes || showHematology || showInflammatory || showAbg || showVbg || showLiverRenal || showCoagulation || showBiochemExtra || showLipid || showOther || showThyroidHormone;
 
-  const handleLabClick = async (labName: string, category: string, value: number | undefined, unit: string) => {
+  const handleLabClick = async (labName: string, category: string, value: number | undefined, unit: string, refRange?: string) => {
     if (value === undefined || !patientId) return;
 
     setTrendLoading(true);
@@ -491,6 +498,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         nameChinese: labChineseNames[labName] || labName,
         unit,
         trendData,
+        referenceRange: refRange,
       });
     } catch (err) {
       console.error('Failed to load trend data:', err);
@@ -499,6 +507,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         nameChinese: labChineseNames[labName] || labName,
         unit,
         trendData: [{ date: '目前', value }],
+        referenceRange: refRange,
       });
     } finally {
       setTrendLoading(false);
@@ -552,65 +561,65 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
             <LabItem
               labName="Na"
               label="Na"
-              value={getValue('biochemistry', 'Na')}
+              value={getItem('biochemistry', 'Na')}
               unit={getUnit('biochemistry', 'Na', 'mEq/L')}
               isAbnormal={isAbnormal('biochemistry', 'Na')}
               abnormalDirection={getDirection('biochemistry', 'Na')}
-              onClick={() => handleLabClick('Na', 'biochemistry', getValue('biochemistry', 'Na'), getUnit('biochemistry', 'Na', 'mEq/L'))}
+              onClick={() => handleLabClick('Na', 'biochemistry', getValue('biochemistry', 'Na'), getUnit('biochemistry', 'Na', 'mEq/L'), getRefRange('biochemistry', 'Na'))}
             />
             <LabItem
               labName="K"
               label="K"
-              value={getValue('biochemistry', 'K')}
+              value={getItem('biochemistry', 'K')}
               unit={getUnit('biochemistry', 'K', 'mEq/L')}
               isAbnormal={isAbnormal('biochemistry', 'K')}
               abnormalDirection={getDirection('biochemistry', 'K')}
-              onClick={() => handleLabClick('K', 'biochemistry', getValue('biochemistry', 'K'), getUnit('biochemistry', 'K', 'mEq/L'))}
+              onClick={() => handleLabClick('K', 'biochemistry', getValue('biochemistry', 'K'), getUnit('biochemistry', 'K', 'mEq/L'), getRefRange('biochemistry', 'K'))}
             />
             <LabItem
               labName="Ca"
               label="Ca"
-              value={getValue('biochemistry', 'Ca')}
+              value={getItem('biochemistry', 'Ca')}
               unit={getUnit('biochemistry', 'Ca', 'mg/dL')}
               isAbnormal={isAbnormal('biochemistry', 'Ca')}
               abnormalDirection={getDirection('biochemistry', 'Ca')}
-              onClick={() => handleLabClick('Ca', 'biochemistry', getValue('biochemistry', 'Ca'), getUnit('biochemistry', 'Ca', 'mg/dL'))}
+              onClick={() => handleLabClick('Ca', 'biochemistry', getValue('biochemistry', 'Ca'), getUnit('biochemistry', 'Ca', 'mg/dL'), getRefRange('biochemistry', 'Ca'))}
             />
             <LabItem
               labName="freeCa"
               label="free Ca"
-              value={getValue('biochemistry', 'freeCa')}
+              value={getItem('biochemistry', 'freeCa')}
               unit={getUnit('biochemistry', 'freeCa', 'mg/dL')}
               isAbnormal={isAbnormal('biochemistry', 'freeCa')}
               abnormalDirection={getDirection('biochemistry', 'freeCa')}
-              onClick={() => handleLabClick('freeCa', 'biochemistry', getValue('biochemistry', 'freeCa'), getUnit('biochemistry', 'freeCa', 'mg/dL'))}
+              onClick={() => handleLabClick('freeCa', 'biochemistry', getValue('biochemistry', 'freeCa'), getUnit('biochemistry', 'freeCa', 'mg/dL'), getRefRange('biochemistry', 'freeCa'))}
             />
             <LabItem
               labName="Mg"
               label="Mg"
-              value={getValue('biochemistry', 'Mg')}
+              value={getItem('biochemistry', 'Mg')}
               unit={getUnit('biochemistry', 'Mg', 'mg/dL')}
               isAbnormal={isAbnormal('biochemistry', 'Mg')}
               abnormalDirection={getDirection('biochemistry', 'Mg')}
-              onClick={() => handleLabClick('Mg', 'biochemistry', getValue('biochemistry', 'Mg'), getUnit('biochemistry', 'Mg', 'mg/dL'))}
+              onClick={() => handleLabClick('Mg', 'biochemistry', getValue('biochemistry', 'Mg'), getUnit('biochemistry', 'Mg', 'mg/dL'), getRefRange('biochemistry', 'Mg'))}
             />
             <LabItem
               labName="Cl"
               label="Cl"
-              value={getValue('biochemistry', 'Cl')}
+              value={getItem('biochemistry', 'Cl')}
               unit={getUnit('biochemistry', 'Cl', 'mmol/L')}
               isAbnormal={isAbnormal('biochemistry', 'Cl')}
               abnormalDirection={getDirection('biochemistry', 'Cl')}
-              onClick={() => handleLabClick('Cl', 'biochemistry', getValue('biochemistry', 'Cl'), getUnit('biochemistry', 'Cl', 'mmol/L'))}
+              onClick={() => handleLabClick('Cl', 'biochemistry', getValue('biochemistry', 'Cl'), getUnit('biochemistry', 'Cl', 'mmol/L'), getRefRange('biochemistry', 'Cl'))}
             />
             <LabItem
               labName="Phos"
               label="P"
-              value={getValue('biochemistry', 'Phos')}
+              value={getItem('biochemistry', 'Phos')}
               unit={getUnit('biochemistry', 'Phos', 'mg/dL')}
               isAbnormal={isAbnormal('biochemistry', 'Phos')}
               abnormalDirection={getDirection('biochemistry', 'Phos')}
-              onClick={() => handleLabClick('Phos', 'biochemistry', getValue('biochemistry', 'Phos'), getUnit('biochemistry', 'Phos', 'mg/dL'))}
+              onClick={() => handleLabClick('Phos', 'biochemistry', getValue('biochemistry', 'Phos'), getUnit('biochemistry', 'Phos', 'mg/dL'), getRefRange('biochemistry', 'Phos'))}
             />
           </div>
         </div>
@@ -622,83 +631,83 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
             <LabItem
               labName="WBC"
               label="WBC"
-              value={getValue('hematology', 'WBC')}
+              value={getItem('hematology', 'WBC')}
               unit={getUnit('hematology', 'WBC', '10³/μL')}
               isAbnormal={isAbnormal('hematology', 'WBC')}
               abnormalDirection={getDirection('hematology', 'WBC')}
-              onClick={() => handleLabClick('WBC', 'hematology', getValue('hematology', 'WBC'), getUnit('hematology', 'WBC', '10³/μL'))}
+              onClick={() => handleLabClick('WBC', 'hematology', getValue('hematology', 'WBC'), getUnit('hematology', 'WBC', '10³/μL'), getRefRange('hematology', 'WBC'))}
             />
             <LabItem
               labName="RBC"
               label="RBC"
-              value={getValue('hematology', 'RBC')}
+              value={getItem('hematology', 'RBC')}
               unit={getUnit('hematology', 'RBC', '10⁶/μL')}
               isAbnormal={isAbnormal('hematology', 'RBC')}
               abnormalDirection={getDirection('hematology', 'RBC')}
-              onClick={() => handleLabClick('RBC', 'hematology', getValue('hematology', 'RBC'), getUnit('hematology', 'RBC', '10⁶/μL'))}
+              onClick={() => handleLabClick('RBC', 'hematology', getValue('hematology', 'RBC'), getUnit('hematology', 'RBC', '10⁶/μL'), getRefRange('hematology', 'RBC'))}
             />
             <LabItem
               labName="Hb"
               label="Hb"
-              value={getValue('hematology', 'Hb')}
+              value={getItem('hematology', 'Hb')}
               unit={getUnit('hematology', 'Hb', 'g/dL')}
               isAbnormal={isAbnormal('hematology', 'Hb')}
               abnormalDirection={getDirection('hematology', 'Hb')}
-              onClick={() => handleLabClick('Hb', 'hematology', getValue('hematology', 'Hb'), getUnit('hematology', 'Hb', 'g/dL'))}
+              onClick={() => handleLabClick('Hb', 'hematology', getValue('hematology', 'Hb'), getUnit('hematology', 'Hb', 'g/dL'), getRefRange('hematology', 'Hb'))}
             />
             <LabItem
               labName="Hct"
               label="Hct"
-              value={getValue('hematology', 'Hct')}
+              value={getItem('hematology', 'Hct')}
               unit={getUnit('hematology', 'Hct', '%')}
               isAbnormal={isAbnormal('hematology', 'Hct')}
               abnormalDirection={getDirection('hematology', 'Hct')}
-              onClick={() => handleLabClick('Hct', 'hematology', getValue('hematology', 'Hct'), getUnit('hematology', 'Hct', '%'))}
+              onClick={() => handleLabClick('Hct', 'hematology', getValue('hematology', 'Hct'), getUnit('hematology', 'Hct', '%'), getRefRange('hematology', 'Hct'))}
             />
             <LabItem
               labName="PLT"
               label="PLT"
-              value={getValue('hematology', 'PLT')}
+              value={getItem('hematology', 'PLT')}
               unit={getUnit('hematology', 'PLT', '10³/μL')}
               isAbnormal={isAbnormal('hematology', 'PLT')}
               abnormalDirection={getDirection('hematology', 'PLT')}
-              onClick={() => handleLabClick('PLT', 'hematology', getValue('hematology', 'PLT'), getUnit('hematology', 'PLT', '10³/μL'))}
+              onClick={() => handleLabClick('PLT', 'hematology', getValue('hematology', 'PLT'), getUnit('hematology', 'PLT', '10³/μL'), getRefRange('hematology', 'PLT'))}
             />
             <LabItem
               labName="Segment"
               label="Seg"
-              value={getValue('hematology', 'Segment')}
+              value={getItem('hematology', 'Segment')}
               unit={getUnit('hematology', 'Segment', '%')}
               isAbnormal={isAbnormal('hematology', 'Segment')}
               abnormalDirection={getDirection('hematology', 'Segment')}
-              onClick={() => handleLabClick('Segment', 'hematology', getValue('hematology', 'Segment'), getUnit('hematology', 'Segment', '%'))}
+              onClick={() => handleLabClick('Segment', 'hematology', getValue('hematology', 'Segment'), getUnit('hematology', 'Segment', '%'), getRefRange('hematology', 'Segment'))}
             />
             <LabItem
               labName="Lymph"
               label="Lymph"
-              value={getValue('hematology', 'Lymph')}
+              value={getItem('hematology', 'Lymph')}
               unit={getUnit('hematology', 'Lymph', '%')}
               isAbnormal={isAbnormal('hematology', 'Lymph')}
               abnormalDirection={getDirection('hematology', 'Lymph')}
-              onClick={() => handleLabClick('Lymph', 'hematology', getValue('hematology', 'Lymph'), getUnit('hematology', 'Lymph', '%'))}
+              onClick={() => handleLabClick('Lymph', 'hematology', getValue('hematology', 'Lymph'), getUnit('hematology', 'Lymph', '%'), getRefRange('hematology', 'Lymph'))}
             />
             <LabItem
               labName="Mono"
               label="Mono"
-              value={getValue('hematology', 'Mono')}
+              value={getItem('hematology', 'Mono')}
               unit={getUnit('hematology', 'Mono', '%')}
               isAbnormal={isAbnormal('hematology', 'Mono')}
               abnormalDirection={getDirection('hematology', 'Mono')}
-              onClick={() => handleLabClick('Mono', 'hematology', getValue('hematology', 'Mono'), getUnit('hematology', 'Mono', '%'))}
+              onClick={() => handleLabClick('Mono', 'hematology', getValue('hematology', 'Mono'), getUnit('hematology', 'Mono', '%'), getRefRange('hematology', 'Mono'))}
             />
             <LabItem
               labName="Band"
               label="Band"
-              value={getValue('hematology', 'Band')}
+              value={getItem('hematology', 'Band')}
               unit={getUnit('hematology', 'Band', '%')}
               isAbnormal={isAbnormal('hematology', 'Band')}
               abnormalDirection={getDirection('hematology', 'Band')}
-              onClick={() => handleLabClick('Band', 'hematology', getValue('hematology', 'Band'), getUnit('hematology', 'Band', '%'))}
+              onClick={() => handleLabClick('Band', 'hematology', getValue('hematology', 'Band'), getUnit('hematology', 'Band', '%'), getRefRange('hematology', 'Band'))}
             />
           </div>
         </div>
@@ -710,47 +719,47 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
             <LabItem
               labName="Alb"
               label="Alb"
-              value={getValue('biochemistry', 'Alb')}
+              value={getItem('biochemistry', 'Alb')}
               unit={getUnit('biochemistry', 'Alb', 'g/dL')}
               isAbnormal={isAbnormal('biochemistry', 'Alb')}
               abnormalDirection={getDirection('biochemistry', 'Alb')}
-              onClick={() => handleLabClick('Alb', 'biochemistry', getValue('biochemistry', 'Alb'), getUnit('biochemistry', 'Alb', 'g/dL'))}
+              onClick={() => handleLabClick('Alb', 'biochemistry', getValue('biochemistry', 'Alb'), getUnit('biochemistry', 'Alb', 'g/dL'), getRefRange('biochemistry', 'Alb'))}
             />
             <LabItem
               labName="Lactate"
               label="Lactate"
-              value={getValue('bloodGas', 'Lactate')}
+              value={getItem('bloodGas', 'Lactate')}
               unit={getUnit('bloodGas', 'Lactate', 'mmol/L')}
               isAbnormal={isAbnormal('bloodGas', 'Lactate')}
               abnormalDirection={getDirection('bloodGas', 'Lactate')}
-              onClick={() => handleLabClick('Lactate', 'bloodGas', getValue('bloodGas', 'Lactate'), getUnit('bloodGas', 'Lactate', 'mmol/L'))}
+              onClick={() => handleLabClick('Lactate', 'bloodGas', getValue('bloodGas', 'Lactate'), getUnit('bloodGas', 'Lactate', 'mmol/L'), getRefRange('bloodGas', 'Lactate'))}
             />
             <LabItem
               labName="CRP"
               label="CRP"
-              value={getValue('inflammatory', 'CRP')}
+              value={getItem('inflammatory', 'CRP')}
               unit={getUnit('inflammatory', 'CRP', 'mg/L')}
               isAbnormal={isAbnormal('inflammatory', 'CRP')}
               abnormalDirection={getDirection('inflammatory', 'CRP')}
-              onClick={() => handleLabClick('CRP', 'inflammatory', getValue('inflammatory', 'CRP'), getUnit('inflammatory', 'CRP', 'mg/L'))}
+              onClick={() => handleLabClick('CRP', 'inflammatory', getValue('inflammatory', 'CRP'), getUnit('inflammatory', 'CRP', 'mg/L'), getRefRange('inflammatory', 'CRP'))}
             />
             <LabItem
               labName="PCT"
               label="PCT"
-              value={getValue('inflammatory', 'PCT')}
+              value={getItem('inflammatory', 'PCT')}
               unit={getUnit('inflammatory', 'PCT', 'ng/mL')}
               isAbnormal={isAbnormal('inflammatory', 'PCT')}
               abnormalDirection={getDirection('inflammatory', 'PCT')}
-              onClick={() => handleLabClick('PCT', 'inflammatory', getValue('inflammatory', 'PCT'), getUnit('inflammatory', 'PCT', 'ng/mL'))}
+              onClick={() => handleLabClick('PCT', 'inflammatory', getValue('inflammatory', 'PCT'), getUnit('inflammatory', 'PCT', 'ng/mL'), getRefRange('inflammatory', 'PCT'))}
             />
             <LabItem
               labName="IL-6"
               label="IL-6"
-              value={getValue('inflammatory', 'IL-6')}
+              value={getItem('inflammatory', 'IL-6')}
               unit={getUnit('inflammatory', 'IL-6', 'pg/mL')}
               isAbnormal={isAbnormal('inflammatory', 'IL-6')}
               abnormalDirection={getDirection('inflammatory', 'IL-6')}
-              onClick={() => handleLabClick('IL-6', 'inflammatory', getValue('inflammatory', 'IL-6'), getUnit('inflammatory', 'IL-6', 'pg/mL'))}
+              onClick={() => handleLabClick('IL-6', 'inflammatory', getValue('inflammatory', 'IL-6'), getUnit('inflammatory', 'IL-6', 'pg/mL'), getRefRange('inflammatory', 'IL-6'))}
             />
           </div>
         </div>
@@ -762,56 +771,56 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
             <LabItem
               labName="pH"
               label="pH"
-              value={getValue('bloodGas', 'pH')}
+              value={getItem('bloodGas', 'pH')}
               unit={getUnit('bloodGas', 'pH', '')}
               isAbnormal={isAbnormal('bloodGas', 'pH')}
               abnormalDirection={getDirection('bloodGas', 'pH')}
-              onClick={() => handleLabClick('pH', 'bloodGas', getValue('bloodGas', 'pH'), getUnit('bloodGas', 'pH', ''))}
+              onClick={() => handleLabClick('pH', 'bloodGas', getValue('bloodGas', 'pH'), getUnit('bloodGas', 'pH', ''), getRefRange('bloodGas', 'pH'))}
             />
             <LabItem
               labName="PCO2"
               label="PCO₂"
-              value={getValue('bloodGas', 'PCO2')}
+              value={getItem('bloodGas', 'PCO2')}
               unit={getUnit('bloodGas', 'PCO2', 'mmHg')}
               isAbnormal={isAbnormal('bloodGas', 'PCO2')}
               abnormalDirection={getDirection('bloodGas', 'PCO2')}
-              onClick={() => handleLabClick('PCO2', 'bloodGas', getValue('bloodGas', 'PCO2'), getUnit('bloodGas', 'PCO2', 'mmHg'))}
+              onClick={() => handleLabClick('PCO2', 'bloodGas', getValue('bloodGas', 'PCO2'), getUnit('bloodGas', 'PCO2', 'mmHg'), getRefRange('bloodGas', 'PCO2'))}
             />
             <LabItem
               labName="PO2"
               label="PO₂"
-              value={getValue('bloodGas', 'PO2')}
+              value={getItem('bloodGas', 'PO2')}
               unit={getUnit('bloodGas', 'PO2', 'mmHg')}
               isAbnormal={isAbnormal('bloodGas', 'PO2')}
               abnormalDirection={getDirection('bloodGas', 'PO2')}
-              onClick={() => handleLabClick('PO2', 'bloodGas', getValue('bloodGas', 'PO2'), getUnit('bloodGas', 'PO2', 'mmHg'))}
+              onClick={() => handleLabClick('PO2', 'bloodGas', getValue('bloodGas', 'PO2'), getUnit('bloodGas', 'PO2', 'mmHg'), getRefRange('bloodGas', 'PO2'))}
             />
             <LabItem
               labName="HCO3"
               label="HCO₃"
-              value={getValue('bloodGas', 'HCO3')}
+              value={getItem('bloodGas', 'HCO3')}
               unit={getUnit('bloodGas', 'HCO3', 'mEq/L')}
               isAbnormal={isAbnormal('bloodGas', 'HCO3')}
               abnormalDirection={getDirection('bloodGas', 'HCO3')}
-              onClick={() => handleLabClick('HCO3', 'bloodGas', getValue('bloodGas', 'HCO3'), getUnit('bloodGas', 'HCO3', 'mEq/L'))}
+              onClick={() => handleLabClick('HCO3', 'bloodGas', getValue('bloodGas', 'HCO3'), getUnit('bloodGas', 'HCO3', 'mEq/L'), getRefRange('bloodGas', 'HCO3'))}
             />
             <LabItem
               labName="BE"
               label="BE"
-              value={getValue('bloodGas', 'BE')}
+              value={getItem('bloodGas', 'BE')}
               unit={getUnit('bloodGas', 'BE', 'mmol/L')}
               isAbnormal={isAbnormal('bloodGas', 'BE')}
               abnormalDirection={getDirection('bloodGas', 'BE')}
-              onClick={() => handleLabClick('BE', 'bloodGas', getValue('bloodGas', 'BE'), getUnit('bloodGas', 'BE', 'mmol/L'))}
+              onClick={() => handleLabClick('BE', 'bloodGas', getValue('bloodGas', 'BE'), getUnit('bloodGas', 'BE', 'mmol/L'), getRefRange('bloodGas', 'BE'))}
             />
             <LabItem
               labName="SaO2"
               label="SaO₂"
-              value={getValue('bloodGas', 'SaO2')}
+              value={getItem('bloodGas', 'SaO2')}
               unit={getUnit('bloodGas', 'SaO2', '%')}
               isAbnormal={isAbnormal('bloodGas', 'SaO2')}
               abnormalDirection={getDirection('bloodGas', 'SaO2')}
-              onClick={() => handleLabClick('SaO2', 'bloodGas', getValue('bloodGas', 'SaO2'), getUnit('bloodGas', 'SaO2', '%'))}
+              onClick={() => handleLabClick('SaO2', 'bloodGas', getValue('bloodGas', 'SaO2'), getUnit('bloodGas', 'SaO2', '%'), getRefRange('bloodGas', 'SaO2'))}
             />
           </div>
         </div>
@@ -823,56 +832,56 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
             <LabItem
               labName="pH"
               label="pH"
-              value={getValue('venousBloodGas', 'pH')}
+              value={getItem('venousBloodGas', 'pH')}
               unit={getUnit('venousBloodGas', 'pH', '')}
               isAbnormal={isAbnormal('venousBloodGas', 'pH')}
               abnormalDirection={getDirection('venousBloodGas', 'pH')}
-              onClick={() => handleLabClick('pH', 'venousBloodGas', getValue('venousBloodGas', 'pH'), getUnit('venousBloodGas', 'pH', ''))}
+              onClick={() => handleLabClick('pH', 'venousBloodGas', getValue('venousBloodGas', 'pH'), getUnit('venousBloodGas', 'pH', ''), getRefRange('venousBloodGas', 'pH'))}
             />
             <LabItem
               labName="PCO2"
               label="PCO₂"
-              value={getValue('venousBloodGas', 'PCO2')}
+              value={getItem('venousBloodGas', 'PCO2')}
               unit={getUnit('venousBloodGas', 'PCO2', 'mmHg')}
               isAbnormal={isAbnormal('venousBloodGas', 'PCO2')}
               abnormalDirection={getDirection('venousBloodGas', 'PCO2')}
-              onClick={() => handleLabClick('PCO2', 'venousBloodGas', getValue('venousBloodGas', 'PCO2'), getUnit('venousBloodGas', 'PCO2', 'mmHg'))}
+              onClick={() => handleLabClick('PCO2', 'venousBloodGas', getValue('venousBloodGas', 'PCO2'), getUnit('venousBloodGas', 'PCO2', 'mmHg'), getRefRange('venousBloodGas', 'PCO2'))}
             />
             <LabItem
               labName="PO2"
               label="PO₂"
-              value={getValue('venousBloodGas', 'PO2')}
+              value={getItem('venousBloodGas', 'PO2')}
               unit={getUnit('venousBloodGas', 'PO2', 'mmHg')}
               isAbnormal={isAbnormal('venousBloodGas', 'PO2')}
               abnormalDirection={getDirection('venousBloodGas', 'PO2')}
-              onClick={() => handleLabClick('PO2', 'venousBloodGas', getValue('venousBloodGas', 'PO2'), getUnit('venousBloodGas', 'PO2', 'mmHg'))}
+              onClick={() => handleLabClick('PO2', 'venousBloodGas', getValue('venousBloodGas', 'PO2'), getUnit('venousBloodGas', 'PO2', 'mmHg'), getRefRange('venousBloodGas', 'PO2'))}
             />
             <LabItem
               labName="HCO3"
               label="HCO₃"
-              value={getValue('venousBloodGas', 'HCO3')}
+              value={getItem('venousBloodGas', 'HCO3')}
               unit={getUnit('venousBloodGas', 'HCO3', 'mmol/L')}
               isAbnormal={isAbnormal('venousBloodGas', 'HCO3')}
               abnormalDirection={getDirection('venousBloodGas', 'HCO3')}
-              onClick={() => handleLabClick('HCO3', 'venousBloodGas', getValue('venousBloodGas', 'HCO3'), getUnit('venousBloodGas', 'HCO3', 'mmol/L'))}
+              onClick={() => handleLabClick('HCO3', 'venousBloodGas', getValue('venousBloodGas', 'HCO3'), getUnit('venousBloodGas', 'HCO3', 'mmol/L'), getRefRange('venousBloodGas', 'HCO3'))}
             />
             <LabItem
               labName="BE"
               label="BE"
-              value={getValue('venousBloodGas', 'BE')}
+              value={getItem('venousBloodGas', 'BE')}
               unit={getUnit('venousBloodGas', 'BE', 'mmol/L')}
               isAbnormal={isAbnormal('venousBloodGas', 'BE')}
               abnormalDirection={getDirection('venousBloodGas', 'BE')}
-              onClick={() => handleLabClick('BE', 'venousBloodGas', getValue('venousBloodGas', 'BE'), getUnit('venousBloodGas', 'BE', 'mmol/L'))}
+              onClick={() => handleLabClick('BE', 'venousBloodGas', getValue('venousBloodGas', 'BE'), getUnit('venousBloodGas', 'BE', 'mmol/L'), getRefRange('venousBloodGas', 'BE'))}
             />
             <LabItem
               labName="SO2C"
               label="SO₂C"
-              value={getValue('venousBloodGas', 'SO2C')}
+              value={getItem('venousBloodGas', 'SO2C')}
               unit={getUnit('venousBloodGas', 'SO2C', '%')}
               isAbnormal={isAbnormal('venousBloodGas', 'SO2C')}
               abnormalDirection={getDirection('venousBloodGas', 'SO2C')}
-              onClick={() => handleLabClick('SO2C', 'venousBloodGas', getValue('venousBloodGas', 'SO2C'), getUnit('venousBloodGas', 'SO2C', '%'))}
+              onClick={() => handleLabClick('SO2C', 'venousBloodGas', getValue('venousBloodGas', 'SO2C'), getUnit('venousBloodGas', 'SO2C', '%'), getRefRange('venousBloodGas', 'SO2C'))}
             />
           </div>
         </div>
@@ -884,92 +893,92 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
             <LabItem
               labName="AST"
               label="AST"
-              value={getValue('biochemistry', 'AST')}
+              value={getItem('biochemistry', 'AST')}
               unit={getUnit('biochemistry', 'AST', 'U/L')}
               isAbnormal={isAbnormal('biochemistry', 'AST')}
               abnormalDirection={getDirection('biochemistry', 'AST')}
-              onClick={() => handleLabClick('AST', 'biochemistry', getValue('biochemistry', 'AST'), getUnit('biochemistry', 'AST', 'U/L'))}
+              onClick={() => handleLabClick('AST', 'biochemistry', getValue('biochemistry', 'AST'), getUnit('biochemistry', 'AST', 'U/L'), getRefRange('biochemistry', 'AST'))}
             />
             <LabItem
               labName="ALT"
               label="ALT"
-              value={getValue('biochemistry', 'ALT')}
+              value={getItem('biochemistry', 'ALT')}
               unit={getUnit('biochemistry', 'ALT', 'U/L')}
               isAbnormal={isAbnormal('biochemistry', 'ALT')}
               abnormalDirection={getDirection('biochemistry', 'ALT')}
-              onClick={() => handleLabClick('ALT', 'biochemistry', getValue('biochemistry', 'ALT'), getUnit('biochemistry', 'ALT', 'U/L'))}
+              onClick={() => handleLabClick('ALT', 'biochemistry', getValue('biochemistry', 'ALT'), getUnit('biochemistry', 'ALT', 'U/L'), getRefRange('biochemistry', 'ALT'))}
             />
             <LabItem
               labName="TBil"
               label="T-bil"
-              value={getValue('biochemistry', 'TBil')}
+              value={getItem('biochemistry', 'TBil')}
               unit={getUnit('biochemistry', 'TBil', 'mg/dL')}
               isAbnormal={isAbnormal('biochemistry', 'TBil')}
               abnormalDirection={getDirection('biochemistry', 'TBil')}
-              onClick={() => handleLabClick('TBil', 'biochemistry', getValue('biochemistry', 'TBil'), getUnit('biochemistry', 'TBil', 'mg/dL'))}
+              onClick={() => handleLabClick('TBil', 'biochemistry', getValue('biochemistry', 'TBil'), getUnit('biochemistry', 'TBil', 'mg/dL'), getRefRange('biochemistry', 'TBil'))}
             />
             <LabItem
               labName="DBil"
               label="D-bil"
-              value={getValue('biochemistry', 'DBil')}
+              value={getItem('biochemistry', 'DBil')}
               unit={getUnit('biochemistry', 'DBil', 'mg/dL')}
               isAbnormal={isAbnormal('biochemistry', 'DBil')}
               abnormalDirection={getDirection('biochemistry', 'DBil')}
-              onClick={() => handleLabClick('DBil', 'biochemistry', getValue('biochemistry', 'DBil'), getUnit('biochemistry', 'DBil', 'mg/dL'))}
+              onClick={() => handleLabClick('DBil', 'biochemistry', getValue('biochemistry', 'DBil'), getUnit('biochemistry', 'DBil', 'mg/dL'), getRefRange('biochemistry', 'DBil'))}
             />
             <LabItem
               labName="BUN"
               label="BUN"
-              value={getValue('biochemistry', 'BUN')}
+              value={getItem('biochemistry', 'BUN')}
               unit={getUnit('biochemistry', 'BUN', 'mg/dL')}
               isAbnormal={isAbnormal('biochemistry', 'BUN')}
               abnormalDirection={getDirection('biochemistry', 'BUN')}
-              onClick={() => handleLabClick('BUN', 'biochemistry', getValue('biochemistry', 'BUN'), getUnit('biochemistry', 'BUN', 'mg/dL'))}
+              onClick={() => handleLabClick('BUN', 'biochemistry', getValue('biochemistry', 'BUN'), getUnit('biochemistry', 'BUN', 'mg/dL'), getRefRange('biochemistry', 'BUN'))}
             />
             <LabItem
               labName="Scr"
               label="Scr"
-              value={getValue('biochemistry', 'Scr')}
+              value={getItem('biochemistry', 'Scr')}
               unit={getUnit('biochemistry', 'Scr', 'mg/dL')}
               isAbnormal={isAbnormal('biochemistry', 'Scr')}
               abnormalDirection={getDirection('biochemistry', 'Scr')}
-              onClick={() => handleLabClick('Scr', 'biochemistry', getValue('biochemistry', 'Scr'), getUnit('biochemistry', 'Scr', 'mg/dL'))}
+              onClick={() => handleLabClick('Scr', 'biochemistry', getValue('biochemistry', 'Scr'), getUnit('biochemistry', 'Scr', 'mg/dL'), getRefRange('biochemistry', 'Scr'))}
             />
             <LabItem
               labName="eGFR"
               label="eGFR"
-              value={getValue('biochemistry', 'eGFR')}
+              value={getItem('biochemistry', 'eGFR')}
               unit={getUnit('biochemistry', 'eGFR', 'mL/min')}
               isAbnormal={isAbnormal('biochemistry', 'eGFR')}
               abnormalDirection={getDirection('biochemistry', 'eGFR')}
-              onClick={() => handleLabClick('eGFR', 'biochemistry', getValue('biochemistry', 'eGFR'), getUnit('biochemistry', 'eGFR', 'mL/min/1.73m²'))}
+              onClick={() => handleLabClick('eGFR', 'biochemistry', getValue('biochemistry', 'eGFR'), getUnit('biochemistry', 'eGFR', 'mL/min/1.73m²'), getRefRange('biochemistry', 'eGFR'))}
             />
             <LabItem
               labName="Clcr"
               label="Clcr"
-              value={getValue('biochemistry', 'Clcr')}
+              value={getItem('biochemistry', 'Clcr')}
               unit={getUnit('biochemistry', 'Clcr', 'mL/min')}
               isAbnormal={isAbnormal('biochemistry', 'Clcr')}
               abnormalDirection={getDirection('biochemistry', 'Clcr')}
-              onClick={() => handleLabClick('Clcr', 'biochemistry', getValue('biochemistry', 'Clcr'), getUnit('biochemistry', 'Clcr', 'mL/min'))}
+              onClick={() => handleLabClick('Clcr', 'biochemistry', getValue('biochemistry', 'Clcr'), getUnit('biochemistry', 'Clcr', 'mL/min'), getRefRange('biochemistry', 'Clcr'))}
             />
             <LabItem
               labName="AlkP"
               label="Alk-P"
-              value={getValue('biochemistry', 'AlkP')}
+              value={getItem('biochemistry', 'AlkP')}
               unit={getUnit('biochemistry', 'AlkP', 'U/L')}
               isAbnormal={isAbnormal('biochemistry', 'AlkP')}
               abnormalDirection={getDirection('biochemistry', 'AlkP')}
-              onClick={() => handleLabClick('AlkP', 'biochemistry', getValue('biochemistry', 'AlkP'), getUnit('biochemistry', 'AlkP', 'U/L'))}
+              onClick={() => handleLabClick('AlkP', 'biochemistry', getValue('biochemistry', 'AlkP'), getUnit('biochemistry', 'AlkP', 'U/L'), getRefRange('biochemistry', 'AlkP'))}
             />
             <LabItem
               labName="rGT"
               label="r-GT"
-              value={getValue('biochemistry', 'rGT')}
+              value={getItem('biochemistry', 'rGT')}
               unit={getUnit('biochemistry', 'rGT', 'U/L')}
               isAbnormal={isAbnormal('biochemistry', 'rGT')}
               abnormalDirection={getDirection('biochemistry', 'rGT')}
-              onClick={() => handleLabClick('rGT', 'biochemistry', getValue('biochemistry', 'rGT'), getUnit('biochemistry', 'rGT', 'U/L'))}
+              onClick={() => handleLabClick('rGT', 'biochemistry', getValue('biochemistry', 'rGT'), getUnit('biochemistry', 'rGT', 'U/L'), getRefRange('biochemistry', 'rGT'))}
             />
           </div>
         </div>
@@ -981,47 +990,47 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
             <LabItem
               labName="PT"
               label="PT"
-              value={getValue('coagulation', 'PT')}
+              value={getItem('coagulation', 'PT')}
               unit={getUnit('coagulation', 'PT', 'sec')}
               isAbnormal={isAbnormal('coagulation', 'PT')}
               abnormalDirection={getDirection('coagulation', 'PT')}
-              onClick={() => handleLabClick('PT', 'coagulation', getValue('coagulation', 'PT'), getUnit('coagulation', 'PT', 'sec'))}
+              onClick={() => handleLabClick('PT', 'coagulation', getValue('coagulation', 'PT'), getUnit('coagulation', 'PT', 'sec'), getRefRange('coagulation', 'PT'))}
             />
             <LabItem
               labName="aPTT"
               label="aPTT"
-              value={getValue('coagulation', 'aPTT')}
+              value={getItem('coagulation', 'aPTT')}
               unit={getUnit('coagulation', 'aPTT', 'sec')}
               isAbnormal={isAbnormal('coagulation', 'aPTT')}
               abnormalDirection={getDirection('coagulation', 'aPTT')}
-              onClick={() => handleLabClick('aPTT', 'coagulation', getValue('coagulation', 'aPTT'), getUnit('coagulation', 'aPTT', 'sec'))}
+              onClick={() => handleLabClick('aPTT', 'coagulation', getValue('coagulation', 'aPTT'), getUnit('coagulation', 'aPTT', 'sec'), getRefRange('coagulation', 'aPTT'))}
             />
             <LabItem
               labName="INR"
               label="INR"
-              value={getValue('coagulation', 'INR')}
+              value={getItem('coagulation', 'INR')}
               unit={getUnit('coagulation', 'INR', '')}
               isAbnormal={isAbnormal('coagulation', 'INR')}
               abnormalDirection={getDirection('coagulation', 'INR')}
-              onClick={() => handleLabClick('INR', 'coagulation', getValue('coagulation', 'INR'), getUnit('coagulation', 'INR', ''))}
+              onClick={() => handleLabClick('INR', 'coagulation', getValue('coagulation', 'INR'), getUnit('coagulation', 'INR', ''), getRefRange('coagulation', 'INR'))}
             />
             <LabItem
               labName="DDimer"
               label="D-dimer"
-              value={getValue('coagulation', 'DDimer')}
+              value={getItem('coagulation', 'DDimer')}
               unit={getUnit('coagulation', 'DDimer', 'μg/mL')}
               isAbnormal={isAbnormal('coagulation', 'DDimer')}
               abnormalDirection={getDirection('coagulation', 'DDimer')}
-              onClick={() => handleLabClick('DDimer', 'coagulation', getValue('coagulation', 'DDimer'), getUnit('coagulation', 'DDimer', 'μg/mL'))}
+              onClick={() => handleLabClick('DDimer', 'coagulation', getValue('coagulation', 'DDimer'), getUnit('coagulation', 'DDimer', 'μg/mL'), getRefRange('coagulation', 'DDimer'))}
             />
             <LabItem
               labName="Fibrinogen"
               label="Fibrinogen"
-              value={getValue('coagulation', 'Fibrinogen')}
+              value={getItem('coagulation', 'Fibrinogen')}
               unit={getUnit('coagulation', 'Fibrinogen', 'g/L')}
               isAbnormal={isAbnormal('coagulation', 'Fibrinogen')}
               abnormalDirection={getDirection('coagulation', 'Fibrinogen')}
-              onClick={() => handleLabClick('Fibrinogen', 'coagulation', getValue('coagulation', 'Fibrinogen'), getUnit('coagulation', 'Fibrinogen', 'g/L'))}
+              onClick={() => handleLabClick('Fibrinogen', 'coagulation', getValue('coagulation', 'Fibrinogen'), getUnit('coagulation', 'Fibrinogen', 'g/L'), getRefRange('coagulation', 'Fibrinogen'))}
             />
           </div>
         </div>
@@ -1033,128 +1042,128 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
             <LabItem
               labName="Glucose"
               label="Glucose"
-              value={getValue('biochemistry', 'Glucose')}
+              value={getItem('biochemistry', 'Glucose')}
               unit={getUnit('biochemistry', 'Glucose', 'mg/dL')}
               isAbnormal={isAbnormal('biochemistry', 'Glucose')}
               abnormalDirection={getDirection('biochemistry', 'Glucose')}
-              onClick={() => handleLabClick('Glucose', 'biochemistry', getValue('biochemistry', 'Glucose'), getUnit('biochemistry', 'Glucose', 'mg/dL'))}
+              onClick={() => handleLabClick('Glucose', 'biochemistry', getValue('biochemistry', 'Glucose'), getUnit('biochemistry', 'Glucose', 'mg/dL'), getRefRange('biochemistry', 'Glucose'))}
             />
             <LabItem
               labName="LDH"
               label="LDH"
-              value={getValue('biochemistry', 'LDH')}
+              value={getItem('biochemistry', 'LDH')}
               unit={getUnit('biochemistry', 'LDH', 'U/L')}
               isAbnormal={isAbnormal('biochemistry', 'LDH')}
               abnormalDirection={getDirection('biochemistry', 'LDH')}
-              onClick={() => handleLabClick('LDH', 'biochemistry', getValue('biochemistry', 'LDH'), getUnit('biochemistry', 'LDH', 'U/L'))}
+              onClick={() => handleLabClick('LDH', 'biochemistry', getValue('biochemistry', 'LDH'), getUnit('biochemistry', 'LDH', 'U/L'), getRefRange('biochemistry', 'LDH'))}
             />
             <LabItem
               labName="TnT"
               label="Tn-T"
-              value={getValue('cardiac', 'TnT')}
+              value={getItem('cardiac', 'TnT')}
               unit={getUnit('cardiac', 'TnT', 'ng/mL')}
               isAbnormal={isAbnormal('cardiac', 'TnT')}
               abnormalDirection={getDirection('cardiac', 'TnT')}
-              onClick={() => handleLabClick('TnT', 'cardiac', getValue('cardiac', 'TnT'), getUnit('cardiac', 'TnT', 'ng/mL'))}
+              onClick={() => handleLabClick('TnT', 'cardiac', getValue('cardiac', 'TnT'), getUnit('cardiac', 'TnT', 'ng/mL'), getRefRange('cardiac', 'TnT'))}
             />
             <LabItem
               labName="Uric"
               label="Uric Acid"
-              value={getValue('biochemistry', 'Uric')}
+              value={getItem('biochemistry', 'Uric')}
               unit={getUnit('biochemistry', 'Uric', 'mg/dL')}
               isAbnormal={isAbnormal('biochemistry', 'Uric')}
               abnormalDirection={getDirection('biochemistry', 'Uric')}
-              onClick={() => handleLabClick('Uric', 'biochemistry', getValue('biochemistry', 'Uric'), getUnit('biochemistry', 'Uric', 'mg/dL'))}
+              onClick={() => handleLabClick('Uric', 'biochemistry', getValue('biochemistry', 'Uric'), getUnit('biochemistry', 'Uric', 'mg/dL'), getRefRange('biochemistry', 'Uric'))}
             />
             <LabItem
               labName="TSH"
               label="TSH"
-              value={getValue('thyroid', 'TSH')}
+              value={getItem('thyroid', 'TSH')}
               unit={getUnit('thyroid', 'TSH', 'μIU/mL')}
               isAbnormal={isAbnormal('thyroid', 'TSH')}
               abnormalDirection={getDirection('thyroid', 'TSH')}
-              onClick={() => handleLabClick('TSH', 'thyroid', getValue('thyroid', 'TSH'), getUnit('thyroid', 'TSH', 'μIU/mL'))}
+              onClick={() => handleLabClick('TSH', 'thyroid', getValue('thyroid', 'TSH'), getUnit('thyroid', 'TSH', 'μIU/mL'), getRefRange('thyroid', 'TSH'))}
             />
             <LabItem
               labName="freeT4"
               label="Free T4"
-              value={getValue('thyroid', 'freeT4')}
+              value={getItem('thyroid', 'freeT4')}
               unit={getUnit('thyroid', 'freeT4', 'ng/dL')}
               isAbnormal={isAbnormal('thyroid', 'freeT4')}
               abnormalDirection={getDirection('thyroid', 'freeT4')}
-              onClick={() => handleLabClick('freeT4', 'thyroid', getValue('thyroid', 'freeT4'), getUnit('thyroid', 'freeT4', 'ng/dL'))}
+              onClick={() => handleLabClick('freeT4', 'thyroid', getValue('thyroid', 'freeT4'), getUnit('thyroid', 'freeT4', 'ng/dL'), getRefRange('thyroid', 'freeT4'))}
             />
             <LabItem
               labName="TCHO"
               label="T-CHO"
-              value={getValue('lipid', 'TCHO')}
+              value={getItem('lipid', 'TCHO')}
               unit={getUnit('lipid', 'TCHO', 'mg/dL')}
               isAbnormal={isAbnormal('lipid', 'TCHO')}
               abnormalDirection={getDirection('lipid', 'TCHO')}
-              onClick={() => handleLabClick('TCHO', 'lipid', getValue('lipid', 'TCHO'), getUnit('lipid', 'TCHO', 'mg/dL'))}
+              onClick={() => handleLabClick('TCHO', 'lipid', getValue('lipid', 'TCHO'), getUnit('lipid', 'TCHO', 'mg/dL'), getRefRange('lipid', 'TCHO'))}
             />
             <LabItem
               labName="TG"
               label="TG"
-              value={getValue('lipid', 'TG')}
+              value={getItem('lipid', 'TG')}
               unit={getUnit('lipid', 'TG', 'mg/dL')}
               isAbnormal={isAbnormal('lipid', 'TG')}
               abnormalDirection={getDirection('lipid', 'TG')}
-              onClick={() => handleLabClick('TG', 'lipid', getValue('lipid', 'TG'), getUnit('lipid', 'TG', 'mg/dL'))}
+              onClick={() => handleLabClick('TG', 'lipid', getValue('lipid', 'TG'), getUnit('lipid', 'TG', 'mg/dL'), getRefRange('lipid', 'TG'))}
             />
             <LabItem
               labName="LDLC"
               label="LDL"
-              value={getValue('lipid', 'LDLC')}
+              value={getItem('lipid', 'LDLC')}
               unit={getUnit('lipid', 'LDLC', 'mg/dL')}
               isAbnormal={isAbnormal('lipid', 'LDLC')}
               abnormalDirection={getDirection('lipid', 'LDLC')}
-              onClick={() => handleLabClick('LDLC', 'lipid', getValue('lipid', 'LDLC'), getUnit('lipid', 'LDLC', 'mg/dL'))}
+              onClick={() => handleLabClick('LDLC', 'lipid', getValue('lipid', 'LDLC'), getUnit('lipid', 'LDLC', 'mg/dL'), getRefRange('lipid', 'LDLC'))}
             />
             <LabItem
               labName="HDLC"
               label="HDL"
-              value={getValue('lipid', 'HDLC')}
+              value={getItem('lipid', 'HDLC')}
               unit={getUnit('lipid', 'HDLC', 'mg/dL')}
               isAbnormal={isAbnormal('lipid', 'HDLC')}
               abnormalDirection={getDirection('lipid', 'HDLC')}
-              onClick={() => handleLabClick('HDLC', 'lipid', getValue('lipid', 'HDLC'), getUnit('lipid', 'HDLC', 'mg/dL'))}
+              onClick={() => handleLabClick('HDLC', 'lipid', getValue('lipid', 'HDLC'), getUnit('lipid', 'HDLC', 'mg/dL'), getRefRange('lipid', 'HDLC'))}
             />
             <LabItem
               labName="HbA1C"
               label="HbA1C"
-              value={getValue('other', 'HbA1C')}
+              value={getItem('other', 'HbA1C')}
               unit={getUnit('other', 'HbA1C', '%')}
               isAbnormal={isAbnormal('other', 'HbA1C')}
               abnormalDirection={getDirection('other', 'HbA1C')}
-              onClick={() => handleLabClick('HbA1C', 'other', getValue('other', 'HbA1C'), getUnit('other', 'HbA1C', '%'))}
+              onClick={() => handleLabClick('HbA1C', 'other', getValue('other', 'HbA1C'), getUnit('other', 'HbA1C', '%'), getRefRange('other', 'HbA1C'))}
             />
             <LabItem
               labName="NTproBNP"
               label="NT-proBNP"
-              value={getValue('cardiac', 'NTproBNP')}
+              value={getItem('cardiac', 'NTproBNP')}
               unit={getUnit('cardiac', 'NTproBNP', 'pg/mL')}
               isAbnormal={isAbnormal('cardiac', 'NTproBNP')}
               abnormalDirection={getDirection('cardiac', 'NTproBNP')}
-              onClick={() => handleLabClick('NTproBNP', 'cardiac', getValue('cardiac', 'NTproBNP'), getUnit('cardiac', 'NTproBNP', 'pg/mL'))}
+              onClick={() => handleLabClick('NTproBNP', 'cardiac', getValue('cardiac', 'NTproBNP'), getUnit('cardiac', 'NTproBNP', 'pg/mL'), getRefRange('cardiac', 'NTproBNP'))}
             />
             <LabItem
               labName="CK"
               label="CK"
-              value={getValue('cardiac', 'CK')}
+              value={getItem('cardiac', 'CK')}
               unit={getUnit('cardiac', 'CK', 'U/L')}
               isAbnormal={isAbnormal('cardiac', 'CK')}
               abnormalDirection={getDirection('cardiac', 'CK')}
-              onClick={() => handleLabClick('CK', 'cardiac', getValue('cardiac', 'CK'), getUnit('cardiac', 'CK', 'U/L'))}
+              onClick={() => handleLabClick('CK', 'cardiac', getValue('cardiac', 'CK'), getUnit('cardiac', 'CK', 'U/L'), getRefRange('cardiac', 'CK'))}
             />
             <LabItem
               labName="CKMB"
               label="CK-MB"
-              value={getValue('cardiac', 'CKMB')}
+              value={getItem('cardiac', 'CKMB')}
               unit={getUnit('cardiac', 'CKMB', 'U/L')}
               isAbnormal={isAbnormal('cardiac', 'CKMB')}
               abnormalDirection={getDirection('cardiac', 'CKMB')}
-              onClick={() => handleLabClick('CKMB', 'cardiac', getValue('cardiac', 'CKMB'), getUnit('cardiac', 'CKMB', 'U/L'))}
+              onClick={() => handleLabClick('CKMB', 'cardiac', getValue('cardiac', 'CKMB'), getUnit('cardiac', 'CKMB', 'U/L'), getRefRange('cardiac', 'CKMB'))}
             />
           </div>
         </div>
@@ -1164,28 +1173,28 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
           <div className="space-y-2">
             <h3 className="text-xs font-semibold tracking-wide text-[#f59e0b]">血脂與代謝（選擇性追蹤）</h3>
             <div className={compactGridClass} style={compactGridStyle}>
-              {getValue('lipid', 'UA') !== undefined && (
+              {getValue('biochemistry', 'Uric') !== undefined && (
                 <LabItem
-                  labName="UA"
+                  labName="Uric"
                   label="UA"
-                  value={getValue('lipid', 'UA')}
-                  unit={getUnit('lipid', 'UA', 'mg/dL')}
-                  isAbnormal={isAbnormal('lipid', 'UA')}
-              abnormalDirection={getDirection('lipid', 'UA')}
-                  onClick={() => handleLabClick('UA', 'lipid', getValue('lipid', 'UA'), getUnit('lipid', 'UA', 'mg/dL'))}
+                  value={getItem('biochemistry', 'Uric')}
+                  unit={getUnit('biochemistry', 'Uric', 'mg/dL')}
+                  isAbnormal={isAbnormal('biochemistry', 'Uric')}
+                  abnormalDirection={getDirection('biochemistry', 'Uric')}
+                  onClick={() => handleLabClick('Uric', 'biochemistry', getValue('biochemistry', 'Uric'), getUnit('biochemistry', 'Uric', 'mg/dL'), getRefRange('biochemistry', 'Uric'))}
                   isOptional={true}
                 />
               )}
 
-              {getValue('lipid', 'P') !== undefined && (
+              {getValue('biochemistry', 'Phos') !== undefined && (
                 <LabItem
-                  labName="P"
+                  labName="Phos"
                   label="P"
-                  value={getValue('lipid', 'P')}
-                  unit={getUnit('lipid', 'P', 'mg/dL')}
-                  isAbnormal={isAbnormal('lipid', 'P')}
-              abnormalDirection={getDirection('lipid', 'P')}
-                  onClick={() => handleLabClick('P', 'lipid', getValue('lipid', 'P'), getUnit('lipid', 'P', 'mg/dL'))}
+                  value={getItem('biochemistry', 'Phos')}
+                  unit={getUnit('biochemistry', 'Phos', 'mg/dL')}
+                  isAbnormal={isAbnormal('biochemistry', 'Phos')}
+                  abnormalDirection={getDirection('biochemistry', 'Phos')}
+                  onClick={() => handleLabClick('Phos', 'biochemistry', getValue('biochemistry', 'Phos'), getUnit('biochemistry', 'Phos', 'mg/dL'), getRefRange('biochemistry', 'Phos'))}
                   isOptional={true}
                 />
               )}
@@ -1202,11 +1211,11 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
                 <LabItem
                   labName="LDH"
                   label="LDH"
-                  value={getValue('other', 'LDH')}
+                  value={getItem('other', 'LDH')}
                   unit={getUnit('other', 'LDH', 'U/L')}
                   isAbnormal={isAbnormal('other', 'LDH')}
               abnormalDirection={getDirection('other', 'LDH')}
-                  onClick={() => handleLabClick('LDH', 'other', getValue('other', 'LDH'), getUnit('other', 'LDH', 'U/L'))}
+                  onClick={() => handleLabClick('LDH', 'other', getValue('other', 'LDH'), getUnit('other', 'LDH', 'U/L'), getRefRange('other', 'LDH'))}
                   isOptional={true}
                 />
               )}
@@ -1215,11 +1224,11 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
                 <LabItem
                   labName="NH3"
                   label="NH₃"
-                  value={getValue('other', 'NH3')}
+                  value={getItem('other', 'NH3')}
                   unit={getUnit('other', 'NH3', 'μg/dL')}
                   isAbnormal={isAbnormal('other', 'NH3')}
               abnormalDirection={getDirection('other', 'NH3')}
-                  onClick={() => handleLabClick('NH3', 'other', getValue('other', 'NH3'), getUnit('other', 'NH3', 'μg/dL'))}
+                  onClick={() => handleLabClick('NH3', 'other', getValue('other', 'NH3'), getUnit('other', 'NH3', 'μg/dL'), getRefRange('other', 'NH3'))}
                   isOptional={true}
                 />
               )}
@@ -1228,11 +1237,11 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
                 <LabItem
                   labName="Amylase"
                   label="Amylase"
-                  value={getValue('other', 'Amylase')}
+                  value={getItem('other', 'Amylase')}
                   unit={getUnit('other', 'Amylase', 'U/L')}
                   isAbnormal={isAbnormal('other', 'Amylase')}
               abnormalDirection={getDirection('other', 'Amylase')}
-                  onClick={() => handleLabClick('Amylase', 'other', getValue('other', 'Amylase'), getUnit('other', 'Amylase', 'U/L'))}
+                  onClick={() => handleLabClick('Amylase', 'other', getValue('other', 'Amylase'), getUnit('other', 'Amylase', 'U/L'), getRefRange('other', 'Amylase'))}
                   isOptional={true}
                 />
               )}
@@ -1241,11 +1250,11 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
                 <LabItem
                   labName="Lipase"
                   label="Lipase"
-                  value={getValue('other', 'Lipase')}
+                  value={getItem('other', 'Lipase')}
                   unit={getUnit('other', 'Lipase', 'U/L')}
                   isAbnormal={isAbnormal('other', 'Lipase')}
               abnormalDirection={getDirection('other', 'Lipase')}
-                  onClick={() => handleLabClick('Lipase', 'other', getValue('other', 'Lipase'), getUnit('other', 'Lipase', 'U/L'))}
+                  onClick={() => handleLabClick('Lipase', 'other', getValue('other', 'Lipase'), getUnit('other', 'Lipase', 'U/L'), getRefRange('other', 'Lipase'))}
                   isOptional={true}
                 />
               )}
@@ -1262,11 +1271,11 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
                 <LabItem
                   labName="Cortisol"
                   label="Cortisol"
-                  value={getValue('hormone', 'Cortisol')}
+                  value={getItem('hormone', 'Cortisol')}
                   unit={getUnit('hormone', 'Cortisol', 'μg/dL')}
                   isAbnormal={isAbnormal('hormone', 'Cortisol')}
               abnormalDirection={getDirection('hormone', 'Cortisol')}
-                  onClick={() => handleLabClick('Cortisol', 'hormone', getValue('hormone', 'Cortisol'), getUnit('hormone', 'Cortisol', 'μg/dL'))}
+                  onClick={() => handleLabClick('Cortisol', 'hormone', getValue('hormone', 'Cortisol'), getUnit('hormone', 'Cortisol', 'μg/dL'), getRefRange('hormone', 'Cortisol'))}
                   isOptional={true}
                 />
               )}
@@ -1291,6 +1300,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
           labNameChinese={selectedLab.nameChinese}
           unit={selectedLab.unit}
           trendData={selectedLab.trendData}
+          referenceRange={selectedLab.referenceRange}
         />
       )}
     </>

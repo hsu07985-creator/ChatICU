@@ -623,7 +623,7 @@ class HISConverter:
 
                 # Abnormal flag
                 res_sw = (item.get("RES_SW") or "").strip().upper()
-                is_abnormal = res_sw in ("H", "HH", "L", "LL", "A", "SP")
+                is_abnormal = res_sw in ("H", "HH", "L", "LL", "A", "X")
 
                 categories[cat][key] = {
                     "value": value,

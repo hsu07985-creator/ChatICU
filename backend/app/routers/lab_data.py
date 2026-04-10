@@ -133,7 +133,6 @@ async def get_latest_lab_data(
 async def get_lab_trends(
     patient_id: str,
     days: int = Query(7, ge=1, le=90),
-    items: str = Query(None),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
