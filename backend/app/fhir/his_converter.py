@@ -498,9 +498,16 @@ class HISConverter:
             # Determine PRN
             is_prn = "PRN" in freq_code
 
-            # Source type
+            # Source type & self-supplied detection
             opd_sw = m.get("OPD_SW", "I")
-            source_type = _OPD_SW_MAP.get(opd_sw, "inpatient")
+            long_type = m.get("LONG_TYPE")
+            notes_raw = m.get("NOTES") or ""
+            is_self_supplied = (long_type == 3 or long_type == 3.0
+                                or "自備" in notes_raw)
+            if is_self_supplied:
+                source_type = "self-supplied"
+            else:
+                source_type = _OPD_SW_MAP.get(opd_sw, "inpatient")
 
             # Determine status
             dc_flag = m.get("DC_FLAG")
@@ -551,7 +558,7 @@ class HISConverter:
                 "prescribing_department": m.get("HDEPT_NAME"),
                 "prescribing_doctor_name": m.get("USER_NAME"),
                 "days_supply": int(m["DAYS"]) if m.get("DAYS") else None,
-                "is_external": False,
+                "is_external": is_self_supplied,
             }
             medications.append(med_dict)
 
