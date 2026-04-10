@@ -61,6 +61,34 @@ export function PatientEditDialog({
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="height" className="text-right">
+              身高 (cm)
+            </Label>
+            <Input
+              id="height"
+              type="number"
+              step="0.1"
+              placeholder="例: 170"
+              value={patient.height ?? ''}
+              onChange={(event) => updatePatientField('height', event.target.value ? Number(event.target.value) : null)}
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="weight" className="text-right">
+              體重 (kg)
+            </Label>
+            <Input
+              id="weight"
+              type="number"
+              step="0.1"
+              placeholder="例: 65"
+              value={patient.weight ?? ''}
+              onChange={(event) => updatePatientField('weight', event.target.value ? Number(event.target.value) : null)}
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="attendingPhysician" className="text-right">
               主治醫師
             </Label>

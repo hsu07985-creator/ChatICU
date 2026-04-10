@@ -252,11 +252,21 @@ async def update_patient(
         "has_dnr": "has_dnr",
         "is_isolated": "is_isolated",
         "code_status": "code_status",
+        "height": "height",
+        "weight": "weight",
     }
 
     for key, value in update_data.items():
         db_key = field_mapping.get(key, key)
         setattr(patient, db_key, value)
+
+    # Auto-recalculate BMI when height or weight changes
+    h = patient.height
+    w = patient.weight
+    if h and w and h > 0:
+        patient.bmi = round(w / ((h / 100) ** 2), 1)
+    elif not h or not w:
+        patient.bmi = None
 
     patient.last_update = datetime.now(timezone.utc)
 
