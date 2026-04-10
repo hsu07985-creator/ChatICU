@@ -34,11 +34,11 @@ function sortSusceptibility(items: SusceptibilityResult[]): SusceptibilityResult
   return [...items].sort((a, b) => (order[a.result] ?? 3) - (order[b.result] ?? 3));
 }
 
-/** Q score badge color: Q3=good(green), Q2=acceptable(amber), Q0-1=poor(red) */
+/** Q score badge color: Q3=good(teal), Q2=acceptable(amber), Q0-1=poor(rose) */
 function qScoreBg(q: number): string {
-  if (q >= 3) return 'bg-emerald-50 text-emerald-700 border-emerald-400';
-  if (q === 2) return 'bg-amber-50 text-amber-700 border-amber-400';
-  return 'bg-red-50 text-red-700 border-red-400';
+  if (q >= 3) return 'bg-teal-50 text-teal-700 border-teal-400';
+  if (q === 2) return 'bg-amber-50 text-amber-700 border-amber-300';
+  return 'bg-rose-50 text-rose-700 border-rose-300';
 }
 
 /** Group panels by Q score (descending). Returns [label, panels][] — single group with '' key if no Q scores */
@@ -136,14 +136,14 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
   const sItems = merged.bestSusceptibility.filter((s) => s.result === 'S');
 
   const cardStyle = hasR
-    ? 'border-red-400 bg-red-50 shadow-sm shadow-red-100'
-    : 'border-emerald-400 bg-emerald-50 shadow-sm shadow-emerald-100';
+    ? 'border-rose-200 bg-rose-50/50 shadow-sm'
+    : 'border-teal-200/70 bg-teal-50/30 shadow-sm';
 
   const headerStyle = hasR
-    ? 'hover:bg-red-100/60'
-    : 'hover:bg-emerald-100/60';
+    ? 'hover:bg-rose-100/40'
+    : 'hover:bg-teal-100/30';
 
-  const bodyBorder = hasR ? 'border-red-200' : 'border-emerald-200';
+  const bodyBorder = hasR ? 'border-rose-100' : 'border-teal-100';
 
   const coloniesStr = merged.organisms
     .map((o) => merged.coloniesMap[o])
@@ -171,7 +171,7 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
         {/* R / I / S count badges */}
         <span className="flex items-center gap-1.5 ml-auto shrink-0">
           {hasR && (
-            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold bg-red-600 text-white">
+            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold bg-rose-600 text-white">
               R {merged.resistantCount}
             </span>
           )}
@@ -181,7 +181,7 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
             </span>
           )}
           {merged.sensitiveCount > 0 && (
-            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium bg-emerald-600 text-white">
+            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium bg-teal-600 text-white">
               S {merged.sensitiveCount}
             </span>
           )}
@@ -211,8 +211,8 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
           {/* R line */}
           {rItems.length > 0 && (
             <div className="flex gap-2 items-start">
-              <span className="font-bold text-red-600 shrink-0 w-4">R</span>
-              <span className="text-red-700">{rItems.map((s) => s.antibiotic).join(', ')}</span>
+              <span className="font-bold text-rose-600 shrink-0 w-4">R</span>
+              <span className="text-rose-800">{rItems.map((s) => s.antibiotic).join(', ')}</span>
             </div>
           )}
           {/* I line */}
@@ -225,8 +225,8 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
           {/* S line */}
           {sItems.length > 0 && (
             <div className="flex gap-2 items-start">
-              <span className="font-medium text-emerald-600 shrink-0 w-4">S</span>
-              <span className="text-emerald-600">{sItems.map((s) => s.antibiotic).join(', ')}</span>
+              <span className="font-medium text-teal-600 shrink-0 w-4">S</span>
+              <span className="text-teal-700">{sItems.map((s) => s.antibiotic).join(', ')}</span>
             </div>
           )}
         </div>
@@ -268,7 +268,7 @@ function CategorySection({
         type="button"
         className={`w-full text-left px-4 py-3 flex items-center gap-2.5 transition-colors ${open ? 'border-b' : ''} ${
           hasPositive
-            ? 'bg-gradient-to-r from-red-50 to-red-50/30 border-red-200 hover:from-red-100/80'
+            ? 'bg-gradient-to-r from-rose-50/50 to-white border-rose-100 hover:from-rose-100/50'
             : 'bg-gradient-to-r from-slate-50 to-white border-slate-100 hover:from-slate-100/80'
         }`}
         onClick={() => setOpen((v) => !v)}
@@ -276,18 +276,18 @@ function CategorySection({
         {open
           ? <ChevronDown className="h-4 w-4 text-slate-500 shrink-0" />
           : <ChevronRight className="h-4 w-4 text-slate-500 shrink-0" />}
-        <Icon className={`h-4.5 w-4.5 shrink-0 ${hasPositive ? 'text-red-500' : 'text-slate-400'}`} />
+        <Icon className={`h-4.5 w-4.5 shrink-0 ${hasPositive ? 'text-rose-400' : 'text-slate-400'}`} />
         <h4 className="text-base font-bold text-slate-700">{label}</h4>
 
         {/* Summary count badges */}
         <span className="flex items-center gap-2 ml-auto text-xs">
           {posCount > 0 && (
-            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-bold bg-red-100 text-red-700 border border-red-200">
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-bold bg-rose-50 text-rose-600 border border-rose-200">
               陽性 {posCount}
             </span>
           )}
           {negCount > 0 && (
-            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-emerald-50 text-emerald-600 border border-emerald-200">
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-teal-50 text-teal-500 border border-teal-200">
               陰性 {negCount}
             </span>
           )}
@@ -326,14 +326,14 @@ function CategorySection({
                 </div>
               ))}
               {showNegative && group.negative.length > 0 && groupByQScore(group.negative).map(([qLabel, panels]) => (
-                <div key={`neg-${qLabel}`} className="text-[13px] text-emerald-600 py-1.5 px-3 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center gap-1.5">
+                <div key={`neg-${qLabel}`} className="text-[13px] text-teal-600 py-1.5 px-3 rounded-lg bg-teal-50/60 border border-teal-200 flex items-center gap-1.5">
                   <span className="font-semibold">Negative</span>
                   {qLabel && (
                     <span className={`inline-flex items-center rounded border px-1 text-[10px] font-bold leading-tight ${qScoreBg(parseInt(qLabel.slice(1)))}`}>
                       {qLabel}
                     </span>
                   )}
-                  <span className="text-emerald-400">
+                  <span className="text-teal-400">
                     {panels.map((p) => shortDate(p.reportedAt)).join(', ')}
                   </span>
                 </div>
