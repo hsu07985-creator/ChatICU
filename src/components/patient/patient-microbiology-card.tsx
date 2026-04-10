@@ -162,12 +162,12 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
           : <ChevronRight className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 shrink-0" />}
 
         {/* Organism name */}
-        <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 italic truncate">
+        <span className="flex-1 min-w-0 text-sm font-semibold text-slate-800 dark:text-slate-100 italic truncate">
           {merged.organisms.join(', ')}
         </span>
 
         {/* R / I / S count badges */}
-        <span className="flex items-center gap-1.5 ml-auto shrink-0">
+        <span className="flex items-center gap-1.5 shrink-0">
           {hasR && (
             <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold bg-rose-600 text-white">
               R {merged.resistantCount}
@@ -382,7 +382,7 @@ function CategorySection({
                           Q{p.qScore}
                         </span>
                       )}
-                      <span className="text-blue-400 dark:text-blue-500">{shortDate(p.collectedAt ?? p.reportedAt)}</span>
+                      <span className="ml-auto text-blue-400 dark:text-blue-500 tabular-nums">{shortDate(p.collectedAt ?? p.reportedAt)}</span>
                     </div>
                   );
                 }
@@ -396,7 +396,7 @@ function CategorySection({
                         Q{p.qScore}
                       </span>
                     )}
-                    <span className="text-teal-400 dark:text-teal-500">{shortDate(p.collectedAt ?? p.reportedAt)}</span>
+                    <span className="ml-auto text-teal-400 dark:text-teal-500 tabular-nums">{shortDate(p.collectedAt ?? p.reportedAt)}</span>
                   </div>
                 );
               })}
