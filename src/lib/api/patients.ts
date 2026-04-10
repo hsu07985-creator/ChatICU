@@ -10,6 +10,7 @@ export interface Patient {
   gender: string;
   diagnosis: string;
   intubated: boolean;
+  intubationDate?: string | null;
   admissionDate: string;
   icuAdmissionDate: string;
   ventilatorDays: number;
@@ -108,6 +109,7 @@ export async function updatePatient(id: string, data: Partial<Patient>): Promise
   if (data.bmi !== undefined) body.bmi = data.bmi;
   if (data.diagnosis !== undefined) body.diagnosis = data.diagnosis;
   if (data.intubated !== undefined) body.intubated = data.intubated;
+  if (data.intubationDate !== undefined) body.intubation_date = data.intubationDate;
   if (data.criticalStatus !== undefined) body.critical_status = data.criticalStatus;
   if (data.admissionDate !== undefined) body.admission_date = data.admissionDate;
   if (data.icuAdmissionDate !== undefined) body.icu_admission_date = data.icuAdmissionDate;
@@ -142,6 +144,7 @@ export interface CreatePatientData {
   weight?: number;
   symptoms?: string[];
   intubated?: boolean;
+  intubationDate?: string;
   sedation?: string[];
   analgesia?: string[];
   nmb?: string[];
@@ -173,6 +176,7 @@ export async function createPatient(data: CreatePatientData): Promise<Patient> {
     weight: data.weight ?? undefined,
     symptoms: data.symptoms ?? undefined,
     intubated: data.intubated ?? false,
+    intubation_date: data.intubationDate ?? undefined,
     critical_status: data.criticalStatus ?? undefined,
     sedation: data.sedation ?? undefined,
     analgesia: data.analgesia ?? undefined,

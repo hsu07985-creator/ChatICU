@@ -18,6 +18,7 @@ class PatientCreate(PatientBase):
     weight: Optional[float] = None
     symptoms: Optional[List[str]] = None
     intubated: bool = False
+    intubation_date: Optional[date] = None
     critical_status: Optional[str] = None
     sedation: Optional[List[str]] = None
     analgesia: Optional[List[str]] = None
@@ -47,6 +48,7 @@ class PatientUpdate(BaseModel):
     weight: Optional[float] = None
     diagnosis: Optional[str] = None
     intubated: Optional[bool] = None
+    intubation_date: Optional[date] = None
     critical_status: Optional[str] = None
     sedation: Optional[List[str]] = None
     analgesia: Optional[List[str]] = None
@@ -85,6 +87,7 @@ class PatientResponse(BaseModel):
     diagnosis: str
     symptoms: Optional[List[str]] = None
     intubated: bool
+    intubationDate: Optional[str] = None
     criticalStatus: Optional[str] = None
     sedation: Optional[List[str]] = None
     analgesia: Optional[List[str]] = None

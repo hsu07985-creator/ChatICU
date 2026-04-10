@@ -21,6 +21,12 @@ router = APIRouter(prefix="/patients", tags=["patients"])
 
 
 def patient_to_dict(patient: Patient, unread_count: int = 0) -> dict:
+    # Auto-calculate ventilator_days from intubation_date when available
+    vent_days = patient.ventilator_days
+    if patient.intubation_date and patient.intubated:
+        today = datetime.now(timezone.utc).date()
+        vent_days = max((today - patient.intubation_date).days, 0)
+
     return {
         "id": patient.id,
         "name": patient.name,
@@ -34,13 +40,14 @@ def patient_to_dict(patient: Patient, unread_count: int = 0) -> dict:
         "diagnosis": patient.diagnosis,
         "symptoms": patient.symptoms or [],
         "intubated": patient.intubated,
+        "intubationDate": patient.intubation_date.isoformat() if patient.intubation_date else None,
         "criticalStatus": patient.critical_status,
         "sedation": patient.sedation or [],
         "analgesia": patient.analgesia or [],
         "nmb": patient.nmb or [],
         "admissionDate": patient.admission_date.isoformat() if patient.admission_date else None,
         "icuAdmissionDate": patient.icu_admission_date.isoformat() if patient.icu_admission_date else None,
-        "ventilatorDays": patient.ventilator_days,
+        "ventilatorDays": vent_days,
         "attendingPhysician": patient.attending_physician,
         "department": patient.department,
         "unit": patient.unit,
@@ -163,6 +170,7 @@ async def create_patient(
         diagnosis=body.diagnosis,
         symptoms=body.symptoms,
         intubated=body.intubated,
+        intubation_date=body.intubation_date,
         critical_status=body.critical_status,
         sedation=body.sedation,
         analgesia=body.analgesia,
@@ -249,6 +257,7 @@ async def update_patient(
         "admission_date": "admission_date",
         "icu_admission_date": "icu_admission_date",
         "ventilator_days": "ventilator_days",
+        "intubation_date": "intubation_date",
         "has_dnr": "has_dnr",
         "is_isolated": "is_isolated",
         "code_status": "code_status",
@@ -267,6 +276,11 @@ async def update_patient(
         patient.bmi = round(w / ((h / 100) ** 2), 1)
     elif not h or not w:
         patient.bmi = None
+
+    # Auto-calculate ventilator_days from intubation_date
+    if patient.intubation_date and patient.intubated:
+        today = datetime.now(timezone.utc).date()
+        patient.ventilator_days = max((today - patient.intubation_date).days, 0)
 
     patient.last_update = datetime.now(timezone.utc)
 

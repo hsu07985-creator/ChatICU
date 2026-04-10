@@ -170,16 +170,6 @@ export function PatientEditDialog({
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="ventilatorDays" className="text-right">呼吸器天數</Label>
-            <Input
-              id="ventilatorDays"
-              type="number"
-              value={patient.ventilatorDays}
-              onChange={(e) => updatePatientField('ventilatorDays', parseInt(e.target.value) || 0)}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="intubated" className="text-right">插管狀態</Label>
             <div className="col-span-3 flex items-center gap-2">
               <Checkbox
@@ -188,6 +178,30 @@ export function PatientEditDialog({
                 onCheckedChange={(checked) => updatePatientField('intubated', checked === true)}
               />
               <span className="text-sm text-muted-foreground">勾選表示插管中</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="intubationDate" className="text-right">插管日期</Label>
+            <Input
+              id="intubationDate"
+              type="date"
+              value={patient.intubationDate ?? ''}
+              onChange={(e) => updatePatientField('intubationDate', e.target.value || null)}
+              className="col-span-3"
+              disabled={!patient.intubated}
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="ventilatorDays" className="text-right">呼吸器天數</Label>
+            <div className="col-span-3 flex items-center gap-2">
+              <span className="text-sm font-medium">
+                {patient.intubationDate
+                  ? Math.max(Math.floor((Date.now() - new Date(patient.intubationDate).getTime()) / 86400000), 0)
+                  : 0} 天
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {patient.intubationDate ? '（依插管日期自動計算）' : '（請先設定插管日期）'}
+              </span>
             </div>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
