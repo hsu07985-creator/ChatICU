@@ -46,6 +46,7 @@ async def run_all(engine: AsyncEngine) -> None:
     await _ensure_venous_blood_gas(engine)
     await _ensure_vital_signs_advanced(engine)
     await _ensure_medication_source_columns(engine)
+    await _ensure_medication_order_code(engine)
     await _ensure_patient_campus(engine)
     await _seed_outpatient_demo(engine)
     await _ensure_diagnostic_reports(engine)
@@ -533,6 +534,18 @@ async def _ensure_medication_source_columns(engine: AsyncEngine) -> None:
         logger.info("[INTG][DB] medications source columns ensured (migration 048 fallback)")
     except Exception as e:
         logger.warning("[INTG][DB] medications source columns failed (non-fatal): %s", e)
+
+
+async def _ensure_medication_order_code(engine: AsyncEngine) -> None:
+    """Migration 011 fallback: add order_code column to medications."""
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text(
+                "ALTER TABLE medications ADD COLUMN IF NOT EXISTS order_code VARCHAR(50)"
+            ))
+        logger.info("[INTG][DB] medications.order_code column ensured (migration 011 fallback)")
+    except Exception as e:
+        logger.warning("[INTG][DB] medications.order_code failed (non-fatal): %s", e)
 
 
 async def _ensure_patient_campus(engine: AsyncEngine) -> None:
