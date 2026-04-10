@@ -21,11 +21,17 @@ router = APIRouter(prefix="/patients", tags=["patients"])
 
 
 def patient_to_dict(patient: Patient, unread_count: int = 0) -> dict:
+    # Safely access intubation_date (deferred column, may not exist in DB yet)
+    try:
+        intub_date = patient.intubation_date
+    except Exception:
+        intub_date = None
+
     # Auto-calculate ventilator_days from intubation_date when available
     vent_days = patient.ventilator_days
-    if patient.intubation_date and patient.intubated:
+    if intub_date and patient.intubated:
         today = datetime.now(timezone.utc).date()
-        vent_days = max((today - patient.intubation_date).days, 0)
+        vent_days = max((today - intub_date).days, 0)
 
     return {
         "id": patient.id,
@@ -40,7 +46,7 @@ def patient_to_dict(patient: Patient, unread_count: int = 0) -> dict:
         "diagnosis": patient.diagnosis,
         "symptoms": patient.symptoms or [],
         "intubated": patient.intubated,
-        "intubationDate": patient.intubation_date.isoformat() if patient.intubation_date else None,
+        "intubationDate": intub_date.isoformat() if intub_date else None,
         "criticalStatus": patient.critical_status,
         "sedation": patient.sedation or [],
         "analgesia": patient.analgesia or [],
@@ -278,9 +284,13 @@ async def update_patient(
         patient.bmi = None
 
     # Auto-calculate ventilator_days from intubation_date
-    if patient.intubation_date and patient.intubated:
+    try:
+        intub_date = patient.intubation_date
+    except Exception:
+        intub_date = None
+    if intub_date and patient.intubated:
         today = datetime.now(timezone.utc).date()
-        patient.ventilator_days = max((today - patient.intubation_date).days, 0)
+        patient.ventilator_days = max((today - intub_date).days, 0)
 
     patient.last_update = datetime.now(timezone.utc)
 
