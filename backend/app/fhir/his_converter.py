@@ -231,6 +231,12 @@ def _clean_drug_name(raw_name: str) -> Tuple[str, Optional[str]]:
     Input:  "Fentanyl【#】0.05mg/ml 10ml inj(管2)(總量以amp計)"
     Output: ("Fentanyl 0.05mg/ml 10ml inj", "Fentanyl")
     """
+    # Extract generic from full-width brackets before stripping them
+    # e.g. "GiPAmine【#】【Dopamine】600mg/200ml inj" → generic "Dopamine"
+    fw_generic = None
+    for fw in re.findall(r'【([A-Za-z][A-Za-z\s\-]+)】', raw_name):
+        fw_generic = fw.strip()
+
     # Remove control marks like 【#】, (管2), (總量以amp計)
     name = re.sub(r'【[^】]*】', ' ', raw_name)
     name = re.sub(r'\(管\d\)', '', name)
@@ -242,9 +248,12 @@ def _clean_drug_name(raw_name: str) -> Tuple[str, Optional[str]]:
     name = re.sub(r'\[膠囊\]', ' cap ', name)
     name = re.sub(r'\s+', ' ', name).strip()
 
-    # Extract generic name (first word, typically English drug name)
-    generic_match = re.match(r'^([A-Za-z][A-Za-z\-]+)', name)
-    generic = generic_match.group(1) if generic_match else None
+    # Extract generic name: prefer full-width bracket content, then first English word
+    if fw_generic:
+        generic = fw_generic
+    else:
+        generic_match = re.match(r'^([A-Za-z][A-Za-z\-]+)', name)
+        generic = generic_match.group(1) if generic_match else None
 
     return name, generic
 

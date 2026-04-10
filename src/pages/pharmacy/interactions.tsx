@@ -145,8 +145,15 @@ export function DrugInteractionsPage() {
     try {
       const resp = await getMedications(patientId, { status: 'active', limit: 200 });
       const allMeds = resp.medications || [];
-      const names = [...new Set(allMeds.map(m => m.name).filter(Boolean))];
-      const matched = [...new Set(names.map(matchDrugName).filter((v): v is string => v !== null))];
+      // Try matching on both name and genericName for each medication
+      const matchedSet = new Set<string>();
+      for (const m of allMeds) {
+        const fromName = m.name ? matchDrugName(m.name) : null;
+        if (fromName) { matchedSet.add(fromName); continue; }
+        const fromGeneric = m.genericName ? matchDrugName(m.genericName) : null;
+        if (fromGeneric) matchedSet.add(fromGeneric);
+      }
+      const matched = [...matchedSet];
 
       if (matched.length === 0) {
         toast('該病患目前無可比對的用藥');
