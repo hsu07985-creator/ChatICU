@@ -136,14 +136,12 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
   const sItems = merged.bestSusceptibility.filter((s) => s.result === 'S');
 
   const cardStyle = hasR
-    ? 'border-rose-200 bg-rose-50/50 shadow-sm'
-    : 'border-teal-200/70 bg-teal-50/30 shadow-sm';
+    ? 'border border-slate-200 border-l-[3px] border-l-rose-400 bg-white shadow-sm'
+    : 'border border-slate-200 border-l-[3px] border-l-teal-400 bg-white shadow-sm';
 
-  const headerStyle = hasR
-    ? 'hover:bg-rose-100/40'
-    : 'hover:bg-teal-100/30';
+  const headerStyle = 'hover:bg-slate-50/80';
 
-  const bodyBorder = hasR ? 'border-rose-100' : 'border-teal-100';
+  const bodyBorder = 'border-slate-100';
 
   const coloniesStr = merged.organisms
     .map((o) => merged.coloniesMap[o])
@@ -152,7 +150,7 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
     .join(', ');
 
   return (
-    <div className={`rounded-lg border-2 ${cardStyle} overflow-hidden`}>
+    <div className={`rounded-lg ${cardStyle} overflow-hidden`}>
       {/* ── Card Header (always visible, clickable) ── */}
       <button
         type="button"
@@ -200,7 +198,7 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
 
       {/* ── Card Body (expanded) ── */}
       {open && (
-        <div className={`border-t ${bodyBorder} bg-white/70 px-3 py-2 space-y-1 text-[13px]`}>
+        <div className={`border-t ${bodyBorder} px-3 py-2 space-y-1 text-[13px]`}>
           {/* Meta line: colonies */}
           {coloniesStr && (
             <div className="text-[11px] text-slate-500 pb-0.5">
@@ -268,7 +266,7 @@ function CategorySection({
         type="button"
         className={`w-full text-left px-4 py-3 flex items-center gap-2.5 transition-colors ${open ? 'border-b' : ''} ${
           hasPositive
-            ? 'bg-gradient-to-r from-rose-50/50 to-white border-rose-100 hover:from-rose-100/50'
+            ? 'bg-gradient-to-r from-rose-50/30 to-white border-slate-200 hover:from-rose-50/50'
             : 'bg-gradient-to-r from-slate-50 to-white border-slate-100 hover:from-slate-100/80'
         }`}
         onClick={() => setOpen((v) => !v)}
@@ -282,12 +280,12 @@ function CategorySection({
         {/* Summary count badges */}
         <span className="flex items-center gap-2 ml-auto text-xs">
           {posCount > 0 && (
-            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-bold bg-rose-50 text-rose-600 border border-rose-200">
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-bold bg-white text-rose-600 border border-slate-200">
               陽性 {posCount}
             </span>
           )}
           {negCount > 0 && (
-            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-teal-50 text-teal-500 border border-teal-200">
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-white text-slate-500 border border-slate-200">
               陰性 {negCount}
             </span>
           )}
@@ -313,7 +311,7 @@ function CategorySection({
                 <CultureCard key={mIdx} merged={m} defaultOpen={m.resistantCount > 0} forceOpen={forceOpen} />
               ))}
               {showFlora && group.normalFlora.length > 0 && groupByQScore(group.normalFlora).map(([qLabel, panels]) => (
-                <div key={`flora-${qLabel}`} className="text-[13px] text-blue-600 py-1.5 px-3 rounded-lg bg-blue-50 border border-blue-200 flex items-center gap-1.5">
+                <div key={`flora-${qLabel}`} className="text-[13px] text-blue-700 py-1.5 px-3 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-1.5">
                   <span className="font-semibold italic">Normal flora</span>
                   {qLabel && (
                     <span className={`inline-flex items-center rounded border px-1 text-[10px] font-bold leading-tight ${qScoreBg(parseInt(qLabel.slice(1)))}`}>
@@ -326,7 +324,7 @@ function CategorySection({
                 </div>
               ))}
               {showNegative && group.negative.length > 0 && groupByQScore(group.negative).map(([qLabel, panels]) => (
-                <div key={`neg-${qLabel}`} className="text-[13px] text-teal-600 py-1.5 px-3 rounded-lg bg-teal-50/60 border border-teal-200 flex items-center gap-1.5">
+                <div key={`neg-${qLabel}`} className="text-[13px] text-teal-700 py-1.5 px-3 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-1.5">
                   <span className="font-semibold">Negative</span>
                   {qLabel && (
                     <span className={`inline-flex items-center rounded border px-1 text-[10px] font-bold leading-tight ${qScoreBg(parseInt(qLabel.slice(1)))}`}>
