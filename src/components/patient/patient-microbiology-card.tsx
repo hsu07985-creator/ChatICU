@@ -164,46 +164,46 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
           : <ChevronRight className="h-3.5 w-3.5 text-slate-500 shrink-0" />}
 
         {/* Organism name */}
-        <span className="text-[13px] font-semibold text-slate-800 italic truncate">
+        <span className="text-sm font-semibold text-slate-800 italic truncate">
           {merged.organisms.join(', ')}
         </span>
 
         {/* R / I / S count badges */}
         <span className="flex items-center gap-1.5 ml-auto shrink-0">
           {hasR && (
-            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold bg-red-600 text-white">
+            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold bg-red-600 text-white">
               R {merged.resistantCount}
             </span>
           )}
           {hasI && (
-            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold bg-amber-500 text-white">
+            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold bg-amber-500 text-white">
               I {merged.intermediateCount}
             </span>
           )}
           {merged.sensitiveCount > 0 && (
-            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium bg-emerald-600 text-white">
+            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium bg-emerald-600 text-white">
               S {merged.sensitiveCount}
             </span>
           )}
           {merged.qScore != null && (
-            <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${qScoreBg(merged.qScore)}`}>
+            <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-bold ${qScoreBg(merged.qScore)}`}>
               Q{merged.qScore}
             </span>
           )}
         </span>
 
         {/* Date */}
-        <span className="text-[11px] text-slate-500 font-medium tabular-nums shrink-0">
+        <span className="text-xs text-slate-500 font-medium tabular-nums shrink-0">
           {merged.dates.map((d) => shortDate(d)).join(', ')}
         </span>
       </button>
 
       {/* ── Card Body (expanded) ── */}
       {open && (
-        <div className={`border-t ${bodyBorder} bg-white/70 px-3 py-2 space-y-1 text-xs`}>
+        <div className={`border-t ${bodyBorder} bg-white/70 px-3 py-2 space-y-1 text-[13px]`}>
           {/* Meta line: colonies */}
           {coloniesStr && (
-            <div className="text-[10px] text-slate-500 pb-0.5">
+            <div className="text-[11px] text-slate-500 pb-0.5">
               Colonies: {coloniesStr}
             </div>
           )}
@@ -277,10 +277,10 @@ function CategorySection({
           ? <ChevronDown className="h-4 w-4 text-slate-500 shrink-0" />
           : <ChevronRight className="h-4 w-4 text-slate-500 shrink-0" />}
         <Icon className={`h-4.5 w-4.5 shrink-0 ${hasPositive ? 'text-red-500' : 'text-slate-400'}`} />
-        <h4 className="text-sm font-bold text-slate-700">{label}</h4>
+        <h4 className="text-base font-bold text-slate-700">{label}</h4>
 
         {/* Summary count badges */}
-        <span className="flex items-center gap-2 ml-auto text-[10px]">
+        <span className="flex items-center gap-2 ml-auto text-xs">
           {posCount > 0 && (
             <span className="inline-flex items-center rounded-full px-2 py-0.5 font-bold bg-red-100 text-red-700 border border-red-200">
               陽性 {posCount}
@@ -304,7 +304,7 @@ function CategorySection({
       {open && (
         <div className="px-3 py-2.5 space-y-2">
           {total === 0 ? (
-            <p className="text-xs text-slate-300 py-2 text-center">
+            <p className="text-[13px] text-slate-300 py-2 text-center">
               {(onlyPositive || onlyResistant) ? '篩選條件下無結果' : '無培養資料'}
             </p>
           ) : (
@@ -313,10 +313,10 @@ function CategorySection({
                 <CultureCard key={mIdx} merged={m} defaultOpen={m.resistantCount > 0} forceOpen={forceOpen} />
               ))}
               {showFlora && group.normalFlora.length > 0 && groupByQScore(group.normalFlora).map(([qLabel, panels]) => (
-                <div key={`flora-${qLabel}`} className="text-xs text-blue-600 py-1.5 px-3 rounded-lg bg-blue-50 border border-blue-200 flex items-center gap-1.5">
+                <div key={`flora-${qLabel}`} className="text-[13px] text-blue-600 py-1.5 px-3 rounded-lg bg-blue-50 border border-blue-200 flex items-center gap-1.5">
                   <span className="font-semibold italic">Normal flora</span>
                   {qLabel && (
-                    <span className={`inline-flex items-center rounded border px-1 text-[9px] font-bold leading-tight ${qScoreBg(parseInt(qLabel.slice(1)))}`}>
+                    <span className={`inline-flex items-center rounded border px-1 text-[10px] font-bold leading-tight ${qScoreBg(parseInt(qLabel.slice(1)))}`}>
                       {qLabel}
                     </span>
                   )}
@@ -326,10 +326,10 @@ function CategorySection({
                 </div>
               ))}
               {showNegative && group.negative.length > 0 && groupByQScore(group.negative).map(([qLabel, panels]) => (
-                <div key={`neg-${qLabel}`} className="text-xs text-emerald-600 py-1.5 px-3 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center gap-1.5">
+                <div key={`neg-${qLabel}`} className="text-[13px] text-emerald-600 py-1.5 px-3 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center gap-1.5">
                   <span className="font-semibold">Negative</span>
                   {qLabel && (
-                    <span className={`inline-flex items-center rounded border px-1 text-[9px] font-bold leading-tight ${qScoreBg(parseInt(qLabel.slice(1)))}`}>
+                    <span className={`inline-flex items-center rounded border px-1 text-[10px] font-bold leading-tight ${qScoreBg(parseInt(qLabel.slice(1)))}`}>
                       {qLabel}
                     </span>
                   )}
@@ -345,7 +345,7 @@ function CategorySection({
                     ...(showFlora ? group.normalFlora : []),
                     ...(showNegative ? group.negative : []),
                   ].map((p) => p.specimen))].map((s) => (
-                    <span key={s} className="text-[10px] text-slate-400">{s}</span>
+                    <span key={s} className="text-[11px] text-slate-400">{s}</span>
                   ))}
                 </div>
               )}
@@ -462,7 +462,7 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
       <div className="flex flex-wrap items-center gap-2 px-1">
         <button
           type="button"
-          className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+          className={`rounded-md border px-2.5 py-1 text-sm font-medium transition-colors ${
             onlyPositive
               ? 'border-brand bg-brand text-white'
               : 'border-slate-300 bg-white text-slate-700 hover:border-brand/40'
@@ -474,7 +474,7 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
         </button>
         <button
           type="button"
-          className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+          className={`rounded-md border px-2.5 py-1 text-sm font-medium transition-colors ${
             onlyResistant
               ? 'border-brand bg-brand text-white'
               : 'border-slate-300 bg-white text-slate-700 hover:border-brand/40'
@@ -486,7 +486,7 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
         </button>
         <button
           type="button"
-          className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:border-brand/40 transition-colors ml-auto"
+          className="rounded-md border border-slate-300 bg-white px-2.5 py-1 text-sm font-medium text-slate-700 hover:border-brand/40 transition-colors ml-auto"
           onClick={toggleExpandAll}
         >
           {expandAll ? '全部收合' : '全部展開'}
