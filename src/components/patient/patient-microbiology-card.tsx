@@ -111,7 +111,15 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
   const iItems = merged.bestSusceptibility.filter((s) => s.result === 'I');
   const sItems = merged.bestSusceptibility.filter((s) => s.result === 'S');
 
-  const borderColor = hasR ? 'border-red-300 bg-red-50/40' : 'border-slate-200 bg-white';
+  const cardStyle = hasR
+    ? 'border-red-400 bg-red-50 shadow-sm shadow-red-100'
+    : 'border-emerald-400 bg-emerald-50 shadow-sm shadow-emerald-100';
+
+  const headerStyle = hasR
+    ? 'hover:bg-red-100/60'
+    : 'hover:bg-emerald-100/60';
+
+  const bodyBorder = hasR ? 'border-red-200' : 'border-emerald-200';
 
   const coloniesStr = merged.organisms
     .map((o) => merged.coloniesMap[o])
@@ -120,16 +128,16 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
     .join(', ');
 
   return (
-    <div className={`rounded-lg border ${borderColor} overflow-hidden`}>
+    <div className={`rounded-lg border-2 ${cardStyle} overflow-hidden`}>
       {/* ── Card Header (always visible, clickable) ── */}
       <button
         type="button"
-        className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-slate-50/60 transition-colors"
+        className={`w-full text-left px-3 py-2 flex items-center gap-2 transition-colors ${headerStyle}`}
         onClick={() => setOpen((v) => !v)}
       >
         {open
-          ? <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-          : <ChevronRight className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+          ? <ChevronDown className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+          : <ChevronRight className="h-3.5 w-3.5 text-slate-500 shrink-0" />}
 
         {/* Organism name */}
         <span className="text-[13px] font-semibold text-slate-800 italic truncate">
@@ -137,33 +145,33 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
         </span>
 
         {/* R / I / S count badges */}
-        <span className="flex items-center gap-1 ml-auto shrink-0">
+        <span className="flex items-center gap-1.5 ml-auto shrink-0">
           {hasR && (
-            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold bg-red-100 text-red-700">
-              R{merged.resistantCount}
+            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold bg-red-600 text-white">
+              R {merged.resistantCount}
             </span>
           )}
           {hasI && (
-            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700">
-              I{merged.intermediateCount}
+            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold bg-amber-500 text-white">
+              I {merged.intermediateCount}
             </span>
           )}
           {merged.sensitiveCount > 0 && (
-            <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-green-50 text-green-600">
-              S{merged.sensitiveCount}
+            <span className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium bg-emerald-600 text-white">
+              S {merged.sensitiveCount}
             </span>
           )}
         </span>
 
         {/* Date */}
-        <span className="text-[10px] text-slate-400 tabular-nums shrink-0">
+        <span className="text-[11px] text-slate-500 font-medium tabular-nums shrink-0">
           {merged.dates.map((d) => shortDate(d)).join(', ')}
         </span>
       </button>
 
       {/* ── Card Body (expanded) ── */}
       {open && (
-        <div className="border-t border-slate-100 px-3 py-2 space-y-1 text-xs">
+        <div className={`border-t ${bodyBorder} bg-white/70 px-3 py-2 space-y-1 text-xs`}>
           {/* Meta line: colonies, Q score */}
           {(coloniesStr || merged.qScore != null) && (
             <div className="flex items-center gap-3 text-[10px] text-slate-500 pb-0.5">
@@ -178,23 +186,23 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
 
           {/* R line */}
           {rItems.length > 0 && (
-            <div className="flex gap-1.5">
-              <span className="font-bold text-red-600 shrink-0 w-4">R</span>
-              <span className="text-red-700">{rItems.map((s) => s.antibiotic).join(', ')}</span>
+            <div className="flex gap-2 items-start rounded bg-red-50 px-2 py-1">
+              <span className="font-bold text-red-700 shrink-0 w-4">R</span>
+              <span className="text-red-800 font-medium">{rItems.map((s) => s.antibiotic).join(', ')}</span>
             </div>
           )}
           {/* I line */}
           {iItems.length > 0 && (
-            <div className="flex gap-1.5">
-              <span className="font-semibold text-amber-600 shrink-0 w-4">I</span>
-              <span className="text-amber-700">{iItems.map((s) => s.antibiotic).join(', ')}</span>
+            <div className="flex gap-2 items-start rounded bg-amber-50 px-2 py-1">
+              <span className="font-semibold text-amber-700 shrink-0 w-4">I</span>
+              <span className="text-amber-800">{iItems.map((s) => s.antibiotic).join(', ')}</span>
             </div>
           )}
           {/* S line */}
           {sItems.length > 0 && (
-            <div className="flex gap-1.5">
-              <span className="font-medium text-green-600 shrink-0 w-4">S</span>
-              <span className="text-green-600/80">{sItems.map((s) => s.antibiotic).join(', ')}</span>
+            <div className="flex gap-2 items-start rounded bg-emerald-50 px-2 py-1">
+              <span className="font-medium text-emerald-700 shrink-0 w-4">S</span>
+              <span className="text-emerald-700/80">{sItems.map((s) => s.antibiotic).join(', ')}</span>
             </div>
           )}
         </div>
@@ -230,33 +238,47 @@ function CategorySection({
   const [open, setOpen] = useState(true);
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+    <div className="rounded-xl border-2 border-slate-200 bg-white shadow-sm overflow-hidden">
       {/* ── Section Header (clickable) ── */}
       <button
         type="button"
-        className={`w-full text-left px-3 py-2.5 flex items-center gap-2 transition-colors ${
-          hasPositive ? 'bg-red-50/50 hover:bg-red-50/80' : 'bg-slate-50/50 hover:bg-slate-50/80'
+        className={`w-full text-left px-4 py-3 flex items-center gap-2.5 transition-colors border-b ${
+          hasPositive
+            ? 'bg-gradient-to-r from-red-50 to-red-50/30 border-red-200 hover:from-red-100/80'
+            : 'bg-gradient-to-r from-slate-50 to-white border-slate-100 hover:from-slate-100/80'
         }`}
         onClick={() => setOpen((v) => !v)}
       >
         {open
-          ? <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
-          : <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />}
-        <Icon className={`h-4 w-4 shrink-0 ${hasPositive ? 'text-red-500' : 'text-slate-400'}`} />
-        <h4 className="text-sm font-semibold text-slate-700">{label}</h4>
+          ? <ChevronDown className="h-4 w-4 text-slate-500 shrink-0" />
+          : <ChevronRight className="h-4 w-4 text-slate-500 shrink-0" />}
+        <Icon className={`h-4.5 w-4.5 shrink-0 ${hasPositive ? 'text-red-500' : 'text-slate-400'}`} />
+        <h4 className="text-sm font-bold text-slate-700">{label}</h4>
 
-        {/* Summary counts */}
-        <span className="flex items-center gap-1.5 ml-auto text-[10px]">
-          {posCount > 0 && <span className="text-red-600 font-semibold">陽性 {posCount}</span>}
-          {negCount > 0 && <span className="text-green-600">陰性 {negCount}</span>}
-          {floraCount > 0 && <span className="text-blue-500">正常菌 {floraCount}</span>}
+        {/* Summary count badges */}
+        <span className="flex items-center gap-2 ml-auto text-[10px]">
+          {posCount > 0 && (
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-bold bg-red-100 text-red-700 border border-red-200">
+              陽性 {posCount}
+            </span>
+          )}
+          {negCount > 0 && (
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-emerald-50 text-emerald-600 border border-emerald-200">
+              陰性 {negCount}
+            </span>
+          )}
+          {floraCount > 0 && (
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-blue-50 text-blue-500 border border-blue-200">
+              正常菌 {floraCount}
+            </span>
+          )}
           {total === 0 && <span className="text-slate-300">0</span>}
         </span>
       </button>
 
       {/* ── Section Body ── */}
       {open && (
-        <div className="px-3 py-2 space-y-1.5">
+        <div className="px-3 py-2.5 space-y-2">
           {total === 0 ? (
             <p className="text-xs text-slate-300 py-2 text-center">
               {(onlyPositive || onlyResistant) ? '篩選條件下無結果' : '無培養資料'}
@@ -267,17 +289,17 @@ function CategorySection({
                 <CultureCard key={mIdx} merged={m} defaultOpen={m.resistantCount > 0} forceOpen={forceOpen} />
               ))}
               {showFlora && group.normalFlora.length > 0 && (
-                <div className="text-xs text-blue-500 py-1 px-2 rounded bg-blue-50/50">
-                  <span className="font-medium italic">Normal flora</span>
-                  <span className="text-slate-400 ml-1.5">
+                <div className="text-xs text-blue-600 py-1.5 px-3 rounded-lg bg-blue-50 border border-blue-200">
+                  <span className="font-semibold italic">Normal flora</span>
+                  <span className="text-blue-400 ml-2">
                     {group.normalFlora.map((p) => shortDate(p.reportedAt)).join(', ')}
                   </span>
                 </div>
               )}
               {showNegative && group.negative.length > 0 && (
-                <div className="text-xs text-green-600 py-1 px-2 rounded bg-green-50/50">
-                  <span className="font-medium">Negative</span>
-                  <span className="text-slate-400 ml-1.5">
+                <div className="text-xs text-emerald-600 py-1.5 px-3 rounded-lg bg-emerald-50 border border-emerald-200">
+                  <span className="font-semibold">Negative</span>
+                  <span className="text-emerald-400 ml-2">
                     {group.negative.map((p) => shortDate(p.reportedAt)).join(', ')}
                   </span>
                 </div>
