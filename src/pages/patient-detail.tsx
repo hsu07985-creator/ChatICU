@@ -1118,7 +1118,7 @@ export function PatientDetailPage() {
   const etco2 = vitalSigns?.etco2;
   const cvp = vitalSigns?.cvp;
   const icp = vitalSigns?.icp;
-  const bodyWeight = vitalSigns?.bodyWeight;
+  const bodyWeight = vitalSigns?.bodyWeight ?? patient?.weight;
 
   const ventTimestamp = ventilator?.timestamp;
   const ventMode = ventilator?.mode;
@@ -1785,6 +1785,7 @@ export function PatientDetailPage() {
           cvp={cvp}
           icp={icp}
           bodyWeight={bodyWeight}
+          bodyHeight={patient?.height}
           ventilatorLoading={ventilatorLoading}
           ventTimestamp={ventTimestamp}
           ventMode={ventMode}
