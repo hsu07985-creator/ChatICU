@@ -1,5 +1,7 @@
+import logging
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
@@ -14,6 +16,8 @@ from app.models.patient import Patient
 from app.routers.patients import normalize_patient_id, verify_patient_access
 from app.schemas.lab_data import LabCorrectionRequest
 from app.utils.response import success_response
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/patients/{patient_id}/lab-data", tags=["lab-data"])
 
@@ -88,6 +92,37 @@ def _merge_latest_categories(labs: list) -> dict:
     return merged, latest_ts
 
 
+def _compute_clcr(patient: Patient, biochem: dict) -> None:
+    """Inject computed Clcr (Cockcroft-Gault) into biochemistry dict in-place.
+
+    Formula: ((140 - age) × weight) / (72 × Scr)  ×  0.85 if female
+    """
+    scr_item = biochem.get("Scr")
+    if not scr_item:
+        return
+    scr_val = scr_item.get("value") if isinstance(scr_item, dict) else scr_item
+    if not isinstance(scr_val, (int, float)) or scr_val <= 0:
+        return
+    if not patient.weight or patient.weight <= 0:
+        return
+    if not patient.age or patient.age <= 0:
+        return
+
+    clcr = ((140 - patient.age) * patient.weight) / (72 * float(scr_val))
+    if patient.gender in ("F", "女"):
+        clcr *= 0.85
+    clcr = round(clcr, 1)
+
+    biochem["Clcr"] = {
+        "value": clcr,
+        "unit": "mL/min",
+        "referenceRange": ">60",
+        "isAbnormal": clcr < 60,
+        "computed": True,
+        "_ts": scr_item.get("_ts") if isinstance(scr_item, dict) else None,
+    }
+
+
 @router.get("/latest")
 async def get_latest_lab_data(
     patient_id: str,
@@ -115,10 +150,20 @@ async def get_latest_lab_data(
 
     # If only 1 record (seed data), return as-is for backward compat
     if len(labs) == 1:
-        return success_response(data=lab_to_dict(labs[0]))
+        data = lab_to_dict(labs[0])
+        biochem = data.get("biochemistry")
+        if biochem and isinstance(biochem, dict):
+            _compute_clcr(patient, biochem)
+        return success_response(data=data)
 
     # Merge latest non-null category from each record
     merged, latest_ts = _merge_latest_categories(labs)
+
+    # Compute Clcr from merged Scr + patient demographics
+    biochem = merged.get("biochemistry")
+    if biochem and isinstance(biochem, dict):
+        _compute_clcr(patient, biochem)
+
     data = {
         "id": labs[0].id,
         "patientId": pid,
@@ -133,6 +178,8 @@ async def get_latest_lab_data(
 async def get_lab_trends(
     patient_id: str,
     days: int = Query(7, ge=1, le=90),
+    category: Optional[str] = Query(None, description="Filter by category (e.g. biochemistry, hematology)"),
+    item: Optional[str] = Query(None, description="Filter by item name within the category"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -145,8 +192,32 @@ async def get_lab_trends(
     )
     labs = result.scalars().all()
 
-    trends = [lab_to_dict(lab) for lab in reversed(labs)]
+    if category:
+        # Return only the requested category (optionally a single item)
+        _camel_to_col = {v: k for k, v in _COL_TO_CAMEL.items()}
+        col_name = _camel_to_col.get(category, category)
+        camel_name = _COL_TO_CAMEL.get(col_name, col_name)
+        slim_trends = []
+        for lab in reversed(labs):
+            cat_data = getattr(lab, col_name, None)
+            if not cat_data or not isinstance(cat_data, dict):
+                continue
+            if item:
+                item_val = cat_data.get(item)
+                if item_val is None:
+                    continue
+                slim_trends.append({
+                    "timestamp": lab.timestamp.isoformat() if lab.timestamp else None,
+                    camel_name: {item: item_val},
+                })
+            else:
+                slim_trends.append({
+                    "timestamp": lab.timestamp.isoformat() if lab.timestamp else None,
+                    camel_name: cat_data,
+                })
+        return success_response(data={"trends": slim_trends, "days": days})
 
+    trends = [lab_to_dict(lab) for lab in reversed(labs)]
     return success_response(data={"trends": trends, "days": days})
 
 

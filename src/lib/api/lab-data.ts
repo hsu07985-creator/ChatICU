@@ -87,10 +87,12 @@ export async function getLatestLabData(patientId: string): Promise<LabData> {
 // 取得檢驗趨勢
 export async function getLabTrends(
   patientId: string,
-  options: { days?: number } = {}
+  options: { days?: number; category?: string; item?: string } = {}
 ): Promise<LabTrendsResponse> {
   const params = new URLSearchParams();
   if (options.days) params.append('days', String(options.days));
+  if (options.category) params.append('category', options.category);
+  if (options.item) params.append('item', options.item);
 
   const response = await apiClient.get<ApiResponse<LabTrendsResponse>>(
     `/patients/${patientId}/lab-data/trends?${params}`
