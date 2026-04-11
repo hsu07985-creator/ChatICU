@@ -442,7 +442,7 @@ class HISConverter:
             "bed_number": "",  # HIS 無床號資料，需手動補
             "medical_record_number": self.pat_no,
             "age": age or 0,
-            "date_of_birth": dob.isoformat() if dob else None,
+            "date_of_birth": dob,
             "gender": p.get("SEX", "M"),
             "height": None,
             "weight": None,
