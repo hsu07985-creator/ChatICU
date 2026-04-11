@@ -4,13 +4,13 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Separator } from '../../components/ui/separator';
-import { Search, Plus, CheckCircle2, XCircle, HelpCircle, Loader2, X, User } from 'lucide-react';
+import { Search, Plus, CheckCircle2, XCircle, HelpCircle, Loader2, X, User, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { toast } from 'sonner';
 import { getIVCompatibility } from '../../lib/api/pharmacy';
 import { type Patient } from '../../lib/api/patients';
 import { getCachedPatients, getCachedPatientsSync } from '../../lib/patients-cache';
-import { getMedications } from '../../lib/api/medications';
+import { getMedications, type Medication } from '../../lib/api/medications';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
 
 /**
@@ -144,6 +144,8 @@ export function CompatibilityPage() {
   const [patientsLoading, setPatientsLoading] = useState(!getCachedPatientsSync());
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [medsLoading, setMedsLoading] = useState(false);
+  const [skippedMeds, setSkippedMeds] = useState<Medication[]>([]);
+  const [skippedExpanded, setSkippedExpanded] = useState(false);
 
   // Load patients from shared cache (skip if sync cache hit)
   useEffect(() => {
@@ -162,9 +164,15 @@ export function CompatibilityPage() {
     try {
       const resp = await getMedications(patientId, { status: 'active', limit: 100 });
       const allMeds = resp.medications || [];
+
+      // 只保留 IV 途徑（住院 + 門診自備藥）；非 IV 略過
+      const ivMeds = allMeds.filter(m => m.route?.toUpperCase().startsWith('IV'));
+      const skippedList = allMeds.filter(m => !m.route?.toUpperCase().startsWith('IV'));
+      setSkippedMeds(skippedList);
+
       // Try matching by name first, then by genericName as fallback
       const matchedSet = new Set<string>();
-      for (const m of allMeds) {
+      for (const m of ivMeds) {
         const byName = m.name ? matchIVDrug(m.name) : null;
         if (byName) { matchedSet.add(byName); continue; }
         const byGeneric = m.genericName ? matchIVDrug(m.genericName) : null;
@@ -314,6 +322,8 @@ export function CompatibilityPage() {
                   setDrugs(['', '']);
                   setMatrixResults([]);
                   setHasSearched(false);
+                  setSkippedMeds([]);
+                  setSkippedExpanded(false);
                 }}
                 aria-label="清除病患選擇"
               >
@@ -325,6 +335,37 @@ export function CompatibilityPage() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               載入病患用藥中...
+            </div>
+          )}
+
+          {skippedMeds.length > 0 && (
+            <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-sm">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between px-3 py-2 text-amber-800 dark:text-amber-300 font-medium hover:bg-amber-100/60 dark:hover:bg-amber-900/40 rounded-md transition-colors"
+                onClick={() => setSkippedExpanded(v => !v)}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Info className="h-3.5 w-3.5 shrink-0" />
+                  已略過 {skippedMeds.length} 筆非 IV 用藥（PO／INH／SC／IM 等）
+                </span>
+                {skippedExpanded
+                  ? <ChevronUp className="h-4 w-4 shrink-0" />
+                  : <ChevronDown className="h-4 w-4 shrink-0" />
+                }
+              </button>
+              {skippedExpanded && (
+                <ul className="px-3 pb-2.5 space-y-1 border-t border-amber-200 dark:border-amber-700 pt-2">
+                  {skippedMeds.map(m => (
+                    <li key={m.id} className="flex items-baseline gap-2 text-amber-700 dark:text-amber-400">
+                      <span className="font-medium truncate flex-1">{m.name}</span>
+                      {m.route && (
+                        <span className="text-xs text-amber-500 dark:text-amber-500 shrink-0">{m.route}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
