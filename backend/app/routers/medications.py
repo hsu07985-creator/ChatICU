@@ -162,7 +162,18 @@ async def list_medications(
     try:
         if len(active_meds) >= 2:
             from sqlalchemy import text
-            med_names = [m.name for m in active_meds]
+            # Prefer generic_name (already normalised via ODR_CODE alias map at HIS import).
+            # Combination drugs store multiple names joined by " / " (e.g. "Ampicillin / Sulbactam")
+            # — expand them so each component is matched independently.
+            seen: set = set()
+            med_names: list = []
+            for m in active_meds:
+                raw = (m.generic_name or m.name or "").strip()
+                for part in raw.split(" / "):
+                    part = part.strip()
+                    if part and part.lower() not in seen:
+                        seen.add(part.lower())
+                        med_names.append(part)
             int_result = await db.execute(
                 text(
                     "SELECT id, drug1, drug2, severity, mechanism, "
