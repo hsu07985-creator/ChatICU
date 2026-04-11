@@ -497,10 +497,33 @@ class HISConverter:
         return "; ".join(icd_codes[:3]) if icd_codes else None
 
     def _extract_dept_doctor(self) -> Tuple[Optional[str], Optional[str]]:
-        """Extract department and doctor from getOpd.
+        """Extract department and ICU attending physician.
 
-        Same inpatient-first logic as _extract_diagnosis().
+        Priority: getAllOrder.json OPD_SW=I (ICU orders) → most frequent USER_NAME.
+        Fallback: getOpd.json OPD_SW=1 (inpatient record) → DR_NAME.
         """
+        from collections import Counter
+
+        # 1. Try ICU orders first (OPD_SW = 'I')
+        order_rows = self._load("getAllOrder.json")
+        if order_rows:
+            icu_orders = [r for r in order_rows if str(r.get("OPD_SW", "")) == "I"]
+            if icu_orders:
+                counter = Counter(
+                    r.get("USER_NAME", "") for r in icu_orders if r.get("USER_NAME")
+                )
+                if counter:
+                    icu_doctor = counter.most_common(1)[0][0]
+                    # Get department from getOpd inpatient record for context
+                    opd_rows = self._load("getOpd.json")
+                    dept = None
+                    if opd_rows:
+                        inpatient = [r for r in opd_rows if str(r.get("OPD_SW", "")) == "1"]
+                        if inpatient:
+                            dept = max(inpatient, key=lambda r: r.get("PAT_SEQ", "")).get("HDEPT_NAME")
+                    return dept, icu_doctor
+
+        # 2. Fallback: getOpd.json inpatient record
         opd_rows = self._load("getOpd.json")
         if not opd_rows:
             return None, None
