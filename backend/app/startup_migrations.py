@@ -588,9 +588,9 @@ async def _clear_messages_once(engine: AsyncEngine) -> None:
             await conn.execute(text(
                 "INSERT INTO _startup_flags (flag) VALUES ('clear_messages_053')"
             ))
-            log.info("Cleared %d patient_messages, %d team_chat_messages", r1.rowcount, r2.rowcount)
+            logger.info("Cleared %d patient_messages, %d team_chat_messages", r1.rowcount, r2.rowcount)
     except Exception:
-        log.warning("_clear_messages_once failed (non-fatal)", exc_info=True)
+        logger.warning("_clear_messages_once failed (non-fatal)", exc_info=True)
 
 
 async def _ensure_np_role(engine: AsyncEngine) -> None:
@@ -598,7 +598,6 @@ async def _ensure_np_role(engine: AsyncEngine) -> None:
 
     Pydantic schemas handle validation; DB constraint is unnecessary.
     """
-    log = logging.getLogger("chaticu")
     try:
         async with engine.begin() as conn:
             await conn.execute(text("""
@@ -611,9 +610,9 @@ async def _ensure_np_role(engine: AsyncEngine) -> None:
                     END IF;
                 END $$;
             """))
-        log.info("_ensure_np_role: CHECK constraint dropped (validation via Pydantic)")
+        logger.info("_ensure_np_role: CHECK constraint dropped (validation via Pydantic)")
     except Exception:
-        log.warning("_ensure_np_role failed (non-fatal)", exc_info=True)
+        logger.warning("_ensure_np_role failed (non-fatal)", exc_info=True)
 
 
 async def _ensure_performance_indexes(engine: AsyncEngine) -> None:
