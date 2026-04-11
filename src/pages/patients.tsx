@@ -70,12 +70,24 @@ export function PatientsPage() {
   const getAnalgesia = (patient: PatientWithFrontendFields) => patient.analgesia || patient.sanSummary?.analgesia || [];
   const getNmb = (patient: PatientWithFrontendFields) => patient.nmb || patient.sanSummary?.nmb || [];
 
+  // Dynamic doctor list from patient data
+  const doctorOptions = useMemo(() => {
+    const docs = new Set<string>();
+    patients.forEach(p => { if (p.attendingPhysician) docs.add(p.attendingPhysician); });
+    return Array.from(docs).sort();
+  }, [patients]);
+
   const filteredPatients = useMemo(
     () => patients.filter(patient => {
       const matchSearch = (patient.name || '').includes(searchTerm) || (patient.bedNumber || '').includes(searchTerm);
       if (filterStatus === 'intubated') return matchSearch && patient.intubated;
       if (filterStatus === 'san') {
         return matchSearch && (getSedation(patient).length > 0 || getAnalgesia(patient).length > 0 || getNmb(patient).length > 0);
+      }
+      if (filterStatus === 'dnr') return matchSearch && patient.hasDnr;
+      if (filterStatus.startsWith('doc:')) {
+        const docName = filterStatus.slice(4);
+        return matchSearch && patient.attendingPhysician === docName;
       }
       return matchSearch;
     }),
@@ -301,6 +313,15 @@ export function PatientsPage() {
                 <SelectItem value="all">全部病患</SelectItem>
                 <SelectItem value="intubated">插管中</SelectItem>
                 <SelectItem value="san">使用 S/A/N</SelectItem>
+                <SelectItem value="dnr">DNR</SelectItem>
+                {doctorOptions.length > 0 && (
+                  <>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-1">主治醫師</div>
+                    {doctorOptions.map(doc => (
+                      <SelectItem key={doc} value={`doc:${doc}`}>{doc}</SelectItem>
+                    ))}
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>
