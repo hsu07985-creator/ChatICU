@@ -4732,4 +4732,5 @@ html {
 .compact-table td,
 .compact-table th {
   padding: 0.375rem 0.625rem;
+  overflow: hidden;
 }
