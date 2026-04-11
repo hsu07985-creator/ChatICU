@@ -123,12 +123,33 @@ async def list_medications(
     result = await db.execute(query.order_by(Medication.name))
     medications = result.scalars().all()
 
+    # Dynamic self-supplied detection (cross-reference at query time)
+    inpatient_order_codes = set()
+    for med in medications:
+        if (getattr(med, "source_type", None) or "inpatient") == "inpatient":
+            code = getattr(med, "order_code", None)
+            if code:
+                inpatient_order_codes.add(code)
+
     # Group by SAN category — keys match frontend MedicationsResponse interface
     _SAN_KEY_MAP = {"S": "sedation", "A": "analgesia", "N": "nmb"}
     grouped = {"sedation": [], "analgesia": [], "nmb": [], "other": [], "outpatient": []}
     for med in medications:
         d = med_to_dict(med)
-        if (getattr(med, "source_type", None) or "inpatient") in ("outpatient", "self-supplied"):
+        src = (getattr(med, "source_type", None) or "inpatient")
+        # Cross-reference: outpatient + oral + same drug in inpatient → self-supplied
+        if src == "outpatient":
+            order_code = getattr(med, "order_code", None)
+            route = getattr(med, "route", None) or ""
+            notes = getattr(med, "notes", None) or ""
+            if (route == "PO" and order_code in inpatient_order_codes) or "自備" in notes:
+                d["sourceType"] = "self-supplied"
+                d["isExternal"] = True
+        elif src == "self-supplied":
+            # Already marked by converter
+            pass
+
+        if d["sourceType"] in ("outpatient", "self-supplied"):
             grouped["outpatient"].append(d)
         else:
             cat = normalize_san_category(med.san_category) or "other"

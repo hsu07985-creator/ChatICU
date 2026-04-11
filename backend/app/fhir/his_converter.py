@@ -488,14 +488,6 @@ class HISConverter:
             return []
         pat_id = patient["id"]
 
-        # Pre-scan: collect ODR_CODEs that have inpatient records
-        inpatient_odr_codes = set()
-        for m in rows:
-            if m.get("OPD_SW") == "I":
-                code = (m.get("ODR_CODE") or "").strip()
-                if code:
-                    inpatient_odr_codes.add(code)
-
         medications = []
         for m in rows:
             raw_name = m.get("ODR_NAME", "")
@@ -506,33 +498,15 @@ class HISConverter:
             # Determine PRN
             is_prn = "PRN" in freq_code
 
-            # Source type & self-supplied detection
+            # Source type (self-supplied detection is done at API layer)
             opd_sw = m.get("OPD_SW", "I")
-            long_type = m.get("LONG_TYPE")
-            notes_raw = m.get("NOTES") or ""
-            odr_code = (m.get("ODR_CODE") or "").strip()
-
-            # Rule 1: OPD chronic refill (慢2/慢三) + oral + same drug in inpatient
-            is_self_supplied = (
-                opd_sw == "O"
-                and long_type in (2, 2.0, 3, 3.0)
-                and route_code == "PO"
-                and odr_code in inpatient_odr_codes
-            )
-            # Rule 2 (fallback): NOTES contains "自備"
-            if not is_self_supplied and "自備" in notes_raw:
-                is_self_supplied = True
-
-            if is_self_supplied:
-                source_type = "self-supplied"
-            else:
-                source_type = _OPD_SW_MAP.get(opd_sw, "inpatient")
+            source_type = _OPD_SW_MAP.get(opd_sw, "inpatient")
 
             # Determine status
             dc_flag = m.get("DC_FLAG")
             if dc_flag == "Y" or m.get("END_DATE"):
                 status = "discontinued"
-            elif source_type in ("outpatient", "self-supplied"):
+            elif source_type == "outpatient":
                 # Outpatient Rx: expired when START_DATE + DAYS < today
                 start_dt = _roc_to_date(m.get("START_DATE"))
                 days_supply = int(float(m["DAYS"])) if m.get("DAYS") else None
@@ -577,7 +551,7 @@ class HISConverter:
                 "prescribing_department": m.get("HDEPT_NAME"),
                 "prescribing_doctor_name": m.get("USER_NAME"),
                 "days_supply": int(m["DAYS"]) if m.get("DAYS") else None,
-                "is_external": is_self_supplied,
+                "is_external": False,
             }
             medications.append(med_dict)
 
