@@ -149,9 +149,16 @@ export function DrugInteractionsPage() {
     try {
       const resp = await getMedications(patientId, { status: 'active', limit: 200 });
       const allMeds = resp.medications || [];
+
+      // 住院藥全部帶入；門診藥只帶入自備藥（sourceType='self-supplied'）或院外藥（isExternal=true）
+      const filtered = allMeds.filter(m =>
+        m.sourceType !== 'outpatient' || m.isExternal
+      );
+      const skipped = allMeds.length - filtered.length;
+
       // Try matching on both name and genericName for each medication
       const matchedSet = new Set<string>();
-      for (const m of allMeds) {
+      for (const m of filtered) {
         const fromName = m.name ? matchDrugName(m.name) : null;
         if (fromName) { matchedSet.add(fromName); continue; }
         const fromGeneric = m.genericName ? matchDrugName(m.genericName) : null;
@@ -170,7 +177,8 @@ export function DrugInteractionsPage() {
       setDrugs(newDrugs);
       setSearchResults([]);
       setHasSearched(false);
-      toast.success(`已載入 ${matched.length} 種用藥`);
+      const skipNote = skipped > 0 ? `（已略過 ${skipped} 筆院內門診處方）` : '';
+      toast.success(`已載入 ${matched.length} 種用藥${skipNote}`);
     } catch {
       toast.error('載入病患用藥失敗');
     } finally {
