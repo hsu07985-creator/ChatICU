@@ -385,7 +385,7 @@ export function PatientsPage() {
               <col style={{ width: '50px' }} />    {/* DNR */}
               <col style={{ width: '50px' }} />    {/* 隔離 */}
               <col style={{ width: '72px' }} />    {/* 插管 */}
-              <col style={{ width: '120px' }} />   {/* 操作 */}
+              <col style={{ width: '80px' }} />    {/* 操作 */}
             </colgroup>
             <TableHeader>
               <TableRow>
@@ -467,16 +467,6 @@ export function PatientsPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-1 justify-end">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/patient/${patient.id}`);
-                        }}
-                      >
-                        檢視
-                      </Button>
                       {(user?.role === 'admin' || user?.role === 'pharmacist') && (
                         <>
                           <Button
