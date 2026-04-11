@@ -242,7 +242,7 @@ function MedicationDetailModal({
 }) {
   if (!medication) return null;
   const med = medication;
-  const isOutpatient = med.sourceType === 'outpatient';
+  const isOutpatient = med.sourceType === 'outpatient' || med.sourceType === 'self-supplied';
   const hasSource = isOutpatient || med.prescribingDepartment || med.prescribingDoctorName;
 
   return (
@@ -279,9 +279,11 @@ function MedicationDetailModal({
               )}
             </>
           )}
-          {med.isExternal && (
+          {med.sourceType === 'self-supplied' ? (
+            <Badge className="bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 border-0">自備藥</Badge>
+          ) : med.isExternal ? (
             <Badge className="bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border-0">院外</Badge>
-          )}
+          ) : null}
         </div>
 
         {/* 處方來源 */}
@@ -294,8 +296,8 @@ function MedicationDetailModal({
                   <>
                     <div className="flex gap-2">
                       <span className="text-muted-foreground shrink-0">院內/院外</span>
-                      <Badge variant="secondary" className={`text-xs h-5 ${med.isExternal ? 'bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400' : 'bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'}`}>
-                        {med.isExternal ? '院外' : '院內'}
+                      <Badge variant="secondary" className={`text-xs h-5 ${med.sourceType === 'self-supplied' ? 'bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400' : med.isExternal ? 'bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400' : 'bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'}`}>
+                        {med.sourceType === 'self-supplied' ? '自備藥' : med.isExternal ? '院外' : '院內'}
                       </Badge>
                     </div>
                     <div className="flex gap-2">
@@ -1020,11 +1022,15 @@ export function PatientMedicationsTab({
                                 {medication.sourceCampus}
                               </Badge>
                             )}
-                            {medication.isExternal && (
+                            {medication.sourceType === 'self-supplied' ? (
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400">
+                                自備藥
+                              </Badge>
+                            ) : medication.isExternal ? (
                               <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400">
                                 院外
                               </Badge>
-                            )}
+                            ) : null}
                           </div>
                           <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
                             <span>{formatMedicationRegimen(medication)}</span>

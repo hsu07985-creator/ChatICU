@@ -30,7 +30,7 @@ export interface Medication {
   isContinuous?: boolean;
   infusionRate?: string;
   // Outpatient source fields (048)
-  sourceType?: 'inpatient' | 'outpatient';
+  sourceType?: 'inpatient' | 'outpatient' | 'self-supplied';
   sourceCampus?: string | null;
   prescribingHospital?: string | null;
   prescribingDepartment?: string | null;

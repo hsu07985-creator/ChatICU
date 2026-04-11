@@ -79,7 +79,7 @@ function deriveMedicationGroups(items: Medication[]): MedicationGroups {
   };
 
   for (const med of items) {
-    if (med.sourceType === 'outpatient') {
+    if (med.sourceType === 'outpatient' || med.sourceType === 'self-supplied') {
       grouped.outpatient.push(med);
     } else {
       const san = normalizeSanCategory(med.sanCategory);

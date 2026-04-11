@@ -128,7 +128,7 @@ async def list_medications(
     grouped = {"sedation": [], "analgesia": [], "nmb": [], "other": [], "outpatient": []}
     for med in medications:
         d = med_to_dict(med)
-        if (getattr(med, "source_type", None) or "inpatient") == "outpatient":
+        if (getattr(med, "source_type", None) or "inpatient") in ("outpatient", "self-supplied"):
             grouped["outpatient"].append(d)
         else:
             cat = normalize_san_category(med.san_category) or "other"
