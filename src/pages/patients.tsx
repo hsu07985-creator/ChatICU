@@ -384,7 +384,7 @@ export function PatientsPage() {
               <col style={{ width: '80px' }} />    {/* 呼吸器天數 */}
               <col style={{ width: '55px' }} />    {/* DNR */}
               <col style={{ width: '55px' }} />    {/* 隔離 */}
-              <col style={{ width: '75px' }} />    {/* 插管 */}
+              <col style={{ width: '80px' }} />    {/* 插管 */}
               <col style={{ width: '100px' }} />   {/* 操作 */}
             </colgroup>
             <TableHeader>
@@ -458,7 +458,7 @@ export function PatientsPage() {
                       <Badge variant="outline" className="text-muted-foreground">無</Badge>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {patient.intubated ? (
                       <Badge variant="secondary">插管中</Badge>
                     ) : (
