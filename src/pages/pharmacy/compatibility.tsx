@@ -94,12 +94,13 @@ const BRAND_TO_GENERIC: Record<string, string> = {
   solumedrol: 'Methylprednisolone Sodium Succinate',
   keppra: 'Levetiracetam',
   lanoxin: 'Digoxin',
+  gipamine: 'Dopamine HCl',  // GiPAmine 600mg/200ml = Dopamine HCl 3mg/mL IV infusion
 };
 
-// Known IV nutrition/vehicle brand first-words whose HIS generic_name may
-// misleadingly match a real drug in IV_DRUG_LIST (e.g. GiPAmine → "DOPamine").
+// Known IV vehicle/electrolyte/nutritional brand first-words whose HIS
+// generic_name does NOT correspond to a single active drug in IV_DRUG_LIST.
+// (GiPAmine is NOT here — it IS Dopamine HCl, confirmed from HIS order data.)
 const IV_NUTRITION_BRANDS = new Set([
-  'gipamine',     // amino acid + dopamine mixture; generic="DOPamine" in HIS
   'vitagen',      // glucose solutions (5% / 50%)
   'taita',        // electrolyte solutions
   'bfluid',       // amino acid + glucose + electrolyte
