@@ -296,7 +296,7 @@ export function PatientsPage() {
           <h1 className="text-2xl font-bold">病人清單</h1>
           <p className="text-muted-foreground text-sm mt-1">檢視所有病患資料</p>
         </div>
-        {user?.role === 'admin' && (
+        {(user?.role === 'admin' || user?.role === 'pharmacist') && (
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setArchiveDialogOpen(true)}>
               <Archive className="mr-2 h-4 w-4" />
@@ -370,22 +370,23 @@ export function PatientsPage() {
 
           {/* 病人列表 */}
           {!loading && !error && filteredPatients.length > 0 && (
-          <Table className="compact-table" style={{ tableLayout: 'fixed' }}>
+          <div className="overflow-x-auto">
+          <Table className="compact-table" style={{ tableLayout: 'fixed', minWidth: '1100px' }}>
             <colgroup>
-              <col style={{ width: '4.5%' }} />   {/* 床號 */}
-              <col style={{ width: '7%' }} />     {/* 病例號碼 */}
-              <col style={{ width: '6%' }} />     {/* 姓名 */}
-              <col style={{ width: '4%' }} />     {/* 性別 */}
-              <col style={{ width: '5%' }} />     {/* 年齡 */}
-              <col style={{ width: '7%' }} />     {/* 主治醫師 */}
-              <col style={{ width: '16%' }} />    {/* 入院診斷 */}
-              <col style={{ width: '13%' }} />    {/* 入ICU日期 */}
-              <col style={{ width: '7%' }} />     {/* 呼吸器天數 */}
-              <col style={{ width: '4.5%' }} />   {/* DNR */}
-              <col style={{ width: '5%' }} />     {/* 隔離 */}
-              <col style={{ width: '5.5%' }} />   {/* 插管 */}
-              <col style={{ width: '4%' }} />     {/* 留言 */}
-              <col style={{ width: '12%' }} />    {/* 操作 */}
+              <col style={{ width: '60px' }} />    {/* 床號 */}
+              <col style={{ width: '90px' }} />    {/* 病例號碼 */}
+              <col style={{ width: '70px' }} />    {/* 姓名 */}
+              <col style={{ width: '45px' }} />    {/* 性別 */}
+              <col style={{ width: '55px' }} />    {/* 年齡 */}
+              <col style={{ width: '80px' }} />    {/* 主治醫師 */}
+              <col style={{ width: 'auto' }} />    {/* 入院診斷 — flex fill */}
+              <col style={{ width: '120px' }} />   {/* 入ICU日期 */}
+              <col style={{ width: '75px' }} />    {/* 呼吸器天數 */}
+              <col style={{ width: '50px' }} />    {/* DNR */}
+              <col style={{ width: '55px' }} />    {/* 隔離 */}
+              <col style={{ width: '60px' }} />    {/* 插管 */}
+              <col style={{ width: '45px' }} />    {/* 留言 */}
+              <col style={{ width: '130px' }} />   {/* 操作 */}
             </colgroup>
             <TableHeader>
               <TableRow>
@@ -480,7 +481,7 @@ export function PatientsPage() {
                       >
                         檢視
                       </Button>
-                      {user?.role === 'admin' && (
+                      {(user?.role === 'admin' || user?.role === 'pharmacist') && (
                         <>
                           <Button
                             variant="ghost"
@@ -526,6 +527,7 @@ export function PatientsPage() {
               ))}
             </TableBody>
           </Table>
+          </div>
           )}
 
           {!loading && !error && filteredPatients.length === 0 && (

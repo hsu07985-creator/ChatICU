@@ -406,7 +406,7 @@ async def archive_patient(
 async def discharge_patient(
     patient_id: str,
     request: Request,
-    user: User = Depends(require_roles("admin", "doctor", "np")),
+    user: User = Depends(require_roles("admin", "doctor", "np", "pharmacist")),
     db: AsyncSession = Depends(get_db),
 ):
     """出院：永久刪除病人及所有關聯資料。"""
@@ -429,17 +429,10 @@ async def discharge_patient(
     from app.models.clinical_score import ClinicalScore
     from app.models.pharmacy_advice import PharmacyAdvice
 
-    # medication_administrations first (FK to medications)
-    med_ids_result = await db.execute(
-        select(Medication.id).where(Medication.patient_id == pid)
+    # medication_administrations first (has FK to both medications AND patients)
+    await db.execute(
+        delete(MedicationAdministration).where(MedicationAdministration.patient_id == pid)
     )
-    med_ids = [r[0] for r in med_ids_result]
-    if med_ids:
-        await db.execute(
-            delete(MedicationAdministration).where(
-                MedicationAdministration.medication_id.in_(med_ids)
-            )
-        )
 
     for model in (
         Medication, LabData, VitalSign, VentilatorSetting, WeaningAssessment,
