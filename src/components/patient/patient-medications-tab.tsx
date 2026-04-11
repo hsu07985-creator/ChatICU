@@ -57,6 +57,23 @@ function formatMedDate(dateStr?: string | null): string {
     + ' ' + d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
+function parseMedicationTime(dateStr?: string | null): number {
+  if (!dateStr) return Number.NEGATIVE_INFINITY;
+  const time = new Date(dateStr).getTime();
+  return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time;
+}
+
+function formatOutpatientGroupDate(dateStr?: string | null): string {
+  if (!dateStr) return '未標示日期';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '未標示日期';
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function formatOutpatientDaysSupply(daysSupply?: number | null): string {
+  return daysSupply != null ? ` (${daysSupply}天)` : '';
+}
+
 function formatMedicationConcentration(medication: Medication): string | null {
   if (!medication.concentration) return null;
   return [medication.concentration, medication.concentrationUnit].filter(Boolean).join(' ');
@@ -568,24 +585,37 @@ export function PatientMedicationsTab({
   const discontinuedCount = allDiscontinuedMeds.length;
   const totalCount = allOtherMeds.length;
 
-  // Outpatient medications — grouped by prescribing department, sorted by startDate ascending
+  // Outpatient medications — grouped by start date + department + days supply, sorted by nearest date first
   const allOutpatientMeds = outpatientMedications || [];
   const activeOutpatientMeds = allOutpatientMeds.filter((m) => !isOutpatientExpired(m) && m.status !== 'discontinued');
   const outpatientCount = allOutpatientMeds.length;
 
-  // Group outpatient meds by department, then sort by startDate within each group
-  const outpatientByDept = useMemo(() => {
-    const sorted = [...allOutpatientMeds].sort((a, b) =>
-      (a.startDate || '').localeCompare(b.startDate || ''),
-    );
-    const groups = new Map<string, Medication[]>();
-    for (const med of sorted) {
+  const outpatientGroups = useMemo(() => {
+    const groups = new Map<string, { label: string; sortTime: number; meds: Medication[] }>();
+    const medsSortedWithinGroup = [...allOutpatientMeds].sort((a, b) => {
+      const timeDiff = parseMedicationTime(b.startDate) - parseMedicationTime(a.startDate);
+      if (timeDiff !== 0) return timeDiff;
+      return (a.name || '').localeCompare(b.name || '', 'zh-Hant');
+    });
+
+    for (const med of medsSortedWithinGroup) {
       const dept = med.prescribingDepartment || '未標示科別';
-      const arr = groups.get(dept) || [];
-      arr.push(med);
-      groups.set(dept, arr);
+      const groupDate = formatOutpatientGroupDate(med.startDate);
+      const key = `${groupDate}__${dept}__${med.daysSupply ?? 'na'}`;
+      const existing = groups.get(key);
+      if (existing) {
+        existing.meds.push(med);
+        existing.sortTime = Math.max(existing.sortTime, parseMedicationTime(med.startDate));
+        continue;
+      }
+      groups.set(key, {
+        label: `${groupDate}${dept}${formatOutpatientDaysSupply(med.daysSupply)}`,
+        sortTime: parseMedicationTime(med.startDate),
+        meds: [med],
+      });
     }
-    return groups;
+
+    return [...groups.values()].sort((a, b) => b.sortTime - a.sortTime);
   }, [allOutpatientMeds]);
 
   // Current base list depends on view mode
@@ -998,16 +1028,16 @@ export function PatientMedicationsTab({
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0 space-y-4">
-                {[...outpatientByDept.entries()].map(([dept, meds]) => (
-                  <div key={dept}>
+                {outpatientGroups.map((group) => (
+                  <div key={group.label}>
                     <div className="flex items-center gap-2 mb-2">
                       <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400">
-                        {dept}
+                        {group.label}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">{meds.length} 筆</span>
+                      <span className="text-xs text-muted-foreground">{group.meds.length} 筆</span>
                     </div>
                     <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                      {meds.map((medication) => (
+                      {group.meds.map((medication) => (
                         <div
                           key={medication.id}
                           className="rounded-md border bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 px-3 py-2 cursor-pointer hover:shadow-md transition-shadow"
