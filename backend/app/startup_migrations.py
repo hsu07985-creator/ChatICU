@@ -283,7 +283,7 @@ async def _seed_drug_interactions(engine: AsyncEngine) -> None:
                     "dependencies, dependency_types, interacting_members, pubmed_ids, dedup_key, body_hash) "
                     "SELECT :id, :d1, :d2, :sev, :mech, :ce, :mgmt, :ref, "
                     ":rr, :rrd, :sl, :rl, :rd, :disc, :fnotes, "
-                    ":deps, :dtypes, :im, :pmids, :dk, :bh "
+                    "CAST(:deps AS JSONB), CAST(:dtypes AS JSONB), CAST(:im AS JSONB), CAST(:pmids AS JSONB), :dk, :bh "
                     "WHERE NOT EXISTS (SELECT 1 FROM drug_interactions WHERE id = :id)"
                 ).bindparams(
                     id=_id,
