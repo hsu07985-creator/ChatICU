@@ -5,6 +5,7 @@ ensure the schema and seed data are correct regardless of migration state.
 All operations are best-effort (non-fatal on failure).
 """
 
+import gzip
 import json
 import hashlib
 import logging
@@ -256,13 +257,21 @@ async def _seed_drug_interactions(engine: AsyncEngine) -> None:
 
         seeds_dir = Path(__file__).resolve().parents[1] / "seeds"
         full_seed = seeds_dir / "drug_interactions_full.json"
+        gz_seed = seeds_dir / "ddi_xd_only.json.gz"
         icu_seed = seeds_dir / "icu_drug_interactions.json"
-        seed_path = full_seed if full_seed.exists() else (icu_seed if icu_seed.exists() else None)
 
-        if not seed_path:
+        if full_seed.exists():
+            seed_path = full_seed
+            interactions = json.loads(full_seed.read_text("utf-8"))
+        elif gz_seed.exists():
+            seed_path = gz_seed
+            with gzip.open(gz_seed, "rb") as _gz:
+                interactions = json.loads(_gz.read().decode("utf-8"))
+        elif icu_seed.exists():
+            seed_path = icu_seed
+            interactions = json.loads(icu_seed.read_text("utf-8"))
+        else:
             return
-
-        interactions = json.loads(seed_path.read_text("utf-8"))
         async with engine.begin() as conn:
             await conn.execute(text("DELETE FROM drug_interactions"))
             inserted = 0
@@ -283,7 +292,7 @@ async def _seed_drug_interactions(engine: AsyncEngine) -> None:
                     "dependencies, dependency_types, interacting_members, pubmed_ids, dedup_key, body_hash) "
                     "SELECT :id, :d1, :d2, :sev, :mech, :ce, :mgmt, :ref, "
                     ":rr, :rrd, :sl, :rl, :rd, :disc, :fnotes, "
-                    ":deps, :dtypes, :im, :pmids, :dk, :bh "
+                    "CAST(:deps AS JSONB), CAST(:dtypes AS JSONB), CAST(:im AS JSONB), CAST(:pmids AS JSONB), :dk, :bh "
                     "WHERE NOT EXISTS (SELECT 1 FROM drug_interactions WHERE id = :id)"
                 ).bindparams(
                     id=_id,
