@@ -30,7 +30,7 @@ USER chaticu
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=300s \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
 CMD ["sh", "-c", "alembic upgrade head || echo 'WARN: migration failed, starting anyway'; uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

@@ -263,45 +263,50 @@ async def _seed_drug_interactions(engine: AsyncEngine) -> None:
             return
 
         interactions = json.loads(seed_path.read_text("utf-8"))
+
+        # Build rows in-memory first (fast, no I/O)
+        rows = []
+        for ix in interactions:
+            dk = ix.get("dedup_key", "")
+            if not dk:
+                dk = "||".join(sorted([ix["drug1"].lower(), ix["drug2"].lower()]))
+            _id = "ddi_" + hashlib.sha1(dk.encode()).hexdigest()[:12]
+            deps = ix.get("dependencies")
+            dtypes = ix.get("dependency_types")
+            im = ix.get("interacting_members")
+            pm = ix.get("pubmed_ids")
+            rows.append({
+                "id": _id,
+                "d1": ix["drug1"], "d2": ix["drug2"], "sev": ix["severity"],
+                "mech": ix.get("mechanism", ""), "ce": ix.get("clinical_effect", ""),
+                "mgmt": ix.get("management", ""), "ref": ix.get("references", ""),
+                "rr": ix.get("risk_rating", ""), "rrd": ix.get("risk_rating_description", ""),
+                "sl": ix.get("severity_label", ""), "rl": ix.get("reliability_rating", ""),
+                "rd": ix.get("route_dependency", ""), "disc": ix.get("discussion", ""),
+                "fnotes": ix.get("footnotes", ""),
+                "deps": json.dumps(deps, ensure_ascii=False) if deps else None,
+                "dtypes": json.dumps(dtypes, ensure_ascii=False) if dtypes else None,
+                "im": json.dumps(im, ensure_ascii=False) if im else None,
+                "pmids": json.dumps(pm, ensure_ascii=False) if pm else None,
+                "dk": dk, "bh": ix.get("body_hash", ""),
+            })
+
+        # Bulk insert in a single transaction (executemany — one batch, not 8775 roundtrips)
+        insert_sql = text(
+            "INSERT INTO drug_interactions "
+            "(id, drug1, drug2, severity, mechanism, clinical_effect, management, \"references\", "
+            "risk_rating, risk_rating_description, severity_label, reliability_rating, "
+            "route_dependency, discussion, footnotes, "
+            "dependencies, dependency_types, interacting_members, pubmed_ids, dedup_key, body_hash) "
+            "SELECT :id, :d1, :d2, :sev, :mech, :ce, :mgmt, :ref, "
+            ":rr, :rrd, :sl, :rl, :rd, :disc, :fnotes, "
+            "CAST(:deps AS JSONB), CAST(:dtypes AS JSONB), CAST(:im AS JSONB), CAST(:pmids AS JSONB), :dk, :bh "
+            "WHERE NOT EXISTS (SELECT 1 FROM drug_interactions WHERE id = :id)"
+        )
         async with engine.begin() as conn:
             await conn.execute(text("DELETE FROM drug_interactions"))
-            inserted = 0
-            for ix in interactions:
-                dk = ix.get("dedup_key", "")
-                if not dk:
-                    dk = "||".join(sorted([ix["drug1"].lower(), ix["drug2"].lower()]))
-                _id = "ddi_" + hashlib.sha1(dk.encode()).hexdigest()[:12]
-                deps = ix.get("dependencies")
-                dtypes = ix.get("dependency_types")
-                im = ix.get("interacting_members")
-                pm = ix.get("pubmed_ids")
-                await conn.execute(text(
-                    "INSERT INTO drug_interactions "
-                    "(id, drug1, drug2, severity, mechanism, clinical_effect, management, \"references\", "
-                    "risk_rating, risk_rating_description, severity_label, reliability_rating, "
-                    "route_dependency, discussion, footnotes, "
-                    "dependencies, dependency_types, interacting_members, pubmed_ids, dedup_key, body_hash) "
-                    "SELECT :id, :d1, :d2, :sev, :mech, :ce, :mgmt, :ref, "
-                    ":rr, :rrd, :sl, :rl, :rd, :disc, :fnotes, "
-                    "CAST(:deps AS JSONB), CAST(:dtypes AS JSONB), CAST(:im AS JSONB), CAST(:pmids AS JSONB), :dk, :bh "
-                    "WHERE NOT EXISTS (SELECT 1 FROM drug_interactions WHERE id = :id)"
-                ).bindparams(
-                    id=_id,
-                    d1=ix["drug1"], d2=ix["drug2"], sev=ix["severity"],
-                    mech=ix.get("mechanism", ""), ce=ix.get("clinical_effect", ""),
-                    mgmt=ix.get("management", ""), ref=ix.get("references", ""),
-                    rr=ix.get("risk_rating", ""), rrd=ix.get("risk_rating_description", ""),
-                    sl=ix.get("severity_label", ""), rl=ix.get("reliability_rating", ""),
-                    rd=ix.get("route_dependency", ""), disc=ix.get("discussion", ""),
-                    fnotes=ix.get("footnotes", ""),
-                    deps=json.dumps(deps, ensure_ascii=False) if deps else None,
-                    dtypes=json.dumps(dtypes, ensure_ascii=False) if dtypes else None,
-                    im=json.dumps(im, ensure_ascii=False) if im else None,
-                    pmids=json.dumps(pm, ensure_ascii=False) if pm else None,
-                    dk=dk, bh=ix.get("body_hash", ""),
-                ))
-                inserted += 1
-            logger.info("[INTG][DB] Seeded %d drug interactions from %s", inserted, seed_path.name)
+            await conn.execute(insert_sql, rows)
+            logger.info("[INTG][DB] Seeded %d drug interactions from %s", len(rows), seed_path.name)
     except Exception as e:
         logger.warning("[INTG][DB] Drug interactions seed failed (non-fatal): %s", e)
 
