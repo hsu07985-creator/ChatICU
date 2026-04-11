@@ -907,6 +907,45 @@ async def _seed_missing_critical_ddi(engine: AsyncEngine) -> None:
                 },
             ],
         },
+        # Perampanel × CNS Depressants [D] — additive CNS/respiratory depression in status epilepticus
+        # Perampanel is in the CNS Depressants class (same side as LORazepam/Midazolam), so no
+        # existing cross-class rule can detect this pair. An explicit entry is required.
+        {
+            "drug1": "Perampanel",
+            "drug2": "CNS Depressants",
+            "risk_rating": "D",
+            "severity": "major",
+            "risk_rating_description": "Consider therapy modification",
+            "severity_label": "Major",
+            "reliability_rating": "Intermediate",
+            "clinical_effect": (
+                "Perampanel, an AMPA glutamate receptor antagonist with significant CNS depressant "
+                "activity, produces additive CNS and respiratory depression when combined with other "
+                "CNS depressants (benzodiazepines, propofol, dexmedetomidine, opioids). "
+                "In the ICU setting for refractory status epilepticus, this combination may cause "
+                "excessive sedation, respiratory depression, or haemodynamic compromise."
+            ),
+            "management": (
+                "Use with caution. When adding perampanel to ongoing benzodiazepine or sedative "
+                "therapy, start at the lowest effective dose and titrate slowly. "
+                "Monitor respiratory rate, SpO₂, level of sedation (RASS), and haemodynamics. "
+                "Consider reducing the dose of concomitant CNS depressants."
+            ),
+            "interacting_members": [
+                {
+                    "group_name": "CNS Depressants",
+                    "members": [
+                        "LORazepam", "Midazolam", "DiazePAM", "ClonazePAM",
+                        "ALPRAZolam", "ChlordiazePOXIDE", "CloBAZam", "CloNAZEpam",
+                        "Propofol", "Ketamine", "Esketamine (Injection)",
+                        "DexmedeTOMIDine", "PHENobarbital",
+                        "Haloperidol", "QUEtiapine", "Zolpidem",
+                    ],
+                    "exceptions": [],
+                    "exceptions_note": "",
+                },
+            ],
+        },
     ]
 
     try:
