@@ -618,6 +618,10 @@ class HISConverter:
                 elif cat in ("serology", "tumor_marker", "allergy", "tdm"):
                     cat = "other"
                 elif cat in ("urinalysis", "stool", "pleural_fluid"):
+                    # Prefix key to avoid collision with blood-based items
+                    # (e.g., urinalysis Glucose vs biochemistry Glucose)
+                    _PREFIX = {"urinalysis": "U_", "stool": "ST_", "pleural_fluid": "PF_"}
+                    key = _PREFIX[cat] + key
                     cat = "other"
 
                 if cat not in categories:
