@@ -4,6 +4,7 @@
     "Tazobactam / Clavulanate 不在 DDI DB 中（β-lactamase inhibitor，DDI 由 Piperacillin / Amoxicillin 代表）",
     "Nystatin 不在 DDI DB 中，已略過",
     "Insulin 系列（Degludec/Aspart/Detemir）DDI DB 只有通用 Insulin 一個 entry",
+    "Class-level aliases：Colistin→Colistimethate（同活性成分），Amikacin→Aminoglycosides（類別節點有直接邊），Cisatracurium→Neuromuscular-Blocking Agents，Bumetanide→Loop Diuretics（graph check_drugs 只查直接邊，類別節點才有互動資料）",
     "新增 ODR_CODE：在此加入，格式為 \"ODR_CODE\": [\"DDI_DB_藥名\"]"
   ],
   "_skipped_no_ddi_data": ["ONYST1 (Nystatin)"],
@@ -22,7 +23,40 @@
   "IPIPE4": ["Piperacillin"],
   "IAMSU1": ["Ampicillin", "Sulbactam"],
   "IRYZO1": ["Insulin"],
+  "INOVO4": ["Insulin"],
+  "ITOUJ1": ["Insulin"],
 
+  "_section_aminoglycosides": "---Aminoglycoside → 類別節點 (有直接邊：Vancomycin/NMB/Loop Diuretics/Colistimethate)---",
+  "IAMIN9": ["Aminoglycosides"],
+  "IGENT1": ["Aminoglycosides"],
+
+  "_section_nmb": "---Neuromuscular Blocking Agents → 類別節點 (有直接邊：Aminoglycosides/Mg salts via class)---",
+  "INIMB1": ["Neuromuscular-Blocking Agents"],
+  "IRELA3": ["Succinylcholine"],
+
+  "_section_colistin": "---Colistin = prodrug of Colistimethate (有直接邊：Vancomycin/Aminoglycosides/NMB)---",
+  "ICOLI1":  ["Colistimethate"],
+  "ICOLI1N": ["Colistimethate"],
+
+  "_section_loop_diuretics": "---Loop Diuretics 類別節點 (有直接邊：Aminoglycosides/Vancomycin)---",
+  "IBUSI1": ["Loop Diuretics"],
+
+  "_section_cephalosporins": "---Cephalosporins 類別節點 (有直接邊：Aminoglycosides/Vancomycin)---",
+  "ISUPE1": ["Cephalosporins"],
+  "ILOFA2": ["Cephalosporins"],
+  "ISTAZ1": ["Cephalosporins"],
+  "IBROS2": ["Cefoperazone", "Sulbactam"],
+  "IZEFO2": ["Cefoperazone", "Sulbactam"],
+  "IZAVI1": ["Ceftazidime", "Avibactam"],
+
+  "_section_antibiotics": "---其他抗生素 (有明確 DDI DB 名稱)---",
+  "ICRAV2": ["LevoFLOXacin (Systemic)"],
+  "ISEFO1": ["Ciprofloxacin (Systemic)"],
+  "IMENO2": ["Minocycline (Systemic)"],
+  "OZITH1": ["Azithromycin (Systemic)"],
+  "ICYME2": ["Ganciclovir-Valganciclovir"],
+
+  "_section_cv": "---心血管/麻醉藥---",
   "IATRO3": ["Atropine (Systemic)"],
   "OCARV2": ["Carvedilol"],
   "ODIPY3": ["Dipyridamole"],
@@ -42,5 +76,32 @@
   "IMORP1": ["Morphine (Systemic)"],
   "OREPA1": ["Repaglinide"],
   "OSODI5": ["Sodium Bicarbonate (Systemic)"],
-  "TSYNB1": ["Budesonide (Oral Inhalation)", "Formoterol"]
+  "TSYNB1": ["Budesonide (Oral Inhalation)", "Formoterol"],
+
+  "_section_anesthesia": "---麻醉/鎮靜藥---",
+  "ILIDO7": ["Lidocaine (Systemic)"],
+  "IXYLO1": ["Lidocaine (Systemic)"],
+  "IMARC2": ["Bupivacaine"],
+
+  "_section_steroids": "---類固醇（補充非ICU常用 ODR_CODE）---",
+  "OMETI2": ["MethylPREDNISolone (Systemic)"],
+  "ISOLU5": ["MethylPREDNISolone (Systemic)"],
+  "OPRED2": ["PrednisoLONE (Systemic)"],
+  "ODEXA2": ["Dexamethasone (Systemic)"],
+  "TZINE1": ["Dexamethasone (Systemic)"],
+
+  "_section_electrolytes": "---電解質（補充重複 ODR_CODE）---",
+  "IKCL2":  ["Potassium Chloride"],
+  "IROLI2": ["Sodium Bicarbonate (Systemic)"],
+  "IMANI2": ["Mannitol (Systemic)"],
+
+  "_section_other": "---其他活性藥物---",
+  "IBENA1": ["Diphenhydramine (Systemic)"],
+  "OVORE1": ["Diclofenac (Systemic)"],
+  "OTRAM2": ["Tramadol"],
+  "OELTR2": ["Levothyroxine"],
+  "OEDAR1": ["Azilsartan"],
+  "OCODI1": ["Valsartan", "Hydrochlorothiazide"],
+  "OOLME2": ["Olmesartan"],
+  "OENTR2": ["Sacubitril", "Valsartan"]
 }
