@@ -97,19 +97,25 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b overflow-hidden">
-        {isCollapsed ? (
-          <div className="flex items-center justify-center p-2.5">
-            <img src={logoImage} alt="ChatICU" className="h-8 w-8 rounded-full shadow-md object-cover" />
-          </div>
-        ) : (
-          <div className="flex items-center gap-3 p-4">
-            <img src={logoImage} alt="ChatICU" className="h-12 w-12 rounded-full shadow-lg flex-shrink-0 object-cover" />
-            <div className="min-w-0 flex-1">
-              <h2 className="font-bold text-lg text-foreground">ChatICU</h2>
-              <p className="text-xs text-muted-foreground truncate">{user?.name} · {user?.unit}</p>
+        <button
+          onClick={toggleSidebar}
+          className="w-full cursor-pointer hover:opacity-80 transition-opacity"
+          title={isCollapsed ? '展開側邊欄' : '收起側邊欄'}
+        >
+          {isCollapsed ? (
+            <div className="flex items-center justify-center p-2.5">
+              <img src={logoImage} alt="ChatICU" className="h-8 w-8 rounded-full shadow-md object-cover" />
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="flex items-center gap-3 p-4">
+              <img src={logoImage} alt="ChatICU" className="h-12 w-12 rounded-full shadow-lg flex-shrink-0 object-cover" />
+              <div className="min-w-0 flex-1 text-left">
+                <h2 className="font-bold text-lg text-foreground">ChatICU</h2>
+                <p className="text-xs text-muted-foreground truncate">{user?.name} · {user?.unit}</p>
+              </div>
+            </div>
+          )}
+        </button>
       </SidebarHeader>
 
       <SidebarContent>
