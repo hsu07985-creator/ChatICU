@@ -16,6 +16,11 @@
     { "odr_code": "TEVAC1", "name": "Evac Enema 118mL",         "reason": "灌腸劑" },
     { "odr_code": "OCOMP3", "name": "Compound glycyrrhiza",     "reason": "複方甘草合劑，輔助用品" },
     { "odr_code": "OCALC4", "name": "Calcium + Vitamin D2",     "reason": "鈣片補充劑（非靜脈）" },
-    { "odr_code": "OKGLU1", "name": "Potassium gluconate oral", "reason": "口服鉀補充液" }
+    { "odr_code": "OKGLU1", "name": "Potassium gluconate oral", "reason": "口服鉀補充液" },
+    { "odr_code": "TMENP2", "name": "Menphencala lotion (Calamine)", "reason": "外用止癢乳液，無全身DDI" },
+    { "odr_code": "TSSD1",  "name": "SSD cream (Silver Sulfadiazine)", "reason": "外用燒傷抗菌藥膏，全身吸收極低" },
+    { "odr_code": "ITAIT5", "name": "TAITA NO.5 點滴 400mL",       "reason": "電解質補充液，非活性藥物" },
+    { "odr_code": "ITAIT2", "name": "Taita No.2 點滴 500mL",       "reason": "電解質補充液，非活性藥物" },
+    { "odr_code": "IBFLU1", "name": "Bfluid 1000mL (胺基酸+葡萄糖+電解質)", "reason": "營養補充液，非活性藥物" }
   ]
 }

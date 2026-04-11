@@ -784,6 +784,91 @@ async def _seed_missing_critical_ddi(engine: AsyncEngine) -> None:
                 "increasing dopamine dose or switching to a non-dopaminergic vasopressor."
             ),
         },
+        # DilTIAZem + Beta-Blockers → additive AV node conduction slowing (AV block risk)
+        # Both drugs are Bradycardia-Causing Agents (same class side), so class rule cannot
+        # detect this pair.  An explicit entry is required.
+        {
+            "drug1": "DilTIAZem",
+            "drug2": "Beta-Blockers",
+            "risk_rating": "D",
+            "severity": "major",
+            "risk_rating_description": "Consider therapy modification",
+            "severity_label": "Major",
+            "reliability_rating": "Intermediate",
+            "clinical_effect": (
+                "Concurrent use of a non-dihydropyridine calcium channel blocker (diltiazem) "
+                "and a beta-blocker produces additive inhibition of AV node conduction. "
+                "This combination may cause bradycardia, heart block (1st-, 2nd-, or 3rd-degree), "
+                "or haemodynamic compromise, particularly in critically ill patients."
+            ),
+            "management": (
+                "Use with caution in ICU. Monitor HR and 12-lead ECG continuously. "
+                "If symptomatic bradycardia, PR prolongation ≥ 240 ms, or 2nd/3rd-degree AV block "
+                "develops, reduce or discontinue one agent. Consider temporary pacing if needed."
+            ),
+            "interacting_members": [
+                {
+                    "group_name": "Beta-Blockers",
+                    "members": [
+                        "Bisoprolol", "Carvedilol", "Metoprolol", "Atenolol",
+                        "Propranolol", "Esmolol", "Labetalol", "Nebivolol",
+                    ],
+                    "exceptions": [],
+                    "exceptions_note": "",
+                },
+            ],
+        },
+        # Colchicine + Ticagrelor [D] — P-gp AND CYP3A4 inhibition → colchicine toxicity
+        # Ticagrelor is NOT in the P-gp inhibitors class members in the main DDI dataset.
+        {
+            "drug1": "Colchicine",
+            "drug2": "Ticagrelor",
+            "risk_rating": "D",
+            "severity": "major",
+            "risk_rating_description": "Consider therapy modification",
+            "severity_label": "Major",
+            "reliability_rating": "Intermediate",
+            "clinical_effect": (
+                "Ticagrelor inhibits both P-glycoprotein (P-gp/ABCB1) and CYP3A4, "
+                "leading to increased plasma concentrations of colchicine. "
+                "This combination may cause colchicine toxicity: nausea, vomiting, "
+                "diarrhoea, myopathy, and potentially fatal multi-organ failure."
+            ),
+            "management": (
+                "Avoid concomitant use if possible. If necessary, reduce colchicine dose "
+                "by 50% or more and monitor closely for signs of toxicity "
+                "(GI symptoms, muscle weakness, CK elevation). "
+                "Consider temporary colchicine dose hold if ticagrelor is initiated acutely."
+            ),
+        },
+        # Spironolactone + Sacubitril-Valsartan [D] — hyperkalaemia risk
+        {
+            "drug1": "Spironolactone",
+            "drug2": "Sacubitril and Valsartan",
+            "risk_rating": "D",
+            "severity": "major",
+            "risk_rating_description": "Consider therapy modification",
+            "severity_label": "Major",
+            "reliability_rating": "Intermediate",
+            "clinical_effect": (
+                "Combination of spironolactone (potassium-sparing diuretic / aldosterone antagonist) "
+                "with sacubitril-valsartan (RAAS inhibitor) significantly increases the risk of "
+                "hyperkalaemia, which may cause life-threatening cardiac arrhythmias."
+            ),
+            "management": (
+                "Monitor serum potassium and renal function closely (weekly for first 4 weeks, "
+                "then monthly). Keep K⁺ < 5.0 mEq/L. Reduce spironolactone dose or discontinue "
+                "if K⁺ ≥ 5.5 mEq/L. Avoid if eGFR < 30 mL/min/1.73m²."
+            ),
+            "interacting_members": [
+                {
+                    "group_name": "Sacubitril and Valsartan",
+                    "members": ["Sacubitril", "Valsartan", "Entresto"],
+                    "exceptions": [],
+                    "exceptions_note": "",
+                },
+            ],
+        },
     ]
 
     try:
@@ -791,11 +876,14 @@ async def _seed_missing_critical_ddi(engine: AsyncEngine) -> None:
             for ix in _CRITICAL:
                 dk = "icu_critical||" + "||".join(sorted([ix["drug1"].lower(), ix["drug2"].lower()]))
                 _id = "ddi_" + hashlib.sha1(dk.encode()).hexdigest()[:12]
+                im = ix.get("interacting_members")
                 await conn.execute(text(
                     "INSERT INTO drug_interactions "
                     "(id, drug1, drug2, severity, mechanism, clinical_effect, management, "
-                    "risk_rating, risk_rating_description, severity_label, reliability_rating, dedup_key) "
-                    "SELECT :id, :d1, :d2, :sev, :mech, :ce, :mgmt, :rr, :rrd, :sl, :rl, :dk "
+                    "risk_rating, risk_rating_description, severity_label, reliability_rating, "
+                    "interacting_members, dedup_key) "
+                    "SELECT :id, :d1, :d2, :sev, :mech, :ce, :mgmt, :rr, :rrd, :sl, :rl, "
+                    "CAST(:im AS JSONB), :dk "
                     "WHERE NOT EXISTS (SELECT 1 FROM drug_interactions WHERE id = :id)"
                 ).bindparams(
                     id=_id, d1=ix["drug1"], d2=ix["drug2"],
@@ -803,6 +891,7 @@ async def _seed_missing_critical_ddi(engine: AsyncEngine) -> None:
                     ce=ix["clinical_effect"], mgmt=ix["management"],
                     rr=ix["risk_rating"], rrd=ix["risk_rating_description"],
                     sl=ix["severity_label"], rl=ix["reliability_rating"],
+                    im=json.dumps(im, ensure_ascii=False) if im else None,
                     dk=dk,
                 ))
         logger.info("[INTG][DB] Critical DDI seed: verified %d entries", len(_CRITICAL))
