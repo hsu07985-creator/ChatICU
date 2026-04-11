@@ -401,7 +401,7 @@ export function PatientsPage() {
                 <TableHead>DNR</TableHead>
                 <TableHead>隔離</TableHead>
                 <TableHead>插管</TableHead>
-                <TableHead className="text-right">操作</TableHead>
+                <TableHead className="text-center">出院</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -465,8 +465,8 @@ export function PatientsPage() {
                       <Badge variant="outline">未插管</Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex gap-1 justify-end">
+                  <TableCell className="text-center">
+                    <div className="flex gap-1 justify-center">
                       {(user?.role === 'admin' || user?.role === 'pharmacist') && (
                         <>
                           <Button
