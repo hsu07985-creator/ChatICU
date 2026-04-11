@@ -55,6 +55,8 @@ async def run_all(engine: AsyncEngine) -> None:
     await _clear_messages_once(engine)
     await _ensure_np_role(engine)
     await _seed_iv_compatibilities(engine)
+    await _patch_ddi_interacting_members(engine)
+    await _seed_missing_critical_ddi(engine)
     await _ensure_performance_indexes(engine)
 
 
@@ -688,6 +690,124 @@ async def _seed_iv_compatibilities(engine: AsyncEngine) -> None:
         logger.info("[INTG][DB] Seeded %d IV compatibility pairs from %s", inserted, seed_path.name)
     except Exception as e:
         logger.warning("[INTG][DB] IV compatibility seed failed (non-fatal): %s", e)
+
+
+async def _patch_ddi_interacting_members(engine: AsyncEngine) -> None:
+    """Back-fill interacting_members for existing DDI rows where it is NULL.
+
+    The seeding skips re-seed when count > 100, so rows inserted before the
+    interacting_members column existed have NULL in that column.  Class-level
+    matching (e.g. Tramadol ↔ Mirtazapine via Serotonergic class) only works
+    when the column is populated.
+    """
+    try:
+        async with engine.connect() as conn:
+            null_count = (await conn.execute(
+                text("SELECT COUNT(*) FROM drug_interactions WHERE interacting_members IS NULL")
+            )).scalar()
+        if null_count == 0:
+            logger.info("[INTG][DB] ddi interacting_members already populated, skipping patch")
+            return
+
+        seeds_dir = Path(__file__).resolve().parents[1] / "seeds"
+        gz_seed = seeds_dir / "ddi_xd_only.json.gz"
+        if not gz_seed.exists():
+            return
+
+        with gzip.open(gz_seed, "rb") as _gz:
+            interactions = json.loads(_gz.read().decode("utf-8"))
+
+        patched = 0
+        async with engine.begin() as conn:
+            for ix in interactions:
+                im = ix.get("interacting_members")
+                if not im:
+                    continue
+                dk = ix.get("dedup_key", "")
+                if not dk:
+                    dk = "||".join(sorted([ix["drug1"].lower(), ix["drug2"].lower()]))
+                _id = "ddi_" + hashlib.sha1(dk.encode()).hexdigest()[:12]
+                result = await conn.execute(text(
+                    "UPDATE drug_interactions SET interacting_members = CAST(:im AS JSONB) "
+                    "WHERE id = :id AND interacting_members IS NULL"
+                ).bindparams(id=_id, im=json.dumps(im, ensure_ascii=False)))
+                patched += result.rowcount
+        logger.info("[INTG][DB] Patched interacting_members for %d DDI rows", patched)
+    except Exception as e:
+        logger.warning("[INTG][DB] DDI interacting_members patch failed (non-fatal): %s", e)
+
+
+async def _seed_missing_critical_ddi(engine: AsyncEngine) -> None:
+    """Insert ICU-critical DDI pairs that are absent from the main DDI dataset.
+
+    DOPamine (vasopressor) is pharmacologically distinct from dopamine agonists
+    used in Parkinson's disease, so the Anti-Parkinson / Antipsychotic class rule
+    does NOT cover it.  We add explicit rows for the vasopressor interactions.
+    """
+    _CRITICAL = [
+        # DOPamine vasopressor + antipsychotics → reduced vasopressor efficacy
+        {
+            "drug1": "DOPamine",
+            "drug2": "HaloPERidol",
+            "risk_rating": "D",
+            "severity": "major",
+            "risk_rating_description": "Consider therapy modification",
+            "severity_label": "Major",
+            "reliability_rating": "Intermediate",
+            "clinical_effect": (
+                "Antipsychotic agents may antagonize the vasopressor effects of DOPamine "
+                "by blocking dopaminergic receptors, potentially reducing cardiac output "
+                "and blood pressure support in critically ill patients."
+            ),
+            "management": (
+                "If antipsychotic therapy is required in a patient receiving dopamine "
+                "vasopressor support, monitor hemodynamic response closely and consider "
+                "increasing dopamine dose or switching to a non-dopaminergic vasopressor."
+            ),
+        },
+        {
+            "drug1": "DOPamine",
+            "drug2": "QUEtiapine",
+            "risk_rating": "D",
+            "severity": "major",
+            "risk_rating_description": "Consider therapy modification",
+            "severity_label": "Major",
+            "reliability_rating": "Intermediate",
+            "clinical_effect": (
+                "Antipsychotic agents may antagonize the vasopressor effects of DOPamine "
+                "by blocking dopaminergic receptors, potentially reducing cardiac output "
+                "and blood pressure support in critically ill patients."
+            ),
+            "management": (
+                "If antipsychotic therapy is required in a patient receiving dopamine "
+                "vasopressor support, monitor hemodynamic response closely and consider "
+                "increasing dopamine dose or switching to a non-dopaminergic vasopressor."
+            ),
+        },
+    ]
+
+    try:
+        async with engine.begin() as conn:
+            for ix in _CRITICAL:
+                dk = "icu_critical||" + "||".join(sorted([ix["drug1"].lower(), ix["drug2"].lower()]))
+                _id = "ddi_" + hashlib.sha1(dk.encode()).hexdigest()[:12]
+                await conn.execute(text(
+                    "INSERT INTO drug_interactions "
+                    "(id, drug1, drug2, severity, mechanism, clinical_effect, management, "
+                    "risk_rating, risk_rating_description, severity_label, reliability_rating, dedup_key) "
+                    "SELECT :id, :d1, :d2, :sev, :mech, :ce, :mgmt, :rr, :rrd, :sl, :rl, :dk "
+                    "WHERE NOT EXISTS (SELECT 1 FROM drug_interactions WHERE id = :id)"
+                ).bindparams(
+                    id=_id, d1=ix["drug1"], d2=ix["drug2"],
+                    sev=ix["severity"], mech="",
+                    ce=ix["clinical_effect"], mgmt=ix["management"],
+                    rr=ix["risk_rating"], rrd=ix["risk_rating_description"],
+                    sl=ix["severity_label"], rl=ix["reliability_rating"],
+                    dk=dk,
+                ))
+        logger.info("[INTG][DB] Critical DDI seed: verified %d entries", len(_CRITICAL))
+    except Exception as e:
+        logger.warning("[INTG][DB] Critical DDI seed failed (non-fatal): %s", e)
 
 
 async def _ensure_performance_indexes(engine: AsyncEngine) -> None:

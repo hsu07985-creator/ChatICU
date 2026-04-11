@@ -70,19 +70,38 @@ def _relevance_score(interaction, drug_a: str, drug_b: str) -> tuple:
 
 
 def _pair_on_different_sides(interaction, drug_a: str, drug_b: str) -> bool:
-    """Ensure drug_a and drug_b match different sides of the interaction."""
-    members = _parse_json_field(interaction.interacting_members)
+    """Ensure drug_a and drug_b match different sides of the interaction.
+
+    interacting_members may be stored as:
+      - list of dicts: [{"group_name": "X", "members": [...]}, ...]  (new format)
+      - dict: {"GroupName": ["member1", ...], ...}  (raw JSON from ddi_xd_only.json.gz)
+      - null / []
+    """
+    raw = _parse_json_field(interaction.interacting_members)
     d1_l = (interaction.drug1 or "").lower()
     d2_l = (interaction.drug2 or "").lower()
     side1 = {d1_l}
     side2 = {d2_l}
-    for g in members:
-        gn = (g.get("group_name") or "").lower()
-        member_set = {m.lower() for m in g.get("members", [])}
-        if gn == d1_l:
-            side1.update(member_set)
-        elif gn == d2_l:
-            side2.update(member_set)
+
+    if isinstance(raw, dict):
+        # dict-format: keys are group names, values are member lists
+        for group_name, members_list in raw.items():
+            gn = group_name.lower()
+            member_set = {m.lower() for m in (members_list or [])}
+            if gn == d1_l:
+                side1.update(member_set)
+            elif gn == d2_l:
+                side2.update(member_set)
+    elif isinstance(raw, list):
+        for g in raw:
+            if not isinstance(g, dict):
+                continue
+            gn = (g.get("group_name") or "").lower()
+            member_set = {m.lower() for m in g.get("members", [])}
+            if gn == d1_l:
+                side1.update(member_set)
+            elif gn == d2_l:
+                side2.update(member_set)
     a_l, b_l = drug_a.lower(), drug_b.lower() if drug_b else ""
     a_s1 = any(a_l in n or n in a_l for n in side1)
     a_s2 = any(a_l in n or n in a_l for n in side2)

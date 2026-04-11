@@ -14,10 +14,12 @@ import { getMedications, type Medication } from '../../lib/api/medications';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
 
 /**
- * Y-Site 相容性藥品清單 — 52 drugs from icu_y_site_compatibility_v2_lookup.json
- * 8 ICU specialty sheets, deduplicated.
+ * Y-Site 相容性藥品清單
+ * Core 50 drugs from icu_y_site_compatibility_v2_lookup.json (8 ICU specialty sheets)
+ * + 6 common ICU IV drugs added to prevent silent omission (will show '-' if no pair data)
  */
 const IV_DRUG_LIST: string[] = [
+  // ── Y-Site JSON 核心藥品 ──────────────────────────────────────────────
   "Acetylcysteine",
   "Adenosine",
   "Alanyl Glutamine",
@@ -68,6 +70,13 @@ const IV_DRUG_LIST: string[] = [
   "Valproate Sodium",
   "Vasopressin",
   "ZnSO4",
+  // ── 常見 ICU IV 藥品補充（Y-Site 資料庫無配對資料者顯示'-'）───────────
+  "Morphine Sulfate",
+  "Vancomycin HCl",
+  "Furosemide",
+  "Pantoprazole Sodium",
+  "Rocuronium",
+  "Meropenem",
 ];
 
 // Pre-compute alpha-only lowercase for fuzzy matching patient meds → IV_DRUG_LIST
@@ -83,7 +92,7 @@ const BRAND_TO_GENERIC: Record<string, string> = {
   diprivan: 'Propofol',
   precedex: 'Dexmedetomidine HCl',
   nimbex: 'Cisatracurium besylate',
-  zemuron: 'Rocuronium',  // not in IV_DRUG_LIST but kept for future
+  zemuron: 'Rocuronium',
   levophed: 'Norepinephrine bitartrate',
   adrenaline: 'Epinephrine HCl',
   bosmin: 'Epinephrine HCl',
@@ -95,6 +104,13 @@ const BRAND_TO_GENERIC: Record<string, string> = {
   keppra: 'Levetiracetam',
   lanoxin: 'Digoxin',
   gipamine: 'Dopamine HCl',  // GiPAmine 600mg/200ml = Dopamine HCl 3mg/mL IV infusion
+  // Newly added ICU drug aliases
+  pantoloc: 'Pantoprazole Sodium',
+  rasitol: 'Furosemide',
+  lasix: 'Furosemide',
+  vancocin: 'Vancomycin HCl',
+  meronem: 'Meropenem',
+  esmeron: 'Rocuronium',
 };
 
 // Known IV vehicle/electrolyte/nutritional brand first-words whose HIS
