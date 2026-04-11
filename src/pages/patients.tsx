@@ -296,18 +296,6 @@ export function PatientsPage() {
           <h1 className="text-2xl font-bold">病人清單</h1>
           <p className="text-muted-foreground text-sm mt-1">檢視所有病患資料</p>
         </div>
-        {(user?.role === 'admin' || user?.role === 'pharmacist') && (
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setArchiveDialogOpen(true)}>
-              <Archive className="mr-2 h-4 w-4" />
-              封存病人
-            </Button>
-            <Button onClick={() => setAddDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              新增病人
-            </Button>
-          </div>
-        )}
       </div>
 
       <Card>

@@ -410,38 +410,50 @@ async def discharge_patient(
     db: AsyncSession = Depends(get_db),
 ):
     """出院：永久刪除病人及所有關聯資料。"""
-    pid = normalize_patient_id(patient_id)
+    # Try both the raw ID and the normalized ID so HIS patients work too
+    pid = patient_id.strip()
     result = await db.execute(select(Patient).where(Patient.id == pid))
     patient = result.scalar_one_or_none()
+    if not patient:
+        pid = normalize_patient_id(patient_id)
+        result = await db.execute(select(Patient).where(Patient.id == pid))
+        patient = result.scalar_one_or_none()
 
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
     patient_name = patient.name
 
-    # Delete all related records (FK RESTRICT requires manual deletion)
-    from app.models.medication import Medication, MedicationAdministration
-    from app.models.lab_data import LabData
-    from app.models.vital_sign import VitalSign
-    from app.models.ventilator import VentilatorSetting, WeaningAssessment
-    from app.models.symptom_record import SymptomRecord
-    from app.models.diagnostic_report import DiagnosticReport
-    from app.models.clinical_score import ClinicalScore
-    from app.models.pharmacy_advice import PharmacyAdvice
+    try:
+        # Delete all related records in FK-safe order (RESTRICT constraints)
+        from app.models.medication import Medication, MedicationAdministration
+        from app.models.lab_data import LabData
+        from app.models.vital_sign import VitalSign
+        from app.models.ventilator import VentilatorSetting, WeaningAssessment
+        from app.models.symptom_record import SymptomRecord
+        from app.models.diagnostic_report import DiagnosticReport
+        from app.models.clinical_score import ClinicalScore
+        from app.models.pharmacy_advice import PharmacyAdvice
 
-    # medication_administrations first (has FK to both medications AND patients)
-    await db.execute(
-        delete(MedicationAdministration).where(MedicationAdministration.patient_id == pid)
-    )
+        # MedicationAdministration first: FK to both medications AND patients
+        await db.execute(
+            delete(MedicationAdministration).where(MedicationAdministration.patient_id == pid)
+        )
 
-    for model in (
-        Medication, LabData, VitalSign, VentilatorSetting, WeaningAssessment,
-        CultureResult, PatientMessage, SymptomRecord, DiagnosticReport,
-        ClinicalScore, PharmacyAdvice,
-    ):
-        await db.execute(delete(model).where(model.patient_id == pid))
+        for model in (
+            Medication, LabData, VitalSign, VentilatorSetting, WeaningAssessment,
+            CultureResult, PatientMessage, SymptomRecord, DiagnosticReport,
+            ClinicalScore, PharmacyAdvice,
+        ):
+            await db.execute(delete(model).where(model.patient_id == pid))
 
-    await db.delete(patient)
+        # Use bulk delete instead of ORM delete to avoid relationship cascade issues
+        await db.execute(delete(Patient).where(Patient.id == pid))
+        await db.flush()
+
+    except Exception as e:
+        logger.error(f"出院刪除失敗 patient={pid}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"刪除失敗：{str(e)}")
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
