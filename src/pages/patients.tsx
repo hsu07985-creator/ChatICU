@@ -379,7 +379,7 @@ export function PatientsPage() {
               <col style={{ width: '45px' }} />    {/* 性別 */}
               <col style={{ width: '55px' }} />    {/* 年齡 */}
               <col style={{ width: '85px' }} />    {/* 主治醫師 */}
-              <col style={{ width: 'auto' }} />    {/* 入院診斷 — flex fill */}
+              <col style={{ width: '180px' }} />   {/* 入院診斷 */}
               <col style={{ width: '130px' }} />   {/* 入ICU日期 */}
               <col style={{ width: '75px' }} />    {/* 呼吸器天數 */}
               <col style={{ width: '50px' }} />    {/* DNR */}
