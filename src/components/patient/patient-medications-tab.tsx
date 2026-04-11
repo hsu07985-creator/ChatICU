@@ -57,6 +57,12 @@ function formatMedDate(dateStr?: string | null): string {
     + ' ' + d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
+function formatMedDateFromDate(date?: Date | null): string {
+  if (!date || isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' })
+    + ' ' + date.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
 function parseMedicationTime(dateStr?: string | null): number {
   if (!dateStr) return Number.NEGATIVE_INFINITY;
   const time = new Date(dateStr).getTime();
@@ -68,6 +74,26 @@ function formatOutpatientGroupDate(dateStr?: string | null): string {
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return '未標示日期';
   return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function getMedicationEndDate(medication: Medication): Date | null {
+  if (medication.endDate) {
+    const explicitEnd = new Date(medication.endDate);
+    if (!isNaN(explicitEnd.getTime())) return explicitEnd;
+  }
+  if (!medication.startDate || medication.daysSupply == null || medication.daysSupply <= 0) {
+    return null;
+  }
+  const start = new Date(medication.startDate);
+  if (isNaN(start.getTime())) return null;
+  const calculatedEnd = new Date(start);
+  calculatedEnd.setDate(calculatedEnd.getDate() + medication.daysSupply - 1);
+  return calculatedEnd;
+}
+
+function formatCalendarDate(date?: Date | null): string {
+  if (!date || isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('zh-TW');
 }
 
 function formatMedicationConcentration(medication: Medication): string | null {
@@ -257,6 +283,7 @@ function MedicationDetailModal({
   const med = medication;
   const isOutpatient = med.sourceType === 'outpatient' || med.sourceType === 'self-supplied';
   const hasSource = isOutpatient || med.prescribingDepartment || med.prescribingDoctorName;
+  const displayEndDate = getMedicationEndDate(med);
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -380,8 +407,8 @@ function MedicationDetailModal({
                 <span className="font-medium">{med.startDate ? new Date(med.startDate).toLocaleDateString('zh-TW') : '—'}</span>
               </div>
               <div className="flex gap-2">
-                <span className="text-muted-foreground shrink-0">結束日期</span>
-                <span className="font-medium">{med.endDate ? new Date(med.endDate).toLocaleDateString('zh-TW') : '—'}</span>
+                <span className="text-muted-foreground shrink-0">用完日期</span>
+                <span className="font-medium">{formatCalendarDate(displayEndDate)}</span>
               </div>
             </div>
           </div>
@@ -1034,43 +1061,48 @@ export function PatientMedicationsTab({
                     </div>
                     <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
                       {group.meds.map((medication) => (
-                        <div
-                          key={medication.id}
-                          className="rounded-md border bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 px-3 py-2 cursor-pointer hover:shadow-md transition-shadow"
-                          onClick={() => setDetailMedication(medication)}
-                        >
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-medium leading-tight">
-                              {formatDisplayValue(medication.name)}
-                            </p>
-                            {medication.sourceCampus && (
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400">
-                                {medication.sourceCampus}
-                              </Badge>
-                            )}
-                            {medication.sourceType === 'self-supplied' ? (
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400">
-                                自備藥
-                              </Badge>
-                            ) : medication.isExternal ? (
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400">
-                                院外
-                              </Badge>
-                            ) : null}
-                          </div>
-                          <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>{formatMedicationRegimen(medication)}</span>
-                            {medication.daysSupply != null && (
-                              <span className="text-xs">({medication.daysSupply}天)</span>
-                            )}
-                          </div>
-                          {medication.startDate && (
-                            <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-                              開立 {formatMedDate(medication.startDate)}
-                              {medication.endDate && <span> → {formatMedDate(medication.endDate)}</span>}
+                        (() => {
+                          const displayEndDate = getMedicationEndDate(medication);
+                          return (
+                            <div
+                              key={medication.id}
+                              className="rounded-md border bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 px-3 py-2 cursor-pointer hover:shadow-md transition-shadow"
+                              onClick={() => setDetailMedication(medication)}
+                            >
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-medium leading-tight">
+                                  {formatDisplayValue(medication.name)}
+                                </p>
+                                {medication.sourceCampus && (
+                                  <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400">
+                                    {medication.sourceCampus}
+                                  </Badge>
+                                )}
+                                {medication.sourceType === 'self-supplied' ? (
+                                  <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400">
+                                    自備藥
+                                  </Badge>
+                                ) : medication.isExternal ? (
+                                  <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400">
+                                    院外
+                                  </Badge>
+                                ) : null}
+                              </div>
+                              <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                                <span>{formatMedicationRegimen(medication)}</span>
+                                {medication.daysSupply != null && (
+                                  <span className="text-xs">({medication.daysSupply}天)</span>
+                                )}
+                              </div>
+                              {medication.startDate && (
+                                <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                                  開立 {formatMedDate(medication.startDate)}
+                                  {displayEndDate && <span> → 用完 {formatMedDateFromDate(displayEndDate)}</span>}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
+                          );
+                        })()
                       ))}
                     </div>
                   </div>
