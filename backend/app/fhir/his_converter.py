@@ -377,6 +377,20 @@ def _build_ecg_impression(content: dict) -> str:
     return "; ".join(parts) if parts else ""
 
 
+def _load_site_config() -> Dict[str, Any]:
+    """Load his_site_config.json from the same directory as this module."""
+    config_path = os.path.join(os.path.dirname(__file__), "his_site_config.json")
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+
+# Load once at module import time so all HISConverter instances share it.
+_SITE_CONFIG = _load_site_config()
+
+
 class HISConverter:
     """Convert HIS JSON data for one patient → ChatICU DB dicts."""
 
@@ -496,9 +510,11 @@ class HISConverter:
                 icd_codes.append(icd)
         return "; ".join(icd_codes[:3]) if icd_codes else None
 
-    # ICU internal medicine attendings — only these two doctors manage
-    # internal medicine ICU patients at this hospital.
-    _ICU_INTERNAL_MED_DOCTORS = {"黃英哲", "李穎灝"}
+    # ICU internal medicine attendings — loaded from his_site_config.json.
+    # To add/remove doctors, edit that file and re-run import_his_patients.py.
+    _ICU_INTERNAL_MED_DOCTORS: set = set(
+        _SITE_CONFIG.get("icu_internal_medicine_doctors", ["黃英哲", "李穎灝"])
+    )
 
     def _extract_dept_doctor(self) -> Tuple[Optional[str], Optional[str]]:
         """Extract department and ICU attending physician.

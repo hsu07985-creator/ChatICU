@@ -1,0 +1,14 @@
+{
+  "_comment": "HIS 院所設定檔 — 新增/移除醫師時只需編輯此檔，無需修改程式碼",
+
+  "icu_internal_medicine_doctors": [
+    "黃英哲",
+    "李穎灝"
+  ],
+
+  "_icu_internal_medicine_doctors_note": [
+    "內科ICU主治醫師名單（完整名字，與 getAllMedicine.json USER_NAME 一致）",
+    "新醫師到職：在 icu_internal_medicine_doctors 陣列新增姓名後重新執行 import_his_patients.py",
+    "醫師離職：從陣列移除，不影響已匯入資料"
+  ]
+}
