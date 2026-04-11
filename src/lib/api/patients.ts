@@ -217,6 +217,12 @@ export async function archivePatient(id: string, data: ArchivePatientData): Prom
   return ensureData(response.data, 'API contract');
 }
 
+// 出院刪除（永久刪除病人及所有關聯資料）
+export async function dischargePatient(id: string): Promise<{ id: string }> {
+  const response = await apiClient.delete<ApiResponse<{ id: string }>>(`/patients/${id}`);
+  return ensureData(response.data, 'API contract');
+}
+
 // 導出所有 API 函數
 export const patientsApi = {
   getPatients,
@@ -224,4 +230,5 @@ export const patientsApi = {
   updatePatient,
   createPatient,
   archivePatient,
+  dischargePatient,
 };

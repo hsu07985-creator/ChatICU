@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import func, or_, select, text
+from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -400,6 +400,64 @@ async def archive_patient(
     )
 
     return success_response(data=patient_to_dict(patient), message=f"病患{status_text}")
+
+
+@router.delete("/{patient_id}")
+async def discharge_patient(
+    patient_id: str,
+    request: Request,
+    user: User = Depends(require_roles("admin", "doctor", "np")),
+    db: AsyncSession = Depends(get_db),
+):
+    """出院：永久刪除病人及所有關聯資料。"""
+    pid = normalize_patient_id(patient_id)
+    result = await db.execute(select(Patient).where(Patient.id == pid))
+    patient = result.scalar_one_or_none()
+
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    patient_name = patient.name
+
+    # Delete all related records (FK RESTRICT requires manual deletion)
+    from app.models.medication import Medication, MedicationAdministration
+    from app.models.lab_data import LabData
+    from app.models.vital_sign import VitalSign
+    from app.models.ventilator import VentilatorSetting, WeaningAssessment
+    from app.models.symptom_record import SymptomRecord
+    from app.models.diagnostic_report import DiagnosticReport
+    from app.models.clinical_score import ClinicalScore
+    from app.models.pharmacy_advice import PharmacyAdvice
+
+    # medication_administrations first (FK to medications)
+    med_ids_result = await db.execute(
+        select(Medication.id).where(Medication.patient_id == pid)
+    )
+    med_ids = [r[0] for r in med_ids_result]
+    if med_ids:
+        await db.execute(
+            delete(MedicationAdministration).where(
+                MedicationAdministration.medication_id.in_(med_ids)
+            )
+        )
+
+    for model in (
+        Medication, LabData, VitalSign, VentilatorSetting, WeaningAssessment,
+        CultureResult, PatientMessage, SymptomRecord, DiagnosticReport,
+        ClinicalScore, PharmacyAdvice,
+    ):
+        await db.execute(delete(model).where(model.patient_id == pid))
+
+    await db.delete(patient)
+
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="病患出院刪除", target=pid, status="success",
+        ip=request.client.host if request.client else None,
+        details={"patient_name": patient_name},
+    )
+
+    return success_response(data={"id": pid}, message=f"病患 {patient_name} 已出院刪除")
 
 
 @router.get("/{patient_id}/cultures")

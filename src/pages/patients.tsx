@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import { Search, Plus, Archive, Edit2, Save, X, Users } from 'lucide-react';
+import { Search, Plus, Archive, Edit2, Save, X, Users, LogOut } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { PatientEditDialog } from '../components/patient/dialogs/patient-edit-dialog';
@@ -272,6 +272,23 @@ export function PatientsPage() {
     }
   };
 
+  const handleDischargePatient = async (patientId: string) => {
+    if (!patientId) return;
+    const target = patients.find((p) => p.id === patientId);
+    const label = target ? `${target.bedNumber} ${target.name}` : patientId;
+    if (!confirm(`⚠️ 確定要出院刪除病患：${label}？\n\n此操作會永久刪除該病人及所有用藥、檢驗、培養、報告等資料，無法復原！`)) return;
+
+    try {
+      await patientsApi.dischargePatient(patientId);
+      toast.success(`病患 ${label} 已出院刪除`);
+      await fetchPatients();
+    } catch (err: unknown) {
+      console.error('出院刪除失敗:', err);
+      const errMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(errMsg || '出院刪除失敗，請稍後再試');
+    }
+  };
+
   return (
     <div className="p-6 space-y-6 pl-16">
       <div className="flex items-center justify-between">
@@ -488,6 +505,18 @@ export function PatientsPage() {
                             title="封存"
                           >
                             <Archive className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDischargePatient(patient.id);
+                            }}
+                            className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                            title="出院"
+                          >
+                            <LogOut className="h-4 w-4" />
                           </Button>
                         </>
                       )}
