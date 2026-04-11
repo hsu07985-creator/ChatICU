@@ -27,6 +27,9 @@ playwright-report/
 test-results/
 .vite/
 
+# Large seed files (too big for git, seeded via scripts)
+backend/seeds/drug_interactions_full.json
+
 # Non-code assets / local tooling
 .claude/
 rag 文本/
