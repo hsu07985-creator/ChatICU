@@ -869,6 +869,44 @@ async def _seed_missing_critical_ddi(engine: AsyncEngine) -> None:
                 },
             ],
         },
+        # DexmedeTOMIDine + Opioid Agonists [D] — synergistic CNS/respiratory depression
+        # The DDI dataset covers DexmedeTOMIDine × CNS Depressants, but the CNS Depressants
+        # class does NOT include opioids (they are in the separate Opioid Agonists class).
+        # This explicit entry is required to detect dexmedetomidine + morphine/fentanyl/etc.
+        {
+            "drug1": "DexmedeTOMIDine",
+            "drug2": "Opioid Agonists",
+            "risk_rating": "D",
+            "severity": "major",
+            "risk_rating_description": "Consider therapy modification",
+            "severity_label": "Major",
+            "reliability_rating": "Intermediate",
+            "clinical_effect": (
+                "Concurrent use of dexmedetomidine with opioid analgesics produces synergistic "
+                "CNS and respiratory depression. The combination may cause excessive sedation, "
+                "respiratory depression, apnoea, haemodynamic instability (bradycardia, hypotension), "
+                "and prolonged recovery. This interaction is particularly significant in the ICU "
+                "where both agents are commonly co-administered."
+            ),
+            "management": (
+                "Use the combination with caution and at reduced doses. Continuously monitor "
+                "respiratory rate, SpO₂, level of sedation (RASS), heart rate, and blood pressure. "
+                "When initiating or increasing dexmedetomidine, consider reducing concurrent "
+                "opioid dose by 25-50%. Have reversal agents (naloxone) readily available."
+            ),
+            "interacting_members": [
+                {
+                    "group_name": "Opioid Agonists",
+                    "members": [
+                        "Morphine (Systemic)", "FentaNYL", "HYDROmorphone", "Remifentanil",
+                        "SUFentanil", "ALfentanil", "TraMADol", "OxyCODONE", "Meperidine",
+                        "Methadone", "Codeine", "Tapentadol", "Buprenorphine",
+                    ],
+                    "exceptions": [],
+                    "exceptions_note": "",
+                },
+            ],
+        },
     ]
 
     try:
