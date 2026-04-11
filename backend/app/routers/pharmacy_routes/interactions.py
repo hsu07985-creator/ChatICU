@@ -4,7 +4,8 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import or_, select, and_
+from sqlalchemy import cast, or_, select, and_
+from sqlalchemy import String as SAString
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -25,12 +26,15 @@ _RISK_RANK = {"X": 0, "D": 1, "C": 2, "B": 3, "A": 4}
 
 
 def _drug_match(drug_name: str):
-    """Match drug name against drug1, drug2, AND interacting_members JSON."""
+    """Match drug name against drug1, drug2, AND interacting_members JSON.
+
+    interacting_members is JSONB — must cast to text before ilike.
+    """
     escaped = escape_like(drug_name)
     return or_(
         DrugInteraction.drug1.ilike(f"%{escaped}%"),
         DrugInteraction.drug2.ilike(f"%{escaped}%"),
-        DrugInteraction.interacting_members.ilike(f"%{escaped}%"),
+        cast(DrugInteraction.interacting_members, SAString).ilike(f"%{escaped}%"),
     )
 
 
@@ -128,7 +132,8 @@ async def search_drug_interactions(
 
         if resolved_a:
             graph_results = drug_graph_bridge.search_interactions(
-                drugA=resolved_a, drugB=resolved_b,
+                drug_a=resolved_a, drug_b=resolved_b,
+                page=page, limit=limit,
             )
             if graph_results:
                 return success_response(data={

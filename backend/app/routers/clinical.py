@@ -587,7 +587,8 @@ async def interaction_check(
     db: AsyncSession = Depends(get_db),
 ):
     """Check drug-drug interactions via DB lookup (with DrugGraph / Evidence RAG upgrade path)."""
-    from sqlalchemy import or_
+    from sqlalchemy import cast, or_
+    from sqlalchemy import String as SAString
     from app.models.drug_interaction import DrugInteraction
     from app.utils.response import escape_like
 
@@ -598,11 +599,12 @@ async def interaction_check(
     seen_ids: set = set()
 
     def _drug_match_clause(drug_name: str):
+        # interacting_members is JSONB — cast to text before ilike.
         escaped = escape_like(drug_name)
         return or_(
             DrugInteraction.drug1.ilike(f"%{escaped}%"),
             DrugInteraction.drug2.ilike(f"%{escaped}%"),
-            DrugInteraction.interacting_members.ilike(f"%{escaped}%"),
+            cast(DrugInteraction.interacting_members, SAString).ilike(f"%{escaped}%"),
         )
 
     def _pair_on_different_sides(row, da: str, db_: str) -> bool:
