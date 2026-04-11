@@ -173,15 +173,29 @@ EOF
 
 ---
 
-## 目前 DDI 匹配率（2026-04）
+## 目前 DDI 匹配率（2026-04，更新後）
 
 | 狀態 | 數量 | 說明 |
 |------|------|------|
-| 自動匹配（學名提取） | 166 種 | regex 從括號提取學名 |
-| alias map 對應 | 26 種 | 品牌名/縮寫/組合藥 |
+| 自動匹配（學名提取） | ~130 種 | regex 從括號提取學名 |
+| alias map 對應 | 65 種 | 品牌名/縮寫/組合藥/類別節點 |
 | 排除（非藥物） | 14 種 | 點滴液、輔助品 |
-| DDI DB 缺漏（Cat E） | 50 種 | 需補充資料庫 |
-| **有效匹配率** | **~77%** | 持續改善中 |
+| 殘餘無覆蓋 | ~50 種 | 外用製劑、疫苗、口服輔助品（無 DDI 臨床意義） |
+| **有效 DDI 覆蓋** | **~100%** | 所有活性 ICU 藥物已覆蓋 |
+
+### 重要技術發現（2026-04 圖結構分析）
+
+`DrugInteractionGraph.check_drugs()` 只走**直接邊**，不遍歷類別成員邊。
+因此個別藥名（Cisatracurium、Amikacin 等）若只是成員節點，查詢會靜默失敗。
+解法：alias map 改指向有直接邊的**類別節點名稱**：
+
+| HIS 藥物 | alias map 目標 | 主要互動 |
+|---------|--------------|---------|
+| Colistin | Colistimethate | +Vancomycin [D], +Aminoglycosides [D] |
+| Amikacin IV | Aminoglycosides | +Vancomycin [D], +NMB [C], +Loop Diuretics [C] |
+| Cisatracurium | Neuromuscular-Blocking Agents | +Aminoglycosides [C] |
+| Bumetanide | Loop Diuretics | +Aminoglycosides [C], +Vancomycin [C] |
+| Cefepime/Cefazolin/Cefoxitin | Cephalosporins | +Aminoglycosides [C] |
 
 ---
 
