@@ -384,7 +384,7 @@ export function PatientsPage() {
               <col style={{ width: '80px' }} />    {/* 呼吸器天數 */}
               <col style={{ width: '55px' }} />    {/* DNR */}
               <col style={{ width: '55px' }} />    {/* 隔離 */}
-              <col style={{ width: '65px' }} />    {/* 插管 */}
+              <col style={{ width: '75px' }} />    {/* 插管 */}
               <col style={{ width: '100px' }} />   {/* 操作 */}
             </colgroup>
             <TableHeader>
@@ -396,7 +396,7 @@ export function PatientsPage() {
                 <TableHead>年齡</TableHead>
                 <TableHead>主治醫師</TableHead>
                 <TableHead>入院診斷</TableHead>
-                <TableHead>入ICU日期（天數）</TableHead>
+                <TableHead>入ICU日期</TableHead>
                 <TableHead>呼吸器天數</TableHead>
                 <TableHead>DNR</TableHead>
                 <TableHead>隔離</TableHead>
@@ -427,7 +427,12 @@ export function PatientsPage() {
                       {patient.attendingPhysician}
                     </Badge>
                   </TableCell>
-                  <TableCell className="truncate" title={patient.diagnosis}>{patient.diagnosis}</TableCell>
+                  <TableCell className="whitespace-normal text-xs leading-snug">
+                    {patient.diagnosis?.split(/[;；]/).map((d, i) => {
+                      const trimmed = d.trim();
+                      return trimmed ? <div key={i}>{trimmed}</div> : null;
+                    })}
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-1">
                       <span className="text-sm">{patient.icuAdmissionDate}</span>
