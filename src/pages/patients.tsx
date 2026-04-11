@@ -84,7 +84,7 @@ export function PatientsPage() {
       if (filterStatus === 'san') {
         return matchSearch && (getSedation(patient).length > 0 || getAnalgesia(patient).length > 0 || getNmb(patient).length > 0);
       }
-      if (filterStatus === 'dnr') return matchSearch && patient.hasDnr;
+      if (filterStatus === 'dnr') return matchSearch && patient.hasDNR;
       if (filterStatus.startsWith('doc:')) {
         const docName = filterStatus.slice(4);
         return matchSearch && patient.attendingPhysician === docName;
