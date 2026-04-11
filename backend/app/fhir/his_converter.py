@@ -437,15 +437,25 @@ class HISConverter:
         }
 
     def _extract_diagnosis(self) -> Optional[str]:
-        """Extract primary diagnosis from getOpd ICD codes."""
+        """Extract primary diagnosis from getOpd ICD codes.
+
+        Prefer inpatient records (OPD_SW=1) over outpatient, because ICU
+        patients' admission diagnosis is the clinically relevant one.
+        Among multiple inpatient records, pick the highest PAT_SEQ (most recent).
+        """
         opd_rows = self._load("getOpd.json")
         if not opd_rows:
             return None
-        # Use most recent visit
-        latest = opd_rows[-1]
+        # Prefer inpatient (OPD_SW=1) records — admission diagnosis
+        inpatient = [r for r in opd_rows if str(r.get("OPD_SW", "")) == "1"]
+        if inpatient:
+            # Latest inpatient record by PAT_SEQ
+            chosen = max(inpatient, key=lambda r: r.get("PAT_SEQ", ""))
+        else:
+            chosen = opd_rows[-1]
         icd_codes = []
         for i in range(1, 11):
-            icd = latest.get(f"ICD_CODE{i}")
+            icd = chosen.get(f"ICD_CODE{i}")
             if icd:
                 icd_codes.append(icd)
         return "; ".join(icd_codes[:3]) if icd_codes else None
