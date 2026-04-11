@@ -160,7 +160,7 @@ export function VectorsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 pl-16">
+    <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold">向量資料庫管理</h1>
         <p className="text-muted-foreground text-sm mt-1">管理 AI 助手的知識庫與文件向量化</p>

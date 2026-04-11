@@ -214,7 +214,7 @@ export function DashboardPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 pl-16">
+    <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold">加護病房總覽</h1>
         <p className="text-muted-foreground text-sm mt-1">即時病床與病患狀態監控</p>
