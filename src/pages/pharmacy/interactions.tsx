@@ -1,4 +1,4 @@
-import { Search, Plus, BookOpen, AlertTriangle, AlertCircle, Info, Loader2, ShieldAlert, Route, X, User } from 'lucide-react';
+import { Search, Plus, BookOpen, AlertTriangle, AlertCircle, Info, Loader2, ShieldAlert, Route, X, User, ChevronDown, ChevronUp } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -11,7 +11,7 @@ import { checkInteractions, type InteractionCheckResponse } from '../../lib/api/
 import { getDrugInteractions } from '../../lib/api/pharmacy';
 import { type Patient } from '../../lib/api/patients';
 import { getCachedPatients, getCachedPatientsSync } from '../../lib/patients-cache';
-import { getMedications } from '../../lib/api/medications';
+import { getMedications, type Medication } from '../../lib/api/medications';
 import { copyToClipboard } from '../../lib/clipboard-utils';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
 import { DRUG_LIST, hasInteractionData } from '../../lib/drug-list';
@@ -129,6 +129,8 @@ export function DrugInteractionsPage() {
   const [patientsLoading, setPatientsLoading] = useState(!getCachedPatientsSync());
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [medsLoading, setMedsLoading] = useState(false);
+  const [skippedMeds, setSkippedMeds] = useState<Medication[]>([]);
+  const [skippedExpanded, setSkippedExpanded] = useState(false);
 
   // Load patient list from shared cache (skip if sync cache hit)
   useEffect(() => {
@@ -151,10 +153,11 @@ export function DrugInteractionsPage() {
       const allMeds = resp.medications || [];
 
       // 住院藥全部帶入；門診藥只帶入自備藥（sourceType='self-supplied'）或院外藥（isExternal=true）
+      const skippedList = allMeds.filter(m => m.sourceType === 'outpatient' && !m.isExternal);
       const filtered = allMeds.filter(m =>
         m.sourceType !== 'outpatient' || m.isExternal
       );
-      const skipped = allMeds.length - filtered.length;
+      setSkippedMeds(skippedList);
 
       // Try matching on both name and genericName for each medication
       const matchedSet = new Set<string>();
@@ -177,8 +180,7 @@ export function DrugInteractionsPage() {
       setDrugs(newDrugs);
       setSearchResults([]);
       setHasSearched(false);
-      const skipNote = skipped > 0 ? `（已略過 ${skipped} 筆院內門診處方）` : '';
-      toast.success(`已載入 ${matched.length} 種用藥${skipNote}`);
+      toast.success(`已載入 ${matched.length} 種用藥`);
     } catch {
       toast.error('載入病患用藥失敗');
     } finally {
@@ -462,6 +464,8 @@ export function DrugInteractionsPage() {
                   setDrugs(['', '']);
                   setSearchResults([]);
                   setHasSearched(false);
+                  setSkippedMeds([]);
+                  setSkippedExpanded(false);
                 }}
                 aria-label="清除病患選擇"
               >
@@ -473,6 +477,37 @@ export function DrugInteractionsPage() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               載入病患用藥中...
+            </div>
+          )}
+
+          {skippedMeds.length > 0 && (
+            <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-sm">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between px-3 py-2 text-amber-800 dark:text-amber-300 font-medium hover:bg-amber-100/60 dark:hover:bg-amber-900/40 rounded-md transition-colors"
+                onClick={() => setSkippedExpanded(v => !v)}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Info className="h-3.5 w-3.5 shrink-0" />
+                  已略過 {skippedMeds.length} 筆院內門診處方（不納入交互作用比對）
+                </span>
+                {skippedExpanded
+                  ? <ChevronUp className="h-4 w-4 shrink-0" />
+                  : <ChevronDown className="h-4 w-4 shrink-0" />
+                }
+              </button>
+              {skippedExpanded && (
+                <ul className="px-3 pb-2.5 space-y-1 border-t border-amber-200 dark:border-amber-700 mt-0 pt-2">
+                  {skippedMeds.map(m => (
+                    <li key={m.id} className="flex items-baseline gap-2 text-amber-700 dark:text-amber-400">
+                      <span className="font-medium truncate flex-1">{m.name}</span>
+                      {m.prescribingDepartment && (
+                        <span className="text-xs text-amber-500 dark:text-amber-500 shrink-0">{m.prescribingDepartment}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
