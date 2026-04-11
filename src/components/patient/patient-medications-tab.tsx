@@ -70,10 +70,6 @@ function formatOutpatientGroupDate(dateStr?: string | null): string {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-function formatOutpatientDaysSupply(daysSupply?: number | null): string {
-  return daysSupply != null ? ` (${daysSupply}天)` : '';
-}
-
 function formatMedicationConcentration(medication: Medication): string | null {
   if (!medication.concentration) return null;
   return [medication.concentration, medication.concentrationUnit].filter(Boolean).join(' ');
@@ -609,7 +605,7 @@ export function PatientMedicationsTab({
         continue;
       }
       groups.set(key, {
-        label: `${groupDate}${dept}${formatOutpatientDaysSupply(med.daysSupply)}`,
+        label: `${groupDate}${dept}`,
         sortTime: parseMedicationTime(med.startDate),
         meds: [med],
       });
