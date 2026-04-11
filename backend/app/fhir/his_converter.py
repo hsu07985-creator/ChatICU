@@ -192,31 +192,55 @@ def _classify_category(drug_name: str) -> Optional[str]:
                        "colistin", "linezolid", "teicoplanin", "ceftazidime",
                        "cefepime", "imipenem", "ertapenem", "doxycycline",
                        "fluconazole", "voriconazole", "caspofungin", "anidulafungin",
-                       "acyclovir", "ganciclovir", "oseltamivir"],
+                       "acyclovir", "ganciclovir", "oseltamivir",
+                       "tigecycline", "tigelin", "biomycin", "brosym",
+                       "tazocin", "gentamycin", "gentamicin", "pipe"],
         "vasopressor": ["norepinephrine", "levophed", "epinephrine", "vasopressin",
-                        "dopamine", "dobutamine", "milrinone", "phenylephrine"],
+                        "dopamine", "dobutamine", "milrinone", "phenylephrine",
+                        "gipamine"],
         "sedative": ["propofol", "midazolam", "dormicum", "lorazepam", "ativan",
-                     "dexmedetomidine", "precedex", "ketamine", "haloperidol"],
+                     "dexmedetomidine", "precedex", "ketamine", "haloperidol",
+                     "xanax", "alprazolam", "seroquel", "quetiapine", "binin"],
         "analgesic": ["morphine", "fentanyl", "meperidine", "tramadol",
-                      "acetaminophen", "panadol", "ketorolac", "nefopam"],
+                      "acetaminophen", "panadol", "ketorolac", "nefopam",
+                      "tramacet", "acetal"],
         "anticoagulant": ["heparin", "enoxaparin", "warfarin", "rivaroxaban"],
         "ppi": ["pantoprazole", "omeprazole", "esomeprazole", "lansoprazole",
-                "famotidine", "ranitidine"],
+                "famotidine", "ranitidine", "primperan"],
         "electrolyte": ["kcl", "potassium", "calcium gluconate", "magnesium",
                         "sodium bicarbonate", "nacl"],
         "diuretic": ["furosemide", "lasix", "spironolactone", "mannitol",
                      "bumetanide", "hydrochlorothiazide", "albumin"],
         "antiepileptic": ["levetiracetam", "keppra", "phenytoin", "valproic",
-                          "carbamazepine", "lacosamide", "phenobarbital"],
+                          "carbamazepine", "lacosamide", "phenobarbital",
+                          "depakine"],
         "antihypertensive": ["amlodipine", "nicardipine", "labetalol", "esmolol",
-                             "nitroglycerin", "nitroprusside", "hydralazine"],
+                             "nitroglycerin", "nitroprusside", "hydralazine",
+                             "bisoprolol", "biso", "concor", "dilatrend",
+                             "carvedilol", "herbesser", "diltiazem"],
         "insulin": ["insulin", "novolin", "novorapid", "lantus", "humalog"],
         "steroid": ["methylprednisolone", "hydrocortisone", "dexamethasone",
                     "prednisolone", "prednisone", "fludrocortisone"],
         "bronchodilator": ["salbutamol", "ventolin", "ipratropium", "combivent",
-                           "aminophylline", "theophylline"],
+                           "aminophylline", "theophylline", "meptin",
+                           "procaterol"],
         "nmb": ["cisatracurium", "nimbex", "rocuronium", "vecuronium",
                 "succinylcholine", "atracurium"],
+        "iv_fluid": ["n.s.", "normal saline", "glucose", "d5w", "d10w",
+                     "lactated ringer", "benamine", "taita", "aminofluid",
+                     "nutriflex", "kabiven", "smof"],
+        "antiarrhythmic": ["amiodarone", "cordarone", "lidocaine"],
+        "antidiabetic": ["jardiance", "empagliflozin", "metformin",
+                         "trajenta", "linagliptin", "glimepiride"],
+        "antihistamine": ["allegra", "fexofenadine", "cetirizine",
+                          "diphenhydramine"],
+        "thyroid": ["eltroxin", "levothyroxine"],
+        "mucolytic": ["actein", "acetylcysteine"],
+        "laxative": ["mosad", "smecta", "magnesium oxide", "dulcolax",
+                     "bisacodyl", "lactulose"],
+        "epo": ["nesp", "darbepoetin", "epoetin"],
+        "hemostatic": ["transamin", "tranexamic"],
+        "alpha_blocker": ["tamlosin", "tamsulosin"],
     }
     for cat, patterns in categories.items():
         for p in patterns:
@@ -253,7 +277,17 @@ def _clean_drug_name(raw_name: str) -> Tuple[str, Optional[str]]:
         generic = fw_generic
     else:
         generic_match = re.match(r'^([A-Za-z][A-Za-z\-]+)', name)
-        generic = generic_match.group(1) if generic_match else None
+        if generic_match:
+            generic = generic_match.group(1)
+        else:
+            # Fallback: find parenthesized generic name e.g. "(Acetylcysteine)"
+            paren = re.search(r'\(([A-Za-z][A-Za-z\-]{3,})\)', raw_name)
+            if paren:
+                generic = paren.group(1)
+            else:
+                # Last resort: find any English word ≥4 chars in the name
+                eng = re.search(r'([A-Za-z]{4,})', name)
+                generic = eng.group(1) if eng else None
 
     return name, generic
 
@@ -380,6 +414,7 @@ class HISConverter:
 
         pat_id = _gen_id("pat", self.pat_no)
         age = _roc_birthday_to_age(p.get("BIRTHDAY"))
+        dob = _roc_to_date(p.get("BIRTHDAY"))
         blood_type = None
         if p.get("BLOODTYPE_LAB"):
             rh = p.get("BLOODTYPE_LAB_RH", "")
@@ -407,6 +442,7 @@ class HISConverter:
             "bed_number": "",  # HIS 無床號資料，需手動補
             "medical_record_number": self.pat_no,
             "age": age or 0,
+            "date_of_birth": dob.isoformat() if dob else None,
             "gender": p.get("SEX", "M"),
             "height": None,
             "weight": None,
@@ -461,12 +497,19 @@ class HISConverter:
         return "; ".join(icd_codes[:3]) if icd_codes else None
 
     def _extract_dept_doctor(self) -> Tuple[Optional[str], Optional[str]]:
-        """Extract department and doctor from getOpd."""
+        """Extract department and doctor from getOpd.
+
+        Same inpatient-first logic as _extract_diagnosis().
+        """
         opd_rows = self._load("getOpd.json")
         if not opd_rows:
             return None, None
-        latest = opd_rows[-1]
-        return latest.get("HDEPT_NAME"), latest.get("DR_NAME")
+        inpatient = [r for r in opd_rows if str(r.get("OPD_SW", "")) == "1"]
+        if inpatient:
+            chosen = max(inpatient, key=lambda r: r.get("PAT_SEQ", ""))
+        else:
+            chosen = opd_rows[-1]
+        return chosen.get("HDEPT_NAME"), chosen.get("DR_NAME")
 
     def _extract_admission_dates(self) -> Tuple[Optional[date], Optional[date]]:
         """Extract admission dates from getIPD or earliest medicine order."""

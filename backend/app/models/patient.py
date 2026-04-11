@@ -21,6 +21,7 @@ class Patient(Base):
     bed_number: Mapped[str] = mapped_column(String(20), index=True)
     medical_record_number: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     age: Mapped[int] = mapped_column(Integer)
+    date_of_birth: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     gender: Mapped[str] = mapped_column(String(10))
     height: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     weight: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
