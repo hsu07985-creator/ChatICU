@@ -54,6 +54,7 @@ async def run_all(engine: AsyncEngine) -> None:
     await _migrate_vpn_letter_codes(engine)
     await _clear_messages_once(engine)
     await _ensure_np_role(engine)
+    await _seed_iv_compatibilities(engine)
     await _ensure_performance_indexes(engine)
 
 
@@ -613,6 +614,80 @@ async def _ensure_np_role(engine: AsyncEngine) -> None:
         logger.info("_ensure_np_role: CHECK constraint dropped (validation via Pydantic)")
     except Exception:
         logger.warning("_ensure_np_role failed (non-fatal)", exc_info=True)
+
+
+async def _seed_iv_compatibilities(engine: AsyncEngine) -> None:
+    """Seed iv_compatibilities from icu_y_site_compatibility_v2_lookup.json.
+
+    Merges 8 ICU department sheets into one row per drug pair.
+    Incompatible (I) in any sheet overrides Compatible (C).
+    Skips if table already has > 10 rows (already seeded).
+    """
+    try:
+        async with engine.connect() as conn:
+            count = (await conn.execute(text("SELECT COUNT(*) FROM iv_compatibilities"))).scalar()
+        if count > 10:
+            logger.info("[INTG][DB] iv_compatibilities already has %d rows, skipping seed", count)
+            return
+
+        seed_path = Path(__file__).resolve().parents[1] / "seeds" / "icu_y_site_compatibility_v2_lookup.json"
+        if not seed_path.exists():
+            logger.warning("[INTG][DB] iv_compatibilities seed file not found at %s", seed_path)
+            return
+
+        with open(seed_path, encoding="utf-8") as f:
+            data = json.load(f)
+
+        def _norm(name: str) -> str:
+            n = name.strip()
+            if n == "Norepinephrine Bitartrate":
+                return "Norepinephrine bitartrate"
+            if n == "Lidocaine":
+                return "Lidocaine HCl"
+            return n
+
+        # Merge across all 8 sheets: I wins over C
+        from collections import defaultdict
+        pair_map: dict = {}
+        for sheet_name, sheet in data.get("sheets", {}).items():
+            for drug1, row in sheet.get("compatibility", {}).items():
+                for drug2, status in row.items():
+                    if status not in ("C", "I"):
+                        continue
+                    d1, d2 = tuple(sorted([_norm(drug1), _norm(drug2)]))
+                    if d1 == d2:
+                        continue
+                    key = (d1, d2)
+                    if key not in pair_map:
+                        pair_map[key] = {"compatible": True, "sheets": set(), "has_i": False}
+                    pair_map[key]["sheets"].add(sheet_name)
+                    if status == "I":
+                        pair_map[key]["compatible"] = False
+                        pair_map[key]["has_i"] = True
+
+        async with engine.begin() as conn:
+            await conn.execute(text("DELETE FROM iv_compatibilities"))
+            inserted = 0
+            for (d1, d2), info in pair_map.items():
+                _id = "ivc_" + hashlib.sha1(f"{d1}|{d2}".encode()).hexdigest()[:12]
+                sheets_str = "、".join(sorted(info["sheets"]))
+                note = f"科別：{sheets_str}"
+                if info["has_i"]:
+                    note += "（任一科別不相容）"
+                await conn.execute(text(
+                    "INSERT INTO iv_compatibilities (id, drug1, drug2, compatible, solution, notes) "
+                    "SELECT :id, :d1, :d2, :compat, :sol, :notes "
+                    "WHERE NOT EXISTS (SELECT 1 FROM iv_compatibilities WHERE id = :id)"
+                ).bindparams(
+                    id=_id, d1=d1, d2=d2,
+                    compat=info["compatible"],
+                    sol="icu_y_site",
+                    notes=note,
+                ))
+                inserted += 1
+        logger.info("[INTG][DB] Seeded %d IV compatibility pairs from %s", inserted, seed_path.name)
+    except Exception as e:
+        logger.warning("[INTG][DB] IV compatibility seed failed (non-fatal): %s", e)
 
 
 async def _ensure_performance_indexes(engine: AsyncEngine) -> None:

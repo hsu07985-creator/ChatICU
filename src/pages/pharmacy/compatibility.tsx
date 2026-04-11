@@ -96,21 +96,48 @@ const BRAND_TO_GENERIC: Record<string, string> = {
   lanoxin: 'Digoxin',
 };
 
-function matchIVDrug(medName: string): string | null {
-  const lower = medName.toLowerCase();
+// Known IV nutrition/vehicle brand first-words whose HIS generic_name may
+// misleadingly match a real drug in IV_DRUG_LIST (e.g. GiPAmine → "DOPamine").
+const IV_NUTRITION_BRANDS = new Set([
+  'gipamine',     // amino acid + dopamine mixture; generic="DOPamine" in HIS
+  'vitagen',      // glucose solutions (5% / 50%)
+  'taita',        // electrolyte solutions
+  'bfluid',       // amino acid + glucose + electrolyte
+  'nephrosteril', // amino acid for renal failure
+]);
+
+function tryMatchIV(name: string): string | null {
+  const lower = name.toLowerCase();
   const exact = IV_DRUG_LIST.find(d => d.toLowerCase() === lower);
   if (exact) return exact;
-  const alpha = medName.replace(/[^a-zA-Z]/g, '').toLowerCase();
+  const alpha = name.replace(/[^a-zA-Z]/g, '').toLowerCase();
   const found = IV_DRUG_ALPHA.find(d => d.alpha === alpha);
   if (found) return found.original;
-  // Check brand-name mapping
   const firstWord = lower.split(/[\s(,/]/)[0].replace(/[^a-z]/g, '');
   const brandMatch = BRAND_TO_GENERIC[firstWord];
   if (brandMatch && IV_DRUG_LIST.includes(brandMatch)) return brandMatch;
-  // First word prefix (e.g., "Fentanyl 50mcg" → "Fentanyl Citrate")
   if (firstWord.length >= 4) {
     const prefixMatch = IV_DRUG_ALPHA.find(d => d.alpha.startsWith(firstWord));
     if (prefixMatch) return prefixMatch.original;
+  }
+  return null;
+}
+
+function matchIVDrug(medName: string): string | null {
+  // Strip leading bracket tags e.g. [抗血栓]
+  const cleaned = medName.replace(/^\[.*?\]\s*/g, '');
+  const direct = tryMatchIV(cleaned);
+  if (direct) return direct;
+  // Extract parenthesized generic names (same logic as interactions page)
+  const allParens = [...cleaned.matchAll(/\(([^)]+)\)/g)].map(m => m[1].trim());
+  for (let i = allParens.length - 1; i >= 0; i--) {
+    const generic = allParens[i];
+    if (/^[抗軟]/.test(generic) || /^\d/.test(generic)) continue;
+    const candidates = generic.includes(';') ? generic.split(';').map(s => s.trim()) : [generic];
+    for (const candidate of candidates) {
+      const r = tryMatchIV(candidate);
+      if (r) return r;
+    }
   }
   return null;
 }
@@ -170,11 +197,14 @@ export function CompatibilityPage() {
       const skippedList = allMeds.filter(m => !m.route?.toUpperCase().startsWith('IV'));
       setSkippedMeds(skippedList);
 
-      // Try matching by name first, then by genericName as fallback
+      // Try matching by name first, then by genericName as fallback.
+      // Skip genericName for known nutrition/vehicle brands (HIS generic_name may be misleading).
       const matchedSet = new Set<string>();
       for (const m of ivMeds) {
         const byName = m.name ? matchIVDrug(m.name) : null;
         if (byName) { matchedSet.add(byName); continue; }
+        const medFirstWord = (m.name || '').toLowerCase().split(/[\s([]/)[0].replace(/[^a-z.]/g, '');
+        if (IV_NUTRITION_BRANDS.has(medFirstWord)) continue;
         const byGeneric = m.genericName ? matchIVDrug(m.genericName) : null;
         if (byGeneric) matchedSet.add(byGeneric);
       }
