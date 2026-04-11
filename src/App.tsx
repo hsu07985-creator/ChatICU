@@ -98,10 +98,10 @@ function PharmacyRoute({ children }: { children: React.ReactNode }) {
 function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full overflow-hidden">
+      <div className="flex h-screen w-full">
         <AppSidebar />
         <SidebarToggle />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 min-w-0 overflow-y-auto">
           {children}
         </main>
       </div>
