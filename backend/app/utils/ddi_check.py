@@ -19,18 +19,22 @@ def extract_ddi_warnings(patient_context: Optional[dict]) -> List[Dict[str, Any]
     if len(meds) < 2:
         return []
 
-    # Collect unique drug names (prefer genericName, fallback to name)
+    # Collect unique drug names (prefer genericName, fallback to name).
+    # Combination drugs imported from HIS store multiple DDI names joined
+    # by " / " (e.g., "Ampicillin / Sulbactam") — expand them here.
     drug_names: List[str] = []
     seen: set = set()
     for m in meds:
-        name = (m.get("genericName") or m.get("name") or "").strip()
-        if not name:
+        raw = (m.get("genericName") or m.get("name") or "").strip()
+        if not raw:
             continue
-        key = name.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        drug_names.append(name)
+        parts = [p.strip() for p in raw.split(" / ") if p.strip()]
+        for name in parts:
+            key = name.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            drug_names.append(name)
 
     if len(drug_names) < 2:
         return []

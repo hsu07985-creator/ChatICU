@@ -387,8 +387,24 @@ def _load_site_config() -> Dict[str, Any]:
         return {}
 
 
+def _load_ddi_alias_map() -> Dict[str, List[str]]:
+    """Load his_ddi_alias_map.json: ODR_CODE → DDI DB drug name(s).
+
+    Keys starting with '_' are metadata/comments and are skipped.
+    Values are lists of DDI DB drug names (proper case from drug_interactions DB).
+    """
+    map_path = os.path.join(os.path.dirname(__file__), "his_ddi_alias_map.json")
+    try:
+        with open(map_path, encoding="utf-8") as f:
+            raw = json.load(f)
+        return {k: v for k, v in raw.items() if not k.startswith("_")}
+    except FileNotFoundError:
+        return {}
+
+
 # Load once at module import time so all HISConverter instances share it.
 _SITE_CONFIG = _load_site_config()
+_DDI_ALIAS_MAP: Dict[str, List[str]] = _load_ddi_alias_map()
 
 
 class HISConverter:
@@ -623,6 +639,14 @@ class HISConverter:
         for m in rows:
             raw_name = m.get("ODR_NAME", "")
             clean_name, generic = _clean_drug_name(raw_name)
+            odr_code = (m.get("ODR_CODE") or "").strip()
+
+            # Override generic_name with DDI alias map when available.
+            # Combination drugs store all DDI names joined by " / "
+            # (e.g., "Ampicillin / Sulbactam") so ddi_check.py can expand them.
+            if odr_code and odr_code in _DDI_ALIAS_MAP:
+                generic = " / ".join(_DDI_ALIAS_MAP[odr_code])
+
             freq_code = (m.get("FREQ_CODE") or "").strip().upper()
             route_code = (m.get("ROUTE_CODE") or "").strip().upper()
 
@@ -659,7 +683,7 @@ class HISConverter:
                 "patient_id": pat_id,
                 "name": clean_name,
                 "generic_name": generic,
-                "order_code": (m.get("ODR_CODE") or "").strip() or None,
+                "order_code": odr_code or None,
                 "category": _classify_category(raw_name),
                 "san_category": _classify_san(raw_name),
                 "dose": str(m["DOSE"]) if m.get("DOSE") is not None else None,

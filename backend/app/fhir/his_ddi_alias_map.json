@@ -1,0 +1,46 @@
+{
+  "_comment": "HIS ODR_CODE → DDI 資料庫藥名對照表（drug_interactions_full.json 中的正確名稱）",
+  "_notes": [
+    "Tazobactam / Clavulanate 不在 DDI DB 中（β-lactamase inhibitor，DDI 由 Piperacillin / Amoxicillin 代表）",
+    "Nystatin 不在 DDI DB 中，已略過",
+    "Insulin 系列（Degludec/Aspart/Detemir）DDI DB 只有通用 Insulin 一個 entry",
+    "新增 ODR_CODE：在此加入，格式為 \"ODR_CODE\": [\"DDI_DB_藥名\"]"
+  ],
+  "_skipped_no_ddi_data": ["ONYST1 (Nystatin)"],
+  "_skipped_non_drug": [
+    "IDEXS1 (Dexsalin D5W/NS)",
+    "ITAIT5 (TAITA No.5 IV fluid)",
+    "ITAIT2 (Taita No.2 IV fluid)",
+    "TDRPI1 (DR.PI.A.F topical cream)",
+    "TMYCO3 (Mycomb topical cream)",
+    "IBFLU1 (Bfluid amino+glucose+electrolyte)"
+  ],
+
+  "IAMOC2": ["Amoxicillin"],
+  "OCURA4": ["Amoxicillin"],
+  "ITAZO2": ["Piperacillin"],
+  "IPIPE4": ["Piperacillin"],
+  "IAMSU1": ["Ampicillin", "Sulbactam"],
+  "IRYZO1": ["Insulin"],
+
+  "IATRO3": ["Atropine (Systemic)"],
+  "OCARV2": ["Carvedilol"],
+  "ODIPY3": ["Dipyridamole"],
+  "IEPIN1": ["EPINEPHrine (Systemic)"],
+  "OFAMO1": ["Famotidine"],
+  "IFENT6": ["FentaNYL"],
+  "IFENT7": ["FentaNYL"],
+  "TFENT2": ["FentaNYL"],
+  "OFOLI3": ["Folic Acid"],
+  "IGIPA1": ["DOPamine"],
+  "IHYDR1": ["Hydrocortisone (Systemic)"],
+  "IKCL9":  ["Potassium Chloride"],
+  "OLEVO2": ["LevoFLOXacin (Systemic)"],
+  "ILEVO4": ["LevoFLOXacin (Systemic)"],
+  "IMAGS1": ["Magnesium Sulfate"],
+  "IMETH6": ["MethylPREDNISolone (Systemic)"],
+  "IMORP1": ["Morphine (Systemic)"],
+  "OREPA1": ["Repaglinide"],
+  "OSODI5": ["Sodium Bicarbonate (Systemic)"],
+  "TSYNB1": ["Budesonide (Oral Inhalation)", "Formoterol"]
+}
