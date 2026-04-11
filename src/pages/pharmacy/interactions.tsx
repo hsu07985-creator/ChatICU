@@ -123,6 +123,7 @@ export function DrugInteractionsPage() {
   const [overallSeverity, setOverallSeverity] = useState<string>('');
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resultSource, setResultSource] = useState<'ai' | 'database'>('database');
 
   // Patient selector state (from shared cache)
   const [patients, setPatients] = useState<Patient[]>(getCachedPatientsSync() ?? []);
@@ -263,6 +264,7 @@ export function DrugInteractionsPage() {
       const aiFindings = aiResult?.findings || [];
 
       if (aiFindings.length > 0) {
+        setResultSource('ai');
         setOverallSeverity(aiResult?.overall_severity || 'none');
         const mapped: DisplayInteraction[] = aiFindings.map((f, idx) => ({
           id: `int-${idx}`,
@@ -289,6 +291,7 @@ export function DrugInteractionsPage() {
         mapped.sort((a, b) => (riskOrder[a.riskRating] ?? 5) - (riskOrder[b.riskRating] ?? 5));
         setSearchResults(mapped);
       } else {
+        setResultSource('database');
         if (dbResults.length) {
           const rank: Record<string, number> = { low: 1, medium: 2, high: 3 };
           const max = dbResults.reduce((acc: string, it: DisplayInteraction) => (rank[it.severity] > rank[acc] ? it.severity : acc), 'low');
@@ -679,6 +682,25 @@ export function DrugInteractionsPage() {
                 </Card>
               )}
 
+              {/* 資料來源說明 */}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
+                {resultSource === 'ai' ? (
+                  <>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-2 py-0.5 font-medium border border-purple-200 dark:border-purple-700">
+                      AI 推論
+                    </span>
+                    <span>結果由 AI 依藥理機轉推論，建議以資料庫結果為優先參考</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 font-medium border border-blue-200 dark:border-blue-700">
+                      DDI 資料庫
+                    </span>
+                    <span>結果來自藥物交互作用資料庫（Lexi-Interact 衍生 + ICU 補充對照）</span>
+                  </>
+                )}
+              </div>
+
               <h2>詳細交互作用</h2>
 
               <div className="grid gap-4">
@@ -692,6 +714,11 @@ export function DrugInteractionsPage() {
                           </CardTitle>
                           <div className="flex flex-wrap items-center gap-2">
                             {getRiskRatingBadge(interaction)}
+                            {interaction.reliabilityRating && (
+                              <span className="text-xs text-muted-foreground border rounded px-1.5 py-0.5">
+                                證據：{interaction.reliabilityRating}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <Button
