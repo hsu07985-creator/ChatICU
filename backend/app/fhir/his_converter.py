@@ -402,9 +402,25 @@ def _load_ddi_alias_map() -> Dict[str, List[str]]:
         return {}
 
 
+def _load_ddi_exclusion_set() -> set:
+    """Load his_ddi_exclusion_list.json: ODR_CODEs to skip in DDI analysis.
+
+    These are IV fluids, electrolyte solutions, and adjunct supplies with
+    no clinically meaningful drug-drug interactions.
+    """
+    path = os.path.join(os.path.dirname(__file__), "his_ddi_exclusion_list.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            raw = json.load(f)
+        return {e["odr_code"] for e in raw.get("exclusions", [])}
+    except FileNotFoundError:
+        return set()
+
+
 # Load once at module import time so all HISConverter instances share it.
 _SITE_CONFIG = _load_site_config()
 _DDI_ALIAS_MAP: Dict[str, List[str]] = _load_ddi_alias_map()
+_DDI_EXCLUSION_SET: set = _load_ddi_exclusion_set()
 
 
 class HISConverter:
@@ -646,6 +662,10 @@ class HISConverter:
             # (e.g., "Ampicillin / Sulbactam") so ddi_check.py can expand them.
             if odr_code and odr_code in _DDI_ALIAS_MAP:
                 generic = " / ".join(_DDI_ALIAS_MAP[odr_code])
+            # IV fluids, laxatives and non-drug items: clear generic_name so
+            # ddi_check.py naturally skips them when building the drug pair list.
+            elif odr_code and odr_code in _DDI_EXCLUSION_SET:
+                generic = None
 
             freq_code = (m.get("FREQ_CODE") or "").strip().upper()
             route_code = (m.get("ROUTE_CODE") or "").strip().upper()

@@ -1,0 +1,21 @@
+{
+  "_comment": "DDI 分析排除清單 — 這些 ODR_CODE 是點滴液、電解質補充液、輔助用品等，不具藥物交互作用臨床意義",
+  "_note": "新增排除項目：在 exclusions 陣列加入 {\"odr_code\": \"XXX\", \"name\": \"描述\", \"reason\": \"原因\"}",
+
+  "exclusions": [
+    { "odr_code": "INSB4",  "name": "N.S.0.9% 500mL",           "reason": "生理食鹽水點滴" },
+    { "odr_code": "INSB7",  "name": "N.S 0.9% 100mL",           "reason": "生理食鹽水點滴" },
+    { "odr_code": "INSB16", "name": "N.S 0.9% 1000mL",          "reason": "生理食鹽水點滴" },
+    { "odr_code": "ILACT3", "name": "Lactated Ringer's 500mL",  "reason": "林格氏液點滴" },
+    { "odr_code": "ISODC2", "name": "Saline 3% 500mL",          "reason": "高張食鹽水點滴" },
+    { "odr_code": "IG10P6", "name": "10% Glucose inj",          "reason": "葡萄糖液點滴" },
+    { "odr_code": "IG505",  "name": "Glucose 50% 20mL",         "reason": "葡萄糖液注射" },
+    { "odr_code": "IG5P5",  "name": "Vitagen G5 5% 500mL",      "reason": "葡萄糖點滴" },
+    { "odr_code": "OTHRO1", "name": "Sennoside A+B (Through)",  "reason": "輕瀉劑，無臨床意義DDI" },
+    { "odr_code": "TBISA2", "name": "Bisacodyl suppository",    "reason": "外用輕瀉劑" },
+    { "odr_code": "TEVAC1", "name": "Evac Enema 118mL",         "reason": "灌腸劑" },
+    { "odr_code": "OCOMP3", "name": "Compound glycyrrhiza",     "reason": "複方甘草合劑，輔助用品" },
+    { "odr_code": "OCALC4", "name": "Calcium + Vitamin D2",     "reason": "鈣片補充劑（非靜脈）" },
+    { "odr_code": "OKGLU1", "name": "Potassium gluconate oral", "reason": "口服鉀補充液" }
+  ]
+}
