@@ -44,6 +44,8 @@ from app.utils.llm_errors import llm_unavailable_detail
 from app.utils.request_context import evidence_trace_kwargs
 from app.middleware.rate_limit import limiter
 from app.utils.ddi_check import extract_ddi_warnings
+from app.services.intent_classifier import detect_drugs_from_text
+from app.services.drug_graph_bridge import drug_graph_bridge
 from app.utils.response import success_response
 from pydantic import BaseModel, Field
 
@@ -51,6 +53,97 @@ logger = logging.getLogger("chaticu")
 
 router = APIRouter(prefix="/ai", tags=["AI"])
 
+_HIGH_RISK = {"X", "D", "C"}
+
+# Drugs that map to class nodes in the graph (individual nodes have no direct edges)
+_MSG_DRUG_CLASS_FALLBACK: Dict[str, str] = {
+    "amikacin": "Aminoglycosides",
+    "gentamicin": "Aminoglycosides",
+    "tobramycin": "Aminoglycosides",
+    "colistin": "Colistimethate",
+    "colistimethate": "Colistimethate",
+    "bumetanide": "Loop Diuretics",
+    "torsemide": "Loop Diuretics",
+    "furosemide": "Loop Diuretics",   # furosemide IS a direct node, but fallback harmless
+    "cisatracurium": "Neuromuscular-Blocking Agents",
+    "rocuronium": "Neuromuscular-Blocking Agents",
+    "vecuronium": "Neuromuscular-Blocking Agents",
+    "cefepime": "Cephalosporins",
+    "ceftazidime": "Cephalosporins",
+    "cefoxitin": "Cephalosporins",
+    "cefazolin": "Cephalosporins",
+    "cefoperazone": "Cephalosporins",
+}
+
+
+def _check_message_drugs(
+    message: str,
+    patient_context: Optional[dict],
+) -> List[Dict[str, Any]]:
+    """Detect drug names mentioned in the user's message and cross-check them
+    against the patient's active medications via the drug graph.
+
+    Returns DDI warnings for *proposed* drugs not yet in the active med list,
+    so the LLM knows before recommending a new drug.
+    """
+    if not patient_context or not drug_graph_bridge.is_ready():
+        return []
+
+    msg_drug_names = detect_drugs_from_text(message)
+    if not msg_drug_names:
+        return []
+
+    # Collect active patient med generic names (already DDI-normalized via alias map)
+    active_generics: List[str] = []
+    seen_g: set = set()
+    for m in (patient_context.get("medications") or []):
+        raw = (m.get("genericName") or m.get("generic_name") or "").strip()
+        if not raw:
+            continue
+        for part in raw.split(" / "):
+            p = part.strip()
+            if p and p.lower() not in seen_g:
+                seen_g.add(p.lower())
+                active_generics.append(p)
+
+    if not active_generics:
+        return []
+
+    warnings: List[Dict[str, Any]] = []
+    seen_pairs: set = set()
+
+    for raw_name in msg_drug_names:
+        resolved = drug_graph_bridge.resolve_drug(raw_name)
+        if not resolved:
+            continue
+        # Skip if this drug is already in the active med list (covered by ddi_check)
+        if resolved.lower() in seen_g:
+            continue
+        # Build list of names to try: individual + class fallback
+        names_to_try = [resolved]
+        class_fallback = _MSG_DRUG_CLASS_FALLBACK.get(raw_name.lower())
+        if class_fallback and class_fallback.lower() != resolved.lower():
+            names_to_try.append(class_fallback)
+
+        for drug_a in names_to_try:
+            for active in active_generics:
+                pair_key = tuple(sorted([drug_a.lower(), active.lower()]))
+                if pair_key in seen_pairs:
+                    continue
+                seen_pairs.add(pair_key)
+                try:
+                    hits = drug_graph_bridge.search_interactions(
+                        drug_a=drug_a, drug_b=active, page=1, limit=3,
+                    )
+                except Exception:
+                    continue
+                for hit in hits:
+                    risk = (hit.get("riskLevel") or "").upper()
+                    if risk in _HIGH_RISK:
+                        hit["_proposed"] = raw_name  # tag as message-detected
+                        warnings.append(hit)
+
+    return warnings
 
 
 def _build_metadata_block(
@@ -93,15 +186,30 @@ def _build_metadata_block(
         lines.append("- 病患資料狀態: 無病患資料")
 
     # Drug-drug interaction warnings
-    if ddi_warnings:
-        lines.append(f"\n[藥物交互作用警示] (共 {len(ddi_warnings)} 筆高風險)")
-        for w in ddi_warnings[:10]:
+    existing = [w for w in ddi_warnings if not w.get("_proposed")]
+    proposed = [w for w in ddi_warnings if w.get("_proposed")]
+
+    if existing:
+        lines.append(f"\n[藥物交互作用警示] (共 {len(existing)} 筆，來自現用藥)")
+        for w in existing[:10]:
             risk = w.get("riskLevel", "?")
             d1 = w.get("drug1", "?")
             d2 = w.get("drug2", "?")
             sev = w.get("severity", "?")
             mgmt = (w.get("management") or "")[:120]
             lines.append(f"  ⚠ [{risk}] {d1} ↔ {d2} ({sev}): {mgmt}")
+
+    if proposed:
+        lines.append(f"\n[硬限制 — 訊息中提及藥物的交互作用警示] (共 {len(proposed)} 筆)")
+        lines.append("  !! 以下為醫師訊息中提及之藥物與現用藥的交互作用。Risk X = 禁忌，不得建議使用。")
+        for w in proposed[:10]:
+            risk = w.get("riskLevel", "?")
+            d1 = w.get("drug1", "?")
+            d2 = w.get("drug2", "?")
+            sev = w.get("severity", "?")
+            prop = w.get("_proposed", "?")
+            mgmt = (w.get("management") or "")[:120]
+            lines.append(f"  ⚠ [{risk}] {prop}（訊息）↔ {d2} ({sev}): {mgmt}")
 
     return "\n".join(lines)
 
@@ -690,6 +798,14 @@ async def ai_chat(
             )
         except Exception as exc:
             logger.warning("[INTG][AI][DDI] Drug interaction check failed: %s", exc)
+        # B09: also check drugs mentioned in the message itself
+        try:
+            msg_ddi = await asyncio.to_thread(
+                _check_message_drugs, req.message, patient_context,
+            )
+            ddi_warnings.extend(msg_ddi)
+        except Exception as exc:
+            logger.warning("[INTG][AI][DDI] Message drug check failed: %s", exc)
 
     logger.info(
         "[INTG][AI][API] /ai/chat request_id=%s trace_id=%s session_id=%s user_id=%s patient_id=%s ddi_count=%d",
@@ -920,6 +1036,14 @@ async def ai_chat_stream(
                     ddi_warnings = await asyncio.to_thread(
                         extract_ddi_warnings, patient_context,
                     )
+                except Exception:
+                    pass
+                # B09: also check drugs mentioned in the message itself
+                try:
+                    msg_ddi = await asyncio.to_thread(
+                        _check_message_drugs, req.message, patient_context,
+                    )
+                    ddi_warnings.extend(msg_ddi)
                 except Exception:
                     pass
 

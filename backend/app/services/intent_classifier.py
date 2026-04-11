@@ -127,6 +127,26 @@ _KNOWN_DRUG_NAMES: List[str] = [
     "meropenem", "piperacillin", "ceftriaxone", "cefazolin", "ampicillin",
     "metronidazole", "fluconazole", "acyclovir", "insulin", "furosemide",
     "mannitol", "pantoprazole", "omeprazole", "acetaminophen", "ibuprofen",
+    # Aminoglycosides (ICU nephrotoxic antibiotics)
+    "amikacin", "gentamicin", "tobramycin",
+    # Colistin group
+    "colistin", "colistimethate", "polymyxin",
+    # Cephalosporins
+    "cefepime", "ceftazidime", "cefoperazone", "cefoxitin",
+    # Loop diuretics
+    "bumetanide", "torsemide",
+    # Anticoagulants / antiplatelets
+    "tirofiban", "fondaparinux", "argatroban", "bivalirudin",
+    # Antifungals
+    "voriconazole", "caspofungin", "micafungin", "amphotericin",
+    # Antivirals
+    "ganciclovir", "valganciclovir", "oseltamivir",
+    # Immunosuppressants
+    "tacrolimus", "cyclosporine", "mycophenolate",
+    # Antiepileptics
+    "valproate", "phenytoin", "levetiracetam", "carbamazepine",
+    # Other ICU
+    "magnesium", "potassium", "albumin", "dexamethasone",
     # Common oral drugs
     "aspirin", "clopidogrel", "ticagrelor", "rivaroxaban", "apixaban",
     "metformin", "glimepiride", "empagliflozin", "dapagliflozin",
