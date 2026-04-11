@@ -371,22 +371,21 @@ export function PatientsPage() {
           {/* 病人列表 */}
           {!loading && !error && filteredPatients.length > 0 && (
           <div className="overflow-x-auto">
-          <Table className="compact-table" style={{ tableLayout: 'fixed', minWidth: '1100px' }}>
+          <Table className="compact-table" style={{ tableLayout: 'fixed', minWidth: '1050px' }}>
             <colgroup>
               <col style={{ width: '60px' }} />    {/* 床號 */}
               <col style={{ width: '90px' }} />    {/* 病例號碼 */}
               <col style={{ width: '70px' }} />    {/* 姓名 */}
               <col style={{ width: '45px' }} />    {/* 性別 */}
               <col style={{ width: '55px' }} />    {/* 年齡 */}
-              <col style={{ width: '80px' }} />    {/* 主治醫師 */}
+              <col style={{ width: '85px' }} />    {/* 主治醫師 */}
               <col style={{ width: 'auto' }} />    {/* 入院診斷 — flex fill */}
-              <col style={{ width: '120px' }} />   {/* 入ICU日期 */}
-              <col style={{ width: '75px' }} />    {/* 呼吸器天數 */}
-              <col style={{ width: '50px' }} />    {/* DNR */}
+              <col style={{ width: '140px' }} />   {/* 入ICU日期 */}
+              <col style={{ width: '80px' }} />    {/* 呼吸器天數 */}
+              <col style={{ width: '55px' }} />    {/* DNR */}
               <col style={{ width: '55px' }} />    {/* 隔離 */}
-              <col style={{ width: '60px' }} />    {/* 插管 */}
-              <col style={{ width: '45px' }} />    {/* 留言 */}
-              <col style={{ width: '130px' }} />   {/* 操作 */}
+              <col style={{ width: '65px' }} />    {/* 插管 */}
+              <col style={{ width: '100px' }} />   {/* 操作 */}
             </colgroup>
             <TableHeader>
               <TableRow>
@@ -397,12 +396,11 @@ export function PatientsPage() {
                 <TableHead>年齡</TableHead>
                 <TableHead>主治醫師</TableHead>
                 <TableHead>入院診斷</TableHead>
-                <TableHead>入ICU日期（住院天數）</TableHead>
+                <TableHead>入ICU日期（天數）</TableHead>
                 <TableHead>呼吸器天數</TableHead>
                 <TableHead>DNR</TableHead>
                 <TableHead>隔離</TableHead>
                 <TableHead>插管</TableHead>
-                <TableHead className="text-center">留言</TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
             </TableHeader>
@@ -462,13 +460,6 @@ export function PatientsPage() {
                       <Badge variant="outline">未插管</Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-center">
-                    {patient.hasUnreadMessages ? (
-                      <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#ff3975]" title="有未讀留言" />
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-1 justify-end">
                       <Button
@@ -494,18 +485,6 @@ export function PatientsPage() {
                             title="編輯"
                           >
                             <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleArchivePatient(patient.id);
-                            }}
-                            className="text-muted-foreground hover:text-brand hover:bg-slate-50 dark:hover:bg-slate-800"
-                            title="封存"
-                          >
-                            <Archive className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
