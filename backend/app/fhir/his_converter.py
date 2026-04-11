@@ -496,34 +496,73 @@ class HISConverter:
                 icd_codes.append(icd)
         return "; ".join(icd_codes[:3]) if icd_codes else None
 
+    # ICU internal medicine attendings — only these two doctors manage
+    # internal medicine ICU patients at this hospital.
+    _ICU_INTERNAL_MED_DOCTORS = {"黃英哲", "李穎灝"}
+
     def _extract_dept_doctor(self) -> Tuple[Optional[str], Optional[str]]:
         """Extract department and ICU attending physician.
 
-        Priority: getAllOrder.json OPD_SW=I (ICU orders) → most frequent USER_NAME.
-        Fallback: getOpd.json OPD_SW=1 (inpatient record) → DR_NAME.
+        Logic:
+          1. Determine if patient is surgical or internal medicine.
+             - Surgical: the primary ICU prescriber also appears as surgeon
+               in getSurgery.json.
+             - Internal medicine: all other cases.
+          2. Surgical → use the surgeon as attending + their dept.
+          3. Internal medicine → attending must be 黃英哲 or 李穎灝;
+             pick whichever has more OPD_SW='I' medication orders.
+          4. Fallback: getIPD.json DR_NAME, then getOpd.json DR_NAME.
         """
         from collections import Counter
 
-        # 1. Try ICU orders first (OPD_SW = 'I')
-        order_rows = self._load("getAllOrder.json")
-        if order_rows:
-            icu_orders = [r for r in order_rows if str(r.get("OPD_SW", "")) == "I"]
-            if icu_orders:
-                counter = Counter(
-                    r.get("USER_NAME", "") for r in icu_orders if r.get("USER_NAME")
-                )
-                if counter:
-                    icu_doctor = counter.most_common(1)[0][0]
-                    # Get department from getOpd inpatient record for context
-                    opd_rows = self._load("getOpd.json")
-                    dept = None
-                    if opd_rows:
-                        inpatient = [r for r in opd_rows if str(r.get("OPD_SW", "")) == "1"]
-                        if inpatient:
-                            dept = max(inpatient, key=lambda r: r.get("PAT_SEQ", "")).get("HDEPT_NAME")
-                    return dept, icu_doctor
+        med_rows = self._load("getAllMedicine.json")
+        icu_meds = [r for r in med_rows if str(r.get("OPD_SW", "")) == "I"] if med_rows else []
 
-        # 2. Fallback: getOpd.json inpatient record
+        if icu_meds:
+            user_counter = Counter(
+                r.get("USER_NAME", "") for r in icu_meds if r.get("USER_NAME")
+            )
+
+            # Collect all doctors who have performed surgeries on this patient.
+            surg_rows = self._load("getSurgery.json")
+            surgery_doctors = {r.get("DR_NAME") for r in surg_rows if r.get("DR_NAME")} if surg_rows else set()
+
+            top_doctor = user_counter.most_common(1)[0][0]
+            is_surgical = top_doctor in surgery_doctors
+
+            if is_surgical:
+                # Surgical patient: attending is the surgeon
+                attending = top_doctor
+            else:
+                # Internal medicine patient: attending must be one of the two
+                # ICU internal medicine doctors
+                im_counter = Counter(
+                    r.get("USER_NAME", "")
+                    for r in icu_meds
+                    if r.get("USER_NAME") in self._ICU_INTERNAL_MED_DOCTORS
+                )
+                if im_counter:
+                    attending = im_counter.most_common(1)[0][0]
+                else:
+                    # No ICU internal med doctor found — fall back to top prescriber
+                    attending = top_doctor
+
+            dept_counter = Counter(
+                r.get("HDEPT_NAME", "")
+                for r in icu_meds
+                if r.get("USER_NAME") == attending and r.get("HDEPT_NAME")
+            )
+            dept = dept_counter.most_common(1)[0][0] if dept_counter else None
+            return dept, attending
+
+        # Fallback 1: getIPD.json — direct inpatient attending record
+        ipd_rows = self._load("getIPD.json")
+        if ipd_rows:
+            r = ipd_rows[0]
+            if r.get("DR_NAME"):
+                return r.get("HDEPT_NAME"), r.get("DR_NAME")
+
+        # Fallback 2: getOpd.json inpatient record (emergency admission doctor)
         opd_rows = self._load("getOpd.json")
         if not opd_rows:
             return None, None
