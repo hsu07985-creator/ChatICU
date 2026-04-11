@@ -426,7 +426,8 @@ async def discharge_patient(
 
     try:
         # Delete all related records in FK-safe order (RESTRICT constraints)
-        from app.models.medication import Medication, MedicationAdministration
+        from app.models.medication import Medication
+        from app.models.medication_administration import MedicationAdministration
         from app.models.lab_data import LabData
         from app.models.vital_sign import VitalSign
         from app.models.ventilator import VentilatorSetting, WeaningAssessment
