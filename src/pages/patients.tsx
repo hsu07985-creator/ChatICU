@@ -385,7 +385,8 @@ export function PatientsPage() {
               <col style={{ width: '50px' }} />    {/* DNR */}
               <col style={{ width: '50px' }} />    {/* 隔離 */}
               <col style={{ width: '72px' }} />    {/* 插管 */}
-              <col style={{ width: '80px' }} />    {/* 操作 */}
+              <col style={{ width: '50px' }} />    {/* 編輯 */}
+              <col style={{ width: '50px' }} />    {/* 出院 */}
             </colgroup>
             <TableHeader>
               <TableRow>
@@ -401,6 +402,7 @@ export function PatientsPage() {
                 <TableHead>DNR</TableHead>
                 <TableHead>隔離</TableHead>
                 <TableHead>插管</TableHead>
+                <TableHead className="text-center">編輯</TableHead>
                 <TableHead className="text-center">出院</TableHead>
               </TableRow>
             </TableHeader>
@@ -466,36 +468,30 @@ export function PatientsPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-center">
-                    <div className="flex gap-1 justify-center">
-                      {(user?.role === 'admin' || user?.role === 'pharmacist') && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEdit(patient);
-                            }}
-                            className="text-brand hover:text-brand hover:bg-slate-50 dark:hover:bg-slate-800"
-                            title="編輯"
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDischargePatient(patient.id);
-                            }}
-                            className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
-                            title="出院"
-                          >
-                            <LogOut className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                    {(user?.role === 'admin' || user?.role === 'pharmacist') && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); handleEdit(patient); }}
+                        className="text-brand hover:text-brand hover:bg-slate-50 dark:hover:bg-slate-800"
+                        title="編輯"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {(user?.role === 'admin' || user?.role === 'pharmacist') && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); handleDischargePatient(patient.id); }}
+                        className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                        title="出院"
+                      >
+                        <LogOut className="h-4 w-4" />
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
