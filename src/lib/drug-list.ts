@@ -1,7 +1,7 @@
 /**
  * Hospital formulary drug list for pharmacy interaction checker.
  * Cross-referenced: 陽明院區常備藥品明細表 × MICROMEDEX DrugDex.
- * 490 with data + 278 without = 768 total.
+ * 492 with data + 278 without = 770 total.
  */
 
 /** Drugs with MICROMEDEX interaction data */
@@ -173,6 +173,7 @@ export const DRUGS_WITH_DATA: string[] = [
   "Efavirenz",
   "Emedastine (Systemic)",
   "Empagliflozin",
+  "Enoxaparin",
   "Entacapone",
   "EPHEDrine (Nasal)",
   "EPHEDrine (Systemic)",
@@ -452,6 +453,7 @@ export const DRUGS_WITH_DATA: string[] = [
   "Theophylline",
   "Thiamine",
   "TiaGABine",
+  "Ticagrelor",
   "Ticlopidine",
   "Tigecycline",
   "Timolol (Ophthalmic)",

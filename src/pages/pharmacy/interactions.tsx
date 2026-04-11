@@ -64,6 +64,10 @@ const DRUG_ALIASES: Record<string, string> = {
   'valproate': 'Valproic Acid and Derivatives',
   'valproic': 'Valproic Acid and Derivatives',
   'piperaci': 'Piperacillin',
+  // ICU brand-name aliases
+  'brilinta': 'Ticagrelor',
+  'clexane': 'Enoxaparin',
+  'combivent': 'Ipratropium (Oral Inhalation)',
 };
 
 function tryMatch(name: string): string | null {
