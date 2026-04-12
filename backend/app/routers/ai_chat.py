@@ -177,6 +177,7 @@ async def _event_stream(
 
     # Persist user message + assistant reply (store clean message, not delta-augmented)
     stored_user_message = original_message or user_message
+    assistant_msg_id = f"msg_{uuid.uuid4().hex[:16]}"
     if full_reply:
         user_msg = AIMessage(
             id=f"msg_{uuid.uuid4().hex[:16]}",
@@ -185,7 +186,7 @@ async def _event_stream(
             content=stored_user_message,
         )
         assistant_msg = AIMessage(
-            id=f"msg_{uuid.uuid4().hex[:16]}",
+            id=assistant_msg_id,
             session_id=session_id,
             role="assistant",
             content=full_reply,
@@ -199,8 +200,28 @@ async def _event_stream(
             logger.warning("[AI_CHAT] Failed to persist messages: %s", str(e))
             await db.rollback()
 
-    # Send done event — frontend needs message + sessionId
-    yield f"event: done\ndata: {json.dumps({'message': full_reply, 'sessionId': session_id})}\n\n"
+    # Send done event — frontend expects ChatResponse shape:
+    # { message: ChatMessage, sessionId: string }
+    now_iso = datetime.now(timezone.utc).isoformat()
+    done_payload = {
+        "message": {
+            "id": assistant_msg_id,
+            "role": "assistant",
+            "content": full_reply,
+            "timestamp": now_iso,
+            "explanation": None,
+            "citations": [],
+            "safetyWarnings": None,
+            "requiresExpertReview": False,
+            "degraded": False,
+            "degradedReason": None,
+            "upstreamStatus": None,
+            "dataFreshness": None,
+            "graphMeta": None,
+        },
+        "sessionId": session_id,
+    }
+    yield f"event: done\ndata: {json.dumps(done_payload, ensure_ascii=False)}\n\n"
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
