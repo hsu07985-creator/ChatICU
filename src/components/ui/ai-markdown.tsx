@@ -34,8 +34,8 @@ export function AiMarkdown({ content, className = '' }: { content: string; class
           h2: ({ children }) => <h3 className="text-base font-bold mt-3 mb-1">{children}</h3>,
           h3: ({ children }) => <h4 className="text-sm font-bold mt-2 mb-1">{children}</h4>,
           p: ({ children }) => <p className="mb-2 leading-relaxed">{children}</p>,
-          ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>,
-          ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>,
+          ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-1.5">{children}</ul>,
+          ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 space-y-1.5">{children}</ol>,
           li: ({ children }) => <li className="leading-relaxed">{children}</li>,
           strong: ({ children }) => <strong className="font-bold">{children}</strong>,
           blockquote: ({ children }) => (

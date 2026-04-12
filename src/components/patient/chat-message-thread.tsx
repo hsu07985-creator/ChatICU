@@ -111,7 +111,7 @@ export function ChatMessageThread({
                   )}
                 </div>
               ) : (
-                <div className="flex items-start gap-2 max-w-[92%]">
+                <div className="flex items-start gap-2 max-w-[82%]">
                   <img
                     src={avatarSrc}
                     alt="AI"
