@@ -5,6 +5,7 @@ ensure the schema and seed data are correct regardless of migration state.
 All operations are best-effort (non-fatal on failure).
 """
 
+import asyncio
 import gzip
 import json
 import hashlib
@@ -701,30 +702,48 @@ async def _patch_ddi_interacting_members(engine: AsyncEngine) -> None:
     when the column is populated.
     """
     logger.info("[INTG][DB] _patch_ddi_interacting_members: checking...")
-    try:
-        async with engine.connect() as conn:
-            # Guard: prior deployment may hold an ACCESS EXCLUSIVE lock (pgBouncer delay).
-            # statement_timeout ensures we don't block startup indefinitely.
-            await conn.execute(text("SET statement_timeout = '20000'"))
-            null_count = (await conn.execute(
+
+    async def _count_nulls() -> int:
+        """Run COUNT inside engine.begin() so SET LOCAL lock_timeout persists."""
+        async with engine.begin() as conn:
+            # lock_timeout cancels this statement if it waits >10s for a table lock.
+            # Using engine.begin() ensures BEGIN is sent first so PgBouncer assigns
+            # the same server connection to both SET LOCAL and SELECT.
+            await conn.execute(text("SET LOCAL lock_timeout = '10000'"))
+            await conn.execute(text("SET LOCAL statement_timeout = '15000'"))
+            result = await conn.execute(
                 text("SELECT COUNT(*) FROM drug_interactions WHERE interacting_members IS NULL")
-            )).scalar()
-        if null_count == 0:
-            logger.info("[INTG][DB] ddi interacting_members already populated, skipping patch")
-            return
+            )
+            return result.scalar()
 
-        seeds_dir = Path(__file__).resolve().parents[1] / "seeds"
-        gz_seed = seeds_dir / "ddi_xd_only.json.gz"
-        if not gz_seed.exists():
-            logger.info("[INTG][DB] ddi_xd_only.json.gz not found, skipping patch")
-            return
+    try:
+        # asyncio.wait_for provides a hard Python-level timeout regardless of
+        # PgBouncer/asyncpg lock-wait behaviour.
+        null_count = await asyncio.wait_for(_count_nulls(), timeout=20.0)
+    except asyncio.TimeoutError:
+        logger.warning("[INTG][DB] _patch_ddi_interacting_members timed out waiting for lock, skipping")
+        return
+    except Exception as e:
+        logger.warning("[INTG][DB] DDI interacting_members count failed (non-fatal): %s", e)
+        return
 
+    if null_count == 0:
+        logger.info("[INTG][DB] ddi interacting_members already populated, skipping patch")
+        return
+
+    seeds_dir = Path(__file__).resolve().parents[1] / "seeds"
+    gz_seed = seeds_dir / "ddi_xd_only.json.gz"
+    if not gz_seed.exists():
+        logger.info("[INTG][DB] ddi_xd_only.json.gz not found, skipping patch")
+        return
+
+    try:
         with gzip.open(gz_seed, "rb") as _gz:
             interactions = json.loads(_gz.read().decode("utf-8"))
 
         patched = 0
         async with engine.begin() as conn:
-            await conn.execute(text("SET statement_timeout = '60000'"))
+            await conn.execute(text("SET LOCAL lock_timeout = '10000'"))
             for ix in interactions:
                 im = ix.get("interacting_members")
                 if not im:
@@ -955,9 +974,10 @@ async def _seed_missing_critical_ddi(engine: AsyncEngine) -> None:
     ]
 
     logger.info("[INTG][DB] _seed_missing_critical_ddi: checking %d entries...", len(_CRITICAL))
-    try:
+
+    async def _do_critical_seed() -> None:
         async with engine.begin() as conn:
-            await conn.execute(text("SET statement_timeout = '30000'"))
+            await conn.execute(text("SET LOCAL lock_timeout = '10000'"))
             for ix in _CRITICAL:
                 dk = "icu_critical||" + "||".join(sorted([ix["drug1"].lower(), ix["drug2"].lower()]))
                 _id = "ddi_" + hashlib.sha1(dk.encode()).hexdigest()[:12]
@@ -979,7 +999,12 @@ async def _seed_missing_critical_ddi(engine: AsyncEngine) -> None:
                     im=json.dumps(im, ensure_ascii=False) if im else None,
                     dk=dk,
                 ))
+
+    try:
+        await asyncio.wait_for(_do_critical_seed(), timeout=20.0)
         logger.info("[INTG][DB] Critical DDI seed: verified %d entries", len(_CRITICAL))
+    except asyncio.TimeoutError:
+        logger.warning("[INTG][DB] Critical DDI seed timed out waiting for lock, skipping")
     except Exception as e:
         logger.warning("[INTG][DB] Critical DDI seed failed (non-fatal): %s", e)
 
@@ -988,8 +1013,10 @@ async def _ensure_performance_indexes(engine: AsyncEngine) -> None:
     logger.info("[INTG][DB] _ensure_performance_indexes: starting...")
     try:
         async with engine.begin() as conn:
-            # Guard against lock contention from prior deployments
-            await conn.execute(text("SET statement_timeout = '30000'"))
+            # Guard against lock contention from prior deployments (SET LOCAL ensures
+            # the setting applies within this transaction even via PgBouncer).
+            await conn.execute(text("SET LOCAL lock_timeout = '15000'"))
+            await conn.execute(text("SET LOCAL statement_timeout = '30000'"))
             await conn.execute(text(
                 "CREATE INDEX IF NOT EXISTS ix_patient_messages_patient_is_read "
                 "ON patient_messages (patient_id, is_read)"
