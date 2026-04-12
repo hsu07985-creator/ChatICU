@@ -1004,9 +1004,15 @@ async def _ensure_performance_indexes(engine: AsyncEngine) -> None:
                 "FOREIGN KEY (created_by_id) REFERENCES users(id) ON DELETE RESTRICT; "
                 "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
             ))
-            # Convert drug_interactions JSON-as-Text columns to JSONB
+            # Convert drug_interactions JSON-as-Text columns to JSONB (skip if already JSONB)
             for col in ("dependencies", "dependency_types", "interacting_members", "pubmed_ids"):
                 try:
+                    row = (await conn.execute(text(
+                        "SELECT data_type FROM information_schema.columns "
+                        "WHERE table_name='drug_interactions' AND column_name=:col"
+                    ).bindparams(col=col))).fetchone()
+                    if row and row[0] == "jsonb":
+                        continue
                     await conn.execute(text(
                         f"ALTER TABLE drug_interactions "
                         f"ALTER COLUMN {col} TYPE JSONB USING {col}::jsonb"
