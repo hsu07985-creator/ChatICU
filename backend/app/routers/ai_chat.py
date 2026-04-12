@@ -248,23 +248,31 @@ async def chat_stream(
 
     # ── Build system prompt ────────────────────────────────────────────────
     if patient_id and is_first_turn:
-        # First turn: build full snapshot
+        # First turn: build full snapshot and store only the snapshot text.
+        # We do NOT store the full system_prompt so that prompt updates in
+        # TASK_PROMPTS["icu_chat"] take effect immediately for all sessions.
         snapshot = await build_clinical_snapshot(patient_id, db)
 
-        # Store key values for delta tracking
         lab, meds = await _get_latest_lab(db, patient_id), await _get_active_medications(db, patient_id)
         key_vals = extract_snapshot_key_values(lab, meds)
         session.snapshot_metadata = {
             "snapshot_taken_at": datetime.now(timezone.utc).isoformat(),
             "snapshot_key_values": key_vals,
-            "system_prompt": _build_system_prompt(snapshot),
+            "clinical_snapshot": snapshot,  # store snapshot text, not the full prompt
         }
         await db.flush()
 
-    if session.snapshot_metadata and session.snapshot_metadata.get("system_prompt"):
-        system_prompt = session.snapshot_metadata["system_prompt"]
+    if session.snapshot_metadata and session.snapshot_metadata.get("clinical_snapshot"):
+        # Always rebuild from current TASK_PROMPTS so prompt updates apply immediately
+        system_prompt = _build_system_prompt(session.snapshot_metadata["clinical_snapshot"])
+    elif session.snapshot_metadata and session.snapshot_metadata.get("system_prompt"):
+        # Backward compat: old sessions that stored full system_prompt
+        system_prompt = _build_system_prompt(
+            session.snapshot_metadata["system_prompt"].split("[病患臨床快照]")[-1].strip()
+            if "[病患臨床快照]" in session.snapshot_metadata.get("system_prompt", "")
+            else ""
+        )
     elif patient_id:
-        # Fallback: rebuild snapshot (shouldn't normally happen)
         snapshot = await build_clinical_snapshot(patient_id, db)
         system_prompt = _build_system_prompt(snapshot)
     else:
