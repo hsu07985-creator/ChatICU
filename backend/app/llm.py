@@ -216,6 +216,16 @@ TASK_PROMPTS: dict[str, str] = {
         "重點：該片段屬於哪個章節/主題、涵蓋什麼具體內容。"
         "只輸出簡要上下文，不要其他文字。"
     ),
+    "icu_chat": (
+        "你是 ChatICU 的 ICU 臨床決策輔助 AI。你協助 ICU 醫護人員分析病患狀況、"
+        "解讀檢驗數據、討論用藥選擇。你的回覆應精確、簡潔，並符合實證醫學。\n\n"
+        "安全規則：\n"
+        "- 你的建議供參考，最終決策由醫師負責\n"
+        "- 若問題超出現有資料範疇，明確說明資訊不足\n"
+        "- 藥物建議須符合腎/肝功能狀態\n"
+        "- 遇到高風險藥物組合，主動警示\n\n"
+        "語言：以繁體中文回覆，數值保留英文縮寫（如 Cr、WBC、MAP）。"
+    ),
     "citation_summary": (
         "你是 ICU 臨床文獻整理助手。將醫療文獻的原文段落精煉為簡潔的參考引述。\n"
         "輸入包含多個來源文獻及其原文段落。\n"
@@ -451,12 +461,18 @@ async def call_llm_stream(
     Yields individual text chunks as they arrive from the provider's
     streaming API. The final yield is a JSON metadata string prefixed
     with ``[DONE]`` containing usage statistics.
+
+    Optional kwargs:
+        system_prompt_override: str — replaces the TASK_PROMPTS[task] system prompt.
     """
-    if task not in TASK_PROMPTS:
+    system_prompt_override = kwargs.get("system_prompt_override")
+    if system_prompt_override:
+        system_prompt = system_prompt_override
+    elif task in TASK_PROMPTS:
+        system_prompt = TASK_PROMPTS[task]
+    else:
         yield "[ERROR] Unknown task: " + task
         return
-
-    system_prompt = TASK_PROMPTS[task]
     max_tokens = kwargs.get("max_tokens", settings.LLM_MAX_TOKENS)
     request_id = _normalize_trace_value(kwargs.get("request_id"))
     trace_id = _normalize_trace_value(kwargs.get("trace_id"))

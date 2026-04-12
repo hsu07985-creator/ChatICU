@@ -23,6 +23,8 @@ class AISession(Base):
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # Number of messages already compressed into summary
     summary_up_to: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=0)
+    # Snapshot key values + timestamp for delta tracking
+    snapshot_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
