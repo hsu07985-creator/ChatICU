@@ -1,7 +1,9 @@
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +15,21 @@ from app.models.user import User
 from app.models.patient import Patient
 from app.routers.patients import normalize_patient_id, verify_patient_access
 from app.utils.response import success_response
+
+
+class VentilatorInput(BaseModel):
+    mode: Optional[str] = None
+    fio2: Optional[int] = None
+    peep: Optional[int] = None
+    tidal_volume: Optional[int] = None
+    respiratory_rate: Optional[int] = None
+    inspiratory_pressure: Optional[int] = None
+    pressure_support: Optional[int] = None
+    ie_ratio: Optional[str] = None
+    pip: Optional[int] = None
+    plateau: Optional[int] = None
+    compliance: Optional[int] = None
+    resistance: Optional[int] = None
 
 router = APIRouter(prefix="/patients/{patient_id}/ventilator", tags=["ventilator"])
 
@@ -155,3 +172,47 @@ async def create_weaning_assessment(
     await db.flush()
 
     return success_response(data=weaning_to_dict(assessment), message="脫機評估已建立")
+
+
+@router.post("/settings")
+async def create_ventilator_settings(
+    patient_id: str,
+    body: VentilatorInput,
+    request: Request,
+    user: User = Depends(require_roles("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    pid = normalize_patient_id(patient_id)
+    pat_result = await db.execute(select(Patient).where(Patient.id == pid))
+    patient = pat_result.scalar_one_or_none()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    v = VentilatorSetting(
+        id=f"vent_{uuid.uuid4().hex[:12]}",
+        patient_id=pid,
+        timestamp=datetime.now(timezone.utc),
+        mode=body.mode,
+        fio2=body.fio2,
+        peep=body.peep,
+        tidal_volume=body.tidal_volume,
+        respiratory_rate=body.respiratory_rate,
+        inspiratory_pressure=body.inspiratory_pressure,
+        pressure_support=body.pressure_support,
+        ie_ratio=body.ie_ratio,
+        pip=body.pip,
+        plateau=body.plateau,
+        compliance=body.compliance,
+        resistance=body.resistance,
+    )
+    db.add(v)
+
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="手動輸入呼吸器設定", target=pid, status="success",
+        ip=request.client.host if request.client else None,
+        details={"ventilator_id": v.id},
+    )
+    await db.flush()
+
+    return success_response(data=vent_to_dict(v), message="呼吸器設定已新增")

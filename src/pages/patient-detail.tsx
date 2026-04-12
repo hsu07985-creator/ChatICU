@@ -1800,6 +1800,9 @@ export function PatientDetailPage() {
           formatDisplayTimestamp={formatDisplayTimestamp}
           formatDisplayValue={formatDisplayValue}
           onVitalSignClick={handleVitalSignClick}
+          isAdmin={user?.role === 'admin'}
+          onVitalSignsUpdate={(vs) => setVitalSigns(vs)}
+          onVentilatorUpdate={(v) => setVentilator(v)}
         />
 
         {/* 用藥 */}

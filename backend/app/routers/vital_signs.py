@@ -1,17 +1,35 @@
-from datetime import date
+import uuid
+from datetime import date, datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.middleware.auth import get_current_user
+from app.middleware.auth import get_current_user, require_roles
+from app.middleware.audit import create_audit_log
 from app.models.vital_sign import VitalSign
 from app.models.user import User
 from app.models.patient import Patient
 from app.routers.patients import normalize_patient_id, verify_patient_access
 from app.utils.response import success_response
+
+
+class VitalSignInput(BaseModel):
+    heart_rate: Optional[int] = None
+    systolic_bp: Optional[int] = None
+    diastolic_bp: Optional[int] = None
+    mean_bp: Optional[float] = None
+    respiratory_rate: Optional[int] = None
+    spo2: Optional[int] = None
+    temperature: Optional[float] = None
+    etco2: Optional[float] = None
+    cvp: Optional[float] = None
+    icp: Optional[float] = None
+    cpp: Optional[float] = None
+    body_weight: Optional[float] = None
 
 router = APIRouter(prefix="/patients/{patient_id}/vital-signs", tags=["vital-signs"])
 
@@ -141,3 +159,47 @@ async def get_vital_sign_history(
             "totalPages": (total + limit - 1) // limit if total > 0 else 0,
         },
     })
+
+
+@router.post("")
+async def create_vital_signs(
+    patient_id: str,
+    body: VitalSignInput,
+    request: Request,
+    user: User = Depends(require_roles("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    pid = normalize_patient_id(patient_id)
+    pat_result = await db.execute(select(Patient).where(Patient.id == pid))
+    patient = pat_result.scalar_one_or_none()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    vs = VitalSign(
+        id=f"vs_{uuid.uuid4().hex[:12]}",
+        patient_id=pid,
+        timestamp=datetime.now(timezone.utc),
+        heart_rate=body.heart_rate,
+        systolic_bp=body.systolic_bp,
+        diastolic_bp=body.diastolic_bp,
+        mean_bp=body.mean_bp,
+        respiratory_rate=body.respiratory_rate,
+        spo2=body.spo2,
+        temperature=body.temperature,
+        etco2=body.etco2,
+        cvp=body.cvp,
+        icp=body.icp,
+        cpp=body.cpp,
+        body_weight=body.body_weight,
+    )
+    db.add(vs)
+
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="手動輸入生命徵象", target=pid, status="success",
+        ip=request.client.host if request.client else None,
+        details={"vital_sign_id": vs.id},
+    )
+    await db.flush()
+
+    return success_response(data=vital_to_dict(vs), message="生命徵象已新增")

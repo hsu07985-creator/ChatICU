@@ -98,3 +98,30 @@ export async function createWeaningAssessment(
   return ensureData(response.data, 'API contract');
 }
 
+// 手動輸入呼吸器設定（admin 專用）
+export interface VentilatorInput {
+  mode?: string | null;
+  fio2?: number | null;
+  peep?: number | null;
+  tidal_volume?: number | null;
+  respiratory_rate?: number | null;
+  inspiratory_pressure?: number | null;
+  pressure_support?: number | null;
+  ie_ratio?: string | null;
+  pip?: number | null;
+  plateau?: number | null;
+  compliance?: number | null;
+  resistance?: number | null;
+}
+
+export async function createVentilatorSettings(
+  patientId: string,
+  data: VentilatorInput
+): Promise<VentilatorSettings> {
+  const response = await apiClient.post<ApiResponse<VentilatorSettings>>(
+    `/patients/${patientId}/ventilator/settings`,
+    data
+  );
+  return ensureData(response.data, 'API contract');
+}
+

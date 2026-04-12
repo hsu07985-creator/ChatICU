@@ -1,16 +1,22 @@
-import { Activity, Bug, FileText, Stethoscope, TestTube, Wind } from 'lucide-react';
+import { Activity, Bug, FileText, Plus, Stethoscope, TestTube, Wind } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { LabData, WeaningAssessment } from '../../lib/api';
+import type { LabData, VitalSigns, VentilatorSettings, WeaningAssessment } from '../../lib/api';
+import { createVitalSigns, type VitalSignsInput } from '../../lib/api/vital-signs';
+import { createVentilatorSettings, type VentilatorInput } from '../../lib/api/ventilator';
 import { LabDataDisplay } from '../lab-data-display';
 import { PatientDiagnosticReports } from './patient-diagnostic-reports';
 import { PatientMicrobiologyCard } from './patient-microbiology-card';
 import { VitalSignCard } from '../vital-signs-card';
 import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 import { LoadingSpinner } from '../ui/state-display';
 import { TabsContent } from '../ui/tabs';
+import { toast } from 'sonner';
 
 type TrendSource = 'vital' | 'ventilator';
 
@@ -44,6 +50,9 @@ interface PatientLabsTabProps {
   formatDisplayTimestamp: (timestamp?: string | null) => string;
   formatDisplayValue: (value: unknown) => string;
   onVitalSignClick: (labName: string, value: number, unit: string, source: TrendSource) => void;
+  isAdmin?: boolean;
+  onVitalSignsUpdate?: (vs: VitalSigns) => void;
+  onVentilatorUpdate?: (v: VentilatorSettings) => void;
 }
 
 const metricGridStyle = {
@@ -95,9 +104,78 @@ export function PatientLabsTab({
   formatDisplayTimestamp,
   formatDisplayValue,
   onVitalSignClick,
+  isAdmin = false,
+  onVitalSignsUpdate,
+  onVentilatorUpdate,
 }: PatientLabsTabProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawSection = searchParams.get('section');
+
+  // 手動輸入 dialog 狀態
+  const [isVitalDialogOpen, setIsVitalDialogOpen] = useState(false);
+  const [isVentDialogOpen, setIsVentDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [vitalForm, setVitalForm] = useState<Record<string, string>>({});
+  const [ventForm, setVentForm] = useState<Record<string, string>>({});
+
+  const parseNum = (v: string): number | null => {
+    const n = parseFloat(v);
+    return isNaN(n) ? null : n;
+  };
+
+  const handleVitalSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      const data: VitalSignsInput = {
+        heart_rate: parseNum(vitalForm.heart_rate ?? ''),
+        systolic_bp: parseNum(vitalForm.systolic_bp ?? ''),
+        diastolic_bp: parseNum(vitalForm.diastolic_bp ?? ''),
+        respiratory_rate: parseNum(vitalForm.respiratory_rate ?? ''),
+        spo2: parseNum(vitalForm.spo2 ?? ''),
+        temperature: parseNum(vitalForm.temperature ?? ''),
+        cvp: parseNum(vitalForm.cvp ?? ''),
+        icp: parseNum(vitalForm.icp ?? ''),
+        body_weight: parseNum(vitalForm.body_weight ?? ''),
+        etco2: parseNum(vitalForm.etco2 ?? ''),
+      };
+      const result = await createVitalSigns(patientId, data);
+      onVitalSignsUpdate?.(result);
+      setIsVitalDialogOpen(false);
+      setVitalForm({});
+      toast.success('生命徵象已新增');
+    } catch {
+      toast.error('新增失敗，請確認輸入值');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVentSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      const data: VentilatorInput = {
+        mode: ventForm.mode || null,
+        fio2: parseNum(ventForm.fio2 ?? ''),
+        peep: parseNum(ventForm.peep ?? ''),
+        tidal_volume: parseNum(ventForm.tidal_volume ?? ''),
+        respiratory_rate: parseNum(ventForm.respiratory_rate ?? ''),
+        pip: parseNum(ventForm.pip ?? ''),
+        plateau: parseNum(ventForm.plateau ?? ''),
+        compliance: parseNum(ventForm.compliance ?? ''),
+        pressure_support: parseNum(ventForm.pressure_support ?? ''),
+        ie_ratio: ventForm.ie_ratio || null,
+      };
+      const result = await createVentilatorSettings(patientId, data);
+      onVentilatorUpdate?.(result);
+      setIsVentDialogOpen(false);
+      setVentForm({});
+      toast.success('呼吸器設定已新增');
+    } catch {
+      toast.error('新增失敗，請確認輸入值');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   const activeSection = rawSection && VALID_LABS_SECTIONS.has(rawSection) ? rawSection : 'lab-data';
   const rawMonitor = searchParams.get('monitor');
   const activeMonitor = rawMonitor && VALID_MONITOR_SECTIONS.has(rawMonitor) ? rawMonitor : 'vital-signs';
@@ -145,7 +223,7 @@ export function PatientLabsTab({
       return true;
     });
   }
-  const setActiveSection = useCallback((section: 'lab-data' | 'microbiology') => {
+  const setActiveSection = useCallback((section: 'lab-data' | 'microbiology' | 'reports') => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       if (section === 'lab-data') {
@@ -233,6 +311,17 @@ export function PatientLabsTab({
           </button>
         </div>
         <span className="text-xs text-slate-500 dark:text-slate-400">高效率篩選</span>
+        {isAdmin && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-auto gap-1 text-xs h-7 px-2"
+            onClick={() => activeMonitor === 'vital-signs' ? setIsVitalDialogOpen(true) : setIsVentDialogOpen(true)}
+          >
+            <Plus className="h-3 w-3" />
+            手動輸入
+          </Button>
+        )}
       </div>
 
       {/* 生命徵象 / 呼吸器 內容 */}
@@ -388,6 +477,102 @@ export function PatientLabsTab({
       ) : (
         <PatientDiagnosticReports patientId={patientId} />
       )}
+
+      {/* 生命徵象手動輸入 Dialog */}
+      <Dialog open={isVitalDialogOpen} onOpenChange={setIsVitalDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>手動輸入生命徵象</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 py-2">
+            {[
+              { key: 'temperature', label: 'Temp (°C)', placeholder: '36.5' },
+              { key: 'heart_rate', label: 'HR (bpm)', placeholder: '72' },
+              { key: 'systolic_bp', label: 'SBP (mmHg)', placeholder: '120' },
+              { key: 'diastolic_bp', label: 'DBP (mmHg)', placeholder: '80' },
+              { key: 'respiratory_rate', label: 'RR (/min)', placeholder: '16' },
+              { key: 'spo2', label: 'SpO₂ (%)', placeholder: '98' },
+              { key: 'cvp', label: 'CVP (mmHg)', placeholder: '8' },
+              { key: 'icp', label: 'ICP (mmHg)', placeholder: '10' },
+              { key: 'body_weight', label: 'BW (kg)', placeholder: '60' },
+              { key: 'etco2', label: 'EtCO₂ (mmHg)', placeholder: '35' },
+            ].map(({ key, label, placeholder }) => (
+              <div key={key} className="space-y-1">
+                <Label className="text-xs">{label}</Label>
+                <Input
+                  type="number"
+                  placeholder={placeholder}
+                  value={vitalForm[key] ?? ''}
+                  onChange={(e) => setVitalForm(prev => ({ ...prev, [key]: e.target.value }))}
+                  className="h-8 text-sm"
+                />
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsVitalDialogOpen(false)}>取消</Button>
+            <Button size="sm" onClick={handleVitalSubmit} disabled={isSubmitting}>
+              {isSubmitting ? '儲存中...' : '儲存'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 呼吸器設定手動輸入 Dialog */}
+      <Dialog open={isVentDialogOpen} onOpenChange={setIsVentDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>手動輸入呼吸器設定</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 py-2">
+            <div className="col-span-2 space-y-1">
+              <Label className="text-xs">Mode</Label>
+              <Input
+                placeholder="AC / SIMV / PC / PS / CPAP"
+                value={ventForm.mode ?? ''}
+                onChange={(e) => setVentForm(prev => ({ ...prev, mode: e.target.value }))}
+                className="h-8 text-sm"
+              />
+            </div>
+            {[
+              { key: 'fio2', label: 'FiO₂ (%)', placeholder: '40' },
+              { key: 'peep', label: 'PEEP (cmH₂O)', placeholder: '5' },
+              { key: 'tidal_volume', label: 'Vt (mL)', placeholder: '450' },
+              { key: 'respiratory_rate', label: 'RR set (/min)', placeholder: '14' },
+              { key: 'pip', label: 'PIP (cmH₂O)', placeholder: '25' },
+              { key: 'plateau', label: 'Pplat (cmH₂O)', placeholder: '22' },
+              { key: 'compliance', label: 'Cstat (mL/cmH₂O)', placeholder: '40' },
+              { key: 'pressure_support', label: 'PS (cmH₂O)', placeholder: '10' },
+            ].map(({ key, label, placeholder }) => (
+              <div key={key} className="space-y-1">
+                <Label className="text-xs">{label}</Label>
+                <Input
+                  type="number"
+                  placeholder={placeholder}
+                  value={ventForm[key] ?? ''}
+                  onChange={(e) => setVentForm(prev => ({ ...prev, [key]: e.target.value }))}
+                  className="h-8 text-sm"
+                />
+              </div>
+            ))}
+            <div className="space-y-1">
+              <Label className="text-xs">I:E Ratio</Label>
+              <Input
+                placeholder="1:2"
+                value={ventForm.ie_ratio ?? ''}
+                onChange={(e) => setVentForm(prev => ({ ...prev, ie_ratio: e.target.value }))}
+                className="h-8 text-sm"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setIsVentDialogOpen(false)}>取消</Button>
+            <Button size="sm" onClick={handleVentSubmit} disabled={isSubmitting}>
+              {isSubmitting ? '儲存中...' : '儲存'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </TabsContent>
   );
 }
