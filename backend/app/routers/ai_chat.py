@@ -281,41 +281,86 @@ async def chat_stream(
     )
 
 
-@router.get("/chat/sessions")
-async def list_sessions(
-    patient_id: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """List AI chat sessions for the current user."""
-    query = select(AISession).where(AISession.user_id == current_user.id)
-    if patient_id:
-        query = query.where(AISession.patient_id == patient_id)
-    query = query.order_by(desc(AISession.updated_at)).limit(20)
-    result = await db.execute(query)
-    sessions = result.scalars().all()
+def _session_to_dict(s: AISession, message_count: int = 0) -> dict:
     return {
-        "success": True,
-        "data": [
-            {
-                "id": s.id,
-                "patient_id": s.patient_id,
-                "title": s.title,
-                "created_at": s.created_at.isoformat() if s.created_at else None,
-                "updated_at": s.updated_at.isoformat() if s.updated_at else None,
-            }
-            for s in sessions
-        ],
+        "id": s.id,
+        "userId": s.user_id,
+        "patientId": s.patient_id,
+        "title": s.title or "新對話",
+        "createdAt": s.created_at.isoformat() if s.created_at else None,
+        "updatedAt": s.updated_at.isoformat() if s.updated_at else None,
+        "messageCount": message_count,
     }
 
 
-@router.get("/chat/sessions/{session_id}/messages")
-async def get_session_messages(
+def _message_to_dict(m: AIMessage) -> dict:
+    return {
+        "id": m.id,
+        "role": m.role,
+        "content": m.content,
+        "timestamp": m.created_at.isoformat() if m.created_at else None,
+    }
+
+
+@router.get("/sessions")
+async def list_sessions(
+    patientId: Optional[str] = None,
+    page: int = 1,
+    limit: int = 20,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List AI chat sessions for the current user (matches ChatSessionsResponse schema)."""
+    query = select(AISession).where(AISession.user_id == current_user.id)
+    if patientId:
+        query = query.where(AISession.patient_id == patientId)
+
+    # Count total
+    from sqlalchemy import func as sqlfunc
+    count_result = await db.execute(
+        select(sqlfunc.count()).select_from(
+            query.subquery()
+        )
+    )
+    total = count_result.scalar_one() or 0
+
+    # Paginated results
+    query = query.order_by(desc(AISession.updated_at)).offset((page - 1) * limit).limit(limit)
+    result = await db.execute(query)
+    sessions = result.scalars().all()
+
+    # Get message counts
+    session_ids = [s.id for s in sessions]
+    counts: dict = {}
+    if session_ids:
+        count_rows = await db.execute(
+            select(AIMessage.session_id, sqlfunc.count(AIMessage.id))
+            .where(AIMessage.session_id.in_(session_ids))
+            .group_by(AIMessage.session_id)
+        )
+        counts = {row[0]: row[1] for row in count_rows.all()}
+
+    return {
+        "success": True,
+        "data": {
+            "sessions": [_session_to_dict(s, counts.get(s.id, 0)) for s in sessions],
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total,
+                "totalPages": max(1, (total + limit - 1) // limit),
+            },
+        },
+    }
+
+
+@router.get("/sessions/{session_id}")
+async def get_session(
     session_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get all messages for a chat session."""
+    """Get a session with its messages."""
     session_result = await db.execute(
         select(AISession).where(
             AISession.id == session_id,
@@ -334,13 +379,53 @@ async def get_session_messages(
     messages = msgs_result.scalars().all()
     return {
         "success": True,
-        "data": [
-            {
-                "id": m.id,
-                "role": m.role,
-                "content": m.content,
-                "created_at": m.created_at.isoformat() if m.created_at else None,
-            }
-            for m in messages
-        ],
+        "data": {
+            "session": _session_to_dict(session, len(messages)),
+            "messages": [_message_to_dict(m) for m in messages],
+        },
     }
+
+
+@router.delete("/sessions/{session_id}")
+async def delete_session(
+    session_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a chat session."""
+    session_result = await db.execute(
+        select(AISession).where(
+            AISession.id == session_id,
+            AISession.user_id == current_user.id,
+        )
+    )
+    session = session_result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    await db.delete(session)
+    await db.commit()
+    return {"success": True, "data": None}
+
+
+@router.patch("/sessions/{session_id}")
+async def update_session(
+    session_id: str,
+    body: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update session title."""
+    session_result = await db.execute(
+        select(AISession).where(
+            AISession.id == session_id,
+            AISession.user_id == current_user.id,
+        )
+    )
+    session = session_result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if "title" in body:
+        session.title = body["title"]
+    await db.commit()
+    await db.refresh(session)
+    return {"success": True, "data": _session_to_dict(session)}
