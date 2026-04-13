@@ -10,7 +10,7 @@ import { Calculator, Loader2, AlertTriangle, User, X, RotateCcw, ChevronRight, C
 import { toast } from 'sonner';
 import { padCalculate, type PadDrugInfo, type PadCalculateResult } from '../../lib/api/pharmacy';
 import { type Patient } from '../../lib/api/patients';
-import { getCachedPatients, getCachedPatientsSync } from '../../lib/patients-cache';
+import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from '../../lib/patients-cache';
 import { getCachedPadDrugs, getCachedPadDrugsSync } from '../../lib/pad-drugs-cache';
 import { isAxiosError } from 'axios';
 
@@ -114,6 +114,13 @@ export function DosagePage() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    return subscribePatientsCache((nextPatients) => {
+      setPatients(nextPatients);
+      setPatientsLoading(false);
+    });
+  }, []);
+
   // Drug switch: pre-fill dose range + concentration, clear results
   const handleDrugChange = useCallback((drugKey: string) => {
     setSelectedDrug(drugKey);
@@ -150,6 +157,25 @@ export function DosagePage() {
       toast.success(`已帶入 ${p.name} 的基本資料`);
     }
   }, [patients]);
+
+  useEffect(() => {
+    if (!selectedPatientId) return;
+    const patient = patients.find((item) => item.id === selectedPatientId);
+    if (!patient) return;
+
+    setHeight(
+      typeof patient.height === 'number' && Number.isFinite(patient.height)
+        ? String(patient.height)
+        : '',
+    );
+    setWeight(
+      typeof patient.weight === 'number' && Number.isFinite(patient.weight)
+        ? String(patient.weight)
+        : '',
+    );
+    if (patient.gender === '男') setSex('male');
+    else if (patient.gender === '女') setSex('female');
+  }, [patients, selectedPatientId]);
 
   // Reset all fields
   const handleReset = useCallback(() => {

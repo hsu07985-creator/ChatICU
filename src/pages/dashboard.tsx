@@ -9,8 +9,15 @@ import { Label } from '../components/ui/label';
 import { Search, AlertCircle, Pencil, ZoomIn, ZoomOut } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Patient, updatePatient } from '../lib/api/patients';
-import { getCachedPatientsSync, invalidatePatients } from '../lib/patients-cache';
-import { getDashboardStats, DashboardStats } from '../lib/api/dashboard';
+import { getCachedPatientsSync, invalidatePatients, subscribePatientsCache } from '../lib/patients-cache';
+import type { DashboardStats } from '../lib/api/dashboard';
+import {
+  getCachedDashboardStats,
+  getCachedDashboardStatsSync,
+  invalidateDashboardStats,
+  subscribeDashboardStats,
+} from '../lib/dashboard-stats-cache';
+import { refreshSharedPatientDataAfterMutation } from '../lib/patient-data-sync';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -21,11 +28,6 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import { Switch } from '../components/ui/switch';
-
-// ── Dashboard stats module-level cache (5 min) ──
-let _statsCache: DashboardStats | null = null;
-let _statsTimestamp = 0;
-const STATS_STALE_MS = 5 * 60 * 1000;
 
 // 編輯表單的數據類型
 interface EditFormData {
@@ -58,7 +60,7 @@ export function DashboardPage() {
     attendingPhysician: '',
   });
   const [saving, setSaving] = useState(false);
-  const [stats, setStats] = useState<DashboardStats | null>(_statsCache);
+  const [stats, setStats] = useState<DashboardStats | null>(getCachedDashboardStatsSync());
 
   // 卡片欄數: 2=大卡(2欄), 3=標準(3欄), 4=小卡(4欄), 6=迷你(6欄)
   const GRID_OPTIONS = [2, 3, 4, 6] as const;
@@ -91,14 +93,8 @@ export function DashboardPage() {
 
   // 從 API 獲取儀表板統計（帶快取，背景靜默更新）
   const fetchStats = useCallback(async () => {
-    if (_statsCache && Date.now() - _statsTimestamp < STATS_STALE_MS) {
-      setStats(_statsCache);
-      return;
-    }
     try {
-      const data = await getDashboardStats();
-      _statsCache = data;
-      _statsTimestamp = Date.now();
+      const data = await getCachedDashboardStats();
       setStats(data);
     } catch (err) {
       console.error('載入統計數據失敗:', err);
@@ -113,6 +109,19 @@ export function DashboardPage() {
     // Stats: always fetch (don't skip — cache may contain stale zeros)
     fetchStats();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    return subscribePatientsCache((nextPatients) => {
+      setPatients(nextPatients);
+      setLoading(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    return subscribeDashboardStats((nextStats) => {
+      setStats(nextStats);
+    });
+  }, []);
 
   // Fallback: compute stats from patient list when API stats unavailable
   // Patient API returns sedation/analgesia/nmb arrays (not sanSummary)
@@ -156,13 +165,12 @@ export function DashboardPage() {
     setSaving(true);
     try {
       await updatePatient(editingPatient.id, editFormData);
-      // Invalidate shared cache + refresh local state
-      const freshPatients = await invalidatePatients();
+      const { patients: freshPatients } = await refreshSharedPatientDataAfterMutation({
+        refreshDashboardStats: false,
+      });
       setPatients(freshPatients);
-      // Also invalidate stats cache so counts refresh
-      _statsCache = null;
-      _statsTimestamp = 0;
-      fetchStats();
+      const freshStats = await invalidateDashboardStats();
+      setStats(freshStats);
       setEditDialogOpen(false);
       toast.success('病患資料已更新');
     } catch (err) {

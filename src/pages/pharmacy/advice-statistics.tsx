@@ -16,7 +16,7 @@ import {
   type TagStatItem,
 } from '../../lib/api/pharmacy';
 import { type Patient } from '../../lib/api/patients';
-import { getCachedPatients, getCachedPatientsSync } from '../../lib/patients-cache';
+import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from '../../lib/patients-cache';
 import {
   PHARMACY_ADVICE_CATEGORIES,
   PHARMACY_ADVICE_CATEGORY_COLORS,
@@ -67,6 +67,13 @@ export function PharmacyAdviceStatisticsPage() {
       .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
       .catch(() => { if (!cancelled) { toast.error('載入病患清單失敗'); setPatientsLoading(false); } });
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    return subscribePatientsCache((nextPatients) => {
+      setPatients(nextPatients);
+      setPatientsLoading(false);
+    });
   }, []);
 
   // 載入紀錄

@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Patient as ApiPatient } from '../../lib/api/patients';
-import { getCachedPatients, getCachedPatientsSync, isPatientsCacheFresh } from '../../lib/patients-cache';
+import {
+  getCachedPatients,
+  getCachedPatientsSync,
+  isPatientsCacheFresh,
+  subscribePatientsCache,
+} from '../../lib/patients-cache';
 import { getCachedPadDrugs } from '../../lib/pad-drugs-cache';
 import { useAuth } from '../../lib/auth-context';
 import { getLatestLabData, type LabData as ApiLabData } from '../../lib/api/lab-data';
@@ -57,6 +62,13 @@ export function PharmacyWorkstationPage() {
       .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
       .catch(() => { if (!cancelled) { setPatientsError('無法載入病患列表'); setPatientsLoading(false); } });
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    return subscribePatientsCache((nextPatients) => {
+      setPatients(nextPatients);
+      setPatientsLoading(false);
+    });
   }, []);
 
   // 病患選擇

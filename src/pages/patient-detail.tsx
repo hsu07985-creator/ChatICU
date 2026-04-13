@@ -24,6 +24,7 @@ import { useAuth } from '../lib/auth-context';
 import { usePatientScores } from '../hooks/use-patient-scores';
 import { useAiReadiness } from '../hooks/use-ai-readiness';
 import { useTrendChart, type TrendSource } from '../hooks/use-trend-chart';
+import { refreshSharedPatientDataAfterMutation } from '../lib/patient-data-sync';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { ButtonLoadingIndicator } from '../components/ui/button-loading-indicator';
@@ -420,6 +421,7 @@ export function PatientDetailPage() {
     setSavingPatient(true);
     try {
       const updated = await patientsApi.updatePatient(patient.id, editingPatient);
+      await refreshSharedPatientDataAfterMutation();
       setPatient(updated as PatientWithFrontendFields);
       setEditingPatient(null);
       toast.success('病人資料已更新');

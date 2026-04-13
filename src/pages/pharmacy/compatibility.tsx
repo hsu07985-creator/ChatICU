@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toast } from 'sonner';
 import { getIVCompatibility } from '../../lib/api/pharmacy';
 import { type Patient } from '../../lib/api/patients';
-import { getCachedPatients, getCachedPatientsSync } from '../../lib/patients-cache';
+import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from '../../lib/patients-cache';
 import { getMedications, type Medication } from '../../lib/api/medications';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
 
@@ -211,6 +211,13 @@ export function CompatibilityPage() {
       .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
       .catch(() => { if (!cancelled) { toast.error('無法載入病患列表'); setPatientsLoading(false); } });
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    return subscribePatientsCache((nextPatients) => {
+      setPatients(nextPatients);
+      setPatientsLoading(false);
+    });
   }, []);
 
   const handlePatientSelect = useCallback(async (patientId: string) => {

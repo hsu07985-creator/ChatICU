@@ -4,6 +4,11 @@ let _cache: Patient[] | null = null;
 let _timestamp = 0;
 let _pending: Promise<Patient[]> | null = null;
 const STALE_MS = 5 * 60 * 1000; // 5 minutes
+const _listeners = new Set<(patients: Patient[]) => void>();
+
+function notifyPatientsCacheListeners(patients: Patient[]) {
+  _listeners.forEach((listener) => listener(patients));
+}
 
 /**
  * Get the cached patient list. If the cache is stale or empty,
@@ -19,6 +24,7 @@ export async function getCachedPatients(): Promise<Patient[]> {
       .then(res => {
         _cache = res.patients;
         _timestamp = Date.now();
+        notifyPatientsCacheListeners(_cache);
         return _cache;
       })
       .finally(() => { _pending = null; });
@@ -36,6 +42,13 @@ export async function invalidatePatients(): Promise<Patient[]> {
   _cache = null;
   _timestamp = 0;
   return getCachedPatients();
+}
+
+export function subscribePatientsCache(listener: (patients: Patient[]) => void): () => void {
+  _listeners.add(listener);
+  return () => {
+    _listeners.delete(listener);
+  };
 }
 
 /** Check if cache is fresh */

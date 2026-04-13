@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth-context';
 import { patientsApi, type Patient } from '../lib/api';
 import { getCachedPatients, getCachedPatientsSync, invalidatePatients, isPatientsCacheFresh } from '../lib/patients-cache';
+import { refreshSharedPatientDataAfterMutation } from '../lib/patient-data-sync';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
@@ -155,10 +156,8 @@ export function PatientsPage() {
       setSavingPatient(true);
       try {
         await patientsApi.updatePatient(editingPatientId, editFormData);
-        // 清除共用快取（dosage / compatibility 頁面會重新拉取最新身高體重）
-        await invalidatePatients();
-        // 重新載入列表以獲取最新資料
-        await fetchPatients();
+        const { patients: freshPatients } = await refreshSharedPatientDataAfterMutation();
+        setPatients(freshPatients as PatientWithFrontendFields[]);
         setEditingPatientId(null);
         setEditFormData(null);
         toast.success('病人資料已更新');
@@ -248,7 +247,8 @@ export function PatientsPage() {
       toast.success(`已新增病患：${created.bedNumber} ${created.name}`);
       setAddDialogOpen(false);
       resetNewPatientForm();
-      await fetchPatients();
+      const { patients: freshPatients } = await refreshSharedPatientDataAfterMutation();
+      setPatients(freshPatients as PatientWithFrontendFields[]);
     } catch (err: unknown) {
       console.error('新增病患失敗:', err);
       const errMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -270,7 +270,8 @@ export function PatientsPage() {
       toast.success(`已封存病患：${label}`);
       setArchiveDialogOpen(false);
       setArchiveTargetId('');
-      await fetchPatients();
+      const { patients: freshPatients } = await refreshSharedPatientDataAfterMutation();
+      setPatients(freshPatients as PatientWithFrontendFields[]);
     } catch (err: unknown) {
       console.error('封存病患失敗:', err);
       const errMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -290,7 +291,8 @@ export function PatientsPage() {
     try {
       await patientsApi.dischargePatient(patientId);
       toast.success(`病患 ${label} 已出院刪除`);
-      await fetchPatients();
+      const { patients: freshPatients } = await refreshSharedPatientDataAfterMutation();
+      setPatients(freshPatients as PatientWithFrontendFields[]);
     } catch (err: unknown) {
       console.error('出院刪除失敗:', err);
       const errMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;

@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { checkInteractions, type InteractionCheckResponse } from '../../lib/api/ai';
 import { getDrugInteractions } from '../../lib/api/pharmacy';
 import { type Patient } from '../../lib/api/patients';
-import { getCachedPatients, getCachedPatientsSync } from '../../lib/patients-cache';
+import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from '../../lib/patients-cache';
 import { getMedications, type Medication } from '../../lib/api/medications';
 import { copyToClipboard } from '../../lib/clipboard-utils';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
@@ -141,6 +141,13 @@ export function DrugInteractionsPage() {
       .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
       .catch(() => { if (!cancelled) { toast.error('無法載入病患列表'); setPatientsLoading(false); } });
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    return subscribePatientsCache((nextPatients) => {
+      setPatients(nextPatients);
+      setPatientsLoading(false);
+    });
   }, []);
 
   // When patient is selected, load their active medications
