@@ -6,6 +6,7 @@ import { getCachedPatients, getCachedPatientsSync, invalidatePatients, isPatient
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
+import { ButtonLoadingIndicator } from '../components/ui/button-loading-indicator';
 import { Badge } from '../components/ui/badge';
 import {
   Table,
@@ -120,6 +121,8 @@ export function PatientsPage() {
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [creatingPatient, setCreatingPatient] = useState(false);
   const [archivingPatient, setArchivingPatient] = useState(false);
+  const [savingPatient, setSavingPatient] = useState(false);
+  const [dischargingId, setDischargingId] = useState<string | null>(null);
   const [archiveTargetId, setArchiveTargetId] = useState<string>('');
 
   const [newPatient, setNewPatient] = useState({
@@ -149,6 +152,7 @@ export function PatientsPage() {
 
   const handleSave = async () => {
     if (editFormData && editingPatientId) {
+      setSavingPatient(true);
       try {
         await patientsApi.updatePatient(editingPatientId, editFormData);
         // 清除共用快取（dosage / compatibility 頁面會重新拉取最新身高體重）
@@ -161,6 +165,8 @@ export function PatientsPage() {
       } catch (err) {
         console.error('更新病人資料失敗:', err);
         toast.error('更新失敗，請稍後再試');
+      } finally {
+        setSavingPatient(false);
       }
     }
   };
@@ -280,6 +286,7 @@ export function PatientsPage() {
     const label = target ? `${target.bedNumber} ${target.name}` : patientId;
     if (!confirm(`⚠️ 確定要出院刪除病患：${label}？\n\n此操作會永久刪除該病人及所有用藥、檢驗、培養、報告等資料，無法復原！`)) return;
 
+    setDischargingId(patientId);
     try {
       await patientsApi.dischargePatient(patientId);
       toast.success(`病患 ${label} 已出院刪除`);
@@ -288,6 +295,8 @@ export function PatientsPage() {
       console.error('出院刪除失敗:', err);
       const errMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       toast.error(errMsg || '出院刪除失敗，請稍後再試');
+    } finally {
+      setDischargingId(null);
     }
   };
 
@@ -472,15 +481,19 @@ export function PatientsPage() {
                   </TableCell>
                   <TableCell className="text-center">
                     {(user?.role === 'admin' || user?.role === 'pharmacist') && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); handleDischargePatient(patient.id); }}
-                        className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
-                        title="出院"
-                      >
-                        <LogOut className="h-4 w-4" />
-                      </Button>
+                      <span className="inline-flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); void handleDischargePatient(patient.id); }}
+                          disabled={dischargingId === patient.id}
+                          className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                          title="出院"
+                        >
+                          <LogOut className="h-4 w-4" />
+                        </Button>
+                        {dischargingId === patient.id ? <ButtonLoadingIndicator compact /> : null}
+                      </span>
                     )}
                   </TableCell>
                 </TableRow>
@@ -504,6 +517,7 @@ export function PatientsPage() {
         onPatientChange={setEditFormData}
         onCancel={handleCancel}
         onSave={handleSave}
+        isSaving={savingPatient}
       />
 
       {/* 新增病患對話框 */}

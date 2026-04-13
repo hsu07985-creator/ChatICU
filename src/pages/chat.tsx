@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
+import { ButtonLoadingIndicator } from '../components/ui/button-loading-indicator';
 import { Badge } from '../components/ui/badge';
 import { Textarea } from '../components/ui/textarea';
 import { ScrollArea } from '../components/ui/scroll-area';
@@ -71,6 +72,8 @@ export function ChatPage() {
   const [mentionsTotalCount, setMentionsTotalCount] = useState(_mentionsCache?.total ?? 0);
   const [expandedPatients, setExpandedPatients] = useState<Set<string>>(new Set());
   const [mentionsUnreadOnly, setMentionsUnreadOnly] = useState(false);
+  const [pinningMessageId, setPinningMessageId] = useState<string | null>(null);
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // 載入訊息（帶快取）
@@ -183,6 +186,7 @@ export function ChatPage() {
 
   // 切換釘選狀態
   const handleTogglePin = async (messageId: string) => {
+    setPinningMessageId(messageId);
     try {
       const result = await togglePinMessage(messageId);
       // 更新本地訊息狀態
@@ -193,16 +197,21 @@ export function ChatPage() {
     } catch (err) {
       console.error('切換釘選狀態失敗:', err);
       toast.error('操作失敗，請稍後再試');
+    } finally {
+      setPinningMessageId(null);
     }
   };
 
   const handleDeleteMessage = async (messageId: string) => {
+    setDeletingMessageId(messageId);
     try {
       await deleteTeamChatMessage(messageId);
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
       toast.success('訊息已刪除');
     } catch {
       toast.error('刪除失敗，請稍後再試');
+    } finally {
+      setDeletingMessageId(null);
     }
   };
 
@@ -286,25 +295,33 @@ export function ChatPage() {
                         </div>
                         <div className="flex items-center gap-1">
                           {/* 釘選按鈕 - hover 時顯示 */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className={`opacity-0 group-hover:opacity-100 transition-opacity ${msg.pinned ? 'text-[#f59e0b]' : 'text-muted-foreground hover:text-[#f59e0b]'}`}
-                            onClick={() => handleTogglePin(msg.id)}
-                            title={msg.pinned ? '取消釘選' : '釘選此訊息'}
-                          >
-                            <Pin className="h-4 w-4" />
-                          </Button>
-                          {user?.role === 'admin' && (
+                          <span className="inline-flex items-center gap-1">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600 hover:bg-red-50"
-                              onClick={() => handleDeleteMessage(msg.id)}
-                              title="刪除訊息"
+                              className={`opacity-0 group-hover:opacity-100 transition-opacity ${msg.pinned ? 'text-[#f59e0b]' : 'text-muted-foreground hover:text-[#f59e0b]'}`}
+                              onClick={() => void handleTogglePin(msg.id)}
+                              disabled={pinningMessageId === msg.id}
+                              title={msg.pinned ? '取消釘選' : '釘選此訊息'}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Pin className="h-4 w-4" />
                             </Button>
+                            {pinningMessageId === msg.id ? <ButtonLoadingIndicator compact /> : null}
+                          </span>
+                          {user?.role === 'admin' && (
+                            <span className="inline-flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600 hover:bg-red-50"
+                                onClick={() => void handleDeleteMessage(msg.id)}
+                                disabled={deletingMessageId === msg.id}
+                                title="刪除訊息"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                              {deletingMessageId === msg.id ? <ButtonLoadingIndicator compact /> : null}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -478,15 +495,19 @@ export function ChatPage() {
                     <div className="space-y-3">
                       {messages.filter(m => m.pinned).map((msg) => (
                         <div key={msg.id} className="group p-3 bg-white dark:bg-slate-900 border border-[#f59e0b] rounded-lg relative">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-[#f59e0b] h-6 w-6 p-0"
-                            onClick={() => handleTogglePin(msg.id)}
-                            title="取消釘選"
-                          >
-                            <Pin className="h-3 w-3" />
-                          </Button>
+                          <span className="absolute top-2 right-2 inline-flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-[#f59e0b] h-6 w-6 p-0"
+                              onClick={() => void handleTogglePin(msg.id)}
+                              disabled={pinningMessageId === msg.id}
+                              title="取消釘選"
+                            >
+                              <Pin className="h-3 w-3" />
+                            </Button>
+                            {pinningMessageId === msg.id ? <ButtonLoadingIndicator compact /> : null}
+                          </span>
                           <div className="font-semibold mb-2 text-foreground">{msg.userName}</div>
                           <p className="text-foreground text-sm leading-relaxed">{msg.content}</p>
                           <p className="text-xs text-muted-foreground mt-2">{formatTimestamp(msg.timestamp)}</p>

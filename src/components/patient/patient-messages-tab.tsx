@@ -4,6 +4,7 @@ import type { UserRole } from '../../lib/auth-context';
 import type { PatientMessage } from '../../lib/api';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
+import { ButtonLoadingIndicator } from '../ui/button-loading-indicator';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../ui/collapsible';
 import { EmptyState } from '../ui/state-display';
@@ -311,6 +312,9 @@ export function PatientMessagesTab({
   const [composeTags, setComposeTags] = useState<string[]>([]);
   const [filterTag, setFilterTag] = useState<string | null>(null);
   const [composeMentionedRoles, setComposeMentionedRoles] = useState<string[]>([]);
+  const [sending, setSending] = useState(false);
+  const [processingMessageId, setProcessingMessageId] = useState<string | null>(null);
+  const [respondingAdviceId, setRespondingAdviceId] = useState<string | null>(null);
 
   const filteredMessages = filterTag
     ? messages.filter((m) => m.tags?.includes(filterTag))
@@ -366,15 +370,49 @@ export function PatientMessagesTab({
     );
   };
 
-  const handleSend = (sendFn: (replyToId?: string, tags?: string[], mentionedRoles?: string[]) => void | Promise<void>) => {
-    sendFn(
-      replyToId ?? undefined,
-      composeTags.length > 0 ? composeTags : undefined,
-      composeMentionedRoles.length > 0 ? composeMentionedRoles : undefined,
-    );
-    setReplyToId(null);
-    setComposeTags([]);
-    setComposeMentionedRoles([]);
+  const handleSend = async (sendFn: (replyToId?: string, tags?: string[], mentionedRoles?: string[]) => void | Promise<void>) => {
+    setSending(true);
+    try {
+      await sendFn(
+        replyToId ?? undefined,
+        composeTags.length > 0 ? composeTags : undefined,
+        composeMentionedRoles.length > 0 ? composeMentionedRoles : undefined,
+      );
+      setReplyToId(null);
+      setComposeTags([]);
+      setComposeMentionedRoles([]);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleMarkRead = async (messageId: string) => {
+    setProcessingMessageId(messageId);
+    try {
+      await onMarkMessageRead(messageId);
+    } finally {
+      setProcessingMessageId(null);
+    }
+  };
+
+  const handleRespondAdvice = async (adviceRecordId: string, accepted: boolean) => {
+    setRespondingAdviceId(adviceRecordId);
+    try {
+      await onRespondToAdvice(adviceRecordId, accepted);
+    } finally {
+      setRespondingAdviceId(null);
+    }
+  };
+
+  const handleDelete = async (messageId: string) => {
+    if (!onDeleteMessage) return;
+
+    setProcessingMessageId(messageId);
+    try {
+      await onDeleteMessage(messageId);
+    } finally {
+      setProcessingMessageId(null);
+    }
   };
 
   return (
@@ -492,12 +530,13 @@ export function PatientMessagesTab({
 
             <div className="flex gap-2">
               <Button
-                onClick={() => handleSend(onSendGeneralMessage)}
+                onClick={() => void handleSend(onSendGeneralMessage)}
                 size="sm"
-                disabled={!messageInput.trim() || !patientId}
+                disabled={sending || !messageInput.trim() || !patientId}
               >
                 <Send className="mr-1.5 h-3.5 w-3.5" />
-                {replyToId ? '發送回覆' : '發送留言'}
+                <span>{sending ? '處理中' : replyToId ? '發送回覆' : '發送留言'}</span>
+                {sending ? <ButtonLoadingIndicator /> : null}
               </Button>
             </div>
           </div>
@@ -716,9 +755,16 @@ export function PatientMessagesTab({
                                 />
                               )}
                               {!message.isRead && (
-                                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => onMarkMessageRead(message.id)}>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  disabled={processingMessageId === message.id}
+                                  onClick={() => void handleMarkRead(message.id)}
+                                >
                                   <CheckCircle2 className="h-3 w-3 mr-1" />
-                                  已讀
+                                  <span>{processingMessageId === message.id ? '處理中' : '已讀'}</span>
+                                  {processingMessageId === message.id ? <ButtonLoadingIndicator compact /> : null}
                                 </Button>
                               )}
                               {message.messageType === 'medication-advice' && message.adviceRecordId && message.adviceAccepted == null && (userRole === 'doctor' || userRole === 'np' || userRole === 'admin') && (
@@ -727,19 +773,23 @@ export function PatientMessagesTab({
                                     variant="ghost"
                                     size="sm"
                                     className="h-7 text-xs text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
-                                    onClick={() => onRespondToAdvice(message.adviceRecordId!, true)}
+                                    disabled={respondingAdviceId === message.adviceRecordId}
+                                    onClick={() => void handleRespondAdvice(message.adviceRecordId!, true)}
                                   >
                                     <ThumbsUp className="h-3 w-3 mr-1" />
-                                    接受建議
+                                    <span>{respondingAdviceId === message.adviceRecordId ? '處理中' : '接受建議'}</span>
+                                    {respondingAdviceId === message.adviceRecordId ? <ButtonLoadingIndicator compact /> : null}
                                   </Button>
                                   <Button
                                     variant="ghost"
                                     size="sm"
                                     className="h-7 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
-                                    onClick={() => onRespondToAdvice(message.adviceRecordId!, false)}
+                                    disabled={respondingAdviceId === message.adviceRecordId}
+                                    onClick={() => void handleRespondAdvice(message.adviceRecordId!, false)}
                                   >
                                     <ThumbsDown className="h-3 w-3 mr-1" />
-                                    不接受
+                                    <span>{respondingAdviceId === message.adviceRecordId ? '處理中' : '不接受'}</span>
+                                    {respondingAdviceId === message.adviceRecordId ? <ButtonLoadingIndicator compact /> : null}
                                   </Button>
                                 </>
                               )}
@@ -748,10 +798,12 @@ export function PatientMessagesTab({
                                   variant="ghost"
                                   size="sm"
                                   className="h-7 text-xs text-red-500 hover:bg-red-50 hover:text-red-700"
-                                  onClick={() => onDeleteMessage(message.id)}
+                                  disabled={processingMessageId === message.id}
+                                  onClick={() => void handleDelete(message.id)}
                                 >
                                   <Trash2 className="h-3 w-3 mr-1" />
-                                  刪除
+                                  <span>{processingMessageId === message.id ? '處理中' : '刪除'}</span>
+                                  {processingMessageId === message.id ? <ButtonLoadingIndicator compact /> : null}
                                 </Button>
                               )}
                             </div>
@@ -771,7 +823,7 @@ export function PatientMessagesTab({
                             </div>
                             {(message.tags?.length ?? 0) > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1.5">
-                                {message.tags.map((tag) => (
+                                {(message.tags ?? []).map((tag) => (
                                   <Badge
                                     key={tag}
                                     variant="outline"
@@ -793,13 +845,13 @@ export function PatientMessagesTab({
                                 ))}
                               </div>
                             )}
-                            {message.replyCount > 0 && (
+                            {(message.replyCount ?? 0) > 0 && (
                               <button
                                 className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline mt-2"
                                 onClick={() => toggleThread(message.id)}
                               >
                                 <MessagesSquare className="h-3.5 w-3.5" />
-                                {isThreadExpanded ? '收起回覆' : `${message.replyCount} 則回覆`}
+                                {isThreadExpanded ? '收起回覆' : `${message.replyCount ?? 0} 則回覆`}
                               </button>
                             )}
                           </div>

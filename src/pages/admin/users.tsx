@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { getUsers, createUser, updateUser as updateUserApi, UsersResponse, User as ApiUser } from '../../lib/api/admin';
 import { Button } from '../../components/ui/button';
+import { ButtonLoadingIndicator } from '../../components/ui/button-loading-indicator';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -149,6 +150,8 @@ export function UsersPage() {
   };
 
   const [submitting, setSubmitting] = useState(false);
+  const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   const handleAddUser = async () => {
     if (!newUser.username || !newUser.name || !newUser.password) {
@@ -216,12 +219,15 @@ export function UsersPage() {
 
     const newActive = !user.active;
 
+    setTogglingUserId(userId);
     try {
       await updateUserApi(userId, { active: newActive });
       toast.success(`已${newActive ? '啟用' : '停用'}帳號 ${user.username}`);
       await loadData();
     } catch (error: unknown) {
       toast.error(getApiErrorMessage(error, '更新狀態失敗'));
+    } finally {
+      setTogglingUserId(null);
     }
   };
 
@@ -231,6 +237,7 @@ export function UsersPage() {
     const user = users.find(u => u.id === userId);
     if (!user) return;
 
+    setDeletingUserId(userId);
     try {
       // 使用 active=false 來「刪除」帳號（軟刪除）
       await updateUserApi(userId, { active: false });
@@ -238,6 +245,8 @@ export function UsersPage() {
       await loadData();
     } catch (error: unknown) {
       toast.error(getApiErrorMessage(error, '停用帳號失敗'));
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
@@ -354,27 +363,33 @@ export function UsersPage() {
                       >
                         <Edit2 className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggleStatus(user.id)}
-                        disabled={user.role === 'admin'}
-                      >
-                        {user.active ? (
-                          <Lock className="h-4 w-4" />
-                        ) : (
-                          <Unlock className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteUser(user.id)}
-                        disabled={user.role === 'admin'}
-                        className="text-red-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <span className="inline-flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void handleToggleStatus(user.id)}
+                          disabled={user.role === 'admin' || togglingUserId === user.id}
+                        >
+                          {user.active ? (
+                            <Lock className="h-4 w-4" />
+                          ) : (
+                            <Unlock className="h-4 w-4" />
+                          )}
+                        </Button>
+                        {togglingUserId === user.id ? <ButtonLoadingIndicator compact /> : null}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void handleDeleteUser(user.id)}
+                          disabled={user.role === 'admin' || deletingUserId === user.id}
+                          className="text-red-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        {deletingUserId === user.id ? <ButtonLoadingIndicator compact /> : null}
+                      </span>
                     </div>
                   </TableCell>
                 </TableRow>

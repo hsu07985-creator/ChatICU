@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Separator } from '../../components/ui/separator';
 import { ScrollArea } from '../../components/ui/scroll-area';
+import { ButtonLoadingIndicator } from '../../components/ui/button-loading-indicator';
 import { AssessmentResultsPanel } from './workstation/assessment-results-panel';
 import { PharmacyReportView } from './workstation/pharmacy-report-view';
 import { AdviceSubmitDialog } from './workstation/advice-submit-dialog';
@@ -807,7 +808,8 @@ export function PharmacyWorkstationPage() {
                   className="w-full h-12 bg-brand hover:bg-brand-hover"
                   size="lg"
                 >
-                  {isAssessing ? '評估中...' : '執行全面評估'}
+                  <span>{isAssessing ? '處理中' : '執行全面評估'}</span>
+                  {isAssessing ? <ButtonLoadingIndicator /> : null}
                 </Button>
 
                 <p className="text-xs text-muted-foreground text-center">

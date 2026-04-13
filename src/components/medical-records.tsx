@@ -13,6 +13,7 @@ import { copyToClipboard } from '../lib/clipboard-utils';
 import { useAuth } from '../lib/auth-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Button } from './ui/button';
+import { ButtonLoadingIndicator } from './ui/button-loading-indicator';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
@@ -162,6 +163,10 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
   const [polishedContent, setPolishedContent] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [isPolishing, setIsPolishing] = useState(false);
+  const [isSavingRecord, setIsSavingRecord] = useState(false);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [deletingTemplateName, setDeletingTemplateName] = useState<string | null>(null);
+  const [updatingTemplateName, setUpdatingTemplateName] = useState<string | null>(null);
   const [records, setRecords] = useState<MedicalRecord[]>(() => loadRecords(patientId));
 
   // Server-backed custom templates
@@ -234,6 +239,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
     const contentToSave = polishedContent || inputContent;
     const authorName = user?.name || user?.username || '未知';
 
+    setIsSavingRecord(true);
     try {
       await sendMessage(patientId, {
         content: contentToSave,
@@ -255,6 +261,8 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
       toast.success('病歷記錄已儲存！');
     } catch {
       toast.error('儲存病歷記錄失敗，請稍後再試');
+    } finally {
+      setIsSavingRecord(false);
     }
   };
 
@@ -263,6 +271,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
     if (!name) { toast.error('請輸入模板名稱'); return; }
     if (!newTemplateContent.trim()) { toast.error('請輸入模板內容'); return; }
     if (name in BUILTIN_TEMPLATES[recordType]) { toast.error(`「${name}」與內建模板名稱重複，請使用其他名稱`); return; }
+    setIsSavingTemplate(true);
     try {
       const roleMap: Record<string, RecordTemplate['roleScope']> = {
         doctor: 'doctor', np: 'np', nurse: 'nurse', pharmacist: 'pharmacist', admin: 'admin',
@@ -280,6 +289,8 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
       fetchTemplates(recordType as RecordTemplateType);
     } catch {
       toast.error('儲存模板失敗，請稍後再試');
+    } finally {
+      setIsSavingTemplate(false);
     }
   };
 
@@ -287,6 +298,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
     const tpl = serverTemplates.find((t) => t.name === name);
     if (!tpl) { toast.error('無法刪除內建模板'); return; }
     if (!tpl.canDelete) { toast.error('您沒有刪除此模板的權限'); return; }
+    setDeletingTemplateName(name);
     try {
       await deleteRecordTemplate(tpl.id);
       if (selectedTemplate === name) setSelectedTemplate('');
@@ -294,6 +306,24 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
       fetchTemplates(recordType as RecordTemplateType);
     } catch {
       toast.error('刪除模板失敗，請稍後再試');
+    } finally {
+      setDeletingTemplateName(null);
+    }
+  };
+
+  const handleUpdateTemplate = async (name: string) => {
+    const tpl = serverTemplates.find((template) => template.name === name);
+    if (!tpl) return;
+
+    setUpdatingTemplateName(name);
+    try {
+      await updateRecordTemplate(tpl.id, { content: inputContent });
+      toast.success(`模板「${name}」已更新`);
+      fetchTemplates(recordType as RecordTemplateType);
+    } catch {
+      toast.error('更新模板失敗，請稍後再試');
+    } finally {
+      setUpdatingTemplateName(null);
     }
   };
 
@@ -394,20 +424,25 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                       size="sm"
                       className="shrink-0"
                       onClick={() => setShowNewTemplate(!showNewTemplate)}
+                      disabled={isSavingTemplate}
                       title="新增自訂模板"
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
                     {selectedTemplate && customTemplateNames.includes(selectedTemplate) && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="shrink-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-                        onClick={() => handleDeleteTemplate(selectedTemplate)}
-                        title={`刪除自訂模板「${selectedTemplate}」`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <span className="inline-flex shrink-0 items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                          disabled={deletingTemplateName === selectedTemplate}
+                          onClick={() => void handleDeleteTemplate(selectedTemplate)}
+                          title={`刪除自訂模板「${selectedTemplate}」`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        {deletingTemplateName === selectedTemplate ? <ButtonLoadingIndicator compact /> : null}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -430,8 +465,11 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                       className="min-h-[100px] border-slate-300 dark:border-slate-600"
                     />
                     <div className="flex items-center gap-2">
-                      <Button size="sm" onClick={handleSaveAsTemplate}>儲存模板</Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setShowNewTemplate(false); setNewTemplateName(''); setNewTemplateContent(''); }}>取消</Button>
+                      <Button size="sm" onClick={handleSaveAsTemplate} disabled={isSavingTemplate}>
+                        <span>{isSavingTemplate ? '處理中' : '儲存模板'}</span>
+                        {isSavingTemplate ? <ButtonLoadingIndicator /> : null}
+                      </Button>
+                      <Button size="sm" variant="ghost" disabled={isSavingTemplate} onClick={() => { setShowNewTemplate(false); setNewTemplateName(''); setNewTemplateContent(''); }}>取消</Button>
                     </div>
                     {customTemplateNames.length > 0 && (
                       <div className="border-t border-slate-200 dark:border-slate-700 pt-2 mt-1">
@@ -443,7 +481,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                               <button
                                 type="button"
                                 className="ml-0.5 text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"
-                                onClick={() => handleDeleteTemplate(name)}
+                                onClick={() => void handleDeleteTemplate(name)}
                                 title={`刪除模板「${name}」`}
                               >
                                 <Trash2 className="h-3 w-3" />
@@ -470,20 +508,12 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                       size="sm"
                       variant="outline"
                       className="mt-2 border-blue-300 text-blue-600 hover:bg-blue-50"
-                      onClick={async () => {
-                        const tpl = serverTemplates.find((t) => t.name === selectedTemplate);
-                        if (!tpl) return;
-                        try {
-                          await updateRecordTemplate(tpl.id, { content: inputContent });
-                          toast.success(`模板「${selectedTemplate}」已更新`);
-                          fetchTemplates(recordType as RecordTemplateType);
-                        } catch {
-                          toast.error('更新模板失敗，請稍後再試');
-                        }
-                      }}
+                      disabled={updatingTemplateName === selectedTemplate}
+                      onClick={() => void handleUpdateTemplate(selectedTemplate)}
                     >
                       <Save className="mr-1.5 h-3.5 w-3.5" />
-                      儲存為模板更新
+                      <span>{updatingTemplateName === selectedTemplate ? '處理中' : '儲存為模板更新'}</span>
+                      {updatingTemplateName === selectedTemplate ? <ButtonLoadingIndicator /> : null}
                     </Button>
                   )}
                 </div>
@@ -530,10 +560,12 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                   </Button>
                   <Button
                     onClick={handleSaveRecord}
+                    disabled={isSavingRecord}
                     className="bg-brand hover:bg-brand-hover"
                   >
                     <Send className="mr-2 h-4 w-4" />
-                    儲存記錄
+                    <span>{isSavingRecord ? '處理中' : '儲存記錄'}</span>
+                    {isSavingRecord ? <ButtonLoadingIndicator /> : null}
                   </Button>
                   <Button
                     variant="outline"

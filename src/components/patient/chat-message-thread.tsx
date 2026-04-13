@@ -18,6 +18,7 @@ import type { Citation as AiCitation, DataFreshness } from '../../lib/api/ai';
 import type { SessionChatMessage } from '../../hooks/use-chat-sessions';
 import { DrugInteractionBadges } from './drug-interaction-badges';
 import { ExpertReviewWarning } from './expert-review-warning';
+import { ButtonLoadingIndicator } from '../ui/button-loading-indicator';
 
 interface ChatMessageThreadProps {
   chatMessages: SessionChatMessage[];
@@ -41,6 +42,8 @@ interface ChatMessageThreadProps {
   avatarSrc: string;
   onSetMessageFeedback: (msgIndex: number, feedback: 'up' | 'down' | null) => void;
   onRegenerateMessage: (msgIndex: number) => void;
+  feedbackingMessageIndex?: number | null;
+  regeneratingMessageIndex?: number | null;
 }
 
 export function ChatMessageThread({
@@ -65,6 +68,8 @@ export function ChatMessageThread({
   avatarSrc,
   onSetMessageFeedback,
   onRegenerateMessage,
+  feedbackingMessageIndex = null,
+  regeneratingMessageIndex = null,
 }: ChatMessageThreadProps) {
   return (
     <div
@@ -93,6 +98,8 @@ export function ChatMessageThread({
           const isQualityExpanded = expandedDataQuality.has(idx);
           const isFirstOfRound =
             idx > 0 && msg.role === 'user' && chatMessages[idx - 1].role === 'assistant';
+          const isProcessingFeedback = feedbackingMessageIndex === idx;
+          const isRegenerating = regeneratingMessageIndex === idx;
 
           return (
             <div
@@ -304,35 +311,47 @@ export function ChatMessageThread({
                           >
                             <Copy className="h-3 w-3" />
                           </button>
-                          <button
-                            onClick={() => onSetMessageFeedback(idx, 'up')}
-                            className={`flex items-center gap-0.5 transition-colors ${
-                              msg.feedback === 'up'
-                                ? 'text-green-600'
-                                : 'hover:text-[#4B5563]'
-                            }`}
-                            aria-label="讚"
-                          >
-                            <ThumbsUp className="h-3 w-3" />
-                          </button>
-                          <button
-                            onClick={() => onSetMessageFeedback(idx, 'down')}
-                            className={`flex items-center gap-0.5 transition-colors ${
-                              msg.feedback === 'down'
-                                ? 'text-red-500'
-                                : 'hover:text-[#4B5563]'
-                            }`}
-                            aria-label="倒讚"
-                          >
-                            <ThumbsDown className="h-3 w-3" />
-                          </button>
-                          <button
-                            onClick={() => onRegenerateMessage(idx)}
-                            className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
-                            aria-label="重新生成"
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                          </button>
+                          <span className="inline-flex items-center gap-1">
+                            <button
+                              onClick={() => onSetMessageFeedback(idx, 'up')}
+                              className={`flex items-center gap-0.5 transition-colors ${
+                                msg.feedback === 'up'
+                                  ? 'text-green-600'
+                                  : 'hover:text-[#4B5563]'
+                              }`}
+                              aria-label="讚"
+                              disabled={isProcessingFeedback || isRegenerating}
+                            >
+                              <ThumbsUp className="h-3 w-3" />
+                            </button>
+                            {isProcessingFeedback ? <ButtonLoadingIndicator compact /> : null}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <button
+                              onClick={() => onSetMessageFeedback(idx, 'down')}
+                              className={`flex items-center gap-0.5 transition-colors ${
+                                msg.feedback === 'down'
+                                  ? 'text-red-500'
+                                  : 'hover:text-[#4B5563]'
+                              }`}
+                              aria-label="倒讚"
+                              disabled={isProcessingFeedback || isRegenerating}
+                            >
+                              <ThumbsDown className="h-3 w-3" />
+                            </button>
+                            {isProcessingFeedback ? <ButtonLoadingIndicator compact /> : null}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <button
+                              onClick={() => onRegenerateMessage(idx)}
+                              className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
+                              aria-label="重新生成"
+                              disabled={isProcessingFeedback || isRegenerating || isSending}
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                            </button>
+                            {isRegenerating ? <ButtonLoadingIndicator compact /> : null}
+                          </span>
                         </div>
                       )}
                     </div>

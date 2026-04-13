@@ -26,6 +26,7 @@ import { useAiReadiness } from '../hooks/use-ai-readiness';
 import { useTrendChart, type TrendSource } from '../hooks/use-trend-chart';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
+import { ButtonLoadingIndicator } from '../components/ui/button-loading-indicator';
 import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -397,6 +398,11 @@ export function PatientDetailPage() {
   const [isSending, setIsSending] = useState(false);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
+  const [isStartingSession, setIsStartingSession] = useState(false);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const [isDeletingSessions, setIsDeletingSessions] = useState(false);
+  const [feedbackingMessageIndex, setFeedbackingMessageIndex] = useState<number | null>(null);
+  const [regeneratingMessageIndex, setRegeneratingMessageIndex] = useState<number | null>(null);
 
   // AI 狀態（hook）
   const { ragStatus, aiReadiness, isCheckingAiReadiness, refreshAiReadiness } = useAiReadiness();
@@ -408,8 +414,10 @@ export function PatientDetailPage() {
 
   // 編輯病人資料
   const [editingPatient, setEditingPatient] = useState<PatientWithFrontendFields | null>(null);
+  const [savingPatient, setSavingPatient] = useState(false);
   const handleEditSave = async () => {
     if (!editingPatient || !patient) return;
+    setSavingPatient(true);
     try {
       const updated = await patientsApi.updatePatient(patient.id, editingPatient);
       setPatient(updated as PatientWithFrontendFields);
@@ -417,6 +425,8 @@ export function PatientDetailPage() {
       toast.success('病人資料已更新');
     } catch {
       toast.error('更新失敗，請稍後再試');
+    } finally {
+      setSavingPatient(false);
     }
   };
 
@@ -840,6 +850,7 @@ export function PatientDetailPage() {
   const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
     if (!confirm('確定要刪除此對話記錄嗎？')) return;
+    setDeletingSessionId(sessionId);
     try {
       await deleteChatSession(sessionId);
       if (selectedSession?.id === sessionId) {
@@ -851,12 +862,15 @@ export function PatientDetailPage() {
       toast.success('對話記錄已刪除');
     } catch {
       toast.error('刪除對話記錄失敗');
+    } finally {
+      setDeletingSessionId(null);
     }
   };
 
   const handleBatchDelete = async () => {
     if (selectedSessionIds.length === 0) return;
     if (!confirm(`確定要刪除所選的 ${selectedSessionIds.length} 筆對話記錄嗎？`)) return;
+    setIsDeletingSessions(true);
     try {
       const ids = [...selectedSessionIds];
       await Promise.all(ids.map(id => deleteChatSession(id)));
@@ -871,6 +885,19 @@ export function PatientDetailPage() {
       toast.success(`已刪除 ${ids.length} 筆對話記錄`);
     } catch {
       toast.error('部分對話記錄刪除失敗');
+    } finally {
+      setIsDeletingSessions(false);
+    }
+  };
+
+  const handleStartNewSession = async () => {
+    setIsStartingSession(true);
+    try {
+      setSelectedSession(null);
+      setChatMessages([]);
+      setSessionTitle('');
+    } finally {
+      setIsStartingSession(false);
     }
   };
 
@@ -1006,6 +1033,7 @@ export function PatientDetailPage() {
   const handleSetMessageFeedback = async (msgIndex: number, feedback: 'up' | 'down' | null) => {
     const msg = chatMessages[msgIndex];
     if (!msg || msg.role !== 'assistant' || !msg.messageId) return;
+    if (feedbackingMessageIndex !== null || regeneratingMessageIndex !== null) return;
 
     const newFeedback = msg.feedback === feedback ? null : feedback;
     setChatMessages((prev) => {
@@ -1013,6 +1041,7 @@ export function PatientDetailPage() {
       next[msgIndex] = { ...next[msgIndex], feedback: newFeedback };
       return next;
     });
+    setFeedbackingMessageIndex(msgIndex);
     try {
       await updateMessageFeedback(msg.messageId, newFeedback);
     } catch {
@@ -1022,11 +1051,13 @@ export function PatientDetailPage() {
         return next;
       });
       toast.error('回饋儲存失敗');
+    } finally {
+      setFeedbackingMessageIndex(null);
     }
   };
 
   const handleRegenerateMessage = async (msgIndex: number) => {
-    if (isSending) return;
+    if (isSending || feedbackingMessageIndex !== null || regeneratingMessageIndex !== null) return;
     const assistantMsg = chatMessages[msgIndex];
     if (!assistantMsg || assistantMsg.role !== 'assistant') return;
 
@@ -1042,6 +1073,7 @@ export function PatientDetailPage() {
     const messagesBeforeAssistant = chatMessages.slice(0, msgIndex);
     setChatMessages([...messagesBeforeAssistant, { role: 'assistant', content: '' }]);
     setIsSending(true);
+    setRegeneratingMessageIndex(msgIndex);
 
     try {
       const response = await new Promise<ChatResponse>((resolve, reject) => {
@@ -1092,6 +1124,7 @@ export function PatientDetailPage() {
       ]);
     } finally {
       setIsSending(false);
+      setRegeneratingMessageIndex(null);
     }
   };
 
@@ -1294,14 +1327,12 @@ export function PatientDetailPage() {
                           <Button
                             size="sm"
                             className="h-6 px-2 text-xs bg-gray-700 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500 text-white"
-                            onClick={() => {
-                              setSelectedSession(null);
-                              setChatMessages([]);
-                              setSessionTitle('');
-                            }}
+                            onClick={() => void handleStartNewSession()}
+                            disabled={isStartingSession}
                           >
                             <Plus className="h-3 w-3 mr-1" />
-                            新對話
+                            <span>{isStartingSession ? '處理中' : '新對話'}</span>
+                            {isStartingSession ? <ButtonLoadingIndicator compact /> : null}
                           </Button>
                         )}
                       </div>
@@ -1326,11 +1357,12 @@ export function PatientDetailPage() {
                           size="sm"
                           variant="destructive"
                           className="h-6 px-2 text-xs"
-                          disabled={selectedSessionIds.length === 0}
-                          onClick={handleBatchDelete}
+                          disabled={isDeletingSessions || selectedSessionIds.length === 0}
+                          onClick={() => void handleBatchDelete()}
                         >
                           <Trash2 className="h-3 w-3 mr-1" />
-                          刪除 ({selectedSessionIds.length})
+                          <span>{isDeletingSessions ? '處理中' : `刪除 (${selectedSessionIds.length})`}</span>
+                          {isDeletingSessions ? <ButtonLoadingIndicator compact /> : null}
                         </Button>
                       </div>
                     )}
@@ -1421,13 +1453,17 @@ export function PatientDetailPage() {
 	                                  <Badge className="text-xs bg-gray-100 dark:bg-gray-700 text-[#374151] dark:text-gray-200 border border-border">
 	                                    {session.messageCount ?? session.messages.length}
 	                                  </Badge>
-                                    <button
-                                      onClick={(e) => handleDeleteSession(e, session.id)}
-                                      className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
-                                      title="刪除對話"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </button>
+                                    <span className="inline-flex items-center gap-1">
+                                      <button
+                                        onClick={(e) => void handleDeleteSession(e, session.id)}
+                                        disabled={deletingSessionId === session.id}
+                                        className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 disabled:opacity-100 disabled:text-red-600"
+                                        title="刪除對話"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                      {deletingSessionId === session.id ? <ButtonLoadingIndicator compact /> : null}
+                                    </span>
                                   </div>
                                 )}
                               </div>
@@ -1645,32 +1681,43 @@ export function PatientDetailPage() {
                                       >
                                         <Copy className="h-3 w-3" />
                                       </button>
-                                      <button
-                                        onClick={() => void handleSetMessageFeedback(idx, 'up')}
-                                        className={`flex items-center gap-0.5 transition-colors ${
-                                          msg.feedback === 'up' ? 'text-green-600' : 'hover:text-[#4B5563]'
-                                        }`}
-                                        aria-label="讚"
-                                      >
-                                        <ThumbsUp className="h-3 w-3" />
-                                      </button>
-                                      <button
-                                        onClick={() => void handleSetMessageFeedback(idx, 'down')}
-                                        className={`flex items-center gap-0.5 transition-colors ${
-                                          msg.feedback === 'down' ? 'text-red-500' : 'hover:text-[#4B5563]'
-                                        }`}
-                                        aria-label="倒讚"
-                                      >
-                                        <ThumbsDown className="h-3 w-3" />
-                                      </button>
-                                      <button
-                                        onClick={() => void handleRegenerateMessage(idx)}
-                                        className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
-                                        aria-label="重新生成"
-                                        disabled={isSending}
-                                      >
-                                        <RefreshCw className={`h-3 w-3 ${isSending ? 'opacity-40' : ''}`} />
-                                      </button>
+                                      <span className="inline-flex items-center gap-1">
+                                        <button
+                                          onClick={() => void handleSetMessageFeedback(idx, 'up')}
+                                          className={`flex items-center gap-0.5 transition-colors ${
+                                            msg.feedback === 'up' ? 'text-green-600' : 'hover:text-[#4B5563]'
+                                          }`}
+                                          aria-label="讚"
+                                          disabled={feedbackingMessageIndex === idx || regeneratingMessageIndex === idx}
+                                        >
+                                          <ThumbsUp className="h-3 w-3" />
+                                        </button>
+                                        {feedbackingMessageIndex === idx ? <ButtonLoadingIndicator compact /> : null}
+                                      </span>
+                                      <span className="inline-flex items-center gap-1">
+                                        <button
+                                          onClick={() => void handleSetMessageFeedback(idx, 'down')}
+                                          className={`flex items-center gap-0.5 transition-colors ${
+                                            msg.feedback === 'down' ? 'text-red-500' : 'hover:text-[#4B5563]'
+                                          }`}
+                                          aria-label="倒讚"
+                                          disabled={feedbackingMessageIndex === idx || regeneratingMessageIndex === idx}
+                                        >
+                                          <ThumbsDown className="h-3 w-3" />
+                                        </button>
+                                        {feedbackingMessageIndex === idx ? <ButtonLoadingIndicator compact /> : null}
+                                      </span>
+                                      <span className="inline-flex items-center gap-1">
+                                        <button
+                                          onClick={() => void handleRegenerateMessage(idx)}
+                                          className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
+                                          aria-label="重新生成"
+                                          disabled={isSending || feedbackingMessageIndex === idx || regeneratingMessageIndex === idx}
+                                        >
+                                          <RefreshCw className={`h-3 w-3 ${isSending || regeneratingMessageIndex === idx ? 'opacity-40' : ''}`} />
+                                        </button>
+                                        {regeneratingMessageIndex === idx ? <ButtonLoadingIndicator compact /> : null}
+                                      </span>
                                     </div>
                                   )}
                                 </div>
@@ -1862,6 +1909,7 @@ export function PatientDetailPage() {
         onPatientChange={setEditingPatient}
         onCancel={() => setEditingPatient(null)}
         onSave={handleEditSave}
+        isSaving={savingPatient}
       />
     </div>
   );

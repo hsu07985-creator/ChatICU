@@ -1,6 +1,7 @@
 import { Edit2, Save, X } from 'lucide-react';
 import { ICU_DEPARTMENTS, type PatientWithFrontendFields } from '../../../features/patients/types';
 import { Button } from '../../ui/button';
+import { ButtonLoadingIndicator } from '../../ui/button-loading-indicator';
 import { Checkbox } from '../../ui/checkbox';
 import {
   Dialog,
@@ -19,6 +20,7 @@ interface PatientEditDialogProps {
   onPatientChange: (patient: PatientWithFrontendFields) => void;
   onCancel: () => void;
   onSave: () => void;
+  isSaving?: boolean;
 }
 
 export function PatientEditDialog({
@@ -26,6 +28,7 @@ export function PatientEditDialog({
   onPatientChange,
   onCancel,
   onSave,
+  isSaving = false,
 }: PatientEditDialogProps) {
   if (!patient) {
     return null;
@@ -252,13 +255,14 @@ export function PatientEditDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onCancel}>
+          <Button variant="outline" onClick={onCancel} disabled={isSaving}>
             <X className="mr-2 h-4 w-4" />
             取消
           </Button>
-          <Button onClick={onSave} className="bg-brand hover:bg-brand-hover">
+          <Button onClick={onSave} className="bg-brand hover:bg-brand-hover" disabled={isSaving}>
             <Save className="mr-2 h-4 w-4" />
-            儲存變更
+            <span>{isSaving ? '處理中' : '儲存變更'}</span>
+            {isSaving ? <ButtonLoadingIndicator /> : null}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type React from 'react';
 import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Info, MessageSquare, Plus, Send, Trash2 } from 'lucide-react';
 import type { Citation as AiCitation, DataFreshness } from '../../lib/api/ai';
@@ -16,6 +16,7 @@ import {
 } from '../ui/alert-dialog';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
+import { ButtonLoadingIndicator } from '../ui/button-loading-indicator';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { ScrollArea } from '../ui/scroll-area';
 import { TabsContent } from '../ui/tabs';
@@ -66,6 +67,8 @@ interface PatientChatTabProps {
   onSendMessage: () => void | Promise<void>;
   onSetMessageFeedback: (msgIndex: number, feedback: 'up' | 'down' | null) => void;
   onRegenerateMessage: (msgIndex: number) => void;
+  feedbackingMessageIndex?: number | null;
+  regeneratingMessageIndex?: number | null;
 }
 
 export function PatientChatTab({
@@ -110,11 +113,23 @@ export function PatientChatTab({
   onSendMessage,
   onSetMessageFeedback,
   onRegenerateMessage,
+  feedbackingMessageIndex = null,
+  regeneratingMessageIndex = null,
 }: PatientChatTabProps) {
+  const [startingSession, setStartingSession] = useState(false);
   const deleteTargetSession = useMemo(
     () => chatSessions.find((session) => session.id === deleteSessionTargetId) || null,
     [chatSessions, deleteSessionTargetId],
   );
+
+  const handleStartSession = async () => {
+    setStartingSession(true);
+    try {
+      await Promise.resolve(onStartNewSession());
+    } finally {
+      setStartingSession(false);
+    }
+  };
 
   const now = new Date();
   const todayDateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -145,10 +160,12 @@ export function PatientChatTab({
                     <Button
                       size="sm"
                       className="h-7 px-2.5 text-xs bg-gray-700 hover:bg-gray-700 text-white"
-                      onClick={onStartNewSession}
+                      onClick={() => void handleStartSession()}
+                      disabled={startingSession}
                     >
                       <Plus className="mr-1 h-3 w-3" />
-                      新對話
+                      <span>{startingSession ? '處理中' : '新對話'}</span>
+                      {startingSession ? <ButtonLoadingIndicator /> : null}
                     </Button>
                   </div>
                 </div>
@@ -195,16 +212,19 @@ export function PatientChatTab({
                               <Badge className="h-5 min-w-[1.5rem] justify-center border border-border bg-gray-100 dark:bg-slate-800 px-1.5 text-xs text-[#374151] dark:text-slate-300">
                                 {session.messageCount ?? session.messages.length}
                               </Badge>
-                              <button
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  void onDeleteSession(session.id);
-                                }}
-                                className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-red-100 hover:text-red-600 group-hover:opacity-100"
-                                title="刪除對話"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                              <span className="inline-flex items-center gap-1">
+                                <button
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    void onDeleteSession(session.id);
+                                  }}
+                                  className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-red-100 hover:text-red-600 group-hover:opacity-100"
+                                  title="刪除對話"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                                {deletingSession && deleteSessionTargetId === session.id ? <ButtonLoadingIndicator compact /> : null}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -291,6 +311,8 @@ export function PatientChatTab({
                   avatarSrc={avatarSrc}
                   onSetMessageFeedback={onSetMessageFeedback}
                   onRegenerateMessage={onRegenerateMessage}
+                  feedbackingMessageIndex={feedbackingMessageIndex}
+                  regeneratingMessageIndex={regeneratingMessageIndex}
                 />
 
                 {/* 輸入區 */}
@@ -359,7 +381,8 @@ export function PatientChatTab({
                 void onConfirmDeleteSession();
               }}
             >
-              {deletingSession ? '刪除中...' : '確認刪除'}
+              <span>{deletingSession ? '處理中' : '確認刪除'}</span>
+              {deletingSession ? <ButtonLoadingIndicator /> : null}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
