@@ -7,23 +7,14 @@ const _MAIN_MARKERS = ['【主回答】', '主回答：', '主回答:'];
 const _DETAIL_MARKERS = ['【說明/補充】', '【說明】', '說明/補充：', '說明：', '補充：'];
 
 /**
- * Extract only the main answer from raw streaming text, stripping LLM
- * section markers and cutting before the detail/explanation section.
- * This lets the frontend display clean content during streaming instead
- * of showing raw markers that get replaced on the `done` event.
+ * Strip legacy LLM section prefix markers (e.g. 【主回答】) from streaming text.
+ * The detail section (【說明/補充】) is shown inline, so we no longer cut it out.
  */
 export function extractStreamMainContent(rawText: string): string {
   let text = rawText;
   for (const m of _MAIN_MARKERS) {
     if (text.startsWith(m)) {
       text = text.slice(m.length);
-      break;
-    }
-  }
-  for (const m of _DETAIL_MARKERS) {
-    const idx = text.indexOf(m);
-    if (idx >= 0) {
-      text = text.slice(0, idx);
       break;
     }
   }
