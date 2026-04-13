@@ -56,7 +56,7 @@ export function ButtonLoadingIndicator({
     return () => window.clearInterval(timer);
   }, [intervalMs]);
 
-  const iconSizeClass = compact ? 'h-3 w-3' : 'h-3.5 w-3.5';
+  const iconSizeClass = compact ? 'h-3.5 w-3.5' : 'h-4 w-4';
   const containerGapClass = compact ? 'gap-0.5' : 'gap-1';
 
   return (
