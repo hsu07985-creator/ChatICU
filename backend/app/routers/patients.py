@@ -346,11 +346,23 @@ async def update_patient(
             logger.warning("intubation_date savepoint setup failed: %s", exc)
 
     # Auto-calculate ventilator_days from intubation_date
-    intub_dates = await _fetch_intubation_dates(db, [pid])
-    intub_date = intub_dates.get(pid)
-    if intub_date and patient.intubated:
+    # Use intub_date_val directly when provided (more reliable than re-fetching via raw SQL)
+    from datetime import date as _date
+    intub_date_for_resp = None
+    if intub_date_val is not None:
+        # Just saved this value — use it directly without re-querying
+        intub_date_for_resp = (
+            intub_date_val if isinstance(intub_date_val, _date)
+            else _date.fromisoformat(str(intub_date_val))
+        )
+    else:
+        # intubation_date not changed in this request — fetch current value
+        intub_dates = await _fetch_intubation_dates(db, [pid])
+        intub_date_for_resp = intub_dates.get(pid)
+
+    if intub_date_for_resp and patient.intubated:
         today = datetime.now(timezone.utc).date()
-        patient.ventilator_days = max((today - intub_date).days, 0)
+        patient.ventilator_days = max((today - intub_date_for_resp).days, 0)
 
     patient.last_update = datetime.now(timezone.utc)
 
@@ -368,7 +380,7 @@ async def update_patient(
         details={"fields_changed": list(update_data.keys())},
     )
 
-    return success_response(data=patient_to_dict(patient, intubation_date=intub_date), message="病患資料已更新")
+    return success_response(data=patient_to_dict(patient, intubation_date=intub_date_for_resp), message="病患資料已更新")
 
 
 @router.patch("/{patient_id}/archive")

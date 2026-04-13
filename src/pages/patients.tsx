@@ -151,6 +151,8 @@ export function PatientsPage() {
     if (editFormData && editingPatientId) {
       try {
         await patientsApi.updatePatient(editingPatientId, editFormData);
+        // 清除共用快取（dosage / compatibility 頁面會重新拉取最新身高體重）
+        await invalidatePatients();
         // 重新載入列表以獲取最新資料
         await fetchPatients();
         setEditingPatientId(null);

@@ -398,6 +398,17 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
+                    {selectedTemplate && customTemplateNames.includes(selectedTemplate) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                        onClick={() => handleDeleteTemplate(selectedTemplate)}
+                        title={`刪除自訂模板「${selectedTemplate}」`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
 

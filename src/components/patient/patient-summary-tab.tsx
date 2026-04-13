@@ -318,7 +318,7 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: Pat
     { label: '身高', value: patient.height ? `${patient.height} cm` : '-' },
     { label: '體重', value: patient.weight ? `${patient.weight} kg` : '-' },
     { label: 'BMI', value: patient.bmi ? `${patient.bmi}` : '-' },
-    { label: '病歷號', value: patient.id },
+    { label: '病歷號', value: patient.medicalRecordNumber || patient.id },
     { label: '主治醫師', value: patient.attendingPhysician || '-' },
   ];
 
