@@ -155,9 +155,19 @@ export function PatientsPage() {
     if (editFormData && editingPatientId) {
       setSavingPatient(true);
       try {
-        await patientsApi.updatePatient(editingPatientId, editFormData);
+        const updated = await patientsApi.updatePatient(editingPatientId, editFormData);
         const { patients: freshPatients } = await refreshSharedPatientDataAfterMutation();
-        setPatients(freshPatients as PatientWithFrontendFields[]);
+        if (freshPatients) {
+          setPatients(freshPatients as PatientWithFrontendFields[]);
+        } else {
+          setPatients((current) =>
+            current.map((item) =>
+              item.id === editingPatientId
+                ? (updated as PatientWithFrontendFields)
+                : item,
+            ),
+          );
+        }
         setEditingPatientId(null);
         setEditFormData(null);
         toast.success('病人資料已更新');

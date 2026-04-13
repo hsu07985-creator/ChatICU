@@ -164,11 +164,17 @@ export function DashboardPage() {
 
     setSaving(true);
     try {
-      await updatePatient(editingPatient.id, editFormData);
+      const updated = await updatePatient(editingPatient.id, editFormData);
       const { patients: freshPatients } = await refreshSharedPatientDataAfterMutation({
         refreshDashboardStats: false,
       });
-      setPatients(freshPatients);
+      if (freshPatients) {
+        setPatients(freshPatients);
+      } else {
+        setPatients((current) =>
+          current.map((item) => (item.id === editingPatient.id ? updated : item)),
+        );
+      }
       const freshStats = await invalidateDashboardStats();
       setStats(freshStats);
       setEditDialogOpen(false);

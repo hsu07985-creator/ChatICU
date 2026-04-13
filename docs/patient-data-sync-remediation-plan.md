@@ -111,3 +111,21 @@
 
 - 這份修補優先修主流程與 shared cache，不先做大型重構
 - 若途中發現 `dashboard` 的 private stats cache 仍阻礙同步，允許把它抽成小型 shared module
+
+## 2026-04-14 Hotfix
+
+問題:
+- 病人更新 API 已成功，但後續 shared cache refresh 若有任一請求失敗，前端仍會整體顯示「更新失敗，請稍後再試」
+
+修補:
+- `refreshSharedPatientDataAfterMutation()` 改成 best-effort，同步使用 `Promise.allSettled`
+- `patients` refresh 與 `dashboard stats` refresh 分開記錄，不再讓次要 refresh 失敗覆蓋主更新成功
+- `patients.tsx` / `dashboard.tsx` 補上 fallback：若 shared patients refresh 失敗，仍先用 update API 回傳值更新當前頁 state
+
+驗證:
+- [x] `npm run build`
+
+結果:
+- `refreshSharedPatientDataAfterMutation()` 已改成 best-effort，不再讓次要 refresh 失敗覆蓋主更新成功
+- `patients.tsx` / `dashboard.tsx` 已補上 local state fallback
+- 驗證: `npm run build` 通過

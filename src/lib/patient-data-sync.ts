@@ -7,7 +7,9 @@ interface RefreshSharedPatientDataOptions {
 }
 
 interface RefreshSharedPatientDataResult {
-  patients: Patient[];
+  patients: Patient[] | null;
+  patientsRefreshFailed: boolean;
+  dashboardStatsRefreshFailed: boolean;
 }
 
 export async function refreshSharedPatientDataAfterMutation(
@@ -15,10 +17,28 @@ export async function refreshSharedPatientDataAfterMutation(
 ): Promise<RefreshSharedPatientDataResult> {
   const { refreshDashboardStats = true } = options;
 
-  const [patients] = await Promise.all([
+  const [patientsResult, dashboardStatsResult] = await Promise.allSettled([
     invalidatePatients(),
     refreshDashboardStats ? invalidateDashboardStats() : Promise.resolve(null),
   ]);
 
-  return { patients };
+  const patients =
+    patientsResult.status === 'fulfilled' ? patientsResult.value : null;
+
+  const patientsRefreshFailed = patientsResult.status === 'rejected';
+  const dashboardStatsRefreshFailed =
+    refreshDashboardStats && dashboardStatsResult.status === 'rejected';
+
+  if (patientsRefreshFailed) {
+    console.warn('Failed to refresh shared patients cache after mutation', patientsResult.reason);
+  }
+  if (dashboardStatsRefreshFailed) {
+    console.warn('Failed to refresh dashboard stats cache after mutation', dashboardStatsResult.reason);
+  }
+
+  return {
+    patients,
+    patientsRefreshFailed,
+    dashboardStatsRefreshFailed,
+  };
 }
