@@ -60,3 +60,8 @@ fix/
 # Archived files (restructuring cleanup)
 _archive_candidates/
 .vercel
+
+# Local logs (launchd HIS sync, dev servers, drug-rag worker)
+.logs/
+backend/.logs/
+backend/.state/

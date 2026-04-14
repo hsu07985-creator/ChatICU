@@ -376,12 +376,18 @@ verify_GLOBAL() {
   if [ -x "backend/.venv312/bin/python" ]; then
     cd backend
     local test_output
-    test_output=$(.venv312/bin/python -m pytest tests/ -v --tb=short 2>&1 || true)
+    test_output=$(.venv312/bin/python -m pytest tests/ --tb=no -q 2>&1 || true)
+    # Parse pytest summary line: "X failed, Y passed, Z skipped, ..." or "Y passed in ..."
+    # Use awk for portability (BSD grep lacks -P).
+    local summary_line
+    summary_line=$(echo "$test_output" | tail -5 | grep -E '[0-9]+ (passed|failed)' | tail -1 || true)
     local failed
-    failed=$(echo "$test_output" | grep -c 'FAILED' || true)
+    failed=$(echo "$summary_line" | awk -F'[ ,]+' '{ for(i=1;i<=NF;i++) if($i=="failed") print $(i-1) }')
     local passed
-    passed=$(echo "$test_output" | grep -oP '\d+ passed' || echo "? passed")
-    echo "  ℹ  $passed, $failed failed"
+    passed=$(echo "$summary_line" | awk -F'[ ,]+' '{ for(i=1;i<=NF;i++) if($i=="passed") print $(i-1) }')
+    failed="${failed:-0}"
+    passed="${passed:-?}"
+    echo "  ℹ  ${passed} passed, ${failed} failed"
     if [ "$failed" -eq 0 ]; then
       pass "All backend tests passed"
     else

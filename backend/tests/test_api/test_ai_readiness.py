@@ -111,7 +111,9 @@ async def test_ai_readiness_blocks_knowledge_features_when_evidence_and_rag_unav
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["overall_ready"] is False
-    assert data["feature_gates"]["chat"] is False
+    # Note: chat is intentionally NOT knowledge-gated — it uses the DB
+    # context builder, not RAG/evidence (see ai_readiness.py:82).
+    assert data["feature_gates"]["chat"] is True
     assert data["feature_gates"]["guideline_interpretation"] is False
     assert data["feature_gates"]["decision_support"] is False
     assert data["feature_gates"]["dose_calculation"] is False

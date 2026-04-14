@@ -32,6 +32,10 @@ def _mock_openai_embedding(*args, **kwargs):
 @pytest.fixture(autouse=True)
 def _mock_openai(monkeypatch):
     monkeypatch.setattr(settings, "OPENAI_API_KEY", "test-key")
+    # Reset app.llm's cached OpenAI client so other tests can't leak a real
+    # client past our patch (see _get_openai_sync() in app/llm.py).
+    import app.llm
+    monkeypatch.setattr(app.llm, "_openai_sync_client", None)
     with patch("openai.OpenAI") as MockClient:
         MockClient.return_value.embeddings.create.side_effect = _mock_openai_embedding
         yield
