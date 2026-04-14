@@ -56,7 +56,13 @@ async def run_all(engine: AsyncEngine) -> None:
     await _clear_messages_once(engine)
     await _ensure_np_role(engine)
     await _seed_iv_compatibilities(engine)
-    await _patch_ddi_interacting_members(engine)
+    # HOTFIX 2026-04-14: disabled — this backfill hangs indefinitely on Railway
+    # startup. asyncio.wait_for(timeout=20.0) inside the function doesn't
+    # interrupt asyncpg blocking I/O through Supabase PgBouncer, causing /health
+    # to 502 forever. Legacy DDI class-level backfill is non-critical (pair-level
+    # DDI is unaffected). TODO: investigate Supabase drug_interactions lock/PgBouncer
+    # behavior and re-enable once the hang root cause is fixed.
+    # await _patch_ddi_interacting_members(engine)
     await _seed_missing_critical_ddi(engine)
     await _ensure_performance_indexes(engine)
     await _ensure_sync_status_table(engine)
