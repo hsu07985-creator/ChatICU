@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import JSON, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -89,10 +89,18 @@ async def get_dashboard_stats(
     )
     today_messages = today_result.scalar() or 0
 
-    # Alerts count — aggregate in DB instead of loading full Patient objects
-    # Use json_array_length (works on both PostgreSQL and SQLite)
+    # Alerts count — aggregate in DB instead of loading full Patient objects.
+    # Patient.alerts is JSONB in PostgreSQL; json_array_length(jsonb) does not
+    # exist in Postgres, so we must cast jsonb→json. SQLite has no distinct JSON
+    # type and stores JSON as TEXT — wrapping with CAST AS JSON silently breaks
+    # json_array_length there (returns 0). So pick the expression by dialect.
+    dialect_name = db.bind.dialect.name if db.bind is not None else "sqlite"
+    if dialect_name == "postgresql":
+        alerts_arr = cast(Patient.alerts, JSON)
+    else:
+        alerts_arr = Patient.alerts
     alert_result = await db.execute(
-        select(func.coalesce(func.sum(func.json_array_length(Patient.alerts)), 0))
+        select(func.coalesce(func.sum(func.json_array_length(alerts_arr)), 0))
         .where(Patient.archived == False)
         .where(Patient.alerts != None)
     )
