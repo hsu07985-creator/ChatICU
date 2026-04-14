@@ -53,6 +53,11 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = Field(None, alias="sessionId")
 
 
+class MessageFeedbackRequest(BaseModel):
+    # "up" / "down" / null. Pydantic accepts None → clears feedback.
+    feedback: Optional[str] = Field(None, description="'up', 'down', or null to clear")
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 async def _get_or_create_session(
@@ -458,3 +463,55 @@ async def update_session(
     await db.commit()
     await db.refresh(session)
     return {"success": True, "data": _session_to_dict(session)}
+
+
+@router.patch("/chat/messages/{message_id}/feedback")
+async def update_message_feedback(
+    message_id: str,
+    body: MessageFeedbackRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Set thumbs-up/thumbs-down feedback on an assistant message.
+
+    Body: `{"feedback": "up" | "down" | null}`
+    - Only assistant messages can receive feedback.
+    - Message must belong to a session owned by the current user (otherwise 404,
+      to avoid leaking existence of other users' messages).
+    """
+    if body.feedback not in (None, "up", "down"):
+        raise HTTPException(
+            status_code=400,
+            detail="feedback must be 'up', 'down', or null",
+        )
+
+    result = await db.execute(
+        select(AIMessage)
+        .join(AISession, AIMessage.session_id == AISession.id)
+        .where(
+            AIMessage.id == message_id,
+            AISession.user_id == current_user.id,
+        )
+    )
+    message = result.scalar_one_or_none()
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    if message.role != "assistant":
+        raise HTTPException(
+            status_code=400,
+            detail="Only assistant messages can receive feedback",
+        )
+
+    message.feedback = body.feedback
+    await db.commit()
+    await db.refresh(message)
+
+    return {
+        "success": True,
+        "data": {
+            "id": message.id,
+            "feedback": message.feedback,
+        },
+    }
