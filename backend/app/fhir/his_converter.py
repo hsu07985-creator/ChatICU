@@ -436,30 +436,66 @@ class HISConverter:
         self._cache: Dict[str, Any] = {}
 
     def _load(self, filename: str) -> list:
-        """Load a HIS JSON file, return Data array."""
+        """Load a HIS JSON file, return Data array.
+
+        Resolution order:
+          1. Top-level ``<patient_dir>/<filename>`` (the common case).
+          2. If step 1 yields nothing (file missing OR ``Data: []``), walk
+             ``<patient_dir>/ExtraFactories/Factory_*/`` in sorted order and
+             return the first non-empty one.
+
+        Rationale: the HIS fetcher probes every hospital campus (HospId =
+        M, G, H, Q, F) and only stores non-empty responses. For most
+        patients, the primary campus returns everything and top-level wins.
+        But patients whose data is split across campuses (e.g. 70117162 on
+        2026-04-14 — admitted at M, but all 28 lab results live at F)
+        leave top-level empty for the missing data types and the real
+        payload sits under ``ExtraFactories/Factory_F/``. Without this
+        fallback, HISConverter would silently skip that data.
+        """
         if filename in self._cache:
             return self._cache[filename]
         candidates = _FILENAME_ALIASES.get(filename, (filename,))
+
+        result = self._load_from_dir(self.patient_dir, candidates)
+
+        if not result:
+            extras_dir = os.path.join(self.patient_dir, "ExtraFactories")
+            if os.path.isdir(extras_dir):
+                for factory_name in sorted(os.listdir(extras_dir)):
+                    factory_dir = os.path.join(extras_dir, factory_name)
+                    if not os.path.isdir(factory_dir):
+                        continue
+                    result = self._load_from_dir(factory_dir, candidates)
+                    if result:
+                        break
+
+        self._cache[filename] = result
+        return result
+
+    @staticmethod
+    def _load_from_dir(dir_path: str, candidates: Tuple[str, ...]) -> list:
+        """Try each candidate filename in ``dir_path``; return its Data array.
+
+        Returns an empty list when no candidate exists or when the payload
+        has no ``Data`` key / empty array. utf-8-sig tolerates the leading
+        BOM that HIS flat-layout exports ship with (patients 50911741 /
+        70117162 on 2026-04-14); see snapshot_resolver._load_json_file for
+        the matching fix at the resolver stage.
+        """
         data = None
         for candidate in candidates:
-            path = os.path.join(self.patient_dir, candidate)
+            path = os.path.join(dir_path, candidate)
             if not os.path.exists(path):
                 continue
-            # utf-8-sig tolerates the leading BOM that HIS flat-layout exports
-            # ship with (e.g. patients 50911741 / 70117162 on 2026-04-14). It
-            # is a strict superset of utf-8 for reads — strips BOM if present,
-            # no-op otherwise. See snapshot_resolver._load_json_file for the
-            # matching fix at the resolver stage.
             with open(path, encoding="utf-8-sig") as f:
                 data = json.load(f)
             break
         if data is None:
-            self._cache[filename] = []
             return []
         result = data.get("Data", []) if isinstance(data, dict) else data
         if not isinstance(result, list):
             result = [result] if result else []
-        self._cache[filename] = result
         return result
 
     # ------------------------------------------------------------------ #

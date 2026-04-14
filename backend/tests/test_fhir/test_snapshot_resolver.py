@@ -166,6 +166,92 @@ def test_his_converter_load_tolerates_utf8_bom(tmp_path: Path) -> None:
     assert rows == [{"PAT_NO": "70117162", "PAT_NAME": "BOM測試"}]
 
 
+def test_his_converter_load_falls_back_to_extra_factories(tmp_path: Path) -> None:
+    """HISConverter._load must fall back to ExtraFactories/Factory_*/.
+
+    Regression coverage for the 2026-04-14 incident where patient 70117162
+    showed 0 labs in the frontend despite having 28 lab results, because
+    the HIS fetcher stored them under ExtraFactories/Factory_F/ (since the
+    patient's primary admission was at HospId=M but lab results lived at
+    HospId=F) and HISConverter._load only read top-level files.
+    """
+    patient_root = tmp_path / "70117162"
+    patient_root.mkdir()
+
+    # Top-level has getPatient/getAllMedicine but NO getLabResult.
+    _write_json(
+        patient_root / "getPatient.json",
+        {"Data": [{"PAT_NO": "70117162", "PAT_NAME": "蔡鴻儀"}]},
+    )
+    _write_json(
+        patient_root / "getAllMedicine.json",
+        {"Data": [{"ODR_CODE": "DRUG1"}]},
+    )
+
+    # Lab data lives only in ExtraFactories/Factory_F.
+    factory_f = patient_root / "ExtraFactories" / "Factory_F"
+    _write_json(
+        factory_f / "getLabResult.json",
+        {"Data": [{"LAB_CODE": "NA", "LAB_VALUE": "140"}, {"LAB_CODE": "K", "LAB_VALUE": "4.0"}]},
+    )
+
+    converter = HISConverter(str(patient_root))
+
+    # Top-level files still win when present.
+    assert converter._load("getPatient.json") == [
+        {"PAT_NO": "70117162", "PAT_NAME": "蔡鴻儀"}
+    ]
+    assert converter._load("getAllMedicine.json") == [{"ODR_CODE": "DRUG1"}]
+
+    # Lab data is pulled from Factory_F as the top-level fallback.
+    lab_rows = converter._load("getLabResult.json")
+    assert lab_rows == [
+        {"LAB_CODE": "NA", "LAB_VALUE": "140"},
+        {"LAB_CODE": "K", "LAB_VALUE": "4.0"},
+    ]
+
+
+def test_his_converter_load_prefers_top_level_when_both_exist(tmp_path: Path) -> None:
+    """Top-level files must win even when ExtraFactories has the same file.
+
+    Guards against regressing patients 35876842..50911741 whose top-level
+    getLabResult.json is the correct source — we must not accidentally
+    overwrite them with Factory_F data.
+    """
+    patient_root = tmp_path / "50911741"
+    patient_root.mkdir()
+    _write_json(
+        patient_root / "getLabResult.json",
+        {"Data": [{"LAB_CODE": "TOP", "LAB_VALUE": "correct"}]},
+    )
+    _write_json(
+        patient_root / "ExtraFactories" / "Factory_F" / "getLabResult.json",
+        {"Data": [{"LAB_CODE": "STALE", "LAB_VALUE": "wrong"}]},
+    )
+
+    converter = HISConverter(str(patient_root))
+    rows = converter._load("getLabResult.json")
+
+    assert rows == [{"LAB_CODE": "TOP", "LAB_VALUE": "correct"}]
+
+
+def test_his_converter_load_skips_empty_factory_dirs(tmp_path: Path) -> None:
+    """Fallback must walk multiple factories and use the first non-empty one."""
+    patient_root = tmp_path / "70117162"
+    patient_root.mkdir()
+    # top level missing, Factory_F has empty Data, Factory_G has real data
+    _write_json(patient_root / "ExtraFactories" / "Factory_F" / "getLabResult.json", {"Data": []})
+    _write_json(
+        patient_root / "ExtraFactories" / "Factory_G" / "getLabResult.json",
+        {"Data": [{"LAB_CODE": "G"}]},
+    )
+
+    converter = HISConverter(str(patient_root))
+    rows = converter._load("getLabResult.json")
+
+    assert rows == [{"LAB_CODE": "G"}]
+
+
 def test_his_converter_can_override_patient_number_for_snapshot_dirs(tmp_path: Path) -> None:
     snapshot_dir = tmp_path / "16312169" / "20260412_010000"
     _write_json(
