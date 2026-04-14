@@ -117,6 +117,10 @@
       "destination": "https://chaticu-production-8060.up.railway.app/pharmacy/:path*"
     },
     {
+      "source": "/sync/:path*",
+      "destination": "https://chaticu-production-8060.up.railway.app/sync/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

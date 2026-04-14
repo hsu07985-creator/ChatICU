@@ -182,6 +182,42 @@
   - Other tags (general tags like "重要", "追蹤") keep current default styling
   - Use `PHARMACY_ADVICE_CATEGORY_COLORS` from `src/lib/pharmacy-master-data.ts` as color source
 
+### F15 [DONE-pending-deploy] Add `/sync/:path*` rewrite to `vercel.json`
+- **Added by:** backend session
+- **Date:** 2026-04-14
+- **Priority:** P0 (production bug — silently breaks `useExternalSyncPolling`)
+- **Files:** `vercel.json` (already modified by backend session — needs frontend review + deploy)
+- **Why this matters:**
+  - `src/hooks/use-external-sync-polling.ts` polls `GET /sync/status` every 60s to detect HIS sync completion and auto-refresh patient data.
+  - `vercel.json` had rewrites for `/auth`, `/ai`, `/api`, `/health`, `/patients`, `/dashboard`, `/admin`, `/pharmacy`, etc. — but **no `/sync` rewrite**.
+  - Result: Vercel fell through to the SPA catch-all and returned `index.html` for `/sync/status`. The hook's `JSON.parse()` of HTML throws, gets swallowed by the `try/catch` as a `console.warn`, and the version-change detection never fires.
+  - **Impact:** `useExternalSyncPolling` has been silently broken in production since it shipped. Users never got auto-refresh when HIS sync completed — they had to manually reload.
+- **Evidence (captured 2026-04-14):**
+  ```
+  $ curl -sI https://chat-icu.vercel.app/sync/status
+  content-type: text/html; charset=utf-8    ← should be application/json
+  etag: "<hex-etag-redacted>"  ← static HTML ETag → persistent 304
+  x-vercel-cache: HIT
+  age: 8105
+  ```
+  Backend `/sync/status` on Railway is fine — returns JSON + correct data (verified in Step 4). Pure proxy config gap.
+- **Fix (already applied to `vercel.json`):**
+  ```json
+  {
+    "source": "/sync/:path*",
+    "destination": "https://chaticu-production-8060.up.railway.app/sync/:path*"
+  }
+  ```
+  Inserted between the `/pharmacy/:path*` rewrite and the SPA catch-all `/(.*)`.
+  No `x-request-id` header guard needed — there is no SPA page at `/sync`, so no conflict risk.
+- **Action needed:** Frontend session review the 4-line diff in `vercel.json`, push to `railway` remote (→ Vercel deploy), then verify with:
+  ```bash
+  curl -sI https://chat-icu.vercel.app/sync/status
+  # expected: content-type: application/json, 401 (unauthenticated)
+  ```
+  Then re-run Step 5-2 verification: force sync via backend, watch browser Network tab for 200 (not 304) on `/sync/status` and refresh cascade.
+- **References:** This session's Step 5 verification log.
+
 ### Phase 3-4 — Safety UI + Polish
 
 ### F07 [TODO] Add drug comparison feature to pharmacy workstation
