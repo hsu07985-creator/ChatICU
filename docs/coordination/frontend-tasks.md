@@ -218,6 +218,22 @@
   Then re-run Step 5-2 verification: force sync via backend, watch browser Network tab for 200 (not 304) on `/sync/status` and refresh cascade.
 - **References:** This session's Step 5 verification log.
 
+### F16 [READY] Confirm thumbs-up/down feedback uses correct field name (P0-a)
+- **Endpoint:** `PATCH /ai/chat/messages/{message_id}/feedback`
+- **Added by:** backend session
+- **Date:** 2026-04-14
+- **Status:** Backend deployed (commit `2473c05`, in Plan B hotfix train). Production smoke check returns 401 (auth gate), confirming route is registered.
+- **Schema:** see `docs/coordination/api-contracts.md` → "PATCH `/ai/chat/messages/{message_id}/feedback` — Thumbs Up/Down (P0-a)"
+- **What frontend should verify:**
+  1. `updateMessageFeedback()` posts JSON body using field name **`feedback`** (not `rating`) — value is `"up"`, `"down"`, or `null`.
+  2. After PATCH 200, the optimistic UI state matches `response.data.feedback`.
+  3. 404 on the message means "not yours / does not exist" — do not retry, and do not reveal the distinction in UI text.
+  4. `null` is a valid clear operation (not an error).
+- **Notes:**
+  - 5 backend contract tests lock in the schema (`backend/tests/test_api/test_ai_chat_feedback.py`): 200 happy path, 400 invalid value, 400 non-assistant, 404 missing, 404 cross-user.
+  - Storage is a single `ai_messages.feedback` column (`VARCHAR(10)`). No separate feedback table — toggling overwrites.
+  - Bug history: this endpoint did not exist on the backend until recently — frontend was already calling it and getting 404. Now fixed both sides.
+
 ### Phase 3-4 — Safety UI + Polish
 
 ### F07 [TODO] Add drug comparison feature to pharmacy workstation

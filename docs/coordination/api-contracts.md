@@ -99,6 +99,49 @@
 
 ---
 
+### [READY] PATCH `/ai/chat/messages/{message_id}/feedback` — Thumbs Up/Down (P0-a)
+
+> **Status:** Implemented + deployed 2026-04-14 (commit `2473c05`). Verified via 5 contract tests in `backend/tests/test_api/test_ai_chat_feedback.py`. Production smoke check: `PATCH` returns 401 (auth gate), confirming route is registered.
+
+- **Auth:** logged-in user (cookie session via `get_current_user`)
+- **Path param:** `message_id` — must reference an `ai_messages` row owned by the current user's `ai_sessions` row, with `role='assistant'`
+
+**Request body:**
+```json
+{ "feedback": "up" }
+```
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `feedback` | `"up" \| "down" \| null` | yes | `null` clears existing feedback. Field name is **`feedback`**, not `rating`. |
+
+**Response 200:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "msg_asst_abc123",
+    "feedback": "up"
+  }
+}
+```
+
+**Error responses:**
+| Status | Condition | Body shape |
+|---|---|---|
+| 400 | `feedback` not in `("up", "down", null)` | `{"detail": "feedback must be 'up', 'down', or null"}` |
+| 400 | Target message has `role != "assistant"` | `{"detail": "Only assistant messages can receive feedback"}` |
+| 404 | Message not found **OR** belongs to another user's session | `{"detail": "Message not found"}` (intentional info-leak prevention — same shape for both cases) |
+| 401 | Not authenticated | `{"success": false, "error": "UNAUTHORIZED", ...}` |
+
+**Storage:** writes to `ai_messages.feedback` column (`VARCHAR(10) NULL`). No separate feedback table — single field on the message itself, so toggling overwrites.
+
+**Notes for frontend:**
+- Idempotent: PATCH `up` twice = same result. PATCH `null` clears.
+- 404 is the correct response for "message belongs to someone else" — do not treat as "missing", treat as "not yours".
+- The bug this endpoint fixed: frontend `updateMessageFeedback()` was already calling this URL, but the route did not exist → production returned 404. Now contracts are locked in by tests.
+
+---
+
 ### [READY] POST `/api/v1/clinical/query` — Unified Clinical Query (B07)
 
 > **Status:** Implemented 2026-03-02. Backend endpoint ready for frontend integration.
