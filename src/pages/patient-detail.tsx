@@ -322,6 +322,20 @@ function formatDisplayValue(value: unknown): string {
   return String(value);
 }
 
+/**
+ * 正規化藥物劑量顯示值：整數值去掉 .0（避免 1.0 被看成 10），
+ * 有意義的小數（0.5、0.25）保留。非數字（「適量」）原樣返回。
+ */
+function formatDoseValue(dose: unknown): string {
+  if (dose === null || dose === undefined) return '';
+  const raw = typeof dose === 'string' ? dose.trim() : String(dose);
+  if (raw === '') return '';
+  if (!/^-?\d+(\.\d+)?$/.test(raw)) return raw;
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return raw;
+  return String(num);
+}
+
 function formatDisplayTimestamp(timestamp?: string | null): string {
   if (!timestamp) return '-';
   const parsed = new Date(timestamp);
@@ -340,7 +354,8 @@ function normalizeSanCategory(raw: unknown): 'S' | 'A' | 'N' | null {
 }
 
 function formatMedicationRegimen(med: Medication): string {
-  const dose = formatDisplayValue(med.dose);
+  const doseValue = formatDoseValue(med.dose);
+  const dose = doseValue === '' ? '-' : doseValue;
   const unit = formatDisplayValue(med.unit);
   const frequency = formatDisplayValue(med.frequency);
   const route = formatDisplayValue(med.route);

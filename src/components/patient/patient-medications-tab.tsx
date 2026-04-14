@@ -26,6 +26,20 @@ import { toast } from 'sonner';
 
 const PRN_FREQ_PATTERN = /PRN|STAT/i;
 
+/**
+ * 正規化藥物劑量顯示值：整數值去掉 .0（避免 1.0 被看成 10），
+ * 有意義的小數（0.5、0.25）保留。非數字（「適量」）原樣返回。
+ */
+function formatDoseValue(dose: unknown): string {
+  if (dose === null || dose === undefined) return '';
+  const raw = typeof dose === 'string' ? dose.trim() : String(dose);
+  if (raw === '') return '';
+  if (!/^-?\d+(\.\d+)?$/.test(raw)) return raw;
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return raw;
+  return String(num);
+}
+
 /** 判定門診藥物是否已過期（endDate 已過） */
 function isOutpatientExpired(med: Medication): boolean {
   if (!med.endDate) return false;
@@ -293,7 +307,7 @@ function MedicationDetailModal({
             {med.name}
           </DialogTitle>
           <DialogDescription className="text-sm">
-            {[med.dose, med.unit, '·', med.frequency].filter(Boolean).join(' ')}
+            {[formatDoseValue(med.dose), med.unit, '·', med.frequency].filter(Boolean).join(' ')}
           </DialogDescription>
         </DialogHeader>
 
@@ -384,7 +398,7 @@ function MedicationDetailModal({
               </div>
               <div className="flex gap-2">
                 <span className="text-muted-foreground shrink-0">劑量</span>
-                <span className="font-medium">{[med.dose, med.unit].filter(Boolean).join(' ') || '—'}</span>
+                <span className="font-medium">{[formatDoseValue(med.dose), med.unit].filter(Boolean).join(' ') || '—'}</span>
               </div>
               {med.daysSupply != null && (
                 <div className="flex gap-2">
@@ -669,7 +683,7 @@ export function PatientMedicationsTab({
   const openMedicationEditor = (medication: Medication) => {
     setEditingMedication(medication);
     setEditForm({
-      dose: medication.dose || '',
+      dose: formatDoseValue(medication.dose),
       unit: medication.unit || '',
       concentration: medication.concentration || '',
       concentrationUnit: medication.concentrationUnit || '',
@@ -923,7 +937,7 @@ export function PatientMedicationsTab({
                               <span className="text-sm font-medium truncate">{m.name}</span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              {[m.dose && m.unit ? `${m.dose} ${m.unit}` : null, m.frequency, m.route].filter(Boolean).join(' / ')}
+                              {[m.dose && m.unit ? `${formatDoseValue(m.dose)} ${m.unit}` : null, m.frequency, m.route].filter(Boolean).join(' / ')}
                               {m.startDate && ` (${formatMedDate(m.startDate)})`}
                             </p>
                           </div>
@@ -939,7 +953,7 @@ export function PatientMedicationsTab({
                               <span className="text-sm font-medium truncate">{m.name}</span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              {[m.dose && m.unit ? `${m.dose} ${m.unit}` : null, m.frequency, m.route].filter(Boolean).join(' / ')}
+                              {[m.dose && m.unit ? `${formatDoseValue(m.dose)} ${m.unit}` : null, m.frequency, m.route].filter(Boolean).join(' / ')}
                               {m.prescribingDepartment && ` [${m.prescribingDepartment}]`}
                             </p>
                           </div>

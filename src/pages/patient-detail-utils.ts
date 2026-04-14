@@ -205,8 +205,30 @@ export function getVentilatorTrendValue(record: VentilatorSettings, itemName: st
   }
 }
 
+/**
+ * 正規化藥物劑量顯示值：
+ *   "1.0"   → "1"       （整數數值不顯示小數點）
+ *   "0.5"   → "0.5"     （保留有意義的小數）
+ *   "0.25"  → "0.25"
+ *   "適量"  → "適量"    （非純數字不動）
+ *   ""/null → ""
+ * 目的：避免 1.0 被誤讀成 10。
+ */
+export function formatDoseValue(dose: unknown): string {
+  if (dose === null || dose === undefined) return '';
+  const raw = typeof dose === 'string' ? dose.trim() : String(dose);
+  if (raw === '') return '';
+  // Only rewrite plain numeric strings like "1", "1.0", "0.25"
+  if (!/^-?\d+(\.\d+)?$/.test(raw)) return raw;
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return raw;
+  // Number("1.00") → 1, Number("0.50") → 0.5, Number("0.25") → 0.25
+  return String(num);
+}
+
 export function formatMedicationRegimen(med: Medication): string {
-  const dose = formatDisplayValue(med.dose);
+  const doseValue = formatDoseValue(med.dose);
+  const dose = doseValue === '' ? '-' : doseValue;
   const unit = formatDisplayValue(med.unit);
   const frequency = formatDisplayValue(med.frequency);
   const route = formatDisplayValue(med.route);
