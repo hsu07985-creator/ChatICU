@@ -303,6 +303,32 @@
   - Once all complete, render final answer with citations
 - **References:** architecture plan §8.1 latency tiers
 
+### F17 [TODO] Archive remaining files in `src/hooks/` per restructure plan
+- **Added by:** backend session (Step 5 verify_restructure cleanup)
+- **Date:** 2026-04-14
+- **Priority:** P2 (tech debt / restructure gate)
+- **Files:** `src/hooks/` (15 files remaining)
+- **Description:**
+  - `scripts/verify_restructure.sh` T08 expects `src/hooks/` to be empty/removed (all hooks moved to colocated feature dirs during Batch 2 cleanup).
+  - Currently 15 files still live under `src/hooks/`. Audit which are actively imported; move active ones to their feature home, archive the rest under `_archive_candidates/20260218/src_hooks/`.
+  - After cleanup, re-run `bash scripts/verify_restructure.sh T08` — the check `src/hooks still has 15 files` should become `src/hooks removed`.
+- **References:** `scripts/verify_restructure.sh:328-340`
+
+### F18 [TODO] Fix broken `LatestScores` import in patient-detail view model
+- **Added by:** backend session (Step 5 verify_restructure cleanup)
+- **Date:** 2026-04-14
+- **Priority:** P1 (blocks `tsc --noEmit` clean build)
+- **Files:** `src/pages/use-patient-detail-view-model.ts:2`, `src/lib/api/index.ts` (or wherever types are re-exported)
+- **Description:**
+  - TypeScript compile error surfaced by `verify_restructure.sh`:
+    ```
+    src/pages/use-patient-detail-view-model.ts(2,84): error TS2305:
+      Module '"../lib/api"' has no exported member 'LatestScores'.
+    ```
+  - Either re-export `LatestScores` from `src/lib/api/index.ts` or update the import to the new location (the type likely moved during a prior refactor).
+  - This is the only TS error currently blocking the global quality check; fixing it turns `verify_restructure.sh` fully green for the frontend side.
+- **References:** `scripts/verify_restructure.sh:350-360` (TypeScript compilation gate)
+
 ---
 
 ## Completed Tasks
