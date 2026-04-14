@@ -143,7 +143,11 @@ def _iter_available_primary_json(snapshot_dir: Path) -> Iterable[str]:
 
 
 def _load_json_file(path: Path) -> Any:
-    with path.open(encoding="utf-8") as handle:
+    # Use utf-8-sig so HIS exports that ship with a UTF-8 BOM (seen on the
+    # "flat" legacy layout, e.g. patients 50911741 / 70117162) decode without
+    # raising "Unexpected UTF-8 BOM". utf-8-sig is a strict superset of utf-8
+    # for reading — it strips a leading BOM if present and is a no-op otherwise.
+    with path.open(encoding="utf-8-sig") as handle:
         return json.load(handle)
 
 

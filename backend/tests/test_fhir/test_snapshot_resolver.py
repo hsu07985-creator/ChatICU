@@ -75,6 +75,32 @@ def test_resolve_patient_snapshot_falls_back_to_flat_layout(tmp_path: Path) -> N
     assert snapshot.format_type == "flat"
 
 
+def test_resolve_patient_snapshot_tolerates_utf8_bom(tmp_path: Path) -> None:
+    """HIS legacy flat-layout exports sometimes ship with a UTF-8 BOM.
+
+    Regression coverage for the 2026-04-14 incident where patients 50911741
+    and 70117162 failed every launchd run with:
+        Unexpected UTF-8 BOM (decode using utf-8-sig): line 1 column 1 (char 0)
+    because _load_json_file opened files with strict utf-8 encoding.
+    """
+    patient_root = tmp_path / "50911741"
+    patient_root.mkdir()
+    payload = {"Data": [{"PAT_NO": "50911741", "Name": "BOM測試"}]}
+    # Write the same JSON a real HIS export would produce — with a BOM prefix.
+    (patient_root / "getPatient.json").write_text(
+        json.dumps(payload, ensure_ascii=False),
+        encoding="utf-8-sig",
+    )
+
+    snapshot = resolve_patient_snapshot(patient_root)
+
+    assert snapshot.format_type == "flat"
+    # Hash must be stable and non-empty — proves _load_json_file actually
+    # parsed the BOM-prefixed file instead of raising.
+    assert snapshot.normalized_hash
+    assert len(snapshot.normalized_hash) == 64  # sha256 hex length
+
+
 def test_normalized_hash_ignores_volatile_timestamp_fields(tmp_path: Path) -> None:
     snapshot_a_dir = tmp_path / "20260412_000000"
     snapshot_b_dir = tmp_path / "20260412_010000"
