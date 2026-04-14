@@ -144,6 +144,28 @@ def test_his_converter_load_supports_getipd_alias(tmp_path: Path) -> None:
     assert rows == [{"DR_NAME": "陳醫師", "HDEPT_NAME": "內科"}]
 
 
+def test_his_converter_load_tolerates_utf8_bom(tmp_path: Path) -> None:
+    """HISConverter._load must tolerate UTF-8 BOM in HIS exports.
+
+    Regression coverage for the 2026-04-14 incident where patients 50911741
+    and 70117162 passed snapshot_resolver (after its BOM fix) but then failed
+    the sync stage with the same "Unexpected UTF-8 BOM" error because
+    HISConverter._load still opened files with strict utf-8 encoding.
+    """
+    patient_root = tmp_path / "70117162"
+    patient_root.mkdir()
+    payload = {"Data": [{"PAT_NO": "70117162", "PAT_NAME": "BOM測試"}]}
+    (patient_root / "getPatient.json").write_text(
+        json.dumps(payload, ensure_ascii=False),
+        encoding="utf-8-sig",
+    )
+
+    converter = HISConverter(str(patient_root))
+    rows = converter._load("getPatient.json")
+
+    assert rows == [{"PAT_NO": "70117162", "PAT_NAME": "BOM測試"}]
+
+
 def test_his_converter_can_override_patient_number_for_snapshot_dirs(tmp_path: Path) -> None:
     snapshot_dir = tmp_path / "16312169" / "20260412_010000"
     _write_json(

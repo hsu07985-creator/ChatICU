@@ -445,7 +445,12 @@ class HISConverter:
             path = os.path.join(self.patient_dir, candidate)
             if not os.path.exists(path):
                 continue
-            with open(path, encoding="utf-8") as f:
+            # utf-8-sig tolerates the leading BOM that HIS flat-layout exports
+            # ship with (e.g. patients 50911741 / 70117162 on 2026-04-14). It
+            # is a strict superset of utf-8 for reads — strips BOM if present,
+            # no-op otherwise. See snapshot_resolver._load_json_file for the
+            # matching fix at the resolver stage.
+            with open(path, encoding="utf-8-sig") as f:
                 data = json.load(f)
             break
         if data is None:
