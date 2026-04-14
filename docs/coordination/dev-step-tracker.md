@@ -125,27 +125,54 @@ Production DB 的 `sync_status.version` 暫時被設成假時間戳 `2026-04-14T
 
 ---
 
-## Step 4 — [TODO] 根治 `_patch_ddi_interacting_members` PgBouncer hang
+## Step 4 — [DONE] 根治 `_patch_ddi_interacting_members` PgBouncer hang
 
 **為什麼第四（不是第一）**：Plan B workaround 已止血，DDI 互動成員只是補欄位非核心流程。根因調查工時未知，留到前面三個清乾淨再進。
 
 ### 動作清單
-- [ ] 在 local（連 Supabase prod 或 staging）還原 `_patch_ddi_interacting_members` 呼叫
-- [ ] 重現 hang
-- [ ] 加 `asyncpg` query timeout + `statement_timeout` 找實際卡住的 statement
-- [ ] 檢查 SQL 是否需要 `FOR UPDATE SKIP LOCKED` 或拆 batch
-- [ ] 修好之後**移除** Plan B 的 disable
-- [ ] Push personal main，確認 Railway 重啟正常 + DDI 欄位有資料
+- [x] 在 local（連 Supabase prod）跑 `_patch_ddi_interacting_members` 確認問題
+- [x] 量測 Taipei → Sydney pooler RTT（SELECT 1 = 643ms / UPDATE no-op = 514ms）
+- [x] 確認真正 root cause **不是** PgBouncer lock，是 latency × 1839 sequential UPDATEs
+- [x] 重構成 bulk `UPDATE ... FROM (VALUES ...)` 200 rows / batch
+- [x] 加 60s `asyncio.wait_for` 硬上限 + 30s `statement_timeout`
+- [x] 本機重跑驗證：9.38s / 16.74s（vs 投影 946s）
+- [x] **移除** Plan B 的 disable，重新啟用 `await _patch_ddi_interacting_members(engine)`
+- [x] Push personal main → Railway 重啟正常
+- [x] 驗證 production NULL count（結構性 no-op，但 patch 路徑跑完無 hang）
 
 ### 完成判準
-- DDI backfill 重新啟用（移除 Plan B disable）
-- Railway startup < 90s
-- DDI 互動成員欄位有實際資料
+- ✅ DDI backfill 重新啟用（commit `a4d21fc`）
+- ✅ Railway startup 健康（`/health` 200, version 1.4.5）
+- ⚠️ DDI 互動成員欄位**沒**有新資料 — 結構性 no-op（見 Root cause）
 
-### Evidence（完成後填）
-- 卡住的 statement：
-- 修復方案：
-- Railway startup 時間：
+### Root cause（兩層）
+1. **Performance**：原本 1839 個 sequential UPDATE 在單一 transaction 裡跑，每個 UPDATE 一個 RTT；Railway → Supabase Sydney ~150-200ms × 1839 = 5-15 分鐘 blocking lifespan，FastAPI startup health check timeout → 502
+2. **Structural**：即使修好 perf，patch 函式對現況 prod DB 是 no-op：
+   - DB 內 8786 rows，6040 已填 / 2746 NULL
+   - `ddi_xd_only.json.gz` seed 只有 1839 條有 `interacting_members`
+   - 兩者 dedup_key 交集 = 0
+   - DB 主要由 `_seed_drug_interactions` 從 `drug_interactions_full.json` 灌入；patch 函式現在是 future-proof safety net 而非實際 backfill
+
+### 修復方案
+- 改 bulk UPDATE：`UPDATE drug_interactions AS d SET interacting_members = v.im FROM (VALUES (...), ...) AS v(id, im) WHERE d.id = v.id AND d.interacting_members IS NULL`
+- Batch 200 rows / statement → ~10 roundtrips（vs 1839）
+- 三層 timeout 防護：
+  - `lock_timeout = 10s`（per batch）
+  - `statement_timeout = 30s`（per batch）
+  - `asyncio.wait_for(timeout=60s)`（whole routine）
+
+### Evidence
+- Local timing on Supabase prod：9.38s（first run）→ 16.74s（second run，網路抖動）
+- NULL count BEFORE/AFTER：2746 / 2746（confirms structural no-op）
+- Commit hash：`a4d21fc` (`fix(startup): re-enable DDI interacting_members patch via bulk UPDATE`)
+- Railway redeploy：~2.5 分鐘後 `/health` 200 `{success:true, status:healthy, version:1.4.5}`
+- 17 個相關 test 全綠（`-k "startup or ddi or interacting"`）
+
+### Follow-up（非 blocker）
+若未來真要把那 2746 NULL rows 填上，需要：
+1. 確認 source seed file 是 `drug_interactions_full.json` 還是其他
+2. 對齊 `_patch_ddi_interacting_members` 的 dedup_key normalization（檢查為何兩個 seed file 同一條 pair 算出不同 hash）
+3. 或乾脆從 `_seed_drug_interactions` 重新跑 force seed
 
 ---
 
