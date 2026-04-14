@@ -74,6 +74,7 @@ from app.routers import (
     rules,
     scores,
     symptom_records,
+    sync_status,
     team_chat,
     ventilator,
     vital_signs,
@@ -400,3 +401,4 @@ app.include_router(patients_v2.router)
 app.include_router(scores.router)
 app.include_router(record_templates.router)
 app.include_router(symptom_records.router)
+app.include_router(sync_status.router)

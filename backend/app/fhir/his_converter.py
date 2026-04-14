@@ -421,26 +421,36 @@ def _load_ddi_exclusion_set() -> set:
 _SITE_CONFIG = _load_site_config()
 _DDI_ALIAS_MAP: Dict[str, List[str]] = _load_ddi_alias_map()
 _DDI_EXCLUSION_SET: set = _load_ddi_exclusion_set()
+_FILENAME_ALIASES: Dict[str, Tuple[str, ...]] = {
+    "getIPD.json": ("getIPD.json", "getIpd.json"),
+    "getIpd.json": ("getIpd.json", "getIPD.json"),
+}
 
 
 class HISConverter:
     """Convert HIS JSON data for one patient → ChatICU DB dicts."""
 
-    def __init__(self, patient_dir: str):
+    def __init__(self, patient_dir: str, pat_no: Optional[str] = None):
         self.patient_dir = patient_dir
-        self.pat_no = os.path.basename(patient_dir)
+        self.pat_no = pat_no or os.path.basename(patient_dir)
         self._cache: Dict[str, Any] = {}
 
     def _load(self, filename: str) -> list:
         """Load a HIS JSON file, return Data array."""
         if filename in self._cache:
             return self._cache[filename]
-        path = os.path.join(self.patient_dir, filename)
-        if not os.path.exists(path):
+        candidates = _FILENAME_ALIASES.get(filename, (filename,))
+        data = None
+        for candidate in candidates:
+            path = os.path.join(self.patient_dir, candidate)
+            if not os.path.exists(path):
+                continue
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            break
+        if data is None:
             self._cache[filename] = []
             return []
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
         result = data.get("Data", []) if isinstance(data, dict) else data
         if not isinstance(result, list):
             result = [result] if result else []

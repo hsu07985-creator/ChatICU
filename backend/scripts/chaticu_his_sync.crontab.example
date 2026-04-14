@@ -1,0 +1,1 @@
+*/5 * * * * cd /Users/chun/Desktop/ChatICU_2026_verf_0110_Yu/backend && /bin/zsh scripts/run_his_snapshot_sync.sh >> .logs/his-sync.cron.log 2>&1

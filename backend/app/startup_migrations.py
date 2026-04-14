@@ -59,6 +59,7 @@ async def run_all(engine: AsyncEngine) -> None:
     await _patch_ddi_interacting_members(engine)
     await _seed_missing_critical_ddi(engine)
     await _ensure_performance_indexes(engine)
+    await _ensure_sync_status_table(engine)
 
 
 async def _ensure_updated_at_columns(engine: AsyncEngine) -> None:
@@ -67,7 +68,7 @@ async def _ensure_updated_at_columns(engine: AsyncEngine) -> None:
         "vital_signs", "ventilator_settings", "ventilator_modes",
         "messages", "chat_messages", "drug_interactions", "iv_compatibilities",
         "pharmacy_advices", "ai_sessions", "medication_administrations",
-        "error_reports", "record_templates",
+        "error_reports", "record_templates", "sync_status",
     ]
     try:
         for tbl in tables:
@@ -90,6 +91,27 @@ async def _ensure_ai_messages_feedback(engine: AsyncEngine) -> None:
             ))
     except Exception:
         pass
+
+
+async def _ensure_sync_status_table(engine: AsyncEngine) -> None:
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS sync_status (
+                    key VARCHAR(100) PRIMARY KEY,
+                    source VARCHAR(50) NOT NULL,
+                    version VARCHAR(100) NOT NULL,
+                    last_synced_at TIMESTAMPTZ NOT NULL,
+                    details JSONB,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_sync_status_source ON sync_status(source)"
+            ))
+    except Exception as e:
+        logger.warning("[INTG][DB] sync_status bootstrap failed (non-fatal): %s", e)
 
 
 async def _ensure_culture_results(engine: AsyncEngine) -> None:

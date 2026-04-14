@@ -8,6 +8,7 @@ import { AppSidebar } from './components/app-sidebar';
 import { Toaster } from './components/ui/sonner';
 import { ErrorBoundary } from './components/error-boundary';
 import { ThemeProvider } from 'next-themes';
+import { useExternalSyncPolling } from './hooks/use-external-sync-polling';
 
 // Eagerly loaded pages (small, critical path)
 import { LoginPage } from './pages/login';
@@ -95,6 +96,8 @@ function PharmacyRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppLayout({ children }: { children: React.ReactNode }) {
+  useExternalSyncPolling(true);
+
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full">

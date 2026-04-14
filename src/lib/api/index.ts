@@ -10,6 +10,7 @@ export * from './messages';
 export * from './team-chat';
 export * from './ai';
 export * from './health';
+export * from './sync';
 export * from './dashboard';
 export * from './admin';
 
@@ -24,12 +25,12 @@ import * as messagesApi from './messages';
 import * as teamChatApi from './team-chat';
 import * as aiApi from './ai';
 import * as healthApi from './health';
+import * as syncApi from './sync';
 import * as dashboardApi from './dashboard';
 import * as adminApi from './admin';
 
 // 匯出命名空間
-export { patientsApi, authApi, labDataApi, vitalSignsApi, ventilatorApi, medicationsApi, messagesApi, teamChatApi, aiApi, healthApi, dashboardApi, adminApi };
+export { patientsApi, authApi, labDataApi, vitalSignsApi, ventilatorApi, medicationsApi, messagesApi, teamChatApi, aiApi, healthApi, syncApi, dashboardApi, adminApi };
 
 // 重新匯出 API client 和 token 管理
 export { default as apiClient, tokenManager, getApiBaseUrl } from '../api-client';
-
