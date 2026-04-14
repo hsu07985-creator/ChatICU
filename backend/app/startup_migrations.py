@@ -56,13 +56,13 @@ async def run_all(engine: AsyncEngine) -> None:
     await _clear_messages_once(engine)
     await _ensure_np_role(engine)
     await _seed_iv_compatibilities(engine)
-    # HOTFIX 2026-04-14: disabled — this backfill hangs indefinitely on Railway
-    # startup. asyncio.wait_for(timeout=20.0) inside the function doesn't
-    # interrupt asyncpg blocking I/O through Supabase PgBouncer, causing /health
-    # to 502 forever. Legacy DDI class-level backfill is non-critical (pair-level
-    # DDI is unaffected). TODO: investigate Supabase drug_interactions lock/PgBouncer
-    # behavior and re-enable once the hang root cause is fixed.
-    # await _patch_ddi_interacting_members(engine)
+    # 2026-04-14 re-enabled after bulk-UPDATE refactor. Old loop did 1839
+    # sequential UPDATEs in a single transaction (~500ms RTT each = ~15 min
+    # blocking Railway startup → /health 502). Now batched via
+    # `UPDATE ... FROM (VALUES ...)` (200 rows per stmt = ~10 roundtrips total),
+    # measured ~9s end-to-end against Supabase prod. Hard 60s asyncio.wait_for
+    # cap + 30s statement_timeout bound the worst case.
+    await _patch_ddi_interacting_members(engine)
     await _seed_missing_critical_ddi(engine)
     await _ensure_performance_indexes(engine)
     await _ensure_sync_status_table(engine)
@@ -769,22 +769,63 @@ async def _patch_ddi_interacting_members(engine: AsyncEngine) -> None:
         with gzip.open(gz_seed, "rb") as _gz:
             interactions = json.loads(_gz.read().decode("utf-8"))
 
+        # Pre-compute (id, im_json) pairs in Python so the DB-side work is a
+        # handful of bulk UPDATEs instead of ~1800 sequential roundtrips.
+        # Each per-row UPDATE costs one network RTT; on Railway → Supabase
+        # Sydney that's ~150-200ms, so 1839 rows ≈ 5-10 minutes blocking the
+        # FastAPI lifespan. Bulk UPDATE collapses it to ~10 roundtrips.
+        rows: list[tuple[str, str]] = []
+        for ix in interactions:
+            im = ix.get("interacting_members")
+            if not im:
+                continue
+            dk = ix.get("dedup_key", "")
+            if not dk:
+                dk = "||".join(sorted([ix["drug1"].lower(), ix["drug2"].lower()]))
+            _id = "ddi_" + hashlib.sha1(dk.encode()).hexdigest()[:12]
+            rows.append((_id, json.dumps(im, ensure_ascii=False)))
+
+        if not rows:
+            logger.info("[INTG][DB] no DDI interacting_members rows to patch")
+            return
+
+        BATCH_SIZE = 200
         patched = 0
-        async with engine.begin() as conn:
-            await conn.execute(text("SET LOCAL lock_timeout = '10000'"))
-            for ix in interactions:
-                im = ix.get("interacting_members")
-                if not im:
-                    continue
-                dk = ix.get("dedup_key", "")
-                if not dk:
-                    dk = "||".join(sorted([ix["drug1"].lower(), ix["drug2"].lower()]))
-                _id = "ddi_" + hashlib.sha1(dk.encode()).hexdigest()[:12]
-                result = await conn.execute(text(
-                    "UPDATE drug_interactions SET interacting_members = CAST(:im AS JSONB) "
-                    "WHERE id = :id AND interacting_members IS NULL"
-                ).bindparams(id=_id, im=json.dumps(im, ensure_ascii=False)))
-                patched += result.rowcount
+
+        async def _patch_batches() -> int:
+            total = 0
+            async with engine.begin() as conn:
+                await conn.execute(text("SET LOCAL lock_timeout = '10000'"))
+                await conn.execute(text("SET LOCAL statement_timeout = '30000'"))
+                for start in range(0, len(rows), BATCH_SIZE):
+                    chunk = rows[start:start + BATCH_SIZE]
+                    # Build VALUES (:id0, :im0), (:id1, :im1), ... with named params.
+                    values_sql_parts = []
+                    params: dict[str, Any] = {}
+                    for i, (_id, _im) in enumerate(chunk):
+                        values_sql_parts.append(f"(:id{i}, CAST(:im{i} AS JSONB))")
+                        params[f"id{i}"] = _id
+                        params[f"im{i}"] = _im
+                    values_sql = ", ".join(values_sql_parts)
+                    stmt = text(
+                        "UPDATE drug_interactions AS d "
+                        "SET interacting_members = v.im "
+                        f"FROM (VALUES {values_sql}) AS v(id, im) "
+                        "WHERE d.id = v.id AND d.interacting_members IS NULL"
+                    )
+                    result = await conn.execute(stmt, params)
+                    total += result.rowcount or 0
+            return total
+
+        # Hard Python-level deadline so this never blocks startup forever.
+        try:
+            patched = await asyncio.wait_for(_patch_batches(), timeout=60.0)
+        except asyncio.TimeoutError:
+            logger.warning(
+                "[INTG][DB] _patch_ddi_interacting_members bulk UPDATE timed out at 60s, partial progress retained"
+            )
+            return
+
         logger.info("[INTG][DB] Patched interacting_members for %d DDI rows", patched)
     except Exception as e:
         logger.warning("[INTG][DB] DDI interacting_members patch failed (non-fatal): %s", e)
