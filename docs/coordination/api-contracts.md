@@ -450,3 +450,173 @@ Existing messages were backfilled via migrations 032 + 033.
 - If `citations` is absent or empty → don't render citation section (backward compatible)
 - If `requires_expert_review: true` → show warning banner
 - If `confidence` is present → show confidence indicator
+
+---
+
+### [CLARIFIED] GET `/dashboard/stats` — Dashboard Aggregate Stats (Bug A)
+
+- **Fixed by:** backend session (Plan B Step 1, commit `d7563a1`)
+- **Date:** 2026-04-14
+- **Bug history:** Prior to the fix, this endpoint returned 500 due to `json_array_length(jsonb)` not existing in Postgres. Handler now casts `Patient.alerts` to `JSON` only on Postgres, skips the cast on SQLite. No schema change.
+
+**Request:** `GET /dashboard/stats` (no params, auth required)
+
+**Response 200**
+```json
+{
+  "success": true,
+  "data": {
+    "patients": {
+      "total": 18,
+      "intubated": 4,
+      "intubatedBeds": ["ICU-01", "ICU-03", "ICU-07", "ICU-12"],
+      "withSAN": 11,
+      "sanByCategory": {
+        "sedation": 9,
+        "analgesia": 10,
+        "nmb": 0
+      }
+    },
+    "alerts": {
+      "total": 23
+    },
+    "medications": {
+      "active": 142,
+      "sedation": 28,
+      "analgesia": 34,
+      "nmb": 0
+    },
+    "messages": {
+      "today": 7,
+      "unread": 3
+    },
+    "timestamp": "2026-04-14T09:12:33.451+00:00"
+  }
+}
+```
+
+**Frontend handling:**
+- Matches existing `DashboardStats` interface (F09) — no migration needed.
+- `intubatedBeds` is always present; may be empty array. Use `.length` not `null` checks.
+- `sanByCategory` keys are lowercase English (`sedation`/`analgesia`/`nmb`) — distinct from the medications count keys (`sedation`/`analgesia`/`nmb`, same names but different semantics: one counts distinct patients per category, the other counts active medication rows).
+
+---
+
+### [CLARIFIED] GET `/sync/status` — HIS Snapshot Sync Status (F15)
+
+- **Fixed by:** backend session (Plan B Step 3, Vercel rewrite commit `47c15d9`)
+- **Date:** 2026-04-14
+- **Bug history:** Backend endpoint already existed and worked — the gap was that `/sync/:path*` was not in `vercel.json` rewrites, so Vercel's SPA catch-all served HTML for this path. Now proxied through to Railway correctly. Verified end-to-end via Playwright on production.
+
+**Request:** `GET /sync/status` (no params, auth required)
+
+**Response 200 — normal case**
+```json
+{
+  "success": true,
+  "data": {
+    "available": true,
+    "source": "his_snapshots",
+    "version": "2026-04-14T08:00:01+00:00",
+    "lastSyncedAt": "2026-04-14T08:00:01+00:00",
+    "details": {
+      "patients_synced": 13,
+      "errors": []
+    }
+  }
+}
+```
+
+**Response 200 — no sync_status row yet**
+```json
+{
+  "success": true,
+  "data": {
+    "available": false,
+    "source": "his_snapshots",
+    "version": null,
+    "lastSyncedAt": null,
+    "details": null
+  }
+}
+```
+
+**Frontend handling:**
+- `useExternalSyncPolling` reads `version` as the change detector — when it changes, invalidate patient/dashboard caches. **Do not** compare `lastSyncedAt` (can stay equal across polls even when new data arrives).
+- `available: false` = launchd job hasn't run yet; display "尚未同步" not an error.
+- Polled every ~60s from the client. Proxied via `vercel.json` `/sync/:path*` rewrite — `x-request-id` header **not** required (no SPA collision at `/sync`).
+
+---
+
+### [READY] GET `/api/v1/ai/readiness` — AI Preflight Gate (AO-01)
+
+- **Added by:** backend session
+- **Date:** 2026-04-14 (endpoint pre-existed; documenting contract here)
+- **Purpose:** Frontend calls this before enabling any AI feature so the UI can gray-out buttons with an accurate reason instead of letting the user hit a downstream 500.
+
+**Request:** `GET /api/v1/ai/readiness` (auth required)
+
+**Response 200 — all green**
+```json
+{
+  "success": true,
+  "data": {
+    "overall_ready": true,
+    "checked_at": "2026-04-14T09:30:00+00:00",
+    "llm": {
+      "ready": true,
+      "provider": "openai",
+      "model": "gpt-4o-mini",
+      "reason": null
+    },
+    "evidence": {
+      "reachable": true,
+      "ready": true,
+      "reason": null,
+      "last_error": null
+    },
+    "rag": {
+      "ready": true,
+      "is_indexed": true,
+      "total_chunks": 32,
+      "total_documents": 6,
+      "engine": "hybrid_rag",
+      "clinical_rules_loaded": true
+    },
+    "feature_gates": {
+      "chat": true,
+      "clinical_summary": true,
+      "patient_explanation": true,
+      "guideline_interpretation": true,
+      "decision_support": true,
+      "clinical_polish": true,
+      "dose_calculation": true,
+      "drug_interactions": true,
+      "clinical_query": true
+    },
+    "blocking_reasons": [],
+    "display_reasons": []
+  }
+}
+```
+
+**Feature-gate semantics (important):**
+- `chat` — gated **only** on `llm_ready`. New chat uses the DB context builder, not RAG/evidence. Do NOT grey out chat when evidence/RAG are down.
+- `clinical_summary` / `patient_explanation` / `clinical_polish` — gated only on `llm_ready`.
+- `guideline_interpretation` / `decision_support` — gated on `llm_ready AND (evidence_reachable OR rag_indexed)`.
+- `dose_calculation` / `drug_interactions` / `clinical_query` — gated on `evidence_reachable` (these routes hit evidence/`func/` service directly).
+
+**Blocking reason codes (stable enum):**
+| Code | Human-readable (zh-TW) |
+|---|---|
+| `LLM_API_KEY_MISSING` | LLM API key 未設定，AI 生成功能已停用。 |
+| `LLM_PROVIDER_UNSUPPORTED` | LLM provider 設定不支援，請檢查後端設定。 |
+| `EVIDENCE_UNREACHABLE` | Evidence 服務無法連線，劑量/交互作用與混合查詢功能暫不可用。 |
+| `RAG_NOT_INDEXED` | RAG 尚未索引，臨床指引與帶文獻依據的回答可能降級。 |
+| `KNOWLEDGE_SOURCE_UNAVAILABLE` | 知識來源不可用（Evidence 與本地 RAG 均不可用）。 |
+
+**Frontend handling:**
+- Call on app load after auth; cache for ~60s; re-call on window focus after long idle.
+- Render the grayed-out buttons using `feature_gates`, not `overall_ready` (partial availability is common — e.g., chat works when evidence is down).
+- `display_reasons` is pre-translated; safe to render directly in a tooltip / banner.
+- `rag.engine` is `"hybrid_rag"` when evidence service is reachable, `"local_rag"` as fallback. Purely informational — don't branch UI on it.
