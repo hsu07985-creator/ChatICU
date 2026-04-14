@@ -182,46 +182,6 @@
   - Other tags (general tags like "重要", "追蹤") keep current default styling
   - Use `PHARMACY_ADVICE_CATEGORY_COLORS` from `src/lib/pharmacy-master-data.ts` as color source
 
-### F15 [DONE] Add `/sync/:path*` rewrite to `vercel.json`
-- **Added by:** backend session
-- **Date:** 2026-04-14
-- **Priority:** P0 (production bug — silently breaks `useExternalSyncPolling`)
-- **Files:** `vercel.json` (already modified by backend session — needs frontend review + deploy)
-- **Why this matters:**
-  - `src/hooks/use-external-sync-polling.ts` polls `GET /sync/status` every 60s to detect HIS sync completion and auto-refresh patient data.
-  - `vercel.json` had rewrites for `/auth`, `/ai`, `/api`, `/health`, `/patients`, `/dashboard`, `/admin`, `/pharmacy`, etc. — but **no `/sync` rewrite**.
-  - Result: Vercel fell through to the SPA catch-all and returned `index.html` for `/sync/status`. The hook's `JSON.parse()` of HTML throws, gets swallowed by the `try/catch` as a `console.warn`, and the version-change detection never fires.
-  - **Impact:** `useExternalSyncPolling` has been silently broken in production since it shipped. Users never got auto-refresh when HIS sync completed — they had to manually reload.
-- **Evidence (captured 2026-04-14):**
-  ```
-  $ curl -sI https://chat-icu.vercel.app/sync/status
-  content-type: text/html; charset=utf-8    ← should be application/json
-  etag: "<hex-etag-redacted>"  ← static HTML ETag → persistent 304
-  x-vercel-cache: HIT
-  age: 8105
-  ```
-  Backend `/sync/status` on Railway is fine — returns JSON + correct data (verified in Step 4). Pure proxy config gap.
-- **Fix (already applied to `vercel.json`):**
-  ```json
-  {
-    "source": "/sync/:path*",
-    "destination": "https://chaticu-production-8060.up.railway.app/sync/:path*"
-  }
-  ```
-  Inserted between the `/pharmacy/:path*` rewrite and the SPA catch-all `/(.*)`.
-  No `x-request-id` header guard needed — there is no SPA page at `/sync`, so no conflict risk.
-- **Action needed:** Frontend session review the 4-line diff in `vercel.json`, push to `railway` remote (→ Vercel deploy), then verify with:
-  ```bash
-  curl -sI https://chat-icu.vercel.app/sync/status
-  # expected: content-type: application/json, 401 (unauthenticated)
-  ```
-  Then re-run Step 5-2 verification: force sync via backend, watch browser Network tab for 200 (not 304) on `/sync/status` and refresh cascade.
-- **Verified end-to-end (2026-04-14, backend session via Playwright MCP):**
-  1. Smoke: `curl -sI https://chat-icu.vercel.app/sync/status` → `HTTP/2 401`, `content-type: application/json`, `x-railway-edge: railway/asia-southeast1-eqsg3a`, `x-cache: MISS`. Vercel proxy is correctly forwarding to Railway.
-  2. Polling: 6+ GET `/sync/status` over 4 minutes in Playwright network log, all 200, all `application/json` (not 304, not HTML).
-  3. Version cascade: forced via `UPDATE sync_status SET version=$now WHERE key='his_snapshots'` on Supabase prod. Within ~70s the next polling tick fired `/patients?limit=100 → 200` and `/dashboard/stats → 200` immediately after the version-changed `/sync/status` response. `useExternalSyncPolling` is fully wired and live in production.
-- **References:** `docs/coordination/dev-step-tracker.md` Step 3.
-
 ### F16 [READY] Confirm thumbs-up/down feedback uses correct field name (P0-a)
 - **Endpoint:** `PATCH /ai/chat/messages/{message_id}/feedback`
 - **Added by:** backend session
@@ -332,5 +292,18 @@
 ---
 
 ## Completed Tasks
+
+### F15 [DONE] Add `/sync/:path*` rewrite to `vercel.json`
+- **Added by:** backend session
+- **Date:** 2026-04-14
+- **Completed:** 2026-04-14 (verified end-to-end via Playwright MCP on production)
+- **Priority:** P0 (production bug — silently broke `useExternalSyncPolling`)
+- **Files:** `vercel.json`
+- **Summary:** Added `/sync/:path*` rewrite between `/pharmacy/:path*` and the SPA catch-all so Vercel proxies sync polling to Railway instead of serving the SPA HTML. Without the rewrite `useExternalSyncPolling` had been silently broken since ship — `JSON.parse(html)` was swallowed by a try/catch and the version-change detector never fired.
+- **Verification (2026-04-14, backend session via Playwright MCP):**
+  1. Smoke: `curl -sI https://chat-icu.vercel.app/sync/status` → `HTTP/2 401`, `content-type: application/json`, `x-railway-edge: railway/asia-southeast1-eqsg3a`, `x-cache: MISS`.
+  2. Polling: 6+ GET `/sync/status` over 4 minutes in Playwright network log, all 200 `application/json` (not 304, not HTML).
+  3. Version cascade: forced `UPDATE sync_status SET version=$now WHERE key='his_snapshots'` on Supabase prod. Within ~70s the next polling tick fired `/patients?limit=100 → 200` and `/dashboard/stats → 200`. Hook is live in production.
+- **References:** `docs/coordination/dev-step-tracker.md` Step 3; schema in `api-contracts.md` → "GET `/sync/status`".
 
 <!-- Frontend session: move finished tasks here -->
