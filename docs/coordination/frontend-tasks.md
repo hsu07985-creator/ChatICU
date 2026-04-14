@@ -182,7 +182,7 @@
   - Other tags (general tags like "重要", "追蹤") keep current default styling
   - Use `PHARMACY_ADVICE_CATEGORY_COLORS` from `src/lib/pharmacy-master-data.ts` as color source
 
-### F15 [DONE-pending-deploy] Add `/sync/:path*` rewrite to `vercel.json`
+### F15 [DONE] Add `/sync/:path*` rewrite to `vercel.json`
 - **Added by:** backend session
 - **Date:** 2026-04-14
 - **Priority:** P0 (production bug — silently breaks `useExternalSyncPolling`)
@@ -216,7 +216,11 @@
   # expected: content-type: application/json, 401 (unauthenticated)
   ```
   Then re-run Step 5-2 verification: force sync via backend, watch browser Network tab for 200 (not 304) on `/sync/status` and refresh cascade.
-- **References:** This session's Step 5 verification log.
+- **Verified end-to-end (2026-04-14, backend session via Playwright MCP):**
+  1. Smoke: `curl -sI https://chat-icu.vercel.app/sync/status` → `HTTP/2 401`, `content-type: application/json`, `x-railway-edge: railway/asia-southeast1-eqsg3a`, `x-cache: MISS`. Vercel proxy is correctly forwarding to Railway.
+  2. Polling: 6+ GET `/sync/status` over 4 minutes in Playwright network log, all 200, all `application/json` (not 304, not HTML).
+  3. Version cascade: forced via `UPDATE sync_status SET version=$now WHERE key='his_snapshots'` on Supabase prod. Within ~70s the next polling tick fired `/patients?limit=100 → 200` and `/dashboard/stats → 200` immediately after the version-changed `/sync/status` response. `useExternalSyncPolling` is fully wired and live in production.
+- **References:** `docs/coordination/dev-step-tracker.md` Step 3.
 
 ### F16 [READY] Confirm thumbs-up/down feedback uses correct field name (P0-a)
 - **Endpoint:** `PATCH /ai/chat/messages/{message_id}/feedback`
