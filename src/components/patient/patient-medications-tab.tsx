@@ -587,7 +587,8 @@ export function PatientMedicationsTab({
   onRefreshMedications,
 }: PatientMedicationsTabProps) {
   const [medView, setMedView] = useState<'active' | 'discontinued' | 'all' | 'duplicate'>('active');
-  const [filterPrn, setFilterPrn] = useState(false);
+  // 頻次篩選：all=不過濾 / regular=去掉 PRN,STAT（常規用藥）/ prn=只留 PRN,STAT
+  const [freqFilter, setFreqFilter] = useState<'all' | 'regular' | 'prn'>('all');
   const [detailMedication, setDetailMedication] = useState<Medication | null>(null);
   const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
   const [editForm, setEditForm] = useState({
@@ -658,6 +659,7 @@ export function PatientMedicationsTab({
   // Current base list depends on view mode
   const baseMeds = medView === 'active' ? activeOtherMeds : medView === 'discontinued' ? allDiscontinuedMeds : allOtherMeds;
   const prnCount = baseMeds.filter(isPrnOrStat).length;
+  const regularCount = baseMeds.length - prnCount;
 
   // Sort by prescription start date ascending (earliest first)
   const sortOtherMeds = (meds: Medication[]) => [...meds].sort((a, b) => {
@@ -666,10 +668,13 @@ export function PatientMedicationsTab({
     return dateA.localeCompare(dateB);
   });
 
-  const applyFilters = (meds: Medication[]) => meds
-    .filter((m) => !filterPrn || isPrnOrStat(m));
+  const applyFilters = (meds: Medication[]) => meds.filter((m) => {
+    if (freqFilter === 'regular') return !isPrnOrStat(m);
+    if (freqFilter === 'prn') return isPrnOrStat(m);
+    return true;
+  });
 
-  const clearSubFilters = () => { setFilterPrn(false); };
+  const clearSubFilters = () => { setFreqFilter('all'); };
 
   const displayedMeds = applyFilters(sortOtherMeds(baseMeds));
   const canEditMedication = userRole === 'doctor' || userRole === 'np' || userRole === 'pharmacist';
@@ -888,15 +893,34 @@ export function PatientMedicationsTab({
                     重複用藥 ({duplicateMeds.length})
                   </Button>
                 )}
-                {prnCount > 0 && (
-                  <Button
-                    variant={filterPrn ? 'default' : 'outline'}
-                    size="sm"
-                    className={`h-7 px-2 text-xs ${filterPrn ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30'}`}
-                    onClick={() => setFilterPrn(!filterPrn)}
-                  >
-                    PRN/STAT ({prnCount})
-                  </Button>
+                {prnCount > 0 && medView !== 'duplicate' && (
+                  <div className="inline-flex rounded-lg border border-violet-300 dark:border-violet-700 p-0.5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-7 px-3 text-xs rounded-md ${freqFilter === 'all' ? 'bg-violet-600 text-white shadow-sm font-medium hover:bg-violet-700 hover:text-white' : 'text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30'}`}
+                      onClick={() => setFreqFilter('all')}
+                    >
+                      全部 ({baseMeds.length})
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={regularCount === 0}
+                      className={`h-7 px-3 text-xs rounded-md ${freqFilter === 'regular' ? 'bg-violet-600 text-white shadow-sm font-medium hover:bg-violet-700 hover:text-white' : 'text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30'}`}
+                      onClick={() => setFreqFilter('regular')}
+                    >
+                      常規 ({regularCount})
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-7 px-3 text-xs rounded-md ${freqFilter === 'prn' ? 'bg-violet-600 text-white shadow-sm font-medium hover:bg-violet-700 hover:text-white' : 'text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30'}`}
+                      onClick={() => setFreqFilter('prn')}
+                    >
+                      PRN/STAT ({prnCount})
+                    </Button>
+                  </div>
                 )}
               </div>
             </CardHeader>
@@ -969,7 +993,15 @@ export function PatientMedicationsTab({
               )}
               {displayedMeds.length === 0 ? (
                 <p className="py-3 text-sm text-muted-foreground">
-                  {filterPrn ? '無 PRN/STAT 藥物' : medView === 'discontinued' ? '無已停用藥物' : medView === 'all' ? '無藥物' : '無住院用藥'}
+                  {freqFilter === 'regular'
+                    ? '無常規用藥'
+                    : freqFilter === 'prn'
+                    ? '無 PRN/STAT 藥物'
+                    : medView === 'discontinued'
+                    ? '無已停用藥物'
+                    : medView === 'all'
+                    ? '無藥物'
+                    : '無住院用藥'}
                 </p>
               ) : (
                 <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
