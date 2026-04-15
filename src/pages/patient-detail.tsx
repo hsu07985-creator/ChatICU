@@ -8,6 +8,7 @@ import { isAxiosError } from 'axios';
 import {
   streamChatMessage,
   extractStreamMainContent,
+  splitMainAndDetail,
   getChatSessions as fetchChatSessionsApi,
   getChatSession as fetchChatSessionApi,
   updateChatSessionTitle,
@@ -941,6 +942,29 @@ export function PatientDetailPage() {
     setChatInput('');
     setIsSending(true);
 
+    // Optimistically add a temporary session to the left list so the user sees
+    // the new conversation immediately instead of waiting for the stream to finish.
+    // When the stream completes, refreshChatSessions() wipes and refetches, which
+    // replaces this tmp entry with the real one from the backend.
+    const optimisticSessionId = selectedSession ? null : `tmp-${Date.now()}`;
+    if (optimisticSessionId) {
+      const now = new Date();
+      const optimisticTitle = sessionTitle.trim() || userMessage.slice(0, 50);
+      setChatSessions(prev => [
+        {
+          id: optimisticSessionId,
+          patientId: id || patient?.id || '',
+          sessionDate: now.toISOString().split('T')[0],
+          sessionTime: now.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
+          title: optimisticTitle,
+          messages: [],
+          lastUpdated: now.toLocaleString('zh-TW'),
+          messageCount: 1,
+        },
+        ...prev,
+      ]);
+    }
+
     try {
       setChatMessages([
         ...messagesWithUser,
@@ -975,11 +999,25 @@ export function PatientDetailPage() {
         });
       });
 
+      // Backend currently returns main + 【說明/補充】 concatenated in `content`
+      // and `explanation: null`. Until backend splits server-side, do it here
+      // as a fallback so the expandable detail panel actually gets populated.
+      // Prefer backend's explanation if it ever arrives non-empty.
+      const rawContent = response.message.content || '';
+      const backendExplanation = response.message.explanation;
+      let mainContent = rawContent;
+      let detailContent: string | null = backendExplanation || null;
+      if (!detailContent) {
+        const split = splitMainAndDetail(rawContent);
+        mainContent = split.main;
+        detailContent = split.detail;
+      }
+
       const assistantMsg: ChatMessage = {
         role: 'assistant',
-        content: response.message.content,
+        content: mainContent,
         messageId: response.message.id,
-        explanation: response.message.explanation || null,
+        explanation: detailContent,
         references: response.message.citations || [],
         warnings: response.message.safetyWarnings || null,
         requiresExpertReview: response.message.requiresExpertReview || false,
@@ -1022,6 +1060,10 @@ export function PatientDetailPage() {
         await refreshChatSessions();
       }
     } catch (err) {
+      // Roll back the optimistic session entry — the backend did not persist it
+      if (optimisticSessionId) {
+        setChatSessions(prev => prev.filter(s => s.id !== optimisticSessionId));
+      }
       console.error('AI 回覆失敗:', err);
       let errorMessage = 'AI 助手目前無法回應，請確認後端服務是否正常運行，稍後再試。';
       if (isAxiosError(err)) {
@@ -1117,11 +1159,22 @@ export function PatientDetailPage() {
         });
       });
 
+      // Same local split fallback as handleSendMessage (see that function for why)
+      const rawRegenContent = response.message.content || '';
+      const backendRegenExplanation = response.message.explanation;
+      let regenMain = rawRegenContent;
+      let regenDetail: string | null = backendRegenExplanation || null;
+      if (!regenDetail) {
+        const split = splitMainAndDetail(rawRegenContent);
+        regenMain = split.main;
+        regenDetail = split.detail;
+      }
+
       const newAssistantMsg: ChatMessage = {
         role: 'assistant',
-        content: response.message.content,
+        content: regenMain,
         messageId: response.message.id,
-        explanation: response.message.explanation || null,
+        explanation: regenDetail,
         references: response.message.citations || [],
         warnings: response.message.safetyWarnings || null,
         requiresExpertReview: response.message.requiresExpertReview || false,

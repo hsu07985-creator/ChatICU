@@ -7,18 +7,54 @@ const _MAIN_MARKERS = ['【主回答】', '主回答：', '主回答:'];
 const _DETAIL_MARKERS = ['【說明/補充】', '【說明】', '說明/補充：', '說明：', '補充：'];
 
 /**
- * Strip legacy LLM section prefix markers (e.g. 【主回答】) from streaming text.
- * The detail section (【說明/補充】) is shown inline, so we no longer cut it out.
+ * Return the earliest index of any detail-section marker, or -1 if none found.
+ * Used to split a combined LLM reply into main content vs. detail/explanation.
  */
-export function extractStreamMainContent(rawText: string): string {
-  let text = rawText;
+export function findDetailMarkerIndex(text: string): number {
+  let earliest = -1;
+  for (const m of _DETAIL_MARKERS) {
+    const idx = text.indexOf(m);
+    if (idx >= 0 && (earliest === -1 || idx < earliest)) {
+      earliest = idx;
+    }
+  }
+  return earliest;
+}
+
+/**
+ * Split a full LLM reply into `{ main, detail }` based on the first detail
+ * marker encountered. Returns `detail = null` if no marker is present.
+ */
+export function splitMainAndDetail(rawText: string): { main: string; detail: string | null } {
+  const stripped = stripMainPrefix(rawText);
+  const idx = findDetailMarkerIndex(stripped);
+  if (idx < 0) return { main: stripped.trim(), detail: null };
+  return {
+    main: stripped.slice(0, idx).trim(),
+    detail: stripped.slice(idx).trim(),
+  };
+}
+
+function stripMainPrefix(text: string): string {
   for (const m of _MAIN_MARKERS) {
     if (text.startsWith(m)) {
-      text = text.slice(m.length);
-      break;
+      return text.slice(m.length).trimStart();
     }
   }
   return text.trimStart();
+}
+
+/**
+ * During SSE streaming, return just the main-answer portion of the assembled
+ * buffer. Strips any 【主回答】 prefix and cuts off everything from the first
+ * detail marker (【說明/補充】) onwards, so the live bubble shows only the
+ * short answer. The detail section is rendered in an expandable panel after
+ * the stream completes (see handleSendMessage / splitMainAndDetail).
+ */
+export function extractStreamMainContent(rawText: string): string {
+  const stripped = stripMainPrefix(rawText);
+  const idx = findDetailMarkerIndex(stripped);
+  return idx >= 0 ? stripped.slice(0, idx).trimEnd() : stripped;
 }
 
 // 類型定義
