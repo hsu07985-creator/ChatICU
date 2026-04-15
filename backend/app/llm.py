@@ -188,17 +188,31 @@ TASK_PROMPTS: dict[str, str] = {
         "ventilator settings) when available — never fabricate values. "
         "If a 'template_format' field is provided, use it as the output structure — "
         "fill in each section/field of the template using information from the draft and patient data. "
-        "Replace placeholders (___) with actual values; leave blank if data is unavailable. "
+        "Leave a field blank if data is unavailable — do not insert placeholders like ___ or [TBD]. "
         "If no template_format is provided, format based on polish_type: "
         "progress_note → Full SOAP format "
         "(S: Subjective — patient/family complaints, relevant history; "
         "O: Objective — vitals, labs with values, imaging, physical exam; "
         "A: Assessment — clinical interpretation, problem list; "
         "P: Plan — treatment plan, pending studies, follow-up); "
-        "medication_advice → include dosing rationale based on renal/hepatic function; "
-        "nursing_record → correct typos, standardize formatting in Chinese; "
+        "medication_advice → Concise recommendation only. List drug, dose, route, frequency, "
+        "and at most ONE short rationale line (e.g. renal/hepatic adjustment) if clinically essential. "
+        "Do NOT write paragraphs of background, pharmacology, or extended monitoring plans. "
+        "Target 3–6 short lines per recommendation; "
+        "nursing_record → correct typos, standardize formatting, preserve the nurse's voice; "
         "pharmacy_advice → formal clinical pharmacy recommendation. "
-        + _LANG_DIRECTIVE
+        # Output language is fixed per polish_type — do NOT follow a global Chinese directive here.
+        "OUTPUT LANGUAGE RULES (highest priority, override any other language instruction): "
+        "progress_note → clean professional English (the style used in US/Taiwan ICU notes); "
+        "medication_advice → clean professional English; "
+        "nursing_record → Traditional Chinese (繁體中文), using Taiwan medical terminology; "
+        "pharmacy_advice → Traditional Chinese (繁體中文). "
+        "Do not mix languages inside a single note. "
+        # Refinement branch
+        "REFINEMENT MODE: If the input contains 'user_instruction' and 'previous_polished', "
+        "this is a revision request. Rewrite 'previous_polished' according to 'user_instruction', "
+        "still grounded in 'draft_content' and the patient data. Output ONLY the revised documentation "
+        "in the same output language rule as above — no preamble, no commentary on what changed."
     ),
     "conversation_compress": (
         "You are a conversation summarizer for an ICU clinical AI assistant. "
@@ -533,13 +547,16 @@ async def _stream_openai(
     )
     # icu_chat is the interactive user-facing chat assistant — reasoning tokens
     # push TTFT to 2-5s before the first visible token, which dominates perceived
-    # latency. Skip reasoning for this task and fall back to temperature so the
-    # model streams immediately. Other tasks (safety_check, citation_summary,
-    # orchestrator, etc.) keep reasoning for answer quality.
+    # latency. Skip reasoning for this task so the model streams immediately.
+    # Other tasks (safety_check, citation_summary, orchestrator, etc.) keep
+    # reasoning for answer quality.
+    # NOTE: gpt-5.x reasoning models only accept the default temperature (1),
+    # so we do NOT pass temperature at all — let the API use its default.
+    # Non-reasoning models (gpt-4o, etc.) honor LLM_TEMPERATURE.
     use_reasoning = bool(_REASONING_EFFORT) and task != "icu_chat"
     if use_reasoning:
         create_kwargs["reasoning_effort"] = _REASONING_EFFORT
-    else:
+    elif not settings.LLM_MODEL.startswith("gpt-5"):
         create_kwargs["temperature"] = settings.LLM_TEMPERATURE
     stream = await client.chat.completions.create(**create_kwargs)
 
