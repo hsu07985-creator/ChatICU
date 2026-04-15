@@ -586,9 +586,8 @@ export function PatientMedicationsTab({
   onCloseScoreTrend,
   onRefreshMedications,
 }: PatientMedicationsTabProps) {
-  const [medView, setMedView] = useState<'active' | 'discontinued' | 'all' | 'duplicate'>('active');
-  // 頻次篩選：all=不過濾 / regular=去掉 PRN,STAT（常規用藥）/ prn=只留 PRN,STAT
-  const [freqFilter, setFreqFilter] = useState<'all' | 'regular' | 'prn'>('all');
+  // medView：all=全部 / active=使用中 / regular=常規（使用中且非 PRN,STAT）/ discontinued=已停用 / duplicate=重複用藥
+  const [medView, setMedView] = useState<'active' | 'regular' | 'discontinued' | 'all' | 'duplicate'>('active');
   const [detailMedication, setDetailMedication] = useState<Medication | null>(null);
   const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
   const [editForm, setEditForm] = useState({
@@ -619,7 +618,9 @@ export function PatientMedicationsTab({
   ];
 
   const allOtherMeds = [...activeOtherMeds, ...allDiscontinuedMeds];
+  const regularOtherMeds = activeOtherMeds.filter((m) => !isPrnOrStat(m));
   const activeCount = activeOtherMeds.length;
+  const regularCount = regularOtherMeds.length;
   const discontinuedCount = allDiscontinuedMeds.length;
   const totalCount = allOtherMeds.length;
 
@@ -657,9 +658,11 @@ export function PatientMedicationsTab({
   }, [allOutpatientMeds]);
 
   // Current base list depends on view mode
-  const baseMeds = medView === 'active' ? activeOtherMeds : medView === 'discontinued' ? allDiscontinuedMeds : allOtherMeds;
-  const prnCount = baseMeds.filter(isPrnOrStat).length;
-  const regularCount = baseMeds.length - prnCount;
+  const baseMeds =
+    medView === 'active' ? activeOtherMeds
+    : medView === 'regular' ? regularOtherMeds
+    : medView === 'discontinued' ? allDiscontinuedMeds
+    : allOtherMeds;
 
   // Sort by prescription start date ascending (earliest first)
   const sortOtherMeds = (meds: Medication[]) => [...meds].sort((a, b) => {
@@ -668,15 +671,7 @@ export function PatientMedicationsTab({
     return dateA.localeCompare(dateB);
   });
 
-  const applyFilters = (meds: Medication[]) => meds.filter((m) => {
-    if (freqFilter === 'regular') return !isPrnOrStat(m);
-    if (freqFilter === 'prn') return isPrnOrStat(m);
-    return true;
-  });
-
-  const clearSubFilters = () => { setFreqFilter('all'); };
-
-  const displayedMeds = applyFilters(sortOtherMeds(baseMeds));
+  const displayedMeds = sortOtherMeds(baseMeds);
   const canEditMedication = userRole === 'doctor' || userRole === 'np' || userRole === 'pharmacist';
 
   // Duplicate medication detection: same generic across inpatient ↔ outpatient (active only)
@@ -854,14 +849,14 @@ export function PatientMedicationsTab({
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">住院用藥 Inpatient Medications</CardTitle>
               </div>
-              {/* Primary toggle: active vs discontinued */}
+              {/* 主要切換：全部 / 使用中 / 常規 / 已停用 */}
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5">
                   <Button
                     variant="ghost"
                     size="sm"
                     className={`h-7 px-3 text-xs rounded-md ${medView === 'all' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                    onClick={() => { setMedView('all'); clearSubFilters(); }}
+                    onClick={() => setMedView('all')}
                   >
                     全部 ({totalCount})
                   </Button>
@@ -869,16 +864,25 @@ export function PatientMedicationsTab({
                     variant="ghost"
                     size="sm"
                     className={`h-7 px-3 text-xs rounded-md ${medView === 'active' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                    onClick={() => { setMedView('active'); clearSubFilters(); }}
+                    onClick={() => setMedView('active')}
                   >
                     使用中 ({activeCount})
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
+                    disabled={regularCount === 0}
+                    className={`h-7 px-3 text-xs rounded-md ${medView === 'regular' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                    onClick={() => setMedView('regular')}
+                  >
+                    常規 ({regularCount})
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     disabled={discontinuedCount === 0}
                     className={`h-7 px-3 text-xs rounded-md ${medView === 'discontinued' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                    onClick={() => { setMedView('discontinued'); clearSubFilters(); }}
+                    onClick={() => setMedView('discontinued')}
                   >
                     已停用 ({discontinuedCount})
                   </Button>
@@ -888,39 +892,10 @@ export function PatientMedicationsTab({
                     variant={medView === 'duplicate' ? 'default' : 'outline'}
                     size="sm"
                     className={`h-7 px-2 text-xs ${medView === 'duplicate' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30'}`}
-                    onClick={() => { setMedView(medView === 'duplicate' ? 'active' : 'duplicate'); clearSubFilters(); }}
+                    onClick={() => setMedView(medView === 'duplicate' ? 'active' : 'duplicate')}
                   >
                     重複用藥 ({duplicateMeds.length})
                   </Button>
-                )}
-                {prnCount > 0 && medView !== 'duplicate' && (
-                  <div className="inline-flex rounded-lg border border-violet-300 dark:border-violet-700 p-0.5">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`h-7 px-3 text-xs rounded-md ${freqFilter === 'all' ? 'bg-violet-600 text-white shadow-sm font-medium hover:bg-violet-700 hover:text-white' : 'text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30'}`}
-                      onClick={() => setFreqFilter('all')}
-                    >
-                      全部 ({baseMeds.length})
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={regularCount === 0}
-                      className={`h-7 px-3 text-xs rounded-md ${freqFilter === 'regular' ? 'bg-violet-600 text-white shadow-sm font-medium hover:bg-violet-700 hover:text-white' : 'text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30'}`}
-                      onClick={() => setFreqFilter('regular')}
-                    >
-                      常規 ({regularCount})
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`h-7 px-3 text-xs rounded-md ${freqFilter === 'prn' ? 'bg-violet-600 text-white shadow-sm font-medium hover:bg-violet-700 hover:text-white' : 'text-violet-700 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30'}`}
-                      onClick={() => setFreqFilter('prn')}
-                    >
-                      PRN/STAT ({prnCount})
-                    </Button>
-                  </div>
                 )}
               </div>
             </CardHeader>
@@ -993,10 +968,8 @@ export function PatientMedicationsTab({
               )}
               {displayedMeds.length === 0 ? (
                 <p className="py-3 text-sm text-muted-foreground">
-                  {freqFilter === 'regular'
+                  {medView === 'regular'
                     ? '無常規用藥'
-                    : freqFilter === 'prn'
-                    ? '無 PRN/STAT 藥物'
                     : medView === 'discontinued'
                     ? '無已停用藥物'
                     : medView === 'all'
