@@ -27,6 +27,9 @@ import {
   Trash2,
   X,
   ArrowRight,
+  ChevronDown,
+  ChevronUp,
+  Wand2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -220,6 +223,11 @@ export function MedicalRecords({ patientId, aiReadiness = null }: MedicalRecords
   // Loading flags
   const [isPolishing, setIsPolishing] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [isRefining, setIsRefining] = useState(false);
+
+  // Refinement panel (per-type UI state — not persisted)
+  const [refinementOpen, setRefinementOpen] = useState(false);
+  const [refinementInstruction, setRefinementInstruction] = useState('');
   const [deletingTemplateName, setDeletingTemplateName] = useState<string | null>(null);
   const [updatingTemplateName, setUpdatingTemplateName] = useState<string | null>(null);
 
@@ -277,6 +285,41 @@ export function MedicalRecords({ patientId, aiReadiness = null }: MedicalRecords
       toast.error('AI 修飾失敗，請稍後再試');
     } finally {
       setIsPolishing(false);
+    }
+  };
+
+  const handleRefine = async () => {
+    const instruction = refinementInstruction.trim();
+    if (!instruction) {
+      toast.error('請輸入要怎麼調整');
+      return;
+    }
+    if (!polishedContent.trim()) return;
+    if (!canPolish) {
+      toast.error(polishReason);
+      return;
+    }
+    setIsRefining(true);
+    try {
+      const polishTypeMap: Record<RecordType, 'progress_note' | 'medication_advice' | 'nursing_record'> = {
+        'progress-note': 'progress_note',
+        'medication-advice': 'medication_advice',
+        'nursing-record': 'nursing_record',
+      };
+      const result = await polishClinicalText({
+        patientId,
+        content: inputContent,
+        polishType: polishTypeMap[recordType],
+        instruction,
+        previousPolished: polishedContent,
+      });
+      updateDraft(recordType, { polished: result.polished, polishedFrom: inputContent });
+      setRefinementInstruction('');
+      toast.success('已依指示重新修飾');
+    } catch {
+      toast.error('再修一次失敗，請稍後再試');
+    } finally {
+      setIsRefining(false);
     }
   };
 
@@ -679,10 +722,57 @@ export function MedicalRecords({ patientId, aiReadiness = null }: MedicalRecords
               <Copy className="mr-2 h-4 w-4" />
               複製貼到 HIS
             </Button>
+
             {polishedContent && !isPolishedStale && (
-              <p className="text-[11px] text-slate-400">
-                沒有複製？直接改右邊文字也可以，改完再按複製。
-              </p>
+              <div className="rounded-md border border-slate-200 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setRefinementOpen((v) => !v)}
+                  className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <Wand2 className="h-3.5 w-3.5" />
+                    想再調整嗎？
+                  </span>
+                  {refinementOpen ? (
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  )}
+                </button>
+                {refinementOpen && (
+                  <div className="space-y-2 border-t border-slate-200 p-3 dark:border-slate-700">
+                    <Textarea
+                      value={refinementInstruction}
+                      onChange={(e) => setRefinementInstruction(e.target.value)}
+                      placeholder="例如：再簡短一點 / 把劑量細節拿掉 / 用條列式 / 加上腎功能調整的理由"
+                      className="min-h-[60px] resize-none border-slate-300 text-sm dark:border-slate-600"
+                      disabled={isRefining}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !isRefining) {
+                          e.preventDefault();
+                          void handleRefine();
+                        }
+                      }}
+                    />
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] text-slate-400">
+                        修改後會覆蓋上方結果 · ⌘/Ctrl + Enter 送出
+                      </p>
+                      <Button
+                        onClick={handleRefine}
+                        disabled={isRefining || !refinementInstruction.trim()}
+                        size="sm"
+                        variant="outline"
+                      >
+                        <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                        {isRefining ? '修改中...' : '再修一次'}
+                        {isRefining ? <ButtonLoadingIndicator /> : null}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>

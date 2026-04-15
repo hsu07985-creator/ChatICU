@@ -503,6 +503,11 @@ async def polish_clinical_text(
     }
     if req.template_content:
         input_data["template_format"] = req.template_content
+    # Refinement loop — overwrite-style: re-run polish with previous output + new instruction.
+    is_refinement = bool(req.instruction and req.previous_polished)
+    if is_refinement:
+        input_data["previous_polished"] = req.previous_polished
+        input_data["user_instruction"] = req.instruction
 
     result = await asyncio.to_thread(
         call_llm,
@@ -519,9 +524,14 @@ async def polish_clinical_text(
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
-        action="文本修飾", target=req.patient_id, status="success",
+        action="文本修飾" + ("（再修飾）" if is_refinement else ""),
+        target=req.patient_id, status="success",
         ip=request.client.host if request.client else None,
-        details={"polish_type": req.polish_type, "safety_flagged": guardrail["flagged"]},
+        details={
+            "polish_type": req.polish_type,
+            "safety_flagged": guardrail["flagged"],
+            "refinement": is_refinement,
+        },
     )
 
     return success_response(data={

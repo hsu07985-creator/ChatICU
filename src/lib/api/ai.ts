@@ -608,6 +608,8 @@ export async function polishClinicalText(data: {
   content: string;
   polishType: 'progress_note' | 'medication_advice' | 'nursing_record' | 'pharmacy_advice';
   templateContent?: string;
+  instruction?: string;
+  previousPolished?: string;
 }): Promise<PolishResponse> {
   const body: Record<string, string> = {
     patient_id: data.patientId,
@@ -616,6 +618,10 @@ export async function polishClinicalText(data: {
   };
   if (data.templateContent) {
     body.template_content = data.templateContent;
+  }
+  if (data.instruction && data.previousPolished) {
+    body.instruction = data.instruction;
+    body.previous_polished = data.previousPolished;
   }
   const response = await apiClient.post<ApiResponse<PolishResponse>>('/api/v1/clinical/polish', body, {
     timeout: 90_000,
