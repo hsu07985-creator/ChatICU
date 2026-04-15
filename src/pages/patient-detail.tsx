@@ -976,6 +976,22 @@ export function PatientDetailPage() {
 
       const response = await new Promise<ChatResponse>((resolve, reject) => {
         let rawBuffer = '';
+        // Coalesce delta paints on rAF so we re-render at most once per frame (~60fps)
+        // instead of once per token — keeps the streaming cursor smooth on long answers.
+        let pendingRaf: number | null = null;
+        const flush = () => {
+          pendingRaf = null;
+          const mainContent = extractStreamMainContent(rawBuffer);
+          setChatMessages((prev) => {
+            if (prev.length === 0) return prev;
+            const next = [...prev];
+            const lastIndex = next.length - 1;
+            const last = next[lastIndex];
+            if (last?.role !== 'assistant') return prev;
+            next[lastIndex] = { ...last, content: mainContent };
+            return next;
+          });
+        };
         streamChatMessage({
           message: userMessage,
           patientId: id,
@@ -983,19 +999,24 @@ export function PatientDetailPage() {
           onMessage: (chunk) => {
             if (!chunk) return;
             rawBuffer += chunk;
-            const mainContent = extractStreamMainContent(rawBuffer);
-            setChatMessages((prev) => {
-              if (prev.length === 0) return prev;
-              const next = [...prev];
-              const lastIndex = next.length - 1;
-              const last = next[lastIndex];
-              if (last?.role !== 'assistant') return prev;
-              next[lastIndex] = { ...last, content: mainContent };
-              return next;
-            });
+            if (pendingRaf != null) return;
+            pendingRaf = requestAnimationFrame(flush);
           },
-          onComplete: (streamResult) => resolve(streamResult),
-          onError: (error) => reject(error),
+          onComplete: (streamResult) => {
+            if (pendingRaf != null) {
+              cancelAnimationFrame(pendingRaf);
+              pendingRaf = null;
+            }
+            flush();
+            resolve(streamResult);
+          },
+          onError: (error) => {
+            if (pendingRaf != null) {
+              cancelAnimationFrame(pendingRaf);
+              pendingRaf = null;
+            }
+            reject(error);
+          },
         });
       });
 
@@ -1137,6 +1158,20 @@ export function PatientDetailPage() {
     try {
       const response = await new Promise<ChatResponse>((resolve, reject) => {
         let rawBuffer = '';
+        // Coalesce delta paints on rAF — same rationale as handleSendMessage.
+        let pendingRaf: number | null = null;
+        const flush = () => {
+          pendingRaf = null;
+          const mainContent = extractStreamMainContent(rawBuffer);
+          setChatMessages((prev) => {
+            const next = [...prev];
+            const lastIndex = next.length - 1;
+            const last = next[lastIndex];
+            if (last?.role !== 'assistant') return prev;
+            next[lastIndex] = { ...last, content: mainContent };
+            return next;
+          });
+        };
         streamChatMessage({
           message: userMessage,
           patientId: id,
@@ -1144,18 +1179,24 @@ export function PatientDetailPage() {
           onMessage: (chunk) => {
             if (!chunk) return;
             rawBuffer += chunk;
-            const mainContent = extractStreamMainContent(rawBuffer);
-            setChatMessages((prev) => {
-              const next = [...prev];
-              const lastIndex = next.length - 1;
-              const last = next[lastIndex];
-              if (last?.role !== 'assistant') return prev;
-              next[lastIndex] = { ...last, content: mainContent };
-              return next;
-            });
+            if (pendingRaf != null) return;
+            pendingRaf = requestAnimationFrame(flush);
           },
-          onComplete: (streamResult) => resolve(streamResult),
-          onError: (error) => reject(error),
+          onComplete: (streamResult) => {
+            if (pendingRaf != null) {
+              cancelAnimationFrame(pendingRaf);
+              pendingRaf = null;
+            }
+            flush();
+            resolve(streamResult);
+          },
+          onError: (error) => {
+            if (pendingRaf != null) {
+              cancelAnimationFrame(pendingRaf);
+              pendingRaf = null;
+            }
+            reject(error);
+          },
         });
       });
 
@@ -1612,6 +1653,11 @@ export function PatientDetailPage() {
                                       <div className="h-2 w-2 rounded-full animate-bounce" style={{ backgroundColor: '#9ca3af', animationDelay: '160ms' }} />
                                       <div className="h-2 w-2 rounded-full animate-bounce" style={{ backgroundColor: '#9ca3af', animationDelay: '320ms' }} />
                                     </div>
+                                  ) : isStreamingThis ? (
+                                    // During streaming render as plain whitespace-pre-wrap <p> so we
+                                    // avoid re-parsing markdown on every delta — huge win for long answers.
+                                    // Swaps to <AiMarkdown> automatically once isStreamingThis becomes false.
+                                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1F2937]">{displayContent}</p>
                                   ) : (
                                     <AiMarkdown content={displayContent} className="text-sm text-[#1F2937]" />
                                   )}
