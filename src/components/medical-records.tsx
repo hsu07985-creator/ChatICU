@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getReadinessReason, polishClinicalText, type AIReadiness } from '../lib/api/ai';
-import { sendMessage } from '../lib/api/messages';
 import {
   listRecordTemplates,
   createRecordTemplate,
@@ -16,45 +15,25 @@ import { Button } from './ui/button';
 import { ButtonLoadingIndicator } from './ui/button-loading-indicator';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
-import { AiMarkdown } from './ui/ai-markdown';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from './ui/sheet';
 import {
   FileText,
   Pill,
   ClipboardList,
   Brain,
   Copy,
-  Save,
   Sparkles,
   Plus,
   Trash2,
   X,
-  History,
   ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface MedicalRecordsProps {
   patientId: string;
-  patientName: string;
+  patientName?: string;
   aiReadiness?: AIReadiness | null;
-}
-
-interface MedicalRecord {
-  id: string;
-  type: RecordType;
-  date: string;
-  author: string;
-  content: string;
-  polishedContent?: string;
 }
 
 type RecordType = 'progress-note' | 'medication-advice' | 'nursing-record';
@@ -156,7 +135,6 @@ const EMPTY_DRAFTS: Drafts = {
 };
 
 const draftKey = (patientId: string) => `chaticu-draft-${patientId}`;
-const historyKey = (patientId: string) => `chaticu-medical-records-${patientId}`;
 
 function loadDrafts(patientId: string): Drafts {
   try {
@@ -181,26 +159,9 @@ function saveDrafts(patientId: string, drafts: Drafts) {
   }
 }
 
-function loadHistory(patientId: string): MedicalRecord[] {
-  try {
-    const saved = localStorage.getItem(historyKey(patientId));
-    return saved ? JSON.parse(saved) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveHistory(patientId: string, records: MedicalRecord[]) {
-  try {
-    localStorage.setItem(historyKey(patientId), JSON.stringify(records));
-  } catch {
-    /* ignore quota errors */
-  }
-}
-
 /* ---------------- component ---------------- */
 
-export function MedicalRecords({ patientId, patientName, aiReadiness = null }: MedicalRecordsProps) {
+export function MedicalRecords({ patientId, aiReadiness = null }: MedicalRecordsProps) {
   const { user } = useAuth();
   const canPolish = aiReadiness ? aiReadiness.feature_gates.clinical_polish : true;
   const polishReason = getReadinessReason(aiReadiness, 'clinical_polish');
@@ -258,18 +219,8 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateContent, setNewTemplateContent] = useState('');
 
-  // History (local snapshots)
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [records, setRecords] = useState<MedicalRecord[]>(() => loadHistory(patientId));
-
-  // Reload history when patient switches
-  useEffect(() => {
-    setRecords(loadHistory(patientId));
-  }, [patientId]);
-
   // Loading flags
   const [isPolishing, setIsPolishing] = useState(false);
-  const [isSavingSnapshot, setIsSavingSnapshot] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [deletingTemplateName, setDeletingTemplateName] = useState<string | null>(null);
   const [updatingTemplateName, setUpdatingTemplateName] = useState<string | null>(null);
@@ -337,38 +288,6 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
     const ok = await copyToClipboard(text);
     if (ok) toast.success('已複製，可貼到 HIS');
     else toast.error('複製失敗，請手動複製');
-  };
-
-  const handleSaveSnapshot = async () => {
-    const contentToSave = (polishedContent || inputContent).trim();
-    if (!contentToSave) return;
-    const authorName = user?.name || user?.username || '未知';
-
-    setIsSavingSnapshot(true);
-    try {
-      await sendMessage(patientId, {
-        content: contentToSave,
-        messageType: recordType,
-      });
-
-      const snapshot: MedicalRecord = {
-        id: Date.now().toString(),
-        type: recordType,
-        date: new Date().toLocaleString('zh-TW'),
-        author: authorName,
-        content: inputContent,
-        polishedContent: polishedContent || undefined,
-      };
-      const next = [snapshot, ...records].slice(0, 50);
-      setRecords(next);
-      saveHistory(patientId, next);
-      clearDraft();
-      toast.success('已存為快照');
-    } catch {
-      toast.error('儲存失敗，請稍後再試');
-    } finally {
-      setIsSavingSnapshot(false);
-    }
   };
 
   const handleSaveAsTemplate = async () => {
@@ -450,28 +369,11 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
     }
   };
 
-  const handleDeleteSnapshot = (id: string) => {
-    const next = records.filter((r) => r.id !== id);
-    setRecords(next);
-    saveHistory(patientId, next);
-  };
-
-  const handleLoadSnapshot = (record: MedicalRecord) => {
-    setRecordType(record.type);
-    updateDraft(record.type, {
-      input: record.content,
-      polished: record.polishedContent || '',
-      polishedFrom: record.polishedContent ? record.content : '',
-    });
-    setHistoryOpen(false);
-  };
-
   /* -------- derived -------- */
 
   const config = RECORD_TYPE_CONFIG[recordType];
   const Icon = config.icon;
   const canCopy = (polishedContent || inputContent).trim().length > 0;
-  const getRecordTypeLabel = (type: string) => RECORD_TYPE_CONFIG[type as RecordType]?.label || type;
   const editableSelectedTemplate = serverTemplates.find(
     (t) => t.name === selectedTemplate && t.canEdit,
   );
@@ -547,15 +449,20 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                 <div className="max-h-60 space-y-1 overflow-auto pr-1">
                   <div className="px-1 text-[11px] uppercase tracking-wide text-slate-400">內建</div>
                   {Object.keys(BUILTIN_TEMPLATES[recordType]).map((name) => (
-                    <button
+                    <Button
                       key={`b-${name}`}
-                      className={`w-full rounded px-2 py-1.5 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${
-                        selectedTemplate === name ? 'bg-slate-100 dark:bg-slate-800' : ''
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className={`h-auto w-full justify-start py-1.5 text-left text-sm ${
+                        selectedTemplate === name
+                          ? 'bg-slate-100 dark:bg-slate-800'
+                          : ''
                       }`}
                       onClick={() => handleApplyTemplate(name)}
                     >
                       {name}
-                    </button>
+                    </Button>
                   ))}
 
                   {serverTemplates.length > 0 && (
@@ -564,20 +471,26 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
                         自訂
                       </div>
                       {serverTemplates.map((t) => (
-                        <div key={t.id} className="group flex items-center gap-1">
-                          <button
-                            className={`flex-1 rounded px-2 py-1.5 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${
-                              selectedTemplate === t.name ? 'bg-slate-100 dark:bg-slate-800' : ''
+                        <div key={t.id} className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className={`h-auto flex-1 justify-start py-1.5 text-left text-sm ${
+                              selectedTemplate === t.name
+                                ? 'bg-slate-100 dark:bg-slate-800'
+                                : ''
                             }`}
                             onClick={() => handleApplyTemplate(t.name)}
                           >
                             {t.name}
-                          </button>
+                          </Button>
                           {t.canDelete && (
                             <Button
+                              type="button"
                               size="sm"
                               variant="ghost"
-                              className="h-7 w-7 p-0 text-red-500 opacity-0 group-hover:opacity-100"
+                              className="h-7 w-7 shrink-0 p-0 text-red-500 hover:bg-red-50 dark:hover:bg-red-950"
                               disabled={deletingTemplateName === t.name}
                               onClick={() => void handleDeleteTemplate(t.name)}
                               title={`刪除「${t.name}」`}
@@ -654,88 +567,6 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
             </PopoverContent>
           </Popover>
 
-          {/* History drawer */}
-          <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="sm">
-                <History className="mr-1.5 h-4 w-4" />
-                最近
-                {records.length > 0 && (
-                  <Badge variant="secondary" className="ml-1.5">
-                    {records.length}
-                  </Badge>
-                )}
-              </Button>
-            </SheetTrigger>
-            <SheetContent className="flex w-full flex-col sm:max-w-md">
-              <SheetHeader>
-                <SheetTitle>最近快照</SheetTitle>
-                <SheetDescription>
-                  {patientName} · 存在本機，最多 50 筆
-                </SheetDescription>
-              </SheetHeader>
-              <div className="flex-1 overflow-y-auto px-4 pb-4">
-                {records.length === 0 ? (
-                  <div className="py-16 text-center text-sm text-muted-foreground">
-                    <FileText className="mx-auto mb-2 h-10 w-10 opacity-30" />
-                    尚無快照
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {records.map((r) => (
-                      <Card key={r.id} className="p-3">
-                        <div className="mb-2 flex items-start justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                            <Badge variant="secondary" className="text-[10px]">
-                              {getRecordTypeLabel(r.type)}
-                            </Badge>
-                            <span className="text-muted-foreground">{r.date}</span>
-                          </div>
-                          <div className="flex shrink-0 gap-1">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 w-7 p-0"
-                              title="複製"
-                              onClick={async () => {
-                                const ok = await copyToClipboard(
-                                  r.polishedContent || r.content,
-                                );
-                                if (ok) toast.success('已複製');
-                                else toast.error('複製失敗');
-                              }}
-                            >
-                              <Copy className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 w-7 p-0 text-red-500"
-                              title="刪除"
-                              onClick={() => handleDeleteSnapshot(r.id)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="max-h-32 overflow-y-auto rounded bg-slate-50 p-2 text-xs dark:bg-slate-800">
-                          <AiMarkdown content={r.polishedContent || r.content} />
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="mt-2 w-full text-xs"
-                          onClick={() => handleLoadSnapshot(r)}
-                        >
-                          載入到草稿
-                        </Button>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
         </div>
       </div>
 
@@ -839,29 +670,14 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
               placeholder="（尚未生成）"
               className="min-h-[280px] flex-1 resize-none border-slate-300 font-mono text-sm dark:border-slate-600"
             />
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={handleCopy}
-                disabled={!canCopy}
-                className="flex-1 bg-brand hover:bg-brand-hover"
-              >
-                <Copy className="mr-2 h-4 w-4" />
-                複製貼到 HIS
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSaveSnapshot}
-                disabled={isSavingSnapshot || !canCopy}
-                title="存為本機快照（給自己查閱）"
-              >
-                <Save className="mr-1.5 h-4 w-4" />
-                <span className="text-xs">
-                  {isSavingSnapshot ? '儲存中' : '存快照'}
-                </span>
-                {isSavingSnapshot ? <ButtonLoadingIndicator /> : null}
-              </Button>
-            </div>
+            <Button
+              onClick={handleCopy}
+              disabled={!canCopy}
+              className="w-full bg-brand hover:bg-brand-hover"
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              複製貼到 HIS
+            </Button>
             {polishedContent && !isPolishedStale && (
               <p className="text-[11px] text-slate-400">
                 沒有複製？直接改右邊文字也可以，改完再按複製。
