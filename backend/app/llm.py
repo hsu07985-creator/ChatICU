@@ -531,7 +531,13 @@ async def _stream_openai(
         stream=True,
         stream_options={"include_usage": True},
     )
-    if _REASONING_EFFORT:
+    # icu_chat is the interactive user-facing chat assistant — reasoning tokens
+    # push TTFT to 2-5s before the first visible token, which dominates perceived
+    # latency. Skip reasoning for this task and fall back to temperature so the
+    # model streams immediately. Other tasks (safety_check, citation_summary,
+    # orchestrator, etc.) keep reasoning for answer quality.
+    use_reasoning = bool(_REASONING_EFFORT) and task != "icu_chat"
+    if use_reasoning:
         create_kwargs["reasoning_effort"] = _REASONING_EFFORT
     else:
         create_kwargs["temperature"] = settings.LLM_TEMPERATURE

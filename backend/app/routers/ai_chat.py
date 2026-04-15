@@ -10,8 +10,10 @@ Flow:
   5. Persist assistant reply + update session
 """
 
+import asyncio
 import json
 import logging
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import AsyncGenerator, List, Optional
@@ -127,6 +129,7 @@ async def _event_stream(
     db: AsyncSession,
     request: Request,
     original_message: Optional[str] = None,
+    timings: Optional[dict] = None,
 ) -> AsyncGenerator[str, None]:
     """
     Generate SSE events from the LLM stream and persist the reply.
@@ -147,6 +150,8 @@ async def _event_stream(
 
     full_reply = ""
     token_count = 0
+    first_token_logged = False
+    t_pre_llm = time.perf_counter()
 
     try:
         async for chunk in call_llm_stream(
@@ -172,6 +177,28 @@ async def _event_stream(
                 yield f"event: error\ndata: {json.dumps({'message': error_msg})}\n\n"
                 return
             else:
+                if not first_token_logged:
+                    first_token_logged = True
+                    t_first = time.perf_counter()
+                    if timings:
+                        t0 = timings.get("t0", t_pre_llm)
+                        t_session = timings.get("t_session", t_pre_llm)
+                        t_snapshot = timings.get("t_snapshot", t_pre_llm)
+                        logger.info(
+                            "[CHAT][TIMING] session=%.0fms snapshot=%.0fms pre_llm=%.0fms ttft=%.0fms total=%.0fms sys_prompt_chars=%d",
+                            (t_session - t0) * 1000,
+                            (t_snapshot - t_session) * 1000,
+                            (t_pre_llm - t_snapshot) * 1000,
+                            (t_first - t_pre_llm) * 1000,
+                            (t_first - t0) * 1000,
+                            len(system_prompt),
+                        )
+                    else:
+                        logger.info(
+                            "[CHAT][TIMING] ttft=%.0fms sys_prompt_chars=%d",
+                            (t_first - t_pre_llm) * 1000,
+                            len(system_prompt),
+                        )
                 full_reply += chunk
                 yield f"event: delta\ndata: {json.dumps({'chunk': chunk})}\n\n"
 
@@ -244,9 +271,11 @@ async def chat_stream(
     First turn: builds Clinical Snapshot and embeds it in the system prompt.
     Subsequent turns: checks for data updates (delta) if snapshot > 30 min old.
     """
+    t0 = time.perf_counter()
     session = await _get_or_create_session(
         db, current_user.id, body.patient_id, body.session_id
     )
+    t_session = time.perf_counter()
 
     patient_id = body.patient_id or session.patient_id
     is_first_turn = session.snapshot_metadata is None
@@ -256,9 +285,15 @@ async def chat_stream(
         # First turn: build full snapshot and store only the snapshot text.
         # We do NOT store the full system_prompt so that prompt updates in
         # TASK_PROMPTS["icu_chat"] take effect immediately for all sessions.
-        snapshot = await build_clinical_snapshot(patient_id, db)
-
-        lab, meds = await _get_latest_lab(db, patient_id), await _get_active_medications(db, patient_id)
+        # Run snapshot build + key-value lab/med fetch in parallel so we don't
+        # pay two sequential round-trips on the first turn.
+        snapshot, (lab, meds) = await asyncio.gather(
+            build_clinical_snapshot(patient_id, db),
+            asyncio.gather(
+                _get_latest_lab(db, patient_id),
+                _get_active_medications(db, patient_id),
+            ),
+        )
         key_vals = extract_snapshot_key_values(lab, meds)
         session.snapshot_metadata = {
             "snapshot_taken_at": datetime.now(timezone.utc).isoformat(),
@@ -266,6 +301,7 @@ async def chat_stream(
             "clinical_snapshot": snapshot,  # store snapshot text, not the full prompt
         }
         await db.flush()
+    t_snapshot = time.perf_counter()
 
     if session.snapshot_metadata and session.snapshot_metadata.get("clinical_snapshot"):
         # Always rebuild from current TASK_PROMPTS so prompt updates apply immediately
@@ -305,8 +341,18 @@ async def chat_stream(
         session.patient_id = patient_id
         await db.flush()
 
+    timings = {"t0": t0, "t_session": t_session, "t_snapshot": t_snapshot}
     return StreamingResponse(
-        _event_stream(user_message, system_prompt, history, session.id, db, request, original_message=body.message),
+        _event_stream(
+            user_message,
+            system_prompt,
+            history,
+            session.id,
+            db,
+            request,
+            original_message=body.message,
+            timings=timings,
+        ),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
