@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getReadinessReason, polishClinicalText, type AIReadiness } from '../lib/api/ai';
 import { sendMessage } from '../lib/api/messages';
 import {
@@ -16,23 +16,29 @@ import { Button } from './ui/button';
 import { ButtonLoadingIndicator } from './ui/button-loading-indicator';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
-import { Label } from './ui/label';
 import { AiMarkdown } from './ui/ai-markdown';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from './ui/sheet';
 import {
   FileText,
   Pill,
   ClipboardList,
   Brain,
   Copy,
-  Download,
-  Calendar,
-  Send,
+  Save,
   Sparkles,
   Plus,
   Trash2,
-  Save,
+  X,
+  History,
+  ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -44,7 +50,7 @@ interface MedicalRecordsProps {
 
 interface MedicalRecord {
   id: string;
-  type: 'progress-note' | 'medication-advice' | 'nursing-record';
+  type: RecordType;
   date: string;
   author: string;
   content: string;
@@ -53,44 +59,34 @@ interface MedicalRecord {
 
 type RecordType = 'progress-note' | 'medication-advice' | 'nursing-record';
 
-const RECORD_TYPE_CONFIG: Record<RecordType, { label: string; icon: typeof FileText; description: string; placeholder: string; polishLabel: string }> = {
+const RECORD_TYPES: RecordType[] = ['progress-note', 'medication-advice', 'nursing-record'];
+
+const RECORD_TYPE_CONFIG: Record<
+  RecordType,
+  { label: string; icon: typeof FileText; description: string; placeholder: string; polishLabel: string }
+> = {
   'progress-note': {
     label: 'Progress Note',
     icon: FileText,
-    description: '可以使用中文或不完整的英文描述，AI 會協助修飾為專業的 Progress Note 格式',
-    placeholder: '例如：病人今天意識清楚，血壓穩定，繼續使用呼吸器...',
-    polishLabel: 'AI 修飾 Progress Note',
+    description: '中文／半英文都行，AI 會轉成專業 Progress Note 格式',
+    placeholder: '例：病人今天意識清楚，血壓穩定，繼續使用呼吸器...',
+    polishLabel: 'AI 修飾',
   },
   'medication-advice': {
     label: '用藥建議',
     icon: Pill,
-    description: '輸入建議草稿，AI 會協助修飾為專業的用藥建議格式',
-    placeholder: '例如：建議調整 Morphine 劑量因為腎功能不全，同時注意監測呼吸抑制...',
-    polishLabel: 'AI 修飾用藥建議',
+    description: '輸入用藥草稿，AI 協助整理為專業建議',
+    placeholder: '例：建議調整 Morphine 劑量因為腎功能不全，注意呼吸抑制...',
+    polishLabel: 'AI 修飾',
   },
   'nursing-record': {
     label: '護理記錄',
     icon: ClipboardList,
-    description: '使用模板快速建立記錄，AI 會協助檢查錯字並整理格式',
-    placeholder: '填寫護理記錄或使用上方模板...',
-    polishLabel: 'AI 檢查錯字與格式',
+    description: '使用模板快速建立，AI 協助檢查錯字與格式',
+    placeholder: '填寫護理記錄或套用模板...',
+    polishLabel: 'AI 檢查',
   },
 };
-
-const RECORDS_STORAGE_KEY = 'chaticu-medical-records';
-
-function loadRecords(patientId: string): MedicalRecord[] {
-  try {
-    const saved = localStorage.getItem(`${RECORDS_STORAGE_KEY}-${patientId}`);
-    return saved ? JSON.parse(saved) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveRecords(patientId: string, records: MedicalRecord[]) {
-  localStorage.setItem(`${RECORDS_STORAGE_KEY}-${patientId}`, JSON.stringify(records));
-}
 
 const BUILTIN_TEMPLATES: Record<RecordType, Record<string, string>> = {
   'progress-note': {
@@ -147,6 +143,63 @@ CAM-ICU: Positive / Negative
   },
 };
 
+/* ---------------- localStorage 草稿 / 歷史 ---------------- */
+
+type DraftEntry = { input: string; polished: string; polishedFrom: string };
+type Drafts = Record<RecordType, DraftEntry>;
+
+const EMPTY_DRAFT: DraftEntry = { input: '', polished: '', polishedFrom: '' };
+const EMPTY_DRAFTS: Drafts = {
+  'progress-note': { ...EMPTY_DRAFT },
+  'medication-advice': { ...EMPTY_DRAFT },
+  'nursing-record': { ...EMPTY_DRAFT },
+};
+
+const draftKey = (patientId: string) => `chaticu-draft-${patientId}`;
+const historyKey = (patientId: string) => `chaticu-medical-records-${patientId}`;
+
+function loadDrafts(patientId: string): Drafts {
+  try {
+    const raw = localStorage.getItem(draftKey(patientId));
+    if (!raw) return { ...EMPTY_DRAFTS };
+    const parsed = JSON.parse(raw) as Partial<Drafts>;
+    return {
+      'progress-note': { ...EMPTY_DRAFT, ...(parsed['progress-note'] || {}) },
+      'medication-advice': { ...EMPTY_DRAFT, ...(parsed['medication-advice'] || {}) },
+      'nursing-record': { ...EMPTY_DRAFT, ...(parsed['nursing-record'] || {}) },
+    };
+  } catch {
+    return { ...EMPTY_DRAFTS };
+  }
+}
+
+function saveDrafts(patientId: string, drafts: Drafts) {
+  try {
+    localStorage.setItem(draftKey(patientId), JSON.stringify(drafts));
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
+function loadHistory(patientId: string): MedicalRecord[] {
+  try {
+    const saved = localStorage.getItem(historyKey(patientId));
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveHistory(patientId: string, records: MedicalRecord[]) {
+  try {
+    localStorage.setItem(historyKey(patientId), JSON.stringify(records));
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
+/* ---------------- component ---------------- */
+
 export function MedicalRecords({ patientId, patientName, aiReadiness = null }: MedicalRecordsProps) {
   const { user } = useAuth();
   const canPolish = aiReadiness ? aiReadiness.feature_gates.clinical_polish : true;
@@ -159,33 +212,74 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
   };
 
   const [recordType, setRecordType] = useState<RecordType>(getDefaultRecordType());
-  const [inputContent, setInputContent] = useState('');
-  const [polishedContent, setPolishedContent] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
-  const [isPolishing, setIsPolishing] = useState(false);
-  const [isSavingRecord, setIsSavingRecord] = useState(false);
-  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
-  const [deletingTemplateName, setDeletingTemplateName] = useState<string | null>(null);
-  const [updatingTemplateName, setUpdatingTemplateName] = useState<string | null>(null);
-  const [records, setRecords] = useState<MedicalRecord[]>(() => loadRecords(patientId));
 
-  // Server-backed custom templates
+  // Drafts (per-type, per-patient, persisted)
+  const [drafts, setDraftsState] = useState<Drafts>(() => loadDrafts(patientId));
+  const [hydratedPatient, setHydratedPatient] = useState<string>(patientId);
+  if (hydratedPatient !== patientId) {
+    // Reload drafts when patient switches (render-phase derived state, supported pattern)
+    setHydratedPatient(patientId);
+    setDraftsState(loadDrafts(patientId));
+  }
+
+  const updateDraft = useCallback(
+    (type: RecordType, patch: Partial<DraftEntry>) => {
+      setDraftsState((prev) => {
+        const next: Drafts = {
+          ...prev,
+          [type]: { ...prev[type], ...patch },
+        };
+        saveDrafts(patientId, next);
+        return next;
+      });
+    },
+    [patientId],
+  );
+
+  const currentDraft = drafts[recordType];
+  const inputContent = currentDraft.input;
+  const polishedContent = currentDraft.polished;
+  const polishedFrom = currentDraft.polishedFrom;
+  const isPolishedStale = polishedContent.length > 0 && polishedFrom !== inputContent;
+
+  const setInputContent = (value: string) => updateDraft(recordType, { input: value });
+  const setPolishedContent = (value: string) => updateDraft(recordType, { polished: value });
+
+  const clearDraft = () => {
+    updateDraft(recordType, { input: '', polished: '', polishedFrom: '' });
+    setSelectedTemplate('');
+  };
+
+  // Templates (server-backed)
   const [serverTemplates, setServerTemplates] = useState<RecordTemplate[]>([]);
-  const [templateLoading, setTemplateLoading] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [templatePopoverOpen, setTemplatePopoverOpen] = useState(false);
   const [showNewTemplate, setShowNewTemplate] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateContent, setNewTemplateContent] = useState('');
 
+  // History (local snapshots)
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [records, setRecords] = useState<MedicalRecord[]>(() => loadHistory(patientId));
+
+  // Reload history when patient switches
+  useEffect(() => {
+    setRecords(loadHistory(patientId));
+  }, [patientId]);
+
+  // Loading flags
+  const [isPolishing, setIsPolishing] = useState(false);
+  const [isSavingSnapshot, setIsSavingSnapshot] = useState(false);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [deletingTemplateName, setDeletingTemplateName] = useState<string | null>(null);
+  const [updatingTemplateName, setUpdatingTemplateName] = useState<string | null>(null);
+
   const fetchTemplates = useCallback(async (type: RecordTemplateType) => {
-    setTemplateLoading(true);
     try {
       const templates = await listRecordTemplates(type);
       setServerTemplates(templates);
     } catch {
-      // Fallback: server templates empty, builtins still available
       setServerTemplates([]);
-    } finally {
-      setTemplateLoading(false);
     }
   }, []);
 
@@ -193,18 +287,20 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
     fetchTemplates(recordType as RecordTemplateType);
   }, [recordType, fetchTemplates]);
 
-  useEffect(() => {
-    saveRecords(patientId, records);
-  }, [patientId, records]);
+  const allTemplates = useMemo(() => {
+    const merged: Record<string, string> = { ...BUILTIN_TEMPLATES[recordType] };
+    for (const t of serverTemplates) merged[t.name] = t.content;
+    return merged;
+  }, [recordType, serverTemplates]);
 
-  // Build merged template map: builtins + server templates
-  const serverTemplateMap: Record<string, string> = {};
-  for (const t of serverTemplates) {
-    serverTemplateMap[t.name] = t.content;
-  }
-  const allTemplates = {
-    ...BUILTIN_TEMPLATES[recordType],
-    ...serverTemplateMap,
+  /* -------- actions -------- */
+
+  const handleApplyTemplate = (name: string) => {
+    const tpl = allTemplates[name];
+    if (!tpl) return;
+    setSelectedTemplate(name);
+    setInputContent(tpl);
+    setTemplatePopoverOpen(false);
   };
 
   const handlePolishContent = async () => {
@@ -215,7 +311,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
     }
     setIsPolishing(true);
     try {
-      const polishTypeMap: Record<string, 'progress_note' | 'medication_advice' | 'nursing_record'> = {
+      const polishTypeMap: Record<RecordType, 'progress_note' | 'medication_advice' | 'nursing_record'> = {
         'progress-note': 'progress_note',
         'medication-advice': 'medication_advice',
         'nursing-record': 'nursing_record',
@@ -227,7 +323,7 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
         polishType: polishTypeMap[recordType],
         templateContent,
       });
-      setPolishedContent(result.polished);
+      updateDraft(recordType, { polished: result.polished, polishedFrom: inputContent });
     } catch {
       toast.error('AI 修飾失敗，請稍後再試');
     } finally {
@@ -235,18 +331,27 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
     }
   };
 
-  const handleSaveRecord = async () => {
-    const contentToSave = polishedContent || inputContent;
+  const handleCopy = async () => {
+    const text = (polishedContent || inputContent).trim();
+    if (!text) return;
+    const ok = await copyToClipboard(text);
+    if (ok) toast.success('已複製，可貼到 HIS');
+    else toast.error('複製失敗，請手動複製');
+  };
+
+  const handleSaveSnapshot = async () => {
+    const contentToSave = (polishedContent || inputContent).trim();
+    if (!contentToSave) return;
     const authorName = user?.name || user?.username || '未知';
 
-    setIsSavingRecord(true);
+    setIsSavingSnapshot(true);
     try {
       await sendMessage(patientId, {
         content: contentToSave,
         messageType: recordType,
       });
 
-      const newRecord: MedicalRecord = {
+      const snapshot: MedicalRecord = {
         id: Date.now().toString(),
         type: recordType,
         date: new Date().toLocaleString('zh-TW'),
@@ -254,27 +359,40 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
         content: inputContent,
         polishedContent: polishedContent || undefined,
       };
-
-      setRecords([newRecord, ...records]);
-      setInputContent('');
-      setPolishedContent('');
-      toast.success('病歷記錄已儲存！');
+      const next = [snapshot, ...records].slice(0, 50);
+      setRecords(next);
+      saveHistory(patientId, next);
+      clearDraft();
+      toast.success('已存為快照');
     } catch {
-      toast.error('儲存病歷記錄失敗，請稍後再試');
+      toast.error('儲存失敗，請稍後再試');
     } finally {
-      setIsSavingRecord(false);
+      setIsSavingSnapshot(false);
     }
   };
 
   const handleSaveAsTemplate = async () => {
     const name = newTemplateName.trim();
-    if (!name) { toast.error('請輸入模板名稱'); return; }
-    if (!newTemplateContent.trim()) { toast.error('請輸入模板內容'); return; }
-    if (name in BUILTIN_TEMPLATES[recordType]) { toast.error(`「${name}」與內建模板名稱重複，請使用其他名稱`); return; }
+    if (!name) {
+      toast.error('請輸入模板名稱');
+      return;
+    }
+    if (!newTemplateContent.trim()) {
+      toast.error('請輸入模板內容');
+      return;
+    }
+    if (name in BUILTIN_TEMPLATES[recordType]) {
+      toast.error(`「${name}」與內建模板名稱重複，請使用其他名稱`);
+      return;
+    }
     setIsSavingTemplate(true);
     try {
       const roleMap: Record<string, RecordTemplate['roleScope']> = {
-        doctor: 'doctor', np: 'np', nurse: 'nurse', pharmacist: 'pharmacist', admin: 'admin',
+        doctor: 'doctor',
+        np: 'np',
+        nurse: 'nurse',
+        pharmacist: 'pharmacist',
+        admin: 'admin',
       };
       await createRecordTemplate({
         name,
@@ -296,8 +414,14 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
 
   const handleDeleteTemplate = async (name: string) => {
     const tpl = serverTemplates.find((t) => t.name === name);
-    if (!tpl) { toast.error('無法刪除內建模板'); return; }
-    if (!tpl.canDelete) { toast.error('您沒有刪除此模板的權限'); return; }
+    if (!tpl) {
+      toast.error('無法刪除內建模板');
+      return;
+    }
+    if (!tpl.canDelete) {
+      toast.error('您沒有刪除此模板的權限');
+      return;
+    }
     setDeletingTemplateName(name);
     try {
       await deleteRecordTemplate(tpl.id);
@@ -314,7 +438,6 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
   const handleUpdateTemplate = async (name: string) => {
     const tpl = serverTemplates.find((template) => template.name === name);
     if (!tpl) return;
-
     setUpdatingTemplateName(name);
     try {
       await updateRecordTemplate(tpl.id, { content: inputContent });
@@ -327,352 +450,427 @@ export function MedicalRecords({ patientId, patientName, aiReadiness = null }: M
     }
   };
 
+  const handleDeleteSnapshot = (id: string) => {
+    const next = records.filter((r) => r.id !== id);
+    setRecords(next);
+    saveHistory(patientId, next);
+  };
+
+  const handleLoadSnapshot = (record: MedicalRecord) => {
+    setRecordType(record.type);
+    updateDraft(record.type, {
+      input: record.content,
+      polished: record.polishedContent || '',
+      polishedFrom: record.polishedContent ? record.content : '',
+    });
+    setHistoryOpen(false);
+  };
+
+  /* -------- derived -------- */
 
   const config = RECORD_TYPE_CONFIG[recordType];
   const Icon = config.icon;
-
+  const canCopy = (polishedContent || inputContent).trim().length > 0;
   const getRecordTypeLabel = (type: string) => RECORD_TYPE_CONFIG[type as RecordType]?.label || type;
+  const editableSelectedTemplate = serverTemplates.find(
+    (t) => t.name === selectedTemplate && t.canEdit,
+  );
+  const templateDirty =
+    !!selectedTemplate &&
+    !!editableSelectedTemplate &&
+    inputContent.trim() !== '' &&
+    inputContent !== allTemplates[selectedTemplate];
 
-  const getFilteredRecords = () => {
-    if (user?.role === 'admin') return records;
-    if (user?.role === 'pharmacist') return records.filter((r) => r.type === 'medication-advice');
-    if (user?.role === 'nurse') return records.filter((r) => r.type === 'nursing-record');
-    return records.filter((r) => r.type === 'progress-note');
-  };
-
-  const filteredRecords = getFilteredRecords();
-  const customTemplateNames = serverTemplates.map((t) => t.name);
+  /* -------- render -------- */
 
   return (
-    <div className="space-y-6">
-      {/* 記錄類型選擇 */}
-      <Card className="border-slate-300 dark:border-slate-600">
-        <CardHeader className="bg-slate-50 dark:bg-slate-800">
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-6 w-6 text-slate-700 dark:text-slate-300" />
-            新增病歷記錄
-          </CardTitle>
-          <CardDescription>{config.description}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!canPolish && (
-            <div className="rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-sm text-amber-800 dark:text-amber-400">
-              {polishReason}
-            </div>
-          )}
+    <div className="space-y-4">
+      {/* Top bar: type chips + template popover + history trigger */}
+      <div className="flex flex-wrap items-center gap-2">
+        {RECORD_TYPES.map((type) => {
+          const TypeIcon = RECORD_TYPE_CONFIG[type].icon;
+          const active = recordType === type;
+          const draftLen = drafts[type].input.length;
+          return (
+            <Button
+              key={type}
+              variant="outline"
+              size="sm"
+              className="transition-colors"
+              style={
+                active
+                  ? { backgroundColor: '#1e293b', color: '#fff', borderColor: '#1e293b' }
+                  : undefined
+              }
+              onClick={() => setRecordType(type)}
+            >
+              <TypeIcon className="mr-1.5 h-4 w-4" />
+              {RECORD_TYPE_CONFIG[type].label}
+              {draftLen > 0 && !active && (
+                <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+              )}
+            </Button>
+          );
+        })}
 
-          {/* 記錄類型選擇器 */}
-          <div className="grid grid-cols-3 gap-3">
-            {(Object.keys(RECORD_TYPE_CONFIG) as RecordType[]).map((type) => {
-              const TypeIcon = RECORD_TYPE_CONFIG[type].icon;
-              return (
-                <Button
-                  key={type}
-                  variant="outline"
-                  className="transition-colors"
-                  style={recordType === type ? { backgroundColor: '#1e293b', color: '#fff', borderColor: '#1e293b' } : undefined}
-                  onClick={() => { setRecordType(type); setSelectedTemplate(''); setInputContent(''); setPolishedContent(''); }}
-                >
-                  <TypeIcon className="mr-2 h-5 w-5" />
-                  {RECORD_TYPE_CONFIG[type].label}
-                </Button>
-              );
-            })}
-          </div>
-          <Separator />
-
-          {/* 統一表單 */}
-          <div className="space-y-4">
-            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-4">
-              <div className="flex items-start gap-3 mb-3">
-                <Icon className="h-6 w-6 text-slate-700 dark:text-slate-300 mt-1" />
-                <div>
-                  <h3 className="font-semibold text-slate-900 dark:text-slate-100">{config.label} 輔助</h3>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{config.description}</p>
-                </div>
-              </div>
-
+        <div className="ml-auto flex items-center gap-2">
+          {/* Templates popover */}
+          <Popover open={templatePopoverOpen} onOpenChange={setTemplatePopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Sparkles className="mr-1.5 h-4 w-4" />
+                模板
+                {selectedTemplate && (
+                  <Badge variant="secondary" className="ml-1.5 max-w-[120px] truncate">
+                    {selectedTemplate}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-3" align="end">
               <div className="space-y-3">
-                {/* 模板選擇 */}
-                <div>
-                  <Label>選擇模板（可選）</Label>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Select value={selectedTemplate} onValueChange={(value) => {
-                      setSelectedTemplate(value);
-                      const tpl = { ...BUILTIN_TEMPLATES[recordType], ...serverTemplateMap }[value];
-                      if (tpl) setInputContent(tpl);
-                    }}>
-                      <SelectTrigger className="border-slate-300 dark:border-slate-600">
-                        <SelectValue placeholder="請選擇記錄模板" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.keys(BUILTIN_TEMPLATES[recordType]).map((name) => (
-                          <SelectItem key={name} value={name}>{name}</SelectItem>
-                        ))}
-                        {customTemplateNames.length > 0 && (
-                          <>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 border-t mt-1 pt-2">自訂模板</div>
-                            {customTemplateNames.map((name) => (
-                              <SelectItem key={`custom-${name}`} value={name}>{name}</SelectItem>
-                            ))}
-                          </>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="shrink-0"
-                      onClick={() => setShowNewTemplate(!showNewTemplate)}
-                      disabled={isSavingTemplate}
-                      title="新增自訂模板"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                    {selectedTemplate && customTemplateNames.includes(selectedTemplate) && (
-                      <span className="inline-flex shrink-0 items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-                          disabled={deletingTemplateName === selectedTemplate}
-                          onClick={() => void handleDeleteTemplate(selectedTemplate)}
-                          title={`刪除自訂模板「${selectedTemplate}」`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        {deletingTemplateName === selectedTemplate ? <ButtonLoadingIndicator compact /> : null}
-                      </span>
-                    )}
-                  </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    選擇模板
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs"
+                    onClick={() => setShowNewTemplate((v) => !v)}
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" />
+                    新增
+                  </Button>
                 </div>
 
-                {/* 新增模板面板（獨立區塊） */}
+                <div className="max-h-60 space-y-1 overflow-auto pr-1">
+                  <div className="px-1 text-[11px] uppercase tracking-wide text-slate-400">內建</div>
+                  {Object.keys(BUILTIN_TEMPLATES[recordType]).map((name) => (
+                    <button
+                      key={`b-${name}`}
+                      className={`w-full rounded px-2 py-1.5 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                        selectedTemplate === name ? 'bg-slate-100 dark:bg-slate-800' : ''
+                      }`}
+                      onClick={() => handleApplyTemplate(name)}
+                    >
+                      {name}
+                    </button>
+                  ))}
+
+                  {serverTemplates.length > 0 && (
+                    <>
+                      <div className="mt-2 px-1 text-[11px] uppercase tracking-wide text-slate-400">
+                        自訂
+                      </div>
+                      {serverTemplates.map((t) => (
+                        <div key={t.id} className="group flex items-center gap-1">
+                          <button
+                            className={`flex-1 rounded px-2 py-1.5 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                              selectedTemplate === t.name ? 'bg-slate-100 dark:bg-slate-800' : ''
+                            }`}
+                            onClick={() => handleApplyTemplate(t.name)}
+                          >
+                            {t.name}
+                          </button>
+                          {t.canDelete && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-red-500 opacity-0 group-hover:opacity-100"
+                              disabled={deletingTemplateName === t.name}
+                              onClick={() => void handleDeleteTemplate(t.name)}
+                              title={`刪除「${t.name}」`}
+                            >
+                              {deletingTemplateName === t.name ? (
+                                <ButtonLoadingIndicator compact />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+
+                {templateDirty && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full border-blue-300 text-blue-600 hover:bg-blue-50"
+                    disabled={updatingTemplateName === selectedTemplate}
+                    onClick={() => void handleUpdateTemplate(selectedTemplate)}
+                  >
+                    <Save className="mr-1.5 h-3.5 w-3.5" />
+                    將目前草稿覆蓋模板「{selectedTemplate}」
+                    {updatingTemplateName === selectedTemplate ? (
+                      <ButtonLoadingIndicator />
+                    ) : null}
+                  </Button>
+                )}
+
                 {showNewTemplate && (
-                  <div className="rounded-md border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 p-3 space-y-2">
-                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">建立自訂模板</p>
+                  <div className="space-y-2 rounded-md border border-dashed border-slate-300 p-2 dark:border-slate-600">
                     <input
                       type="text"
                       placeholder="模板名稱"
                       value={newTemplateName}
                       onChange={(e) => setNewTemplateName(e.target.value)}
-                      className="w-full h-9 rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 dark:text-slate-100 px-3 text-sm"
+                      className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                     />
                     <Textarea
-                      placeholder="模板內容（欄位用 ___ 表示待填空位）"
+                      placeholder="模板內容（用 ___ 表示待填空位）"
                       value={newTemplateContent}
                       onChange={(e) => setNewTemplateContent(e.target.value)}
-                      className="min-h-[100px] border-slate-300 dark:border-slate-600"
+                      className="min-h-[80px] text-sm"
                     />
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" onClick={handleSaveAsTemplate} disabled={isSavingTemplate}>
-                        <span>{isSavingTemplate ? '處理中' : '儲存模板'}</span>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={handleSaveAsTemplate}
+                        disabled={isSavingTemplate}
+                      >
+                        <span>{isSavingTemplate ? '處理中' : '儲存'}</span>
                         {isSavingTemplate ? <ButtonLoadingIndicator /> : null}
                       </Button>
-                      <Button size="sm" variant="ghost" disabled={isSavingTemplate} onClick={() => { setShowNewTemplate(false); setNewTemplateName(''); setNewTemplateContent(''); }}>取消</Button>
-                    </div>
-                    {customTemplateNames.length > 0 && (
-                      <div className="border-t border-slate-200 dark:border-slate-700 pt-2 mt-1">
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">已建立的自訂模板</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {customTemplateNames.map((name) => (
-                            <span key={name} className="inline-flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 text-xs text-slate-700 dark:text-slate-300">
-                              {name}
-                              <button
-                                type="button"
-                                className="ml-0.5 text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"
-                                onClick={() => void handleDeleteTemplate(name)}
-                                title={`刪除模板「${name}」`}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 輸入區 */}
-                <div>
-                  <Label>輸入內容</Label>
-                  <Textarea
-                    placeholder={config.placeholder}
-                    value={inputContent}
-                    onChange={(e) => setInputContent(e.target.value)}
-                    className="min-h-[150px] mt-2 border-slate-300 dark:border-slate-600"
-                  />
-                  {selectedTemplate && serverTemplates.find((t) => t.name === selectedTemplate && t.canEdit) && inputContent !== allTemplates[selectedTemplate] && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="mt-2 border-blue-300 text-blue-600 hover:bg-blue-50"
-                      disabled={updatingTemplateName === selectedTemplate}
-                      onClick={() => void handleUpdateTemplate(selectedTemplate)}
-                    >
-                      <Save className="mr-1.5 h-3.5 w-3.5" />
-                      <span>{updatingTemplateName === selectedTemplate ? '處理中' : '儲存為模板更新'}</span>
-                      {updatingTemplateName === selectedTemplate ? <ButtonLoadingIndicator /> : null}
-                    </Button>
-                  )}
-                </div>
-
-                {/* AI 修飾 */}
-                <div>
-                  <Button
-                    onClick={handlePolishContent}
-                    style={{ backgroundColor: '#1e293b' }}
-                    disabled={isPolishing || !inputContent.trim() || !canPolish}
-                  >
-                    <Brain className="mr-2 h-5 w-5" />
-                    {isPolishing ? 'AI 修飾中...' : config.polishLabel}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 顯示修飾後的內容 */}
-          {polishedContent && (
-            <div className="space-y-3">
-              <Separator />
-              <div>
-                <Label className="text-lg">
-                  {recordType === 'progress-note' && '修飾後的 Progress Note'}
-                  {recordType === 'medication-advice' && '修飾後的用藥建議'}
-                  {recordType === 'nursing-record' && '檢查後的護理記錄'}
-                </Label>
-                <div className="mt-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 p-4">
-                  <AiMarkdown content={polishedContent} className="text-sm" />
-                </div>
-
-                <div className="flex gap-2 mt-3">
-                  <Button
-                    variant="outline"
-                    onClick={async () => {
-                      const success = await copyToClipboard(polishedContent);
-                      success ? toast.success('已複製到剪貼簿') : toast.error('複製失敗，請手動複製');
-                    }}
-                  >
-                    <Copy className="mr-2 h-4 w-4" />
-                    複製
-                  </Button>
-                  <Button
-                    onClick={handleSaveRecord}
-                    disabled={isSavingRecord}
-                    className="bg-brand hover:bg-brand-hover"
-                  >
-                    <Send className="mr-2 h-4 w-4" />
-                    <span>{isSavingRecord ? '處理中' : '儲存記錄'}</span>
-                    {isSavingRecord ? <ButtonLoadingIndicator /> : null}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      const exportData = {
-                        patient_id: patientId,
-                        patient_name: patientName,
-                        record_type: recordType,
-                        content: polishedContent,
-                        created_at: new Date().toISOString(),
-                        created_by: user?.name || '',
-                        role: user?.role || '',
-                      };
-                      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `${patientId}_${recordType}_${new Date().toISOString().slice(0, 10)}.json`;
-                      a.click();
-                      URL.revokeObjectURL(url);
-                      toast.success('已匯出 JSON 檔案');
-                    }}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    匯出 JSON
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* 歷史記錄 */}
-      <Card>
-        <CardHeader className="bg-slate-50 dark:bg-slate-800">
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-6 w-6 text-slate-700 dark:text-slate-300" />
-            病歷記錄歷史
-          </CardTitle>
-          <CardDescription>
-            {patientName} 的所有病歷記錄
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {filteredRecords.length === 0 ? (
-            <div className="text-center py-6 text-muted-foreground">
-              <FileText className="h-10 w-10 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">尚無病歷記錄</p>
-            </div>
-          ) : (
-            filteredRecords.map((record) => (
-              <Card key={record.id}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <Badge className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
-                        {getRecordTypeLabel(record.type)}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {record.author} · {record.date}
-                      </span>
-                    </div>
-                    <div className="flex gap-1">
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => copyToClipboard(record.polishedContent || record.content)}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                        disabled={isSavingTemplate}
                         onClick={() => {
-                          const exportData = {
-                            patient_id: patientId,
-                            patient_name: patientName,
-                            record_type: record.type,
-                            content: record.polishedContent || record.content,
-                            created_at: record.date,
-                            created_by: record.author,
-                          };
-                          const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = `${patientId}_${record.type}_${record.id}.json`;
-                          a.click();
-                          URL.revokeObjectURL(url);
+                          setShowNewTemplate(false);
+                          setNewTemplateName('');
+                          setNewTemplateContent('');
                         }}
                       >
-                        <Download className="h-4 w-4" />
+                        取消
                       </Button>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg">
-                    <AiMarkdown content={record.polishedContent || record.content} className="text-sm" />
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* History drawer */}
+          <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm">
+                <History className="mr-1.5 h-4 w-4" />
+                最近
+                {records.length > 0 && (
+                  <Badge variant="secondary" className="ml-1.5">
+                    {records.length}
+                  </Badge>
+                )}
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="flex w-full flex-col sm:max-w-md">
+              <SheetHeader>
+                <SheetTitle>最近快照</SheetTitle>
+                <SheetDescription>
+                  {patientName} · 存在本機，最多 50 筆
+                </SheetDescription>
+              </SheetHeader>
+              <div className="flex-1 overflow-y-auto px-4 pb-4">
+                {records.length === 0 ? (
+                  <div className="py-16 text-center text-sm text-muted-foreground">
+                    <FileText className="mx-auto mb-2 h-10 w-10 opacity-30" />
+                    尚無快照
                   </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </CardContent>
-      </Card>
+                ) : (
+                  <div className="space-y-2">
+                    {records.map((r) => (
+                      <Card key={r.id} className="p-3">
+                        <div className="mb-2 flex items-start justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                            <Badge variant="secondary" className="text-[10px]">
+                              {getRecordTypeLabel(r.type)}
+                            </Badge>
+                            <span className="text-muted-foreground">{r.date}</span>
+                          </div>
+                          <div className="flex shrink-0 gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0"
+                              title="複製"
+                              onClick={async () => {
+                                const ok = await copyToClipboard(
+                                  r.polishedContent || r.content,
+                                );
+                                if (ok) toast.success('已複製');
+                                else toast.error('複製失敗');
+                              }}
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-red-500"
+                              title="刪除"
+                              onClick={() => handleDeleteSnapshot(r.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="max-h-32 overflow-y-auto rounded bg-slate-50 p-2 text-xs dark:bg-slate-800">
+                          <AiMarkdown content={r.polishedContent || r.content} />
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="mt-2 w-full text-xs"
+                          onClick={() => handleLoadSnapshot(r)}
+                        >
+                          載入到草稿
+                        </Button>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </div>
+
+      {!canPolish && (
+        <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+          {polishReason}
+        </div>
+      )}
+
+      {/* Side-by-side: 草稿 | AI 修飾 */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Left: 草稿 */}
+        <Card className="flex flex-col border-slate-300 dark:border-slate-600">
+          <CardHeader className="bg-slate-50 py-3 dark:bg-slate-800">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Icon className="h-4 w-4" />
+              你的草稿
+            </CardTitle>
+            <CardDescription className="text-xs">{config.description}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-col gap-3 pt-4">
+            <Textarea
+              value={inputContent}
+              onChange={(e) => setInputContent(e.target.value)}
+              placeholder={config.placeholder}
+              className="min-h-[280px] flex-1 resize-none border-slate-300 dark:border-slate-600"
+            />
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handlePolishContent}
+                disabled={isPolishing || !inputContent.trim() || !canPolish}
+                style={{ backgroundColor: '#1e293b' }}
+                className="flex-1"
+                title={!canPolish ? polishReason : undefined}
+              >
+                <Brain className="mr-2 h-4 w-4" />
+                <span>{isPolishing ? 'AI 修飾中...' : config.polishLabel}</span>
+                <ArrowRight className="ml-2 h-4 w-4" />
+                {isPolishing ? <ButtonLoadingIndicator /> : null}
+              </Button>
+              {(inputContent || polishedContent) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearDraft}
+                  title="清空草稿"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            {selectedTemplate && (
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span>
+                  已套用模板：
+                  <span className="font-medium text-slate-700 dark:text-slate-300">
+                    {selectedTemplate}
+                  </span>
+                </span>
+                <button
+                  className="hover:text-slate-700 dark:hover:text-slate-200"
+                  onClick={() => setSelectedTemplate('')}
+                >
+                  取消套用
+                </button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Right: AI 修飾後 */}
+        <Card className="flex flex-col border-slate-300 dark:border-slate-600">
+          <CardHeader className="bg-slate-50 py-3 dark:bg-slate-800">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Sparkles className="h-4 w-4" />
+              AI 修飾後
+              {polishedContent && (
+                <Badge variant="secondary" className="text-[10px]">
+                  可直接修改
+                </Badge>
+              )}
+              {isPolishedStale && (
+                <Badge
+                  variant="secondary"
+                  className="bg-amber-100 text-[10px] text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                >
+                  草稿已變動
+                </Badge>
+              )}
+            </CardTitle>
+            <CardDescription className="text-xs">
+              {polishedContent
+                ? '可直接修改後按「複製貼到 HIS」'
+                : '按左側的「AI 修飾」生成結果'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-col gap-3 pt-4">
+            <Textarea
+              value={polishedContent}
+              onChange={(e) => setPolishedContent(e.target.value)}
+              placeholder="（尚未生成）"
+              className="min-h-[280px] flex-1 resize-none border-slate-300 font-mono text-sm dark:border-slate-600"
+            />
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleCopy}
+                disabled={!canCopy}
+                className="flex-1 bg-brand hover:bg-brand-hover"
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                複製貼到 HIS
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSaveSnapshot}
+                disabled={isSavingSnapshot || !canCopy}
+                title="存為本機快照（給自己查閱）"
+              >
+                <Save className="mr-1.5 h-4 w-4" />
+                <span className="text-xs">
+                  {isSavingSnapshot ? '儲存中' : '存快照'}
+                </span>
+                {isSavingSnapshot ? <ButtonLoadingIndicator /> : null}
+              </Button>
+            </div>
+            {polishedContent && !isPolishedStale && (
+              <p className="text-[11px] text-slate-400">
+                沒有複製？直接改右邊文字也可以，改完再按複製。
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
+
