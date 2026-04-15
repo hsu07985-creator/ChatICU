@@ -1,9 +1,10 @@
+import asyncio
 import json
 import logging
 import logging.config
 import os
 import uuid
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -133,30 +134,47 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("[INTG][DB] Startup migrations failed (non-fatal): %s", e)
 
-    # Auto-index RAG documents: try persisted → check fingerprint → rebuild if needed
+    rag_warmup_task: asyncio.Task | None = None
+
+    # Auto-index RAG documents in the background so a slow pgvector/doc pass
+    # never blocks API startup and turns the whole service into a 502.
     if getattr(settings, "RAG_AUTO_INDEX_ON_STARTUP", True):
         from app.services.llm_services.rag_service import rag_service
-        try:
-            if await rag_service.load_persisted():
-                if settings.RAG_DOCS_PATH and await rag_service._needs_rebuild(settings.RAG_DOCS_PATH):
-                    logger.info("[INTG][RAG] Source documents changed, rebuilding index")
+
+        async def _warm_rag_index() -> None:
+            try:
+                if await rag_service.load_persisted():
+                    if settings.RAG_DOCS_PATH and await rag_service._needs_rebuild(settings.RAG_DOCS_PATH):
+                        logger.info("[INTG][RAG] Source documents changed, rebuilding index")
+                        chunks = rag_service.load_and_chunk(settings.RAG_DOCS_PATH)
+                        result = await rag_service.index(chunks)
+                        logger.info("[INTG][RAG] Rebuilt index: %d chunks", result["total_chunks"])
+                    else:
+                        logger.info("[INTG][RAG] Persisted index is up-to-date (%d chunks)", len(rag_service.chunks))
+                elif settings.RAG_DOCS_PATH:
+                    logger.info("[INTG][RAG] Building index from %s", settings.RAG_DOCS_PATH)
                     chunks = rag_service.load_and_chunk(settings.RAG_DOCS_PATH)
                     result = await rag_service.index(chunks)
-                    logger.info("[INTG][RAG] Rebuilt index: %d chunks", result["total_chunks"])
+                    logger.info("[INTG][RAG] Built index: %d chunks", result["total_chunks"])
                 else:
-                    logger.info("[INTG][RAG] Persisted index is up-to-date (%d chunks)", len(rag_service.chunks))
-            elif settings.RAG_DOCS_PATH:
-                logger.info("[INTG][RAG] Building index from %s", settings.RAG_DOCS_PATH)
-                chunks = rag_service.load_and_chunk(settings.RAG_DOCS_PATH)
-                result = await rag_service.index(chunks)
-                logger.info("[INTG][RAG] Built index: %d chunks", result["total_chunks"])
-            else:
-                logger.info("[INTG][RAG] No RAG_DOCS_PATH and no persisted index")
-        except Exception as e:
-            logger.warning("[INTG][RAG] Auto-indexing failed (non-fatal): %s", e)
+                    logger.info("[INTG][RAG] No RAG_DOCS_PATH and no persisted index")
+            except asyncio.CancelledError:
+                logger.info("[INTG][RAG] Warmup cancelled during shutdown")
+                raise
+            except Exception as e:
+                logger.warning("[INTG][RAG] Auto-indexing failed (non-fatal): %s", e)
+
+        rag_warmup_task = asyncio.create_task(_warm_rag_index(), name="rag-startup-warmup")
+        app.state.rag_warmup_task = rag_warmup_task
+        logger.info("[INTG][RAG] Warmup scheduled in background")
 
     yield
     # Shutdown
+    task = getattr(app.state, "rag_warmup_task", None)
+    if task and not task.done():
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
     from app.middleware.auth import _redis_client
     if _redis_client:
         await _redis_client.close()
