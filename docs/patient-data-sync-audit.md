@@ -1,6 +1,9 @@
 # Patient Data Sync Audit
 
-日期: 2026-04-14
+> **[SUPERSEDED]** 本文件為 2026-04-14 的歷史快照，所描述的 P0/P1/P2 問題已在後續提交中修復。
+> 請參閱最新版本：[patient-data-sync-audit-current.md](./patient-data-sync-audit-current.md)
+
+日期: 2026-04-14（歷史版本）
 
 目的:
 - 重新確認「病人資料編輯後，其他頁面沒有同步更新」這一類問題

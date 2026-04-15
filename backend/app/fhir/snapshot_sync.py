@@ -66,6 +66,10 @@ REPLACE_TABLES = (
     "diagnostic_reports",
 )
 GLOBAL_SYNC_STATUS_KEY = "his_snapshots"
+# Ring buffer size for the per-patient delta feed stored inside
+# sync_status.details. Large enough to cover one full hourly tick over every
+# tracked patient, small enough to keep the JSONB payload bounded.
+RECENT_DELTAS_LIMIT = 50
 
 
 def _serialize(val: Any) -> Any:
@@ -166,12 +170,38 @@ async def replace_patient_records(
     table: str,
     patient_id: str,
     records: list[dict[str, Any]],
-) -> int:
+) -> dict[str, Any]:
+    """Replace all rows for a patient in ``table`` and return a delta summary.
+
+    Before the DELETE+INSERT, we snapshot the existing IDs so we can compute
+    which records are new (in incoming but not in DB) and which were removed
+    (in DB but not in incoming). This lets the sync pipeline surface a
+    "X new lab results arrived" notification without needing a separate
+    audit log.
+    """
+    existing_rows = await session.execute(
+        text(f"SELECT id FROM {table} WHERE patient_id = :patient_id"),
+        {"patient_id": patient_id},
+    )
+    existing_ids = {row[0] for row in existing_rows}
+    incoming_ids = {record["id"] for record in records if record.get("id") is not None}
+
+    added_ids = sorted(incoming_ids - existing_ids)
+    removed_ids = sorted(existing_ids - incoming_ids)
+
     await session.execute(
         text(f"DELETE FROM {table} WHERE patient_id = :patient_id"),
         {"patient_id": patient_id},
     )
-    return await insert_records(session, table, records)
+    inserted = await insert_records(session, table, records)
+
+    return {
+        "total": inserted,
+        "added": len(added_ids),
+        "removed": len(removed_ids),
+        "added_ids": added_ids,
+        "removed_ids": removed_ids,
+    }
 
 
 async def insert_records(session: Any, table: str, records: list[dict[str, Any]]) -> int:
@@ -225,6 +255,7 @@ async def reconcile_medications(
     )
     existing_ids = {row[0] for row in existing_rows}
     incoming_ids = {record["id"] for record in medications}
+    added_ids = sorted(incoming_ids - existing_ids)
 
     upserted = await upsert_records(session, "medications", medications)
 
@@ -261,6 +292,8 @@ async def reconcile_medications(
 
     return {
         "upserted": upserted,
+        "added": len(added_ids),
+        "added_ids": added_ids,
         "deleted": len(deleted_ids),
         "deleted_ids": deleted_ids,
         "protected": len(protected_ids),
@@ -306,8 +339,83 @@ async def sync_snapshot_into_session(session: Any, snapshot: SnapshotInfo) -> di
     }
 
 
+def _coerce_count(entry: Any, key: str = "added") -> int:
+    """Return a single numeric counter from either the legacy int shape or
+    the new ``{total, added, removed, ...}`` dict shape."""
+    if isinstance(entry, dict):
+        value = entry.get(key)
+        return int(value) if isinstance(value, (int, float)) else 0
+    if isinstance(entry, (int, float)):
+        return int(entry)
+    return 0
+
+
+def _build_delta_event(summary: dict[str, Any]) -> dict[str, Any] | None:
+    """Collapse a per-patient sync summary into a lightweight delta event for
+    the frontend toast feed. Returns ``None`` when nothing actually changed so
+    callers can skip appending a no-op entry to the ring buffer."""
+    medications = summary.get("medications")
+    med_added = _coerce_count(medications, "added") if isinstance(medications, dict) else 0
+    med_deleted = _coerce_count(medications, "deleted") if isinstance(medications, dict) else 0
+
+    lab_added = _coerce_count(summary.get("lab_data"), "added")
+    cul_added = _coerce_count(summary.get("culture_results"), "added")
+    diag_added = _coerce_count(summary.get("diagnostic_reports"), "added")
+
+    total_added = med_added + lab_added + cul_added + diag_added
+    if total_added == 0 and med_deleted == 0:
+        return None
+
+    return {
+        "patient_id": summary["patient_id"],
+        "patient_name": summary["patient_name"],
+        "patient_mrn": summary["patient_mrn"],
+        "snapshot_id": summary["snapshot_id"],
+        "synced_at": summary["synced_at"],
+        "added": {
+            "medications": med_added,
+            "lab_data": lab_added,
+            "culture_results": cul_added,
+            "diagnostic_reports": diag_added,
+        },
+        "removed": {
+            "medications": med_deleted,
+        },
+    }
+
+
 async def upsert_global_sync_status(session: Any, summary: dict[str, Any]) -> None:
     synced_at = datetime.fromisoformat(summary["synced_at"])
+
+    # Pull the existing ring buffer so we can append to it instead of
+    # overwriting. Because sync_status is a single-row global feed, multiple
+    # patients syncing in one tick would otherwise clobber each other — the
+    # ring buffer preserves every delta until the frontend has a chance to
+    # poll for it.
+    existing = await session.execute(
+        text("SELECT details FROM sync_status WHERE key = :key"),
+        {"key": GLOBAL_SYNC_STATUS_KEY},
+    )
+    existing_details_raw = existing.scalar_one_or_none()
+    existing_details: dict[str, Any] = {}
+    if isinstance(existing_details_raw, dict):
+        existing_details = existing_details_raw
+    elif isinstance(existing_details_raw, str):
+        try:
+            parsed = json.loads(existing_details_raw)
+            if isinstance(parsed, dict):
+                existing_details = parsed
+        except json.JSONDecodeError:
+            existing_details = {}
+
+    recent_deltas = existing_details.get("recent_deltas") or []
+    if not isinstance(recent_deltas, list):
+        recent_deltas = []
+
+    new_event = _build_delta_event(summary)
+    if new_event is not None:
+        recent_deltas = [*recent_deltas, new_event][-RECENT_DELTAS_LIMIT:]
+
     details = {
         "patient_id": summary["patient_id"],
         "patient_name": summary["patient_name"],
@@ -320,13 +428,9 @@ async def upsert_global_sync_status(session: Any, summary: dict[str, Any]) -> No
         "lab_data": summary["lab_data"],
         "culture_results": summary["culture_results"],
         "diagnostic_reports": summary["diagnostic_reports"],
+        "recent_deltas": recent_deltas,
     }
 
-    row = await session.execute(
-        text("SELECT key FROM sync_status WHERE key = :key"),
-        {"key": GLOBAL_SYNC_STATUS_KEY},
-    )
-    exists = row.scalar() is not None
     params = {
         "key": GLOBAL_SYNC_STATUS_KEY,
         "source": "his_snapshots",
@@ -334,22 +438,16 @@ async def upsert_global_sync_status(session: Any, summary: dict[str, Any]) -> No
         "last_synced_at": synced_at,
         "details": _serialize(details),
     }
-    if exists:
-        await session.execute(
-            text(
-                "UPDATE sync_status "
-                "SET source = :source, version = :version, last_synced_at = :last_synced_at, "
-                "details = :details, updated_at = CURRENT_TIMESTAMP "
-                "WHERE key = :key"
-            ),
-            params,
-        )
-        return
-
     await session.execute(
         text(
             "INSERT INTO sync_status (key, source, version, last_synced_at, details) "
-            "VALUES (:key, :source, :version, :last_synced_at, :details)"
+            "VALUES (:key, :source, :version, :last_synced_at, :details) "
+            "ON CONFLICT(key) DO UPDATE SET "
+            "source = excluded.source, "
+            "version = excluded.version, "
+            "last_synced_at = excluded.last_synced_at, "
+            "details = excluded.details, "
+            "updated_at = CURRENT_TIMESTAMP"
         ),
         params,
     )

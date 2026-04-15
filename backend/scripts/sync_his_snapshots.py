@@ -8,6 +8,7 @@ import asyncio
 import json
 import os
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,12 @@ from app.fhir.snapshot_sync import sync_snapshot_into_session, upsert_global_syn
 
 PATIENT_BASE = Path(__file__).resolve().parent.parent.parent / "patient"
 STATE_FILE = Path(__file__).resolve().parent.parent / ".state" / "his_snapshot_sync_state.json"
+
+
+@dataclass(frozen=True)
+class SyncPlanItem:
+    snapshot: Any
+    action: str
 
 
 def get_database_url() -> str:
@@ -82,6 +89,70 @@ def classify_action(
     return "changed"
 
 
+def print_sync_header(snapshot: Any, action: str) -> None:
+    print(f"{snapshot.mrn}")
+    print(f"  action        : {action}")
+    print(f"  snapshot_id   : {snapshot.snapshot_id}")
+
+
+def _fmt_replace_delta(entry: Any) -> str:
+    """Render a replace_patient_records return value compactly.
+
+    Handles both the legacy int shape and the new dict shape
+    ``{total, added, removed, ...}`` so older state files / tests keep working.
+    """
+    if isinstance(entry, dict):
+        total = entry.get("total", 0)
+        added = entry.get("added", 0)
+        removed = entry.get("removed", 0)
+        return f"{total}(+{added}/-{removed})"
+    return str(entry)
+
+
+def print_sync_success(snapshot: Any, action: str, summary: dict[str, Any]) -> None:
+    print_sync_header(snapshot, action)
+    print(f"  patient_id    : {summary['patient_id']}")
+    medications = summary["medications"]
+    print(
+        "  synced        : "
+        f"med_upserted={medications['upserted']} "
+        f"med_added={medications.get('added', 0)} "
+        f"med_deleted={medications['deleted']} "
+        f"med_protected={medications['protected']} "
+        f"labs={_fmt_replace_delta(summary['lab_data'])} "
+        f"cultures={_fmt_replace_delta(summary['culture_results'])} "
+        f"reports={_fmt_replace_delta(summary['diagnostic_reports'])}"
+    )
+    print()
+
+
+def print_sync_error(snapshot: Any, action: str, error: str) -> None:
+    print_sync_header(snapshot, action)
+    print(f"  error         : {error}")
+    print()
+
+
+async def sync_plan_item(
+    session_factory: async_sessionmaker[AsyncSession],
+    semaphore: asyncio.Semaphore,
+    plan_item: SyncPlanItem,
+) -> dict[str, Any]:
+    async with semaphore:
+        async with session_factory() as session:
+            try:
+                summary = await sync_snapshot_into_session(session, plan_item.snapshot)
+                await upsert_global_sync_status(session, summary)
+                await session.commit()
+                return {"plan_item": plan_item, "summary": summary, "error": None}
+            except Exception as exc:
+                await session.rollback()
+                return {
+                    "plan_item": plan_item,
+                    "summary": None,
+                    "error": f"{type(exc).__name__}: {exc}",
+                }
+
+
 def preview(base: Path, patient_filter: str | None, state_path: Path, force: bool) -> int:
     patient_roots = discover_patient_roots(base, patient_filter)
     state = load_sync_state(state_path)
@@ -134,10 +205,17 @@ def preview(base: Path, patient_filter: str | None, state_path: Path, force: boo
     return 1 if total_errors else 0
 
 
-async def sync(base: Path, patient_filter: str | None, state_path: Path, force: bool) -> int:
+async def sync(
+    base: Path,
+    patient_filter: str | None,
+    state_path: Path,
+    force: bool,
+    concurrency: int,
+) -> int:
     patient_roots = discover_patient_roots(base, patient_filter)
     state = load_sync_state(state_path)
     db_url = get_database_url()
+    concurrency = max(1, concurrency)
 
     engine_kwargs: dict[str, Any] = {"echo": False}
     if db_url.startswith("sqlite+"):
@@ -145,7 +223,7 @@ async def sync(base: Path, patient_filter: str | None, state_path: Path, force: 
     else:
         engine = create_async_engine(
             db_url,
-            pool_size=1,
+            pool_size=concurrency,
             max_overflow=0,
             connect_args={
                 "prepared_statement_cache_size": 0,
@@ -163,60 +241,60 @@ async def sync(base: Path, patient_filter: str | None, state_path: Path, force: 
 
     total_errors = 0
     counts = {"forced": 0, "new": 0, "changed": 0, "timestamp-only": 0, "unchanged": 0, "synced": 0}
+    pending: list[SyncPlanItem] = []
 
-    async with session_factory() as session:
-        for patient_root in patient_roots:
-            try:
-                snapshot = resolve_patient_snapshot(patient_root)
-                previous = state.get(snapshot.mrn)
-                action = classify_action(previous, snapshot.snapshot_id, snapshot.normalized_hash, force=force)
-                counts[action] += 1
+    for patient_root in patient_roots:
+        try:
+            snapshot = resolve_patient_snapshot(patient_root)
+            previous = state.get(snapshot.mrn)
+            action = classify_action(previous, snapshot.snapshot_id, snapshot.normalized_hash, force=force)
+            counts[action] += 1
 
-                print(f"{snapshot.mrn}")
-                print(f"  action        : {action}")
-                print(f"  snapshot_id   : {snapshot.snapshot_id}")
-
-                if action in {"timestamp-only", "unchanged"}:
-                    print("  sync          : skipped")
-                    print()
-                    continue
-
-                try:
-                    summary = await sync_snapshot_into_session(session, snapshot)
-                    await upsert_global_sync_status(session, summary)
-                    await session.commit()
-                except Exception:
-                    await session.rollback()
-                    raise
-
-                counts["synced"] += 1
-                state[snapshot.mrn] = {
-                    "snapshot_id": snapshot.snapshot_id,
-                    "snapshot_dir": str(snapshot.snapshot_dir),
-                    "normalized_hash": snapshot.normalized_hash,
-                    "last_imported_at": summary["synced_at"],
-                    "patient_id": summary["patient_id"],
-                    "patient_name": summary["patient_name"],
-                }
-                save_sync_state(state_path, state)
-
-                print(f"  patient_id    : {summary['patient_id']}")
-                print(
-                    "  synced        : "
-                    f"med_upserted={summary['medications']['upserted']} "
-                    f"med_deleted={summary['medications']['deleted']} "
-                    f"med_protected={summary['medications']['protected']} "
-                    f"labs={summary['lab_data']} "
-                    f"cultures={summary['culture_results']} "
-                    f"reports={summary['diagnostic_reports']}"
-                )
+            if action in {"timestamp-only", "unchanged"}:
+                print_sync_header(snapshot, action)
+                print("  sync          : skipped")
                 print()
-            except Exception as exc:
+                continue
+
+            pending.append(SyncPlanItem(snapshot=snapshot, action=action))
+        except Exception as exc:
+            total_errors += 1
+            print(f"{patient_root.name}")
+            print("  action        : error")
+            print(f"  error         : {exc}")
+            print()
+
+    if pending:
+        print("--- Sync Queue ---")
+        print(f"  queued={len(pending)} concurrency={concurrency}")
+        print()
+
+        semaphore = asyncio.Semaphore(concurrency)
+        tasks = [
+            asyncio.create_task(sync_plan_item(session_factory, semaphore, plan_item))
+            for plan_item in pending
+        ]
+
+        for task in asyncio.as_completed(tasks):
+            result = await task
+            plan_item = result["plan_item"]
+            if result["error"]:
                 total_errors += 1
-                print(f"{patient_root.name}")
-                print("  action        : error")
-                print(f"  error         : {exc}")
-                print()
+                print_sync_error(plan_item.snapshot, plan_item.action, result["error"])
+                continue
+
+            summary = result["summary"]
+            counts["synced"] += 1
+            state[plan_item.snapshot.mrn] = {
+                "snapshot_id": plan_item.snapshot.snapshot_id,
+                "snapshot_dir": str(plan_item.snapshot.snapshot_dir),
+                "normalized_hash": plan_item.snapshot.normalized_hash,
+                "last_imported_at": summary["synced_at"],
+                "patient_id": summary["patient_id"],
+                "patient_name": summary["patient_name"],
+            }
+            save_sync_state(state_path, state)
+            print_sync_success(plan_item.snapshot, plan_item.action, summary)
 
     await engine.dispose()
 
@@ -261,15 +339,22 @@ def main() -> None:
         "--state-file",
         help=f"Sync state file path (default: {STATE_FILE})",
     )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=2,
+        help="Max number of patients to sync in parallel (default: 2)",
+    )
     args = parser.parse_args()
 
     base = Path(args.patient_dir) if args.patient_dir else PATIENT_BASE
     state_path = Path(args.state_file) if args.state_file else STATE_FILE
+    concurrency = max(1, args.concurrency)
 
     if args.dry_run:
         raise SystemExit(preview(base, args.patient, state_path, args.force))
 
-    raise SystemExit(asyncio.run(sync(base, args.patient, state_path, args.force)))
+    raise SystemExit(asyncio.run(sync(base, args.patient, state_path, args.force, concurrency)))
 
 
 if __name__ == "__main__":
