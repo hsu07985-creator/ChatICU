@@ -419,15 +419,18 @@ export function MedicalRecords({ patientId, aiReadiness = null }: MedicalRecords
           {/* Templates popover */}
           <Popover open={templatePopoverOpen} onOpenChange={setTemplatePopoverOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Sparkles className="mr-1.5 h-4 w-4" />
+              <button
+                type="button"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-background px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground dark:border-slate-700 dark:bg-input/30 dark:hover:bg-input/50"
+              >
+                <Sparkles className="h-4 w-4" />
                 模板
                 {selectedTemplate && (
-                  <Badge variant="secondary" className="ml-1.5 max-w-[120px] truncate">
+                  <Badge variant="secondary" className="ml-1 max-w-[120px] truncate">
                     {selectedTemplate}
                   </Badge>
                 )}
-              </Button>
+              </button>
             </PopoverTrigger>
             <PopoverContent className="w-80 p-3" align="end">
               <div className="space-y-3">
