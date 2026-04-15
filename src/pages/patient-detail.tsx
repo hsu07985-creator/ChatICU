@@ -1613,7 +1613,7 @@ export function PatientDetailPage() {
                                       <div className="h-2 w-2 rounded-full animate-bounce" style={{ backgroundColor: '#9ca3af', animationDelay: '320ms' }} />
                                     </div>
                                   ) : (
-                                    <p className="text-sm leading-relaxed text-[#1F2937]">{displayContent}</p>
+                                    <AiMarkdown content={displayContent} className="text-sm text-[#1F2937]" />
                                   )}
 
                                   {/* Expandable panels — shown after streaming */}

@@ -24,6 +24,13 @@ export function findDetailMarkerIndex(text: string): number {
 /**
  * Split a full LLM reply into `{ main, detail }` based on the first detail
  * marker encountered. Returns `detail = null` if no marker is present.
+ *
+ * The returned `detail` is normalized for readability in the expandable panel:
+ * - the leading 【說明/補充】 (or equivalent) marker is stripped (the panel
+ *   itself is already visually marked as the explanation area)
+ * - blank lines are inserted before numbered section headings like
+ *   `(1) 機轉或臨床依據` so CommonMark renders them as separate paragraphs
+ *   instead of collapsing the single-newline into a space.
  */
 export function splitMainAndDetail(rawText: string): { main: string; detail: string | null } {
   const stripped = stripMainPrefix(rawText);
@@ -31,8 +38,26 @@ export function splitMainAndDetail(rawText: string): { main: string; detail: str
   if (idx < 0) return { main: stripped.trim(), detail: null };
   return {
     main: stripped.slice(0, idx).trim(),
-    detail: stripped.slice(idx).trim(),
+    detail: normalizeDetail(stripped.slice(idx)),
   };
+}
+
+function normalizeDetail(raw: string): string {
+  let text = raw;
+  // Strip the leading detail marker itself — the panel is already labeled
+  for (const m of _DETAIL_MARKERS) {
+    if (text.startsWith(m)) {
+      text = text.slice(m.length);
+      break;
+    }
+  }
+  text = text.trim();
+  // Insert a blank line before numbered section headings like "(1)" "(2)"
+  // when they are currently preceded by only a single newline. This turns
+  // Markdown soft-breaks (which render as spaces) into hard paragraph breaks.
+  // Example: "...前文\n(1) 機轉" → "...前文\n\n(1) 機轉".
+  text = text.replace(/([^\n])\n(\([1-9]\d?\)\s*[\u4e00-\u9fff])/g, '$1\n\n$2');
+  return text;
 }
 
 function stripMainPrefix(text: string): string {
