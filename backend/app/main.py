@@ -126,51 +126,57 @@ async def lifespan(app: FastAPI):
             validation_report,
         )
 
-    # ── DB migration fallbacks (idempotent, non-fatal) ──
-    try:
-        from app.database import engine
-        from app.startup_migrations import run_all as run_startup_migrations
-        await run_startup_migrations(engine)
-    except Exception as e:
-        logger.warning("[INTG][DB] Startup migrations failed (non-fatal): %s", e)
+    startup_warmup_task: asyncio.Task | None = None
 
-    rag_warmup_task: asyncio.Task | None = None
+    # Run non-critical startup work in the background. Railway already runs
+    # Alembic before boot; these fallback migrations and RAG warmup are
+    # best-effort and must not block /health or turn the whole API into 502s.
+    async def _run_startup_warmups() -> None:
+        try:
+            from app.database import engine
+            from app.startup_migrations import run_all as run_startup_migrations
 
-    # Auto-index RAG documents in the background so a slow pgvector/doc pass
-    # never blocks API startup and turns the whole service into a 502.
-    if getattr(settings, "RAG_AUTO_INDEX_ON_STARTUP", True):
+            await run_startup_migrations(engine)
+        except asyncio.CancelledError:
+            logger.info("[INTG][DB] Startup warmups cancelled during shutdown")
+            raise
+        except Exception as e:
+            logger.warning("[INTG][DB] Startup migrations failed (non-fatal): %s", e)
+
+        if not getattr(settings, "RAG_AUTO_INDEX_ON_STARTUP", True):
+            return
+
         from app.services.llm_services.rag_service import rag_service
 
-        async def _warm_rag_index() -> None:
-            try:
-                if await rag_service.load_persisted():
-                    if settings.RAG_DOCS_PATH and await rag_service._needs_rebuild(settings.RAG_DOCS_PATH):
-                        logger.info("[INTG][RAG] Source documents changed, rebuilding index")
-                        chunks = rag_service.load_and_chunk(settings.RAG_DOCS_PATH)
-                        result = await rag_service.index(chunks)
-                        logger.info("[INTG][RAG] Rebuilt index: %d chunks", result["total_chunks"])
-                    else:
-                        logger.info("[INTG][RAG] Persisted index is up-to-date (%d chunks)", len(rag_service.chunks))
-                elif settings.RAG_DOCS_PATH:
-                    logger.info("[INTG][RAG] Building index from %s", settings.RAG_DOCS_PATH)
+        try:
+            if await rag_service.load_persisted():
+                if settings.RAG_DOCS_PATH and await rag_service._needs_rebuild(settings.RAG_DOCS_PATH):
+                    logger.info("[INTG][RAG] Source documents changed, rebuilding index")
                     chunks = rag_service.load_and_chunk(settings.RAG_DOCS_PATH)
                     result = await rag_service.index(chunks)
-                    logger.info("[INTG][RAG] Built index: %d chunks", result["total_chunks"])
+                    logger.info("[INTG][RAG] Rebuilt index: %d chunks", result["total_chunks"])
                 else:
-                    logger.info("[INTG][RAG] No RAG_DOCS_PATH and no persisted index")
-            except asyncio.CancelledError:
-                logger.info("[INTG][RAG] Warmup cancelled during shutdown")
-                raise
-            except Exception as e:
-                logger.warning("[INTG][RAG] Auto-indexing failed (non-fatal): %s", e)
+                    logger.info("[INTG][RAG] Persisted index is up-to-date (%d chunks)", len(rag_service.chunks))
+            elif settings.RAG_DOCS_PATH:
+                logger.info("[INTG][RAG] Building index from %s", settings.RAG_DOCS_PATH)
+                chunks = rag_service.load_and_chunk(settings.RAG_DOCS_PATH)
+                result = await rag_service.index(chunks)
+                logger.info("[INTG][RAG] Built index: %d chunks", result["total_chunks"])
+            else:
+                logger.info("[INTG][RAG] No RAG_DOCS_PATH and no persisted index")
+        except asyncio.CancelledError:
+            logger.info("[INTG][RAG] Warmup cancelled during shutdown")
+            raise
+        except Exception as e:
+            logger.warning("[INTG][RAG] Auto-indexing failed (non-fatal): %s", e)
 
-        rag_warmup_task = asyncio.create_task(_warm_rag_index(), name="rag-startup-warmup")
-        app.state.rag_warmup_task = rag_warmup_task
-        logger.info("[INTG][RAG] Warmup scheduled in background")
+    startup_warmup_task = asyncio.create_task(_run_startup_warmups(), name="startup-warmups")
+    app.state.startup_warmup_task = startup_warmup_task
+    logger.info("[INTG][DB] Startup warmups scheduled in background")
 
     yield
     # Shutdown
-    task = getattr(app.state, "rag_warmup_task", None)
+    task = getattr(app.state, "startup_warmup_task", None)
     if task and not task.done():
         task.cancel()
         with suppress(asyncio.CancelledError):
