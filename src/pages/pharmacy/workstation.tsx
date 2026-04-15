@@ -8,6 +8,7 @@ import {
   subscribePatientsCache,
 } from '../../lib/patients-cache';
 import { getCachedPadDrugs } from '../../lib/pad-drugs-cache';
+import { normalizePatientGender } from '../../lib/patient-gender';
 import { useAuth } from '../../lib/auth-context';
 import { getLatestLabData, type LabData as ApiLabData } from '../../lib/api/lab-data';
 import { getLatestVitalSigns, type VitalSigns as ApiVitalSigns } from '../../lib/api/vital-signs';
@@ -214,7 +215,7 @@ export function PharmacyWorkstationPage() {
         age_years: selectedPatient.age,
         height_cm: extendedData?.height ?? undefined,
         weight_kg: extendedData?.weight ?? undefined,
-        sex: selectedPatient.gender === '男' ? 'male' : 'female',
+        sex: normalizePatientGender(selectedPatient.gender),
         crcl_ml_min: extendedData?.egfr ?? undefined,
         hepatic_class: hepaticMap[extendedData?.hepaticFunction || 'normal'],
         sbp_mmHg: extendedData?.sbp ?? undefined,
@@ -402,8 +403,8 @@ export function PharmacyWorkstationPage() {
             .filter((m): m is { drug: string; padInfo: PadDrugInfo } => m.padInfo !== null);
 
           const patientWeight = extendedData?.weight ?? null;
-          const patientSex = selectedPatient.gender === '男' ? 'male' : selectedPatient.gender === '女' ? 'female' : undefined;
-          const patientHeight = selectedPatient.height ?? undefined;
+          const patientSex = normalizePatientGender(selectedPatient.gender);
+          const patientHeight = extendedData?.height ?? selectedPatient.height ?? undefined;
 
           return Promise.all(
             padMatchedDrugs.map(async ({ drug, padInfo }) => {

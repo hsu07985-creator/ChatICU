@@ -98,6 +98,15 @@ def _gen_id(prefix: str, *parts: str) -> str:
     return f"{prefix}_{h}"
 
 
+def _normalize_patient_gender(value: Any) -> str:
+    raw = str(value or "").strip().lower()
+    if raw in {"m", "male", "男"}:
+        return "男"
+    if raw in {"f", "female", "女"}:
+        return "女"
+    return "Other"
+
+
 # ---------------------------------------------------------------------------
 # Medicine helpers
 # ---------------------------------------------------------------------------
@@ -540,7 +549,7 @@ class HISConverter:
             "medical_record_number": self.pat_no,
             "age": age or 0,
             "date_of_birth": dob,
-            "gender": p.get("SEX", "M"),
+            "gender": _normalize_patient_gender(p.get("SEX")),
             "height": None,
             "weight": None,
             "bmi": None,

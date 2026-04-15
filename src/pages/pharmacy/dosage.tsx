@@ -12,6 +12,7 @@ import { padCalculate, type PadDrugInfo, type PadCalculateResult } from '../../l
 import { type Patient } from '../../lib/api/patients';
 import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from '../../lib/patients-cache';
 import { getCachedPadDrugs, getCachedPadDrugsSync } from '../../lib/pad-drugs-cache';
+import { normalizePatientGender } from '../../lib/patient-gender';
 import { isAxiosError } from 'axios';
 
 /** Parse dose_range like "0.03–0.6" → [0.03, 0.6] */
@@ -152,8 +153,7 @@ export function DosagePage() {
     if (p) {
       if (p.height) setHeight(String(p.height));
       if (p.weight) setWeight(String(p.weight));
-      if (p.gender === '男') setSex('male');
-      else if (p.gender === '女') setSex('female');
+      setSex(normalizePatientGender(p.gender) ?? '');
       toast.success(`已帶入 ${p.name} 的基本資料`);
     }
   }, [patients]);
@@ -173,8 +173,7 @@ export function DosagePage() {
         ? String(patient.weight)
         : '',
     );
-    if (patient.gender === '男') setSex('male');
-    else if (patient.gender === '女') setSex('female');
+    setSex(normalizePatientGender(patient.gender) ?? '');
   }, [patients, selectedPatientId]);
 
   // Reset all fields
@@ -316,8 +315,15 @@ export function DosagePage() {
               <span className="text-muted-foreground">{drugInfo.concentration_range ? '允許濃度' : '預設濃度'}</span>
               <span className="font-medium">{drugInfo.concentration_range ? `${drugInfo.concentration_range[0]}–${drugInfo.concentration_range[1]}` : drugInfo.concentration} {drugInfo.concentration_unit}</span>
               <span className="text-muted-foreground mx-1">|</span>
-              <span className="text-muted-foreground">計算基準</span>
+              <span className="text-muted-foreground">肥胖時基準</span>
               <span className="font-medium">{drugInfo.weight_basis}</span>
+              {resultMin && (
+                <>
+                  <span className="text-muted-foreground mx-1">|</span>
+                  <span className="text-muted-foreground">本次計算</span>
+                  <span className="font-medium">{resultMin.weight_basis}</span>
+                </>
+              )}
             </div>
           )}
 

@@ -158,6 +158,17 @@ def _calculate_weight(sex: str, height_cm: float, TBW_kg: float) -> dict:
     }
 
 
+def _normalize_pad_sex(sex: Optional[str]) -> Optional[str]:
+    if not sex:
+        return None
+    raw = str(sex).strip().lower()
+    if raw in {"m", "male", "男"}:
+        return "male"
+    if raw in {"f", "female", "女"}:
+        return "female"
+    return None
+
+
 def _pad_calculate(req: PadCalculateRequest) -> PadCalculateResponse:
     drug_lower = req.drug.lower().strip()
     defaults = PAD_DRUG_DEFAULTS.get(drug_lower)
@@ -187,11 +198,12 @@ def _pad_calculate(req: PadCalculateRequest) -> PadCalculateResponse:
     weight_info = {}
     dosing_weight = req.weight_kg
     weight_basis = "TBW"
+    normalized_sex = _normalize_pad_sex(req.sex)
 
     steps.append(f"實際體重 (TBW) = {req.weight_kg} kg")
 
-    if req.sex and req.height_cm:
-        weight_info = _calculate_weight(req.sex, req.height_cm, req.weight_kg)
+    if normalized_sex and req.height_cm:
+        weight_info = _calculate_weight(normalized_sex, req.height_cm, req.weight_kg)
         steps.append(
             f"IBW (Devine) = {weight_info['IBW_kg']} kg, "
             f"AdjBW = {weight_info['AdjBW_kg']} kg, "
@@ -215,7 +227,12 @@ def _pad_calculate(req: PadCalculateRequest) -> PadCalculateResponse:
         else:
             steps.append("非肥胖，使用實際體重 (TBW)")
     else:
-        steps.append("未提供性別/身高，使用實際體重 (TBW)")
+        missing_fields = []
+        if not normalized_sex:
+            missing_fields.append("性別")
+        if not req.height_cm:
+            missing_fields.append("身高")
+        steps.append(f"未提供{'/'.join(missing_fields)}，使用實際體重 (TBW)")
 
     dose_per_hr = dosing_weight * req.target_dose_per_kg_hr
     rate_ml_hr = round(dose_per_hr / req.concentration, 1)

@@ -264,3 +264,19 @@ def test_his_converter_can_override_patient_number_for_snapshot_dirs(tmp_path: P
 
     assert patient is not None
     assert patient["medical_record_number"] == "16312169"
+    assert patient["gender"] == "男"
+
+
+def test_his_converter_normalizes_female_gender_for_patient_payload(tmp_path: Path) -> None:
+    patient_root = tmp_path / "16312169"
+    patient_root.mkdir()
+    _write_json(
+        patient_root / "getPatient.json",
+        {"Data": [{"PAT_NAME": "王測試", "SEX": "F"}]},
+    )
+
+    converter = HISConverter(str(patient_root))
+    patient = converter.convert_patient()
+
+    assert patient is not None
+    assert patient["gender"] == "女"
