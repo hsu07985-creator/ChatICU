@@ -177,21 +177,23 @@ async def get_latest_lab_data(
 @router.get("/trends")
 async def get_lab_trends(
     patient_id: str,
-    days: int = Query(30, ge=1, le=90),
+    days: Optional[int] = Query(None, ge=1, le=3650, description="Optional day window; omit to return all available history"),
     category: Optional[str] = Query(None, description="Filter by category (e.g. biochemistry, hematology)"),
     item: Optional[str] = Query(None, description="Filter by item name within the category"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     pid = normalize_patient_id(patient_id)
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    result = await db.execute(
+    stmt = (
         select(LabData)
         .where(LabData.patient_id == pid)
-        .where(LabData.timestamp >= cutoff)
         .order_by(LabData.timestamp.desc())
-        .limit(500)
+        .limit(2000)
     )
+    if days is not None:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        stmt = stmt.where(LabData.timestamp >= cutoff)
+    result = await db.execute(stmt)
     labs = result.scalars().all()
 
     if category:
