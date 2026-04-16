@@ -495,19 +495,30 @@ async def polish_clinical_text(
     patient_data = await _get_patient_dict(req.patient_id, db)
     data_freshness = build_data_freshness(patient_data)
 
-    input_data = {
-        "patient": patient_data,
-        "draft_content": req.content,
-        "polish_type": req.polish_type,
-        "user_role": user.role,
-    }
-    if req.template_content:
-        input_data["template_format"] = req.template_content
     # Refinement loop — overwrite-style: re-run polish with previous output + new instruction.
     is_refinement = bool(req.instruction and req.previous_polished)
+
     if is_refinement:
-        input_data["previous_polished"] = req.previous_polished
-        input_data["user_instruction"] = req.instruction
+        # Put instruction FIRST so the LLM treats it as the primary request.
+        # Patient/draft are demoted to reference context.
+        input_data = {
+            "mode": "REFINEMENT",
+            "user_instruction": req.instruction,
+            "previous_polished": req.previous_polished,
+            "polish_type": req.polish_type,
+            "draft_content": req.content,
+            "patient": patient_data,
+            "user_role": user.role,
+        }
+    else:
+        input_data = {
+            "patient": patient_data,
+            "draft_content": req.content,
+            "polish_type": req.polish_type,
+            "user_role": user.role,
+        }
+        if req.template_content:
+            input_data["template_format"] = req.template_content
 
     result = await asyncio.to_thread(
         call_llm,

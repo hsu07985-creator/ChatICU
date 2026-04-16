@@ -208,11 +208,14 @@ TASK_PROMPTS: dict[str, str] = {
         "nursing_record → Traditional Chinese (繁體中文), using Taiwan medical terminology; "
         "pharmacy_advice → Traditional Chinese (繁體中文). "
         "Do not mix languages inside a single note. "
-        # Refinement branch
-        "REFINEMENT MODE: If the input contains 'user_instruction' and 'previous_polished', "
-        "this is a revision request. Rewrite 'previous_polished' according to 'user_instruction', "
-        "still grounded in 'draft_content' and the patient data. Output ONLY the revised documentation "
-        "in the same output language rule as above — no preamble, no commentary on what changed."
+        # Refinement branch — highest-priority override
+        "CRITICAL — REFINEMENT MODE: When the input JSON has '\"mode\": \"REFINEMENT\"', "
+        "IGNORE all polish/format instructions above. Your ONLY job is: "
+        "take 'previous_polished' and rewrite it according to 'user_instruction' "
+        "(e.g. shorten, translate, restructure, add/remove sections). "
+        "Keep the result grounded in 'draft_content' and patient data, "
+        "and obey the OUTPUT LANGUAGE RULES. "
+        "Output ONLY the revised text — no preamble, no explanation of changes, no extra commentary."
     ),
     "conversation_compress": (
         "You are a conversation summarizer for an ICU clinical AI assistant. "
