@@ -372,8 +372,15 @@ function LabItem({ labName, label, value, unit, isAbnormal, abnormalDirection, o
       </div>
       <div className="flex flex-1 flex-col items-center justify-center text-center">
         <span
-          className={`leading-none tracking-tight ${valueToneClass}`}
-          style={{ fontSize: 'calc(var(--metric-card-value-size) + 0.3rem)' }}
+          className={`leading-tight tracking-tight break-words ${valueToneClass}`}
+          style={{
+            fontSize:
+              displayValue.length >= 10
+                ? '0.78rem'
+                : displayValue.length >= 7
+                  ? '0.95rem'
+                  : 'calc(var(--metric-card-value-size) + 0.2rem)',
+          }}
         >
           {displayValue}
         </span>
@@ -479,7 +486,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
   const showVbg = hasVisibleMetrics(VBG_METRICS);
   const showLiverRenal = hasVisibleMetrics(LIVER_RENAL_METRICS);
   const showCoagulation = hasVisibleMetrics(COAGULATION_METRICS);
-  const showBiochemExtra = hasVisibleMetrics(BIOCHEM_EXTRA_METRICS);
+  const showBiochemExtra = hasVisibleMetrics(BIOCHEM_EXTRA_METRICS, { requireValue: true });
   const showThyroidHormone = Boolean(labData?.hormone && Object.keys(labData.hormone).length > 0 && hasVisibleMetrics(THYROID_HORMONE_METRICS, { requireValue: true }));
 
   const otherLabItems: LabMetricDescriptor[] = (() => {
@@ -1251,32 +1258,55 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
           </div>
         )}
 
-        {/* 其他檢驗 - 收錄未列於上方的所有 lab key（包含 urinalysis / stool / pleural_fluid / 未映射 HIS 代碼） */}
+        {/* 其他檢驗 - 依前綴分組：U_尿液 / ST_糞便 / PF_胸腹水 / 其他 */}
         <div className={showOther ? 'space-y-2' : 'hidden'}>
           <h3 className="text-xs font-semibold tracking-wide text-brand">其他檢驗</h3>
-          <div className={compactGridClass} style={compactGridStyle}>
-            {otherLabItems.map(({ category, itemName }) => {
-              const unit = getUnit(category, itemName, '');
-              return (
-                <LabItem
-                  key={`${String(category)}:${itemName}`}
-                  labName={itemName}
-                  label={itemName}
-                  value={getItem(category, itemName)}
-                  unit={unit}
-                  isAbnormal={isAbnormal(category, itemName)}
-                  abnormalDirection={getDirection(category, itemName)}
-                  onClick={() => handleLabClick(
-                    itemName,
-                    String(category),
-                    getValue(category, itemName),
-                    unit,
-                    getRefRange(category, itemName),
-                  )}
-                />
-              );
-            })}
-          </div>
+          {(() => {
+            const groups: Array<{ key: string; label: string; items: LabMetricDescriptor[] }> = [
+              { key: 'U', label: '尿液檢查', items: [] },
+              { key: 'ST', label: '糞便檢查', items: [] },
+              { key: 'PF', label: '胸腹水分析', items: [] },
+              { key: 'misc', label: '其他', items: [] },
+            ];
+            for (const item of otherLabItems) {
+              if (item.itemName.startsWith('U_')) groups[0].items.push(item);
+              else if (item.itemName.startsWith('ST_')) groups[1].items.push(item);
+              else if (item.itemName.startsWith('PF_')) groups[2].items.push(item);
+              else groups[3].items.push(item);
+            }
+            return groups
+              .filter((g) => g.items.length > 0)
+              .map((g) => (
+                <div key={g.key} className="space-y-1.5">
+                  <h4 className="text-[11px] font-medium tracking-wide text-slate-500 dark:text-slate-400">
+                    {g.label}
+                  </h4>
+                  <div className={compactGridClass} style={compactGridStyle}>
+                    {g.items.map(({ category, itemName }) => {
+                      const unit = getUnit(category, itemName, '');
+                      return (
+                        <LabItem
+                          key={`${String(category)}:${itemName}`}
+                          labName={itemName}
+                          label={itemName}
+                          value={getItem(category, itemName)}
+                          unit={unit}
+                          isAbnormal={isAbnormal(category, itemName)}
+                          abnormalDirection={getDirection(category, itemName)}
+                          onClick={() => handleLabClick(
+                            itemName,
+                            String(category),
+                            getValue(category, itemName),
+                            unit,
+                            getRefRange(category, itemName),
+                          )}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ));
+          })()}
         </div>
 
         {hasAnyVisibleSection && (
