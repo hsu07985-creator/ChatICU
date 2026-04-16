@@ -374,12 +374,14 @@ function LabItem({ labName, label, value, unit, isAbnormal, abnormalDirection, o
         <span
           className={`leading-tight tracking-tight break-words ${valueToneClass}`}
           style={{
-            fontSize:
-              displayValue.length >= 10
-                ? '0.78rem'
-                : displayValue.length >= 7
-                  ? '0.95rem'
-                  : 'calc(var(--metric-card-value-size) + 0.2rem)',
+            fontSize: (() => {
+              const len = displayValue.length;
+              const isNumeric = /^-?\d+(?:\.\d+)?[+\-]?$/.test(displayValue.trim());
+              if (len >= 10) return '0.7rem';
+              if (len >= 7) return '0.8rem';
+              if (!isNumeric) return '0.88rem';
+              return 'calc(var(--metric-card-value-size) + 0.15rem)';
+            })(),
           }}
         >
           {displayValue}
