@@ -640,7 +640,7 @@ export function PatientMedicationsTab({
     for (const med of medsSortedWithinGroup) {
       const dept = med.prescribingDepartment || '未標示科別';
       const groupDate = formatOutpatientGroupDate(med.startDate);
-      const key = `${groupDate}__${dept}__${med.daysSupply ?? 'na'}`;
+      const key = `${groupDate}__${dept}`;
       const existing = groups.get(key);
       if (existing) {
         existing.meds.push(med);

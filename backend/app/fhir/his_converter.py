@@ -739,7 +739,7 @@ class HISConverter:
 
             # Determine status
             dc_flag = m.get("DC_FLAG")
-            if dc_flag == "Y" or m.get("END_DATE"):
+            if dc_flag == "Y":
                 status = "discontinued"
             elif source_type == "outpatient":
                 # Outpatient Rx: expired when START_DATE + DAYS < today
@@ -753,7 +753,12 @@ class HISConverter:
                 else:
                     status = "active"
             else:
-                status = "active"
+                # Inpatient: compare END_DATE with today
+                end_dt = _roc_to_date(m.get("END_DATE"))
+                if end_dt and end_dt < date.today():
+                    status = "discontinued"
+                else:
+                    status = "active"
 
             med_id = _gen_id("med", self.pat_no, str(m.get("ODR_SEQ", "")),
                              m.get("PAT_SEQ", ""), m.get("ODR_CODE", ""))
