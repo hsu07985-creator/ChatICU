@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # ─── Clinical ─────────────────────────────────────────
@@ -37,7 +37,9 @@ class DecisionRequest(BaseModel):
 
 class PolishRequest(BaseModel):
     patient_id: str = Field(..., min_length=1, max_length=50)
-    content: str = Field(..., min_length=1, max_length=10000)
+    # `content` is the legacy single-textarea draft. Allow empty when pharmacist_polish
+    # is used with `soap_sections` (S/O/A/P split inputs).
+    content: str = Field("", max_length=10000)
     polish_type: str = Field(
         ...,
         pattern=r"^(progress_note|medication_advice|nursing_record|pharmacy_advice)$",
@@ -47,6 +49,45 @@ class PolishRequest(BaseModel):
     # according to `instruction`, still grounded in the original `content` (draft).
     instruction: Optional[str] = Field(None, max_length=2000)
     previous_polished: Optional[str] = Field(None, max_length=10000)
+
+    # ── Pharmacist SOAP polish fields (Phase 1) ──
+    # Routes to TASK_PROMPTS["pharmacist_polish"] in llm.py when task="pharmacist_polish".
+    task: Optional[Literal["clinical_polish", "pharmacist_polish"]] = "clinical_polish"
+    # Single mode enum replaces the old (grammar_only XOR refinement) conflict.
+    # - full: apply polish_type format rules (P bullets, drug notation, etc.)
+    # - grammar_only: fix grammar/spelling/translation only; zero content delta
+    # - refinement: baseline = previous_polished, apply instruction, KEEP format rules
+    polish_mode: Optional[
+        Literal["full", "grammar_only", "refinement"]
+    ] = "full"
+    # SOAP sections for split-textarea input. Keys: s, o, a, p. Empty strings allowed.
+    soap_sections: Optional[Dict[str, str]] = None
+    # Which section(s) to polish. When None and soap_sections given, polishes a+p only.
+    target_section: Optional[Literal["a", "p", "a_and_p", "all"]] = None
+    # Extra format knobs, e.g. {"drug_notation": "brand_generic_dose_freq",
+    # "monitor_line_required": true, "bullets_required": true}.
+    format_constraints: Optional[Dict[str, Any]] = None
+
+    @model_validator(mode="after")
+    def _require_input(self) -> "PolishRequest":
+        # Reject an empty call: legacy callers must send `content`; pharmacist
+        # callers must send at least one non-empty soap_sections value.
+        has_content = bool((self.content or "").strip())
+        has_soap = bool(
+            self.soap_sections
+            and any((v or "").strip() for v in self.soap_sections.values())
+        )
+        # Refinement flow is also a valid input (baseline = previous_polished).
+        has_refinement = bool(
+            (self.previous_polished or "").strip()
+            and (self.instruction or "").strip()
+        )
+        if not (has_content or has_soap or has_refinement):
+            raise ValueError(
+                "PolishRequest requires one of: content, soap_sections, or "
+                "(previous_polished + instruction)."
+            )
+        return self
 
 
 # ─── RAG ──────────────────────────────────────────────

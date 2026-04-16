@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 import uuid
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -56,6 +56,38 @@ from app.utils.response import success_response
 router = APIRouter(prefix="/api/v1/clinical", tags=["Clinical"])
 
 logger = logging.getLogger(__name__)
+
+
+def _try_parse_soap_json(text: str) -> Optional[Dict[str, str]]:
+    """Best-effort JSON parse for pharmacist_polish output ({s,o,a,p}).
+
+    Returns the parsed dict on success, None otherwise. Strips markdown fences
+    and surrounding whitespace.
+    """
+    if not text:
+        return None
+    raw = text.strip()
+    if raw.startswith("```"):
+        # Strip ```json ... ``` or ``` ... ``` fences.
+        raw = raw.lstrip("`")
+        # Drop an optional language tag line.
+        first_newline = raw.find("\n")
+        if first_newline != -1 and raw[:first_newline].strip().isalpha():
+            raw = raw[first_newline + 1 :]
+        if raw.endswith("```"):
+            raw = raw[:-3]
+        raw = raw.strip()
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    out: Dict[str, str] = {}
+    for key in ("s", "o", "a", "p"):
+        value = data.get(key, "")
+        out[key] = value if isinstance(value, str) else ""
+    return out
 
 
 def _resolve_deterministic_intent(req: ClinicalQueryRequest) -> str:
@@ -495,12 +527,30 @@ async def polish_clinical_text(
     patient_data = await _get_patient_dict(req.patient_id, db)
     data_freshness = build_data_freshness(patient_data)
 
-    # Refinement loop — overwrite-style: re-run polish with previous output + new instruction.
-    is_refinement = bool(req.instruction and req.previous_polished)
+    # Route: pharmacist_polish (SOAP-aware, preservation-first) vs legacy clinical_polish.
+    task_name = req.task or "clinical_polish"
+    is_pharmacist = task_name == "pharmacist_polish"
+    is_refinement = (req.polish_mode == "refinement") or bool(
+        req.instruction and req.previous_polished
+    )
 
-    if is_refinement:
-        # Put instruction FIRST so the LLM treats it as the primary request.
-        # Patient/draft are demoted to reference context.
+    if is_pharmacist:
+        input_data = {
+            "patient": patient_data,
+            "polish_type": req.polish_type,
+            "polish_mode": req.polish_mode or "full",
+            "soap_sections": req.soap_sections or {"s": "", "o": "", "a": "", "p": ""},
+            "target_section": req.target_section or "a_and_p",
+            "format_constraints": req.format_constraints or {},
+            "user_role": user.role,
+        }
+        if is_refinement:
+            input_data["user_instruction"] = req.instruction or ""
+            input_data["previous_polished"] = req.previous_polished or ""
+        if req.content:
+            # Fallback: some clients may still send `content`; keep as reference only.
+            input_data["draft_content"] = req.content
+    elif is_refinement:
         input_data = {
             "mode": "REFINEMENT",
             "user_instruction": req.instruction,
@@ -522,16 +572,26 @@ async def polish_clinical_text(
 
     result = await asyncio.to_thread(
         call_llm,
-        task="clinical_polish",
+        task=task_name,
         input_data=input_data,
     )
 
     if result.get("status") != "success":
-        logger.error("[INTG][AI][API] LLM clinical_polish failed: %s", (result.get("content") or "")[:500])
+        logger.error(
+            "[INTG][AI][API] LLM %s failed: %s",
+            task_name,
+            (result.get("content") or "")[:500],
+        )
         raise HTTPException(status_code=503, detail=llm_unavailable_detail())
 
     raw_content = result.get("content", "")
     guardrail = apply_safety_guardrail(raw_content, user_role=user.role, include_disclaimer=False)
+
+    # Pharmacist polish returns JSON {s,o,a,p}; try to parse so the frontend can
+    # render the split sections directly. Fall back to the raw string on parse failure.
+    polished_sections: Optional[Dict[str, str]] = None
+    if is_pharmacist:
+        polished_sections = _try_parse_soap_json(guardrail["content"])
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
@@ -539,21 +599,29 @@ async def polish_clinical_text(
         target=req.patient_id, status="success",
         ip=request.client.host if request.client else None,
         details={
+            "task": task_name,
             "polish_type": req.polish_type,
+            "polish_mode": req.polish_mode,
+            "target_section": req.target_section,
             "safety_flagged": guardrail["flagged"],
             "refinement": is_refinement,
         },
     )
 
-    return success_response(data={
+    response_data = {
         "patient_id": req.patient_id,
         "polish_type": req.polish_type,
+        "task": task_name,
+        "polish_mode": req.polish_mode,
         "original": req.content,
         "polished": guardrail["content"],
         "metadata": result.get("metadata", {}),
         "safetyWarnings": guardrail["warnings"] if guardrail["flagged"] else None,
         "dataFreshness": data_freshness,
-    })
+    }
+    if polished_sections is not None:
+        response_data["polished_sections"] = polished_sections
+    return success_response(data=response_data)
 
 
 # ── P3-1: Dose Calculation ──────────────────────────────────────────────
