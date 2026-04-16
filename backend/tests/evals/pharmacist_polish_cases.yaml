@@ -1,0 +1,221 @@
+# Pharmacist Polish Eval Cases
+#
+# 9 canonical cases covering core pharmacist workflow scenarios. Each case is
+# scored by 3 layers: sentence-count preservation, entity recall, LLM-as-judge.
+#
+# Phase 2 (P2.1) will populate full content with the pharmacist's real samples.
+# Phase 0 seeds skeleton + synthetic drafts so the runner can be wired up first.
+#
+# Status legend: seed (synthetic), real (from pharmacist UAT), needs_review
+#
+# polish_mode enum (see backend/app/schemas/clinical.py after Phase 1):
+#   - full            : apply polish_type format rules (P section bullets, drug notation, etc.)
+#   - grammar_only    : fix grammar/spelling + translate only, preserve structure
+#   - refinement      : baseline = previous_polished, apply user_instruction on top of rules
+#
+# Synonym note for entity recall: "RR" ↔ "respiratory rate", "H&H" ↔ "Hb & Hct",
+# "OB" ↔ "occult blood", etc. Runner must apply a synonym table when matching.
+
+cases:
+  - id: case_1
+    name: "中英夾雜破英文 P 段（renal + morphine swap）"
+    status: seed
+    polish_mode: full
+    input_soap_sections:
+      s: ""
+      o: ""
+      a: ""
+      p: |
+        pt renal fx not good (CrCl ~20), sug D/C morphine bcz resp depress risk high.
+        change to fentanyl patch 可能比較安全. monitor resp rate, sedation score.
+    expected_entities:
+      drugs: [morphine, fentanyl]
+      doses: ["CrCl ~20"]
+      monitors: ["RR", "respiratory rate", "sedation score"]  # RR and respiratory rate are synonyms
+      abbreviations_resolved: [discontinue, because, due_to_or_similar]
+      abbreviations_unresolved: []
+    expected_format:
+      p_uses_bullets: true
+      p_has_polite_phrase: true        # "please consider..."
+      p_has_monitor_line: true
+      p_has_reason_then_request_order: true
+
+  - id: case_2
+    name: "A 段貼 500 字 IDSA guideline 中文"
+    status: seed
+    polish_mode: grammar_only
+    input_soap_sections:
+      s: ""
+      o: ""
+      a: |
+        根據 IDSA guideline, CRE (Carbapenem-resistant Enterobacterales) 感染
+        建議使用 ceftazidime-avibactam 或 meropenem-vaborbactam，兩者皆為
+        β-lactam/β-lactamase inhibitor combination。
+        (TODO: expand to 500 chars with real guideline paste during UAT)
+      p: ""
+    expected_entities:
+      drugs: [ceftazidime-avibactam, meropenem-vaborbactam]
+      concepts: [CRE, IDSA, "β-lactam", "β-lactamase inhibitor"]
+    expected_format:
+      zero_content_addition: true
+      zero_content_removal: true
+      only_grammar_translation: true
+
+  - id: case_3
+    name: "完整 SOAP (S/O 含 HIS 貼文)"
+    status: seed
+    polish_mode: full
+    input_soap_sections:
+      s: |
+        Patient c/o dyspnea, denied chest pain.
+      o: |
+        Dx: ARDS, CRE pneumonia
+        Allergy: NKDA
+        Labs: Cr 1.8 (0.6-1.2), K 5.8 (3.5-5.0), WBC 14.3 (3.5-11.0)
+        Current medications: Meropenem 1g IV q8h
+      a: |
+        CRE coverage inadequate given worsening infiltrate
+      p: |
+        sug add ceftazidime-avibactam 2.5g IV q8h d/t MIC profile.
+        monitor: CRP, procalcitonin q48h, renal fx.
+    expected_entities:
+      drugs: [Meropenem, ceftazidime-avibactam]
+      doses: ["1g IV q8h", "2.5g IV q8h"]
+      lab_values: ["Cr 1.8 (0.6-1.2)", "K 5.8 (3.5-5.0)", "WBC 14.3 (3.5-11.0)"]
+      monitors: [CRP, procalcitonin, "renal fx"]
+    expected_format:
+      s_o_verbatim: true
+      p_uses_bullets: true
+      p_has_monitor_line: true
+
+  - id: case_4
+    name: "只有 P 段、無 SOAP 結構（不強加 SOAP）"
+    status: seed
+    polish_mode: full
+    input_soap_sections:
+      s: ""
+      o: ""
+      a: ""
+      p: |
+        1. sug D/C aspirin bcz GIB risk, f/u H&H q6h
+        2. add omeprazole 40mg PO qd, f/u stool OB
+        3. consider blood transfusion if Hb < 7
+    expected_entities:
+      drugs: [aspirin, omeprazole]
+      doses: ["40mg PO qd"]
+      monitors: ["H&H", "stool OB", Hb]
+      abbreviations_resolved: [discontinue, "follow up", "gastrointestinal bleeding"]
+    expected_format:
+      p_uses_bullets: true
+      does_not_invent_s_o_a: true      # must not pad empty sections
+
+  - id: case_5
+    name: "極短建議（單句，不擴寫）"
+    status: seed
+    polish_mode: full
+    input_soap_sections:
+      s: ""
+      o: ""
+      a: ""
+      p: |
+        sug check vanco trough before next dose
+    expected_entities:
+      drugs: [vancomycin]
+      monitors: ["vancomycin trough"]
+    expected_format:
+      no_rationale_added: true
+      no_please_consider_added: true    # pure monitoring → no request wording
+      no_soap_framework_added: true
+
+  - id: case_6
+    name: "Refinement 第二次修飾（格式必須保留）"
+    status: seed
+    polish_mode: refinement
+    previous_polished: |
+      - Due to renal impairment (CrCl ~20), please consider discontinuing Morphine
+        and switching to Fentanyl patch to reduce respiratory depression risk.
+        Monitor: respiratory rate, sedation score.
+    user_instruction: "改得更短"
+    input_soap_sections:
+      s: ""
+      o: ""
+      a: ""
+      p: ""
+    expected_format:
+      p_uses_bullets: true              # STILL bullets
+      p_has_polite_phrase: true         # STILL "please consider"
+      p_has_monitor_line: true          # STILL Monitor:
+      format_rules_preserved_after_refinement: true
+
+  - id: case_7
+    name: "grammar_only 模式 + 中文 guideline (零增減)"
+    status: seed
+    polish_mode: grammar_only
+    input_soap_sections:
+      s: ""
+      o: ""
+      a: |
+        使用 vancomycin 時需監測 trough level，目標 15-20 mcg/mL。
+        若 CrCl < 50，劑量需調整。
+      p: ""
+    expected_entities:
+      drugs: [vancomycin]
+      values: ["15-20 mcg/mL", "CrCl < 50"]
+    expected_format:
+      zero_content_addition: true
+      zero_content_removal: true
+
+  - id: case_8
+    name: "Lab 括號參考值必須保留"
+    status: seed
+    polish_mode: full
+    input_soap_sections:
+      s: ""
+      o: |
+        Labs: Cr 1.8 (0.6-1.2), K 5.8 (3.5-5.0), Na 145 (136-145), Mg 1.2 (1.7-2.2)
+      a: ""
+      p: |
+        sug correct K and Mg, f/u Cr trend
+    expected_entities:
+      lab_values:
+        - "Cr 1.8 (0.6-1.2)"
+        - "K 5.8 (3.5-5.0)"
+        - "Na 145 (136-145)"
+        - "Mg 1.2 (1.7-2.2)"
+    expected_format:
+      o_verbatim: true
+      parentheses_preserved: true
+
+  - id: case_9
+    name: "破英文縮寫正確展開 (d/c ≠ discharge)"
+    status: seed
+    polish_mode: full
+    input_soap_sections:
+      s: ""
+      o: ""
+      a: ""
+      p: |
+        pt s/p CABG d/t LM disease, d/c aspirin bcz GIB, f/u H&H q6h
+    expected_entities:
+      abbreviations_correctly_resolved:
+        "s/p": "status post"
+        "d/t": "due to"
+        "d/c": "discontinue"            # MUST NOT be 'discharge'
+        "bcz": "because"
+        "f/u": "follow up"
+      drugs: [aspirin]
+      monitors: ["H&H"]
+    expected_format:
+      no_discharge_mistranslation: true
+
+# --- Rubric weights (for aggregate scoring) ---
+rubric:
+  sentence_count_tolerance: 1           # ±1 sentences per section
+  entity_recall_threshold: 1.0          # 100% for hard fail
+  judge_rubric_questions:
+    - added_new_clinical_content
+    - removed_user_content
+    - changed_s_or_o_section
+    - ignored_p_format_rules
+  # Any judge Yes → fail
+  pass_threshold_per_case: "all_three_layers_pass"
