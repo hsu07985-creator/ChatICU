@@ -579,19 +579,31 @@ class HISConverter:
         }
 
     def _extract_diagnosis(self) -> Optional[str]:
-        """Extract primary diagnosis from getOpd ICD codes.
+        """Extract admission diagnosis from getIPD.json ICD codes.
 
-        Prefer inpatient records (OPD_SW=1) over outpatient, because ICU
-        patients' admission diagnosis is the clinically relevant one.
-        Among multiple inpatient records, pick the highest PAT_SEQ (most recent).
+        getIPD.json contains the true inpatient admission diagnosis with
+        ICD codes that already include Chinese descriptions (e.g.
+        "A41.9敗血症，未明示病原體").  Falls back to getOpd.json OPD_SW=1
+        records only when getIPD.json is unavailable.
         """
+        # Primary: getIPD.json — real admission diagnosis
+        ipd_rows = self._load("getIPD.json")
+        if ipd_rows:
+            chosen = ipd_rows[-1] if len(ipd_rows) == 1 else ipd_rows[-1]
+            icd_codes = []
+            for i in range(1, 11):
+                icd = chosen.get(f"ICD_CODE{i}")
+                if icd:
+                    icd_codes.append(icd)
+            if icd_codes:
+                return "; ".join(icd_codes[:3])
+
+        # Fallback: getOpd.json with OPD_SW=1 (inpatient visit records)
         opd_rows = self._load("getOpd.json")
         if not opd_rows:
             return None
-        # Prefer inpatient (OPD_SW=1) records — admission diagnosis
         inpatient = [r for r in opd_rows if str(r.get("OPD_SW", "")) == "1"]
         if inpatient:
-            # Latest inpatient record by PAT_SEQ
             chosen = max(inpatient, key=lambda r: r.get("PAT_SEQ", ""))
         else:
             chosen = opd_rows[-1]
