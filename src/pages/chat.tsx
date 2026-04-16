@@ -416,7 +416,7 @@ export function ChatPage() {
                     >
                       {mentionsUnreadOnly ? '僅未讀' : '全部'}
                     </button>
-                    <Button variant="ghost" size="sm" onClick={loadMentions} disabled={mentionsLoading}>
+                    <Button variant="ghost" size="sm" onClick={() => loadMentions()} disabled={mentionsLoading}>
                       <RefreshCw className={`h-3.5 w-3.5 ${mentionsLoading ? 'animate-spin' : ''}`} />
                     </Button>
                   </div>

@@ -13,6 +13,7 @@ export * from './health';
 export * from './sync';
 export * from './dashboard';
 export * from './admin';
+export * from './scores';
 
 // 導入命名空間供舊式用法
 import * as patientsApi from './patients';
@@ -28,9 +29,10 @@ import * as healthApi from './health';
 import * as syncApi from './sync';
 import * as dashboardApi from './dashboard';
 import * as adminApi from './admin';
+import * as scoresApi from './scores';
 
 // 匯出命名空間
-export { patientsApi, authApi, labDataApi, vitalSignsApi, ventilatorApi, medicationsApi, messagesApi, teamChatApi, aiApi, healthApi, syncApi, dashboardApi, adminApi };
+export { patientsApi, authApi, labDataApi, vitalSignsApi, ventilatorApi, medicationsApi, messagesApi, teamChatApi, aiApi, healthApi, syncApi, dashboardApi, adminApi, scoresApi };
 
 // 重新匯出 API client 和 token 管理
 export { default as apiClient, tokenManager, getApiBaseUrl } from '../api-client';

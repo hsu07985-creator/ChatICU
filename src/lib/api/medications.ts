@@ -10,6 +10,7 @@ export interface Medication {
   category: string;  // 'analgesic' | 'sedative' | 'antibiotic' | 'neuromuscular_blocker' | 'vasopressor' 等
   sanCategory: 'S' | 'A' | 'N' | null;  // S=Sedation, A=Analgesia, N=Neuromuscular Blocker
   route: string;
+  routeNormalized?: string | null;
   dose: string;
   unit: string;
   concentration?: string;

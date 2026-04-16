@@ -326,9 +326,9 @@ function MedicationDetailModal({
               {med.status === 'on-hold' && (
                 <Badge className="bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-400 border-0">暫停</Badge>
               )}
-              {(med.status === 'discontinued' || med.status === 'completed' || med.status === 'inactive') && (
+              {(med.status === 'discontinued' || med.status === 'completed') && (
                 <Badge className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-0">
-                  {med.status === 'completed' ? '療程完成' : med.status === 'inactive' ? '未啟用' : '已停用'}
+                  {med.status === 'completed' ? '療程完成' : '已停用'}
                 </Badge>
               )}
             </>
@@ -602,7 +602,7 @@ export function PatientMedicationsTab({
   const [isSavingMedication, setIsSavingMedication] = useState(false);
 
   const isDiscontinued = (med: Medication) =>
-    med.status === 'discontinued' || med.status === 'completed' || med.status === 'inactive' || med.status === 'on-hold';
+    med.status === 'discontinued' || med.status === 'completed' || med.status === 'on-hold';
 
   // Separate active vs discontinued across all groups
   const activePainMeds = painMedications.filter((m) => !isDiscontinued(m));
@@ -984,7 +984,7 @@ export function PatientMedicationsTab({
                     const prn = isPrnOrStat(medication);
                     const isStat = medication.frequency?.toUpperCase() === 'STAT';
                     const discontinued = isDiscontinued(medication);
-                    const statusLabel = medication.status === 'completed' ? '療程完成' : medication.status === 'inactive' ? '未啟用' : medication.status === 'on-hold' ? '暫停' : '已停用';
+                    const statusLabel = medication.status === 'completed' ? '療程完成' : medication.status === 'on-hold' ? '暫停' : '已停用';
                     return (
                       <div
                         key={medication.id}

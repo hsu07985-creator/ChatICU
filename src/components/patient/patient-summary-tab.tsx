@@ -43,6 +43,7 @@ interface PatientSummaryTabPatient {
   department?: string;
   isIsolated?: boolean;
   codeStatus?: string | null;
+  medicalRecordNumber?: string | null;
 }
 
 interface PatientSummaryTabProps {

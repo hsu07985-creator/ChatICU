@@ -201,6 +201,35 @@ export async function rebuildVectorIndex(): Promise<{ message: string; database:
   return ensureData(response.data, 'API contract');
 }
 
+// ========== 用藥標準化字典 ==========
+
+export interface MedicationNormalizationConfig {
+  version: string;
+  routeAliases: Record<string, string>;
+  frequencyAliases: Record<string, string>;
+  routeAliasCount?: number;
+  frequencyAliasCount?: number;
+  filePath?: string;
+  modifiedAt?: string;
+}
+
+export async function getMedicationNormalizationConfig(): Promise<MedicationNormalizationConfig> {
+  const response = await apiClient.get<ApiResponse<MedicationNormalizationConfig>>(
+    '/admin/medication-normalization'
+  );
+  return ensureData(response.data, 'API contract');
+}
+
+export async function updateMedicationNormalizationConfig(
+  data: MedicationNormalizationConfig
+): Promise<MedicationNormalizationConfig> {
+  const response = await apiClient.put<ApiResponse<MedicationNormalizationConfig>>(
+    '/admin/medication-normalization',
+    data
+  );
+  return ensureData(response.data, 'API contract');
+}
+
 // 導出所有 API 函數
 export const adminApi = {
   getAuditLogs,
@@ -211,4 +240,6 @@ export const adminApi = {
   getVectorDatabases,
   uploadVectorDocument,
   rebuildVectorIndex,
+  getMedicationNormalizationConfig,
+  updateMedicationNormalizationConfig,
 };

@@ -3,7 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { ScrollArea } from '../ui/scroll-area';
-import type { PatientMessageActivityItem } from '../../lib/api/team-chat';
+export interface PatientMessageActivityItem {
+  patientId: string;
+  patientName: string;
+  bedNumber?: string;
+  unreadCount: number;
+  tags: string[];
+  taggedCount: number;
+  latestContent: string;
+  latestAuthorName: string;
+  latestAuthorRole: string;
+  latestTimestamp: string;
+}
 
 // 標籤色彩映射
 const TAG_STYLE: Record<string, string> = {
@@ -51,7 +62,7 @@ export function PatientActivityPanel({
   onPatientClick,
 }: PatientActivityPanelProps) {
   // Collect all unique tags for the filter bar
-  const allTags = Array.from(new Set(activity.flatMap((a) => a.tags)));
+  const allTags = Array.from(new Set(activity.flatMap((a: PatientMessageActivityItem) => a.tags)));
 
   const filtered = selectedTag
     ? activity.filter((a) => a.tags.includes(selectedTag))

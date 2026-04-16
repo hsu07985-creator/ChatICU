@@ -195,9 +195,10 @@ export function PharmacyAdviceStatisticsPage() {
     );
   };
 
-  const renderPieCenterLabel = ({ viewBox }: { viewBox?: { cx: number; cy: number } }) => {
-    if (!viewBox) return null;
-    const { cx, cy } = viewBox;
+  const renderPieCenterLabel = (props: { viewBox?: unknown }) => {
+    const vb = props.viewBox as { cx?: number; cy?: number } | undefined;
+    if (!vb || typeof vb.cx !== 'number' || typeof vb.cy !== 'number') return null;
+    const { cx, cy } = vb;
     return (
       <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
         <tspan x={cx} dy="-0.4em" fontSize={28} fontWeight={700} fill="#1a1a1a">{totalAdvices}</tspan>
