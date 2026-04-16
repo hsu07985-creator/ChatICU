@@ -165,6 +165,12 @@ class Settings(BaseSettings):
     # Alerting (T28) — Webhook URL for severe error notifications (Slack/PagerDuty/email)
     ALERT_WEBHOOK_URL: str = ""
 
+    # HIS manual-sync admin endpoint (POST /admin/his-sync)
+    # When empty, the endpoint is DISABLED (503). Set to a long random token
+    # in backend/.env only on the Mac that owns the patient/ folder.
+    # Generate with: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+    ADMIN_SYNC_TOKEN: str = ""
+
     model_config = {
         # Load backend/.env regardless of the current working directory.
         "env_file": str(Path(__file__).resolve().parents[1] / ".env"),

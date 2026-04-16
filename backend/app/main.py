@@ -56,6 +56,7 @@ logging.config.dictConfig(_log_config)
 logger = logging.getLogger("chaticu")
 from app.routers import (
     admin,
+    admin_his_sync,
     ai_chat,
     ai_readiness,
     auth,
@@ -412,6 +413,7 @@ app.include_router(messages.router)
 app.include_router(team_chat.router)
 app.include_router(dashboard.router)
 app.include_router(admin.router)
+app.include_router(admin_his_sync.router)
 app.include_router(pharmacy.router)
 
 # Phase 3: AI / RAG / Rules
