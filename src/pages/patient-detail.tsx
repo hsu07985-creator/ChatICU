@@ -82,7 +82,8 @@ import {
   ChevronRight,
   ArrowDown,
   ThumbsUp,
-  ThumbsDown
+  ThumbsDown,
+  AlertTriangle
 } from 'lucide-react';
 import { LabDataDisplay } from '../components/lab-data-display';
 import chatBotAvatar from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
@@ -1350,9 +1351,20 @@ export function PatientDetailPage() {
               )}
             </div>
           </div>
-          {/* 診斷 + alerts */}
-          {(patient.diagnosis || (patient.alerts && patient.alerts.length > 0)) && (
+          {/* 過敏 + 診斷 + alerts */}
+          {((patient.allergies && patient.allergies.length > 0) || patient.diagnosis || (patient.alerts && patient.alerts.length > 0)) && (
             <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-1.5">
+              {patient.allergies && patient.allergies.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap px-2 py-1.5 rounded-md bg-red-50 border border-red-200 dark:bg-red-900/30 dark:border-red-800">
+                  <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
+                  <span className="text-xs font-semibold text-red-700 dark:text-red-300">過敏：</span>
+                  {patient.allergies.map((allergy: string, idx: number) => (
+                    <Badge key={idx} variant="outline" className="border-red-300 bg-red-100 text-red-800 text-xs font-semibold dark:bg-red-900/50 dark:text-red-200 dark:border-red-700">
+                      {allergy}
+                    </Badge>
+                  ))}
+                </div>
+              )}
               {patient.diagnosis && patient.diagnosis !== '待確認' && (
                 <p className="text-sm text-slate-600 dark:text-slate-400">
                   <span className="font-semibold text-slate-700 dark:text-slate-300">診斷：</span>{patient.diagnosis}

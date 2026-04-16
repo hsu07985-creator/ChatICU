@@ -20,6 +20,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
+from app.fhir.allergy_parser import parse_allergy_texts
 from app.fhir.his_lab_mapping import HIS_LAB_MAP
 
 
@@ -1224,6 +1225,50 @@ class HISConverter:
         return "DNR signed", alert_parts
 
     # ------------------------------------------------------------------ #
+    # Allergy extraction from SOAP notes
+    # ------------------------------------------------------------------ #
+
+    def _extract_allergies(self) -> Dict[str, Any]:
+        """Extract structured allergy data from getSO_AllPatientSeq.json.
+
+        Returns:
+            {"status": "nka"|"has_allergies"|"unknown",
+             "allergies": [{"substance": str, "reaction": str|None, ...}]}
+        """
+        so_path = os.path.join(self.patient_dir, "getSO_AllPatientSeq.json")
+        if not os.path.exists(so_path):
+            # Also check ExtraFactories
+            extras_dir = os.path.join(self.patient_dir, "ExtraFactories")
+            if os.path.isdir(extras_dir):
+                for factory_name in sorted(os.listdir(extras_dir)):
+                    candidate = os.path.join(
+                        extras_dir, factory_name, "getSO_AllPatientSeq.json"
+                    )
+                    if os.path.exists(candidate):
+                        so_path = candidate
+                        break
+                else:
+                    return {"status": "unknown", "allergies": []}
+            else:
+                return {"status": "unknown", "allergies": []}
+
+        try:
+            with open(so_path, encoding="utf-8-sig") as f:
+                raw = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return {"status": "unknown", "allergies": []}
+
+        # getSO has nested structure: {Responses: [{Data: [{SUBJECTIVE}]}]}
+        texts = []
+        for resp in raw.get("Responses", []):
+            for item in resp.get("Data", []):
+                subj = item.get("SUBJECTIVE", "")
+                if subj:
+                    texts.append(subj)
+
+        return parse_allergy_texts(texts)
+
+    # ------------------------------------------------------------------ #
     # Master convert
     # ------------------------------------------------------------------ #
 
@@ -1260,6 +1305,13 @@ class HISConverter:
         # Step 6: Ventilator days from D3 orders
         all_orders = self._load("getAllOrder.json")
         patient["ventilator_days"] = self._derive_ventilator_days(all_orders)
+
+        # Step 7: Allergies from SOAP notes
+        allergy_result = self._extract_allergies()
+        if allergy_result["status"] == "has_allergies":
+            patient["allergies"] = [
+                a["substance"] for a in allergy_result["allergies"]
+            ]
 
         return {
             "patient": patient,

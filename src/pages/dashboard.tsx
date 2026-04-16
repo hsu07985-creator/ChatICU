@@ -6,7 +6,7 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Label } from '../components/ui/label';
-import { Search, AlertCircle, Pencil, ZoomIn, ZoomOut } from 'lucide-react';
+import { Search, AlertCircle, AlertTriangle, Pencil, ZoomIn, ZoomOut, RefreshCw, DownloadCloud, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Patient, updatePatient } from '../lib/api/patients';
 import { getCachedPatientsSync, invalidatePatients, subscribePatientsCache } from '../lib/patients-cache';
@@ -18,6 +18,12 @@ import {
   subscribeDashboardStats,
 } from '../lib/dashboard-stats-cache';
 import { refreshSharedPatientDataAfterMutation } from '../lib/patient-data-sync';
+import {
+  triggerHisSync,
+  isHisSyncAvailable,
+  type HisSyncMode,
+  type HisSyncResult,
+} from '../lib/api/admin-his-sync';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -61,6 +67,11 @@ export function DashboardPage() {
   });
   const [saving, setSaving] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(getCachedDashboardStatsSync());
+
+  // Manual HIS sync state — see docs/his-sync-end-to-end-tutorial.md §11
+  const hisSyncEnabled = isHisSyncAvailable();
+  const [hisSyncRunning, setHisSyncRunning] = useState<HisSyncMode | null>(null);
+  const [lastHisSync, setLastHisSync] = useState<HisSyncResult | null>(null);
 
   // 卡片欄數: 2=大卡(2欄), 3=標準(3欄), 4=小卡(4欄), 6=迷你(6欄)
   const GRID_OPTIONS = [2, 3, 4, 6] as const;
@@ -187,6 +198,48 @@ export function DashboardPage() {
     }
   };
 
+  // 手動觸發 HIS 同步（兩種模式：detect=只抓新/變動的、force=全部重抓）
+  const handleHisSync = useCallback(
+    async (mode: HisSyncMode) => {
+      if (hisSyncRunning) return;
+      setHisSyncRunning(mode);
+      const loadingToastId = toast.loading(
+        mode === 'detect' ? '偵測 HIS 更新中…' : '強制重抓全部病人中…',
+      );
+      try {
+        const result = await triggerHisSync(mode);
+        setLastHisSync(result);
+
+        // 觸發快取失效，讓總覽立刻拿到新資料
+        await refreshSharedPatientDataAfterMutation();
+
+        const { counts } = result;
+        if (result.success) {
+          toast.success(
+            mode === 'detect'
+              ? `偵測完成：同步 ${counts.synced} 位，跳過 ${counts.unchanged + counts.timestamp_only} 位`
+              : `全部重抓完成：${counts.synced} 位病人已更新`,
+            { id: loadingToastId, duration: 5000 },
+          );
+        } else {
+          toast.error(
+            `同步完成但有 ${counts.errors} 個錯誤（return_code=${result.return_code}）`,
+            { id: loadingToastId, duration: 8000 },
+          );
+        }
+      } catch (err: unknown) {
+        const msg =
+          err && typeof err === 'object' && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : '未知錯誤';
+        toast.error(`HIS 同步失敗：${msg}`, { id: loadingToastId, duration: 8000 });
+      } finally {
+        setHisSyncRunning(null);
+      }
+    },
+    [hisSyncRunning],
+  );
+
   // 篩選與排序
   let filteredPatients = patients.filter(patient => {
     const matchSearch = patient.name.includes(searchTerm) || patient.bedNumber.includes(searchTerm);
@@ -229,9 +282,54 @@ export function DashboardPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">加護病房總覽</h1>
-        <p className="text-muted-foreground text-sm mt-1">即時病床與病患狀態監控</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">加護病房總覽</h1>
+          <p className="text-muted-foreground text-sm mt-1">即時病床與病患狀態監控</p>
+        </div>
+
+        {hisSyncEnabled && (
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={hisSyncRunning !== null}
+                onClick={() => handleHisSync('detect')}
+                title="只同步新的或內容變動過的病人（跳過 hash 未變的）"
+              >
+                {hisSyncRunning === 'detect' ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                偵測新更新
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={hisSyncRunning !== null}
+                onClick={() => handleHisSync('force')}
+                title="忽略 hash，重抓全部病人（比較慢，約數分鐘）"
+              >
+                {hisSyncRunning === 'force' ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <DownloadCloud className="mr-2 h-4 w-4" />
+                )}
+                全部重抓
+              </Button>
+            </div>
+            {lastHisSync && (
+              <p className="text-xs text-muted-foreground">
+                上次 {lastHisSync.mode === 'force' ? '強制重抓' : '偵測'}：
+                同步 {lastHisSync.counts.synced}，
+                跳過 {lastHisSync.counts.unchanged + lastHisSync.counts.timestamp_only}
+                {lastHisSync.counts.errors > 0 && `，錯誤 ${lastHisSync.counts.errors}`}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ICU 指標（水平高密度） */}
@@ -403,6 +501,18 @@ export function DashboardPage() {
                             ))}
                           </div>
                         </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 過敏 */}
+                  {patient.allergies && patient.allergies.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-2 border-t border-red-200 dark:border-red-800">
+                      <AlertTriangle className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                      {patient.allergies.map((allergy, idx) => (
+                        <Badge key={idx} className="text-xs font-semibold bg-red-100 text-red-800 border border-red-300 hover:bg-red-200/80 dark:bg-red-900/40 dark:text-red-200 dark:border-red-700 max-w-full" title={`過敏: ${allergy}`}>
+                          <span className="truncate">{allergy}</span>
+                        </Badge>
                       ))}
                     </div>
                   )}
