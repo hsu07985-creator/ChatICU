@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -177,18 +177,20 @@ async def get_latest_lab_data(
 @router.get("/trends")
 async def get_lab_trends(
     patient_id: str,
-    days: int = Query(7, ge=1, le=90),
+    days: int = Query(30, ge=1, le=90),
     category: Optional[str] = Query(None, description="Filter by category (e.g. biochemistry, hematology)"),
     item: Optional[str] = Query(None, description="Filter by item name within the category"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     pid = normalize_patient_id(patient_id)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     result = await db.execute(
         select(LabData)
         .where(LabData.patient_id == pid)
+        .where(LabData.timestamp >= cutoff)
         .order_by(LabData.timestamp.desc())
-        .limit(days * 4)  # Multiple readings per day
+        .limit(500)
     )
     labs = result.scalars().all()
 

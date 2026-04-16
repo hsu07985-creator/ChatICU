@@ -505,7 +505,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
 
     setTrendLoading(true);
     try {
-      const response = await getLabTrends(patientId, { days: 7, category, item: labName });
+      const response = await getLabTrends(patientId, { days: 30, category, item: labName });
       const trendData: LabTrendData[] = [];
       const snapshots = response.trends || [];
       for (const snapshot of snapshots) {
