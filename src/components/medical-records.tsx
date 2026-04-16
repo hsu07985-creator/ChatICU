@@ -445,7 +445,12 @@ export function MedicalRecords({ patientId, aiReadiness = null }: MedicalRecords
                   ? { backgroundColor: '#1e293b', color: '#fff', borderColor: '#1e293b' }
                   : undefined
               }
-              onClick={() => setRecordType(type)}
+              onClick={() => {
+                setRecordType(type);
+                setSelectedTemplate('');
+                setRefinementOpen(false);
+                setRefinementInstruction('');
+              }}
             >
               <TypeIcon className="mr-1.5 h-4 w-4" />
               {RECORD_TYPE_CONFIG[type].label}
