@@ -47,11 +47,17 @@ HIS_LAB_MAP: Dict[str, Tuple[str, str, str]] = {
     "9015E":  ("biochemistry", "Scr",      "Cr"),
     # --- eGFR ---
     "CKDEF":  ("biochemistry", "eGFR",     "eGFR(CKD-EPI)"),
+    "CKDEM":  ("biochemistry", "eGFR",     "eGFR(CKD-EPI)"),
     "CKDFF":  ("biochemistry", "eGFR",     "eGFR(CKD-EPI)"),
     "CKDMM":  ("biochemistry", "eGFR",     "eGFR(CKD-EPI)"),
     "EGFRF":  ("biochemistry", "eGFR",     "eGFR(female)"),
     "EGFRM":  ("biochemistry", "eGFR",     "eGFR Male"),
     "GFRF":   ("biochemistry", "eGFR",     "eGFR(female)"),
+    # --- Urine protein/creatinine ratio ---
+    "UPCR":   ("biochemistry", "UPCR",     "P/C Ratio"),
+    # --- Vitamins ---
+    "9129":   ("biochemistry", "VitB12",   "Vitamin B12"),
+    "9130":   ("biochemistry", "FolicAcid", "Folic acid"),
     # --- Glucose ---
     "9005":   ("biochemistry", "Glucose",  "Glu AC"),
     "E9005":  ("biochemistry", "Glucose",  "Glu AC"),
@@ -112,6 +118,7 @@ HIS_LAB_MAP: Dict[str, Tuple[str, str, str]] = {
     "9004":   ("lipid", "TG",              "Triglyceride"),
     "9043":   ("lipid", "HDLC",            "HDL-C"),
     "9044":   ("lipid", "LDLC",            "LDL-C"),
+    "12113":  ("lipid", "ApoB",            "Apolipoprotein B"),
 
     # --- Specimen quality flags (informational, not clinical values) ---
     "9347":   ("other", "_Lipemia",        "Lipemia"),
@@ -183,6 +190,7 @@ HIS_LAB_MAP: Dict[str, Tuple[str, str, str]] = {
     #                        INFLAMMATORY (發炎指標)                             #
     # ======================================================================= #
     "CRP":    ("inflammatory", "CRP",      "CRP"),
+    "12015":  ("inflammatory", "CRP",      "CRP"),
     "12192":  ("inflammatory", "PCT",      "Procalcitonin"),
 
     # ======================================================================= #
@@ -201,6 +209,11 @@ HIS_LAB_MAP: Dict[str, Tuple[str, str, str]] = {
     "CKMB":   ("cardiac", "CKMB",          "CKMB"),
     "9032E":  ("cardiac", "CK",            "CPK"),
     "9032X":  ("cardiac", "CK",            "CPK"),
+    "9061D":  ("cardiac", "CK",            "CPK"),
+    "9061A":  ("cardiac", "CK_BB",         "CPK-BB"),
+    "9061B":  ("cardiac", "CKMB",          "CPK-MB"),
+    "9061C":  ("cardiac", "CK_MM",         "CPK-MM"),
+    "9061E":  ("cardiac", "MacroCK1",      "Macro CK type 1"),
     "12193":  ("cardiac", "NTproBNP",      "NT-proBNP"),
 
     # ======================================================================= #
@@ -208,6 +221,7 @@ HIS_LAB_MAP: Dict[str, Tuple[str, str, str]] = {
     # ======================================================================= #
     "9112":   ("thyroid", "TSH",           "TSH"),
     "9106":   ("thyroid", "freeT4",        "Free T4"),
+    "9010":   ("thyroid", "T4",            "T4"),
     "9117":   ("thyroid", "T3",            "T3"),
 
     # ======================================================================= #
@@ -246,6 +260,7 @@ HIS_LAB_MAP: Dict[str, Tuple[str, str, str]] = {
     "613":    ("urinalysis", "EpithCell",         "Epith cell"),
     "614":    ("urinalysis", "Cast",              "Cast"),
     "615":    ("urinalysis", "Crystal",           "Crystal"),
+    "AMOUA":  ("urinalysis", "AmorphousUrate",    "Amorphous Urate"),
     "616":    ("urinalysis", "Bacteria",          "Bacteria"),
     "FUNGU":  ("urinalysis", "Fungus",            "Fungus"),
     "YEAST":  ("urinalysis", "Yeast",             "Yeast-like"),
@@ -265,6 +280,7 @@ HIS_LAB_MAP: Dict[str, Tuple[str, str, str]] = {
     # ======================================================================= #
     "7001":   ("stool", "OccultBlood",     "Occult Blood"),
     "7001N":  ("stool", "OB_NG",           "OB (NG)"),
+    "701VE":  ("stool", "OB_Vomitus",      "OB(Vomitus)"),
     "7B1":    ("stool", "Color",           "Color"),
     "7B2":    ("stool", "Form",            "Form"),
     "7B3":    ("stool", "Digestion",       "Digestion"),
@@ -340,6 +356,7 @@ HIS_LAB_MAP: Dict[str, Tuple[str, str, str]] = {
     "12069":  ("serology", "CryptoAg",      "Cryptococcus Ag"),
     "12118":  ("serology", "LegionellaAb",  "Legionella Ab"),
     "12189":  ("serology", "ChlamydiaIgM",  "Chlamydia Pneumoniae IgM"),
+    "1202M":  ("serology", "Myco_IgM",      "Mycoplasma pneumoniae IgM"),
     "12ASP":  ("serology", "AspergillusAg", "Aspergillus Ag"),
     "1305A":  ("serology", "CDiff_ToxinA",  "Toxin A"),
     "1305B":  ("serology", "CDiff_ToxinB",  "Toxin B"),
@@ -368,6 +385,7 @@ HIS_LAB_MAP: Dict[str, Tuple[str, str, str]] = {
     "1406A":  ("rapid_antigen", "FluA",      "Flu A"),
     "1406B":  ("rapid_antigen", "FluB",      "Flu B"),
     "14084":  ("rapid_antigen", "COVID19Ag", "COVID-19 Ag"),
+    "12172":  ("rapid_antigen", "PneumoAg",  "Pneumococcus Ag"),
 
     # ======================================================================= #
     #              MOLECULAR / PCR (分生病毒檢驗 — Pneumonia Panel)               #
@@ -508,7 +526,12 @@ HIS_LAB_MAP: Dict[str, Tuple[str, str, str]] = {
     "MI":     ("susceptibility", "Minocycline",      "Minocyclin"),
     "MI2":    ("susceptibility", "Minocycline_MIC",  "Minocyclin MIC"),
     "MXF":    ("susceptibility", "Moxifloxacin",     "Moxifloxacin"),
+    "D":      ("susceptibility", "Doxycycline",      "Doxycycline"),
+    "D2":     ("susceptibility", "Doxycycline_MIC",  "Doxycycline MIC"),
+    "E":      ("susceptibility", "Erythromycin",     "Erythromycin"),
+    "E2":     ("susceptibility", "Erythromycin_MIC", "Erythromycin MIC"),
     "OX":     ("susceptibility", "Oxacillin",        "Oxicillin"),
+    "OX2":    ("susceptibility", "Oxacillin_MIC",    "Oxacillin MIC"),
     "P":      ("susceptibility", "PenicillinG",      "Penicillin G"),
     "P2":     ("susceptibility", "PenicillinG_MIC",  "Penicillin G MIC"),
     "SAM":    ("susceptibility", "AmpSulbactam",     "Ampicillin/Sulbactam"),
@@ -532,6 +555,7 @@ HIS_LAB_MAP: Dict[str, Tuple[str, str, str]] = {
     "13A02":  ("gram_stain", "GPBacillus",   "G(+) bacillus"),
     "13A03":  ("gram_stain", "GNBacillus",   "G(-) bacillus"),
     "13A04":  ("gram_stain", "GPCoccus",     "G(+) Coccus"),
+    "13A05":  ("gram_stain", "GNCoccus",     "G(-) Coccus"),
     "13A09":  ("gram_stain", "YeastLike",    "Yeast Like"),
     "13A10":  ("gram_stain", "Other",        "Other"),
     "3SAM4":  ("gram_stain", "_SampleType",  "SampleType"),
