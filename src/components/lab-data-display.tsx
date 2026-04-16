@@ -151,6 +151,34 @@ const THYROID_HORMONE_METRICS: readonly LabMetricDescriptor[] = [
   { category: 'hormone', itemName: 'Cortisol' },
 ];
 
+const HANDLED_KEYS: ReadonlySet<string> = new Set(
+  [
+    ...ELECTROLYTES_METRICS,
+    ...HEMATOLOGY_METRICS,
+    ...INFLAMMATORY_METRICS,
+    ...ABG_METRICS,
+    ...VBG_METRICS,
+    ...LIVER_RENAL_METRICS,
+    ...COAGULATION_METRICS,
+    ...BIOCHEM_EXTRA_METRICS,
+    ...THYROID_HORMONE_METRICS,
+  ].map(({ category, itemName }) => `${String(category)}:${itemName}`),
+);
+
+const OTHER_CATEGORY_ORDER: ReadonlyArray<keyof LabData> = [
+  'biochemistry',
+  'hematology',
+  'bloodGas',
+  'venousBloodGas',
+  'inflammatory',
+  'coagulation',
+  'cardiac',
+  'thyroid',
+  'hormone',
+  'lipid',
+  'other',
+];
+
 const compactGridClass = 'grid';
 const compactGridStyle = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(var(--metric-card-size, 124px), var(--metric-card-size, 124px)))',
@@ -453,7 +481,24 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
   const showCoagulation = hasVisibleMetrics(COAGULATION_METRICS);
   const showBiochemExtra = hasVisibleMetrics(BIOCHEM_EXTRA_METRICS);
   const showThyroidHormone = Boolean(labData?.hormone && Object.keys(labData.hormone).length > 0 && hasVisibleMetrics(THYROID_HORMONE_METRICS, { requireValue: true }));
-  const hasAnyVisibleSection = showElectrolytes || showHematology || showInflammatory || showAbg || showVbg || showLiverRenal || showCoagulation || showBiochemExtra || showThyroidHormone;
+
+  const otherLabItems: LabMetricDescriptor[] = (() => {
+    if (!labData) return [];
+    const collected: LabMetricDescriptor[] = [];
+    for (const category of OTHER_CATEGORY_ORDER) {
+      const catData = labData[category];
+      if (!catData || typeof catData !== 'object') continue;
+      for (const itemName of Object.keys(catData as Record<string, unknown>)) {
+        if (itemName.startsWith('_')) continue;
+        if (HANDLED_KEYS.has(`${String(category)}:${itemName}`)) continue;
+        collected.push({ category, itemName });
+      }
+    }
+    return collected;
+  })();
+  const showOther = otherLabItems.length > 0 && hasVisibleMetrics(otherLabItems, { requireValue: true });
+
+  const hasAnyVisibleSection = showElectrolytes || showHematology || showInflammatory || showAbg || showVbg || showLiverRenal || showCoagulation || showBiochemExtra || showThyroidHormone || showOther;
 
   const handleLabClick = async (labName: string, category: string, value: number | undefined, unit: string, refRange?: string) => {
     if (value === undefined || !patientId) return;
@@ -1205,6 +1250,34 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
             </div>
           </div>
         )}
+
+        {/* 其他檢驗 - 收錄未列於上方的所有 lab key（包含 urinalysis / stool / pleural_fluid / 未映射 HIS 代碼） */}
+        <div className={showOther ? 'space-y-2' : 'hidden'}>
+          <h3 className="text-xs font-semibold tracking-wide text-brand">其他檢驗</h3>
+          <div className={compactGridClass} style={compactGridStyle}>
+            {otherLabItems.map(({ category, itemName }) => {
+              const unit = getUnit(category, itemName, '');
+              return (
+                <LabItem
+                  key={`${String(category)}:${itemName}`}
+                  labName={itemName}
+                  label={itemName}
+                  value={getItem(category, itemName)}
+                  unit={unit}
+                  isAbnormal={isAbnormal(category, itemName)}
+                  abnormalDirection={getDirection(category, itemName)}
+                  onClick={() => handleLabClick(
+                    itemName,
+                    String(category),
+                    getValue(category, itemName),
+                    unit,
+                    getRefRange(category, itemName),
+                  )}
+                />
+              );
+            })}
+          </div>
+        </div>
 
         {hasAnyVisibleSection && (
           <div className="flex items-center gap-2 pt-0.5">
