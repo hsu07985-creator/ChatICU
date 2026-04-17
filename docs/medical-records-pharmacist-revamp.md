@@ -784,23 +784,26 @@ Any 'Yes' → FAIL.
 
 ---
 
-### Phase 4 — 一鍵插入 Lab / 目前用藥（0.5 day）
+### Phase 4 — 一鍵插入 Lab / 目前用藥（0.5 day）— ✅ DONE 2026-04-17
 
-- [ ] **P4.1** 抽 utility `src/lib/clinical/format-for-paste.ts`
+- [x] **P4.1** 抽 utility `src/lib/clinical/format-for-paste.ts`
   - `formatLabsForPaste(labs, window: '6h' | '24h' | 'all')` → 純文字多行
-  - `formatMedicationsForPaste(meds)` → 純文字多行（商品名/學名/劑量/頻次）
-  - 保留括號參考值、單位、採檢時間
-- [ ] **P4.2** 找到 patient-detail 現有的 labs / medications data source（hook 或 prop）
-  - 確認是否需要把 `labs` / `medications` 透過 prop 傳進 `MedicalRecords` / `PharmacistSoapEditor`
-- [ ] **P4.3** 在 `PharmacistSoapEditor` 的 O 段 Card 上方加 toolbar
-  - `<Select>` 插入最新 Lab（6h / 24h / 全部）
-  - `<Button>` 插入目前用藥
-  - 插入邏輯：在 cursor 位置 append（用 `textarea.selectionStart`）
-- [ ] **P4.4** 手測：切換時間窗、lab 有括號參考值 ok、cursor 位置正確插入
-- [ ] **P4.5** Commit：
-  ```
-  feat(medical-records): add one-click insert lab/medications in O section
-  ```
+  - `formatMedicationsForPaste(meds)` → 純文字多行（品名 / 學名 / 劑量 / 頻次 / PRN）
+  - 保留括號參考值、單位、採檢時間；異常值加 `*`
+- [x] **P4.2** 透過 `labData` + 扁平化 `allMedications` prop 從 `patient-detail.tsx` → `MedicalRecords` → `PharmacistSoapEditor`
+- [x] **P4.3** 在 `PharmacistSoapEditor` 的 O 段加 toolbar：
+  - `<select data-testid="pharmacist-soap-lab-window">` (6h / 24h / 全部)
+  - 兩顆 `Button`：插入 Labs、插入用藥（lucide `FlaskConical` / `Syringe` icon）
+  - 使用 `useRef<HTMLTextAreaElement>` + `selectionStart` 在 cursor 位置插入；自動補 `\n` 分隔
+- [x] **P4.4** Playwright 驗證（Vercel production `index-juUCLaNM.js`）：
+  1. 以藥師 `陳佩君 (A3266@tpech.gov.tw, role=pharmacist)` 登入
+  2. 病人 `pat_f09355f8 (楊梅鳳)` → 病歷記錄 → 用藥建議
+  3. 所有 5 個 data-testid 存在：`pharmacist-soap-insert-toolbar / -lab-window / -insert-labs / -insert-meds / -input-o`
+  4. 點擊 `插入 Labs`（window=24h）→ 最新 labs 為 2026-04-13 > 24h，正確輸出 fallback `Labs: 近 24h 無更新（最後一筆 2026-04-13 06:18）`
+  5. 切換 window=all → 點 `插入 Labs`：3971 chars，含 header `Labs (2026-04-13 06:18):` + 11 類（生化 / 血液 / ABG / VBG / 發炎 / 凝血 / 心臟 / 荷爾蒙 / 其他等），括號參考值 + 單位 + 異常 `*` 都保留（例：`ALT 4 U/L (7-42 *)`、`K 3.9 mEq/L (3.5-5.1)`）
+  6. focus O textarea → `selectionStart=length` → 點 `插入用藥`：總長 5228 chars，含 `Current meds:` header + 19 用藥（例：`- Acetal 500mg tab(Acetaminophen) (Acetal) 1.0 tab PO q6h PRN`）
+  - 修正 hook order bug（P4 部署初期出現 React #310；`allMedications` 的 `useMemo` 被放在 `patientLoading` early return 之後）— commit `29ac75c`
+- [x] **P4.5** Commit `d09bc1b feat(medical-records): Phase 4 — one-click insert labs/meds into O section`
 
 ---
 
