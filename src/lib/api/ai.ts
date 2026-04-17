@@ -473,12 +473,23 @@ export async function updateChatSessionTitle(sessionId: string, title: string): 
 
 // ─── Clinical Polish ────────────────────────────────────────
 
+export type PolishTask = 'clinical_polish' | 'pharmacist_polish';
+export type PolishMode = 'full' | 'grammar_only' | 'refinement';
+export type SoapSection = 's' | 'o' | 'a' | 'p';
+export type TargetSection = SoapSection | 'a_and_p' | 'all';
+
+export type SoapSections = Record<SoapSection, string>;
+
 export interface PolishResponse {
   patient_id: string;
   polish_type: string;
+  task?: PolishTask;
+  polish_mode?: PolishMode;
   original: string;
   polished: string;
-  metadata: Record<string, unknown>;
+  /** Present when backend returns a pharmacist_polish JSON {s,o,a,p} payload and parsing succeeds. */
+  polished_sections?: SoapSections;
+  metadata: Record<string, unknown> & { parse_ok?: boolean };
   safetyWarnings?: string[] | null;
   dataFreshness?: DataFreshness | null;
 }
@@ -605,15 +616,24 @@ export async function getDecisionSupport(data: {
 
 export async function polishClinicalText(data: {
   patientId: string;
-  content: string;
+  /** Legacy single-draft content. Either this OR soapSections must be non-empty (or a refinement pair). */
+  content?: string;
   polishType: 'progress_note' | 'medication_advice' | 'nursing_record' | 'pharmacy_advice';
   templateContent?: string;
   instruction?: string;
   previousPolished?: string;
+  /** Route to pharmacist_polish task for SOAP-aware preservation-first polishing. */
+  task?: PolishTask;
+  /** Required when task='pharmacist_polish' (unless refinement-only). Keys: s,o,a,p. */
+  soapSections?: Partial<SoapSections>;
+  /** Which section(s) to polish. Defaults to 'a_and_p' for pharmacist mode. */
+  targetSection?: TargetSection;
+  /** 'full' (default) / 'grammar_only' / 'refinement'. */
+  polishMode?: PolishMode;
 }): Promise<PolishResponse> {
-  const body: Record<string, string> = {
+  const body: Record<string, unknown> = {
     patient_id: data.patientId,
-    content: data.content,
+    content: data.content ?? '',
     polish_type: data.polishType,
   };
   if (data.templateContent) {
@@ -622,6 +642,23 @@ export async function polishClinicalText(data: {
   if (data.instruction && data.previousPolished) {
     body.instruction = data.instruction;
     body.previous_polished = data.previousPolished;
+  }
+  if (data.task) {
+    body.task = data.task;
+  }
+  if (data.polishMode) {
+    body.polish_mode = data.polishMode;
+  }
+  if (data.soapSections) {
+    body.soap_sections = {
+      s: data.soapSections.s ?? '',
+      o: data.soapSections.o ?? '',
+      a: data.soapSections.a ?? '',
+      p: data.soapSections.p ?? '',
+    };
+  }
+  if (data.targetSection) {
+    body.target_section = data.targetSection;
   }
   const response = await apiClient.post<ApiResponse<PolishResponse>>('/api/v1/clinical/polish', body, {
     timeout: 90_000,

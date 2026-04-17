@@ -274,6 +274,69 @@
   - After cleanup, re-run `bash scripts/verify_restructure.sh T08` — the check `src/hooks still has 15 files` should become `src/hooks removed`.
 - **References:** `scripts/verify_restructure.sh:328-340`
 
+### F19 [DONE] Wire `PharmacistSoapEditor` into `medical-records.tsx` (Phase 3)
+- **Completed:** 2026-04-17 (by main session — scope exception granted per user instruction, despite `backend/CLAUDE.md` scope rule, to keep Phase 3 progress unblocked)
+- **Summary:** `DraftEntry` extended with `soap` / `polishedSoap` / `submittedAt`; `mergeDraft` helper back-compats old localStorage; `isPharmacistSoapMode` gate added at L629 to swap the 2-column grid for `<PharmacistSoapEditor>`. `npm run build` + `tsc --noEmit` green.
+- **Post-deploy verification:** Playwright MCP against `chat-icu.vercel.app` — in progress.
+
+<details><summary>(archived) original handoff brief</summary>
+- **Added by:** backend session (pharmacist polish revamp Phase 3 handoff)
+- **Date:** 2026-04-17
+- **Priority:** P1 (blocks pharmacist UAT in Phase 6)
+- **Endpoint ready since:** 2026-04-17 (Phase 1 shipped `task: "pharmacist_polish"` + `soap_sections` + `target_section` + `polish_mode` on `POST /api/v1/clinical/polish`)
+- **API contract:** `src/lib/api/ai.ts` already exports `PolishTask`, `PolishMode`, `SoapSection`, `TargetSection`, `SoapSections`, and the extended `polishClinicalText` signature. Response carries `polished_sections` + `metadata.parse_ok`.
+- **Files to modify:**
+  - `src/components/medical-records.tsx` (only file requiring changes)
+- **Already created (ready to import):**
+  - `src/components/pharmacist-soap-editor.tsx` — exports `PharmacistSoapEditor`, `SoapDraft`, `EMPTY_SOAP`
+- **Implementation steps:**
+  1. **Extend `DraftEntry`** (L129):
+     ```ts
+     import { PharmacistSoapEditor, EMPTY_SOAP, type SoapDraft } from './pharmacist-soap-editor';
+     type DraftEntry = {
+       input: string;
+       polished: string;
+       polishedFrom: string;
+       soap: SoapDraft;
+       polishedSoap: SoapDraft;
+       submittedAt?: number;
+     };
+     ```
+  2. **Update `EMPTY_DRAFT`** (L132) to include `soap: { ...EMPTY_SOAP }, polishedSoap: { ...EMPTY_SOAP }`
+  3. **Backward-compat `loadDrafts`** (L141) — when merging a parsed entry, default missing `soap`/`polishedSoap` to `{ ...EMPTY_SOAP }` so legacy localStorage payloads don't crash.
+  4. **Add role helper** (near L170):
+     ```ts
+     const isPharmacistSoapMode = user?.role === 'pharmacist' && recordType === 'medication-advice';
+     ```
+  5. **Gate render at L629** — replace the `<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">…</div>` with:
+     ```tsx
+     {isPharmacistSoapMode ? (
+       <PharmacistSoapEditor
+         patientId={patientId}
+         canPolish={canPolish}
+         polishReason={polishReason}
+         soap={currentDraft.soap}
+         polishedSoap={currentDraft.polishedSoap}
+         onSoapChange={(next) => updateDraft(recordType, { soap: next })}
+         onPolishedSoapChange={(next) => updateDraft(recordType, { polishedSoap: next })}
+         onSubmitted={() => updateDraft(recordType, { submittedAt: Date.now() })}
+       />
+     ) : (
+       /* existing 2-column grid kept verbatim */
+     )}
+     ```
+- **Verification:**
+  - `npm run build` → no new TS errors
+  - Dev-server manual: pharmacist on `medication-advice` sees 4 cards (S/O gray "AI 不會動", A/P sky with polish buttons); doctor/nurse keep the 2-column grid; switching patient reloads per-patient draft.
+  - Network tab: clicking "潤飾 P" fires `POST /clinical/polish` with `task: "pharmacist_polish"`, `polish_mode: "full"`, `target_section: "p"`, and `soap_sections` carrying only the pharmacist's P text (S/O sent for context but must not appear in response).
+- **Commit & push:**
+  - Feature branch required (pre-commit hook blocks direct main commits).
+  - Push to `railway` remote (Vercel). Backend already deployed to Railway — no `personal` push needed.
+- **Tracking doc:** After `[DONE]`, update Phase 3 row in `docs/medical-records-pharmacist-revamp.md` to ✅.
+- **References:** `docs/medical-records-pharmacist-revamp.md` §"Phase 3 — 前端 4-Textarea split UI"
+
+</details>
+
 ### F18 [TODO] Fix broken `LatestScores` import in patient-detail view model
 - **Added by:** backend session (Step 5 verify_restructure cleanup)
 - **Date:** 2026-04-14

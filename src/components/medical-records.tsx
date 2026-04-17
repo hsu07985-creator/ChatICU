@@ -10,6 +10,11 @@ import {
 } from '../lib/api/record-templates';
 import { copyToClipboard } from '../lib/clipboard-utils';
 import { useAuth } from '../lib/auth-context';
+import {
+  PharmacistSoapEditor,
+  EMPTY_SOAP,
+  type SoapDraft,
+} from './pharmacist-soap-editor';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Button } from './ui/button';
 import { ButtonLoadingIndicator } from './ui/button-loading-indicator';
@@ -126,17 +131,43 @@ CAM-ICU:
 
 /* ---------------- localStorage 草稿 / 歷史 ---------------- */
 
-type DraftEntry = { input: string; polished: string; polishedFrom: string };
+type DraftEntry = {
+  input: string;
+  polished: string;
+  polishedFrom: string;
+  soap: SoapDraft;
+  polishedSoap: SoapDraft;
+  submittedAt?: number;
+};
 type Drafts = Record<RecordType, DraftEntry>;
 
-const EMPTY_DRAFT: DraftEntry = { input: '', polished: '', polishedFrom: '' };
+const makeEmptyDraft = (): DraftEntry => ({
+  input: '',
+  polished: '',
+  polishedFrom: '',
+  soap: { ...EMPTY_SOAP },
+  polishedSoap: { ...EMPTY_SOAP },
+});
+
+const EMPTY_DRAFT: DraftEntry = makeEmptyDraft();
 const EMPTY_DRAFTS: Drafts = {
-  'progress-note': { ...EMPTY_DRAFT },
-  'medication-advice': { ...EMPTY_DRAFT },
-  'nursing-record': { ...EMPTY_DRAFT },
+  'progress-note': makeEmptyDraft(),
+  'medication-advice': makeEmptyDraft(),
+  'nursing-record': makeEmptyDraft(),
 };
 
 const draftKey = (patientId: string) => `chaticu-draft-${patientId}`;
+
+function mergeDraft(parsed: Partial<DraftEntry> | undefined): DraftEntry {
+  const base = makeEmptyDraft();
+  if (!parsed) return base;
+  return {
+    ...base,
+    ...parsed,
+    soap: { ...base.soap, ...(parsed.soap || {}) },
+    polishedSoap: { ...base.polishedSoap, ...(parsed.polishedSoap || {}) },
+  };
+}
 
 function loadDrafts(patientId: string): Drafts {
   try {
@@ -144,9 +175,9 @@ function loadDrafts(patientId: string): Drafts {
     if (!raw) return { ...EMPTY_DRAFTS };
     const parsed = JSON.parse(raw) as Partial<Drafts>;
     return {
-      'progress-note': { ...EMPTY_DRAFT, ...(parsed['progress-note'] || {}) },
-      'medication-advice': { ...EMPTY_DRAFT, ...(parsed['medication-advice'] || {}) },
-      'nursing-record': { ...EMPTY_DRAFT, ...(parsed['nursing-record'] || {}) },
+      'progress-note': mergeDraft(parsed['progress-note']),
+      'medication-advice': mergeDraft(parsed['medication-advice']),
+      'nursing-record': mergeDraft(parsed['nursing-record']),
     };
   } catch {
     return { ...EMPTY_DRAFTS };
@@ -175,6 +206,8 @@ export function MedicalRecords({ patientId, aiReadiness = null }: MedicalRecords
   };
 
   const [recordType, setRecordType] = useState<RecordType>(getDefaultRecordType());
+  const isPharmacistSoapMode =
+    user?.role === 'pharmacist' && recordType === 'medication-advice';
 
   // Drafts (per-type, per-patient, persisted)
   const [drafts, setDraftsState] = useState<Drafts>(() => loadDrafts(patientId));
@@ -209,7 +242,13 @@ export function MedicalRecords({ patientId, aiReadiness = null }: MedicalRecords
   const setPolishedContent = (value: string) => updateDraft(recordType, { polished: value });
 
   const clearDraft = () => {
-    updateDraft(recordType, { input: '', polished: '', polishedFrom: '' });
+    updateDraft(recordType, {
+      input: '',
+      polished: '',
+      polishedFrom: '',
+      soap: { ...EMPTY_SOAP },
+      polishedSoap: { ...EMPTY_SOAP },
+    });
     setSelectedTemplate('');
   };
 
@@ -626,7 +665,21 @@ export function MedicalRecords({ patientId, aiReadiness = null }: MedicalRecords
         </div>
       )}
 
-      {/* Side-by-side: 草稿 | AI 修飾 */}
+      {isPharmacistSoapMode ? (
+        <PharmacistSoapEditor
+          patientId={patientId}
+          canPolish={canPolish}
+          polishReason={polishReason}
+          soap={currentDraft.soap}
+          polishedSoap={currentDraft.polishedSoap}
+          onSoapChange={(next) => updateDraft(recordType, { soap: next })}
+          onPolishedSoapChange={(next) =>
+            updateDraft(recordType, { polishedSoap: next })
+          }
+          onSubmitted={() => updateDraft(recordType, { submittedAt: Date.now() })}
+        />
+      ) : (
+      /* Side-by-side: 草稿 | AI 修飾 */
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Left: 草稿 */}
         <Card className="flex flex-col border-slate-300 dark:border-slate-600">
@@ -783,6 +836,7 @@ export function MedicalRecords({ patientId, aiReadiness = null }: MedicalRecords
           </CardContent>
         </Card>
       </div>
+      )}
     </div>
   );
 }

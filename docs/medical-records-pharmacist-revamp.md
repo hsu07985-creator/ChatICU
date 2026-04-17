@@ -560,7 +560,7 @@ Any 'Yes' → FAIL.
 | **0** | 0.5d | 準備 / 蒐集藥師範例 / 分支 | — | branch 建立、3-5 筆真實範例進 evals 目錄 | ✅ DONE (0d51775) |
 | **1** | 1d | 後端 prompt + schema + REFINEMENT 修正 | 0 | Case 1-9 baseline 跑完、pass rate 記錄 | ✅ DONE（待 commit） |
 | **2** | 0.5d | Eval 框架（cases.yaml + judge + runner） + Phase 1 review carry-over | 1 | `pytest backend/tests/evals/test_pharmacist_polish.py` 可執行 | ✅ 框架完成（live baseline 待 opt-in）|
-| **3** | 1.5d | 前端 4-Textarea 分段 UI + DraftEntry 擴充 | 1 | 藥師 role 下 medication-advice 顯示 4 段 + per-section polish | ⬜ 下一步 |
+| **3** | 1.5d | 前端 4-Textarea 分段 UI + DraftEntry 擴充 | 1 | 藥師 role 下 medication-advice 顯示 4 段 + per-section polish | ✅ DONE（部署後 Playwright 驗證中）|
 | **4** | 0.5d | 一鍵插入 Lab / 用藥 | 3 | O 段 toolbar 可插入 6h/24h/all lab + current meds | ⬜ |
 | **5** | 0.5d | 藥師 SOAP 模板（含 Allergy）+ description / placeholder | 3 | 模板選單出現「藥師 SOAP」、預填 4 段 | ⬜ |
 | **6** | 1d | 藥師實測 + 迭代 | 1-5 | 3 位藥師 × 5-10 筆，pass rate ≥ 95%、記錄 fail cases | ⬜ |
@@ -699,11 +699,19 @@ Any 'Yes' → FAIL.
 
 ---
 
-### Phase 3 — 前端 4-Textarea 分段 UI（1.5 day）
+### Phase 3 — 前端 4-Textarea 分段 UI（1.5 day） · **Status: ✅ DONE (2026-04-17)**
+
+**完成摘要**
+- `src/lib/api/ai.ts`：新增 `PolishTask` / `PolishMode` / `SoapSection` / `TargetSection` / `SoapSections`；`polishClinicalText` 加 `task`、`soapSections`、`targetSection`、`polishMode` 參數並做 snake_case 轉換；`PolishResponse` 擴充 `polished_sections` + `metadata.parse_ok`
+- `src/components/pharmacist-soap-editor.tsx`（新檔）：4 張 Card（S/O 灰底「AI 不會動這段」、A/P 天藍「送 AI」），A 段預設 `grammar_only`、P 段預設 `full` 並有「只修文法」次按鈕；per-section refinement 面板（⌘/Ctrl+Enter 送出）；最終輸出 Card 自動拼接 `[polishedSoap.x || soap.x].filter(…).join('\n\n')` + 複製到 HIS 按鈕
+- `src/components/medical-records.tsx`：`DraftEntry` 加 `soap` / `polishedSoap` / `submittedAt`；`mergeDraft` helper 讓舊 localStorage 草稿向後相容；新增 `isPharmacistSoapMode = user?.role === 'pharmacist' && recordType === 'medication-advice'`；L629 加條件 render 切換
+- `npm run build` 通過、`tsc --noEmit` 無錯誤
+- Playwright 部署後驗證：詳見 P3.12 小節
+
 
 #### 3A. 型別與 state 擴充
 
-- [ ] **P3.1** 修改 `src/components/medical-records.tsx` L129-137 `DraftEntry` 型別
+- [x] **P3.1** 修改 `src/components/medical-records.tsx` L129-137 `DraftEntry` 型別
   ```ts
   type SoapDraft = { s: string; o: string; a: string; p: string };
   type DraftEntry = {
@@ -716,19 +724,19 @@ Any 'Yes' → FAIL.
     submittedAt?: number;
   };
   ```
-- [ ] **P3.2** 更新 `loadDrafts` / `saveDrafts` 相容舊 localStorage 資料（缺欄位用 default）
-- [ ] **P3.3** 新增 helper `isPharmacistSoapMode = user?.role === 'pharmacist' && recordType === 'medication-advice'`
+- [x] **P3.2** 更新 `loadDrafts` / `saveDrafts` 相容舊 localStorage 資料（缺欄位用 default）
+- [x] **P3.3** 新增 helper `isPharmacistSoapMode = user?.role === 'pharmacist' && recordType === 'medication-advice'`
 
 #### 3B. API client 擴充
 
-- [ ] **P3.4** 修改 `src/lib/api/ai.ts` 的 `polishClinicalText`
+- [x] **P3.4** 修改 `src/lib/api/ai.ts` 的 `polishClinicalText`
   - 加可選參數 `task?: 'clinical_polish' | 'pharmacist_polish'`
   - 加可選 `soapSections`、`targetSection`、`polishMode`
   - snake_case 轉換 送後端
 
 #### 3C. 新元件 `PharmacistSoapEditor`
 
-- [ ] **P3.5** 新增 `src/components/pharmacist-soap-editor.tsx`
+- [x] **P3.5** 新增 `src/components/pharmacist-soap-editor.tsx`
   - 4 個 Card：S / O / A / P
   - S、O：灰底 + 標籤「AI 不會動」、`font-mono`、min-h 80-120
   - A、P：藍底 + 標籤「送 AI」、各自的 polish 按鈕
@@ -736,27 +744,27 @@ Any 'Yes' → FAIL.
   - A 段 polish 按鈕預設 `polishMode='grammar_only'`
   - P 段 polish 按鈕預設 `polishMode='full'`
   - 每段下方顯示該段 polished 結果（Textarea，可編輯）
-- [ ] **P3.6** 最終輸出區
+- [x] **P3.6** 最終輸出區
   - 自動拼接：`{s}\n\n{o}\n\n{polishedA || a}\n\n{polishedP || p}`
   - 「複製貼到 HIS」按鈕 + 「顯示 diff」toggle（diff 放 P7 做）
   - 複製成功寫 `submittedAt = Date.now()`
-- [ ] **P3.7** 「再修一次」對 A/P 各自有 refinement panel（`polish_mode='refinement'`）
-- [ ] **P3.8** 草稿自動存：任一段 change 都 `saveDrafts`（patient+type+soap）
+- [x] **P3.7** 「再修一次」對 A/P 各自有 refinement panel（`polish_mode='refinement'`）
+- [x] **P3.8** 草稿自動存：任一段 change 都 `saveDrafts`（patient+type+soap）
 
 #### 3D. 整合到 `MedicalRecords`
 
-- [ ] **P3.9** `src/components/medical-records.tsx` L629 grid 前加 gate
+- [x] **P3.9** `src/components/medical-records.tsx` L629 grid 前加 gate
   ```tsx
   if (isPharmacistSoapMode) {
     return <PharmacistSoapEditor {...props} />;
   }
   // 原本單 Textarea 渲染
   ```
-- [ ] **P3.10** 其他 role / recordType 維持原樣（向後相容驗證）
+- [x] **P3.10** 其他 role / recordType 維持原樣（向後相容驗證）
 
 #### 3E. 驗證
 
-- [ ] **P3.11** 前端 `npm run build` 通過、TypeScript 無錯
+- [x] **P3.11** 前端 `npm run build` 通過、TypeScript 無錯（12.44s, 2682 modules, no TS error）
 - [ ] **P3.12** 本地起 dev server 手測：
   - 登入藥師 → 進 patient-detail → 病例紀錄 → 用藥建議 → 看到 4-Textarea
   - 登入醫師 → 同路徑 → 看到原單 Textarea
