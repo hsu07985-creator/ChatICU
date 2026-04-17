@@ -10,20 +10,27 @@
  * from the parent component.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   polishClinicalText,
   type PolishMode,
   type SoapSection,
   type SoapSections,
 } from '../lib/api/ai';
+import type { LabData } from '../lib/api/lab-data';
+import type { Medication } from '../lib/api/medications';
+import {
+  formatLabsForPaste,
+  formatMedicationsForPaste,
+  type LabWindow,
+} from '../lib/clinical/format-for-paste';
 import { copyToClipboard } from '../lib/clipboard-utils';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { ButtonLoadingIndicator } from './ui/button-loading-indicator';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
-import { Brain, Copy, Sparkles, Wand2, Pill } from 'lucide-react';
+import { Brain, Copy, Sparkles, Wand2, Pill, FlaskConical, Syringe } from 'lucide-react';
 import { toast } from 'sonner';
 
 export type SoapDraft = SoapSections;
@@ -39,6 +46,8 @@ export interface PharmacistSoapEditorProps {
   onSoapChange: (next: SoapDraft) => void;
   onPolishedSoapChange: (next: SoapDraft) => void;
   onSubmitted?: () => void;
+  labData?: LabData | null;
+  medications?: Medication[] | null;
 }
 
 type PerSectionState = {
@@ -71,6 +80,8 @@ export function PharmacistSoapEditor({
   onSoapChange,
   onPolishedSoapChange,
   onSubmitted,
+  labData = null,
+  medications = null,
 }: PharmacistSoapEditorProps) {
   const [sectionState, setSectionState] = useState<Record<SoapSection, PerSectionState>>({
     s: { ...INITIAL_STATE },
@@ -78,6 +89,8 @@ export function PharmacistSoapEditor({
     a: { ...INITIAL_STATE },
     p: { ...INITIAL_STATE },
   });
+  const [labWindow, setLabWindow] = useState<LabWindow>('24h');
+  const textareaRefs = useRef<Partial<Record<SoapSection, HTMLTextAreaElement | null>>>({});
 
   const patchSectionState = useCallback(
     (key: SoapSection, patch: Partial<PerSectionState>) => {
@@ -92,6 +105,51 @@ export function PharmacistSoapEditor({
     },
     [soap, onSoapChange],
   );
+
+  const insertAtCursor = useCallback(
+    (key: SoapSection, text: string) => {
+      if (!text) return;
+      const el = textareaRefs.current[key];
+      const current = soap[key] || '';
+      if (!el || typeof el.selectionStart !== 'number') {
+        const joined = current ? `${current}\n${text}` : text;
+        onSoapChange({ ...soap, [key]: joined });
+        return;
+      }
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      const needsLeadingNewline = start > 0 && current[start - 1] !== '\n';
+      const prefix = needsLeadingNewline ? '\n' : '';
+      const next = `${current.slice(0, start)}${prefix}${text}${current.slice(end)}`;
+      onSoapChange({ ...soap, [key]: next });
+      const caret = start + prefix.length + text.length;
+      requestAnimationFrame(() => {
+        if (el) {
+          el.focus();
+          el.setSelectionRange(caret, caret);
+        }
+      });
+    },
+    [soap, onSoapChange],
+  );
+
+  const handleInsertLabs = useCallback(() => {
+    const formatted = formatLabsForPaste(labData, labWindow);
+    if (!formatted) {
+      toast.error('無可貼上的檢驗資料');
+      return;
+    }
+    insertAtCursor('o', formatted);
+  }, [labData, labWindow, insertAtCursor]);
+
+  const handleInsertMedications = useCallback(() => {
+    const formatted = formatMedicationsForPaste(medications);
+    if (!formatted) {
+      toast.error('無可貼上的用藥資料');
+      return;
+    }
+    insertAtCursor('o', formatted);
+  }, [medications, insertAtCursor]);
 
   const setPolishedValue = useCallback(
     (key: SoapSection, value: string) => {
@@ -212,7 +270,57 @@ export function PharmacistSoapEditor({
                 <p className="text-xs text-slate-500 dark:text-slate-400">{meta.subtitle}</p>
               </CardHeader>
               <CardContent className="space-y-3 pt-4">
+                {key === 'o' && (labData || (medications && medications.length > 0)) && (
+                  <div
+                    className="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-slate-300 bg-slate-50 px-2 py-1.5 dark:border-slate-600 dark:bg-slate-900/40"
+                    data-testid="pharmacist-soap-insert-toolbar"
+                  >
+                    <span className="text-xs text-slate-500 dark:text-slate-400">一鍵帶入：</span>
+                    {labData && (
+                      <>
+                        <label className="text-xs text-slate-500 dark:text-slate-400">Labs</label>
+                        <select
+                          value={labWindow}
+                          onChange={(e) => setLabWindow(e.target.value as LabWindow)}
+                          className="h-7 rounded border border-slate-300 bg-white px-1.5 text-xs dark:border-slate-600 dark:bg-slate-900"
+                          data-testid="pharmacist-soap-lab-window"
+                        >
+                          <option value="6h">6h</option>
+                          <option value="24h">24h</option>
+                          <option value="all">全部</option>
+                        </select>
+                        <Button
+                          type="button"
+                          onClick={handleInsertLabs}
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          data-testid="pharmacist-soap-insert-labs"
+                        >
+                          <FlaskConical className="mr-1 h-3 w-3" />
+                          插入 Labs
+                        </Button>
+                      </>
+                    )}
+                    {medications && medications.length > 0 && (
+                      <Button
+                        type="button"
+                        onClick={handleInsertMedications}
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        data-testid="pharmacist-soap-insert-meds"
+                      >
+                        <Syringe className="mr-1 h-3 w-3" />
+                        插入用藥
+                      </Button>
+                    )}
+                  </div>
+                )}
                 <Textarea
+                  ref={(el) => {
+                    textareaRefs.current[key] = el;
+                  }}
                   value={soap[key]}
                   onChange={(e) => setInputValue(key, e.target.value)}
                   placeholder={

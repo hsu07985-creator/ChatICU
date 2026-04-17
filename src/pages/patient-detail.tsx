@@ -2,7 +2,7 @@
 import { MedicalRecords } from '../components/medical-records';
 import { LabTrendChart } from '../components/lab-trend-chart';
 import { VitalSignCard } from '../components/vital-signs-card';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import {
@@ -1249,6 +1249,16 @@ export function PatientDetailPage() {
   const nmbMedications = medicationGroups.nmb;
   const otherMedications = medicationGroups.other;
   const outpatientMedications = medicationGroups.outpatient || [];
+  const allMedications = useMemo(
+    () => [
+      ...painMedications,
+      ...sedationMedications,
+      ...nmbMedications,
+      ...otherMedications,
+      ...outpatientMedications,
+    ],
+    [painMedications, sedationMedications, nmbMedications, otherMedications, outpatientMedications],
+  );
 
   const painIndication = painMedications[0]?.indication;
   const sedationIndication = sedationMedications[0]?.indication;
@@ -1942,7 +1952,13 @@ export function PatientDetailPage() {
 
         {/* 病歷記錄 */}
         <TabsContent value="records" className="space-y-4">
-          <MedicalRecords patientId={patient.id} patientName={patient.name} aiReadiness={aiReadiness} />
+          <MedicalRecords
+            patientId={patient.id}
+            patientName={patient.name}
+            aiReadiness={aiReadiness}
+            labData={labData}
+            medications={allMedications}
+          />
         </TabsContent>
 
         {/* 檢驗數據 */}

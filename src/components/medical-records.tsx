@@ -8,6 +8,8 @@ import {
   type RecordTemplate,
   type RecordTemplateType,
 } from '../lib/api/record-templates';
+import type { LabData } from '../lib/api/lab-data';
+import type { Medication } from '../lib/api/medications';
 import { copyToClipboard } from '../lib/clipboard-utils';
 import { useAuth } from '../lib/auth-context';
 import {
@@ -43,6 +45,8 @@ interface MedicalRecordsProps {
   patientId: string;
   patientName?: string;
   aiReadiness?: AIReadiness | null;
+  labData?: LabData | null;
+  medications?: Medication[] | null;
 }
 
 type RecordType = 'progress-note' | 'medication-advice' | 'nursing-record';
@@ -194,7 +198,12 @@ function saveDrafts(patientId: string, drafts: Drafts) {
 
 /* ---------------- component ---------------- */
 
-export function MedicalRecords({ patientId, aiReadiness = null }: MedicalRecordsProps) {
+export function MedicalRecords({
+  patientId,
+  aiReadiness = null,
+  labData = null,
+  medications = null,
+}: MedicalRecordsProps) {
   const { user } = useAuth();
   const canPolish = aiReadiness ? aiReadiness.feature_gates.clinical_polish : true;
   const polishReason = getReadinessReason(aiReadiness, 'clinical_polish');
@@ -677,6 +686,8 @@ export function MedicalRecords({ patientId, aiReadiness = null }: MedicalRecords
             updateDraft(recordType, { polishedSoap: next })
           }
           onSubmitted={() => updateDraft(recordType, { submittedAt: Date.now() })}
+          labData={labData}
+          medications={medications}
         />
       ) : (
       /* Side-by-side: 草稿 | AI 修飾 */
