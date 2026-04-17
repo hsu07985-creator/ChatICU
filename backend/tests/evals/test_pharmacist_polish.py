@@ -307,8 +307,13 @@ def test_live_case(case: Dict[str, Any], request):
         output_sections = {"s": "", "o": "", "a": "", "p": raw}
 
     input_sections = case.get("input_soap_sections", {}) or {}
+    # For refinement mode, baseline for sentence-count is previous_polished.
+    refinement_baseline = None
+    if case.get("polish_mode") == "refinement" and case.get("previous_polished"):
+        refinement_baseline = {"s": "", "o": "", "a": "", "p": case["previous_polished"]}
     sentence_pass, per_section = sentence_count_preserved(
-        input_sections, output_sections, tolerance=1
+        input_sections, output_sections, tolerance=1,
+        refinement_baseline=refinement_baseline,
     )
     recall, missing = entity_recall(case.get("expected_entities") or {}, output_sections)
     recall_pass = recall >= load_rubric().get("entity_recall_threshold", 1.0)

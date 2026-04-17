@@ -75,14 +75,32 @@ def load_judge_prompt() -> str:
 
 # ── Layer 1: sentence count preservation ───────────────────────────────────
 
-_SENT_SPLIT = re.compile(r"(?:[。．.!?]\s*|\n\s*-\s*)")
+# Split on:
+#   - Chinese/Japanese full stop 。．, ASCII ! ?
+#   - ASCII period FOLLOWED by whitespace, but NOT preceded by a digit
+#     (so "0.25" / "1." bullet marker / "2." don't split)
+#   - newline + bullet marker (dash or "N.")
+_SENT_SPLIT = re.compile(
+    r"(?:[。．!?]\s*|(?<!\d)[.]\s+|\n\s*(?:-|\d+[.)])\s*)"
+)
+# Leading bullet marker at start of the text (no preceding newline).
+_LEADING_BULLET_RE = re.compile(r"^\s*(?:-|\d+[.)])\s+")
+
+
+_BULLET_LINE_RE = re.compile(r"(?m)^\s*(?:-|\d+[.)])\s+\S")
 
 
 def count_sentences(text: str) -> int:
     if not text or not text.strip():
         return 0
-    # Flatten bullet-list markers to sentence boundaries so bullets count once.
-    pieces = [p.strip() for p in _SENT_SPLIT.split(text) if p and p.strip()]
+    # If the text is bulleted, count bullet lines — one recommendation per
+    # bullet regardless of how many inline sub-sentences it contains. This
+    # matches how pharmacists structure P sections.
+    bullets = _BULLET_LINE_RE.findall(text)
+    if len(bullets) >= 2:
+        return len(bullets)
+    cleaned = _LEADING_BULLET_RE.sub("", text, count=1)
+    pieces = [p.strip() for p in _SENT_SPLIT.split(cleaned) if p and p.strip()]
     return len(pieces)
 
 
@@ -91,15 +109,23 @@ def sentence_count_preserved(
     output_sections: Dict[str, str],
     *,
     tolerance: int = 1,
+    refinement_baseline: Optional[Dict[str, str]] = None,
 ) -> Tuple[bool, Dict[str, Tuple[int, int]]]:
-    """Return (passes, {section: (input_count, output_count)})."""
+    """Return (passes, {section: (input_count, output_count)}).
+
+    For refinement mode the input's P section is typically empty (the actual
+    baseline is `previous_polished`). Pass `refinement_baseline` (with 's',
+    'o', 'a', 'p' keys) and it will be used when the input section is empty.
+    """
     per_section: Dict[str, Tuple[int, int]] = {}
     passes = True
     for key in ("s", "o", "a", "p"):
-        ic = count_sentences(input_sections.get(key, ""))
+        raw_in = input_sections.get(key, "") or ""
+        if not raw_in.strip() and refinement_baseline is not None:
+            raw_in = refinement_baseline.get(key, "") or ""
+        ic = count_sentences(raw_in)
         oc = count_sentences(output_sections.get(key, ""))
         per_section[key] = (ic, oc)
-        # Empty input → empty output is fine; else |delta| must be ≤ tolerance.
         if ic == 0 and oc == 0:
             continue
         if abs(oc - ic) > tolerance:
@@ -110,19 +136,76 @@ def sentence_count_preserved(
 # ── Layer 2: entity recall ─────────────────────────────────────────────────
 
 def _expand_synonyms(term: str) -> List[str]:
-    """Return all acceptable surface forms for a term (case-insensitive)."""
+    """Return all acceptable surface forms for a term (case-insensitive).
+
+    Also applies synonym substitution on super-strings: if term contains
+    a known abbreviation as a whole word, generate variants with each
+    expansion (so "stool OB" → "stool occult blood").
+    """
     forms = [term]
     if term in SYNONYMS:
         forms.extend(SYNONYMS[term])
     if term in ABBREV_CANON:
         forms.extend(ABBREV_CANON[term])
+    # Super-string expansion: substitute any whole-word abbrev inside `term`.
+    for abbrev, expansions in SYNONYMS.items():
+        pattern = rf"\b{re.escape(abbrev)}\b"
+        if re.search(pattern, term):
+            for exp in expansions:
+                forms.append(re.sub(pattern, exp, term))
     return [f.lower() for f in forms]
 
 
+# Normalize whitespace & punctuation variants so "40mg" ≈ "40 mg" and
+# "(hydrocortisone, 100 mg)" ≈ "(hydrocortisone 100 mg)" and lab flags/units
+# between value and reference range don't break substring matching.
+_WS_NORM_RE = re.compile(r"\s+")
+_NUM_UNIT_GAP_RE = re.compile(r"(\d)\s*([a-zA-Z])")
+_PUNCT_NORM_RE = re.compile(r"[,()=%]+")
+_LAB_FLAGS_RE = re.compile(r"\b(?:HH|LL|H|L)\b", re.IGNORECASE)
+_LAB_UNITS_RE = re.compile(
+    r"\b(?:mg/dl|mg/l|meq/l|mmol/l|u/l|g/dl|mmhg|ml/min(?:ute)?(?:/1\.73\s*m[²2]?)?|10\^?[36]/ul)\b",
+    re.IGNORECASE,
+)
+
+
+def _normalize(text: str) -> str:
+    low = text.lower()
+    low = _PUNCT_NORM_RE.sub(" ", low)         # strip commas, parens, =, %
+    low = _LAB_UNITS_RE.sub(" ", low)          # drop lab units
+    low = _LAB_FLAGS_RE.sub(" ", low)          # drop H/L/HH/LL flags
+    low = _NUM_UNIT_GAP_RE.sub(r"\1 \2", low)  # "40mg" → "40 mg"
+    low = _WS_NORM_RE.sub(" ", low)            # collapse whitespace
+    return low.strip()
+
+
+_MAX_GAP_TOKENS = 6  # max filler tokens between consecutive expected tokens
+
+
+def _fuzzy_token_sequence_match(haystack_norm: str, needle_norm: str) -> bool:
+    """Return True iff every whitespace-separated token in needle appears in
+    haystack in the same relative order, with bounded gaps between tokens.
+
+    Tolerates inserted words such as "diluted" in
+    "2 vials [diluted] in 100 mL of 5% dextrose".
+    """
+    tokens = [re.escape(t) for t in needle_norm.split() if t]
+    if not tokens:
+        return False
+    pattern = r"\b" + tokens[0] + r"\b"
+    gap = rf"(?:\s+\S+){{0,{_MAX_GAP_TOKENS}}}\s+"
+    for t in tokens[1:]:
+        pattern += gap + r"\b" + t + r"\b"
+    return bool(re.search(pattern, haystack_norm))
+
+
 def _hit(haystack: str, needle: str) -> bool:
-    haystack_low = haystack.lower()
+    haystack_norm = _normalize(haystack)
     for form in _expand_synonyms(needle):
-        if form in haystack_low:
+        form_norm = _normalize(form)
+        if form_norm and form_norm in haystack_norm:
+            return True
+        if form_norm and _fuzzy_token_sequence_match(haystack_norm, form_norm):
             return True
     return False
 
