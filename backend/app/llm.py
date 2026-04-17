@@ -715,9 +715,14 @@ async def _stream_openai(
     usage_meta = {}
     async for chunk in stream:
         if chunk.usage:
+            cached_tokens = 0
+            details = getattr(chunk.usage, "prompt_tokens_details", None)
+            if details is not None:
+                cached_tokens = getattr(details, "cached_tokens", 0) or 0
             usage_meta = {
                 "prompt_tokens": chunk.usage.prompt_tokens,
                 "completion_tokens": chunk.usage.completion_tokens,
+                "cached_tokens": cached_tokens,
             }
         if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
             text = chunk.choices[0].delta.content

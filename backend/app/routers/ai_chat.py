@@ -150,6 +150,8 @@ async def _event_stream(
 
     full_reply = ""
     token_count = 0
+    prompt_tokens = 0
+    cached_tokens = 0
     first_token_logged = False
     t_pre_llm = time.perf_counter()
 
@@ -164,11 +166,14 @@ async def _event_stream(
             if chunk.startswith("{") and "__done__" in chunk:
                 try:
                     meta = json.loads(chunk)
+                    usage = meta.get("usage", {}) or {}
                     token_count = (
-                        meta.get("usage", {}).get("completion_tokens")
-                        or meta.get("usage", {}).get("output_tokens")
+                        usage.get("completion_tokens")
+                        or usage.get("output_tokens")
                         or 0
                     )
+                    prompt_tokens = usage.get("prompt_tokens") or 0
+                    cached_tokens = usage.get("cached_tokens") or 0
                 except Exception:
                     pass
                 break
@@ -206,6 +211,16 @@ async def _event_stream(
         logger.error("[AI_CHAT] Stream error: %s", str(e)[:500])
         yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
         return
+
+    if prompt_tokens:
+        cache_ratio = (cached_tokens / prompt_tokens * 100) if prompt_tokens else 0
+        logger.info(
+            "[CHAT][CACHE] prompt_tokens=%d cached_tokens=%d hit_ratio=%.0f%% completion_tokens=%d",
+            prompt_tokens,
+            cached_tokens,
+            cache_ratio,
+            token_count,
+        )
 
     # Persist user message + assistant reply (store clean message, not delta-augmented)
     stored_user_message = original_message or user_message
