@@ -287,3 +287,140 @@ async def test_legacy_refinement_routes_to_clinical_polish(client):
         assert captured["input_data"]["user_instruction"] == "改短"
         # polish_type must still be forwarded so MODE SWITCH can enforce SOAP.
         assert captured["input_data"]["polish_type"] == "progress_note"
+
+
+# ─── P2.14: per-value max_length on soap_sections ─────────────────────────
+
+def test_schema_rejects_soap_value_over_5000_chars():
+    with pytest.raises(ValidationError) as exc:
+        PolishRequest(
+            patient_id="p1",
+            polish_type="medication_advice",
+            task="pharmacist_polish",
+            soap_sections={"s": "", "o": "", "a": "", "p": "x" * 5001},
+        )
+    assert "exceeds 5000 chars" in str(exc.value)
+
+
+def test_schema_rejects_unknown_soap_key():
+    with pytest.raises(ValidationError) as exc:
+        PolishRequest(
+            patient_id="p1",
+            polish_type="medication_advice",
+            task="pharmacist_polish",
+            soap_sections={"s": "ok", "bogus": "nope"},
+        )
+    assert "bogus" in str(exc.value)
+
+
+def test_schema_accepts_soap_at_boundary():
+    # Exactly 5000 chars must still pass.
+    r = PolishRequest(
+        patient_id="p1",
+        polish_type="medication_advice",
+        task="pharmacist_polish",
+        soap_sections={"s": "", "o": "", "a": "", "p": "x" * 5000},
+    )
+    assert len(r.soap_sections["p"]) == 5000
+
+
+# ─── P2.15: audit log carries input_sha256 for repro ──────────────────────
+
+@pytest.mark.asyncio
+async def test_pharmacist_polish_audit_contains_input_sha256(client):
+    """Audit log details must include a stable sha256 over the request."""
+    captured_audit: dict = {}
+
+    async def _capture_audit(db, **kwargs):
+        captured_audit.update(kwargs)
+
+    llm_reply = json.dumps(
+        {"s": "", "o": "", "a": "", "p": "- consider vanco\n  Monitor: trough."}
+    )
+    mock_response = {"status": "success", "content": llm_reply, "metadata": {}}
+
+    with patch("app.routers.clinical.call_llm", return_value=mock_response), \
+         patch("app.routers.clinical.create_audit_log", side_effect=_capture_audit):
+        response = await client.post(
+            "/api/v1/clinical/polish",
+            json={
+                "patient_id": "pat_001",
+                "polish_type": "medication_advice",
+                "task": "pharmacist_polish",
+                "polish_mode": "full",
+                "soap_sections": {"s": "", "o": "", "a": "", "p": "sug check vanco"},
+            },
+        )
+    assert response.status_code == 200
+    details = captured_audit.get("details") or {}
+    sha = details.get("input_sha256")
+    assert isinstance(sha, str) and len(sha) == 64
+    # hex digest
+    int(sha, 16)
+
+
+def test_polish_input_sha256_is_stable():
+    """Same inputs → same hash; whitespace-equivalent but key-different inputs differ."""
+    from app.routers.clinical import _polish_input_sha256
+
+    a = PolishRequest(
+        patient_id="p1",
+        polish_type="medication_advice",
+        task="pharmacist_polish",
+        polish_mode="full",
+        soap_sections={"p": "sug d/c morphine"},
+    )
+    b = PolishRequest(
+        patient_id="p1",
+        polish_type="medication_advice",
+        task="pharmacist_polish",
+        polish_mode="full",
+        soap_sections={"p": "sug d/c morphine"},
+    )
+    c = PolishRequest(
+        patient_id="p1",
+        polish_type="medication_advice",
+        task="pharmacist_polish",
+        polish_mode="full",
+        soap_sections={"p": "sug D/C morphine"},  # casing differs
+    )
+    assert _polish_input_sha256(a) == _polish_input_sha256(b)
+    assert _polish_input_sha256(a) != _polish_input_sha256(c)
+
+
+# ─── P2.16: per-section guardrail attributes warnings to S/O/A/P ──────────
+
+@pytest.mark.asyncio
+async def test_pharmacist_polish_guardrail_prefixes_warnings_by_section(client):
+    """High-alert drug dose in P section → warning prefixed with [P]."""
+    # LLM echoes back a structured output where P contains a heparin dose.
+    llm_reply = json.dumps(
+        {
+            "s": "",
+            "o": "",
+            "a": "",
+            "p": "- consider heparin 5000 units SC q8h\n  Monitor: aPTT.",
+        }
+    )
+    mock_response = {"status": "success", "content": llm_reply, "metadata": {}}
+    with patch("app.routers.clinical.call_llm", return_value=mock_response):
+        response = await client.post(
+            "/api/v1/clinical/polish",
+            json={
+                "patient_id": "pat_001",
+                "polish_type": "medication_advice",
+                "task": "pharmacist_polish",
+                "polish_mode": "full",
+                "soap_sections": {"s": "", "o": "", "a": "", "p": "heparin suggest"},
+            },
+        )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    warnings = data.get("safetyWarnings") or []
+    assert warnings, "expected high-alert warning to fire"
+    assert all(w.startswith("[") for w in warnings), (
+        "every section warning must carry a [S]/[O]/[A]/[P] prefix"
+    )
+    assert any(w.startswith("[P]") for w in warnings), (
+        "heparin dose is in P → warning must be attributed to [P]"
+    )

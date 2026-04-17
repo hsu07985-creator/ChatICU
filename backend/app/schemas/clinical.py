@@ -87,6 +87,27 @@ class PolishRequest(BaseModel):
                 "PolishRequest requires one of: content, soap_sections, or "
                 "(previous_polished + instruction)."
             )
+
+        # P2.14: bound each SOAP section individually so a runaway pharmacist
+        # input can't bypass `content`'s 10000-char cap via soap_sections.
+        if self.soap_sections is not None:
+            allowed_keys = {"s", "o", "a", "p"}
+            for key, value in self.soap_sections.items():
+                if key not in allowed_keys:
+                    raise ValueError(
+                        f"soap_sections key must be one of s/o/a/p; got '{key}'"
+                    )
+                if value is None:
+                    continue
+                if not isinstance(value, str):
+                    raise ValueError(
+                        f"soap_sections['{key}'] must be a string"
+                    )
+                if len(value) > 5000:
+                    raise ValueError(
+                        f"soap_sections['{key}'] exceeds 5000 chars "
+                        f"(got {len(value)})"
+                    )
         return self
 
 

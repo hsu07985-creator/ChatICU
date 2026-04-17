@@ -1,10 +1,11 @@
 """Clinical LLM-powered endpoints (Phase 3)."""
 
 import asyncio
+import hashlib
 import json
 import logging
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -88,6 +89,55 @@ def _try_parse_soap_json(text: str) -> Optional[Dict[str, str]]:
         value = data.get(key, "")
         out[key] = value if isinstance(value, str) else ""
     return out
+
+
+def _polish_input_sha256(req: "PolishRequest") -> str:
+    """P2.15: stable hash of the polish inputs for repro. Order-independent
+    over dict keys; None-safe on optional fields."""
+    canonical = json.dumps(
+        {
+            "content": req.content or "",
+            "polish_type": req.polish_type,
+            "polish_mode": req.polish_mode,
+            "task": req.task,
+            "target_section": req.target_section,
+            "soap_sections": req.soap_sections or None,
+            "instruction": req.instruction or None,
+            "previous_polished": req.previous_polished or None,
+            "template_content": req.template_content or None,
+            "format_constraints": req.format_constraints or None,
+        },
+        sort_keys=True,
+        ensure_ascii=False,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _guardrail_sections(
+    sections: Dict[str, str],
+    user_role: Optional[str],
+) -> Dict[str, Any]:
+    """P2.16: run apply_safety_guardrail per S/O/A/P so warnings can be
+    attributed to the section that triggered them. Returns the section-keyed
+    content dict plus a merged warnings list (each prefixed with [section])."""
+    per_section_content: Dict[str, str] = {}
+    merged_warnings: List[str] = []
+    any_flagged = False
+    for key in ("s", "o", "a", "p"):
+        value = sections.get(key, "") or ""
+        result = apply_safety_guardrail(
+            value, user_role=user_role, include_disclaimer=False
+        )
+        per_section_content[key] = result["content"]
+        if result["flagged"]:
+            any_flagged = True
+            for w in result["warnings"]:
+                merged_warnings.append(f"[{key.upper()}] {w}")
+    return {
+        "content": per_section_content,
+        "warnings": merged_warnings,
+        "flagged": any_flagged,
+    }
 
 
 def _resolve_deterministic_intent(req: ClinicalQueryRequest) -> str:
@@ -594,6 +644,18 @@ async def polish_clinical_text(
     if is_pharmacist:
         polished_sections = _try_parse_soap_json(guardrail["content"])
         parse_ok = polished_sections is not None
+        # P2.16: once parsed, re-run guardrail per section so warnings point to
+        # the specific segment that triggered (and so JSON syntax chars don't
+        # leak into the regex match surface).
+        if polished_sections is not None:
+            sectioned = _guardrail_sections(polished_sections, user_role=user.role)
+            polished_sections = sectioned["content"]
+            guardrail = {
+                **guardrail,
+                "warnings": sectioned["warnings"],
+                "flagged": sectioned["flagged"],
+                "requiresExpertReview": sectioned["flagged"],
+            }
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
@@ -607,6 +669,9 @@ async def polish_clinical_text(
             "target_section": req.target_section,
             "safety_flagged": guardrail["flagged"],
             "refinement": is_refinement,
+            # P2.15: stable hash over canonical inputs so fail cases can be
+            # reproduced from the audit log alone.
+            "input_sha256": _polish_input_sha256(req),
         },
     )
 
