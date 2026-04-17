@@ -488,6 +488,18 @@ export function PatientDetailPage() {
 
   // 趨勢圖表（hook）
   const { selectedTrendMetric, setSelectedTrendMetric, trendChartData } = useTrendChart(id);
+
+  // Flattened medication list for the pharmacist SOAP editor (Phase 4)
+  const allMedications = useMemo(
+    () => [
+      ...(medicationGroups.analgesia || []),
+      ...(medicationGroups.sedation || []),
+      ...(medicationGroups.nmb || []),
+      ...(medicationGroups.other || []),
+      ...(medicationGroups.outpatient || []),
+    ],
+    [medicationGroups],
+  );
   const metricGridStyle = {
     gridTemplateColumns: 'repeat(auto-fit, minmax(var(--metric-card-size, 124px), 1fr))',
     gap: 'var(--metric-card-gap, 10px)',
@@ -1249,16 +1261,6 @@ export function PatientDetailPage() {
   const nmbMedications = medicationGroups.nmb;
   const otherMedications = medicationGroups.other;
   const outpatientMedications = medicationGroups.outpatient || [];
-  const allMedications = useMemo(
-    () => [
-      ...painMedications,
-      ...sedationMedications,
-      ...nmbMedications,
-      ...otherMedications,
-      ...outpatientMedications,
-    ],
-    [painMedications, sedationMedications, nmbMedications, otherMedications, outpatientMedications],
-  );
 
   const painIndication = painMedications[0]?.indication;
   const sedationIndication = sedationMedications[0]?.indication;
