@@ -807,20 +807,31 @@ Any 'Yes' → FAIL.
 
 ---
 
-### Phase 5 — 藥師 SOAP 模板（含 Allergy）+ description / placeholder（0.5 day）
+### Phase 5 — 藥師 SOAP 模板（含 Allergy）+ description / placeholder（0.5 day）— ✅ DONE 2026-04-17
 
-- [ ] **P5.1** `src/components/medical-records.tsx` L58-64 改 `medication-advice` config 的 description / placeholder（內容見「P1-C」）
-- [ ] **P5.2** L85-96 `BUILTIN_TEMPLATES['medication-advice']` 加「藥師 SOAP」模板
-  - 結構：`{ soap: { s, o, a, p } }`（與字串模板混用需 schema 標記）
-  - O 段預填 `Dx:\nAllergy:\nLabs:\nCurrent medications:\n`
-- [ ] **P5.3** `handleApplyTemplate` L256-262 分岔：
-  - 若 template 有 `soap` 欄位且 `isPharmacistSoapMode` → 寫入 `soapDraft` state
-  - 否則走原路（寫入 `inputContent`）
-- [ ] **P5.4** 手測：套用「藥師 SOAP」→ 4 段正確預填；套用舊「劑量調整建議」→ 若在藥師模式下給一個合理 fallback（建議塞 P 段）
-- [ ] **P5.5** Commit：
-  ```
-  feat(medical-records): add pharmacist SOAP template and update prompts
-  ```
+- [x] **P5.1** `RECORD_TYPE_CONFIG['medication-advice']` 改成：
+  - `description`: 中英夾雜、破英文都 OK，AI 只修文法不增減你寫的內容
+  - `placeholder`: `例：pt renal fx poor, sug D/C morphine d/t resp depress risk, change to fentanyl patch...`
+- [x] **P5.2** `BUILTIN_TEMPLATES['medication-advice']` 新增「藥師 SOAP」：
+  - 模板 schema 從 `Record<string, string>` 擴成 `Record<string, string | { soap: SoapDraft }>`
+  - 加 `isSoapTemplate` type guard + `flattenSoapTemplate` helper（非藥師模式 fallback 用）
+  - O 預填 `Dx:\nAllergy:\nLabs:\nCurrent medications:\n`；P 預填 `1. \n   Monitor:\n2. \n   Monitor:`
+- [x] **P5.3** `handleApplyTemplate` 三分岔：
+  - soap template + 藥師模式 → `updateDraft({ soap: { ...EMPTY_SOAP, ...tpl.soap }, polishedSoap: EMPTY })`
+  - soap template + 非藥師模式 → 用 `flattenSoapTemplate` 攤平寫入 `inputContent`
+  - string template + 藥師模式 → 寫入 P 段（不遺失內容）
+  - string template + 非藥師模式 → 走原路 `setInputContent`
+  - `handlePolishContent` 的 `templateContent` 也加 flatten 以防萬一
+- [x] **P5.4** Playwright 驗證（Vercel production `index-DQqRb-g-.js`）：
+  1. 以藥師 `陳佩君` 登入 → 病人 `pat_f09355f8` → 病歷記錄 → 用藥建議
+  2. 清空 4 段草稿
+  3. 點「模板」→「藥師 SOAP」→ 套用結果：
+     - S = `""`（空）
+     - O = `"Dx:\nAllergy:\nLabs:\nCurrent medications:\n"` ✅
+     - A = `""`（空）
+     - P = `"1. \n   Monitor:\n2. \n   Monitor:"` ✅
+  4. 頂部模板 chip 顯示 `藥師 SOAP`
+- [x] **P5.5** Commit `ba9a8c3 feat(medical-records): Phase 5 — pharmacist SOAP template + prompt copy`
 
 ---
 
