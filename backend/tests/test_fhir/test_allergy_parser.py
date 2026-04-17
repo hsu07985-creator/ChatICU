@@ -7,6 +7,8 @@ Covers:
   - Edge cases: multi-visit, dedup, case sensitivity, empty data
   - Integration with real patient data (requires patient/ directory)
 """
+from typing import List
+
 import pytest
 from pathlib import Path
 
