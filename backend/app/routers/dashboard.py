@@ -36,9 +36,15 @@ async def get_dashboard_stats(
     intubated_count = len(intubated_beds)
 
     # SAN stats in 3 queries (was 7 separate queries)
+    # All SAN queries join Patient and filter archived==False so that archiving
+    # (soft-delete) a patient removes them from SAN stats immediately — archiving
+    # leaves Medication rows with status='active', so without this join the
+    # SAN counts keep including archived patients and can exceed total patients.
     # Query 1: distinct patients per SAN category (GROUP BY)
     san_patient_rows = await db.execute(
         select(Medication.san_category, func.count(func.distinct(Medication.patient_id)))
+        .join(Patient, Patient.id == Medication.patient_id)
+        .where(Patient.archived == False)
         .where(Medication.status == "active")
         .where(Medication.san_category.in_(["S", "A", "N"]))
         .group_by(Medication.san_category)
@@ -53,6 +59,8 @@ async def get_dashboard_stats(
     # Query 2: medication counts per SAN category (GROUP BY)
     san_med_rows = await db.execute(
         select(Medication.san_category, func.count(Medication.id))
+        .join(Patient, Patient.id == Medication.patient_id)
+        .where(Patient.archived == False)
         .where(Medication.status == "active")
         .where(Medication.san_category.in_(["S", "A", "N"]))
         .group_by(Medication.san_category)
@@ -68,6 +76,8 @@ async def get_dashboard_stats(
     # Query 3: distinct patients with any SAN (cross-category dedup)
     san_distinct_result = await db.execute(
         select(func.count(func.distinct(Medication.patient_id)))
+        .join(Patient, Patient.id == Medication.patient_id)
+        .where(Patient.archived == False)
         .where(Medication.status == "active")
         .where(Medication.san_category.in_(["S", "A", "N"]))
     )

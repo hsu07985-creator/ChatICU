@@ -97,6 +97,49 @@ async def test_dashboard_stats_san_by_category(client):
     assert "nmb" in san
 
 
+async def test_dashboard_stats_excludes_archived_patient_san(client, seeded_db):
+    """Regression: archiving a patient must remove them from SAN counts.
+
+    Archive is a soft-delete that only sets patient.archived=True and leaves
+    their Medication rows with status='active'. Without joining Patient and
+    filtering archived==False in the SAN queries, the counts keep including
+    archived patients — producing nonsense like `sanByCategory.analgesia=10`
+    when `patients.total=9`.
+    """
+    db = seeded_db
+    db.add(Patient(
+        id="pat_arch_san",
+        name="Archived SAN",
+        medical_record_number="MRN-ARCH",
+        bed_number="Z99",
+        age=65,
+        gender="M",
+        diagnosis="test",
+        archived=True,
+    ))
+    db.add(Medication(
+        id="med_arch_001",
+        patient_id="pat_arch_san",
+        name="Fentanyl",
+        category="analgesic",
+        san_category="A",
+        dose="50mcg",
+        unit="mcg",
+        frequency="continuous",
+        route="IV",
+        status="active",
+    ))
+    await db.commit()
+
+    resp = await client.get("/dashboard/stats")
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    # Archived patient's active analgesia med must NOT leak into any SAN counter.
+    assert data["patients"]["sanByCategory"]["analgesia"] == 0
+    assert data["medications"]["analgesia"] == 0
+    assert data["patients"]["withSAN"] == 0
+
+
 async def test_dashboard_stats_alerts_aggregation(client, seeded_db):
     """Regression: alerts count must sum the length of each JSONB array.
 
