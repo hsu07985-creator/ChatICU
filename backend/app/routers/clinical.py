@@ -590,8 +590,10 @@ async def polish_clinical_text(
     # Pharmacist polish returns JSON {s,o,a,p}; try to parse so the frontend can
     # render the split sections directly. Fall back to the raw string on parse failure.
     polished_sections: Optional[Dict[str, str]] = None
+    parse_ok: Optional[bool] = None
     if is_pharmacist:
         polished_sections = _try_parse_soap_json(guardrail["content"])
+        parse_ok = polished_sections is not None
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
@@ -621,6 +623,12 @@ async def polish_clinical_text(
     }
     if polished_sections is not None:
         response_data["polished_sections"] = polished_sections
+    if parse_ok is not None:
+        # Frontend uses this to surface "格式無法自動分段，請手動編輯" when parsing fails.
+        response_data["metadata"] = {
+            **(response_data.get("metadata") or {}),
+            "parse_ok": parse_ok,
+        }
     return success_response(data=response_data)
 
 
