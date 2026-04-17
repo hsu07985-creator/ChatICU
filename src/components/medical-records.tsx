@@ -67,8 +67,8 @@ const RECORD_TYPE_CONFIG: Record<
   'medication-advice': {
     label: '用藥建議',
     icon: Pill,
-    description: '輸入用藥草稿，AI 協助整理為專業建議',
-    placeholder: '例：建議調整 Morphine 劑量因為腎功能不全，注意呼吸抑制...',
+    description: '中英夾雜、破英文都 OK，AI 只修文法不增減你寫的內容',
+    placeholder: '例：pt renal fx poor, sug D/C morphine d/t resp depress risk, change to fentanyl patch...',
     polishLabel: 'AI 修飾',
   },
   'nursing-record': {
@@ -80,7 +80,27 @@ const RECORD_TYPE_CONFIG: Record<
   },
 };
 
-const BUILTIN_TEMPLATES: Record<RecordType, Record<string, string>> = {
+type TemplateContent = string | { soap: SoapDraft };
+
+const PHARMACIST_SOAP_TEMPLATE_NAME = '藥師 SOAP';
+
+function isSoapTemplate(tpl: TemplateContent | undefined): tpl is { soap: SoapDraft } {
+  return !!tpl && typeof tpl !== 'string' && typeof tpl.soap === 'object';
+}
+
+function flattenSoapTemplate(tpl: { soap: SoapDraft }): string {
+  const { s, o, a, p } = tpl.soap;
+  return [
+    s && `S:\n${s}`,
+    o && `O:\n${o}`,
+    a && `A:\n${a}`,
+    p && `P:\n${p}`,
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+const BUILTIN_TEMPLATES: Record<RecordType, Record<string, TemplateContent>> = {
   'progress-note': {
     'SOAP 格式': `S (Subjective):
 O (Objective):
@@ -92,6 +112,14 @@ P (Plan):`,
 處置計畫:`,
   },
   'medication-advice': {
+    [PHARMACIST_SOAP_TEMPLATE_NAME]: {
+      soap: {
+        s: '',
+        o: 'Dx:\nAllergy:\nLabs:\nCurrent medications:\n',
+        a: '',
+        p: '1. \n   Monitor:\n2. \n   Monitor:',
+      },
+    },
     '劑量調整建議': `藥品名稱:
 目前劑量:
 建議調整:
@@ -294,7 +322,7 @@ export function MedicalRecords({
   }, [recordType, fetchTemplates]);
 
   const allTemplates = useMemo(() => {
-    const merged: Record<string, string> = { ...BUILTIN_TEMPLATES[recordType] };
+    const merged: Record<string, TemplateContent> = { ...BUILTIN_TEMPLATES[recordType] };
     for (const t of serverTemplates) merged[t.name] = t.content;
     return merged;
   }, [recordType, serverTemplates]);
@@ -303,10 +331,32 @@ export function MedicalRecords({
 
   const handleApplyTemplate = (name: string) => {
     const tpl = allTemplates[name];
-    if (!tpl) return;
+    if (tpl === undefined) return;
     setSelectedTemplate(name);
-    setInputContent(tpl);
     setTemplatePopoverOpen(false);
+
+    if (isSoapTemplate(tpl)) {
+      if (isPharmacistSoapMode) {
+        updateDraft(recordType, {
+          soap: { ...EMPTY_SOAP, ...tpl.soap },
+          polishedSoap: { ...EMPTY_SOAP },
+        });
+      } else {
+        setInputContent(flattenSoapTemplate(tpl));
+      }
+      return;
+    }
+
+    if (isPharmacistSoapMode) {
+      // String template applied inside pharmacist 4-section mode — drop it into
+      // P (plan) section so the template content isn't lost.
+      updateDraft(recordType, {
+        soap: { ...currentDraft.soap, p: tpl },
+      });
+      return;
+    }
+
+    setInputContent(tpl);
   };
 
   const handlePolishContent = async () => {
@@ -322,7 +372,10 @@ export function MedicalRecords({
         'medication-advice': 'medication_advice',
         'nursing-record': 'nursing_record',
       };
-      const templateContent = selectedTemplate ? allTemplates[selectedTemplate] : undefined;
+      const rawTemplate = selectedTemplate ? allTemplates[selectedTemplate] : undefined;
+      const templateContent = isSoapTemplate(rawTemplate)
+        ? flattenSoapTemplate(rawTemplate)
+        : rawTemplate;
       const result = await polishClinicalText({
         patientId,
         content: inputContent,
