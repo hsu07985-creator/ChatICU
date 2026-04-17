@@ -277,7 +277,10 @@
 ### F19 [DONE] Wire `PharmacistSoapEditor` into `medical-records.tsx` (Phase 3)
 - **Completed:** 2026-04-17 (by main session — scope exception granted per user instruction, despite `backend/CLAUDE.md` scope rule, to keep Phase 3 progress unblocked)
 - **Summary:** `DraftEntry` extended with `soap` / `polishedSoap` / `submittedAt`; `mergeDraft` helper back-compats old localStorage; `isPharmacistSoapMode` gate added at L629 to swap the 2-column grid for `<PharmacistSoapEditor>`. `npm run build` + `tsc --noEmit` green.
-- **Post-deploy verification:** Playwright MCP against `chat-icu.vercel.app` — in progress.
+- **Post-deploy verification (2026-04-17, Playwright MCP):**
+  1. Pharmacist login (`陳佩君`, role=pharmacist) → patient → 病歷記錄 → 用藥建議 → 5-Card layout (S/O/A/P + composed output) with all `pharmacist-soap-*` test-ids present.
+  2. Switch to Progress Note → SOAP ids gone, legacy 2-column「你的草稿｜AI 修飾後」returned (gate works).
+  3. Polish smoke test: input `sug add meropenem 1g IV q8h d/t CRE pneumonia. monitor: renal fx, CRP.` → `POST /api/v1/clinical/polish` 200 with `task=pharmacist_polish, target_section=p, soap_sections.p=<input>`; output `- Due to CRE pneumonia, please consider adding Meropenem 1 g IV q8h.\n  Monitor: renal function, CRP.` (all format rules pass).
 
 <details><summary>(archived) original handoff brief</summary>
 - **Added by:** backend session (pharmacist polish revamp Phase 3 handoff)

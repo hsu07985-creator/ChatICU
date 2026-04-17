@@ -765,6 +765,14 @@ Any 'Yes' → FAIL.
 #### 3E. 驗證
 
 - [x] **P3.11** 前端 `npm run build` 通過、TypeScript 無錯（12.44s, 2682 modules, no TS error）
+- [x] **P3.12** Playwright MCP 部署後驗證（2026-04-17, Vercel bundle `patient-detail-6eWKsXnd.js`）
+  - 藥師 `陳佩君 (A3266@tpech.gov.tw, role=pharmacist)` → 病歷記錄 tab → 用藥建議 → 渲染 5 張 Card（S/O「AI 不會動這段」灰底、A/P「送 AI」天藍、最終輸出），所有 `pharmacist-soap-*` data-testid 存在
+  - 切到 Progress Note → SOAP test-id 全部消失，回到舊「你的草稿 | AI 修飾後」2-column UI（`isPharmacistSoapMode` gate 正確切換）
+  - Polish API smoke test：input `sug add meropenem 1g IV q8h d/t CRE pneumonia. monitor: renal fx, CRP.` →
+    - `POST /api/v1/clinical/polish` 200，payload 正確攜帶 `task: "pharmacist_polish"`、`target_section: "p"`、`soap_sections.p` 原文
+    - 輸出：`- Due to CRE pneumonia, please consider adding Meropenem 1 g IV q8h.\n  Monitor: renal function, CRP.`（bullet、`d/t→Due to`、`sug→please consider`、藥名首字母大寫、單位空格、Monitor 標籤皆到位）
+  - 螢幕截圖：`phase3-pharmacist-4textarea-verified.png`
+- [x] **P3.13** Commit + push 完成（commit `c86a178`，pushed to `railway` remote → Vercel 已部署並驗證）
 - [ ] **P3.12** 本地起 dev server 手測：
   - 登入藥師 → 進 patient-detail → 病例紀錄 → 用藥建議 → 看到 4-Textarea
   - 登入醫師 → 同路徑 → 看到原單 Textarea
