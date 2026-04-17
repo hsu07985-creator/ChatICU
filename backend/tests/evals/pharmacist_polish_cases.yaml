@@ -6,6 +6,11 @@
 # Phase 2 (P2.1) will populate full content with the pharmacist's real samples.
 # Phase 0 seeds skeleton + synthetic drafts so the runner can be wired up first.
 #
+# P0.4 (2026-04-17): 3 real production samples from the pharmacist were added
+# to a sibling file `pharmacist_real_samples.yaml` (see that file's header for
+# schema). They are kept separate because they are *ideal outputs* rather than
+# rough inputs — they test polish idempotency and serve as few-shot references.
+#
 # Status legend: seed (synthetic), real (from pharmacist UAT), needs_review
 #
 # polish_mode enum (see backend/app/schemas/clinical.py after Phase 1):

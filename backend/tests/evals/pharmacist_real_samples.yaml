@@ -1,0 +1,261 @@
+# Pharmacist Real Samples (P0.4)
+#
+# 3 production samples supplied by the pharmacist on 2026-04-17.
+# These are *final / ideal* outputs from real pharmacist practice — they serve
+# as ground truth for:
+#   - Polish idempotency tests (polishing already-polished text must not alter it meaningfully)
+#   - Prompt few-shot examples (formatting, "please consider", bullet style, Monitor: line)
+#   - Entity coverage reference (drugs, doses, labs, guidelines cited)
+#
+# Paired rough-draft inputs are NOT yet collected — those will be captured in
+# Phase 6 UAT (pharmacist types rough notes → system polishes → compared vs.
+# the ground_truth_output here).
+#
+# Source attachments are NOT committed (PHI-adjacent). Only the transcribed
+# clinical text is stored here.
+#
+# Schema:
+#   cases[]:
+#     id             : stable case id (continuation of pharmacist_polish_cases.yaml)
+#     name           : short human-readable label
+#     status         : "real" (vs. "seed" in pharmacist_polish_cases.yaml)
+#     source_date    : ROC date as received (民國 yyyy/mm/dd)
+#     patient_context: age/sex/dx summary (de-identified)
+#     ground_truth_output:
+#       s / o / a / p : verbatim pharmacist text (do not edit)
+#     entities       : machine-checkable entities that the polish must preserve
+#     format_flags   : format rules the polished output should respect
+
+cases:
+  - id: case_10
+    name: "96yo 肺炎+UTI Tazocin 腎功能劑量調整"
+    status: real
+    source_date: "115/04/07"
+    patient_context:
+      age: 96
+      sex: female
+      dx: ["Pneumonia with bilateral pleural effusion", "Urinary tract infection"]
+      underlying: ["Hypertension"]
+      renal: "Clcr 27.07 mL/min (altered kidney function)"
+    ground_truth_output:
+      s: |
+        Drug-related problem: optimising the use of antibiotics.
+      o: |
+        The 96-year-old female has the diagnosis of:
+        1.Penumonia with bilateral pleural effusion
+        2.Urinary tract infection
+
+        <Underlying disease>
+        1.Hypertension
+
+        LAB_DATA (115/04/07):
+        WBC  H 10.75  10^3/ul  (3.54-9.06)
+        RBC  L 3.01   10^6/ul  (3.78-4.99)
+        Hb   L 9.1    g/dl     (10.8-14.9)
+        PLT    182    10^3/ul  (150-361)
+        BUN  H 32.0   mg/dl    (5.0-24.0)
+        Cr     0.95   mg/dl    (0.50-1.00)    (Clcr=27.07)
+        eGFR(CKD-EPI) 55.170   mL/min/1.73m
+        Na     136    mEq/L    (135-148)
+        K      4.6    mEq/L    (3.5-5.1)
+        CRP  H 12.0   mg/L     (<10.0)
+        ALT    21     U/L      (7-42)
+
+        DRUG_PROFILE:
+        1150401-1830 ~ 1150408-1830  Tazocin inj (抗3) (Piperac 1瓶)  Q8H  IV
+      a: |
+        Piperacillin/tazobactam dosage adjustments in altered kidney function: (Clcr 20-40 mL/minute) 2.25-3.375 g every 6 hours.
+      p: |
+        1. In view of recovery of acute kidney injury, please consider adjusting Tazocin inj (piperacillin 2 g / tazobactam 0.25 g) from 1 vial q8h to 1 vial q6h for infection control.
+        2. Continue to monitor renal function, signs and symptoms of infection, and culture results.
+    entities:
+      drugs: ["Tazocin", "piperacillin", "tazobactam"]
+      doses: ["2.25-3.375 g every 6 hours", "1 vial q8h", "1 vial q6h", "piperacillin 2 g / tazobactam 0.25 g"]
+      lab_values:
+        - "WBC 10.75 (3.54-9.06)"
+        - "Cr 0.95 (0.50-1.00)"
+        - "Clcr 27.07"
+        - "eGFR 55.170"
+        - "CRP 12.0 (<10.0)"
+      monitors: ["renal function", "signs and symptoms of infection", "culture results"]
+      clinical_context: ["altered kidney function", "recovery of acute kidney injury"]
+    format_flags:
+      p_uses_numbered_bullets: true
+      p_has_polite_phrase: true          # "please consider..."
+      p_has_monitor_line: true           # "Continue to monitor..."
+      p_has_reason_then_request_order: true
+      drug_brand_with_generic_in_parens: true    # "Tazocin inj (piperacillin 2 g / ...)"
+
+  - id: case_11
+    name: "70yo 敗血性休克 加 Hydrocortisone + Pitressin"
+    status: real
+    source_date: "115/03/31"
+    patient_context:
+      age: 70
+      sex: female
+      dx:
+        - "Nontraumatic intracranial hemorrhage"
+        - "Severe sepsis with septic shock"
+        - "Acute kidney injury with electrolyte imbalance and metabolic acidosis"
+      current_pressor: "Levophed running 0-56 cc/hr, keep SBP > 90"
+    ground_truth_output:
+      s: |
+        Drug-related problem: may increase pharmacotherapy for current clinical situation.
+      o: |
+        The 70-year-old female has the diagnosis of:
+        1 Nontraumatic intracranial hemorrhage
+        2 Severe sepsis with septic shock
+        3 Acute kidney injury with electrolyte imbalance and metabolic acidosis
+
+        LAB_DATA (115/03/31):
+        BUN   H  144.0   mg/dl   (5.0-24.0)
+        Cr    H  4.84    mg/dl   (0.50-1.00)
+        eGFR(CKD-EPI)    9.134   mL/min/1.73m
+        Na    HH 182     mEq/L   (135-148)
+        K        4.9     mEq/L   (3.5-5.1)
+        AST   H  59      U/L     (10-39)
+        ALT      28      U/L     (7-42)
+
+        ABG:
+        pH    L  7.254           (7.350-7.450)
+        PCO2     37.1    mmHg    (35.0-45.0)
+        PO2      93.4    mmHg    (80.0-100.0)
+        HCO3  L  16.1    mmol/L  (19.0-25.0)
+        BE(B)    -10.3   mmol/L
+        BE(ecf)  -11.1
+        Saturate O2  95.2  %     (92.0-98.5)
+
+        DRUG_PROFILE:
+        1150401-0812  Levophed 【#】 4mg/4ml inj 8vial  PRN IV
+        (8 AMP IN D5W 500CC, run 0-56 cc/hr, keep SBP > 90)
+      a: |
+        評估結果：
+        1. According to the 2026 Surviving Sepsis Campaign: International Guidelines for Management of Sepsis and Septic Shock, intravenous corticosteroids are suggested for adult patients with septic shock who have an ongoing requirement for vasopressor therapy.
+        2. Due to the potential harmful effects of high doses of catecholamines, a multimodal approach is recommended, including ensuring adequate intravascular volume, maintaining a mean arterial pressure generally within the range of 65-70 mmHg, and adding vasopressin as a second-line vasopressor along with low-dose hydrocortisone (e.g., 50 mg four times daily) to improve vascular responsiveness to catecholamines.
+      p: |
+        1. To optimize the management of septic shock, please consider initiating Hydrocortisone inj (hydrocortisone 100 mg) 0.5 vial q6h.
+        2. If the target mean arterial pressure is not achieved, please consider adding Pitressin (vasopressin 20 units) 2 vials diluted in 100 mL of 5% dextrose, initiated at 4.5 mL/hr and titrated as needed to a maximum rate of 6 mL/hr.
+        3. Continue to monitor blood pressure, heart rate, and renal function.
+    entities:
+      drugs: ["Levophed", "Hydrocortisone", "hydrocortisone", "Pitressin", "vasopressin"]
+      doses:
+        - "0.5 vial q6h"
+        - "hydrocortisone 100 mg"
+        - "50 mg four times daily"
+        - "vasopressin 20 units"
+        - "2 vials in 100 mL of 5% dextrose"
+        - "4.5 mL/hr"
+        - "6 mL/hr"
+      lab_values:
+        - "BUN 144.0 (5.0-24.0)"
+        - "Cr 4.84 (0.50-1.00)"
+        - "eGFR 9.134"
+        - "Na 182 (135-148)"
+        - "pH 7.254 (7.350-7.450)"
+        - "HCO3 16.1 (19.0-25.0)"
+      monitors: ["blood pressure", "heart rate", "renal function"]
+      guideline_refs: ["2026 Surviving Sepsis Campaign"]
+      clinical_context: ["septic shock", "vasopressor therapy", "mean arterial pressure 65-70 mmHg"]
+    format_flags:
+      p_uses_numbered_bullets: true
+      p_has_polite_phrase: true
+      p_has_monitor_line: true
+      a_cites_guideline: true
+      drug_brand_with_generic_in_parens: true
+
+  - id: case_12
+    name: "91yo 股骨骨折+DM+CKD metformin 禁用/tramadol 延長 Q12H"
+    status: real
+    source_date: "115/04/16"
+    patient_context:
+      age: 91
+      sex: female
+      dx:
+        - "Left femur inter-subtrochanteric comminuted osteoporotic fracture"
+        - "Hypertension"
+        - "Diabetes mellitus"
+        - "Acute on chronic kidney disease"
+      renal: "eGFR 12.88 mL/min/1.73m (severe renal impairment)"
+    ground_truth_output:
+      s: |
+        Drug-related problem: dose adjustment of the current pharmacotherapy.
+      o: |
+        The 91-year-old female has the diagnosis of:
+        1.Left femur inter-subtrochanteric comminuted osteoporotic fracture
+        2.Hypertension
+        3.Diabetes mellitus
+        4.Acute on chronic kidney disease
+
+        LAB_DATA (115/04/16):
+        Glu   H 284   mg/dl    (70-99)
+        BUN   H 49.8  mg/dl    (5.0-24.0)
+        Cr    H 3.26  mg/dl    (0.50-1.00)
+        eGFR(CKD-EPI) 12.880   mL/min/1.73m
+        Na    L 134   mEq/L    (135-148)
+        K       4.9   mEq/L    (3.5-5.1)
+        Ca    L 7.5   mg/dl    (8.1-10.4)
+        WBC     5.83  10^3/ul  (3.54-9.06)
+        RBC   L 2.41  10^6/ul  (3.78-4.99)
+        Hb    L 6.8   g/dl     (10.8-14.9)
+        PLT   L 144   10^3/ul  (150-361)
+
+        DRUG_PROFILE:
+        1150414-2153  Tramacet 【#】(管4) (Tram. 1tab)          BIDPC   PO
+        1150414-2153  Limadol 【#】 50mg/ml 2ml 1amp            Q6HPRN  IV
+        1150415-0812  Actosmet 15/850 (Pioglita 1tab)          QDPC    PO  自備
+      a: |
+        評估結果：
+        1. Dose adjustment of metformin in renal impairment: (eGFR <30 mL/minute/1.73 m²) use is contraindicated.
+        2. Dose adjustment of tramadol in renal impairment: (CrCl <30 mL/minute) increase dosing interval to every 12 hours; maximum: 200 mg/day.
+      p: |
+        1. In view of renal impairment, please consider switching Actosmet (pioglitazone 15 mg / metformin 850 mg) 1# qd to Glitis (pioglitazone 30 mg) 1# qd for glycemic control.
+        2. In view of concomitant use of Tramacet (tramadol 37.5 mg / acetaminophen 325 mg) 1# bid, please consider adjusting Limadol inj (tramadol 100 mg) from 1 amp q6hprn to 1 amp q12hprn for pain control.
+        3. Continue to monitor blood glucose, renal function, and neurological status.
+    entities:
+      drugs:
+        - "Actosmet"
+        - "pioglitazone"
+        - "metformin"
+        - "Glitis"
+        - "Tramacet"
+        - "tramadol"
+        - "acetaminophen"
+        - "Limadol"
+      doses:
+        - "pioglitazone 15 mg / metformin 850 mg 1# qd"
+        - "pioglitazone 30 mg 1# qd"
+        - "tramadol 37.5 mg / acetaminophen 325 mg 1# bid"
+        - "tramadol 100 mg 1 amp q6hprn"
+        - "tramadol 100 mg 1 amp q12hprn"
+        - "eGFR <30 mL/minute/1.73 m²"
+        - "CrCl <30 mL/minute"
+        - "200 mg/day"
+      lab_values:
+        - "Glu 284 (70-99)"
+        - "Cr 3.26 (0.50-1.00)"
+        - "eGFR 12.880"
+        - "Na 134 (135-148)"
+        - "Hb 6.8 (10.8-14.9)"
+      monitors: ["blood glucose", "renal function", "neurological status"]
+      clinical_context: ["renal impairment", "concomitant use", "pain control", "glycemic control"]
+      contraindications:
+        - drug: "metformin"
+          reason: "eGFR < 30 renal impairment (contraindicated)"
+    format_flags:
+      p_uses_numbered_bullets: true
+      p_has_polite_phrase: true
+      p_has_monitor_line: true
+      p_has_reason_then_request_order: true     # "In view of ... please consider ..."
+      drug_brand_with_generic_in_parens: true
+      a_states_specific_threshold: true          # eGFR < 30, CrCl < 30
+
+# --- Usage notes ---
+# Test harness suggestion:
+#   1. Feed each case's ground_truth_output as input to the polish endpoint
+#      (polish_mode=full). Expect near-zero diff (idempotency).
+#   2. Entity recall: extract from polished output, assert all `entities.*` present.
+#   3. Format: assert each `format_flags.*: true` holds on polished output.
+#
+# Rough-draft variants (for polish correctness testing) are TODO — collect
+# during Phase 6 UAT by asking the same pharmacist to type the same advice
+# in rough / 中英夾雜 form, pair with ground_truth_output.
