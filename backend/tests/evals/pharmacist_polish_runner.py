@@ -254,7 +254,7 @@ _MONITOR_RE = re.compile(
     r"\b(?:monitor|continue to monitor|follow\s*up)\b", re.IGNORECASE
 )
 _REASON_FIRST_RE = re.compile(
-    r"(?m)^\s*(?:\d+\s*[.)]\s+)?(?:in view of|due to|given|to optimi[sz]e|if\b)",
+    r"(?m)^\s*(?:-\s+|\d+\s*[.)]\s+)?(?:in view of|due to|given|to optimi[sz]e|if\b)",
     re.IGNORECASE,
 )
 # e.g. "Tazocin inj (piperacillin 2 g)" or "Actosmet (pioglitazone 15 mg)"
