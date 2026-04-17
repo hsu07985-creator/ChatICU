@@ -33,9 +33,11 @@ import pytest
 from app.config import settings
 
 from tests.evals.pharmacist_polish_runner import (
+    check_format_flags,
     count_sentences,
     entity_recall,
     load_cases,
+    load_real_samples,
     load_rubric,
     render_report,
     sentence_count_preserved,
@@ -133,6 +135,48 @@ class TestEntityRecall:
         assert score == 0.0
 
 
+class TestFormatFlags:
+    def test_numbered_bullet_pass(self):
+        out = {"s": "", "o": "", "a": "", "p": "1. Please consider X.\n2. Continue to monitor Y."}
+        ok, failed = check_format_flags(out, {"p_uses_numbered_bullets": True})
+        assert ok and not failed
+
+    def test_numbered_bullet_fail_when_plain_sentences(self):
+        out = {"s": "", "o": "", "a": "", "p": "Please consider X. Monitor Y."}
+        ok, failed = check_format_flags(out, {"p_uses_numbered_bullets": True})
+        assert not ok and "p_uses_numbered_bullets" in failed
+
+    def test_polite_phrase_and_monitor(self):
+        out = {"s": "", "o": "", "a": "", "p": "1. Please consider adding X.\n2. Continue to monitor Y."}
+        ok, _ = check_format_flags(
+            out, {"p_has_polite_phrase": True, "p_has_monitor_line": True}
+        )
+        assert ok
+
+    def test_brand_generic_in_parens(self):
+        out = {"s": "", "o": "", "a": "", "p": "1. Adjust Tazocin inj (piperacillin 2 g) from q8h to q6h."}
+        ok, _ = check_format_flags(out, {"drug_brand_with_generic_in_parens": True})
+        assert ok
+
+    def test_a_cites_guideline(self):
+        out = {"s": "", "o": "", "a": "According to the 2026 Surviving Sepsis Campaign, vasopressors...", "p": ""}
+        ok, _ = check_format_flags(out, {"a_cites_guideline": True})
+        assert ok
+
+    def test_s_o_verbatim_pass(self):
+        inp = {"s": "abc", "o": "def", "a": "x", "p": "y"}
+        out = {"s": "abc", "o": "def", "a": "x-polished", "p": "y-polished"}
+        ok, failed = check_format_flags(out, {"s_o_verbatim": True}, input_sections=inp)
+        assert ok and not failed
+
+    def test_s_o_verbatim_fails_when_o_changed(self):
+        inp = {"s": "abc", "o": "def", "a": "", "p": ""}
+        out = {"s": "abc", "o": "def polished", "a": "", "p": ""}
+        ok, failed = check_format_flags(out, {"s_o_verbatim": True}, input_sections=inp)
+        assert not ok
+        assert any("o_differs" in f for f in failed)
+
+
 class TestReportRendering:
     def test_render_smoke(self, tmp_path, monkeypatch):
         # Redirect REPORTS_DIR so the real repo dir isn't touched.
@@ -176,6 +220,39 @@ class TestCasesFile:
         assert "entity_recall_threshold" in rubric
         assert "judge_rubric_questions" in rubric
         assert rubric["entity_recall_threshold"] == 1.0
+
+
+class TestRealSamples:
+    """Validate P0.4 real pharmacist samples load cleanly and have required shape."""
+
+    def test_three_real_samples_load(self):
+        samples = load_real_samples()
+        assert len(samples) == 3
+        assert [s["id"] for s in samples] == ["case_10", "case_11", "case_12"]
+
+    def test_each_real_sample_has_ground_truth_and_entities(self):
+        for s in load_real_samples():
+            assert s["status"] == "real", f"{s['id']} not marked real"
+            gt = s.get("ground_truth_output") or {}
+            for section in ("s", "o", "a", "p"):
+                assert section in gt, f"{s['id']} missing ground_truth_output.{section}"
+                assert isinstance(gt[section], str)
+            # P section must have at least one numbered bullet
+            assert gt["p"].strip(), f"{s['id']} has empty P"
+            entities = s.get("entities") or {}
+            assert entities.get("drugs"), f"{s['id']} has no drugs listed"
+
+    def test_real_samples_pass_own_format_flags(self):
+        """Self-consistency: ground_truth_output must satisfy its own format_flags.
+
+        This validates that the format checkers (and the sample YAML) agree
+        with each other, so the live idempotency test has a meaningful baseline.
+        """
+        for s in load_real_samples():
+            gt = s["ground_truth_output"]
+            flags = s.get("format_flags") or {}
+            passes, failed = check_format_flags(gt, flags, input_sections=gt)
+            assert passes, f"{s['id']} ground_truth_output fails own flags: {failed}"
 
 
 # ─── Live eval (opt-in; hits real LLM) ─────────────────────────────────────
@@ -256,6 +333,87 @@ def test_live_case(case: Dict[str, Any], request):
     # Soft assertion: we want the full report even on failure.
     assert sentence_pass, f"Sentence count exceeded tolerance: {per_section}"
     assert recall_pass, f"Entity recall {recall:.2%} below threshold; missing={missing}"
+
+
+# ─── Live idempotency eval for P0.4 real samples ──────────────────────────
+
+@pytest.mark.skipif(not _LIVE_ENABLED, reason=_LIVE_SKIP_REASON)
+@pytest.mark.parametrize("case", load_real_samples(), ids=lambda c: c["id"])
+def test_live_real_sample_idempotency(case: Dict[str, Any], request):
+    """Feed a pharmacist ground-truth output back through polish and verify
+    entities + format_flags survive (near-identity / idempotency check).
+
+    This tests that the polish prompt does not *degrade* already-clean input.
+    """
+    from app.llm import call_llm
+
+    gt = case["ground_truth_output"]
+    input_sections = {k: gt.get(k, "") for k in ("s", "o", "a", "p")}
+    input_data: Dict[str, Any] = {
+        "patient": {},
+        "polish_type": "medication_advice",
+        "polish_mode": "full",
+        "soap_sections": input_sections,
+        "target_section": "a_and_p",
+        "format_constraints": {},
+        "user_role": "pharmacist",
+    }
+
+    result = call_llm(task="pharmacist_polish", input_data=input_data)
+    assert result.get("status") == "success", f"LLM failed: {result.get('content', '')[:200]}"
+
+    raw = (result.get("content") or "").strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        nl = raw.find("\n")
+        if nl != -1 and raw[:nl].strip().isalpha():
+            raw = raw[nl + 1 :]
+        if raw.endswith("```"):
+            raw = raw[:-3]
+        raw = raw.strip()
+    try:
+        output_sections = json.loads(raw)
+        if not isinstance(output_sections, dict):
+            output_sections = {"s": "", "o": "", "a": "", "p": raw}
+    except json.JSONDecodeError:
+        output_sections = {"s": "", "o": "", "a": "", "p": raw}
+
+    # Layer 1: sentence count — clean input should not balloon.
+    sentence_pass, per_section = sentence_count_preserved(
+        input_sections, output_sections, tolerance=1
+    )
+    # Layer 2: entity recall against `entities` bucket.
+    recall, missing = entity_recall(case.get("entities") or {}, output_sections)
+    recall_pass = recall >= load_rubric().get("entity_recall_threshold", 1.0)
+    # Layer 2b: format flags declared on the sample.
+    format_pass, failed_flags = check_format_flags(
+        output_sections,
+        case.get("format_flags") or {},
+        input_sections=input_sections,
+    )
+
+    overall = sentence_pass and recall_pass and format_pass
+
+    bucket = request.config.stash.setdefault("pharmacist_polish_results", [])  # type: ignore[attr-defined]
+    bucket.append({
+        "id": case["id"],
+        "name": case.get("name", ""),
+        "polish_mode": "full(idempotency)",
+        "sentence_pass": sentence_pass,
+        "sentence_per_section": per_section,
+        "recall": recall,
+        "recall_pass": recall_pass,
+        "missing_entities": missing,
+        "judge_pass_str": "n/a",
+        "overall_pass": overall,
+        "input_sections": input_sections,
+        "output_sections": output_sections,
+        "failed_format_flags": failed_flags,
+    })
+
+    assert sentence_pass, f"Sentence count drift: {per_section}"
+    assert recall_pass, f"Entity recall {recall:.2%} below threshold; missing={missing}"
+    assert format_pass, f"Format flags violated: {failed_flags}"
 
 
 # ─── Report hook: dump aggregate at end of live run ────────────────────────
