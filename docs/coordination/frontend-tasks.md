@@ -340,6 +340,38 @@
 
 </details>
 
+### F20 [READY] Fix `套藥師格式` / `只修文法` buttons not updating A/P textareas
+- **Added by:** backend session (P6.1 production E2E verification)
+- **Date:** 2026-04-17
+- **Priority:** P0 (core pharmacist feature silently broken in production UI)
+- **Files:** `src/components/pharmacist-soap-editor.tsx` (likely), possibly `src/components/medical-records.tsx`
+- **Symptom (observed on chat-icu.vercel.app via Playwright MCP, 2026-04-17):**
+  1. Pharmacist login → patient `pat_26290720` → 病歷記錄 → 用藥建議
+  2. Fill S/O/A/P textareas with case_11 content (septic shock + Hydrocortisone + Pitressin)
+  3. Click `套藥師格式` button
+  4. Network: `POST /api/v1/clinical/polish` → **200 OK**, response body contains valid `polished_sections` with numbered bullets + drug notation preserved + A section translated (matches eval case_11 golden output exactly)
+  5. **UI: A/P textareas still show original input, unchanged**
+- **Expected:** After a successful polish response, the A and P textareas should render `polished_sections.a` and `polished_sections.p` respectively. `只修文法` (grammar-only) button should likewise update only the target textarea.
+- **Likely root cause:** Response handler in `PharmacistSoapEditor` (or wherever the button click is wired) either
+  - isn't calling the `onPolishedSoapChange` / `onSoapChange` callback with the new sections, or
+  - is writing to a different piece of state than what the textarea is bound to, or
+  - is expecting a different response shape than what backend actually returns.
+- **Backend response shape (confirmed correct in direct API test):**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "polished_sections": { "s": "...", "o": "...", "a": "...", "p": "..." },
+      "metadata": { "parse_ok": true, "polish_mode": "full", ... }
+    }
+  }
+  ```
+- **Verification after fix:**
+  1. Same reproduction flow → click `套藥師格式` → A textarea shows translated English assessment, P textarea shows numbered bullets `1./2./3.` with drug notation `(vasopressin 20 units)` intact.
+  2. Click `只修文法` on P alone → only P textarea updates; A textarea untouched.
+  3. Re-clicking the same button on already-polished content (idempotency) → textarea content should remain stable, not degrade.
+- **References:** backend eval report `backend/tests/evals/reports/20260417T044720Z.md` (12/12 PASS) — golden outputs for visual comparison during manual verification.
+
 ### F18 [TODO] Fix broken `LatestScores` import in patient-detail view model
 - **Added by:** backend session (Step 5 verify_restructure cleanup)
 - **Date:** 2026-04-14
