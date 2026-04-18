@@ -198,6 +198,7 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: Pat
   const [newSymptom, setNewSymptom] = useState('');
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [suggestElapsedSec, setSuggestElapsedSec] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
 
   // Symptom history
@@ -264,6 +265,13 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: Pat
     }
     setIsLoadingSuggestions(true);
     setAiSuggestions([]);
+    setSuggestElapsedSec(0);
+    // Elapsed-seconds ticker — gpt-5 reasoning keeps TTFB ~10s even with
+    // streaming, so we show progress to reduce "is it hanging?" anxiety.
+    const startedAt = Date.now();
+    const ticker = setInterval(() => {
+      setSuggestElapsedSec(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
     try {
       // H3.2: stream the summary so the server starts emitting tokens
       // ~instantly. Structured key_findings still require the final
@@ -289,6 +297,7 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: Pat
     } catch {
       toast.error('AI 建議生成失敗');
     } finally {
+      clearInterval(ticker);
       setIsLoadingSuggestions(false);
     }
   }, [patient.id, canSummary, summaryReason, editingSymptoms]);
@@ -475,7 +484,9 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: Pat
                 ) : (
                   <Wand2 className="mr-1.5 h-3.5 w-3.5" />
                 )}
-                {isLoadingSuggestions ? 'AI 分析中...' : 'AI 建議症狀'}
+                {isLoadingSuggestions
+                  ? `AI 分析中${suggestElapsedSec > 0 ? ` · ${suggestElapsedSec}s` : '...'}`
+                  : 'AI 建議症狀'}
               </Button>
               {aiSuggestions.length > 0 && (
                 <div className="mt-2">

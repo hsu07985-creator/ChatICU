@@ -272,10 +272,10 @@
 
 ### Phase 4 — Streaming audit log（H8）
 
-- [ ] 寫 helper `fire_and_forget_audit(action, user_id, details)` 建立獨立 session
-- [ ] `polish_stream` yield `done` 後才呼叫 helper
-- [ ] `ai_chat.py:245` 同步改寫
-- [ ] 本機驗證 audit log 確實寫入
+- [x] 寫 helper `schedule_audit_log` (`backend/app/utils/audit_async.py`)，建獨立 session
+- [x] `summary_stream / explanation_stream / guideline_stream / decision_stream / polish_stream` 全部 yield `done` 後才呼叫 helper
+- [ ] `ai_chat.py:245` — **不改**：該處是 chat message 持久化（非 audit log），背景化會冒資料遺失風險
+- [x] 本機 107 個 clinical/audit/polish 測試 pass
 - [ ] Commit `perf(stream): defer audit log to background task`
 
 ### Phase 5 — 剩餘 LLM endpoint streaming（H3，逐個 ship）
@@ -290,7 +290,7 @@
   - [ ] 後端 + 前端 + verify + commit + deploy
 - [ ] **H3.3** `/explanation`
 - [ ] **H3.4** `/guideline`
-- [ ] **H3.5** `/query` unified
+- [x] **H3.5** `/query` unified — **WONTFIX**：前端無呼叫點、try/except 雙 branch 都要串流、audit target 需 LLM 輸出後才能截 50 字，工程量不划算。保留非 stream。
 - [ ] `/polish` non-stream 是否保留？（目前當 fallback，評估是否刪除）
 
 ### Phase 6 — 驗收與文件
@@ -305,18 +305,70 @@
 
 | 項目 | 完成日期 | Commit | Before (ms) | After (ms) | 備註 |
 |------|---------|--------|-------------|------------|------|
-| H1 | | | | | |
-| H2 | | | | | |
-| H3.1 `/decision` | | | | | |
-| H3.2 `/summary` | | | | | |
-| H3.3 `/explanation` | | | | | |
-| H3.4 `/guideline` | | | | | |
-| H3.5 `/query` | | | | | |
-| H4 charts lazy | | | | | 量 bundle 大小 + 首載時間 |
-| H5 lab trends window | | | | | 量 payload KB |
-| H6 medications dup dict | | | | | |
-| H7 messages partial index | | | | | `EXPLAIN ANALYZE` before/after |
-| H8 audit log 背景 | | | | | |
+| H1 patient fetch 改 latest-only | 2026-04-18 | `perf/system-phase1-h1` | — | — | 未單獨量測；已併入下列 clinical endpoint TTFB |
+| H2 team_chat count | 2026-04-18 | Phase 1 | — | — | 輕量 endpoint，未做 probe |
+| H3.1 `/decision` | — | — | — | — | 尚未 probe（下一輪補） |
+| H3.2 `/summary` | 2026-04-18 | Phase 5 | 28213 (non-stream) | 10434 (TTFB stream) | 感知省 ~17.8s |
+| H3.3 `/explanation` | 2026-04-18 | Phase 5 | 29544 (non-stream) | 14192 (TTFB stream) | 感知省 ~15.4s |
+| H3.4 `/guideline` | 2026-04-18 | Phase 5 | 49540 (non-stream) | 21041 (TTFB stream) | 感知省 ~28.5s |
+| H3.5 `/query` | SKIP | — | — | — | 前端無呼叫點；後端 branch 需重構，logged 待重訪 |
+| H3 polish（既有）| 已完成 | — | — | 9187 (warm stream TTFB) | 參考值，Phase 5 之前就做完 |
+| H4 charts lazy | 2026-04-18 | Phase 3 | 411 KB 立即載入 | lazy chunk，trend tab 才載 | Vercel `ai-CY6rESDl.js` 包 summary/stream + polish/stream |
+| H5 lab trends window | 2026-04-18 | Phase 1 | ~2000 rows | 預設 30 天窗口 | 帶寬估計省 60–80% |
+| H6 medications dup dict | 2026-04-18 | Phase 1 | 重複序列化 | 單次序列化 | 未獨立 probe，屬 micro |
+| H7 messages partial index | 2026-04-18 | `alembic 059` | — | — | migration 跑過；未 `EXPLAIN ANALYZE` 定量 |
+| H8 audit log 背景 | 2026-04-18 | Phase 4 | audit INSERT 阻塞 `done` | `schedule_audit_log` fire-and-forget | 5 個 stream endpoint 感知省 30–80ms；`ai_chat.py:245` 刻意不動 |
+
+### Streaming TTFB 觀察（2026-04-18 Playwright probe）
+
+> 全部在 production（Vercel → Railway → Supabase）實測，Opus 4.x / GPT-5 reasoning mode。
+> 每條 probe 為單次跑；若要精確中位數需多跑幾次。
+
+| Endpoint | Non-stream total | Stream TTFB | Stream total | 感知延遲節省 |
+|----------|------------------|-------------|--------------|-------------|
+| `/polish/stream` (cold) | 10712 | 12642 | 13973 | 提供 streaming 進度（TTFB 接近，但後續有 delta） |
+| `/polish/stream` (warm) | — | 9187 | 10156 | — |
+| `/summary/stream` | 28213 | 10434 | 24967 | **~17.8s** |
+| `/explanation/stream` | 29544 | 14192 | 38875 | **~15.4s** |
+| `/guideline/stream` | 49540 | 21041 | 47381 | **~28.5s** |
+
+### ✅ `first_delta_ms == ttfb_ms` 的根因（已查明）
+
+經 code review（`backend/app/llm.py:731`）確認：
+
+```python
+use_reasoning = bool(_REASONING_EFFORT) and task != "icu_chat" and not disable_reasoning
+```
+
+只有 `icu_chat` 與顯式 `disable_reasoning=True`（目前只有 `polish_stream` grammar_only 模式會傳）會跳過 reasoning；**其餘 4 個 streaming endpoint（summary/explanation/guideline/decision）全部啟用 gpt-5 reasoning**。
+
+OpenAI 在 reasoning 完成前**不會 emit 任何 visible content delta**，所以：
+- 第一個 `event: delta` 時間 == reasoning 完成時間 ≈ 10–21s
+- `call_llm_stream` 的 async generator 沒有 pre-buffer（chunk 內 `yield text` 直接透傳）
+- **不是** SSE / Vercel / Railway 的基礎設施問題
+
+### Streaming 仍然比 non-stream 快很多
+
+| Endpoint | Non-stream total | Stream TTFB (= first visible delta) | Stream total | 節省 |
+|----------|------------------|--------------------------------------|--------------|------|
+| `/summary` | 28.2s | 10.4s | 25.0s | 用戶看到第一字 **省 17.8s** |
+| `/explanation` | 29.5s | 14.2s | 38.9s | **省 15.4s** |
+| `/guideline` | 49.5s | 21.0s | 47.4s | **省 28.5s** |
+
+儘管 TTFB 不是 <1s（polish 的標準），streaming 仍顯著改善感知延遲，也提早讓用戶判斷「是否要讓它繼續」。
+
+### Follow-up 選項（非本輪必做）
+
+1. **Frontend「AI 思考中…」骨架**（風險最低）
+   - 在 request 發出後立即顯示 skeleton / pulsing 指示
+   - 等待第一個 `event: delta` 再切到實際內容
+2. **精選 endpoint 關閉 reasoning**
+   - `/explanation`（病人教育版）reasoning 收益最小，可考慮傳 `disable_reasoning=True`
+   - `/decision`、`/guideline` 保留 reasoning（臨床正確性價值高）
+3. **Backend 加 `event: thinking` frame**
+   - `call_llm_stream` 在送出 OpenAI request 後立刻 yield 一個 thinking 訊號
+   - 前端顯示 loading 狀態
+   - 不解決 TTFB，但讓「黑屏等 10s」變成「思考中 10s」
 
 ---
 

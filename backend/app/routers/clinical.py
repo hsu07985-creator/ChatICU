@@ -17,6 +17,7 @@ from app.database import get_db
 from app.llm import call_llm, call_llm_stream
 from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log
+from app.utils.audit_async import schedule_audit_log
 from app.models.lab_data import LabData
 from app.models.medication import Medication
 from app.models.patient import Patient
@@ -443,17 +444,14 @@ async def clinical_summary_stream(
             "dataFreshness": data_freshness,
         }
 
-        try:
-            await create_audit_log(
-                db, user_id=user.id, user_name=user.name, role=user.role,
-                action="臨床摘要", target=req.patient_id, status="success",
-                ip=client_host,
-                details={"safety_flagged": guardrail["flagged"], "streamed": True},
-            )
-        except Exception as e:
-            logger.warning("[INTG][AI][API] clinical_summary stream audit log failed: %s", str(e)[:200])
-
         yield f"event: done\ndata: {json.dumps({'data': response_data}, ensure_ascii=False)}\n\n"
+
+        schedule_audit_log(
+            user_id=user.id, user_name=user.name, role=user.role,
+            action="臨床摘要", target=req.patient_id, status="success",
+            ip=client_host,
+            details={"safety_flagged": guardrail["flagged"], "streamed": True},
+        )
 
     return StreamingResponse(
         event_stream(),
@@ -594,22 +592,19 @@ async def patient_explanation_stream(
             "dataFreshness": data_freshness,
         }
 
-        try:
-            await create_audit_log(
-                db, user_id=user.id, user_name=user.name, role=user.role,
-                action="衛教說明", target=req.patient_id, status="success",
-                ip=client_host,
-                details={
-                    "topic": req.topic,
-                    "reading_level": req.reading_level,
-                    "safety_flagged": guardrail["flagged"],
-                    "streamed": True,
-                },
-            )
-        except Exception as e:
-            logger.warning("[INTG][AI][API] patient_explanation stream audit log failed: %s", str(e)[:200])
-
         yield f"event: done\ndata: {json.dumps({'data': response_data}, ensure_ascii=False)}\n\n"
+
+        schedule_audit_log(
+            user_id=user.id, user_name=user.name, role=user.role,
+            action="衛教說明", target=req.patient_id, status="success",
+            ip=client_host,
+            details={
+                "topic": req.topic,
+                "reading_level": req.reading_level,
+                "safety_flagged": guardrail["flagged"],
+                "streamed": True,
+            },
+        )
 
     return StreamingResponse(
         event_stream(),
@@ -797,21 +792,18 @@ async def guideline_interpretation_stream(
             "dataFreshness": data_freshness,
         }
 
-        try:
-            await create_audit_log(
-                db, user_id=user.id, user_name=user.name, role=user.role,
-                action="指引查詢", target=req.patient_id, status="success",
-                ip=client_host,
-                details={
-                    "scenario": req.scenario,
-                    "safety_flagged": guardrail["flagged"],
-                    "streamed": True,
-                },
-            )
-        except Exception as e:
-            logger.warning("[INTG][AI][API] guideline_interpretation stream audit log failed: %s", str(e)[:200])
-
         yield f"event: done\ndata: {json.dumps({'data': response_data}, ensure_ascii=False)}\n\n"
+
+        schedule_audit_log(
+            user_id=user.id, user_name=user.name, role=user.role,
+            action="指引查詢", target=req.patient_id, status="success",
+            ip=client_host,
+            details={
+                "scenario": req.scenario,
+                "safety_flagged": guardrail["flagged"],
+                "streamed": True,
+            },
+        )
 
     return StreamingResponse(
         event_stream(),
@@ -1009,21 +1001,18 @@ async def multi_agent_decision_stream(
             "dataFreshness": data_freshness,
         }
 
-        try:
-            await create_audit_log(
-                db, user_id=user.id, user_name=user.name, role=user.role,
-                action="決策支援", target=req.patient_id, status="success",
-                ip=client_host,
-                details={
-                    "question": req.question[:100],
-                    "safety_flagged": guardrail["flagged"],
-                    "streamed": True,
-                },
-            )
-        except Exception as e:
-            logger.warning("[INTG][AI][API] multi_agent_decision stream audit log failed: %s", str(e)[:200])
-
         yield f"event: done\ndata: {json.dumps({'data': response_data}, ensure_ascii=False)}\n\n"
+
+        schedule_audit_log(
+            user_id=user.id, user_name=user.name, role=user.role,
+            action="決策支援", target=req.patient_id, status="success",
+            ip=client_host,
+            details={
+                "question": req.question[:100],
+                "safety_flagged": guardrail["flagged"],
+                "streamed": True,
+            },
+        )
 
     return StreamingResponse(
         event_stream(),
@@ -1301,27 +1290,24 @@ async def polish_clinical_text_stream(
             data_freshness=data_freshness,
         )
 
-        try:
-            await create_audit_log(
-                db, user_id=user.id, user_name=user.name, role=user.role,
-                action="文本修飾" + ("（再修飾）" if is_refinement else ""),
-                target=req.patient_id, status="success",
-                ip=client_host,
-                details={
-                    "task": task_name,
-                    "polish_type": req.polish_type,
-                    "polish_mode": req.polish_mode,
-                    "target_section": req.target_section,
-                    "safety_flagged": guardrail["flagged"],
-                    "refinement": is_refinement,
-                    "input_sha256": _polish_input_sha256(req),
-                    "streamed": True,
-                },
-            )
-        except Exception as e:
-            logger.warning("[INTG][AI][API] polish stream audit log failed: %s", str(e)[:200])
-
         yield f"event: done\ndata: {json.dumps({'data': response_data}, ensure_ascii=False)}\n\n"
+
+        schedule_audit_log(
+            user_id=user.id, user_name=user.name, role=user.role,
+            action="文本修飾" + ("（再修飾）" if is_refinement else ""),
+            target=req.patient_id, status="success",
+            ip=client_host,
+            details={
+                "task": task_name,
+                "polish_type": req.polish_type,
+                "polish_mode": req.polish_mode,
+                "target_section": req.target_section,
+                "safety_flagged": guardrail["flagged"],
+                "refinement": is_refinement,
+                "input_sha256": _polish_input_sha256(req),
+                "streamed": True,
+            },
+        )
 
     return StreamingResponse(
         event_stream(),
