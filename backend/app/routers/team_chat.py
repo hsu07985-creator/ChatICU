@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import and_, func, select
+from sqlalchemy import String, and_, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -48,22 +48,11 @@ async def mentions_count(
             and_(
                 TeamChatMessage.is_read == False,  # noqa: E712
                 TeamChatMessage.mentioned_roles.isnot(None),
+                cast(TeamChatMessage.mentioned_roles, String).contains(f'"{user.role}"'),
             )
         )
     )
-    all_unread_mentioned = (await db.execute(
-        select(TeamChatMessage).where(
-            and_(
-                TeamChatMessage.is_read == False,  # noqa: E712
-                TeamChatMessage.mentioned_roles.isnot(None),
-            )
-        )
-    )).scalars().all()
-
-    count = sum(
-        1 for m in all_unread_mentioned
-        if m.mentioned_roles and user.role in m.mentioned_roles
-    )
+    count = result.scalar() or 0
 
     return success_response(data={"count": count})
 

@@ -177,21 +177,26 @@ async def get_latest_lab_data(
 @router.get("/trends")
 async def get_lab_trends(
     patient_id: str,
-    days: Optional[int] = Query(None, ge=1, le=3650, description="Optional day window; omit to return all available history"),
+    days: Optional[int] = Query(None, ge=1, le=3650, description="Optional day window; defaults to 30 when no category filter is given"),
     category: Optional[str] = Query(None, description="Filter by category (e.g. biochemistry, hematology)"),
     item: Optional[str] = Query(None, description="Filter by item name within the category"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     pid = normalize_patient_id(patient_id)
+    # Default to 30-day window when caller doesn't narrow by category — unbounded
+    # history on the full dashboard path ships 1–2 MB of JSONB for HIS patients.
+    effective_days = days
+    if effective_days is None and category is None:
+        effective_days = 30
     stmt = (
         select(LabData)
         .where(LabData.patient_id == pid)
         .order_by(LabData.timestamp.desc())
         .limit(2000)
     )
-    if days is not None:
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    if effective_days is not None:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=effective_days)
         stmt = stmt.where(LabData.timestamp >= cutoff)
     result = await db.execute(stmt)
     labs = result.scalars().all()
@@ -219,10 +224,10 @@ async def get_lab_trends(
                     "timestamp": lab.timestamp.isoformat() if lab.timestamp else None,
                     camel_name: cat_data,
                 })
-        return success_response(data={"trends": slim_trends, "days": days})
+        return success_response(data={"trends": slim_trends, "days": effective_days})
 
     trends = [lab_to_dict(lab) for lab in reversed(labs)]
-    return success_response(data={"trends": trends, "days": days})
+    return success_response(data={"trends": trends, "days": effective_days})
 
 
 @router.patch("/{lab_data_id}/correct")

@@ -134,6 +134,7 @@ async def list_medications(
     # Group by SAN category — keys match frontend MedicationsResponse interface
     _SAN_KEY_MAP = {"S": "sedation", "A": "analgesia", "N": "nmb"}
     grouped = {"sedation": [], "analgesia": [], "nmb": [], "other": [], "outpatient": []}
+    all_meds: list = []
     for med in medications:
         d = med_to_dict(med)
         src = (getattr(med, "source_type", None) or "inpatient")
@@ -155,6 +156,7 @@ async def list_medications(
             cat = normalize_san_category(med.san_category) or "other"
             key = _SAN_KEY_MAP.get(cat, "other")
             grouped[key].append(d)
+        all_meds.append(d)
 
     # Find drug interactions for active medications (safe — columns may be missing)
     active_meds = [m for m in medications if m.status == "active"]
@@ -196,8 +198,6 @@ async def list_medications(
                 })
     except Exception:
         interactions = []
-
-    all_meds = [med_to_dict(m) for m in medications]
 
     return success_response(data={
         "medications": all_meds,
