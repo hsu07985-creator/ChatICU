@@ -1,7 +1,12 @@
 import { type LabData } from '../lib/api';
-import { createContext, useContext, useState } from 'react';
-import { LabTrendChart, type LabTrendData } from './lab-trend-chart';
+import { createContext, lazy, Suspense, useContext, useState } from 'react';
+import type { LabTrendData } from './lab-trend-chart';
 import { getLabTrends } from '../lib/api/lab-data';
+
+// Lazy-load recharts-backed trend chart (H4: keep 411 KB charts-*.js off the critical path)
+const LabTrendChart = lazy(() =>
+  import('./lab-trend-chart').then((m) => ({ default: m.LabTrendChart }))
+);
 
 const labChineseNames: Record<string, string> = {
   Na: '鈉', K: '鉀', Ca: '鈣', freeCa: '游離鈣', Mg: '鎂',
@@ -1321,15 +1326,17 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
       </LabDisplayFilterContext.Provider>
 
       {selectedLab && (
-        <LabTrendChart
-          isOpen={true}
-          onClose={() => setSelectedLab(null)}
-          labName={selectedLab.name}
-          labNameChinese={selectedLab.nameChinese}
-          unit={selectedLab.unit}
-          trendData={selectedLab.trendData}
-          referenceRange={selectedLab.referenceRange}
-        />
+        <Suspense fallback={null}>
+          <LabTrendChart
+            isOpen={true}
+            onClose={() => setSelectedLab(null)}
+            labName={selectedLab.name}
+            labNameChinese={selectedLab.nameChinese}
+            unit={selectedLab.unit}
+            trendData={selectedLab.trendData}
+            referenceRange={selectedLab.referenceRange}
+          />
+        </Suspense>
       )}
     </>
   );

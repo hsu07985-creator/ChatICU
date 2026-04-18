@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { lazy, Suspense, useState, useMemo, useCallback } from 'react';
 import type { Medication } from '../../lib/api';
 import type { DrugInteraction as ApiDrugInteraction } from '../../lib/api/medications';
 import type { UserRole } from '../../lib/auth-context';
@@ -21,8 +21,12 @@ import { Label } from '../ui/label';
 import { MedicationsSkeleton } from '../ui/skeletons';
 import { TabsContent } from '../ui/tabs';
 import { Textarea } from '../ui/textarea';
-import { ScoreTrendChart } from '../score-trend-chart';
 import { toast } from 'sonner';
+
+// Lazy-load recharts-backed trend chart (H4: keep 411 KB charts-*.js off the critical path)
+const ScoreTrendChart = lazy(() =>
+  import('../score-trend-chart').then((m) => ({ default: m.ScoreTrendChart }))
+);
 
 const PRN_FREQ_PATTERN = /PRN|STAT/i;
 
@@ -1131,14 +1135,18 @@ export function PatientMedicationsTab({
           )}
 
           {/* Score Trend Chart Dialog */}
-          <ScoreTrendChart
-            isOpen={scoreTrendOpen}
-            onClose={onCloseScoreTrend}
-            scoreType={scoreTrendType}
-            trendData={scoreTrendData}
-            scoreEntries={scoreEntries}
-            onDeleteEntry={onDeleteScoreEntry}
-          />
+          {scoreTrendOpen && (
+            <Suspense fallback={null}>
+              <ScoreTrendChart
+                isOpen={scoreTrendOpen}
+                onClose={onCloseScoreTrend}
+                scoreType={scoreTrendType}
+                trendData={scoreTrendData}
+                scoreEntries={scoreEntries}
+                onDeleteEntry={onDeleteScoreEntry}
+              />
+            </Suspense>
+          )}
 
           <MedicationDetailModal
             medication={detailMedication}

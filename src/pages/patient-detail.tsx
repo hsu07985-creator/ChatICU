@@ -1,8 +1,12 @@
 // Patient detail page
 import { MedicalRecords } from '../components/medical-records';
-import { LabTrendChart } from '../components/lab-trend-chart';
 import { VitalSignCard } from '../components/vital-signs-card';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+// Lazy-load recharts-backed trend chart (H4: keep 411 KB charts-*.js off the critical path)
+const LabTrendChart = lazy(() =>
+  import('../components/lab-trend-chart').then((m) => ({ default: m.LabTrendChart }))
+);
 import { useParams, useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import {
@@ -2041,14 +2045,16 @@ export function PatientDetailPage() {
 
       {/* 檢驗數據頁折線圖對話框 */}
       {selectedTrendMetric && (
-        <LabTrendChart
-          isOpen={!!selectedTrendMetric}
-          onClose={() => setSelectedTrendMetric(null)}
-          labName={selectedTrendMetric.name}
-          labNameChinese={selectedTrendMetric.nameChinese}
-          unit={selectedTrendMetric.unit}
-          trendData={trendChartData}
-        />
+        <Suspense fallback={null}>
+          <LabTrendChart
+            isOpen={!!selectedTrendMetric}
+            onClose={() => setSelectedTrendMetric(null)}
+            labName={selectedTrendMetric.name}
+            labNameChinese={selectedTrendMetric.nameChinese}
+            unit={selectedTrendMetric.unit}
+            trendData={trendChartData}
+          />
+        </Suspense>
       )}
 
       {/* 編輯病人資料對話框 */}
