@@ -9,13 +9,13 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.llm import call_llm
+from app.llm import call_llm, call_llm_stream
 from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log
 from app.models.patient import Patient
@@ -566,18 +566,31 @@ async def multi_agent_decision(
     })
 
 
-@router.post("/polish")
-@limiter.limit("15/minute")
-async def polish_clinical_text(
-    req: PolishRequest,
-    request: Request,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    patient_data = await _get_patient_dict(req.patient_id, db)
-    data_freshness = build_data_freshness(patient_data)
+def _trim_patient_for_pharmacist(patient_data: Dict[str, Any], target_section: Optional[str]) -> Dict[str, Any]:
+    """P5: reduce patient context based on which SOAP section the AI will touch.
 
-    # Route: pharmacist_polish (SOAP-aware, preservation-first) vs legacy clinical_polish.
+    Pharmacist_polish preserves S and O verbatim and only rewrites A/P. Vital
+    signs and ventilator settings are irrelevant to medication-advice polish
+    for every target_section; dropping them shaves ~30% prompt tokens and
+    improves cache stability.
+    """
+    if not patient_data:
+        return patient_data
+    trimmed = dict(patient_data)
+    # Always drop bedside telemetry / ventilator — pharmacist medication advice
+    # does not reference these and they change on every visit (cache-unfriendly).
+    trimmed.pop("vital_signs", None)
+    trimmed.pop("ventilator_settings", None)
+    if target_section in ("s", "o"):
+        # S/O are pasted verbatim from HIS and echoed back untouched. The model
+        # needs only the minimum identity fields for context — strip labs/meds.
+        for k in ("lab_data", "medications", "symptoms"):
+            trimmed.pop(k, None)
+    return trimmed
+
+
+def _build_polish_context(req: PolishRequest, patient_data: Dict[str, Any], user: User):
+    """Shared input-construction for both sync and streaming polish endpoints."""
     task_name = req.task or "clinical_polish"
     is_pharmacist = task_name == "pharmacist_polish"
     is_refinement = (req.polish_mode == "refinement") or bool(
@@ -585,8 +598,9 @@ async def polish_clinical_text(
     )
 
     if is_pharmacist:
-        input_data = {
-            "patient": patient_data,
+        trimmed_patient = _trim_patient_for_pharmacist(patient_data, req.target_section)
+        input_data: Dict[str, Any] = {
+            "patient": trimmed_patient,
             "polish_type": req.polish_type,
             "polish_mode": req.polish_mode or "full",
             "soap_sections": req.soap_sections or {"s": "", "o": "", "a": "", "p": ""},
@@ -598,7 +612,6 @@ async def polish_clinical_text(
             input_data["user_instruction"] = req.instruction or ""
             input_data["previous_polished"] = req.previous_polished or ""
         if req.content:
-            # Fallback: some clients may still send `content`; keep as reference only.
             input_data["draft_content"] = req.content
     elif is_refinement:
         input_data = {
@@ -620,10 +633,81 @@ async def polish_clinical_text(
         if req.template_content:
             input_data["template_format"] = req.template_content
 
+    # grammar_only mode only fixes typos/grammar — reasoning tokens add 3–5s
+    # with no quality gain, so skip them. full / refinement keep reasoning.
+    disable_reasoning = (req.polish_mode == "grammar_only")
+
+    return task_name, is_pharmacist, is_refinement, input_data, disable_reasoning
+
+
+def _build_polish_response_data(
+    req: PolishRequest,
+    *,
+    task_name: str,
+    is_pharmacist: bool,
+    raw_content: str,
+    usage_meta: Dict[str, Any],
+    user_role: Optional[str],
+    data_freshness: Any,
+):
+    """Shared post-LLM processing: guardrail + JSON parse + response shape."""
+    guardrail = apply_safety_guardrail(raw_content, user_role=user_role, include_disclaimer=False)
+
+    polished_sections: Optional[Dict[str, str]] = None
+    parse_ok: Optional[bool] = None
+    if is_pharmacist:
+        polished_sections = _try_parse_soap_json(guardrail["content"])
+        parse_ok = polished_sections is not None
+        if polished_sections is not None:
+            sectioned = _guardrail_sections(polished_sections, user_role=user_role)
+            polished_sections = sectioned["content"]
+            guardrail = {
+                **guardrail,
+                "warnings": sectioned["warnings"],
+                "flagged": sectioned["flagged"],
+                "requiresExpertReview": sectioned["flagged"],
+            }
+
+    metadata: Dict[str, Any] = {"model": settings.LLM_MODEL, "usage": usage_meta}
+    if parse_ok is not None:
+        metadata["parse_ok"] = parse_ok
+
+    response_data: Dict[str, Any] = {
+        "patient_id": req.patient_id,
+        "polish_type": req.polish_type,
+        "task": task_name,
+        "polish_mode": req.polish_mode,
+        "original": req.content,
+        "polished": guardrail["content"],
+        "metadata": metadata,
+        "safetyWarnings": guardrail["warnings"] if guardrail["flagged"] else None,
+        "dataFreshness": data_freshness,
+    }
+    if polished_sections is not None:
+        response_data["polished_sections"] = polished_sections
+    return response_data, guardrail
+
+
+@router.post("/polish")
+@limiter.limit("15/minute")
+async def polish_clinical_text(
+    req: PolishRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    patient_data = await _get_patient_dict(req.patient_id, db)
+    data_freshness = build_data_freshness(patient_data)
+
+    task_name, is_pharmacist, is_refinement, input_data, disable_reasoning = (
+        _build_polish_context(req, patient_data, user)
+    )
+
     result = await asyncio.to_thread(
         call_llm,
         task=task_name,
         input_data=input_data,
+        disable_reasoning=disable_reasoning,
     )
 
     if result.get("status") != "success":
@@ -635,27 +719,20 @@ async def polish_clinical_text(
         raise HTTPException(status_code=503, detail=llm_unavailable_detail())
 
     raw_content = result.get("content", "")
-    guardrail = apply_safety_guardrail(raw_content, user_role=user.role, include_disclaimer=False)
-
-    # Pharmacist polish returns JSON {s,o,a,p}; try to parse so the frontend can
-    # render the split sections directly. Fall back to the raw string on parse failure.
-    polished_sections: Optional[Dict[str, str]] = None
-    parse_ok: Optional[bool] = None
-    if is_pharmacist:
-        polished_sections = _try_parse_soap_json(guardrail["content"])
-        parse_ok = polished_sections is not None
-        # P2.16: once parsed, re-run guardrail per section so warnings point to
-        # the specific segment that triggered (and so JSON syntax chars don't
-        # leak into the regex match surface).
-        if polished_sections is not None:
-            sectioned = _guardrail_sections(polished_sections, user_role=user.role)
-            polished_sections = sectioned["content"]
-            guardrail = {
-                **guardrail,
-                "warnings": sectioned["warnings"],
-                "flagged": sectioned["flagged"],
-                "requiresExpertReview": sectioned["flagged"],
-            }
+    response_data, guardrail = _build_polish_response_data(
+        req,
+        task_name=task_name,
+        is_pharmacist=is_pharmacist,
+        raw_content=raw_content,
+        usage_meta=(result.get("metadata") or {}).get("usage", {}) or {},
+        user_role=user.role,
+        data_freshness=data_freshness,
+    )
+    # Preserve original endpoint semantics: metadata merges LLM-returned fields
+    response_data["metadata"] = {
+        **(result.get("metadata") or {}),
+        **response_data["metadata"],
+    }
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
@@ -674,27 +751,117 @@ async def polish_clinical_text(
             "input_sha256": _polish_input_sha256(req),
         },
     )
-
-    response_data = {
-        "patient_id": req.patient_id,
-        "polish_type": req.polish_type,
-        "task": task_name,
-        "polish_mode": req.polish_mode,
-        "original": req.content,
-        "polished": guardrail["content"],
-        "metadata": result.get("metadata", {}),
-        "safetyWarnings": guardrail["warnings"] if guardrail["flagged"] else None,
-        "dataFreshness": data_freshness,
-    }
-    if polished_sections is not None:
-        response_data["polished_sections"] = polished_sections
-    if parse_ok is not None:
-        # Frontend uses this to surface "格式無法自動分段，請手動編輯" when parsing fails.
-        response_data["metadata"] = {
-            **(response_data.get("metadata") or {}),
-            "parse_ok": parse_ok,
-        }
     return success_response(data=response_data)
+
+
+@router.post("/polish/stream")
+@limiter.limit("15/minute")
+async def polish_clinical_text_stream(
+    req: PolishRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Server-Sent Events variant of /polish.
+
+    Emits:
+      event: delta  → {"chunk": "..."}    (streaming tokens)
+      event: done   → {"data": <PolishResponse>}   (final payload, post-guardrail)
+      event: error  → {"message": "..."}
+    """
+    patient_data = await _get_patient_dict(req.patient_id, db)
+    data_freshness = build_data_freshness(patient_data)
+
+    task_name, is_pharmacist, is_refinement, input_data, disable_reasoning = (
+        _build_polish_context(req, patient_data, user)
+    )
+
+    # Pre-capture bound values; can't touch `request`/`db` freely across the
+    # generator lifetime but the dependencies remain valid while the response
+    # body is being produced.
+    request_id = getattr(request.state, "request_id", None)
+    trace_id = getattr(request.state, "trace_id", None)
+    client_host = request.client.host if request.client else None
+    user_msg = [
+        {"role": "user", "content": json.dumps(input_data, ensure_ascii=False, default=str)}
+    ]
+
+    async def event_stream():
+        full_content = ""
+        usage_meta: Dict[str, Any] = {}
+        stream_failed = False
+        try:
+            async for chunk in call_llm_stream(
+                task_name,
+                user_msg,
+                disable_reasoning=disable_reasoning,
+                request_id=request_id,
+                trace_id=trace_id,
+            ):
+                if chunk.startswith("{") and "__done__" in chunk:
+                    try:
+                        meta = json.loads(chunk)
+                        usage_meta = meta.get("usage", {}) or {}
+                    except Exception:
+                        pass
+                    break
+                if chunk.startswith("[ERROR]"):
+                    err = chunk[7:].strip() if len(chunk) > 7 else "AI service error"
+                    logger.error("[INTG][AI][API] polish stream failed: %s", err[:500])
+                    stream_failed = True
+                    yield f"event: error\ndata: {json.dumps({'message': err})}\n\n"
+                    return
+                full_content += chunk
+                yield f"event: delta\ndata: {json.dumps({'chunk': chunk}, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            logger.error("[INTG][AI][API] polish stream exception: %s", str(e)[:500])
+            yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+            return
+
+        if stream_failed:
+            return
+
+        response_data, guardrail = _build_polish_response_data(
+            req,
+            task_name=task_name,
+            is_pharmacist=is_pharmacist,
+            raw_content=full_content,
+            usage_meta=usage_meta,
+            user_role=user.role,
+            data_freshness=data_freshness,
+        )
+
+        try:
+            await create_audit_log(
+                db, user_id=user.id, user_name=user.name, role=user.role,
+                action="文本修飾" + ("（再修飾）" if is_refinement else ""),
+                target=req.patient_id, status="success",
+                ip=client_host,
+                details={
+                    "task": task_name,
+                    "polish_type": req.polish_type,
+                    "polish_mode": req.polish_mode,
+                    "target_section": req.target_section,
+                    "safety_flagged": guardrail["flagged"],
+                    "refinement": is_refinement,
+                    "input_sha256": _polish_input_sha256(req),
+                    "streamed": True,
+                },
+            )
+        except Exception as e:
+            logger.warning("[INTG][AI][API] polish stream audit log failed: %s", str(e)[:200])
+
+        yield f"event: done\ndata: {json.dumps({'data': response_data}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 # ── P3-1: Dose Calculation ──────────────────────────────────────────────

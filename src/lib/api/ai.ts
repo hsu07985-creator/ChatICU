@@ -614,7 +614,7 @@ export async function getDecisionSupport(data: {
 
 // ─── Clinical Polish ────────────────────────────────────────
 
-export async function polishClinicalText(data: {
+export interface PolishRequestOptions {
   patientId: string;
   /** Legacy single-draft content. Either this OR soapSections must be non-empty (or a refinement pair). */
   content?: string;
@@ -630,7 +630,9 @@ export async function polishClinicalText(data: {
   targetSection?: TargetSection;
   /** 'full' (default) / 'grammar_only' / 'refinement'. */
   polishMode?: PolishMode;
-}): Promise<PolishResponse> {
+}
+
+function buildPolishBody(data: PolishRequestOptions): Record<string, unknown> {
   const body: Record<string, unknown> = {
     patient_id: data.patientId,
     content: data.content ?? '',
@@ -660,10 +662,107 @@ export async function polishClinicalText(data: {
   if (data.targetSection) {
     body.target_section = data.targetSection;
   }
-  const response = await apiClient.post<ApiResponse<PolishResponse>>('/api/v1/clinical/polish', body, {
-    timeout: 90_000,
-  });
+  return body;
+}
+
+export async function polishClinicalText(data: PolishRequestOptions): Promise<PolishResponse> {
+  const response = await apiClient.post<ApiResponse<PolishResponse>>(
+    '/api/v1/clinical/polish',
+    buildPolishBody(data),
+    { timeout: 90_000 },
+  );
   return ensureData(response.data, 'API contract');
+}
+
+/**
+ * Streaming variant of polishClinicalText. Consumes an SSE body from
+ * /api/v1/clinical/polish/stream and invokes `onDelta` for each token chunk
+ * so the UI can surface progress immediately (TTFB ~1s instead of 15–23s).
+ * Resolves with the final parsed PolishResponse (same shape as
+ * polishClinicalText) delivered via the `done` event.
+ */
+export async function streamPolishClinicalText(
+  data: PolishRequestOptions,
+  onDelta: (chunk: string) => void,
+  signal?: AbortSignal,
+): Promise<PolishResponse> {
+  const requestId = createStreamRequestId();
+  const response = await fetch(`${API_BASE_URL}/api/v1/clinical/polish/stream`, {
+    method: 'POST',
+    credentials: 'include',
+    signal,
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+      'X-Request-ID': requestId,
+      'X-Trace-ID': requestId,
+    },
+    body: JSON.stringify(buildPolishBody(data)),
+  });
+  if (!response.ok) {
+    throw new Error(`AI 修飾請求失敗（HTTP ${response.status}）`);
+  }
+  if (!response.body) {
+    throw new Error('AI 修飾串流連線失敗：無可讀取內容。');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  let final: PolishResponse | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (value) {
+      buffer += decoder.decode(value, { stream: !done });
+    }
+    buffer = buffer.replace(/\r\n/g, '\n');
+    if (done && buffer.trim()) {
+      buffer += '\n\n';
+    }
+
+    let boundaryIndex = buffer.indexOf('\n\n');
+    while (boundaryIndex !== -1) {
+      const frame = buffer.slice(0, boundaryIndex);
+      buffer = buffer.slice(boundaryIndex + 2);
+      boundaryIndex = buffer.indexOf('\n\n');
+
+      const parsed = parseSseFrame(frame);
+      if (!parsed) continue;
+
+      let payload: any = {};
+      if (parsed.data) {
+        try {
+          payload = JSON.parse(parsed.data);
+        } catch {
+          payload = {};
+        }
+      }
+
+      if (parsed.event === 'delta' && typeof payload.chunk === 'string') {
+        onDelta(payload.chunk);
+        continue;
+      }
+      if (parsed.event === 'done' && payload?.data) {
+        final = payload.data as PolishResponse;
+        continue;
+      }
+      if (parsed.event === 'error') {
+        throw new Error(
+          typeof payload?.message === 'string' && payload.message
+            ? payload.message
+            : 'AI 修飾串流服務發生錯誤。'
+        );
+      }
+    }
+
+    if (done) break;
+  }
+
+  if (!final) {
+    throw new Error('AI 修飾串流中斷，請重試。');
+  }
+  return final;
 }
 
 // ─── RAG Status ─────────────────────────────────────────────

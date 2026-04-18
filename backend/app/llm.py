@@ -532,7 +532,13 @@ def _maybe_capture_provider_raw(
 
 
 def call_llm(task: str, input_data: dict[str, Any], **kwargs) -> dict[str, Any]:
-    """Call LLM for a specific task. Returns {status, content, metadata}."""
+    """Call LLM for a specific task. Returns {status, content, metadata}.
+
+    kwargs:
+        disable_reasoning (bool): when True, skip reasoning_effort (used for
+            grammar-only polish modes where deep reasoning adds 3–5s with no
+            quality gain).
+    """
     if task not in TASK_PROMPTS:
         return {"status": "error", "content": f"Unknown task: {task}", "metadata": {}}
 
@@ -541,6 +547,7 @@ def call_llm(task: str, input_data: dict[str, Any], **kwargs) -> dict[str, Any]:
     max_tokens = kwargs.get("max_tokens", settings.LLM_MAX_TOKENS)
     request_id = _normalize_trace_value(kwargs.get("request_id"))
     trace_id = _normalize_trace_value(kwargs.get("trace_id"))
+    disable_reasoning = bool(kwargs.get("disable_reasoning", False))
 
     # Avoid calling external providers with missing credentials; return a stable error
     # that routers can translate into a proper HTTP error response.
@@ -559,6 +566,7 @@ def call_llm(task: str, input_data: dict[str, Any], **kwargs) -> dict[str, Any]:
                 task=task,
                 request_id=request_id,
                 trace_id=trace_id,
+                disable_reasoning=disable_reasoning,
             )
         elif settings.LLM_PROVIDER == "anthropic":
             return _call_anthropic(
@@ -647,6 +655,9 @@ async def call_llm_stream(
 
     Optional kwargs:
         system_prompt_override: str — replaces the TASK_PROMPTS[task] system prompt.
+        disable_reasoning: bool — when True, skip reasoning_effort (used for
+            grammar-only polish modes where deep reasoning adds 3–5s with no
+            quality gain).
     """
     system_prompt_override = kwargs.get("system_prompt_override")
     if system_prompt_override:
@@ -659,6 +670,7 @@ async def call_llm_stream(
     max_tokens = kwargs.get("max_tokens", settings.LLM_MAX_TOKENS)
     request_id = _normalize_trace_value(kwargs.get("request_id"))
     trace_id = _normalize_trace_value(kwargs.get("trace_id"))
+    disable_reasoning = bool(kwargs.get("disable_reasoning", False))
 
     if settings.LLM_PROVIDER == "openai" and not (settings.OPENAI_API_KEY or "").strip():
         yield "[ERROR] OPENAI_API_KEY is not set"
@@ -669,7 +681,11 @@ async def call_llm_stream(
 
     try:
         if settings.LLM_PROVIDER == "openai":
-            async for chunk in _stream_openai(system_prompt, messages, max_tokens, task=task, request_id=request_id, trace_id=trace_id):
+            async for chunk in _stream_openai(
+                system_prompt, messages, max_tokens,
+                task=task, request_id=request_id, trace_id=trace_id,
+                disable_reasoning=disable_reasoning,
+            ):
                 yield chunk
         elif settings.LLM_PROVIDER == "anthropic":
             async for chunk in _stream_anthropic(system_prompt, messages, max_tokens, task=task, request_id=request_id, trace_id=trace_id):
@@ -689,6 +705,7 @@ async def _stream_openai(
     task: str,
     request_id: Optional[str] = None,
     trace_id: Optional[str] = None,
+    disable_reasoning: bool = False,
 ) -> AsyncGenerator[str, None]:
     """Stream tokens from OpenAI using the async client."""
     client = _get_openai_async()
@@ -706,11 +723,12 @@ async def _stream_openai(
     # push TTFT to 2-5s before the first visible token, which dominates perceived
     # latency. Skip reasoning for this task so the model streams immediately.
     # Other tasks (safety_check, citation_summary, orchestrator, etc.) keep
-    # reasoning for answer quality.
+    # reasoning for answer quality unless disable_reasoning is set (e.g.
+    # pharmacist_polish grammar_only mode).
     # NOTE: gpt-5.x reasoning models only accept the default temperature (1),
     # so we do NOT pass temperature at all — let the API use its default.
     # Non-reasoning models (gpt-4o, etc.) honor LLM_TEMPERATURE.
-    use_reasoning = bool(_REASONING_EFFORT) and task != "icu_chat"
+    use_reasoning = bool(_REASONING_EFFORT) and task != "icu_chat" and not disable_reasoning
     if use_reasoning:
         create_kwargs["reasoning_effort"] = _REASONING_EFFORT
     elif not settings.LLM_MODEL.startswith("gpt-5"):
@@ -791,6 +809,7 @@ def _call_openai(
     task: str,
     request_id: str | None = None,
     trace_id: str | None = None,
+    disable_reasoning: bool = False,
 ):
     client = _get_openai_sync()
     create_kwargs: dict = dict(
@@ -801,9 +820,11 @@ def _call_openai(
             {"role": "user", "content": json.dumps(input_data, ensure_ascii=False, default=str)},
         ],
     )
-    if _REASONING_EFFORT:
+    if _REASONING_EFFORT and not disable_reasoning:
         create_kwargs["reasoning_effort"] = _REASONING_EFFORT
-    else:
+    elif not settings.LLM_MODEL.startswith("gpt-5"):
+        # gpt-5.x reasoning models reject non-default temperature; only set it
+        # for non-reasoning models (gpt-4o, etc.).
         create_kwargs["temperature"] = temperature
     response = client.chat.completions.create(**create_kwargs)
     _maybe_capture_provider_raw(
@@ -818,12 +839,27 @@ def _call_openai(
     content = response.choices[0].message.content or ""
     if not content.strip():
         return {"status": "error", "content": "Model returned empty response (reasoning token budget may be too low)", "metadata": {}}
+    cached_tokens = 0
+    details = getattr(response.usage, "prompt_tokens_details", None)
+    if details is not None:
+        cached_tokens = getattr(details, "cached_tokens", 0) or 0
+    prompt_tokens = response.usage.prompt_tokens
+    if prompt_tokens:
+        logger.info(
+            "[LLM][CACHE] task=%s prompt_tokens=%d cached_tokens=%d hit_ratio=%.0f%% completion_tokens=%d",
+            task,
+            prompt_tokens,
+            cached_tokens,
+            (cached_tokens / prompt_tokens * 100),
+            response.usage.completion_tokens,
+        )
     return {
         "status": "success",
         "content": content,
         "metadata": {"model": settings.LLM_MODEL, "usage": {
-            "prompt_tokens": response.usage.prompt_tokens,
+            "prompt_tokens": prompt_tokens,
             "completion_tokens": response.usage.completion_tokens,
+            "cached_tokens": cached_tokens,
         }},
     }
 
@@ -863,12 +899,27 @@ def _call_openai_multi(
     content = response.choices[0].message.content or ""
     if not content.strip():
         return {"status": "error", "content": "Model returned empty response (reasoning token budget may be too low)", "metadata": {}}
+    cached_tokens = 0
+    details = getattr(response.usage, "prompt_tokens_details", None)
+    if details is not None:
+        cached_tokens = getattr(details, "cached_tokens", 0) or 0
+    prompt_tokens = response.usage.prompt_tokens
+    if prompt_tokens:
+        logger.info(
+            "[LLM][CACHE] task=%s prompt_tokens=%d cached_tokens=%d hit_ratio=%.0f%% completion_tokens=%d",
+            task,
+            prompt_tokens,
+            cached_tokens,
+            (cached_tokens / prompt_tokens * 100),
+            response.usage.completion_tokens,
+        )
     return {
         "status": "success",
         "content": content,
         "metadata": {"model": settings.LLM_MODEL, "usage": {
-            "prompt_tokens": response.usage.prompt_tokens,
+            "prompt_tokens": prompt_tokens,
             "completion_tokens": response.usage.completion_tokens,
+            "cached_tokens": cached_tokens,
         }},
     }
 

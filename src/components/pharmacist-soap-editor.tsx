@@ -12,7 +12,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import {
-  polishClinicalText,
+  streamPolishClinicalText,
   type PolishMode,
   type SoapSection,
   type SoapSections,
@@ -63,6 +63,38 @@ const INITIAL_STATE: PerSectionState = {
   refinementOpen: false,
   refinementInstruction: '',
 };
+
+/**
+ * Best-effort incremental extractor for the target section value out of the
+ * pharmacist_polish JSON stream. The LLM emits `{"s":"...","o":"...","a":"...","p":"..."}`.
+ * We scan for `"<key>":"` and read characters (with minimal escape handling)
+ * until the closing `"` that terminates the string. Partial / truncated
+ * buffers return whatever has been accumulated so far.
+ */
+function extractStreamedSoapValue(buffer: string, key: SoapSection): string {
+  const marker = `"${key}":"`;
+  const idx = buffer.indexOf(marker);
+  if (idx < 0) return '';
+  let i = idx + marker.length;
+  let out = '';
+  while (i < buffer.length) {
+    const ch = buffer[i];
+    if (ch === '\\') {
+      if (i + 1 >= buffer.length) break;
+      const next = buffer[i + 1];
+      if (next === 'n') out += '\n';
+      else if (next === 't') out += '\t';
+      else if (next === 'r') out += '\r';
+      else out += next;
+      i += 2;
+      continue;
+    }
+    if (ch === '"') return out;
+    out += ch;
+    i += 1;
+  }
+  return out;
+}
 
 const SECTION_META: Record<SoapSection, { label: string; subtitle: string; hint: string; aiEditable: boolean; defaultMode: PolishMode }> = {
   s: { label: 'S — Subjective', subtitle: '從 HIS 貼上', hint: 'AI 不會動這段', aiEditable: false, defaultMode: 'full' },
@@ -171,19 +203,35 @@ export function PharmacistSoapEditor({
       }
       const isRefinement = mode === 'refinement';
       patchSectionState(key, isRefinement ? { refining: true } : { polishing: true });
+      let streamBuffer = '';
+      let lastPreview = '';
       try {
-        const result = await polishClinicalText({
-          patientId,
-          polishType: 'medication_advice',
-          task: 'pharmacist_polish',
-          polishMode: mode,
-          // Only send the targeted section with real content; others empty so the
-          // prompt's TARGET_SECTION rule scopes the output.
-          soapSections: { s: '', o: '', a: '', p: '', [key]: soap[key] },
-          targetSection: key,
-          instruction: isRefinement ? instruction : undefined,
-          previousPolished: isRefinement ? previousPolished : undefined,
-        });
+        const result = await streamPolishClinicalText(
+          {
+            patientId,
+            polishType: 'medication_advice',
+            task: 'pharmacist_polish',
+            polishMode: mode,
+            // Only send the targeted section with real content; others empty so
+            // the prompt's TARGET_SECTION rule scopes the output.
+            soapSections: { s: '', o: '', a: '', p: '', [key]: soap[key] },
+            targetSection: key,
+            instruction: isRefinement ? instruction : undefined,
+            previousPolished: isRefinement ? previousPolished : undefined,
+          },
+          (chunk) => {
+            streamBuffer += chunk;
+            // Extract the target section's value incrementally from the JSON
+            // stream so the pharmacist sees characters appear while the model
+            // is still writing. The authoritative value comes from the final
+            // parsed payload on `done`.
+            const preview = extractStreamedSoapValue(streamBuffer, key);
+            if (preview && preview !== lastPreview) {
+              lastPreview = preview;
+              setPolishedValue(key, preview);
+            }
+          },
+        );
         const returned = result.polished_sections?.[key];
         const fallback = result.polished;
         const next = (returned && returned.trim()) ? returned : fallback;

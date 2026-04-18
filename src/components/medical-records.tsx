@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { getReadinessReason, polishClinicalText, type AIReadiness } from '../lib/api/ai';
+import { getReadinessReason, streamPolishClinicalText, type AIReadiness } from '../lib/api/ai';
 import {
   listRecordTemplates,
   createRecordTemplate,
@@ -115,9 +115,9 @@ P (Plan):`,
     [PHARMACIST_SOAP_TEMPLATE_NAME]: {
       soap: {
         s: '',
-        o: 'Dx:\nAllergy:\nLabs:\nCurrent medications:\n',
+        o: '',
         a: '',
-        p: '1. \n   Monitor:\n2. \n   Monitor:',
+        p: '1.Please consider...\n2.Continue to monitor...',
       },
     },
     '劑量調整建議': `藥品名稱:
@@ -376,12 +376,19 @@ export function MedicalRecords({
       const templateContent = isSoapTemplate(rawTemplate)
         ? flattenSoapTemplate(rawTemplate)
         : rawTemplate;
-      const result = await polishClinicalText({
-        patientId,
-        content: inputContent,
-        polishType: polishTypeMap[recordType],
-        templateContent,
-      });
+      let streamed = '';
+      const result = await streamPolishClinicalText(
+        {
+          patientId,
+          content: inputContent,
+          polishType: polishTypeMap[recordType],
+          templateContent,
+        },
+        (chunk) => {
+          streamed += chunk;
+          updateDraft(recordType, { polished: streamed, polishedFrom: inputContent });
+        },
+      );
       updateDraft(recordType, { polished: result.polished, polishedFrom: inputContent });
     } catch {
       toast.error('AI 修飾失敗，請稍後再試');
@@ -408,13 +415,20 @@ export function MedicalRecords({
         'medication-advice': 'medication_advice',
         'nursing-record': 'nursing_record',
       };
-      const result = await polishClinicalText({
-        patientId,
-        content: inputContent,
-        polishType: polishTypeMap[recordType],
-        instruction,
-        previousPolished: polishedContent,
-      });
+      let streamed = '';
+      const result = await streamPolishClinicalText(
+        {
+          patientId,
+          content: inputContent,
+          polishType: polishTypeMap[recordType],
+          instruction,
+          previousPolished: polishedContent,
+        },
+        (chunk) => {
+          streamed += chunk;
+          updateDraft(recordType, { polished: streamed, polishedFrom: inputContent });
+        },
+      );
       updateDraft(recordType, { polished: result.polished, polishedFrom: inputContent });
       setRefinementInstruction('');
       toast.success('已依指示重新修飾');
