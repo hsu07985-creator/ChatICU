@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  getClinicalSummary,
+  streamClinicalSummary,
   getReadinessReason,
   type AIReadiness,
 } from '../../lib/api/ai';
@@ -265,7 +265,10 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: Pat
     setIsLoadingSuggestions(true);
     setAiSuggestions([]);
     try {
-      const result = await getClinicalSummary(patient.id);
+      // H3.2: stream the summary so the server starts emitting tokens
+      // ~instantly. Structured key_findings still require the final
+      // payload, so we ignore token deltas here and use the resolved response.
+      const result = await streamClinicalSummary(patient.id, () => {});
       const structured = result.summary_structured;
       let suggestions: string[] = [];
       if (structured?.key_findings && Array.isArray(structured.key_findings)) {

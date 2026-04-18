@@ -517,6 +517,116 @@ export async function getClinicalSummary(patientId: string): Promise<ClinicalSum
   return ensureData(response.data, 'API contract');
 }
 
+/**
+ * Internal helper: POST body to an SSE endpoint under /api/v1/clinical and
+ * consume the `delta` / `done` / `error` frame protocol. Resolves with the
+ * payload carried by `event: done` (must be shape `{ data: T }`).
+ */
+async function streamClinicalEndpoint<T>(
+  path: string,
+  body: Record<string, unknown>,
+  onDelta: (chunk: string) => void,
+  signal?: AbortSignal,
+  errorLabel = 'AI 串流服務發生錯誤。',
+): Promise<T> {
+  const requestId = createStreamRequestId();
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    signal,
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+      'X-Request-ID': requestId,
+      'X-Trace-ID': requestId,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(`AI 請求失敗（HTTP ${response.status}）`);
+  }
+  if (!response.body) {
+    throw new Error('AI 串流連線失敗：無可讀取內容。');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  let final: T | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (value) {
+      buffer += decoder.decode(value, { stream: !done });
+    }
+    buffer = buffer.replace(/\r\n/g, '\n');
+    if (done && buffer.trim()) {
+      buffer += '\n\n';
+    }
+
+    let boundaryIndex = buffer.indexOf('\n\n');
+    while (boundaryIndex !== -1) {
+      const frame = buffer.slice(0, boundaryIndex);
+      buffer = buffer.slice(boundaryIndex + 2);
+      boundaryIndex = buffer.indexOf('\n\n');
+
+      const parsed = parseSseFrame(frame);
+      if (!parsed) continue;
+
+      let payload: any = {};
+      if (parsed.data) {
+        try {
+          payload = JSON.parse(parsed.data);
+        } catch {
+          payload = {};
+        }
+      }
+
+      if (parsed.event === 'delta' && typeof payload.chunk === 'string') {
+        onDelta(payload.chunk);
+        continue;
+      }
+      if (parsed.event === 'done' && payload?.data) {
+        final = payload.data as T;
+        continue;
+      }
+      if (parsed.event === 'error') {
+        throw new Error(
+          typeof payload?.message === 'string' && payload.message
+            ? payload.message
+            : errorLabel
+        );
+      }
+    }
+
+    if (done) break;
+  }
+
+  if (!final) {
+    throw new Error('AI 串流中斷，請重試。');
+  }
+  return final;
+}
+
+/**
+ * Streaming variant of getClinicalSummary. Invokes `onDelta` for every token
+ * chunk so callers can surface progress immediately. Resolves with the final
+ * ClinicalSummaryResponse (same shape as the non-streaming call).
+ */
+export async function streamClinicalSummary(
+  patientId: string,
+  onDelta: (chunk: string) => void,
+  signal?: AbortSignal,
+): Promise<ClinicalSummaryResponse> {
+  return streamClinicalEndpoint<ClinicalSummaryResponse>(
+    '/api/v1/clinical/summary/stream',
+    { patient_id: patientId },
+    onDelta,
+    signal,
+    'AI 臨床摘要串流服務發生錯誤。',
+  );
+}
+
 // ─── Patient Explanation ─────────────────────────────────────
 
 export interface ExplanationResponse {
@@ -547,6 +657,30 @@ export async function getPatientExplanation(
     reading_level: readingLevel || undefined,
   }, { timeout: 90_000 });
   return ensureData(response.data, 'API contract');
+}
+
+/**
+ * Streaming variant of getPatientExplanation. Emits token deltas via `onDelta`
+ * and resolves with the final ExplanationResponse.
+ */
+export async function streamPatientExplanation(
+  patientId: string,
+  topic: string,
+  onDelta: (chunk: string) => void,
+  readingLevel?: 'simple' | 'moderate' | 'detailed',
+  signal?: AbortSignal,
+): Promise<ExplanationResponse> {
+  return streamClinicalEndpoint<ExplanationResponse>(
+    '/api/v1/clinical/explanation/stream',
+    {
+      patient_id: patientId,
+      topic,
+      reading_level: readingLevel || undefined,
+    },
+    onDelta,
+    signal,
+    'AI 衛教說明串流服務發生錯誤。',
+  );
 }
 
 // ─── Guideline Interpretation ────────────────────────────────
@@ -580,6 +714,28 @@ export async function getGuidelineInterpretation(data: {
   return ensureData(response.data, 'API contract');
 }
 
+/**
+ * Streaming variant of getGuidelineInterpretation. The server completes RAG
+ * evidence retrieval before opening the stream, so TTFB is pure LLM latency.
+ */
+export async function streamGuidelineInterpretation(
+  data: { patientId: string; scenario: string; guidelineTopic?: string },
+  onDelta: (chunk: string) => void,
+  signal?: AbortSignal,
+): Promise<GuidelineResponse> {
+  return streamClinicalEndpoint<GuidelineResponse>(
+    '/api/v1/clinical/guideline/stream',
+    {
+      patient_id: data.patientId,
+      scenario: data.scenario,
+      guideline_topic: data.guidelineTopic,
+    },
+    onDelta,
+    signal,
+    'AI 指引解讀串流服務發生錯誤。',
+  );
+}
+
 // ─── Multi-Agent Decision ────────────────────────────────────
 
 export interface DecisionResponse {
@@ -610,6 +766,35 @@ export async function getDecisionSupport(data: {
     assessments: data.assessments,
   }, { timeout: 90_000 });
   return ensureData(response.data, 'API contract');
+}
+
+/**
+ * Streaming variant of getDecisionSupport — the biggest win from this batch
+ * (multi_agent_decision typically takes 5–15 s end-to-end). DDI + RAG evidence
+ * is fetched server-side before the stream opens, so TTFB is pure LLM latency.
+ * The DecisionResponse delivered on `event: done` has the exact same shape as
+ * the non-streaming endpoint returns today.
+ */
+export async function streamDecisionSupport(
+  data: {
+    patientId: string;
+    question: string;
+    assessments?: Array<Record<string, unknown>>;
+  },
+  onDelta: (chunk: string) => void,
+  signal?: AbortSignal,
+): Promise<DecisionResponse> {
+  return streamClinicalEndpoint<DecisionResponse>(
+    '/api/v1/clinical/decision/stream',
+    {
+      patient_id: data.patientId,
+      question: data.question,
+      assessments: data.assessments,
+    },
+    onDelta,
+    signal,
+    'AI 決策支援串流服務發生錯誤。',
+  );
 }
 
 // ─── Clinical Polish ────────────────────────────────────────

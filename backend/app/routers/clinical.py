@@ -373,6 +373,99 @@ async def clinical_summary(
     })
 
 
+@router.post("/summary/stream")
+@limiter.limit("10/minute")
+async def clinical_summary_stream(
+    req: SummaryRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """SSE streaming variant of /summary.
+
+    Emits:
+      event: delta  → {"chunk": "..."}    (streaming tokens)
+      event: done   → {"data": <ClinicalSummaryResponse>}  (final payload)
+      event: error  → {"message": "..."}
+    """
+    patient_data = await _get_patient_dict(req.patient_id, db)
+    data_freshness = build_data_freshness(patient_data)
+
+    request_id = getattr(request.state, "request_id", None)
+    trace_id = getattr(request.state, "trace_id", None)
+    client_host = request.client.host if request.client else None
+    user_msg = [
+        {"role": "user", "content": json.dumps(patient_data, ensure_ascii=False, default=str)}
+    ]
+
+    async def event_stream():
+        full_content = ""
+        usage_meta: Dict[str, Any] = {}
+        stream_failed = False
+        try:
+            async for chunk in call_llm_stream(
+                "clinical_summary",
+                user_msg,
+                request_id=request_id,
+                trace_id=trace_id,
+            ):
+                if chunk.startswith("{") and "__done__" in chunk:
+                    try:
+                        meta = json.loads(chunk)
+                        usage_meta = meta.get("usage", {}) or {}
+                    except Exception:
+                        pass
+                    break
+                if chunk.startswith("[ERROR]"):
+                    err = chunk[7:].strip() if len(chunk) > 7 else "AI service error"
+                    logger.error("[INTG][AI][API] clinical_summary stream failed: %s", err[:500])
+                    stream_failed = True
+                    yield f"event: error\ndata: {json.dumps({'message': err})}\n\n"
+                    return
+                full_content += chunk
+                yield f"event: delta\ndata: {json.dumps({'chunk': chunk}, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            logger.error("[INTG][AI][API] clinical_summary stream exception: %s", str(e)[:500])
+            yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+            return
+
+        if stream_failed:
+            return
+
+        guardrail = apply_safety_guardrail(full_content, user_role=user.role, include_disclaimer=False)
+        structured = build_summary_structured(guardrail["content"])
+        response_data: Dict[str, Any] = {
+            "patient_id": req.patient_id,
+            "summary": guardrail["content"],
+            "summary_structured": structured,
+            "metadata": {"model": settings.LLM_MODEL, "usage": usage_meta},
+            "safetyWarnings": guardrail["warnings"] if guardrail["flagged"] else None,
+            "dataFreshness": data_freshness,
+        }
+
+        try:
+            await create_audit_log(
+                db, user_id=user.id, user_name=user.name, role=user.role,
+                action="臨床摘要", target=req.patient_id, status="success",
+                ip=client_host,
+                details={"safety_flagged": guardrail["flagged"], "streamed": True},
+            )
+        except Exception as e:
+            logger.warning("[INTG][AI][API] clinical_summary stream audit log failed: %s", str(e)[:200])
+
+        yield f"event: done\ndata: {json.dumps({'data': response_data}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
+
+
 @router.post("/explanation")
 @limiter.limit("10/minute")
 async def patient_explanation(
@@ -415,6 +508,118 @@ async def patient_explanation(
         "safetyWarnings": guardrail["warnings"] if guardrail["flagged"] else None,
         "dataFreshness": data_freshness,
     })
+
+
+# Reading-level instructions — mirror app.services.llm_services.patient_explanation
+_EXPLANATION_READING_LEVEL_MAP = {
+    "simple": "用最簡單的日常用語，避免所有醫學術語，如同對小學六年級學生解釋。",
+    "moderate": "用一般大眾能理解的語言，必要時簡短解釋醫學名詞。",
+    "detailed": "提供詳細完整的說明，可使用醫學術語但附帶中文解釋，適合有醫學背景的家屬。",
+}
+
+
+@router.post("/explanation/stream")
+@limiter.limit("10/minute")
+async def patient_explanation_stream(
+    req: ExplanationRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """SSE streaming variant of /explanation."""
+    patient_data = await _get_patient_dict(req.patient_id, db)
+    data_freshness = build_data_freshness(patient_data)
+
+    # Mirror service-side input_data construction
+    input_data: Dict[str, Any] = {**patient_data}
+    if req.topic:
+        input_data["focus_topic"] = req.topic
+    if req.reading_level and req.reading_level in _EXPLANATION_READING_LEVEL_MAP:
+        input_data["reading_level_instruction"] = _EXPLANATION_READING_LEVEL_MAP[req.reading_level]
+
+    request_id = getattr(request.state, "request_id", None)
+    trace_id = getattr(request.state, "trace_id", None)
+    client_host = request.client.host if request.client else None
+    user_msg = [
+        {"role": "user", "content": json.dumps(input_data, ensure_ascii=False, default=str)}
+    ]
+
+    async def event_stream():
+        full_content = ""
+        usage_meta: Dict[str, Any] = {}
+        stream_failed = False
+        try:
+            async for chunk in call_llm_stream(
+                "patient_explanation",
+                user_msg,
+                request_id=request_id,
+                trace_id=trace_id,
+            ):
+                if chunk.startswith("{") and "__done__" in chunk:
+                    try:
+                        meta = json.loads(chunk)
+                        usage_meta = meta.get("usage", {}) or {}
+                    except Exception:
+                        pass
+                    break
+                if chunk.startswith("[ERROR]"):
+                    err = chunk[7:].strip() if len(chunk) > 7 else "AI service error"
+                    logger.error("[INTG][AI][API] patient_explanation stream failed: %s", err[:500])
+                    stream_failed = True
+                    yield f"event: error\ndata: {json.dumps({'message': err})}\n\n"
+                    return
+                full_content += chunk
+                yield f"event: delta\ndata: {json.dumps({'chunk': chunk}, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            logger.error("[INTG][AI][API] patient_explanation stream exception: %s", str(e)[:500])
+            yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+            return
+
+        if stream_failed:
+            return
+
+        guardrail = apply_safety_guardrail(full_content, user_role=user.role, include_disclaimer=False)
+        structured = build_explanation_structured(
+            guardrail["content"],
+            topic=req.topic,
+            reading_level=req.reading_level,
+        )
+        response_data: Dict[str, Any] = {
+            "patient_id": req.patient_id,
+            "topic": req.topic,
+            "explanation": guardrail["content"],
+            "explanation_structured": structured,
+            "metadata": {"model": settings.LLM_MODEL, "usage": usage_meta},
+            "safetyWarnings": guardrail["warnings"] if guardrail["flagged"] else None,
+            "dataFreshness": data_freshness,
+        }
+
+        try:
+            await create_audit_log(
+                db, user_id=user.id, user_name=user.name, role=user.role,
+                action="衛教說明", target=req.patient_id, status="success",
+                ip=client_host,
+                details={
+                    "topic": req.topic,
+                    "reading_level": req.reading_level,
+                    "safety_flagged": guardrail["flagged"],
+                    "streamed": True,
+                },
+            )
+        except Exception as e:
+            logger.warning("[INTG][AI][API] patient_explanation stream audit log failed: %s", str(e)[:200])
+
+        yield f"event: done\ndata: {json.dumps({'data': response_data}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 @router.post("/guideline")
@@ -489,6 +694,134 @@ async def guideline_interpretation(
         "safetyWarnings": guardrail["warnings"] if guardrail["flagged"] else None,
         "dataFreshness": data_freshness,
     })
+
+
+@router.post("/guideline/stream")
+@limiter.limit("10/minute")
+async def guideline_interpretation_stream(
+    req: GuidelineRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """SSE streaming variant of /guideline. Pre-fetches RAG context before
+    opening the stream so the client doesn't pay RAG latency as TTFB."""
+    patient_data = await _get_patient_dict(req.patient_id, db)
+    data_freshness = build_data_freshness(patient_data)
+
+    # Pre-LLM work: evidence retrieval happens before streaming so TTFB is pure
+    # LLM time from the client's perspective.
+    rag_context = ""
+    rag_sources: List[Dict[str, Any]] = []
+    search_query = f"{req.scenario} {req.guideline_topic or ''}"
+    try:
+        hybrid = await asyncio.to_thread(
+            evidence_client.query,
+            search_query,
+            5,
+            **evidence_trace_kwargs(request),
+        )
+        rag_context = hybrid.get("answer", "")
+        for c in hybrid.get("citations", []):
+            rag_sources.append({
+                "doc_id": c.get("source_file", c.get("chunk_id", "")),
+                "score": c.get("score", 0),
+                "category": c.get("topic", ""),
+            })
+    except Exception as exc:
+        logger.warning("[INTG][AI][API][F07] Hybrid RAG failed for guideline stream, falling back to local RAG: %s", exc)
+        if rag_service.is_indexed:
+            results = rag_service.retrieve(search_query, top_k=5)
+            rag_context = "\n\n---\n\n".join([r["text"] for r in results])
+            rag_sources = [
+                {"doc_id": r["doc_id"], "score": r["score"], "category": r["category"]}
+                for r in results
+            ]
+
+    input_data = {
+        "patient": patient_data,
+        "scenario": req.scenario,
+        "guideline_topic": req.guideline_topic,
+        "guideline_context": rag_context,
+    }
+
+    request_id = getattr(request.state, "request_id", None)
+    trace_id = getattr(request.state, "trace_id", None)
+    client_host = request.client.host if request.client else None
+    user_msg = [
+        {"role": "user", "content": json.dumps(input_data, ensure_ascii=False, default=str)}
+    ]
+
+    async def event_stream():
+        full_content = ""
+        usage_meta: Dict[str, Any] = {}
+        stream_failed = False
+        try:
+            async for chunk in call_llm_stream(
+                "guideline_interpretation",
+                user_msg,
+                request_id=request_id,
+                trace_id=trace_id,
+            ):
+                if chunk.startswith("{") and "__done__" in chunk:
+                    try:
+                        meta = json.loads(chunk)
+                        usage_meta = meta.get("usage", {}) or {}
+                    except Exception:
+                        pass
+                    break
+                if chunk.startswith("[ERROR]"):
+                    err = chunk[7:].strip() if len(chunk) > 7 else "AI service error"
+                    logger.error("[INTG][AI][API] guideline_interpretation stream failed: %s", err[:500])
+                    stream_failed = True
+                    yield f"event: error\ndata: {json.dumps({'message': err})}\n\n"
+                    return
+                full_content += chunk
+                yield f"event: delta\ndata: {json.dumps({'chunk': chunk}, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            logger.error("[INTG][AI][API] guideline_interpretation stream exception: %s", str(e)[:500])
+            yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+            return
+
+        if stream_failed:
+            return
+
+        guardrail = apply_safety_guardrail(full_content, user_role=user.role, include_disclaimer=False)
+        response_data: Dict[str, Any] = {
+            "patient_id": req.patient_id,
+            "scenario": req.scenario,
+            "interpretation": guardrail["content"],
+            "sources": rag_sources,
+            "metadata": {"model": settings.LLM_MODEL, "usage": usage_meta},
+            "safetyWarnings": guardrail["warnings"] if guardrail["flagged"] else None,
+            "dataFreshness": data_freshness,
+        }
+
+        try:
+            await create_audit_log(
+                db, user_id=user.id, user_name=user.name, role=user.role,
+                action="指引查詢", target=req.patient_id, status="success",
+                ip=client_host,
+                details={
+                    "scenario": req.scenario,
+                    "safety_flagged": guardrail["flagged"],
+                    "streamed": True,
+                },
+            )
+        except Exception as e:
+            logger.warning("[INTG][AI][API] guideline_interpretation stream audit log failed: %s", str(e)[:200])
+
+        yield f"event: done\ndata: {json.dumps({'data': response_data}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 @router.post("/decision")
@@ -569,6 +902,138 @@ async def multi_agent_decision(
         "ddiWarnings": ddi_warnings if ddi_warnings else None,
         "dataFreshness": data_freshness,
     })
+
+
+@router.post("/decision/stream")
+@limiter.limit("5/minute")
+async def multi_agent_decision_stream(
+    req: DecisionRequest,
+    request: Request,
+    user: User = Depends(require_roles("doctor", "np", "admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """SSE streaming variant of /decision. Pre-fetches DDI + RAG evidence
+    before opening the stream so TTFB is pure LLM latency."""
+    patient_data = await _get_patient_dict(req.patient_id, db)
+    data_freshness = build_data_freshness(patient_data)
+
+    # ── Drug-drug interaction auto-check (pre-stream) ──
+    ddi_warnings: List[Any] = []
+    try:
+        ddi_warnings = await asyncio.to_thread(extract_ddi_warnings, patient_data)
+    except Exception as exc:
+        logger.warning("[INTG][AI][DDI] Drug interaction check failed in /decision/stream: %s", exc)
+
+    rag_context = ""
+    try:
+        hybrid = await asyncio.to_thread(
+            evidence_client.query,
+            req.question,
+            3,
+            **evidence_trace_kwargs(request),
+        )
+        rag_context = hybrid.get("answer", "")
+    except Exception as exc:
+        logger.warning("[INTG][AI][API][F07] Hybrid RAG failed for decision stream, falling back to local RAG: %s", exc)
+        if rag_service.is_indexed:
+            results = rag_service.retrieve(req.question, top_k=3)
+            rag_context = "\n\n---\n\n".join([r["text"] for r in results])
+
+    # Append DDI context to evidence so LLM sees interaction warnings
+    ddi_block = format_ddi_metadata(ddi_warnings)
+    if ddi_block:
+        rag_context = rag_context + "\n\n" + ddi_block if rag_context else ddi_block
+
+    input_data = {
+        "patient": patient_data,
+        "question": req.question,
+        "assessments": req.assessments or [],
+        "evidence_context": rag_context,
+    }
+
+    request_id = getattr(request.state, "request_id", None)
+    trace_id = getattr(request.state, "trace_id", None)
+    client_host = request.client.host if request.client else None
+    user_msg = [
+        {"role": "user", "content": json.dumps(input_data, ensure_ascii=False, default=str)}
+    ]
+
+    async def event_stream():
+        full_content = ""
+        usage_meta: Dict[str, Any] = {}
+        stream_failed = False
+        try:
+            async for chunk in call_llm_stream(
+                "multi_agent_decision",
+                user_msg,
+                request_id=request_id,
+                trace_id=trace_id,
+            ):
+                if chunk.startswith("{") and "__done__" in chunk:
+                    try:
+                        meta = json.loads(chunk)
+                        usage_meta = meta.get("usage", {}) or {}
+                    except Exception:
+                        pass
+                    break
+                if chunk.startswith("[ERROR]"):
+                    err = chunk[7:].strip() if len(chunk) > 7 else "AI service error"
+                    logger.error("[INTG][AI][API] multi_agent_decision stream failed: %s", err[:500])
+                    stream_failed = True
+                    yield f"event: error\ndata: {json.dumps({'message': err})}\n\n"
+                    return
+                full_content += chunk
+                yield f"event: delta\ndata: {json.dumps({'chunk': chunk}, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            logger.error("[INTG][AI][API] multi_agent_decision stream exception: %s", str(e)[:500])
+            yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+            return
+
+        if stream_failed:
+            return
+
+        guardrail = apply_safety_guardrail(full_content, user_role=user.role, include_disclaimer=False)
+        structured = build_decision_structured(
+            guardrail["content"],
+            question=req.question,
+            assessments=req.assessments,
+        )
+        response_data: Dict[str, Any] = {
+            "patient_id": req.patient_id,
+            "question": req.question,
+            "recommendation": guardrail["content"],
+            "decision_structured": structured,
+            "metadata": {"model": settings.LLM_MODEL, "usage": usage_meta},
+            "safetyWarnings": guardrail["warnings"] if guardrail["flagged"] else None,
+            "ddiWarnings": ddi_warnings if ddi_warnings else None,
+            "dataFreshness": data_freshness,
+        }
+
+        try:
+            await create_audit_log(
+                db, user_id=user.id, user_name=user.name, role=user.role,
+                action="決策支援", target=req.patient_id, status="success",
+                ip=client_host,
+                details={
+                    "question": req.question[:100],
+                    "safety_flagged": guardrail["flagged"],
+                    "streamed": True,
+                },
+            )
+        except Exception as e:
+            logger.warning("[INTG][AI][API] multi_agent_decision stream audit log failed: %s", str(e)[:200])
+
+        yield f"event: done\ndata: {json.dumps({'data': response_data}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 def _trim_patient_for_pharmacist(patient_data: Dict[str, Any], target_section: Optional[str]) -> Dict[str, Any]:
