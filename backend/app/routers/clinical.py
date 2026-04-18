@@ -12,14 +12,17 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.llm import call_llm, call_llm_stream
 from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log
+from app.models.lab_data import LabData
+from app.models.medication import Medication
 from app.models.patient import Patient
 from app.models.user import User
+from app.models.ventilator import VentilatorSetting
+from app.models.vital_sign import VitalSign
 from app.routers.lab_data import lab_to_dict
 from app.routers.vital_signs import vital_to_dict
 from app.routers.medications import med_to_dict
@@ -258,22 +261,46 @@ async def _deterministic_clinical_query_fallback(
     return result
 
 async def _get_patient_dict(patient_id: str, db: AsyncSession) -> dict:
-    """Fetch patient + related clinical data from DB for LLM consumption."""
-    result = await db.execute(
-        select(Patient)
-        .options(
-            selectinload(Patient.lab_data),
-            selectinload(Patient.vital_signs),
-            selectinload(Patient.medications),
-            selectinload(Patient.ventilator_settings),
-        )
-        .where(Patient.id == patient_id)
-    )
+    """Fetch patient + latest clinical data from DB for LLM consumption.
+
+    H1 optimisation: replaces the old `selectinload(lab_data|vital_signs|...)`
+    which pulled the entire history just to take the latest row in Python. We
+    now run one patient query plus four targeted `.order_by(ts desc).limit(1)`
+    subqueries (and an SQL-side `status == 'active'` filter for medications),
+    so payloads scale with *fields*, not *history size*.
+    """
+    result = await db.execute(select(Patient).where(Patient.id == patient_id))
     patient = result.scalar_one_or_none()
     if not patient:
         raise HTTPException(status_code=404, detail=f"Patient {patient_id} not found")
 
-    # Base patient fields
+    latest_lab = (await db.execute(
+        select(LabData)
+        .where(LabData.patient_id == patient_id)
+        .order_by(LabData.timestamp.desc())
+        .limit(1)
+    )).scalar_one_or_none()
+
+    latest_vital = (await db.execute(
+        select(VitalSign)
+        .where(VitalSign.patient_id == patient_id)
+        .order_by(VitalSign.timestamp.desc())
+        .limit(1)
+    )).scalar_one_or_none()
+
+    latest_vent = (await db.execute(
+        select(VentilatorSetting)
+        .where(VentilatorSetting.patient_id == patient_id)
+        .order_by(VentilatorSetting.timestamp.desc())
+        .limit(1)
+    )).scalar_one_or_none()
+
+    active_meds = (await db.execute(
+        select(Medication)
+        .where(Medication.patient_id == patient_id, Medication.status == "active")
+        .order_by(Medication.name)
+    )).scalars().all()
+
     patient_dict: Dict[str, Any] = {
         "id": patient.id,
         "name": patient.name,
@@ -287,7 +314,6 @@ async def _get_patient_dict(patient_id: str, db: AsyncSession) -> dict:
         "critical_status": patient.critical_status,
         "ventilator_days": patient.ventilator_days,
         "alerts": patient.alerts or [],
-        # Additional patient-table fields
         "height": patient.height,
         "weight": patient.weight,
         "bmi": patient.bmi,
@@ -301,32 +327,11 @@ async def _get_patient_dict(patient_id: str, db: AsyncSession) -> dict:
         "code_status": patient.code_status,
         "has_dnr": patient.has_dnr,
         "is_isolated": patient.is_isolated,
+        "lab_data": lab_to_dict(latest_lab) if latest_lab else None,
+        "vital_signs": vital_to_dict(latest_vital) if latest_vital else None,
+        "ventilator_settings": vent_to_dict(latest_vent) if latest_vent else None,
+        "medications": [med_to_dict(m) for m in active_meds],
     }
-
-    # Latest lab data (all fields)
-    if patient.lab_data:
-        latest_lab = sorted(patient.lab_data, key=lambda x: x.timestamp, reverse=True)[0]
-        patient_dict["lab_data"] = lab_to_dict(latest_lab)
-    else:
-        patient_dict["lab_data"] = None
-
-    # Latest vital signs (all fields)
-    if patient.vital_signs:
-        latest_vital = sorted(patient.vital_signs, key=lambda x: x.timestamp, reverse=True)[0]
-        patient_dict["vital_signs"] = vital_to_dict(latest_vital)
-    else:
-        patient_dict["vital_signs"] = None
-
-    # Active medications (all fields)
-    active_meds = [m for m in patient.medications if m.status == "active"]
-    patient_dict["medications"] = [med_to_dict(m) for m in active_meds]
-
-    # Latest ventilator settings (all fields)
-    if patient.ventilator_settings:
-        latest_vent = sorted(patient.ventilator_settings, key=lambda x: x.timestamp, reverse=True)[0]
-        patient_dict["ventilator_settings"] = vent_to_dict(latest_vent)
-    else:
-        patient_dict["ventilator_settings"] = None
 
     return patient_dict
 
