@@ -408,7 +408,10 @@ async def list_sessions(
     """List AI chat sessions for the current user (matches ChatSessionsResponse schema)."""
     query = select(AISession).where(AISession.user_id == current_user.id)
     if patientId:
-        query = query.where(AISession.patient_id == patientId)
+        if patientId == "none":
+            query = query.where(AISession.patient_id.is_(None))
+        else:
+            query = query.where(AISession.patient_id == patientId)
 
     # Count total
     from sqlalchemy import func as sqlfunc

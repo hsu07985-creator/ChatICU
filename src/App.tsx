@@ -18,6 +18,7 @@ import { PatientsPage } from './pages/patients';
 // Lazy loaded pages (large or infrequently accessed)
 const PatientDetailPage = lazy(() => import('./pages/patient-detail').then(m => ({ default: m.PatientDetailPage })));
 const ChatPage = lazy(() => import('./pages/chat').then(m => ({ default: m.ChatPage })));
+const AiChatPage = lazy(() => import('./pages/ai-chat').then(m => ({ default: m.AiChatPage })));
 
 // Pharmacy Pages (lazy)
 const PharmacyWorkstationPage = lazy(() => import('./pages/pharmacy/workstation').then(m => ({ default: m.PharmacyWorkstationPage })));
@@ -174,6 +175,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <AppLayout>
               <ChatPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ai-chat"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <AiChatPage />
             </AppLayout>
           </ProtectedRoute>
         }

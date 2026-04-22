@@ -443,12 +443,16 @@ export async function streamChatMessage(options: StreamChatOptions): Promise<voi
 
 // 取得聊天歷史
 export async function getChatSessions(
-  options: { page?: number; limit?: number; patientId?: string } = {}
+  options: { page?: number; limit?: number; patientId?: string; noPatient?: boolean } = {}
 ): Promise<ChatSessionsResponse> {
   const params = new URLSearchParams();
   if (options.page) params.append('page', String(options.page));
   if (options.limit) params.append('limit', String(options.limit));
-  if (options.patientId) params.append('patientId', options.patientId);
+  if (options.noPatient) {
+    params.append('patientId', 'none');
+  } else if (options.patientId) {
+    params.append('patientId', options.patientId);
+  }
 
   const response = await apiClient.get<ApiResponse<ChatSessionsResponse>>(`/ai/sessions?${params}`);
   return ensureData(response.data, 'API contract');

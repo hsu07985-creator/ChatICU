@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Home, Users, MessageSquare, Database, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Moon, Sun, LogOut } from 'lucide-react';
+import { Home, Users, MessageSquare, Database, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Moon, Sun, LogOut, Sparkles } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import logoImage from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 import {
@@ -73,6 +73,7 @@ export function AppSidebar() {
 
   // 4) 溝通（所有角色可見）
   const communicationItems = [
+    { title: 'AI 問答', url: '/ai-chat', icon: Sparkles },
     { title: '團隊聊天室', url: '/chat', icon: MessageSquare },
   ];
 
