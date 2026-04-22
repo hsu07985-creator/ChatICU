@@ -484,13 +484,17 @@ class HISConverter:
         self._cache: Dict[str, Any] = {}
 
     def _load(self, filename: str) -> list:
-        """Load a HIS JSON file, return Data array.
+        """Load a HIS JSON file for single-record types (patient demographics).
 
         Resolution order:
           1. Top-level ``<patient_dir>/<filename>`` (the common case).
           2. If step 1 yields nothing (file missing OR ``Data: []``), walk
              ``<patient_dir>/ExtraFactories/Factory_*/`` in sorted order and
              return the first non-empty one.
+
+        Use this for data where exactly ONE answer is expected (Patient
+        demographics). For additive data (meds, labs, orders, visits) that
+        can legitimately exist across multiple campuses, use `_load_all()`.
 
         Rationale: the HIS fetcher probes every hospital campus (HospId =
         M, G, H, Q, F) and only stores non-empty responses. For most
@@ -520,6 +524,52 @@ class HISConverter:
 
         self._cache[filename] = result
         return result
+
+    def _load_all(self, filename: str) -> list:
+        """Load a HIS JSON file across ALL campuses and concatenate.
+
+        For additive data types (medications, labs, orders, visits) a patient
+        may legitimately have records at multiple hospital campuses — e.g.
+        70117162 admitted at the main campus (M) but has 35 extra labs + 10
+        extra outpatient meds stored at Factory_F. The legacy `_load()` only
+        returns top-level data, silently dropping Factory_F records.
+
+        This method unions top-level + every ExtraFactory, tagging each row
+        with `_source_factory` so downstream analytics can surface the
+        cross-campus origin.
+
+        Downstream id generation (e.g. `_gen_id("med", MRN, ODR_SEQ, ODR_CODE)`)
+        de-duplicates rows that happen to appear in both top-level and a
+        factory, so a simple concat is safe.
+        """
+        cache_key = f"__ALL__{filename}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+        candidates = _FILENAME_ALIASES.get(filename, (filename,))
+
+        merged: list = []
+        # Top-level
+        top = self._load_from_dir(self.patient_dir, candidates)
+        for row in top:
+            if isinstance(row, dict):
+                row.setdefault("_source_factory", "MAIN")
+            merged.append(row)
+
+        # Every ExtraFactory
+        extras_dir = os.path.join(self.patient_dir, "ExtraFactories")
+        if os.path.isdir(extras_dir):
+            for factory_name in sorted(os.listdir(extras_dir)):
+                factory_dir = os.path.join(extras_dir, factory_name)
+                if not os.path.isdir(factory_dir):
+                    continue
+                rows = self._load_from_dir(factory_dir, candidates)
+                for row in rows:
+                    if isinstance(row, dict):
+                        row.setdefault("_source_factory", factory_name)
+                    merged.append(row)
+
+        self._cache[cache_key] = merged
+        return merged
 
     @staticmethod
     def _load_from_dir(dir_path: str, candidates: Tuple[str, ...]) -> list:
@@ -755,8 +805,14 @@ class HISConverter:
     # ------------------------------------------------------------------ #
 
     def convert_medications(self) -> List[Dict[str, Any]]:
-        """getAllMedicine.json → list of medications table dicts."""
-        rows = self._load("getAllMedicine.json")
+        """getAllMedicine.json → list of medications table dicts.
+
+        Uses _load_all() so medications from secondary campuses (ExtraFactories)
+        are merged with the primary campus. Without this, cross-campus
+        outpatient Rx (e.g. 70117162's 10 emergency-department meds at
+        Factory_F) are silently dropped.
+        """
+        rows = self._load_all("getAllMedicine.json")
         patient = self.convert_patient()
         if not patient:
             return []
@@ -894,8 +950,9 @@ class HISConverter:
 
         Groups lab results by REPORT_DATE+REPORT_TIME (= one lab draw),
         then maps each LAB_CODE to the appropriate JSONB category and key.
+        Uses _load_all() to include labs from secondary campuses.
         """
-        rows = self._load("getLabResult.json")
+        rows = self._load_all("getLabResult.json")
         patient = self.convert_patient()
         if not patient or not rows:
             return []
@@ -1004,7 +1061,7 @@ class HISConverter:
 
     def convert_culture_results(self) -> List[Dict[str, Any]]:
         """getLabResult.json (culture/susceptibility items) → culture_results dicts."""
-        rows = self._load("getLabResult.json")
+        rows = self._load_all("getLabResult.json")
         patient = self.convert_patient()
         if not patient or not rows:
             return []
@@ -1132,7 +1189,7 @@ class HISConverter:
 
     def convert_diagnostic_reports(self) -> List[Dict[str, Any]]:
         """getAllOrder.json → diagnostic_reports dicts (imaging/procedures only)."""
-        rows = self._load("getAllOrder.json")
+        rows = self._load_all("getAllOrder.json")
         patient = self.convert_patient()
         if not patient or not rows:
             return []
@@ -1173,7 +1230,7 @@ class HISConverter:
 
     def convert_surgery(self) -> List[Dict[str, Any]]:
         """getSurgery.json → diagnostic_reports dicts."""
-        rows = self._load("getSurgery.json")
+        rows = self._load_all("getSurgery.json")
         patient = self.convert_patient()
         if not patient or not rows:
             return []
@@ -1201,7 +1258,7 @@ class HISConverter:
 
     def convert_ai_results(self) -> List[Dict[str, Any]]:
         """getAIResult.json → diagnostic_reports dicts (ECG AI interpretation)."""
-        rows = self._load("getAIResult.json")
+        rows = self._load_all("getAIResult.json")
         patient = self.convert_patient()
         if not patient or not rows:
             return []
