@@ -66,6 +66,11 @@ def med_to_dict(med: Medication) -> dict:
         "prescribingDoctorName": getattr(med, "prescribing_doctor_name", None),
         "daysSupply": getattr(med, "days_supply", None),
         "isExternal": getattr(med, "is_external", False) or False,
+        # Standardized codes (PR-1 / PR-2) — surfaced for frontend PAD matching
+        "atcCode": getattr(med, "atc_code", None),
+        "isAntibiotic": bool(getattr(med, "is_antibiotic", False) or False),
+        "kidneyRelevant": getattr(med, "kidney_relevant", None),
+        "codingSource": getattr(med, "coding_source", None),
     }
 
 
