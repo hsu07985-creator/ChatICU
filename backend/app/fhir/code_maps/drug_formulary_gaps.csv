@@ -1,0 +1,20 @@
+odr_code,db_row_count,sample_name,suggested_atc,notes
+IMARC3,5,Marcaine SPINAL0.5% 4ml(Bupivacaine),N01BB01,Local anaesthetic (bupivacaine)
+ODUPH1,4,Duphalac 667mg/ml 500ml (Lactulose),A06AD11,Osmotic laxative
+IROCU1,3,Rocuronium Kabi 10mg/ml 5ml inj (Rocuronium),M03AC09,NMB - non-depolarising
+OAGIT1,3,Agitin 10/20mg(Ezetimibe/Simvastatin),C10BA02,Combination lipid modifier
+IFRES3,3,Fresofol 10mg/ml 20ml(Propofol),N01AX10,General anaesthetic (propofol)
+TFENT6,3,Fentanyl [貼片]12.5mcg/H(Fentanyl),N02AB03,Opioid analgesic transdermal
+TSPER2,2,Spersin Oint. 10gm (Bacitracin/Neomycin/Polymyxin B),D06AX,Topical combination antibiotic
+OFRIS2,2,Frisium 10MG Tab (Clobazam),N05BA09,Benzodiazepine
+ICHEN1,2,Chenday 25mg/5ml inj.(Labetalol),C07AG01,Alpha+beta blocker
+IBUSI1,2,Busix 2mg/4ml inj (Bumetanide),C03CA02,Loop diuretic
+OSERO4,2,Seroquel [25mg] tab (Quetiapine),N05AH04,Atypical antipsychotic
+OCETI6,2,Cetirizine 10mg Tab(Cetirizine),R06AE07,Second-gen antihistamine
+EANZO1,2,Anzomin Eye Drops 10ml(Antazoline),S01GA,Ophthalmic antihistamine
+IUSOD1,2,U-SODIN 5mg/2ml INJ(Verapamil),C08DA01,Ca-channel blocker (non-DHP)
+FMOL2-1,1,Moderna(Spikevax) LP.8.1 0.5ml/劑/syringe,J07BN01,COVID-19 mRNA vaccine
+TEARF1,1,Earflo otic 3mg/ml 5ml(Ofloxacin),S02AA16,Otic fluoroquinolone
+IMINI1,1,Minirin 4mcg/ml 1ml inj(Desmopressin),H01BA02,Posterior pituitary analog
+TMENP2,1,Menphencala lotion 100ml(Calamine),D02AB,Topical protectant
+INESP7,1,NESP 60mcg 0.5ml(Darbepoetin alfa),B03XA02,ESA darbepoetin
