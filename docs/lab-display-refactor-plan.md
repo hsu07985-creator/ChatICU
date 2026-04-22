@@ -291,12 +291,14 @@ export function LabDataDisplay({ labData, patientId, ... }: Props) {
 
 ## 4. 實作步驟（建議順序 & 獨立 commit）
 
-> **進度狀態**（2026-04-23）：feature branch `refactor/labs-data-driven-display`
+> **進度狀態**（2026-04-23）：feature branch `refactor/labs-data-driven-display` → 已合入 `main`
 > - ✅ Step 1（commit `fa174a0`）
 > - ✅ Step 4（commit `cf47752`）
 > - ✅ Step 2（commit `5129b92`）
 > - ✅ Step 3（commit `6f58c46`） — `lab-data-display.tsx` 1343 → 244 行
-> - ⏳ Step 5 — 進行中（含 4 項 behavior delta 修復 + 視覺驗證）
+> - ✅ Step 5（commit `425c6a6`） — 3 項 visual delta 修復，tsc + vite build 雙綠
+>
+> **待做**：合併到 main + push（後端 → personal/main，前端 → railway/main）+ 部署後 Playwright 視覺驗證。
 
 ### ✅ Step 1 — 抽取表格 & 函式（0 行為變化）
 - 新增 `src/components/lab-data-display/sections.ts`：放 `SECTION_ORDER`、`SECTION_TITLE`、`CATEGORY_DEFAULT_SECTION`、`ITEM_OVERRIDE`、`groupLabData()`、`RenderItem` 型別。
@@ -329,11 +331,13 @@ export function LabDataDisplay({ labData, patientId, ... }: Props) {
 - `his_lab_mapping.py` 加入 `12191`（Legionella UAg）。
 - **已完成**：commit `cf47752`。**修正**：字典名稱是 `HIS_LAB_MAP`（原計畫誤寫為 `LAB_CODE_MAPPING`），後續 step 如需引用請用正確名稱。
 
-### ⏸ Step 5 — 驗證 & 清理
-- Playwright 對多位病人頁截圖比對：舊版截圖 → 新版應該 (1) 新增 BEecf/MCH/ACTH 等欄位 (2) 「其他」只剩真正的 other（IGRA/CryptoAg/ValproicAcid/糞便 OB）。
-- 刪掉 dead code（舊 `OTHER_CATEGORY_ORDER` 等）。
-- 更新 `docs/frontend-data-inventory.md`（若有提及 lab display 架構）。
-- Commit: `refactor(labs): cleanup legacy whitelists`
+### ✅ Step 5 — 視覺還原 & 驗證
+- 還原 3 項 Step 3 引入的 visual regression（電解質標題、內分泌 amber 變體、pinned/isOptional 解耦）。
+- sections.ts：新增 `SectionMeta` + `SECTION_META`；`SECTION_TITLE` 保為 derived 向後相容 export。
+- `LabSection.tsx`：新增 `subtitle?` / `variant?` props；`variant === 'optional'` 時 h3 用 amber 色 + 副標題、所有卡片傳 `isOptional=true`。
+- `OtherSection.tsx`：移除同樣的 pinned/isOptional conflation（latent bug）。
+- **已完成**：commit `425c6a6`，4 檔 +66 / −19，tsc + build 雙綠。
+- **視覺驗證**：Playwright local 跳過；依 CLAUDE.md 部署流程，Vercel 部署後在 `https://chat-icu.vercel.app/` 走訪 3 位病人頁確認。
 
 ---
 
