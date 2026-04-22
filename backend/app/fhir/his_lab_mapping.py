@@ -356,6 +356,7 @@ HIS_LAB_MAP: Dict[str, Tuple[str, str, str]] = {
     "12069":  ("serology", "CryptoAg",      "Cryptococcus Ag"),
     "12118":  ("serology", "LegionellaAb",  "Legionella Ab"),
     "12189":  ("serology", "ChlamydiaIgM",  "Chlamydia Pneumoniae IgM"),
+    "12191":  ("serology", "Legionella_UAg", "Legionella urine Ag"),
     "1202M":  ("serology", "Myco_IgM",      "Mycoplasma pneumoniae IgM"),
     "12ASP":  ("serology", "AspergillusAg", "Aspergillus Ag"),
     "1305A":  ("serology", "CDiff_ToxinA",  "Toxin A"),
