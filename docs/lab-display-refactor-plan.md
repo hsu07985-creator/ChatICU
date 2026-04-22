@@ -294,8 +294,8 @@ export function LabDataDisplay({ labData, patientId, ... }: Props) {
 > **進度狀態**（2026-04-23）：feature branch `refactor/labs-data-driven-display`
 > - ✅ Step 1（commit `fa174a0`）
 > - ✅ Step 4（commit `cf47752`）
-> - ⏳ Step 2 — 進行中
-> - ⏸ Step 3 — 依賴 Step 2
+> - ✅ Step 2（commit `5129b92`）
+> - ⏳ Step 3 — 進行中
 > - ⏸ Step 5 — 依賴 Step 3
 
 ### ✅ Step 1 — 抽取表格 & 函式（0 行為變化）
@@ -303,12 +303,15 @@ export function LabDataDisplay({ labData, patientId, ... }: Props) {
 - 暫不套用到主檔，只確保 build 過 + type 檢查過。
 - **已完成**：commit `fa174a0`，220 行，`tsc --noEmit` 通過。`LabData` 從 `'../../lib/api'` 引入（barrel re-export）。
 
-### ⏳ Step 2 — 新增 Section 元件
-- 新增 `src/components/lab-data-display/LabSection.tsx`：吃 `{ title, items, labData, handleClick }` 輸出卡片網格。
-- 新增 `OtherSection.tsx`：處理 `U_/ST_/PF_/misc` 子分組。
-- 抽出 `LabItem.tsx`（現在寫在 `lab-data-display.tsx` 內部）供兩個新元件共用；主檔改用 re-export 保持相容直到 Step 3。
-- 寫元件層 test（Storybook 或 RTL）。
-- Commit: `refactor(labs): add LabSection/OtherSection components`
+### ✅ Step 2 — 新增 Section 元件
+- 新增 `src/components/lab-data-display/LabSection.tsx`：吃 `{ title, items, labData, onLabClick }` 輸出卡片網格。
+- 新增 `OtherSection.tsx`：處理 `U_/ST_/PF_/misc` 子分組（使用 `item.subGroup`）。
+- 抽出 `LabItem.tsx` + `helpers.ts`（`getItem/getValue/getUnit/isAbnormal/getDirection/getRefRange`）到 subdirectory。**主檔未改動** — 新檔與舊碼共存到 Step 3。
+- **已完成**：commit `5129b92`，4 檔共 553 行，`tsc --noEmit` 通過。
+- **Step 3 需注意**：
+  - Pinned 無值卡片目前使用 `isOptional={item.pinned && value === undefined ? true : undefined}` — 與舊碼 Cortisol 行為等價。若要嚴格保留「只有 Cortisol 才 isOptional」，Step 3 可調整 pinned 語意。
+  - `compactGridClass` / `compactGridStyle` 常數各自 local 定義（舊檔亦有同值常數）— Step 3 刪舊檔後可統一。
+  - `LabItem` 的 `labName` prop 在舊/新實作都 destructure 但未使用（舊 API 保留）。
 
 ### ⏸ Step 3 — 切換主檔案（行為變化）
 - 在 `lab-data-display.tsx` 以新元件取代 11 個手寫 section。
