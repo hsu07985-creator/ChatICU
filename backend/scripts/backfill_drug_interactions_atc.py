@@ -156,22 +156,35 @@ async def main() -> int:
         await eng.dispose()
         return 0
 
-    # Apply in batches of 500 to bound memory/latency
-    async with eng.begin() as conn:
-        batch_size = 500
-        for i in range(0, len(updates), batch_size):
-            batch = updates[i : i + batch_size]
-            for row_id, a1, a2 in batch:
-                await conn.execute(
-                    text(
-                        "UPDATE drug_interactions "
-                        "SET drug1_atc = :a1, drug2_atc = :a2, "
-                        "    updated_at = CURRENT_TIMESTAMP "
-                        "WHERE id = :id"
-                    ),
-                    {"id": row_id, "a1": a1, "a2": a2},
-                )
-            print(f"  applied {min(i+batch_size, len(updates))}/{len(updates)}...")
+    # Batched UPDATE FROM (VALUES ...) — 1 round-trip per batch instead of 1 per row.
+    # Critical when running over PgBouncer / trans-continental latency.
+    print(f"Applying updates in batches of 1000 via UPDATE FROM (VALUES ...)")
+    batch_size = 1000
+    applied = 0
+    for i in range(0, len(updates), batch_size):
+        batch = updates[i : i + batch_size]
+        # Build parameterised VALUES tuples
+        values_sql = ", ".join(
+            f"(:id_{k}, CAST(:a1_{k} AS VARCHAR), CAST(:a2_{k} AS VARCHAR))"
+            for k in range(len(batch))
+        )
+        params: dict[str, object] = {}
+        for k, (row_id, a1, a2) in enumerate(batch):
+            params[f"id_{k}"] = row_id
+            params[f"a1_{k}"] = a1
+            params[f"a2_{k}"] = a2
+        sql = (
+            f"UPDATE drug_interactions SET "
+            f"  drug1_atc = v.drug1_atc, "
+            f"  drug2_atc = v.drug2_atc, "
+            f"  updated_at = CURRENT_TIMESTAMP "
+            f"FROM (VALUES {values_sql}) AS v(id, drug1_atc, drug2_atc) "
+            f"WHERE drug_interactions.id = v.id"
+        )
+        async with eng.begin() as conn:
+            await conn.execute(text(sql), params)
+        applied += len(batch)
+        print(f"  applied {applied}/{len(updates)}")
 
     print(f"\nDone. {len(updates)} DDI rows updated.")
     await eng.dispose()
