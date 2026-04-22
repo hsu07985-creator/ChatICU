@@ -158,34 +158,66 @@ async def list_medications(
             grouped[key].append(d)
         all_meds.append(d)
 
-    # Find drug interactions for active medications (safe — columns may be missing)
+    # Find drug interactions for active medications.
+    # PR-3.5: dual-path matching — ATC codes (class-level) OR drug names.
+    # Before PR-3.5 only name-matching was used and yielded 0 hits in production
+    # because HIS generic names (e.g. "Vanco", "Meropem") don't align with
+    # Lexicomp-style names in drug_interactions. ATC matching bypasses this.
     active_meds = [m for m in medications if m.status == "active"]
     interactions = []
     try:
         if len(active_meds) >= 2:
             from sqlalchemy import text
-            # Prefer generic_name (already normalised via ODR_CODE alias map at HIS import).
-            # Combination drugs store multiple names joined by " / " (e.g. "Ampicillin / Sulbactam")
-            # — expand them so each component is matched independently.
-            seen: set = set()
+
+            # Build name + ATC candidate sets from active meds
+            seen_names: set = set()
             med_names: list = []
+            med_atcs: set = set()
             for m in active_meds:
                 raw = (m.generic_name or m.name or "").strip()
                 for part in raw.split(" / "):
                     part = part.strip()
-                    if part and part.lower() not in seen:
-                        seen.add(part.lower())
+                    if part and part.lower() not in seen_names:
+                        seen_names.add(part.lower())
                         med_names.append(part)
-            int_result = await db.execute(
-                text(
-                    "SELECT id, drug1, drug2, severity, mechanism, "
-                    "clinical_effect, management, risk_rating "
-                    "FROM drug_interactions "
-                    "WHERE drug1 = ANY(:names) AND drug2 = ANY(:names)"
-                ),
-                {"names": med_names},
-            )
-            for row in int_result:
+                atc = getattr(m, "atc_code", None)
+                if atc:
+                    med_atcs.add(atc)
+
+            # Dedup by DDI row id across both query paths
+            int_rows: dict = {}
+
+            # Path 1: name-based (legacy; still runs to catch class-name rules
+            # like "Aminoglycosides", "Cephalosporins" in DDI.drug1/drug2)
+            if med_names:
+                r = await db.execute(
+                    text(
+                        "SELECT id, drug1, drug2, severity, mechanism, "
+                        "clinical_effect, management, risk_rating "
+                        "FROM drug_interactions "
+                        "WHERE drug1 = ANY(:names) AND drug2 = ANY(:names)"
+                    ),
+                    {"names": med_names},
+                )
+                for row in r:
+                    int_rows[row[0]] = row
+
+            # Path 2: ATC-based (PR-3.5). Match when both sides of a DDI rule
+            # map to an ATC that one of the active meds carries.
+            if len(med_atcs) >= 2:
+                r = await db.execute(
+                    text(
+                        "SELECT id, drug1, drug2, severity, mechanism, "
+                        "clinical_effect, management, risk_rating "
+                        "FROM drug_interactions "
+                        "WHERE drug1_atc = ANY(:atcs) AND drug2_atc = ANY(:atcs)"
+                    ),
+                    {"atcs": list(med_atcs)},
+                )
+                for row in r:
+                    int_rows.setdefault(row[0], row)
+
+            for row in int_rows.values():
                 interactions.append({
                     "id": row[0],
                     "drug1": row[1],
