@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, String, Text, false, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -47,6 +47,12 @@ class Medication(Base):
     prescribing_doctor_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     days_supply: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     is_external: Mapped[bool] = mapped_column(Boolean, default=False)  # True = 非聯醫體系
+
+    # Standardized codes (PR-1, migration 060)
+    atc_code: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, index=True)
+    is_antibiotic: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
+    kidney_relevant: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    coding_source: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # formulary / abx / manual / legacy / unmapped
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

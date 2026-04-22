@@ -427,10 +427,48 @@ def _load_ddi_exclusion_set() -> set:
         return set()
 
 
+def _load_formulary() -> Dict[str, Dict[str, Any]]:
+    """Load drug_formulary.csv (Yangming hospital formulary + ABX + manual fills).
+
+    See backend/scripts/build_formulary_csv.py for how this CSV is produced.
+    Returns: {ODR_CODE: {atc_code, is_antibiotic: bool, kidney_relevant: Optional[bool],
+                          source, ingredient, ...}}
+    """
+    import csv
+
+    path = os.path.join(os.path.dirname(__file__), "code_maps", "drug_formulary.csv")
+    out: Dict[str, Dict[str, Any]] = {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                code = (row.get("odr_code") or "").strip()
+                atc = (row.get("atc_code") or "").strip()
+                if not code or not atc:
+                    continue
+                kr_raw = (row.get("kidney_relevant") or "").strip()
+                if kr_raw == "1":
+                    kidney_relevant: Optional[bool] = True
+                elif kr_raw == "0":
+                    kidney_relevant = False
+                else:
+                    kidney_relevant = None
+                out[code] = {
+                    "atc_code": atc,
+                    "is_antibiotic": (row.get("is_antibiotic") or "").strip() == "1",
+                    "kidney_relevant": kidney_relevant,
+                    "source": (row.get("source") or "").strip(),
+                    "ingredient": (row.get("ingredient") or "").strip(),
+                }
+    except FileNotFoundError:
+        return {}
+    return out
+
+
 # Load once at module import time so all HISConverter instances share it.
 _SITE_CONFIG = _load_site_config()
 _DDI_ALIAS_MAP: Dict[str, List[str]] = _load_ddi_alias_map()
 _DDI_EXCLUSION_SET: set = _load_ddi_exclusion_set()
+_FORMULARY_MAP: Dict[str, Dict[str, Any]] = _load_formulary()
 _FILENAME_ALIASES: Dict[str, Tuple[str, ...]] = {
     "getIPD.json": ("getIPD.json", "getIpd.json"),
     "getIpd.json": ("getIpd.json", "getIPD.json"),
@@ -776,6 +814,19 @@ class HISConverter:
             med_id = _gen_id("med", self.pat_no, str(m.get("ODR_SEQ", "")),
                              m.get("PAT_SEQ", ""), m.get("ODR_CODE", ""))
 
+            # Enrich with standardized ATC code from hospital formulary (PR-1)
+            formulary_entry = _FORMULARY_MAP.get(odr_code) if odr_code else None
+            if formulary_entry:
+                atc_code = formulary_entry["atc_code"]
+                is_antibiotic = formulary_entry["is_antibiotic"]
+                kidney_relevant = formulary_entry["kidney_relevant"]
+                coding_source = formulary_entry["source"]
+            else:
+                atc_code = None
+                is_antibiotic = False
+                kidney_relevant = None
+                coding_source = "unmapped" if odr_code else None
+
             med_dict = {
                 "id": med_id,
                 "patient_id": pat_id,
@@ -805,6 +856,11 @@ class HISConverter:
                 "prescribing_doctor_name": m.get("USER_NAME"),
                 "days_supply": int(m["DAYS"]) if m.get("DAYS") else None,
                 "is_external": False,
+                # PR-1: standardized codes
+                "atc_code": atc_code,
+                "is_antibiotic": is_antibiotic,
+                "kidney_relevant": kidney_relevant,
+                "coding_source": coding_source,
             }
             medications.append(med_dict)
 
