@@ -99,12 +99,12 @@ function mergeConsecutiveCultures(panels: CulturePanel[]): MergedCulture[] {
       });
 
     if (last && lastKey === key && sameSusceptibilityPattern) {
-      last.dates.push(panel.reportedAt ?? '');
+      last.dates.push(panel.collectedAt ?? panel.reportedAt ?? '');
       last.panels.push(panel);
     } else {
       result.push({
         organisms,
-        dates: [panel.reportedAt ?? ''],
+        dates: [panel.collectedAt ?? panel.reportedAt ?? ''],
         panels: [panel],
         resistantCount: rCount,
         intermediateCount: iCount,
