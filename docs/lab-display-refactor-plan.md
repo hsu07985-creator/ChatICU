@@ -295,8 +295,8 @@ export function LabDataDisplay({ labData, patientId, ... }: Props) {
 > - ✅ Step 1（commit `fa174a0`）
 > - ✅ Step 4（commit `cf47752`）
 > - ✅ Step 2（commit `5129b92`）
-> - ⏳ Step 3 — 進行中
-> - ⏸ Step 5 — 依賴 Step 3
+> - ✅ Step 3（commit `6f58c46`） — `lab-data-display.tsx` 1343 → 244 行
+> - ⏳ Step 5 — 進行中（含 4 項 behavior delta 修復 + 視覺驗證）
 
 ### ✅ Step 1 — 抽取表格 & 函式（0 行為變化）
 - 新增 `src/components/lab-data-display/sections.ts`：放 `SECTION_ORDER`、`SECTION_TITLE`、`CATEGORY_DEFAULT_SECTION`、`ITEM_OVERRIDE`、`groupLabData()`、`RenderItem` 型別。
@@ -313,11 +313,17 @@ export function LabDataDisplay({ labData, patientId, ... }: Props) {
   - `compactGridClass` / `compactGridStyle` 常數各自 local 定義（舊檔亦有同值常數）— Step 3 刪舊檔後可統一。
   - `LabItem` 的 `labName` prop 在舊/新實作都 destructure 但未使用（舊 API 保留）。
 
-### ⏸ Step 3 — 切換主檔案（行為變化）
+### ✅ Step 3 — 切換主檔案（行為變化）
 - 在 `lab-data-display.tsx` 以新元件取代 11 個手寫 section。
-- 移除 `HEMATOLOGY_METRICS` 等白名單、`HANDLED_KEYS`、`otherLabItems`。
-- 保留 `handleLabClick`、trend chart 開啟邏輯。
-- Commit: `refactor(labs): switch to data-driven rendering`
+- 移除 `HEMATOLOGY_METRICS` 等白名單、`HANDLED_KEYS`、`otherLabItems`、10 個 `show*` flag、inline `LabItem`、`hasVisibleMetrics`。
+- 保留 `handleLabClick`、trend chart 開啟邏輯、filter 狀態、legend。
+- 新匯入 `sections` / `LabSection` / `OtherSection` / `LabItem` / `getValue`。
+- **已完成**：commit `6f58c46`，檔案 1343 → 244 行（−82%）。tsc + vite build 雙綠。
+- **4 項 behavior delta 留給 Step 5 處理**：
+  1. 電解質 section 標題：舊為「電解質與礦物質」，新為「電解質」 — 改 `SECTION_TITLE.electrolytes` 即可還原。
+  2. 內分泌 section 舊用 amber 標題色 + `（選擇性追蹤）` 副標題，新用標準 `text-brand` — 需在 `SECTION_TITLE` / sections.ts 加入 per-section variant 或 subtitle 欄位，並讓 `LabSection` 支援。
+  3. Pinned 空值卡片：新 `LabSection` 對 Na/K/BUN/Scr/WBC/Hb/PLT 傳 `isOptional={true}` 導致 amber 邊框，舊碼只有 Cortisol 才如此。需把 `pinned`（永遠顯示）和 `isOptional`（視覺提示）在 `ItemOverride` 裡分開為兩個欄位。
+  4. Cardiac / Lipid 現在是獨立 section（舊混在「其他生化」） — 計畫如此，不需改。
 
 ### ✅ Step 4 — 後端補 LAB_CODE（並行）
 - `his_lab_mapping.py` 加入 `12191`（Legionella UAg）。
