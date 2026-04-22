@@ -1,0 +1,149 @@
+{
+  "cefmetazole": {
+    "atc_code": "J01DC",
+    "atc_display": "Second-generation cephalosporins",
+    "generic": "Cefmetazole",
+    "resolved_at": "2026-04-22T16:38:31.049931+00:00",
+    "rxcui": "2182"
+  },
+  "cefotaxime": {
+    "atc_code": "J01DD",
+    "atc_display": "Third-generation cephalosporins",
+    "generic": "Cefotaxime",
+    "resolved_at": "2026-04-22T16:38:32.806904+00:00",
+    "rxcui": "2186"
+  },
+  "cephalexin": {
+    "atc_code": "J01DB",
+    "atc_display": "First-generation cephalosporins",
+    "generic": "Cephalexin",
+    "resolved_at": "2026-04-22T16:39:00.660541+00:00",
+    "rxcui": "215948"
+  },
+  "colistin": {
+    "atc_code": "A07AA",
+    "atc_display": "Antibiotics",
+    "generic": "Colistin",
+    "resolved_at": "2026-04-22T16:38:36.299877+00:00",
+    "rxcui": "2709"
+  },
+  "dexamethasone": {
+    "atc_code": "A01AC",
+    "atc_display": "Corticosteroids for local oral treatment",
+    "generic": "Dexamethasone",
+    "resolved_at": "2026-04-22T16:38:54.803020+00:00",
+    "rxcui": "22690"
+  },
+  "empagliflozin": {
+    "atc_code": "A10BK",
+    "atc_display": "Sodium-glucose co-transporter 2 (SGLT2) inhibitors",
+    "generic": "Empagliflozin",
+    "resolved_at": "2026-04-22T16:38:58.667942+00:00",
+    "rxcui": "1545653"
+  },
+  "enoxaparin": {
+    "atc_code": "B01AB",
+    "atc_display": "Heparin group",
+    "generic": "Enoxaparin",
+    "resolved_at": "2026-04-22T16:38:34.565048+00:00",
+    "rxcui": "67108"
+  },
+  "fluconazole": {
+    "atc_code": "D01AC",
+    "atc_display": "Imidazole and triazole derivatives",
+    "generic": "Fluconazole",
+    "resolved_at": "2026-04-22T16:38:56.783320+00:00",
+    "rxcui": "4450"
+  },
+  "ganciclovir": {
+    "atc_code": "J05AB",
+    "atc_display": "Nucleosides and nucleotides excl. reverse transcriptase inhibitors",
+    "generic": "Ganciclovir",
+    "resolved_at": "2026-04-22T16:38:38.128444+00:00",
+    "rxcui": "4678"
+  },
+  "gentamicin": {
+    "atc_code": "D06AX",
+    "atc_display": "Other antibiotics for topical use",
+    "generic": "Gentamicin",
+    "resolved_at": "2026-04-22T16:38:39.929209+00:00",
+    "rxcui": "1596450"
+  },
+  "linezolid": {
+    "atc_code": "J01XX",
+    "atc_display": "Other antibacterials",
+    "generic": "Linezolid",
+    "resolved_at": "2026-04-22T16:38:48.988145+00:00",
+    "rxcui": "190376"
+  },
+  "minocycline": {
+    "atc_code": "A01AB",
+    "atc_display": "Antiinfectives and antiseptics for local oral treatment",
+    "generic": "Minocycline",
+    "resolved_at": "2026-04-22T16:38:41.681840+00:00",
+    "rxcui": "6979"
+  },
+  "mirtazapine": {
+    "atc_code": "N06AX",
+    "atc_display": "Other antidepressants",
+    "generic": "Mirtazapine",
+    "resolved_at": "2026-04-22T16:38:50.887728+00:00",
+    "rxcui": "15996"
+  },
+  "nitroglycerin": {
+    "atc_code": "C01DA",
+    "atc_display": "Organic nitrates",
+    "generic": "Nitroglycerin",
+    "resolved_at": "2026-04-22T16:38:43.514420+00:00",
+    "rxcui": "4917"
+  },
+  "polymyxin b": {
+    "atc_code": "A07AA",
+    "atc_display": "Antibiotics",
+    "generic": "Polymyxin B",
+    "resolved_at": "2026-04-22T16:38:29.216888+00:00",
+    "rxcui": "388"
+  },
+  "propranolol": {
+    "atc_code": "C07AA",
+    "atc_display": "Beta blocking agents, non-selective",
+    "generic": "Propranolol",
+    "resolved_at": "2026-04-22T16:39:02.758643+00:00",
+    "rxcui": "82084"
+  },
+  "silodosin": {
+    "atc_code": "G04CA",
+    "atc_display": "Alpha-adrenoreceptor antagonists",
+    "generic": "Silodosin",
+    "resolved_at": "2026-04-22T16:39:04.756332+00:00",
+    "rxcui": "720825"
+  },
+  "teicoplanin": {
+    "atc_code": "J01XA",
+    "atc_display": "Glycopeptide antibacterials",
+    "generic": "Teicoplanin",
+    "resolved_at": "2026-04-22T16:38:45.242894+00:00",
+    "rxcui": "57021"
+  },
+  "ticagrelor": {
+    "atc_code": "B01AC",
+    "atc_display": "Platelet aggregation inhibitors excl. heparin",
+    "generic": "Ticagrelor",
+    "resolved_at": "2026-04-22T16:38:52.795741+00:00",
+    "rxcui": "1116632"
+  },
+  "tigecycline": {
+    "atc_code": "J01AA",
+    "atc_display": "Tetracyclines",
+    "generic": "Tigecycline",
+    "resolved_at": "2026-04-22T16:38:47.177788+00:00",
+    "rxcui": "384455"
+  },
+  "tirofiban": {
+    "atc_code": "B01AC",
+    "atc_display": "Platelet aggregation inhibitors excl. heparin",
+    "generic": "Tirofiban",
+    "resolved_at": "2026-04-22T16:38:27.464056+00:00",
+    "rxcui": "253202"
+  }
+}

@@ -822,10 +822,29 @@ class HISConverter:
                 kidney_relevant = formulary_entry["kidney_relevant"]
                 coding_source = formulary_entry["source"]
             else:
+                # PR-2: cache-only RxNorm fallback for codes not in formulary.
+                # Cache is prebuilt offline via scripts/refresh_rxnorm_cache.py;
+                # production syncs never hit the network.
                 atc_code = None
                 is_antibiotic = False
                 kidney_relevant = None
                 coding_source = "unmapped" if odr_code else None
+
+                try:
+                    from app.fhir.rxnorm import (
+                        extract_generic_name as _rxnorm_extract,
+                        lookup as _rxnorm_lookup,
+                    )
+
+                    generic_candidate = _rxnorm_extract(raw_name)
+                    if generic_candidate:
+                        hit = _rxnorm_lookup(generic_candidate, online=False)
+                        if hit and hit.atc_code:
+                            atc_code = hit.atc_code
+                            coding_source = "rxnorm_cache"
+                except Exception:
+                    # RxNorm cache is optional — never fail sync on lookup error
+                    pass
 
             med_dict = {
                 "id": med_id,
