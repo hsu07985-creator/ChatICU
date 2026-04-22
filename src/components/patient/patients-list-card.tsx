@@ -1,4 +1,5 @@
 import { Archive, Edit2, Search, Users } from 'lucide-react';
+import { maskPatientName } from '../../lib/utils/patient-name';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -126,7 +127,7 @@ export function PatientsListCard({
                   <TableCell className="font-medium text-muted-foreground">
                     {patient.medicalRecordNumber}
                   </TableCell>
-                  <TableCell className="font-medium">{patient.name}</TableCell>
+                  <TableCell className="font-medium">{maskPatientName(patient.name)}</TableCell>
                   <TableCell>{patient.gender}</TableCell>
                   <TableCell>{patient.age} 歲</TableCell>
                   <TableCell>

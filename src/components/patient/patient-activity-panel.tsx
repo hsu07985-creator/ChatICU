@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { ScrollArea } from '../ui/scroll-area';
+import { maskPatientName } from '../../lib/utils/patient-name';
 export interface PatientMessageActivityItem {
   patientId: string;
   patientName: string;
@@ -149,7 +150,7 @@ export function PatientActivityPanel({
                 >
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">{item.patientName}</span>
+                      <span className="font-semibold text-sm text-slate-900 dark:text-slate-100">{maskPatientName(item.patientName)}</span>
                       {item.bedNumber && (
                         <Badge variant="outline" className="text-xs">{item.bedNumber}</Badge>
                       )}

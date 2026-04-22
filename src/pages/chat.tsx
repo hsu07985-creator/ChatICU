@@ -7,6 +7,7 @@ import { Textarea } from '../components/ui/textarea';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { Send, Pin, MessageSquare, RefreshCw, AtSign, ChevronDown, ChevronRight, ExternalLink, Trash2 } from 'lucide-react';
 import { useAuth } from '../lib/auth-context';
+import { maskPatientName } from '../lib/utils/patient-name';
 import { getTeamChatMessages, sendTeamChatMessage, postAnnouncement, togglePinMessage, deleteTeamChatMessage, TeamChatMessage } from '../lib/api/team-chat';
 import { getMyMentions, type MentionGroup } from '../lib/api/messages';
 import { LoadingSpinner } from '../components/ui/state-display';
@@ -446,7 +447,7 @@ export function ChatPage() {
                               >
                                 {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
                                 <Badge variant="outline" className="text-xs shrink-0">{group.bedNumber || '—'}</Badge>
-                                <span className="font-medium text-sm text-foreground truncate">{group.patientName}</span>
+                                <span className="font-medium text-sm text-foreground truncate">{maskPatientName(group.patientName)}</span>
                                 <span className="ml-auto flex items-center gap-1.5 shrink-0">
                                   {group.unreadCount > 0 && (
                                     <Badge className="bg-red-500 text-white text-xs">{group.unreadCount} 未讀</Badge>

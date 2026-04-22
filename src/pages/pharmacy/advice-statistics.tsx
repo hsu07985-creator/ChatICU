@@ -8,6 +8,7 @@ import { ScrollArea } from '../../components/ui/scroll-area';
 import { LoadingSpinner, EmptyState } from '../../components/ui/state-display';
 import { FileText, Loader2, User, Tag, Pill, Send, CheckCircle2, XCircle, CircleDot, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
+import { maskPatientName } from '../../lib/utils/patient-name';
 import {
   getAdviceRecords,
   createAdviceRecord,
@@ -258,7 +259,7 @@ export function PharmacyAdviceStatisticsPage() {
                   <SelectContent>
                     {patients.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {p.bedNumber} {p.name}
+                        {p.bedNumber} {maskPatientName(p.name)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -632,7 +633,7 @@ export function PharmacyAdviceStatisticsPage() {
                       <div className="flex items-center gap-4 mb-1.5 text-xs">
                         <div className="flex items-center gap-1">
                           <User className="h-3 w-3 text-muted-foreground" />
-                          <span className="font-medium">{record.bedNumber} {record.patientName}</span>
+                          <span className="font-medium">{record.bedNumber} {maskPatientName(record.patientName)}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Tag className="h-3.5 w-3.5 text-muted-foreground" />

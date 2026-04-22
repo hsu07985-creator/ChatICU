@@ -21,6 +21,7 @@ import {
   createSymptomRecord,
   type SymptomRecord,
 } from '../../lib/api/symptom-records';
+import { maskPatientName } from '../../lib/utils/patient-name';
 
 interface PatientSummaryTabPatient {
   id: string;
@@ -325,7 +326,7 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: Pat
 
   const infoRows: { label: string; value: string }[] = [
     { label: '床號', value: patient.bedNumber || '-' },
-    { label: '姓名', value: patient.name || '-' },
+    { label: '姓名', value: maskPatientName(patient.name) || '-' },
     { label: '年齡', value: `${patient.age} 歲` },
     { label: '性別', value: patient.gender || '-' },
     { label: '身高', value: patient.height ? `${patient.height} cm` : '-' },

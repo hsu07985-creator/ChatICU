@@ -1,5 +1,6 @@
 import { Archive } from 'lucide-react';
 import type { PatientWithFrontendFields } from '../../../features/patients/types';
+import { maskPatientName } from '../../../lib/utils/patient-name';
 import { Button } from '../../ui/button';
 import {
   Dialog,
@@ -53,7 +54,7 @@ export function PatientArchiveDialog({
             <SelectContent>
               {patients.map((patient) => (
                 <SelectItem key={patient.id} value={patient.id}>
-                  {patient.bedNumber} - {patient.name}
+                  {patient.bedNumber} - {maskPatientName(patient.name)}
                 </SelectItem>
               ))}
             </SelectContent>

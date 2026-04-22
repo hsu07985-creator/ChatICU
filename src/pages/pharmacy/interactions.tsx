@@ -8,6 +8,7 @@ import { Separator } from '../../components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { toast } from 'sonner';
 import { checkInteractions, type InteractionCheckResponse } from '../../lib/api/ai';
+import { maskPatientName } from '../../lib/utils/patient-name';
 import { getDrugInteractions } from '../../lib/api/pharmacy';
 import { type Patient } from '../../lib/api/patients';
 import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from '../../lib/patients-cache';
@@ -458,7 +459,7 @@ export function DrugInteractionsPage() {
                 <SelectContent>
                   {patients.map(p => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.bedNumber} — {p.name}（{p.medicalRecordNumber}）
+                      {p.bedNumber} — {maskPatientName(p.name)}（{p.medicalRecordNumber}）
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -17,7 +17,8 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import { Search, Plus, Archive, Edit2, Save, X, Users, LogOut } from 'lucide-react';
+import { Search, Plus, Archive, Edit2, Save, X, Users, LogOut, FlaskConical } from 'lucide-react';
+import { maskPatientName } from '../lib/utils/patient-name';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { PatientEditDialog } from '../components/patient/dialogs/patient-edit-dialog';
@@ -254,7 +255,7 @@ export function PatientsPage() {
         criticalStatus: undefined,
       });
 
-      toast.success(`已新增病患：${created.bedNumber} ${created.name}`);
+      toast.success(`已新增病患：${created.bedNumber} ${maskPatientName(created.name)}`);
       setAddDialogOpen(false);
       resetNewPatientForm();
       const { patients: freshPatients } = await refreshSharedPatientDataAfterMutation();
@@ -271,7 +272,7 @@ export function PatientsPage() {
   const handleArchivePatient = async (patientId: string) => {
     if (!patientId) return;
     const target = patients.find((p) => p.id === patientId);
-    const label = target ? `${target.bedNumber} ${target.name}` : patientId;
+    const label = target ? `${target.bedNumber} ${maskPatientName(target.name)}` : patientId;
     if (!confirm(`確定要封存病患：${label}？`)) return;
 
     setArchivingPatient(true);
@@ -294,7 +295,7 @@ export function PatientsPage() {
   const handleDischargePatient = async (patientId: string) => {
     if (!patientId) return;
     const target = patients.find((p) => p.id === patientId);
-    const label = target ? `${target.bedNumber} ${target.name}` : patientId;
+    const label = target ? `${target.bedNumber} ${maskPatientName(target.name)}` : patientId;
     if (!confirm(`⚠️ 確定要出院刪除病患：${label}？\n\n此操作會永久刪除該病人及所有用藥、檢驗、培養、報告等資料，無法復原！`)) return;
 
     setDischargingId(patientId);
@@ -314,6 +315,12 @@ export function PatientsPage() {
 
   return (
     <div className="p-6 space-y-6">
+      <div>
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
+          <FlaskConical className="h-3.5 w-3.5" />
+          模擬資料
+        </div>
+      </div>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">病人清單</h1>
@@ -432,7 +439,7 @@ export function PatientsPage() {
                   <TableCell className="font-medium text-muted-foreground">
                     {patient.medicalRecordNumber}
                   </TableCell>
-                  <TableCell className="font-medium">{patient.name}</TableCell>
+                  <TableCell className="font-medium">{maskPatientName(patient.name)}</TableCell>
                   <TableCell>{patient.gender}</TableCell>
                   <TableCell>{patient.age} 歲</TableCell>
                   <TableCell>
@@ -750,7 +757,7 @@ export function PatientsPage() {
                 <SelectContent>
                   {patients.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.bedNumber} - {p.name}
+                      {p.bedNumber} - {maskPatientName(p.name)}
                     </SelectItem>
                   ))}
                 </SelectContent>

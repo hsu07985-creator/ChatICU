@@ -8,6 +8,7 @@ import { Search, Plus, CheckCircle2, XCircle, HelpCircle, Loader2, X, User, Info
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { toast } from 'sonner';
 import { getIVCompatibility } from '../../lib/api/pharmacy';
+import { maskPatientName } from '../../lib/utils/patient-name';
 import { type Patient } from '../../lib/api/patients';
 import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from '../../lib/patients-cache';
 import { getMedications, type Medication } from '../../lib/api/medications';
@@ -373,7 +374,7 @@ export function CompatibilityPage() {
                 <SelectContent>
                   {patients.map(p => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.bedNumber} — {p.name}（{p.medicalRecordNumber}）
+                      {p.bedNumber} — {maskPatientName(p.name)}（{p.medicalRecordNumber}）
                     </SelectItem>
                   ))}
                 </SelectContent>

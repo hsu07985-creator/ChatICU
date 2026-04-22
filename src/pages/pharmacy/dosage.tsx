@@ -8,6 +8,7 @@ import { Separator } from '../../components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Calculator, Loader2, AlertTriangle, User, X, RotateCcw, ChevronRight, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
+import { maskPatientName } from '../../lib/utils/patient-name';
 import { padCalculate, type PadDrugInfo, type PadCalculateResult } from '../../lib/api/pharmacy';
 import { type Patient } from '../../lib/api/patients';
 import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from '../../lib/patients-cache';
@@ -154,7 +155,7 @@ export function DosagePage() {
       if (p.height) setHeight(String(p.height));
       if (p.weight) setWeight(String(p.weight));
       setSex(normalizePatientGender(p.gender) ?? '');
-      toast.success(`已帶入 ${p.name} 的基本資料`);
+      toast.success(`已帶入 ${maskPatientName(p.name)} 的基本資料`);
     }
   }, [patients]);
 
@@ -273,7 +274,7 @@ export function DosagePage() {
                   <SelectContent>
                     {patients.map(p => (
                       <SelectItem key={p.id} value={p.id}>
-                        {p.bedNumber} — {p.name}（{p.medicalRecordNumber}）
+                        {p.bedNumber} — {maskPatientName(p.name)}（{p.medicalRecordNumber}）
                       </SelectItem>
                     ))}
                   </SelectContent>

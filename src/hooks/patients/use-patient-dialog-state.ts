@@ -11,6 +11,7 @@ import {
   parseCreatePatientForm,
   parseEditPatientForm,
 } from '../../features/patients/patient-form-schema';
+import { maskPatientName } from '../../lib/utils/patient-name';
 
 interface UsePatientDialogStateOptions {
   patients: PatientWithFrontendFields[];
@@ -93,7 +94,7 @@ export function usePatientDialogState({
     try {
       const created = await patientsApi.createPatient(parsed.data);
 
-      toast.success(`已新增病患：${created.bedNumber} ${created.name}`);
+      toast.success(`已新增病患：${created.bedNumber} ${maskPatientName(created.name)}`);
       setAddDialogOpen(false);
       resetNewPatientForm();
       await refreshPatientsAfterMutation();
@@ -135,7 +136,7 @@ export function usePatientDialogState({
   const archiveConfirmLabel = (() => {
     if (!archiveConfirmTargetId) return '';
     const target = patients.find((patient) => patient.id === archiveConfirmTargetId);
-    return target ? `${target.bedNumber} ${target.name}` : archiveConfirmTargetId;
+    return target ? `${target.bedNumber} ${maskPatientName(target.name)}` : archiveConfirmTargetId;
   })();
 
   const handleConfirmArchivePatient = async () => {
@@ -144,7 +145,7 @@ export function usePatientDialogState({
     }
 
     const target = patients.find((patient) => patient.id === archiveConfirmTargetId);
-    const label = target ? `${target.bedNumber} ${target.name}` : archiveConfirmTargetId;
+    const label = target ? `${target.bedNumber} ${maskPatientName(target.name)}` : archiveConfirmTargetId;
 
     setArchivingPatient(true);
     try {

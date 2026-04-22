@@ -9,6 +9,7 @@ import {
 } from '../../lib/patients-cache';
 import { getCachedPadDrugs } from '../../lib/pad-drugs-cache';
 import { normalizePatientGender } from '../../lib/patient-gender';
+import { maskPatientName } from '../../lib/utils/patient-name';
 import { useAuth } from '../../lib/auth-context';
 import { getLatestLabData, type LabData as ApiLabData } from '../../lib/api/lab-data';
 import { getLatestVitalSigns, type VitalSigns as ApiVitalSigns } from '../../lib/api/vital-signs';
@@ -598,7 +599,7 @@ export function PharmacyWorkstationPage() {
     }
 
     let report = `【用藥建議報告】\n\n`;
-    report += `病患：${selectedPatient?.name} (${selectedPatient?.bedNumber})\n`;
+    report += `病患：${maskPatientName(selectedPatient?.name)} (${selectedPatient?.bedNumber})\n`;
     report += `日期：${new Date().toLocaleString('zh-TW')}\n`;
     report += `藥師：${user?.name}\n\n`;
     
@@ -743,7 +744,7 @@ export function PharmacyWorkstationPage() {
                 <SelectContent>
                   {patients.map(patient => (
                     <SelectItem key={patient.id} value={patient.id}>
-                      {patient.bedNumber} - {patient.name} ({patient.age}歲)
+                      {patient.bedNumber} - {maskPatientName(patient.name)} ({patient.age}歲)
                     </SelectItem>
                   ))}
                   {!patientsLoading && patients.length === 0 && (
@@ -764,7 +765,7 @@ export function PharmacyWorkstationPage() {
                     </div>
                     <div>
                       <p className="text-muted-foreground text-xs">姓名</p>
-                      <p className="font-semibold">{selectedPatient.name}</p>
+                      <p className="font-semibold">{maskPatientName(selectedPatient.name)}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground text-xs">年齡/身高/體重</p>
@@ -877,7 +878,7 @@ export function PharmacyWorkstationPage() {
         {viewMode === 'report' && assessmentResults ? (
           <PharmacyReportView
             selectedPatient={selectedPatient ? {
-              name: selectedPatient.name,
+              name: maskPatientName(selectedPatient.name),
               bedNumber: selectedPatient.bedNumber,
               age: selectedPatient.age,
               diagnosis: selectedPatient.diagnosis,

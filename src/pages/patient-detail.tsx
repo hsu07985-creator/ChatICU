@@ -25,6 +25,7 @@ import {
 } from '../lib/api/ai';
 import { patientsApi, labDataApi, medicationsApi, messagesApi, vitalSignsApi, ventilatorApi, type Patient, type LabData, type Medication, type PatientMessage, type VitalSigns, type VentilatorSettings, type WeaningAssessment } from '../lib/api';
 import { copyToClipboard } from '../lib/clipboard-utils';
+import { maskPatientName } from '../lib/utils/patient-name';
 import { useAuth } from '../lib/auth-context';
 import { usePatientScores } from '../hooks/use-patient-scores';
 import { useAiReadiness } from '../hooks/use-ai-readiness';
@@ -1317,7 +1318,7 @@ export function PatientDetailPage() {
                 </div>
                 <div>
                   <div className="flex items-center gap-3">
-                    <h1 className="text-3xl font-bold text-[#3c7acb]">{patient.name}</h1>
+                    <h1 className="text-3xl font-bold text-[#3c7acb]">{maskPatientName(patient.name)}</h1>
                     <span className="text-base text-slate-500 dark:text-slate-400">
                       {patient.age}歲 / {patient.gender === 'M' || patient.gender === '男' ? '男' : '女'}
                     </span>
@@ -1960,7 +1961,7 @@ export function PatientDetailPage() {
         <TabsContent value="records" className="space-y-4">
           <MedicalRecords
             patientId={patient.id}
-            patientName={patient.name}
+            patientName={maskPatientName(patient.name)}
             aiReadiness={aiReadiness}
             labData={labData}
             medications={allMedications}

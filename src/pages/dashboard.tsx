@@ -6,7 +6,8 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Label } from '../components/ui/label';
-import { Search, AlertCircle, AlertTriangle, Pencil, ZoomIn, ZoomOut, RefreshCw, DownloadCloud, Loader2 } from 'lucide-react';
+import { Search, AlertCircle, AlertTriangle, Pencil, ZoomIn, ZoomOut, RefreshCw, DownloadCloud, Loader2, FlaskConical } from 'lucide-react';
+import { maskPatientName } from '../lib/utils/patient-name';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Patient, updatePatient } from '../lib/api/patients';
 import { getCachedPatientsSync, invalidatePatients, subscribePatientsCache } from '../lib/patients-cache';
@@ -282,6 +283,12 @@ export function DashboardPage() {
 
   return (
     <div className="p-6 space-y-6">
+      <div>
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
+          <FlaskConical className="h-3.5 w-3.5" />
+          模擬資料
+        </div>
+      </div>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">加護病房總覽</h1>
@@ -463,7 +470,7 @@ export function DashboardPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1 pr-8">
                       <div className="flex items-center gap-2 mb-2">
-                        <CardTitle className="text-xl text-foreground">{patient.name}</CardTitle>
+                        <CardTitle className="text-xl text-foreground">{maskPatientName(patient.name)}</CardTitle>
                         {patient.intubated && (
                           <Badge className="bg-[#d1cbf7] text-brand hover:bg-[#d1cbf7]/90 dark:bg-[#4a2f5c] dark:text-[#efe3ff] dark:hover:bg-[#4a2f5c]/90">
                             插管中
