@@ -38,6 +38,12 @@ export interface Medication {
   prescribingDoctorName?: string | null;
   daysSupply?: number | null;
   isExternal?: boolean;
+  // Standardized codes (PR-1 / PR-2). atcCode is populated from the hospital
+  // formulary; frontend can use it for ATC-class matching (e.g. PAD drug ID).
+  atcCode?: string | null;
+  isAntibiotic?: boolean;
+  kidneyRelevant?: boolean | null;
+  codingSource?: 'formulary' | 'formulary+abx' | 'abx_only' | 'legacy_only' | 'manual' | 'rxnorm_cache' | 'unmapped' | string | null;
 }
 
 export interface MedicationAdministration {

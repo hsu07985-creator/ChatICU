@@ -120,6 +120,9 @@ export function PharmacyWorkstationPage() {
 
   // 藥品列表
   const [drugList, setDrugList] = useState<string[]>([]);
+  // name → atcCode for PAD/class matching. Populated from loadActiveMeds().
+  // Lookup happens by case-insensitive trim match against this map.
+  const [drugAtcByName, setDrugAtcByName] = useState<Record<string, string>>({});
   const [currentDrug, setCurrentDrug] = useState('');
 
   // 評估結果
@@ -145,9 +148,20 @@ export function PharmacyWorkstationPage() {
       if (!selectedPatient) return;
       try {
         const resp = await getMedications(selectedPatient.id, { status: 'active', limit: 200 });
-        const names = (resp.medications || []).map(m => m.name).filter(Boolean);
+        const meds = resp.medications || [];
+        const names = meds.map(m => m.name).filter(Boolean);
         const unique = Array.from(new Set(names));
-        if (!cancelled) setDrugList(unique);
+        // Build name → atcCode lookup for downstream PAD matcher (PR-1 ATC enrichment).
+        const atcMap: Record<string, string> = {};
+        for (const m of meds) {
+          if (m.name && m.atcCode) {
+            atcMap[m.name.trim().toLowerCase()] = m.atcCode;
+          }
+        }
+        if (!cancelled) {
+          setDrugList(unique);
+          setDrugAtcByName(atcMap);
+        }
       } catch (err) {
         console.error('載入病患用藥醫囑失敗，改用摘要 SAN 清單:', err);
         const sedation = selectedPatient.sedation || selectedPatient.sanSummary?.sedation || [];
@@ -371,6 +385,21 @@ export function PharmacyWorkstationPage() {
             'propofol', 'norepinephrine', 'vasopressin', 'nicardipine', 'ketamine',
           ];
 
+          // ATC codes for the 9 PAD drugs — lets us match by standardized code
+          // instead of brand-name string. Fixes cases like Nimbex (brand) where
+          // the brand name string doesn't contain "cisatracurium".
+          const PAD_KEY_TO_ATC: Record<string, string> = {
+            fentanyl:        'N01AH01',
+            morphine:        'N02AA01',
+            midazolam:       'N05CD08',
+            lorazepam:       'N05BA06',
+            propofol:        'N01AX10',
+            dexmedetomidine: 'N05CM18',
+            cisatracurium:   'M03AC11',
+            rocuronium:      'M03AC09',
+            haloperidol:     'N05AD01',
+          };
+
           let padDrugCatalog: PadDrugInfo[] = [];
           try {
             padDrugCatalog = await getCachedPadDrugs();
@@ -385,6 +414,18 @@ export function PharmacyWorkstationPage() {
           }
 
           const matchPadDrug = (medName: string): PadDrugInfo | null => {
+            // Path 1 (PR-1): try the standardized ATC code. Covers brand names
+            // (Nimbex → cisatracurium via M03AC11, Dormicum → midazolam via N05CD08).
+            const atc = drugAtcByName[medName.trim().toLowerCase()];
+            if (atc) {
+              for (const pad of padDrugCatalog) {
+                if (PAD_KEY_TO_ATC[pad.key] === atc) return pad;
+              }
+            }
+
+            // Path 2 (legacy string match): falls back when ATC isn't populated
+            // (e.g. drug was hand-typed by user) or when the PAD key isn't in
+            // PAD_KEY_TO_ATC (future drugs).
             const alpha = medName.replace(/[^a-zA-Z]/g, '').toLowerCase();
             const firstWord = medName.toLowerCase().split(/[\s(,/]/)[0].replace(/[^a-z]/g, '');
             for (const pad of padDrugCatalog) {
