@@ -1348,7 +1348,7 @@ export function PatientDetailPage() {
             <div className="flex items-center gap-2">
               {/* 臨床旗標 badges */}
               {patient.intubated && (
-                <Badge className="bg-[#d1cbf7] text-brand hover:bg-[#d1cbf7]/90">
+                <Badge className="bg-[#d1cbf7] text-brand hover:bg-[#d1cbf7]/90 dark:bg-[#4a2f5c] dark:text-[#efe3ff] dark:hover:bg-[#4a2f5c]/90">
                   插管中
                 </Badge>
               )}

@@ -1,4 +1,5 @@
-import { Home, Users, MessageSquare, Database, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Moon, Sun } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { Home, Users, MessageSquare, Database, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Moon, Sun, LogOut } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import logoImage from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 import {
@@ -15,6 +16,7 @@ import {
   SidebarFooter,
   useSidebar
 } from './ui/sidebar';
+import { useIsShortViewport } from './ui/use-mobile';
 import { useAuth } from '../lib/auth-context';
 import { Button } from './ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -23,8 +25,21 @@ export function AppSidebar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { state, toggleSidebar } = useSidebar();
+  const { state, toggleSidebar, setOpen, isMobile } = useSidebar();
   const { theme, setTheme } = useTheme();
+  const isShortViewport = useIsShortViewport();
+
+  // 橫置手機時高度太小，footer 會占掉大部分空間並擋到選單項目 → 自動收合為 icon-only
+  const hasAutoCollapsed = useRef(false);
+  useEffect(() => {
+    if (isMobile) return;
+    if (isShortViewport && !hasAutoCollapsed.current) {
+      setOpen(false);
+      hasAutoCollapsed.current = true;
+    } else if (!isShortViewport) {
+      hasAutoCollapsed.current = false;
+    }
+  }, [isShortViewport, isMobile, setOpen]);
 
   const handleLogout = async () => {
     await logout();
@@ -147,21 +162,26 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t space-y-2">
+      <SidebarFooter className="p-2 border-t space-y-1.5">
         <Button
           variant="outline"
+          size={isCollapsed ? 'icon' : 'default'}
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="w-full border-border text-foreground hover:bg-muted"
+          title={theme === 'dark' ? '淺色模式' : '深色模式'}
+          className={`${isCollapsed ? 'mx-auto' : 'w-full'} border-border text-foreground hover:bg-muted`}
         >
-          {theme === 'dark' ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
-          {!isCollapsed && (theme === 'dark' ? '淺色模式' : '深色模式')}
+          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {!isCollapsed && <span className="ml-2">{theme === 'dark' ? '淺色模式' : '深色模式'}</span>}
         </Button>
         <Button
           variant="outline"
+          size={isCollapsed ? 'icon' : 'default'}
           onClick={handleLogout}
-          className="w-full border-border text-foreground hover:bg-muted"
+          title="登出"
+          className={`${isCollapsed ? 'mx-auto' : 'w-full'} border-border text-foreground hover:bg-muted`}
         >
-          登出
+          <LogOut className="h-4 w-4" />
+          {!isCollapsed && <span className="ml-2">登出</span>}
         </Button>
       </SidebarFooter>
     </Sidebar>

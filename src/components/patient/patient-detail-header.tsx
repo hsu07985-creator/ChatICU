@@ -36,7 +36,7 @@ export function PatientDetailHeader({
                 <div className="flex items-center gap-3">
                   <h1 className="text-3xl font-bold text-[#3c7acb] dark:text-[#6fa3e8]">{patientName}</h1>
                   {isIntubated && (
-                    <Badge className="bg-[#d1cbf7] text-brand hover:bg-[#d1cbf7]/90">
+                    <Badge className="bg-[#d1cbf7] text-brand hover:bg-[#d1cbf7]/90 dark:bg-[#4a2f5c] dark:text-[#efe3ff] dark:hover:bg-[#4a2f5c]/90">
                       插管中
                     </Badge>
                   )}

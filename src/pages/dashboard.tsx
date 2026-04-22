@@ -465,7 +465,7 @@ export function DashboardPage() {
                       <div className="flex items-center gap-2 mb-2">
                         <CardTitle className="text-xl text-foreground">{patient.name}</CardTitle>
                         {patient.intubated && (
-                          <Badge variant="secondary" className="bg-slate-50 dark:bg-slate-800 text-brand border border-border">
+                          <Badge className="bg-[#d1cbf7] text-brand hover:bg-[#d1cbf7]/90 dark:bg-[#4a2f5c] dark:text-[#efe3ff] dark:hover:bg-[#4a2f5c]/90">
                             插管中
                           </Badge>
                         )}
