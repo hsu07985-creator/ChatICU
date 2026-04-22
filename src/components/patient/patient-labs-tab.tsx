@@ -1,10 +1,11 @@
-import { Activity, Bug, FileText, Plus, Stethoscope, TestTube, Wind } from 'lucide-react';
+import { Activity, Bug, FileText, Flame, Plus, Stethoscope, TestTube, Wind } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { LabData, VitalSigns, VentilatorSettings, WeaningAssessment } from '../../lib/api';
 import { createVitalSigns, type VitalSignsInput } from '../../lib/api/vital-signs';
 import { createVentilatorSettings, type VentilatorInput } from '../../lib/api/ventilator';
 import { LabDataDisplay } from '../lab-data-display';
+import { InflammationIndicesPanel } from '../lab-data-display/InflammationIndicesPanel';
 import { PatientDiagnosticReports } from './patient-diagnostic-reports';
 import { PatientMicrobiologyCard } from './patient-microbiology-card';
 import { VitalSignCard } from '../vital-signs-card';
@@ -60,7 +61,7 @@ const metricGridStyle = {
   gap: '8px',
 } as const;
 
-const VALID_LABS_SECTIONS = new Set(['lab-data', 'microbiology', 'reports']);
+const VALID_LABS_SECTIONS = new Set(['lab-data', 'microbiology', 'reports', 'inflammation']);
 const VALID_MONITOR_SECTIONS = new Set(['vital-signs', 'ventilator']);
 
 function isFiniteNumber(value: unknown): value is number {
@@ -223,7 +224,7 @@ export function PatientLabsTab({
       return true;
     });
   }
-  const setActiveSection = useCallback((section: 'lab-data' | 'microbiology' | 'reports') => {
+  const setActiveSection = useCallback((section: 'lab-data' | 'microbiology' | 'reports' | 'inflammation') => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       if (section === 'lab-data') {
@@ -467,6 +468,19 @@ export function PatientLabsTab({
             <FileText className="h-4 w-4" />
             Reports
           </button>
+          <button
+            type="button"
+            className={`flex h-10 min-w-[136px] items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors ${
+              activeSection === 'inflammation'
+                ? 'bg-brand text-white shadow-sm'
+                : 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-brand'
+            }`}
+            onClick={() => setActiveSection('inflammation')}
+            aria-pressed={activeSection === 'inflammation'}
+          >
+            <Flame className="h-4 w-4" />
+            Inflammation
+          </button>
         </div>
       </div>
 
@@ -474,6 +488,8 @@ export function PatientLabsTab({
         <LabDataDisplay labData={labData} patientId={patientId} />
       ) : activeSection === 'microbiology' ? (
         <PatientMicrobiologyCard patientId={patientId} />
+      ) : activeSection === 'inflammation' ? (
+        <InflammationIndicesPanel labData={labData} />
       ) : (
         <PatientDiagnosticReports patientId={patientId} />
       )}
