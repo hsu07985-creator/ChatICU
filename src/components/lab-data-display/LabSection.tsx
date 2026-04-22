@@ -31,6 +31,13 @@ const compactGridStyle = {
 
 export interface LabSectionProps {
   title: string;
+  subtitle?: string;
+  /**
+   * `'optional'` = amber header color + every LabItem rendered with
+   * `isOptional` (amber card styling). Mirrors the old "甲狀腺與荷爾蒙
+   * （選擇性追蹤）" treatment. Default = `'default'`.
+   */
+  variant?: 'default' | 'optional';
   items: RenderItem[];
   labData: LabData | null | undefined;
   onLabClick: (
@@ -44,15 +51,27 @@ export interface LabSectionProps {
 
 export function LabSection({
   title,
+  subtitle,
+  variant = 'default',
   items,
   labData,
   onLabClick,
 }: LabSectionProps): JSX.Element | null {
   if (items.length === 0) return null;
 
+  const isOptionalSection = variant === 'optional';
+  const headerColorClass = isOptionalSection ? 'text-[#f59e0b]' : 'text-brand';
+
   return (
     <div className="space-y-2">
-      <h3 className="text-xs font-semibold tracking-wide text-brand">{title}</h3>
+      <h3 className={`text-xs font-semibold tracking-wide ${headerColorClass}`}>
+        {title}
+        {subtitle && (
+          <span className="ml-1 text-[11px] font-normal text-muted-foreground">
+            {subtitle}
+          </span>
+        )}
+      </h3>
       <div className={compactGridClass} style={compactGridStyle}>
         {items.map((item) => {
           const defaultUnit = item.unit || '';
@@ -71,7 +90,7 @@ export function LabSection({
               onClick={() =>
                 onLabClick(item.itemName, String(item.category), value, unit, refRange)
               }
-              isOptional={item.pinned && value === undefined ? true : undefined}
+              isOptional={isOptionalSection ? true : undefined}
             />
           );
         })}

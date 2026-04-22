@@ -104,7 +104,6 @@ export function OtherSection({
                   onClick={() =>
                     onLabClick(item.itemName, String(item.category), value, unit, refRange)
                   }
-                  isOptional={item.pinned && value === undefined ? true : undefined}
                 />
               );
             })}

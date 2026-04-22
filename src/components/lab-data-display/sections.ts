@@ -42,20 +42,46 @@ export const SECTION_ORDER: SectionId[] = [
   'other',
 ];
 
-export const SECTION_TITLE: Record<SectionId, string> = {
-  electrolytes: '電解質',
-  hematology:   '血液學檢查',
-  inflammatory: '發炎指標',
-  abg:          '動脈血氣體分析',
-  vbg:          '靜脈血氣體分析',
-  liverRenal:   '肝腎功能',
-  coagulation:  '凝血功能',
-  biochemExtra: '其他生化',
-  endocrine:    '內分泌',
-  cardiac:      '心臟酵素',
-  lipid:        '脂質',
-  other:        '其他檢驗',
+/**
+ * Rich section metadata: title + optional subtitle/variant.
+ *
+ * `variant === 'optional'` flags the section as "selectively tracked":
+ *   - header is rendered in amber (text-[#f59e0b]) instead of text-brand
+ *   - all items inside render with `isOptional` (amber card styling)
+ *
+ * This replaces the old practice of inferring `isOptional` from
+ * `pinned && value === undefined`, which conflated two orthogonal concerns:
+ *   - `pinned`     = always reserve the slot (render card even when value missing)
+ *   - `isOptional` = visual "selectively tracked" hint (section-level only)
+ */
+export interface SectionMeta {
+  title: string;
+  subtitle?: string;
+  variant?: 'default' | 'optional';
+}
+
+export const SECTION_META: Record<SectionId, SectionMeta> = {
+  electrolytes: { title: '電解質與礦物質' },
+  hematology:   { title: '血液學檢查' },
+  inflammatory: { title: '發炎指標' },
+  abg:          { title: '動脈血氣體分析' },
+  vbg:          { title: '靜脈血氣體分析' },
+  liverRenal:   { title: '肝腎功能' },
+  coagulation:  { title: '凝血功能' },
+  biochemExtra: { title: '其他生化' },
+  endocrine:    { title: '內分泌', subtitle: '（選擇性追蹤）', variant: 'optional' },
+  cardiac:      { title: '心臟酵素' },
+  lipid:        { title: '脂質' },
+  other:        { title: '其他檢驗' },
 };
+
+// Back-compat: derived from SECTION_META so legacy imports keep working.
+export const SECTION_TITLE: Record<SectionId, string> =
+  Object.fromEntries(
+    (Object.entries(SECTION_META) as [SectionId, SectionMeta][]).map(
+      ([k, v]) => [k, v.title],
+    ),
+  ) as Record<SectionId, string>;
 
 // ---------------------------------------------------------------------------
 // 2.3 Category → Section default mapping

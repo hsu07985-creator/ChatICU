@@ -5,7 +5,7 @@ import { getLabTrends } from '../lib/api/lab-data';
 import {
   groupLabData,
   SECTION_ORDER,
-  SECTION_TITLE,
+  SECTION_META,
   type RenderItem,
   type SectionId,
 } from './lab-data-display/sections';
@@ -195,11 +195,12 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         {SECTION_ORDER.map((sid: SectionId) => {
           const items: RenderItem[] = sections.get(sid) ?? [];
           if (items.length === 0) return null;
+          const meta = SECTION_META[sid];
           if (sid === 'other') {
             return (
               <OtherSection
                 key={sid}
-                title={SECTION_TITLE[sid]}
+                title={meta.title}
                 items={items}
                 labData={labData ?? null}
                 onLabClick={handleLabClick}
@@ -209,7 +210,9 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
           return (
             <LabSection
               key={sid}
-              title={SECTION_TITLE[sid]}
+              title={meta.title}
+              subtitle={meta.subtitle}
+              variant={meta.variant}
               items={items}
               labData={labData ?? null}
               onLabClick={handleLabClick}
