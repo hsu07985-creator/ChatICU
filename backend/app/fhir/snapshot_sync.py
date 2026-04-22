@@ -301,6 +301,30 @@ async def reconcile_medications(
     }
 
 
+def compute_medication_coverage(medications: list[dict[str, Any]]) -> dict[str, Any]:
+    """Summarise ATC coverage of a patient's medications (PR-4).
+
+    Returns counts by coding_source + top-level coverage pct.
+    """
+    from collections import Counter
+
+    total = len(medications)
+    by_source = Counter(m.get("coding_source") or "missing" for m in medications)
+    with_atc = sum(1 for m in medications if m.get("atc_code"))
+    unmapped = [
+        {"order_code": m.get("order_code"), "name": m.get("name")}
+        for m in medications
+        if not m.get("atc_code") and m.get("order_code")
+    ]
+    return {
+        "total": total,
+        "with_atc": with_atc,
+        "coverage_pct": round(100 * with_atc / total, 1) if total else 0,
+        "by_source": dict(by_source),
+        "unmapped_top": unmapped[:10],
+    }
+
+
 async def sync_snapshot_into_session(session: Any, snapshot: SnapshotInfo) -> dict[str, Any]:
     converter = HISConverter(str(snapshot.snapshot_dir), pat_no=snapshot.mrn)
     result = converter.convert_all()
@@ -322,6 +346,9 @@ async def sync_snapshot_into_session(session: Any, snapshot: SnapshotInfo) -> di
         replace_counts[table] = await replace_patient_records(session, table, patient_id, records)
 
     medication_summary = await reconcile_medications(session, patient_id, result["medications"])
+    # PR-4: per-patient ATC coverage report written to disk for operator audit.
+    coverage = compute_medication_coverage(result["medications"])
+    write_coverage_report(snapshot.mrn, patient_id, snapshot.snapshot_id, coverage)
 
     return {
         "patient_id": patient_id,
@@ -332,11 +359,41 @@ async def sync_snapshot_into_session(session: Any, snapshot: SnapshotInfo) -> di
         "normalized_hash": snapshot.normalized_hash,
         "format_type": snapshot.format_type,
         "medications": medication_summary,
+        "medication_coverage": coverage,
         "lab_data": replace_counts["lab_data"],
         "culture_results": replace_counts["culture_results"],
         "diagnostic_reports": replace_counts["diagnostic_reports"],
         "synced_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def write_coverage_report(
+    mrn: str, patient_id: str, snapshot_id: str, coverage: dict[str, Any]
+) -> None:
+    """Write per-patient medication ATC coverage to backend/.logs/his_sync/."""
+    from pathlib import Path
+
+    log_dir = Path(__file__).resolve().parents[2] / ".logs" / "his_sync"
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+        out_path = log_dir / f"coverage_{mrn}_{snapshot_id}.json"
+        out_path.write_text(
+            json.dumps(
+                {
+                    "mrn": mrn,
+                    "patient_id": patient_id,
+                    "snapshot_id": snapshot_id,
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
+                    **coverage,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+    except Exception:
+        # Coverage report is best-effort; never fail the sync on disk errors.
+        pass
 
 
 def _coerce_count(entry: Any, key: str = "added") -> int:
