@@ -84,7 +84,7 @@ export function DischargedPatientsPage() {
     try {
       setLoading(true);
       setError(null);
-      const resp = await patientsApi.getPatients({ archived: true, limit: 500 });
+      const resp = await patientsApi.getPatients({ archived: true, limit: 100 });
       const list = (resp.patients ?? []).filter((p) => p.archived !== false);
       setPatients(list);
     } catch (err) {
