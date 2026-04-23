@@ -27,6 +27,35 @@ from app.utils.response import success_response
 router = APIRouter(prefix="/patients/{patient_id}/medications", tags=["medications"])
 
 
+# Drug-name prefixes that are ions / elements / classes — too generic to act
+# as a standalone identifier. If a DDI rule's drug name starts with one of
+# these, it must also fuzzy-match a patient drug by name; otherwise the row is
+# treated as polluted (e.g. backfilled with the wrong ATC) and skipped.
+_DDI_AMBIGUOUS_PREFIXES = (
+    "sodium ", "potassium ", "calcium ", "magnesium ",
+    "iron ", "ferric ", "ferrous ", "aluminum ", "aluminium ",
+    "zinc ", "lithium ", "insulin ",
+)
+
+
+def _ddi_drug_polluted(rule_drug: Optional[str], patient_names_lower: set) -> bool:
+    if not rule_drug:
+        return False
+    s = rule_drug.strip().lower()
+    if not any(s.startswith(p) for p in _DDI_AMBIGUOUS_PREFIXES):
+        return False
+    # Ambiguous-prefix rule → require an explicit name presence on the patient.
+    if s in patient_names_lower:
+        return False
+    first_token = s.split(" ", 1)[0]
+    for name in patient_names_lower:
+        if first_token and name.startswith(first_token + " "):
+            return False
+        if name and s.startswith(name + " "):
+            return False
+    return True
+
+
 def normalize_san_category(raw: Optional[str]) -> Optional[str]:
     if raw is None:
         return None
@@ -219,7 +248,13 @@ async def list_medications(
                     ),
                     {"atcs": list(med_atcs)},
                 )
+                # Defense against ATC backfill collisions (see migration 065):
+                # drop rows where either side starts with an ambiguous ion/
+                # element prefix and is not present on the patient by name.
+                names_lower = {n.lower() for n in med_names}
                 for row in r:
+                    if _ddi_drug_polluted(row[1], names_lower) or _ddi_drug_polluted(row[2], names_lower):
+                        continue
                     int_rows.setdefault(row[0], row)
 
             for row in int_rows.values():

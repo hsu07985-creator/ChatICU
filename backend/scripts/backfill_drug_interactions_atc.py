@@ -47,6 +47,18 @@ def get_database_url() -> str:
     raise RuntimeError("DATABASE_URL missing")
 
 
+# Generic ion / element / class prefixes that, on their own, are not
+# specific drugs. If a multi-word name starts with one of these (e.g.
+# "Sodium Zirconium Cyclosilicate"), first-word matching collides with
+# the first sibling in the formulary (e.g. "Sodium chloride" → B05XA03)
+# and pollutes every Sodium-* DDI rule with the saline ATC.
+_AMBIGUOUS_FIRST_WORDS = frozenset({
+    "sodium", "potassium", "calcium", "magnesium",
+    "iron", "ferric", "ferrous", "aluminum", "aluminium",
+    "zinc", "lithium", "insulin",
+})
+
+
 def build_name_to_atc() -> dict[str, str]:
     """Compose the lookup table from formulary + RxNorm cache."""
     out: dict[str, str] = {}
@@ -62,9 +74,12 @@ def build_name_to_atc() -> dict[str, str]:
                 continue
             # Full match (lowercased)
             out.setdefault(ingr.lower(), atc)
-            # First word (the English generic is usually first)
+            # First word (the English generic is usually first).
+            # Skip when the first word is an ambiguous ion/element/class —
+            # otherwise e.g. "Sodium chloride" makes every "Sodium *" drug
+            # resolve to B05XA03 (saline).
             first = re.split(r"[\s\(\[/\-]", ingr)[0].strip().lower()
-            if first:
+            if first and first not in _AMBIGUOUS_FIRST_WORDS:
                 out.setdefault(first, atc)
 
     # From RxNorm cache — keys are already lowercased generics
@@ -88,9 +103,11 @@ def lookup_atc(drug_name: str, name_to_atc: dict[str, str]) -> str | None:
     if key in name_to_atc:
         return name_to_atc[key]
 
-    # 2) First word only (e.g. "Morphine (Systemic)" → "morphine")
+    # 2) First word only (e.g. "Morphine (Systemic)" → "morphine").
+    # Skip this fallback when the first word is an ambiguous prefix to
+    # avoid mis-mapping multi-word salts like "Sodium Zirconium Cyclosilicate".
     first = re.split(r"[\s\(\[/\-]", drug_name)[0].strip().lower()
-    if first and first in name_to_atc:
+    if first and first not in _AMBIGUOUS_FIRST_WORDS and first in name_to_atc:
         return name_to_atc[first]
 
     # 3) Strip common suffixes
