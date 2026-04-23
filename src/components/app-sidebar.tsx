@@ -36,13 +36,15 @@ export function AppSidebar() {
     : undefined;
 
   // 橫置手機時高度太小，footer 會占掉大部分空間並擋到選單項目 → 自動收合為 icon-only
+  // 視窗恢復高度時要自動展開回來，否則會卡在 icon-only 狀態（sidebar_state cookie 讓問題更明顯）
   const hasAutoCollapsed = useRef(false);
   useEffect(() => {
     if (isMobile) return;
     if (isShortViewport && !hasAutoCollapsed.current) {
       setOpen(false);
       hasAutoCollapsed.current = true;
-    } else if (!isShortViewport) {
+    } else if (!isShortViewport && hasAutoCollapsed.current) {
+      setOpen(true);
       hasAutoCollapsed.current = false;
     }
   }, [isShortViewport, isMobile, setOpen]);
@@ -116,6 +118,7 @@ export function AppSidebar() {
               <SidebarMenuButton
                 asChild
                 isActive={isActive(item.url)}
+                tooltip={item.title}
               >
                 <a
                   href={item.url}
@@ -156,8 +159,8 @@ export function AppSidebar() {
           title={isCollapsed ? '展開側邊欄' : '收起側邊欄'}
         >
           {isCollapsed ? (
-            <div className="flex items-center justify-center p-2.5">
-              <img src={logoImage} alt="ChatICU" className="h-8 w-8 rounded-full shadow-md object-cover" />
+            <div className="flex items-center justify-center py-2">
+              <img src={logoImage} alt="ChatICU" className="h-7 w-7 aspect-square shrink-0 rounded-full shadow-md object-cover" />
             </div>
           ) : (
             <div className="flex items-center gap-3 p-4">
