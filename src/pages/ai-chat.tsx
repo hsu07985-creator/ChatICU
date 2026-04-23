@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   AlertCircle,
+  Archive,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -12,8 +14,11 @@ import {
   Send,
   Sparkles,
   Trash2,
+  User,
   X,
 } from 'lucide-react';
+import { patientsApi, type Patient } from '../lib/api';
+import { maskPatientName } from '../lib/utils/patient-name';
 import {
   deleteChatSession,
   extractStreamMainContent,
@@ -150,6 +155,51 @@ function mapApiMessage(item: {
 }
 
 export function AiChatPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // patientId / patientIds URL params
+  const urlPatientId = searchParams.get('patientId') ?? undefined;
+  const urlPatientIds = useMemo(() => {
+    const raw = searchParams.get('patientIds');
+    if (!raw) return [] as string[];
+    return raw.split(',').map((s) => s.trim()).filter(Boolean);
+  }, [searchParams]);
+
+  const effectivePatientId = urlPatientId ?? (urlPatientIds.length >= 1 ? urlPatientIds[0] : undefined);
+  const isMultiPatientRequested = urlPatientIds.length > 1;
+
+  const [contextPatient, setContextPatient] = useState<Patient | null>(null);
+  const [contextLoading, setContextLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!effectivePatientId) {
+      setContextPatient(null);
+      return;
+    }
+    setContextLoading(true);
+    patientsApi
+      .getPatient(effectivePatientId)
+      .then((p) => {
+        if (!cancelled) setContextPatient(p);
+      })
+      .catch(() => {
+        if (!cancelled) setContextPatient(null);
+      })
+      .finally(() => {
+        if (!cancelled) setContextLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [effectivePatientId]);
+
+  const clearPatientContext = useCallback(() => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('patientId');
+    next.delete('patientIds');
+    navigate({ pathname: '/ai-chat', search: next.toString() ? `?${next}` : '' }, { replace: true });
+  }, [navigate, searchParams]);
+
   const { aiReadiness } = useAiReadiness();
   const canSendAiChat = aiReadiness ? aiReadiness.feature_gates.chat : true;
   const aiChatGateReason = getReadinessReason(aiReadiness, 'chat');
@@ -177,12 +227,14 @@ export function AiChatPage() {
 
   const refreshSessions = useCallback(async () => {
     try {
-      const data = await getChatSessions({ noPatient: true });
+      const data = effectivePatientId
+        ? await getChatSessions({ patientId: effectivePatientId })
+        : await getChatSessions({ noPatient: true });
       setSessions(data.sessions.map(mapApiSession));
     } catch {
       setSessions([]);
     }
-  }, []);
+  }, [effectivePatientId]);
 
   useEffect(() => {
     void refreshSessions();
@@ -305,6 +357,7 @@ export function AiChatPage() {
         streamChatMessage({
           message: userMessage,
           sessionId: selectedSessionId,
+          patientId: effectivePatientId,
           onThinking: (detail) => setThinkingStatus(detail),
           onMessage: (chunk) => {
             if (!chunk) return;
@@ -377,7 +430,7 @@ export function AiChatPage() {
       setIsSending(false);
       setThinkingStatus(null);
     }
-  }, [aiChatGateReason, canSendAiChat, chatInput, chatMessages, isSending, refreshSessions, selectedSessionId]);
+  }, [aiChatGateReason, canSendAiChat, chatInput, chatMessages, effectivePatientId, isSending, refreshSessions, selectedSessionId]);
 
   const now = new Date();
   const todayDateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -389,9 +442,60 @@ export function AiChatPage() {
       <div className="flex items-center gap-2">
         <Sparkles className="h-5 w-5 text-brand" />
         <h1 className="text-xl font-semibold text-foreground">AI 問答</h1>
+        {effectivePatientId && (
+          <Badge variant="outline" className="ml-2 text-xs">已載入病人病歷背景</Badge>
+        )}
       </div>
 
-      {!disclaimerCollapsed && (
+      {/* 病人病歷 context banner */}
+      {effectivePatientId && (
+        <div className="flex items-start gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:border-sky-900/40 dark:bg-sky-900/20 dark:text-sky-200">
+          <User className="h-4 w-4 shrink-0 mt-0.5 text-sky-600" />
+          <div className="flex-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+            {contextLoading ? (
+              <span>載入病人資料中...</span>
+            ) : contextPatient ? (
+              <>
+                <span className="font-medium">
+                  正在詢問：{contextPatient.bedNumber ? `${contextPatient.bedNumber} · ` : ''}
+                  {maskPatientName(contextPatient.name)}
+                </span>
+                {contextPatient.archived && (
+                  <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700">
+                    <Archive className="h-3 w-3 mr-1" />
+                    已出院{contextPatient.dischargeDate ? ` · ${contextPatient.dischargeDate}` : ''}
+                  </Badge>
+                )}
+                {contextPatient.diagnosis && (
+                  <span className="text-muted-foreground truncate max-w-md">{contextPatient.diagnosis}</span>
+                )}
+              </>
+            ) : (
+              <span>找不到病人資料（ID: {effectivePatientId}）</span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={clearPatientContext}
+            className="shrink-0 text-sky-700 hover:text-sky-900 underline text-xs"
+            title="移除病人背景，改為通用問答"
+          >
+            移除
+          </button>
+        </div>
+      )}
+
+      {/* 多病人問答尚未支援的提示 */}
+      {isMultiPatientRequested && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />
+          <span className="flex-1">
+            您選取了 {urlPatientIds.length} 位病人，但多病人同時問答功能開發中。目前僅載入第一位病人作為背景。
+          </span>
+        </div>
+      )}
+
+      {!disclaimerCollapsed && !effectivePatientId && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
           <Info className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
           <span className="flex-1">
