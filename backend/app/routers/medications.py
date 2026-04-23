@@ -32,9 +32,15 @@ router = APIRouter(prefix="/patients/{patient_id}/medications", tags=["medicatio
 # these, it must also fuzzy-match a patient drug by name; otherwise the row is
 # treated as polluted (e.g. backfilled with the wrong ATC) and skipped.
 _DDI_AMBIGUOUS_PREFIXES = (
+    # Ions / elements
     "sodium ", "potassium ", "calcium ", "magnesium ",
     "iron ", "ferric ", "ferrous ", "aluminum ", "aluminium ",
-    "zinc ", "lithium ", "insulin ",
+    "zinc ", "lithium ",
+    # Hormone / protein / class prefixes
+    "insulin ", "insulim ",
+    # Modifiers / descriptors
+    "human ", "hepatitis ", "vitamin ", "amino ", "recombinant ",
+    "mag. ",
 )
 
 
@@ -44,14 +50,15 @@ def _ddi_drug_polluted(rule_drug: Optional[str], patient_names_lower: set) -> bo
     s = rule_drug.strip().lower()
     if not any(s.startswith(p) for p in _DDI_AMBIGUOUS_PREFIXES):
         return False
-    # Ambiguous-prefix rule → require an explicit name presence on the patient.
-    if s in patient_names_lower:
-        return False
-    first_token = s.split(" ", 1)[0]
+    # Ambiguous-prefix rule → require more than just shared first-word with a
+    # patient drug. The rule name must be an exact match, a substring of a
+    # patient drug, or contain a patient drug (allows formulation drift like
+    # "Sodium Bicarbonate Tab" vs rule "Sodium Bicarbonate"). Shared first
+    # word alone is what caused the original bug — never enough on its own.
     for name in patient_names_lower:
-        if first_token and name.startswith(first_token + " "):
-            return False
-        if name and s.startswith(name + " "):
+        if not name:
+            continue
+        if s == name or s in name or name in s:
             return False
     return True
 
@@ -220,6 +227,7 @@ async def list_medications(
 
             # Dedup by DDI row id across both query paths
             int_rows: dict = {}
+            names_lower = {n.lower() for n in med_names}
 
             # Path 1: name-based (legacy; still runs to catch class-name rules
             # like "Aminoglycosides", "Cephalosporins" in DDI.drug1/drug2)
@@ -248,14 +256,20 @@ async def list_medications(
                     ),
                     {"atcs": list(med_atcs)},
                 )
-                # Defense against ATC backfill collisions (see migration 065):
-                # drop rows where either side starts with an ambiguous ion/
-                # element prefix and is not present on the patient by name.
-                names_lower = {n.lower() for n in med_names}
                 for row in r:
-                    if _ddi_drug_polluted(row[1], names_lower) or _ddi_drug_polluted(row[2], names_lower):
-                        continue
                     int_rows.setdefault(row[0], row)
+
+            # Defense against ATC backfill collisions (see migration 065) and
+            # any future name-path drift: drop rows where either drug name
+            # starts with an ambiguous ion/element/class prefix and is not
+            # actually present on the patient by name. Applied uniformly so
+            # Path 1 cannot leak a polluted rule either.
+            int_rows = {
+                rid: row
+                for rid, row in int_rows.items()
+                if not (_ddi_drug_polluted(row[1], names_lower)
+                        or _ddi_drug_polluted(row[2], names_lower))
+            }
 
             for row in int_rows.values():
                 interactions.append({

@@ -53,9 +53,15 @@ def get_database_url() -> str:
 # the first sibling in the formulary (e.g. "Sodium chloride" → B05XA03)
 # and pollutes every Sodium-* DDI rule with the saline ATC.
 _AMBIGUOUS_FIRST_WORDS = frozenset({
+    # Ions / elements
     "sodium", "potassium", "calcium", "magnesium",
     "iron", "ferric", "ferrous", "aluminum", "aluminium",
-    "zinc", "lithium", "insulin",
+    "zinc", "lithium",
+    # Hormone / protein / class prefixes
+    "insulin", "insulim",  # `insulim` is a formulary typo variant
+    # Modifiers / descriptors that are not standalone drugs
+    "human", "hepatitis", "vitamin", "amino", "recombinant",
+    "mag.",  # abbreviation with three distinct ATCs in formulary
 })
 
 

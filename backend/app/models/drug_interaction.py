@@ -14,6 +14,10 @@ class DrugInteraction(Base):
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
     drug1: Mapped[str] = mapped_column(String(200), index=True)
     drug2: Mapped[str] = mapped_column(String(200), index=True)
+    # ATC codes populated by scripts/backfill_drug_interactions_atc.py.
+    # Added here for test DB schema parity with migration 061 (+065 reset).
+    drug1_atc: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, index=True)
+    drug2_atc: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, index=True)
     severity: Mapped[str] = mapped_column(String(20))  # minor, moderate, major
     mechanism: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     clinical_effect: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
