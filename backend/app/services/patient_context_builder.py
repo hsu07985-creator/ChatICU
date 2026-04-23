@@ -21,6 +21,7 @@ from app.models.vital_sign import VitalSign
 from app.models.ventilator import VentilatorSetting
 from app.models.diagnostic_report import DiagnosticReport
 from app.models.clinical_score import ClinicalScore
+from app.utils.duplicate_check import format_duplicate_metadata, format_duplicate_text
 
 logger = logging.getLogger("chaticu")
 
@@ -574,6 +575,56 @@ def _fmt_reports_section(reports: List[DiagnosticReport]) -> str:
     return "\n".join(lines)
 
 
+def _infer_duplicate_context(patient: Optional[Patient]) -> str:
+    """Infer DuplicateDetector context from the patient's unit/ward.
+
+    Returns one of "icu" | "inpatient"; falls back to "inpatient" when the
+    unit is unknown. Outpatient/discharge are not reachable from the chat
+    snapshot (those flows have their own builders).
+    """
+    if patient is None:
+        return "inpatient"
+    unit = (getattr(patient, "unit", None) or "").strip().lower()
+    if "icu" in unit:
+        return "icu"
+    return "inpatient"
+
+
+async def _safe_duplicate_warnings(
+    db: AsyncSession, meds: List[Medication], context: str
+) -> List[Dict[str, Any]]:
+    """Wrap format_duplicate_metadata with failure isolation.
+
+    A detector crash must NOT break snapshot build — chat must stay online
+    even if the duplicate-detection pipeline has a bad day. On any exception
+    we log at WARNING and return an empty list, matching the contract of
+    format_duplicate_metadata's own defensive fallback.
+    """
+    try:
+        return await format_duplicate_metadata(db, meds, context=context)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning(
+            "build_clinical_snapshot: duplicate detection failed (%s); "
+            "continuing without duplicate_warnings",
+            exc,
+        )
+        return []
+
+
+def _fmt_duplicate_section(warnings: List[Dict[str, Any]]) -> str:
+    """Wrap format_duplicate_text output so it slots into the snapshot cleanly.
+
+    ``format_duplicate_text`` already returns an empty string when there are
+    no warnings (matching ``ddi_check.format_ddi_metadata``); this helper just
+    strips the leading newline that the prompt block carries and prefixes a
+    Chinese section header consistent with the rest of the snapshot.
+    """
+    block = format_duplicate_text(warnings)
+    if not block:
+        return ""
+    return block.lstrip("\n")
+
+
 def _fmt_scores_section(scores: List[ClinicalScore]) -> str:
     parts = []
     score_map = {s.score_type: s.value for s in scores}
@@ -632,6 +683,17 @@ async def build_clinical_snapshot(patient_id: str, db: AsyncSession) -> str:
         "",
         _fmt_med_section(meds),
     ]
+
+    # Duplicate-medication warnings (Wave 3 — docs/duplicate-medication-integration-plan.md §4.2).
+    # Runs after _fmt_med_section so the LLM sees the med list first, then the
+    # auto-detected duplicates that refer back to it. Failure is isolated in
+    # _safe_duplicate_warnings; a detector crash drops the section silently.
+    duplicate_warnings = await _safe_duplicate_warnings(
+        db, meds, context=_infer_duplicate_context(patient)
+    )
+    duplicate_section = _fmt_duplicate_section(duplicate_warnings)
+    if duplicate_section:
+        sections += ["", duplicate_section]
 
     reports_section = _fmt_reports_section(reports)
     if reports_section:

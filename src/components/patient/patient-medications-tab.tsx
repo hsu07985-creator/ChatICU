@@ -3,8 +3,10 @@ import type { Medication } from '../../lib/api';
 import type { DrugInteraction as ApiDrugInteraction } from '../../lib/api/medications';
 import type { UserRole } from '../../lib/auth-context';
 import { isAntibiotic } from '../../lib/antibiotic-codes';
-import { updateMedication } from '../../lib/api/medications';
+import { updateMedication, getMedicationDuplicates } from '../../lib/api/medications';
+import { useApiQuery } from '../../hooks/use-api-query';
 import { DrugInteractionBadges, type DrugInteraction as BadgeDrugInteraction } from './drug-interaction-badges';
+import { MedicationDuplicateBadges } from './medication-duplicate-badges';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
@@ -590,6 +592,28 @@ export function PatientMedicationsTab({
   onCloseScoreTrend,
   onRefreshMedications,
 }: PatientMedicationsTabProps) {
+  // Duplicate-medication detection (Wave 2) — mirrors the DDI banner.
+  // Fail silently: if the endpoint errors, the rest of the tab still renders.
+  const duplicateContext: 'inpatient' = 'inpatient';
+  const { data: duplicateData } = useApiQuery<
+    { alerts: import('../../lib/api/medications').DuplicateAlert[]; counts: Record<string, number> }
+  >({
+    queryKey: ['medication-duplicates', patientId ?? '', duplicateContext],
+    queryFn: async () => {
+      try {
+        return await getMedicationDuplicates(patientId!, duplicateContext);
+      } catch (err) {
+        // Don't let a detector outage break the medications tab.
+        console.warn('[medication-duplicates] fetch failed', err);
+        return { alerts: [], counts: {} };
+      }
+    },
+    enabled: Boolean(patientId),
+    staleTime: 30_000,
+    retry: 0,
+  });
+  const duplicateAlerts = duplicateData?.alerts ?? [];
+
   // medView：all=全部 / active=使用中 / regular=常規（使用中且非 PRN,STAT）/ discontinued=已停用 / duplicate=重複用藥
   const [medView, setMedView] = useState<'active' | 'regular' | 'discontinued' | 'all' | 'duplicate'>('active');
   const [detailMedication, setDetailMedication] = useState<Medication | null>(null);
@@ -915,6 +939,9 @@ export function PatientMedicationsTab({
                 const hasRiskX = mapped.some((m) => m.risk.toUpperCase() === 'X');
                 return <DrugInteractionBadges interactions={mapped} hasRiskX={hasRiskX} />;
               })()}
+              {duplicateAlerts.length > 0 && medView !== 'discontinued' && medView !== 'duplicate' && (
+                <MedicationDuplicateBadges alerts={duplicateAlerts} />
+              )}
               {medView === 'duplicate' ? (
                 <div className="space-y-2">
                   <p className="text-xs text-orange-700 dark:text-orange-400 mb-2">

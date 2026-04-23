@@ -160,3 +160,38 @@ export async function recordAdministration(
   return ensureData(response.data, 'API contract');
 }
 
+// ── Duplicate medication detection (Wave 1) ─────────────────────────
+// Backed by GET /patients/{patient_id}/medication-duplicates — see
+// docs/duplicate-medication-integration-plan.md §7.
+export interface DuplicateAlertMember {
+  medicationId: string;
+  genericName: string;
+  atcCode: string | null;
+  route: string | null;
+  isPrn: boolean;
+  lastAdminAt: string | null;
+}
+
+export interface DuplicateAlert {
+  fingerprint: string;
+  level: 'critical' | 'high' | 'moderate' | 'low' | 'info';
+  layer: 'L1' | 'L2' | 'L3' | 'L4';
+  mechanism: string;
+  members: DuplicateAlertMember[];
+  recommendation: string;
+  evidenceUrl: string | null;
+  autoDowngraded: boolean;
+  downgradeReason: string | null;
+}
+
+export async function getMedicationDuplicates(
+  patientId: string,
+  context: 'inpatient' | 'outpatient' | 'icu' | 'discharge' = 'inpatient'
+): Promise<{ alerts: DuplicateAlert[]; counts: Record<string, number> }> {
+  const params = new URLSearchParams({ context });
+  const response = await apiClient.get<
+    ApiResponse<{ alerts: DuplicateAlert[]; counts: Record<string, number> }>
+  >(`/patients/${patientId}/medication-duplicates?${params}`);
+  return ensureData(response.data, 'API contract');
+}
+
