@@ -78,7 +78,6 @@ export function DischargedPatientsPage() {
   const [total, setTotal] = useState(0);
 
   const [search, setSearch] = useState('');
-  const [dischargeType, setDischargeType] = useState<'all' | DischargeType>('all');
   const [physician, setPhysician] = useState<'all' | string>('all');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -160,27 +159,12 @@ export function DischargedPatientsPage() {
         const haystack = `${p.name ?? ''} ${p.bedNumber ?? ''} ${p.medicalRecordNumber ?? ''}`.toLowerCase();
         if (!haystack.includes(term)) return false;
       }
-      if (dischargeType !== 'all' && p.dischargeType !== dischargeType) return false;
       if (physician !== 'all' && p.attendingPhysician !== physician) return false;
       if (fromDate && p.dischargeDate && p.dischargeDate < fromDate) return false;
       if (toDate && p.dischargeDate && p.dischargeDate > toDate) return false;
       return true;
     });
-  }, [patients, search, dischargeType, physician, fromDate, toDate]);
-
-  const stats = useMemo(() => {
-    const now = new Date();
-    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const byType: Record<DischargeType, number> = { discharge: 0, transfer: 0, death: 0, other: 0 };
-    let thisMonth = 0;
-    for (const p of patients) {
-      if (p.dischargeType && byType[p.dischargeType as DischargeType] !== undefined) {
-        byType[p.dischargeType as DischargeType]++;
-      }
-      if (p.dischargeDate?.startsWith(monthKey)) thisMonth++;
-    }
-    return { total: patients.length, thisMonth, byType };
-  }, [patients]);
+  }, [patients, search, physician, fromDate, toDate]);
 
   const allVisibleSelected = filtered.length > 0 && filtered.every((p) => selectedIds.has(p.id));
   const toggleAll = () => {
@@ -279,40 +263,6 @@ export function DischargedPatientsPage() {
         </div>
       </div>
 
-      {/* 統計摘要 */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">總數</div>
-            <div className="text-2xl font-bold mt-1">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">本月出院</div>
-            <div className="text-2xl font-bold mt-1">{stats.thisMonth}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">一般出院</div>
-            <div className="text-2xl font-bold mt-1 text-emerald-700 dark:text-emerald-300">{stats.byType.discharge}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">轉院</div>
-            <div className="text-2xl font-bold mt-1 text-sky-700 dark:text-sky-300">{stats.byType.transfer}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">死亡</div>
-            <div className="text-2xl font-bold mt-1 text-slate-700 dark:text-slate-300">{stats.byType.death}</div>
-          </CardContent>
-        </Card>
-      </div>
-
       <Card>
         <CardHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -324,20 +274,6 @@ export function DischargedPatientsPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
               />
-            </div>
-
-            <div>
-              <Label className="text-xs text-muted-foreground">出院類別</Label>
-              <Select value={dischargeType} onValueChange={(v) => setDischargeType(v as typeof dischargeType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部類別</SelectItem>
-                  <SelectItem value="discharge">一般出院</SelectItem>
-                  <SelectItem value="transfer">轉院/轉出</SelectItem>
-                  <SelectItem value="death">死亡</SelectItem>
-                  <SelectItem value="other">其他</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             <div>
@@ -514,7 +450,7 @@ export function DischargedPatientsPage() {
                   <span className="ml-2">（第 {page} / {totalPages} 頁）</span>
                 )}
               </div>
-              {(search || dischargeType !== 'all' || physician !== 'all' || fromDate || toDate) && hasMore && (
+              {(search || physician !== 'all' || fromDate || toDate) && hasMore && (
                 <div className="text-amber-700 dark:text-amber-300">
                   篩選條件僅套用於已載入的資料，若找不到病人請往下捲動或點「載入更多」載入全部
                 </div>
