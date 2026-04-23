@@ -1,3 +1,4 @@
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Tuple
@@ -19,6 +20,10 @@ from app.schemas.admin import AdviceRecordCreate
 from app.utils.response import success_response
 
 router = APIRouter(tags=["pharmacy"])
+
+# Matches a tag whose leading token is a VPN pharmacy-care code
+# (e.g. "1-A 給藥問題", "2-10 用藥劑量" for legacy numeric, bare "4-U", ...).
+_VPN_TAG_PATTERN = re.compile(r"^\d+-[A-Z\d]+(\s|$)")
 
 
 def advice_to_dict(a: PharmacyAdvice) -> dict:
@@ -236,6 +241,86 @@ async def get_advice_tag_stats(
     tag_stats = [{"tag": row.tag, "count": int(row.cnt)} for row in result.all()]
 
     return success_response(data={"tagStats": tag_stats})
+
+
+@router.get("/advice-records/orphan-tag-stats")
+async def get_orphan_tag_stats(
+    month: str = Query(None, description="YYYY-MM format filter"),
+    sample_limit: int = Query(20, ge=0, le=100),
+    user: User = Depends(require_roles("pharmacist", "admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Observability: bulletin-board messages carrying VPN-code tags but not
+    linked to a ``PharmacyAdvice`` row (``advice_record_id IS NULL``).
+
+    These "orphan" tags won't show up in the admin pharmacy-intervention
+    statistics page. Frontend task F22 drives them to zero by routing all
+    VPN tagging through the advice widget; this endpoint lets admins watch
+    the backlog drain during that migration.
+    """
+    query = select(
+        PatientMessage.id,
+        PatientMessage.patient_id,
+        PatientMessage.message_type,
+        PatientMessage.tags,
+        PatientMessage.timestamp,
+        PatientMessage.content,
+    ).where(
+        PatientMessage.tags.isnot(None),
+        PatientMessage.advice_record_id.is_(None),
+    )
+
+    if month:
+        try:
+            start, end = _parse_month_range(month)
+            query = query.where(
+                PatientMessage.timestamp >= start,
+                PatientMessage.timestamp < end,
+            )
+        except (ValueError, AttributeError):
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid month format: '{month}'. Expected YYYY-MM (e.g. 2026-01).",
+            )
+
+    rows = (await db.execute(query)).all()
+
+    by_tag: dict = {}
+    by_type: dict = {}
+    samples = []
+    total = 0
+
+    for row in rows:
+        tags = row.tags or []
+        vpn_tags = [t for t in tags if isinstance(t, str) and _VPN_TAG_PATTERN.match(t)]
+        if not vpn_tags:
+            continue
+        total += 1
+        mtype = row.message_type or "unknown"
+        by_type[mtype] = by_type.get(mtype, 0) + 1
+        for tag in vpn_tags:
+            by_tag[tag] = by_tag.get(tag, 0) + 1
+        if len(samples) < sample_limit:
+            samples.append({
+                "messageId": row.id,
+                "patientId": row.patient_id,
+                "messageType": row.message_type,
+                "orphanTags": vpn_tags,
+                "timestamp": row.timestamp.isoformat() if row.timestamp else None,
+                "contentPreview": (row.content or "")[:80],
+            })
+
+    by_tag_list = [{"tag": t, "count": c} for t, c in by_tag.items()]
+    by_tag_list.sort(key=lambda x: (-x["count"], x["tag"]))
+    by_type_list = [{"messageType": t, "count": c} for t, c in by_type.items()]
+    by_type_list.sort(key=lambda x: (-x["count"], x["messageType"]))
+
+    return success_response(data={
+        "total": total,
+        "byTag": by_tag_list,
+        "byMessageType": by_type_list,
+        "samples": samples,
+    })
 
 
 @router.post("/advice-records")

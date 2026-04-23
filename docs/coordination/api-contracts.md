@@ -56,6 +56,56 @@
 
 <!-- Backend: document new endpoints below with full request/response schemas -->
 
+### [READY] GET `/pharmacy/advice-records/orphan-tag-stats` — Orphan VPN-tag monitor
+
+> **Status:** Implemented 2026-04-23. Observability endpoint for the F22 migration away from free-hand VPN tagging on the bulletin board.
+
+- **Auth:** `pharmacist` or `admin`
+- **Purpose:** Count `patient_messages` rows that carry a VPN-code tag (e.g. `"1-A 給藥問題"`, `"4-W 病人用藥遵從性問題"`) but have `advice_record_id IS NULL`. Those messages never reach `/admin/statistics` because the admin page reads only `PharmacyAdvice`.
+- **VPN tag detection:** a tag string whose leading token matches `^\d+-[A-Z\d]+`. Category tags (`"建議處方"`, `"主動建議"`, ...) and free-form custom tags are ignored.
+
+**Query params:**
+| Name | Type | Default | Notes |
+|---|---|---|---|
+| `month` | `YYYY-MM` | omitted = all time | Filters by `patient_messages.timestamp`. Invalid values → `422`. |
+| `sample_limit` | int (0..100) | `20` | Max entries in `samples[]`. Aggregate counts always cover the full result set. |
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "total": 7,
+    "byTag": [
+      { "tag": "1-A 給藥問題", "count": 4 },
+      { "tag": "1-E 藥品交互作用", "count": 2 },
+      { "tag": "4-W 病人用藥遵從性問題", "count": 1 }
+    ],
+    "byMessageType": [
+      { "messageType": "general", "count": 5 },
+      { "messageType": "medication-advice", "count": 2 }
+    ],
+    "samples": [
+      {
+        "messageId": "pmsg_ab12cd34",
+        "patientId": "pat_001",
+        "messageType": "general",
+        "orphanTags": ["1-A 給藥問題"],
+        "timestamp": "2026-04-20T08:15:00+00:00",
+        "contentPreview": "第一行留言前 80 字的節錄..."
+      }
+    ]
+  }
+}
+```
+
+**Semantics for the admin panel:**
+- `total == 0` → migration complete, endpoint can be retired.
+- `byTag` helps identify which VPN codes are most often applied by hand (likely target for widget shortcut buttons).
+- `samples[]` lets admins click through to individual messages and either convert them to proper `PharmacyAdvice` rows or strip the VPN tag.
+
+---
+
 ### [READY] GET `/patients/{id}/messages/pharmacy-tags` — Grouped Pharmacy Tags
 
 > **Status:** Implemented 2026-04-06. For dedicated "藥事標籤" button.

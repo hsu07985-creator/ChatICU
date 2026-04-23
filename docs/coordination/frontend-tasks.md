@@ -263,6 +263,32 @@
   - Once all complete, render final answer with citations
 - **References:** architecture plan §8.1 latency tiers
 
+### F22 [READY] Align bulletin-board VPN tags with pharmacy advice statistics (Plan A + C)
+- **Added by:** backend session (orphan-tag-stats endpoint live 2026-04-23)
+- **Date:** 2026-04-23
+- **Priority:** P1 (data-quality: admin statistics currently miss manually-tagged VPN codes)
+- **Background:**
+  - Two systems share the same VPN pharmacy-care taxonomy (1-A…4-W) but write to different tables:
+    - `POST /pharmacy/advice-records` (藥師介入 widget) → writes **both** `pharmacy_advices` + `patient_messages` (with `advice_record_id` FK). Shows up in `/admin/statistics`. ✅
+    - Hand-picking "藥事標籤" inside `PharmacyTagSelector` on a bulletin message → writes **only** `patient_messages.tags`, no `advice_record_id`. **Never reaches the statistics.** ❌
+  - Agreed fix = Plan A (block the orphan path) + Plan C (observe the backlog drain). Backend side of C is done (see below).
+- **Backend handshake already in place:**
+  - New observability endpoint `GET /pharmacy/advice-records/orphan-tag-stats` (see api-contracts.md) — pharmacist/admin only. Returns `{total, byTag[], byMessageType[], samples[]}` for messages that carry a VPN-format tag with `advice_record_id IS NULL`.
+- **Plan A — block orphan VPN tagging on the bulletin board:**
+  - **Files:** `src/components/patient/patient-messages-tab.tsx` (`PharmacyTagSelector`, L201-287), `src/pages/patient-detail.tsx` (props wiring)
+  - Replace the per-subcode "add" buttons in `PharmacyTagSelector` with a short explainer + a primary CTA like "開啟藥事建議 (記錄並計入統計)" that navigates to the `PharmacistAdviceWidget` entry point with the current patient pre-selected. No inline VPN tag insertion anymore.
+  - Leave `TagSelector` (generic preset + custom team tags) untouched — those are still valid ways to tag a message.
+  - If the compose textarea currently lets the user type free text like `1-A 給藥問題` and submit it as a tag, add a lightweight client-side guard that rejects VPN-format tags on `POST /messages` (regex matches `^\d+-[A-Z\d]+`) with a toast pointing to the widget.
+- **Plan C — surface the orphan counter on /admin/statistics:**
+  - **Files:** `src/pages/admin/statistics.tsx`, `src/lib/api/pharmacy.ts`
+  - Add a small API helper `getOrphanTagStats({ month })` → GET `/pharmacy/advice-records/orphan-tag-stats`.
+  - Render a new observation card on the admin statistics page (next to 類別分佈, not inside it): title "尚未連結統計的 VPN 標籤", body = `total` with colour coding (green=0, amber=1–5, red=≥6) and top-3 `byTag` entries, plus a `<details>` expanding the `samples[]` table (messageId link, messageType, orphanTags, timestamp, contentPreview).
+  - Card should be dismissable/hideable via localStorage so it can stay in prod as a migration gauge but not distract once the backlog is zero.
+- **Acceptance:**
+  - After a session where a pharmacist hand-taps a VPN code in the old selector and saves: no new row with VPN-format tag + null `advice_record_id` appears.
+  - `/admin/statistics` shows the orphan card; it renders `total: 0` on a clean DB and non-zero on a seeded orphan (use the pytest in `backend/tests/test_api/test_orphan_tag_stats.py` as a reference for the data shape).
+- **When to retire:** once the orphan counter stays at 0 for ≥30 days in prod, delete the card + the backend endpoint in a follow-up PR.
+
 ### F21 [READY] Tighten `Medication.codingSource` TS union to the backend SSOT
 - **Added by:** backend session (coding_source SSOT hardening, migration 066)
 - **Date:** 2026-04-23
