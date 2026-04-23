@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../lib/auth-context';
 import { getCachedPatients } from '../lib/patients-cache';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -39,6 +40,7 @@ function SpeechBubble() {
 export function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -139,17 +141,29 @@ export function LoginPage() {
                 <Label htmlFor="password" className="text-sm font-semibold text-muted-foreground">
                   密碼
                 </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="請輸入密碼"
-                  className="h-12 border-border bg-white dark:bg-slate-900"
-                  required
-                  minLength={1}
-                  autoComplete="current-password"
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="請輸入密碼"
+                    className="h-12 border-border bg-white dark:bg-slate-900 pr-12"
+                    required
+                    minLength={1}
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    tabIndex={-1}
+                    aria-label={showPassword ? '隱藏密碼' : '顯示密碼'}
+                    aria-pressed={showPassword}
+                    className="absolute inset-y-0 right-0 flex items-center justify-center w-12 text-muted-foreground hover:text-foreground focus:outline-none focus:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
 
                 {/* Spacer */}
                 <div className="pt-2" />
