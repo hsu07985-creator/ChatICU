@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Home, Users, MessageSquare, Database, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Moon, Sun, LogOut, Sparkles } from 'lucide-react';
+import { Home, Users, MessageSquare, Database, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Moon, Sun, LogOut, Sparkles, Archive } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import logoImage from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 import {
@@ -56,6 +56,7 @@ export function AppSidebar() {
   const patientCareItems = [
     { title: '總覽', url: '/dashboard', icon: Home },
     { title: '病人清單', url: '/patients', icon: Users },
+    { title: '已出院病人', url: '/patients/discharged', icon: Archive },
     { title: '劑量計算與建議', url: '/pharmacy/dosage', icon: Calculator },
   ];
 

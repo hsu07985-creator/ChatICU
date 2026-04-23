@@ -37,6 +37,11 @@ export interface Patient {
     analgesia: string[];
     nmb: string[];
   };
+  archived?: boolean;
+  archivedAt?: string | null;
+  dischargeType?: 'discharge' | 'transfer' | 'death' | 'other' | null;
+  dischargeDate?: string | null;
+  dischargeReason?: string | null;
 }
 
 export interface PaginationInfo {
@@ -58,6 +63,7 @@ export interface PatientFilters {
   intubated?: boolean;
   criticalStatus?: string;
   department?: string;
+  archived?: boolean | 'all';
 }
 
 // API 回應類型
@@ -77,6 +83,7 @@ export async function getPatients(filters: PatientFilters = {}): Promise<Patient
   if (filters.intubated !== undefined) params.append('intubated', String(filters.intubated));
   if (filters.criticalStatus) params.append('criticalStatus', filters.criticalStatus);
   if (filters.department) params.append('department', filters.department);
+  if (filters.archived !== undefined) params.append('archived', String(filters.archived));
 
   const response = await apiClient.get<ApiResponse<PatientsResponse>>(`/patients?${params}`);
   return ensureData(response.data, 'API contract');
