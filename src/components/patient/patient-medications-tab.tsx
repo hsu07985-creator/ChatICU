@@ -1,12 +1,8 @@
 import { lazy, Suspense, useState, useMemo, useCallback } from 'react';
 import type { Medication } from '../../lib/api';
-import type { DrugInteraction as ApiDrugInteraction } from '../../lib/api/medications';
 import type { UserRole } from '../../lib/auth-context';
 import { isAntibiotic } from '../../lib/antibiotic-codes';
-import { updateMedication, getMedicationDuplicates } from '../../lib/api/medications';
-import { useApiQuery } from '../../hooks/use-api-query';
-import { DrugInteractionBadges, type DrugInteraction as BadgeDrugInteraction } from './drug-interaction-badges';
-import { MedicationDuplicateBadges } from './medication-duplicate-badges';
+import { updateMedication } from '../../lib/api/medications';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
@@ -549,7 +545,6 @@ interface PatientMedicationsTabProps {
   nmbMedications: Medication[];
   otherMedications: Medication[];
   outpatientMedications?: Medication[];
-  drugInteractions?: ApiDrugInteraction[];
   formatDisplayValue: (value: unknown) => string;
   formatMedicationRegimen: (medication: Medication) => string;
   painScoreValue: number | null;
@@ -577,7 +572,6 @@ export function PatientMedicationsTab({
   nmbMedications,
   otherMedications,
   outpatientMedications,
-  drugInteractions,
   formatDisplayValue,
   formatMedicationRegimen,
   painScoreValue,
@@ -592,28 +586,6 @@ export function PatientMedicationsTab({
   onCloseScoreTrend,
   onRefreshMedications,
 }: PatientMedicationsTabProps) {
-  // Duplicate-medication detection (Wave 2) — mirrors the DDI banner.
-  // Fail silently: if the endpoint errors, the rest of the tab still renders.
-  const duplicateContext: 'inpatient' = 'inpatient';
-  const { data: duplicateData } = useApiQuery<
-    { alerts: import('../../lib/api/medications').DuplicateAlert[]; counts: Record<string, number> }
-  >({
-    queryKey: ['medication-duplicates', patientId ?? '', duplicateContext],
-    queryFn: async () => {
-      try {
-        return await getMedicationDuplicates(patientId!, duplicateContext);
-      } catch (err) {
-        // Don't let a detector outage break the medications tab.
-        console.warn('[medication-duplicates] fetch failed', err);
-        return { alerts: [], counts: {} };
-      }
-    },
-    enabled: Boolean(patientId),
-    staleTime: 30_000,
-    retry: 0,
-  });
-  const duplicateAlerts = duplicateData?.alerts ?? [];
-
   // medView：all=全部 / active=使用中 / regular=常規（使用中且非 PRN,STAT）/ discontinued=已停用 / duplicate=重複用藥
   const [medView, setMedView] = useState<'active' | 'regular' | 'discontinued' | 'all' | 'duplicate'>('active');
   const [detailMedication, setDetailMedication] = useState<Medication | null>(null);
@@ -928,41 +900,14 @@ export function PatientMedicationsTab({
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              {drugInteractions && drugInteractions.length > 0 && medView !== 'discontinued' && medView !== 'duplicate' && (() => {
-                const mapped: BadgeDrugInteraction[] = drugInteractions.map((i) => ({
-                  drug_a: i.drug1,
-                  drug_b: i.drug2,
-                  risk: i.riskRating || (i.severity === 'major' ? 'D' : i.severity === 'moderate' ? 'C' : 'B'),
-                  title: i.clinicalEffect || i.mechanism || '',
-                  severity: i.severity,
-                }));
-                const hasRiskX = mapped.some((m) => m.risk.toUpperCase() === 'X');
-                // Build active med lookup from the four grouped arrays so the
-                // badges can label which side of each pair is the patient's
-                // actual drug (and surface its brand name).
-                const activeLookup = [
-                  ...painMedications,
-                  ...sedationMedications,
-                  ...nmbMedications,
-                  ...otherMedications,
-                ]
-                  .filter((m) => m.status === 'active')
-                  .map((m) => ({
-                    name: m.name,
-                    genericName: m.genericName,
-                    atcCode: m.atcCode ?? null,
-                  }));
-                return (
-                  <DrugInteractionBadges
-                    interactions={mapped}
-                    hasRiskX={hasRiskX}
-                    activeMedications={activeLookup}
-                  />
-                );
-              })()}
-              {duplicateAlerts.length > 0 && medView !== 'discontinued' && medView !== 'duplicate' && (
-                <MedicationDuplicateBadges alerts={duplicateAlerts} />
-              )}
+              {/*
+                DDI + duplicate-medication badges are no longer auto-rendered
+                on this tab — they live under the standalone 藥事工具 pages:
+                「交互作用查詢」 (/pharmacy/interactions) and 「重複用藥」
+                (/pharmacy/duplicates). The in-tab "重複用藥 ({N})" toggle
+                below is a *different* check: same-generic overlap between
+                inpatient orders and outpatient self-supplied meds.
+              */}
               {medView === 'duplicate' ? (
                 <div className="space-y-2">
                   <p className="text-xs text-orange-700 dark:text-orange-400 mb-2">
