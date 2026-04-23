@@ -937,7 +937,28 @@ export function PatientMedicationsTab({
                   severity: i.severity,
                 }));
                 const hasRiskX = mapped.some((m) => m.risk.toUpperCase() === 'X');
-                return <DrugInteractionBadges interactions={mapped} hasRiskX={hasRiskX} />;
+                // Build active med lookup from the four grouped arrays so the
+                // badges can label which side of each pair is the patient's
+                // actual drug (and surface its brand name).
+                const activeLookup = [
+                  ...painMedications,
+                  ...sedationMedications,
+                  ...nmbMedications,
+                  ...otherMedications,
+                ]
+                  .filter((m) => m.status === 'active')
+                  .map((m) => ({
+                    name: m.name,
+                    genericName: m.genericName,
+                    atcCode: m.atcCode ?? null,
+                  }));
+                return (
+                  <DrugInteractionBadges
+                    interactions={mapped}
+                    hasRiskX={hasRiskX}
+                    activeMedications={activeLookup}
+                  />
+                );
               })()}
               {duplicateAlerts.length > 0 && medView !== 'discontinued' && medView !== 'duplicate' && (
                 <MedicationDuplicateBadges alerts={duplicateAlerts} />
