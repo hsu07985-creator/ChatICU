@@ -28,7 +28,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Set, Tuple
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -131,41 +131,49 @@ _RECOMMENDATIONS: Dict[str, str] = {
     ),
     # §3.4 mechanism groups (L3)
     "alpha1_blocker": (
-        "同 α1 阻斷疊加（BPH + HTN），直立性低血壓、暈厥；保留單一或改 class。"
+        "同 α1 阻斷疊加（BPH + HTN），直立性低血壓、暈厥與跌倒風險；"
+        "評估是否有加成療效，保留單一或改 class。"
     ),
     "serotonergic": (
-        "多重促血清素機轉疊加，血清素症候群風險；避免同時併用或 cross-taper。"
+        "多重促血清素機轉疊加，血清素症候群風險"
+        "（高體溫、自主神經異常、肌陣攣、clonus）；立即評估停一藥或 cross-taper。"
     ),
     "qtc_prolonging": (
-        "多重 QTc 延長藥疊加，建議 ECG 監測、校正 K／Mg，減少同時使用品項。"
+        "多重 QTc 延長藥疊加、Torsades de Pointes 風險；"
+        "查 QTc baseline、校正 K／Mg，減少同時使用品項並 ECG 監測。"
     ),
     "anticholinergic_burden": (
-        "抗膽鹼負荷累加（Beers 2023）；評估認知／譫妄／尿滯留風險，精簡處方。"
+        "抗膽鹼負荷累加（Beers 2023）；譫妄、認知惡化、尿滯留、便秘；"
+        "老年族群尤應減量或停用。"
     ),
     "cns_depressant": (
-        "BZD + Opioid + ... 疊加致呼吸抑制（FDA Boxed Warning），應減量或停一。"
+        "BZD + Opioid + Z-drug + Gabapentinoid + 一代抗組織胺 疊加致呼吸抑制、"
+        "鎮靜過深、跌倒（FDA Boxed Warning），應減量或停一。"
     ),
     "d2_antagonist_antiemetic": (
-        "雙 D2 止吐 EPS／NMS／QTc 疊加且無加成，保留單一 agent。"
+        "雙 D2 止吐 EPS／tardive dyskinesia／NMS 與 QTc 延長疊加且無加成，"
+        "保留單一 agent。"
     ),
     "promotility": (
-        "雙 promotility 腹瀉／QTc 疊加，評估單一保留。"
+        "雙 promotility 疊加（膽鹼／D2／motilin）腹瀉、QTc 延長與心搏過緩，"
+        "評估單一保留。"
     ),
     # §3.4 endpoint groups (L4)
     "raas_blockade": (
-        "多重 RAAS 阻斷（ACEI/ARB/ARNI/DRI/MRA）高鉀／AKI；KDIGO 2024 不建議。"
+        "高血鉀、AKI、低血壓疊加（ONTARGET 2008、VA-NEPHRON-D 2013）；"
+        "KDIGO 2024 任何組合皆不建議。"
     ),
     "bleeding_risk": (
-        "多重出血風險疊加，必要時考慮 PPI 胃保護並審視是否可停 NSAID／SSRI。"
+        "GI 出血風險倍增；評估抗潰瘍保護或減藥。"
     ),
     "hyperkalemia": (
-        "多來源升 K（RAAS/MRA/TMP-SMX/CNI/Heparin/K）需 Q6–12h 監測鉀、調整劑量。"
+        "監測 K、停一藥或減劑；老年／CKD 尤其注意。"
     ),
     "nephrotoxic_triple_whammy": (
-        "NSAID + RAAS + 利尿劑 三重腎毒，建議避免併用或暫停 NSAID／調整 RAAS 與利尿劑。"
+        "急性腎損傷高風險（NSAID + RAAS + 利尿劑）；立即評估停 NSAID 或利尿劑。"
     ),
     "qtc_stacking": (
-        "QT 間期疊加；同 qtc_prolonging 建議。"
+        "QT 間期疊加；同 qtc_prolonging 建議（ECG 監測、校正 K/Mg）。"
     ),
 }
 
@@ -269,6 +277,16 @@ class DuplicateDetector:
         self._overrides_loaded = False
         self._upgrade_rules: List[_UpgradeRule] = []
         self._whitelist_rules: List[_WhitelistRule] = []
+        # L3 mechanism groups (lazy-loaded). Shape:
+        # {group_key: {"zh": str, "en": str, "severity": str, "members": set[str]}}
+        self._mechanism_groups_loaded = False
+        self._mechanism_groups: Dict[str, Dict[str, Any]] = {}
+        # L4 endpoint groups (lazy-loaded). Shape:
+        # {group_key: {"zh": str, "en": str, "severity": str,
+        #              "members_by_atc": dict[str, {ingredient, subtype}],
+        #              "requires_subtypes": Optional[set[str]]}}
+        self._endpoint_groups_loaded = False
+        self._endpoint_groups: Dict[str, Dict[str, Any]] = {}
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -317,19 +335,25 @@ class DuplicateDetector:
 
         await self._load_overrides()
 
-        # 2. Detection layers (L1/L2 wired; L3/L4 stubbed for Phase 2)
+        # 2. Detection layers (L1/L2/L3/L4 all wired)
         alerts: List[DuplicateAlert] = []
         alerts.extend(self._detect_l1(normalised))
         alerts.extend(self._detect_l2(normalised))
-        alerts.extend(await self._detect_l3(normalised))
-        alerts.extend(await self._detect_l4(normalised))
+        alerts.extend(await self._detect_l3(normalised, alerts))
 
         # 2b. Synthesise alerts for upgrade-rule matches that do not share an
         # L4 prefix (e.g. Diazepam N05BA01 + Clonazepam N03AE01 — both long-
-        # acting BZDs but different L4). Without this pass those cross-class
-        # pairs slip past L1/L2 entirely; a proper L3 mechanism-group detector
-        # will supersede this in Phase 2.
+        # acting BZDs but different L4, or ACEI×ARB spanning C09AA / C09CA).
+        # Run BEFORE L4 so the upgrade-rule alert's fingerprint is visible to
+        # _detect_l4's existing_alerts guard — prevents L4 raas_blockade from
+        # emitting a lower-specificity duplicate for the same member set.
         alerts.extend(self._detect_upgrade_rule_pairs(normalised, alerts))
+
+        alerts.extend(
+            await self._detect_l4(
+                normalised, context=context, existing_alerts=alerts
+            )
+        )
 
         # 3. Rule engine passes
         alerts = self._apply_overrides(alerts)      # upgrade + whitelist removal
@@ -401,15 +425,359 @@ class DuplicateDetector:
         return alerts
 
     # ------------------------------------------------------------------
-    # L3 / L4 — Phase 2 (stubbed but async-signature preserved)
+    # L3 — cross-class mechanism groups (§3.4)
     # ------------------------------------------------------------------
-    async def _detect_l3(self, meds: List[dict]) -> List[DuplicateAlert]:
-        """Mechanism-group (L3) detection — Phase 2."""
-        return []
+    async def _detect_l3(
+        self,
+        meds: List[dict],
+        existing_alerts: Optional[List[DuplicateAlert]] = None,
+    ) -> List[DuplicateAlert]:
+        """Mechanism-group (L3) detection — §3.4 same-mechanism cross-class.
 
-    async def _detect_l4(self, meds: List[dict]) -> List[DuplicateAlert]:
-        """Endpoint-group (L4) detection — Phase 2."""
-        return []
+        For each mechanism group (alpha1_blocker, serotonergic, qtc_prolonging,
+        anticholinergic_burden, cns_depressant, d2_antagonist_antiemetic,
+        promotility) we find the medications whose ATC code is a declared
+        member; if ≥ 2 members overlap we emit one L3 alert. Severity follows
+        `_L3_STACKING_RULES` when present (stacking escalation, e.g. QTc triple
+        → Critical) else the group's CSV-declared severity.
+
+        Alerts whose (member fingerprint) already exists in ``existing_alerts``
+        (usually L1/L2 hits for the same set) are suppressed — dedupe() keeps
+        the highest-severity per fingerprint anyway but suppressing here keeps
+        the alert list tighter.
+        """
+        await self._load_mechanism_groups()
+        if not self._mechanism_groups:
+            return []
+
+        existing_fps: Set[str] = {
+            a.fingerprint for a in (existing_alerts or [])
+        }
+
+        alerts: List[DuplicateAlert] = []
+        for group_key, group in self._mechanism_groups.items():
+            members_set: Set[str] = group.get("members") or set()
+            if not members_set:
+                continue
+            hit_meds: List[dict] = [
+                m for m in meds
+                if m.get("atc_code") and m.get("atc_code") in members_set
+            ]
+            if len(hit_meds) < 2:
+                continue
+
+            # cns_depressant spans multiple sub-classes (BZD / opioid / Z-drug
+            # / Gabapentinoid / H1 / phenothiazine). A same-sub-class hit
+            # (e.g. Diazepam + Clonazepam — both BZD; or Fentanyl patch +
+            # Morphine PRN — both opioids) is not "cross-mechanism CNS
+            # stacking": it is either a same-class duplication already
+            # covered by L2 / the §3.1 upgrade-rule pair pass, or a legitimate
+            # long-acting + breakthrough pattern (§3.3 whitelist semantics).
+            # Emitting an L3 cns_depressant alert here would shadow the more
+            # specific L2 layer on dedupe and would mis-flag the breakthrough
+            # pattern, so require ≥2 distinct sub-classes.
+            if group_key == "cns_depressant":
+                subclasses = {
+                    _cns_subclass(m.get("atc_code")) for m in hit_meds
+                }
+                subclasses.discard(None)
+                if len(subclasses) < 2:
+                    continue
+
+            level = _l3_stacking_level(group_key, group, hit_meds)
+            mech_zh = group.get("zh") or group_key
+            mech_en = group.get("en") or ""
+            mechanism = (
+                f"{mech_zh}（{mech_en}）" if mech_en else str(mech_zh)
+            )
+            alert = self._build_alert(
+                members=hit_meds,
+                level=level,
+                layer="L3",
+                mechanism=mechanism,
+                recommendation=_RECOMMENDATIONS.get(
+                    group_key, _GENERIC_REC_FALLBACK
+                ),
+                evidence_url=f"guide://§3.4/{group_key}",
+            )
+            if alert.fingerprint in existing_fps:
+                # Same member set already flagged by L1/L2 — let that alert
+                # carry through dedupe instead of emitting a duplicate row.
+                continue
+            alerts.append(alert)
+        return alerts
+
+    # ------------------------------------------------------------------
+    # L4 — same therapeutic endpoint, cross-mechanism (§3.4)
+    # ------------------------------------------------------------------
+    async def _detect_l4(
+        self,
+        meds: List[dict],
+        *,
+        context: Optional[str] = None,
+        existing_alerts: Optional[List[DuplicateAlert]] = None,
+    ) -> List[DuplicateAlert]:
+        """Endpoint-group (L4) detection — §3.4 same therapeutic endpoint.
+
+        Two group shapes are supported:
+          * **flat** (A 類) — any ≥ 2 member ATCs trigger (raas_blockade,
+            bleeding_risk, hyperkalemia, qtc_stacking).
+          * **subtype-coverage** (B 類) — requires ≥ 1 member from every
+            declared subtype. `nephrotoxic_triple_whammy` needs nsaid + raas +
+            diuretic simultaneously; any subtype missing silently skips the
+            group.
+
+        Severity follows ``_l4_level`` (see docstring there):
+          * ``raas_blockade``               → critical
+          * ``bleeding_risk``               → high (≥ 4 members → critical;
+                                              ICU + ≥ 2 B01AB* → critical red-
+                                              flag per §4.1)
+          * ``hyperkalemia``                → high
+          * ``nephrotoxic_triple_whammy``   → high (all 3 subtypes present
+                                              is already severe — §3.4)
+          * ``qtc_stacking``                → high (usually superseded by L3
+                                              qtc_prolonging; dedupe via
+                                              existing_alerts fingerprints)
+
+        Bridging downgrade (guide §2.3) — narrow rule, not re-using the L1
+        same-L5 path: a 2-member bleeding_risk hit comprising only B01AB*
+        (heparin / LMWH) members with different routes and overlap ≤ 48h in
+        non-ICU context is re-marked as moderate + ``transitional_overlap_le_48h``.
+        """
+        await self._load_endpoint_groups()
+        if not self._endpoint_groups:
+            return []
+
+        existing_by_fp: Dict[str, DuplicateAlert] = {
+            a.fingerprint: a for a in (existing_alerts or [])
+        }
+
+        # Build each group's raw hit structure; also collect superset/subset
+        # member-id sets so a strictly-smaller group (e.g. raas_blockade ⊂
+        # hyperkalemia) can be suppressed when a larger group covers all its
+        # members and carries equal-or-higher severity expectation.
+        group_results: List[Tuple[str, Dict[str, Any], List[dict]]] = []
+        for group_key, group in self._endpoint_groups.items():
+            members_by_atc: Dict[str, Dict[str, Optional[str]]] = group.get(
+                "members_by_atc"
+            ) or {}
+            if not members_by_atc:
+                continue
+
+            hits: List[dict] = [
+                m for m in meds
+                if (m.get("atc_code") or "") in members_by_atc
+            ]
+            if len(hits) < 2:
+                continue
+
+            # B 類: subtype-coverage requirement
+            required: Optional[Set[str]] = group.get("requires_subtypes")
+            if required:
+                subtypes_found: Set[str] = set()
+                for m in hits:
+                    atc = m.get("atc_code") or ""
+                    meta = members_by_atc.get(atc)
+                    if meta and meta.get("subtype"):
+                        subtypes_found.add(meta["subtype"])
+                if not required.issubset(subtypes_found):
+                    continue
+
+            # Deduplicate members by medication_id inside one group
+            seen_ids: Set[str] = set()
+            unique_hits: List[dict] = []
+            for h in hits:
+                mid = str(h.get("medication_id") or "")
+                if mid and mid in seen_ids:
+                    continue
+                if mid:
+                    seen_ids.add(mid)
+                unique_hits.append(h)
+            group_results.append((group_key, group, unique_hits))
+
+        # Subset suppression — if group B's members ⊊ group A's members, drop B
+        # (the superset alert carries all the clinical signal). Keeps the
+        # alert list focused on the most complete endpoint-group match per
+        # medication set; avoids flooding when a patient on ACEI + MRA + TMP
+        # would otherwise trigger both raas_blockade (2 of 3) and hyperkalemia
+        # (all 3) — only the hyperkalemia alert is surfaced.
+        kept_results: List[Tuple[str, Dict[str, Any], List[dict]]] = []
+        for i, (gk_i, g_i, hits_i) in enumerate(group_results):
+            ids_i = frozenset(
+                str(h.get("medication_id") or "") for h in hits_i
+            )
+            covered = False
+            for j, (gk_j, g_j, hits_j) in enumerate(group_results):
+                if i == j:
+                    continue
+                ids_j = frozenset(
+                    str(h.get("medication_id") or "") for h in hits_j
+                )
+                # Strictly smaller set ⊂ bigger set ⇒ suppress the smaller
+                if ids_i < ids_j:
+                    covered = True
+                    break
+            if not covered:
+                kept_results.append((gk_i, g_i, hits_i))
+
+        alerts: List[DuplicateAlert] = []
+        for group_key, group, unique_hits in kept_results:
+            level = self._l4_level(group_key, group, unique_hits, context)
+            mechanism = self._l4_mechanism_label(group_key, group, unique_hits)
+
+            alert = self._build_alert(
+                members=unique_hits,
+                level=level,
+                layer="L4",
+                mechanism=mechanism,
+                recommendation=_RECOMMENDATIONS.get(
+                    group_key, _GENERIC_REC_FALLBACK
+                ),
+                evidence_url=f"guide://§3.4/{group_key}",
+            )
+
+            # Narrow bridging downgrade (§2.3) — only bleeding_risk heparin↔LMWH
+            self._maybe_l4_bridging_downgrade(alert, group_key, context)
+
+            # Fingerprint collision with an earlier-layer alert (L1/L2/L3):
+            # instead of emitting a duplicate row, fold L4's signal into the
+            # existing alert so dedupe() keeps the higher-specificity layer
+            # label but gains the L4-derived severity / bridging metadata.
+            existing = existing_by_fp.get(alert.fingerprint)
+            if existing is not None:
+                self._fold_l4_into_existing(existing, alert)
+                continue
+
+            alerts.append(alert)
+        return alerts
+
+    def _fold_l4_into_existing(
+        self,
+        existing: DuplicateAlert,
+        l4_alert: DuplicateAlert,
+    ) -> None:
+        """Merge an L4-derived signal into an earlier-layer alert in place.
+
+        * Severity: if L4's level is higher (ICU red flag upgrade) or if L4
+          carries a bridging downgrade, reflect it on the existing alert.
+        * Bridging downgrade wins over the default escalation for heparin/LMWH
+          cases — forcibly set to moderate per guide §2.3.
+        * Mechanism text is preserved (existing L1/L2/L3 label is more
+          specific); only evidence URL is backfilled if missing.
+        """
+        if l4_alert.auto_downgraded and l4_alert.downgrade_reason:
+            # Bridging signal — force downgrade, even over critical upgrades.
+            existing.level = l4_alert.level  # type: ignore[assignment]
+            existing.auto_downgraded = True
+            existing.downgrade_reason = l4_alert.downgrade_reason
+        elif existing.auto_downgraded and existing.downgrade_reason == (
+            _REASON_OVERLAP_TRANSITION
+        ):
+            # A prior L4 group already applied a bridging downgrade — don't
+            # re-upgrade it via a later group's default severity. The bridging
+            # signal is clinically specific and should stick.
+            pass
+        elif _LEVEL_RANK.get(l4_alert.level, 0) > _LEVEL_RANK.get(
+            existing.level, 0
+        ):
+            existing.level = l4_alert.level  # type: ignore[assignment]
+            # Reset downgrade flags if we just lifted severity upward.
+            existing.auto_downgraded = False
+            existing.downgrade_reason = None
+
+        if l4_alert.evidence_url and not existing.evidence_url:
+            existing.evidence_url = l4_alert.evidence_url
+
+    def _l4_level(
+        self,
+        group_key: str,
+        group: Dict[str, Any],
+        hits: List[dict],
+        context: Optional[str],
+    ) -> str:
+        """Pick initial severity per §3.4 defaults + stacking escalation.
+
+        See _detect_l4 for the full escalation table.
+        """
+        if group_key == "raas_blockade":
+            return "critical"
+
+        if group_key == "bleeding_risk":
+            n_heparin_lmwh = sum(
+                1 for m in hits if (m.get("atc_code") or "").startswith("B01AB")
+            )
+            if (context or "").lower() == "icu" and n_heparin_lmwh >= 2:
+                # §4.1 ICU red flag: therapeutic Heparin + prophylactic LMWH
+                return "critical"
+            if len(hits) >= 4:
+                return "critical"
+            return "high"
+
+        if group_key == "hyperkalemia":
+            return "high"
+
+        if group_key == "nephrotoxic_triple_whammy":
+            return "high"
+
+        if group_key == "qtc_stacking":
+            return "high"
+
+        # Fall back to the declared severity (CSV / DB) or high.
+        declared = (group.get("severity") or "high").lower()
+        return declared if declared in _LEVEL_RANK else "high"
+
+    def _maybe_l4_bridging_downgrade(
+        self,
+        alert: DuplicateAlert,
+        group_key: str,
+        context: Optional[str],
+    ) -> None:
+        """Downgrade heparin↔LMWH bridging (bleeding_risk) to moderate.
+
+        Pattern: exactly 2 B01AB* members with different routes whose
+        ``last_admin_at`` values fall within _OVERLAP_WINDOW_HOURS, non-ICU.
+        Heparin IV → Enoxaparin SC (or vice versa) is standard bridging
+        practice — keep the alert visible but not Critical/High.
+        """
+        if group_key != "bleeding_risk":
+            return
+        if (context or "").lower() == "icu":
+            return
+        if len(alert.members) != 2:
+            return
+        n_heparin = sum(
+            1 for m in alert.members
+            if (m.atc_code or "").startswith("B01AB")
+        )
+        if n_heparin != 2:
+            return
+        routes = {
+            (m.route or "").strip().lower()
+            for m in alert.members
+            if (m.route or "").strip()
+        }
+        if len(routes) < 2:
+            return
+        if not _overlap_within(alert.members, _OVERLAP_WINDOW_HOURS):
+            return
+        # Force to moderate (always a downgrade from default high/critical).
+        alert.level = "moderate"  # type: ignore[assignment]
+        alert.auto_downgraded = True
+        alert.downgrade_reason = _REASON_OVERLAP_TRANSITION
+
+    def _l4_mechanism_label(
+        self,
+        group_key: str,
+        group: Dict[str, Any],
+        hits: List[dict],
+    ) -> str:
+        zh = group.get("zh") or ""
+        en = group.get("en") or ""
+        n = len(hits)
+        base = zh or en or group_key
+        if en and zh:
+            return f"{zh}（{en}）×{n}"
+        return f"{base} ×{n}"
 
     # ------------------------------------------------------------------
     # Upgrade-rule cross-class pair matching (narrow shim until L3 lands)
@@ -631,10 +999,19 @@ class DuplicateDetector:
                     # else: admins are too tight together to be a transition —
                     # this looks like a duplicate order error; keep Critical.
 
-            # -------- PRN + scheduled (any layer) -------
+            # -------- PRN + scheduled (L1/L2 only) -------
             # Guide §2.3 / §6.3: "一方為 PRN + 另一方為排程（且非同為長效
             # opioid/BZD）" — High → Low (two steps), Critical → Moderate.
-            if has_prn and has_scheduled:
+            #
+            # Restricted to L1/L2 alerts: for L3 mechanism-group / L4
+            # endpoint-group alerts the PRN member still contributes to the
+            # multi-drug stacking risk (QTc 疊加, 抗膽鹼負荷, promotility etc.
+            # are cumulative even for intermittent exposure), so the §6.3
+            # attenuation does not apply. See fixtures L3_qtc_haloperidol_
+            # ondansetron / L3_promotility_triple / L3_cns_depressant_triple
+            # — all have PRN members but are expected to stay at their L3
+            # stacking severity.
+            if has_prn and has_scheduled and alert.layer in ("L1", "L2"):
                 # Exclude if any member is long-acting opioid / BZD
                 member_atcs = {m.atc_code for m in alert.members if m.atc_code}
                 long_acting_present = bool(
@@ -717,6 +1094,277 @@ class DuplicateDetector:
                     (row.get("reason") or "").strip() or None,
                     (row.get("evidence_url") or "").strip() or None,
                 )
+
+    # ------------------------------------------------------------------
+    # L3 mechanism-group loading (lazy; DB first, CSV fallback)
+    # ------------------------------------------------------------------
+    async def _load_mechanism_groups(self) -> None:
+        if self._mechanism_groups_loaded:
+            return
+        self._mechanism_groups_loaded = True  # set early to avoid retry storms
+        try:
+            await self._load_mechanism_groups_from_db()
+            if self._mechanism_groups:
+                return
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "duplicate_detector: mechanism group DB load failed: %s", exc
+            )
+
+        try:
+            self._load_mechanism_groups_from_csv()
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "duplicate_detector: mechanism group CSV load failed: %s", exc
+            )
+
+    async def _load_mechanism_groups_from_db(self) -> None:
+        # Pull the full group × member table in one round trip.
+        try:
+            result = await self.session.execute(
+                text(
+                    "SELECT g.group_key, g.group_name_zh, g.group_name_en, "
+                    "g.severity, m.atc_code "
+                    "FROM drug_mechanism_groups g "
+                    "JOIN drug_mechanism_group_members m "
+                    "  ON m.group_id = g.id"
+                )
+            )
+        except Exception as exc:
+            # Tables may not exist yet (local dev / fresh DB) — caller will
+            # fall back to CSV.
+            raise exc
+        rows = result.all()
+        for group_key, zh, en, severity, atc in rows:
+            if not group_key or not atc:
+                continue
+            entry = self._mechanism_groups.setdefault(
+                group_key,
+                {
+                    "zh": zh or group_key,
+                    "en": en or "",
+                    "severity": (severity or "high").lower(),
+                    "members": set(),
+                },
+            )
+            # Keep the first non-null zh/en/severity we see (all rows for a
+            # group have identical group-level fields).
+            if zh and not entry.get("zh"):
+                entry["zh"] = zh
+            if en and not entry.get("en"):
+                entry["en"] = en
+            if severity and entry.get("severity") in (None, "", "high"):
+                entry["severity"] = severity.lower()
+            entry["members"].add(atc.strip())
+
+    def _load_mechanism_groups_from_csv(self) -> None:
+        code_maps = (
+            Path(__file__).resolve().parent.parent / "fhir" / "code_maps"
+        )
+        groups_csv = code_maps / "drug_mechanism_groups.csv"
+        members_csv = code_maps / "drug_mechanism_group_members.csv"
+
+        if not groups_csv.is_file() or not members_csv.is_file():
+            logger.info(
+                "duplicate_detector: mechanism CSVs not found (%s / %s); "
+                "skipping L3 groups",
+                groups_csv,
+                members_csv,
+            )
+            return
+
+        # Groups
+        with groups_csv.open("r", encoding="utf-8") as fh:
+            non_comment = (
+                line for line in fh
+                if line.lstrip() and not line.lstrip().startswith("#")
+            )
+            reader = csv.DictReader(non_comment)
+            for row in reader:
+                key = (row.get("group_key") or "").strip()
+                if not key:
+                    continue
+                self._mechanism_groups[key] = {
+                    "zh": (row.get("group_name_zh") or key).strip(),
+                    "en": (row.get("group_name_en") or "").strip(),
+                    "severity": (
+                        (row.get("severity") or "high").strip().lower()
+                    ),
+                    "members": set(),
+                }
+
+        # Members
+        with members_csv.open("r", encoding="utf-8") as fh:
+            non_comment = (
+                line for line in fh
+                if line.lstrip() and not line.lstrip().startswith("#")
+            )
+            reader = csv.DictReader(non_comment)
+            for row in reader:
+                key = (row.get("group_key") or "").strip()
+                atc = (row.get("atc_code") or "").strip()
+                if not key or not atc:
+                    continue
+                entry = self._mechanism_groups.get(key)
+                if entry is None:
+                    # Member references an unknown group — skip rather than
+                    # auto-create, to surface CSV drift.
+                    logger.debug(
+                        "duplicate_detector: member references unknown "
+                        "group_key=%r (atc=%s)",
+                        key,
+                        atc,
+                    )
+                    continue
+                entry["members"].add(atc)
+
+    # ------------------------------------------------------------------
+    # L4 endpoint-group loading (lazy; DB first, CSV fallback)
+    # ------------------------------------------------------------------
+    async def _load_endpoint_groups(self) -> None:
+        if self._endpoint_groups_loaded:
+            return
+        self._endpoint_groups_loaded = True
+        try:
+            await self._load_endpoint_groups_from_db()
+            if self._endpoint_groups:
+                self._apply_subtype_coverage_requirements()
+                return
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "duplicate_detector: endpoint group DB load failed: %s", exc
+            )
+
+        try:
+            self._load_endpoint_groups_from_csv()
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "duplicate_detector: endpoint group CSV load failed: %s", exc
+            )
+
+        # Tag subtype-coverage groups after load (idempotent).
+        self._apply_subtype_coverage_requirements()
+
+    async def _load_endpoint_groups_from_db(self) -> None:
+        try:
+            result = await self.session.execute(
+                text(
+                    "SELECT g.group_key, g.group_name_zh, g.group_name_en, "
+                    "g.severity, m.atc_code, m.active_ingredient, "
+                    "m.member_subtype "
+                    "FROM drug_endpoint_groups g "
+                    "JOIN drug_endpoint_group_members m "
+                    "  ON m.group_id = g.id"
+                )
+            )
+        except Exception as exc:
+            # Tables may not exist yet — caller will fall back to CSV.
+            raise exc
+        rows = result.all()
+        for group_key, zh, en, severity, atc, ingredient, subtype in rows:
+            if not group_key or not atc:
+                continue
+            entry = self._endpoint_groups.setdefault(
+                group_key,
+                {
+                    "zh": zh or group_key,
+                    "en": en or "",
+                    "severity": (severity or "high").lower(),
+                    "members_by_atc": {},
+                    "requires_subtypes": None,
+                },
+            )
+            if zh and not entry.get("zh"):
+                entry["zh"] = zh
+            if en and not entry.get("en"):
+                entry["en"] = en
+            if severity and not entry.get("severity"):
+                entry["severity"] = severity.lower()
+            entry["members_by_atc"][atc.strip()] = {
+                "ingredient": (ingredient or "").strip() or None,
+                "subtype": (subtype or "").strip() or None,
+            }
+
+    def _load_endpoint_groups_from_csv(self) -> None:
+        code_maps = (
+            Path(__file__).resolve().parent.parent / "fhir" / "code_maps"
+        )
+        groups_csv = code_maps / "drug_endpoint_groups.csv"
+        members_csv = code_maps / "drug_endpoint_group_members.csv"
+
+        if not groups_csv.is_file() or not members_csv.is_file():
+            logger.info(
+                "duplicate_detector: endpoint CSVs not found (%s / %s); "
+                "skipping L4 groups",
+                groups_csv,
+                members_csv,
+            )
+            return
+
+        # Groups
+        with groups_csv.open("r", encoding="utf-8") as fh:
+            non_comment = (
+                line for line in fh
+                if line.lstrip() and not line.lstrip().startswith("#")
+            )
+            reader = csv.DictReader(non_comment)
+            for row in reader:
+                key = (row.get("group_key") or "").strip()
+                if not key:
+                    continue
+                self._endpoint_groups[key] = {
+                    "zh": (row.get("group_name_zh") or key).strip(),
+                    "en": (row.get("group_name_en") or "").strip(),
+                    "severity": (
+                        (row.get("severity") or "high").strip().lower()
+                    ),
+                    "members_by_atc": {},
+                    "requires_subtypes": None,
+                }
+
+        # Members
+        with members_csv.open("r", encoding="utf-8") as fh:
+            non_comment = (
+                line for line in fh
+                if line.lstrip() and not line.lstrip().startswith("#")
+            )
+            reader = csv.DictReader(non_comment)
+            for row in reader:
+                key = (row.get("group_key") or "").strip()
+                atc = (row.get("atc_code") or "").strip()
+                if not key or not atc:
+                    continue
+                entry = self._endpoint_groups.get(key)
+                if entry is None:
+                    logger.debug(
+                        "duplicate_detector: endpoint member references "
+                        "unknown group_key=%r (atc=%s)",
+                        key,
+                        atc,
+                    )
+                    continue
+                entry["members_by_atc"][atc] = {
+                    "ingredient": (
+                        (row.get("active_ingredient") or "").strip() or None
+                    ),
+                    "subtype": (
+                        (row.get("member_subtype") or "").strip() or None
+                    ),
+                }
+
+    def _apply_subtype_coverage_requirements(self) -> None:
+        """Tag groups whose ATC hits must span multiple subtypes (B 類).
+
+        Today only ``nephrotoxic_triple_whammy`` is subtype-coverage: hit is
+        valid only if ≥ 1 NSAID + ≥ 1 RAAS + ≥ 1 diuretic member coexist.
+        Kept hard-coded (per task spec) rather than derived from CSV so the
+        requirement is explicit and code-review visible.
+        """
+        for group_key, required in _SUBTYPE_COVERAGE_GROUPS.items():
+            entry = self._endpoint_groups.get(group_key)
+            if entry is None:
+                continue
+            entry["requires_subtypes"] = set(required)
 
     def _ingest_override_row(
         self,
@@ -1053,6 +1701,163 @@ def _any_member_discontinued(
     """
     _ = (members, ref_time)  # reserved for Phase 3
     return False
+
+
+# ---------------------------------------------------------------------------
+# L4 subtype-coverage requirements (§3.4 — B 類 groups)
+# ---------------------------------------------------------------------------
+# Some endpoint groups only trigger when the hit ATC set spans multiple
+# clinically distinct subtypes. Keyed by group_key → required subtype set.
+# Each member's ``member_subtype`` in drug_endpoint_group_members.csv must
+# match one of the required subtypes.
+#
+# Example: nephrotoxic_triple_whammy fires only when NSAID + RAAS + Diuretic
+# coexist — two NSAIDs alone (or NSAID + RAAS without a diuretic) do not
+# qualify, because the mechanism requires the synergistic three-hit on renal
+# perfusion (afferent + efferent + volume).
+_SUBTYPE_COVERAGE_GROUPS: Dict[str, Set[str]] = {
+    "nephrotoxic_triple_whammy": {"nsaid", "raas", "diuretic"},
+}
+
+
+# ---------------------------------------------------------------------------
+# L3 stacking-escalation rules (§3.4)
+# ---------------------------------------------------------------------------
+# Some mechanism groups carry a "the more members stack, the higher the
+# severity" semantics (guide §3.4 narrative text). We encode those escalation
+# rules here as callables so _detect_l3 stays declarative.
+#
+# Signature: (group_entry, hit_meds) -> level
+#   - group_entry: the entry dict from DuplicateDetector._mechanism_groups
+#     (contains "severity" baseline from CSV/DB).
+#   - hit_meds: list of normalised medication dicts that matched the group.
+#
+# Groups absent from _L3_STACKING_RULES use `group_entry["severity"]` as-is.
+#
+# Specific rules (per task spec):
+#   - qtc_prolonging         default high     ≥3 total            → critical
+#   - cns_depressant         default high     ≥3 scheduled AND
+#                                             opioid+BZD present  → critical
+#                            (PRN drugs are not counted for the threshold —
+#                             they do not produce continuous stacking exposure)
+#   - anticholinergic_burden default moderate ≥3 total            → high
+#   - serotonergic           default high     ≥3 total OR contains
+#                                             Linezolid/MAOI/
+#                                             Methylene blue      → critical
+# -----------------------------------------------------------------------
+
+# Serotonergic "critical escalator" ingredients — if any of these ATC codes are
+# present alongside another serotonergic drug, severity jumps to critical
+# (MAOI-like activity → serotonin crisis risk).
+_SEROTONERGIC_CRITICAL_ATCS: Set[str] = {
+    "J01XX08",  # Linezolid
+    "V03AB17",  # Methylene blue
+    # Classic MAOIs (N06AF / N06AG) — not currently in CSV but listed per §3.4
+    "N06AF03",  # Phenelzine
+    "N06AF04",  # Tranylcypromine
+    "N06AG02",  # Moclobemide
+}
+
+# ATC-code helpers used by cns_depressant stacking rule.
+_CNS_OPIOID_ATC_PREFIXES: Tuple[str, ...] = ("N02A", "N07BC")
+_CNS_BZD_ATC_PREFIXES: Tuple[str, ...] = ("N05BA", "N05CD", "N03AE")
+
+
+def _any_starts_with(atcs: Iterable[str], prefixes: Tuple[str, ...]) -> bool:
+    return any(
+        atc and any(atc.startswith(p) for p in prefixes) for atc in atcs
+    )
+
+
+# CNS-depressant sub-class partitioning — used by _detect_l3's guard to
+# suppress same-sub-class cns_depressant hits (those are L2 / upgrade-pair
+# territory, not cross-mechanism stacking). Buckets follow §3.4 narrative:
+#   opioid     — N02A* (analgesic opioids), N07BC* (substitution opioids like Methadone)
+#   bzd        — N05BA* (anxiolytic BZDs), N05CD* (hypnotic BZDs), N03AE* (Clonazepam-class AED)
+#   zdrug      — N05CF* (Zolpidem / Zopiclone)
+#   gabapentinoid — N03AX12 / N03AX16 (Gabapentin / Pregabalin)
+#   h1         — R06AA*, R06AB*, R06AX* (first-gen H1 antihistamines)
+#   sedating_h1_psy — N05BB* (Hydroxyzine) / N05AA* (sedating phenothiazines like Chlorpromazine)
+_CNS_SUBCLASS_RULES: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
+    ("opioid", ("N02A", "N07BC")),
+    ("bzd", ("N05BA", "N05CD", "N03AE")),
+    ("zdrug", ("N05CF",)),
+    ("gabapentinoid", ("N03AX12", "N03AX16")),
+    ("h1", ("R06AA", "R06AB", "R06AX")),
+    ("sedating_h1_psy", ("N05BB", "N05AA")),
+)
+
+
+def _cns_subclass(atc: Optional[str]) -> Optional[str]:
+    """Return a sub-class bucket for ``atc`` within the cns_depressant group.
+
+    Returns None when the ATC does not match any known CNS sub-class — callers
+    should treat that as "unclassified" and not contribute to the sub-class
+    count.
+    """
+    if not atc:
+        return None
+    for name, prefixes in _CNS_SUBCLASS_RULES:
+        if any(atc.startswith(p) for p in prefixes):
+            return name
+    return None
+
+
+def _l3_stacking_qtc(group: Dict[str, Any], hits: List[dict]) -> str:
+    if len(hits) >= 3:
+        return "critical"
+    return "high"
+
+
+def _l3_stacking_cns(group: Dict[str, Any], hits: List[dict]) -> str:
+    # Only scheduled (non-PRN) orders contribute continuous CNS exposure;
+    # PRN breakthrough doses do not automatically imply stacked sedation.
+    scheduled = [m for m in hits if not m.get("is_prn")]
+    if len(scheduled) >= 3:
+        atcs = [m.get("atc_code") or "" for m in scheduled]
+        has_opioid = _any_starts_with(atcs, _CNS_OPIOID_ATC_PREFIXES)
+        has_bzd = _any_starts_with(atcs, _CNS_BZD_ATC_PREFIXES)
+        if has_opioid and has_bzd:
+            return "critical"
+    return "high"
+
+
+def _l3_stacking_anticholinergic(
+    group: Dict[str, Any], hits: List[dict]
+) -> str:
+    if len(hits) >= 3:
+        return "high"
+    return "moderate"
+
+
+def _l3_stacking_serotonergic(
+    group: Dict[str, Any], hits: List[dict]
+) -> str:
+    atcs = {m.get("atc_code") or "" for m in hits}
+    if atcs & _SEROTONERGIC_CRITICAL_ATCS:
+        return "critical"
+    if len(hits) >= 3:
+        return "critical"
+    return "high"
+
+
+_L3_STACKING_RULES: Dict[str, Callable[[Dict[str, Any], List[dict]], str]] = {
+    "qtc_prolonging": _l3_stacking_qtc,
+    "cns_depressant": _l3_stacking_cns,
+    "anticholinergic_burden": _l3_stacking_anticholinergic,
+    "serotonergic": _l3_stacking_serotonergic,
+}
+
+
+def _l3_stacking_level(
+    group_key: str, group: Dict[str, Any], hits: List[dict]
+) -> str:
+    rule = _L3_STACKING_RULES.get(group_key)
+    if rule is not None:
+        return rule(group, hits)
+    # Default: use the group's declared baseline severity (CSV / DB).
+    sev = (group.get("severity") or "high").lower()
+    return sev if sev in _LEVEL_RANK else "high"
 
 
 # Known salt suffixes used by _strip_salt_suffix (kept module-level for

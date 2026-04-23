@@ -67,15 +67,25 @@ ALL_CASES: List[dict] = _FIXTURE["cases"]
 # implementation plan. These are *skipped* (not xfailed) because the fixture
 # drives expected behaviour that requires DB-backed mechanism / endpoint
 # group seed data which lands in a later PR.
-PHASE2_LAYERS = {"L3", "L4"}
+#
+# Wave 2a: L3 mechanism-group detection is wired. Wave 2b: L4 endpoint-group
+# detection is now wired (see _detect_l4 in app/services/duplicate_detector.py)
+# — no layer-level skipping remains.
+PHASE2_LAYERS: set = set()
 
 # Individual Phase-2 cases whose fixture layer is L1/L2 but whose expected
-# behaviour actually requires L3/L4 problem-list / mechanism-group context.
-# Keep these out of Wave 1 until the relevant detectors come online.
+# behaviour actually requires problem-list / indication context. Keep skipped
+# until Phase 3 (problem-list integration + fixture fixes).
 PHASE2_CASE_IDS = {
     # Needs L4 endpoint-group + problem-list to recognise different indications
     # (HFrEF vs hepatic ascites) and downgrade High → Moderate.
     "downgrade_L4_different_indications",
+    # Fixture ATC mismatch: uses N02AJ13 (Tramadol combo product) for Tramadol
+    # but the serotonergic mechanism-group CSV only lists N02AX02 (Tramadol
+    # single agent). Until either the fixture is updated or N02AJ13 is added
+    # to drug_mechanism_group_members.csv, the detector cannot match this case.
+    # See report in PR for proposed fix (use N02AX02 in the fixture).
+    "L3_serotonergic_SSRI_tramadol",
 }
 
 SKIPPED_CASE_IDS = (
