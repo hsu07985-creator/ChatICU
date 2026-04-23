@@ -17,11 +17,12 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import { Search, Plus, Archive, Edit2, Save, X, Users, LogOut, FlaskConical } from 'lucide-react';
+import { Search, Plus, Archive, Edit2, Save, X, Users, LogOut, FlaskConical, Trash2 } from 'lucide-react';
 import { maskPatientName } from '../lib/utils/patient-name';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { PatientEditDialog } from '../components/patient/dialogs/patient-edit-dialog';
+import { PatientArchiveDialog, type ArchivePayload } from '../components/patient/dialogs/patient-archive-dialog';
 import { Label } from '../components/ui/label';
 import { Checkbox } from '../components/ui/checkbox';
 import { ErrorDisplay, EmptyState } from '../components/ui/state-display';
@@ -126,6 +127,9 @@ export function PatientsPage() {
   const [savingPatient, setSavingPatient] = useState(false);
   const [dischargingId, setDischargingId] = useState<string | null>(null);
   const [archiveTargetId, setArchiveTargetId] = useState<string>('');
+  const [dischargeDialogOpen, setDischargeDialogOpen] = useState(false);
+  const [dischargeTargetId, setDischargeTargetId] = useState<string>('');
+  const [dischargingArchiveId, setDischargingArchiveId] = useState<string | null>(null);
 
   const [newPatient, setNewPatient] = useState({
     bedNumber: '',
@@ -296,20 +300,58 @@ export function PatientsPage() {
     if (!patientId) return;
     const target = patients.find((p) => p.id === patientId);
     const label = target ? `${target.bedNumber} ${maskPatientName(target.name)}` : patientId;
-    if (!confirm(`⚠️ 確定要出院刪除病患：${label}？\n\n此操作會永久刪除該病人及所有用藥、檢驗、培養、報告等資料，無法復原！`)) return;
+    const bedNumber = target?.bedNumber ?? '';
+    const typed = prompt(
+      `⚠️ 永久刪除病患：${label}\n\n此操作會永久刪除該病人及所有用藥、檢驗、培養、報告等資料，無法復原！\n\n請輸入病人床號「${bedNumber}」以確認：`,
+    );
+    if (typed !== bedNumber) {
+      if (typed !== null) toast.error('床號不符，已取消刪除');
+      return;
+    }
 
     setDischargingId(patientId);
     try {
       await patientsApi.dischargePatient(patientId);
-      toast.success(`病患 ${label} 已出院刪除`);
+      toast.success(`病患 ${label} 已永久刪除`);
       const { patients: freshPatients } = await refreshSharedPatientDataAfterMutation();
       setPatients(freshPatients as PatientWithFrontendFields[]);
     } catch (err: unknown) {
-      console.error('出院刪除失敗:', err);
+      console.error('永久刪除失敗:', err);
       const errMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(errMsg || '出院刪除失敗，請稍後再試');
+      toast.error(errMsg || '永久刪除失敗，請稍後再試');
     } finally {
       setDischargingId(null);
+    }
+  };
+
+  const handleOpenDischargeDialog = (patient: PatientWithFrontendFields) => {
+    setDischargeTargetId(patient.id);
+    setDischargeDialogOpen(true);
+  };
+
+  const handleConfirmDischarge = async (payload: ArchivePayload) => {
+    if (!payload.patientId) return;
+    const target = patients.find((p) => p.id === payload.patientId);
+    const label = target ? `${target.bedNumber} ${maskPatientName(target.name)}` : payload.patientId;
+    setDischargingArchiveId(payload.patientId);
+    try {
+      await patientsApi.archivePatient(payload.patientId, {
+        archived: true,
+        dischargeType: payload.dischargeType,
+        dischargeDate: payload.dischargeDate,
+        reason: payload.reason,
+      });
+      toast.success(`已辦理出院：${label}`);
+      setDischargeDialogOpen(false);
+      setDischargeTargetId('');
+      const { patients: freshPatients } = await refreshSharedPatientDataAfterMutation();
+      setPatients(freshPatients as PatientWithFrontendFields[]);
+    } catch (err: unknown) {
+      console.error('辦理出院失敗:', err);
+      const errMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(errMsg || '辦理出院失敗，請稍後再試');
+    } finally {
+      setDischargingArchiveId(null);
     }
   };
 
@@ -404,7 +446,7 @@ export function PatientsPage() {
               <col style={{ width: '50px' }} />    {/* 隔離 */}
               <col style={{ width: '72px' }} />    {/* 插管 */}
               <col style={{ width: '50px' }} />    {/* 編輯 */}
-              <col style={{ width: '50px' }} />    {/* 出院 */}
+              <col style={{ width: '96px' }} />    {/* 操作（出院 / 永久刪除） */}
             </colgroup>
             <TableHeader>
               <TableRow>
@@ -421,7 +463,7 @@ export function PatientsPage() {
                 <TableHead>隔離</TableHead>
                 <TableHead>插管</TableHead>
                 <TableHead className="text-center">編輯</TableHead>
-                <TableHead className="text-center">出院</TableHead>
+                <TableHead className="text-center">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -504,14 +546,29 @@ export function PatientsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={(e) => { e.stopPropagation(); void handleDischargePatient(patient.id); }}
-                          disabled={dischargingId === patient.id}
-                          className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
-                          title="出院"
+                          onClick={(e) => { e.stopPropagation(); handleOpenDischargeDialog(patient); }}
+                          disabled={dischargingArchiveId === patient.id}
+                          className="text-muted-foreground hover:text-brand hover:bg-slate-50 dark:hover:bg-slate-800"
+                          title="辦理出院（保留病歷）"
                         >
                           <LogOut className="h-4 w-4" />
                         </Button>
-                        {dischargingId === patient.id ? <ButtonLoadingIndicator compact /> : null}
+                        {dischargingArchiveId === patient.id ? <ButtonLoadingIndicator compact /> : null}
+                        {user?.role === 'admin' && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => { e.stopPropagation(); void handleDischargePatient(patient.id); }}
+                              disabled={dischargingId === patient.id}
+                              className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                              title="永久刪除（admin）"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                            {dischargingId === patient.id ? <ButtonLoadingIndicator compact /> : null}
+                          </>
+                        )}
                       </span>
                     )}
                   </TableCell>
@@ -537,6 +594,23 @@ export function PatientsPage() {
         onCancel={handleCancel}
         onSave={handleSave}
         isSaving={savingPatient}
+      />
+
+      {/* 辦理出院對話框（per-row, soft discharge） */}
+      <PatientArchiveDialog
+        open={dischargeDialogOpen}
+        archivingPatient={!!dischargingArchiveId}
+        archiveTargetId={dischargeTargetId}
+        patients={patients}
+        onOpenChange={(open) => {
+          if (!open && !dischargingArchiveId) {
+            setDischargeDialogOpen(false);
+            setDischargeTargetId('');
+          }
+        }}
+        onArchiveTargetChange={setDischargeTargetId}
+        onConfirmArchive={handleConfirmDischarge}
+        lockTarget
       />
 
       {/* 新增病患對話框 */}

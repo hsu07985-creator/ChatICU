@@ -212,6 +212,7 @@ export interface ArchivePatientData {
   archived: boolean;
   reason?: string;
   dischargeType?: 'discharge' | 'transfer' | 'death' | 'other';
+  dischargeDate?: string;
 }
 
 export async function archivePatient(id: string, data: ArchivePatientData): Promise<Patient> {
@@ -219,6 +220,7 @@ export async function archivePatient(id: string, data: ArchivePatientData): Prom
     archived: data.archived,
     reason: data.reason,
     discharge_type: data.dischargeType,
+    discharge_date: data.dischargeDate,
   };
   const response = await apiClient.patch<ApiResponse<Patient>>(`/patients/${id}/archive`, body);
   return ensureData(response.data, 'API contract');
