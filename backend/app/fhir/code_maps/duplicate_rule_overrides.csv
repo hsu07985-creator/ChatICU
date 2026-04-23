@@ -100,6 +100,14 @@ whitelist,A10AE04,A10AB05,none,"Insulin glargine (basal) + Insulin aspart (bolus
 whitelist,A10AE05,A10AB04,none,"Insulin detemir (basal) + Insulin lispro (bolus)：basal-bolus 生理化給藥",guide://§3.2
 whitelist,A10AE06,A10AB05,none,"Insulin degludec (basal) + Insulin aspart (bolus)：basal-bolus 生理化給藥",guide://§3.2
 whitelist,A10AE04,A10AB01,none,"Insulin glargine (basal) + Regular insulin (bolus)：basal-bolus 生理化給藥",guide://§3.2
+# -- IV 溶液／補液類（B05 系列）不算臨床重複 --
+# 觀察自 Production pat_ad198db6：同 N.S. 0.9% 不同包裝規格（100mL/500mL）被抓為重複。
+# 實務上 ICU/住院輸液同種溶液不同容量並行、或電解質補充液 + 靜脈營養液並行
+# 為標準作業，不應觸發警示。Scope 限 B05XA/B05BA/B05BB（溶液/營養液/平衡液），
+# 不涵蓋 B05A（血液製劑）與 B05C（灌注液），避免放過真正異常組合。
+whitelist,B05XA*,B05XA*,none,"靜脈電解質補充溶液（N.S./KCl/NaHCO3 等）多品並行使用，ICU 標準治療",guide://§3.3
+whitelist,B05BA*,B05BA*,none,"靜脈營養液（Parenteral nutrition）多品並行配方，標準 TPN 組合",guide://§3.3
+whitelist,B05BB*,B05BB*,none,"電解質平衡溶液多品並行（Lactated Ringer's / 林格氏變體）",guide://§3.3
 # TODO: 臨床藥師確認是否納入 Paracetamol 複方（含 tramadol，N02AJ13）+ 單方 Paracetamol whitelist；
 #       指引 §3.3 列為合理但強調必算總日劑量（成人 ≤ 4 g/d，肝病／飲酒 ≤ 2 g/d），
 #       若 whitelist 恐遺漏總量稽核，建議保留為軟警示而非完全抑制。

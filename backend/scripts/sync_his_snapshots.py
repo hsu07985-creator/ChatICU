@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import logging
 import os
 import sys
 from dataclasses import dataclass
@@ -14,10 +15,13 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.fhir.snapshot_resolver import discover_patient_roots, resolve_patient_snapshot
 from app.fhir.snapshot_sync import sync_snapshot_into_session, upsert_global_sync_status
+
+logger = logging.getLogger(__name__)
 
 
 PATIENT_BASE = Path(__file__).resolve().parent.parent.parent / "patient"
@@ -132,15 +136,82 @@ def print_sync_error(snapshot: Any, action: str, error: str) -> None:
     print()
 
 
+async def post_sync_refresh_duplicates(
+    session: AsyncSession,
+    affected_patient_ids: "set[str] | list[str]",
+) -> dict[str, Any]:
+    """Re-compute medication-duplicate cache for patients whose meds changed.
+
+    Failure-isolated: per-patient try/except; failures are logged and counted
+    but never raised to the caller (must not block HIS sync).
+
+    Returns a stats dict: ``{attempted, succeeded, failed, skipped_no_meds}``.
+    """
+    # Imported lazily so that a half-implemented duplicate_cache module does
+    # not break the HIS sync entry-point at import time (Wave 4a is being
+    # authored by a sister agent; see docs/duplicate-medication-integration-plan.md §6).
+    from app.services.duplicate_cache import refresh_patient_cache
+    from app.models.medication import Medication
+
+    stats: dict[str, Any] = {
+        "attempted": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "skipped_no_meds": 0,
+    }
+    for pid in affected_patient_ids:
+        stats["attempted"] += 1
+        try:
+            result = await session.execute(
+                select(Medication).where(
+                    Medication.patient_id == pid,
+                    Medication.status == "active",
+                )
+            )
+            meds = result.scalars().all()
+
+            if not meds:
+                stats["skipped_no_meds"] += 1
+                continue
+
+            await refresh_patient_cache(
+                session, pid, list(meds), context="inpatient"
+            )
+            stats["succeeded"] += 1
+        except Exception as exc:  # noqa: BLE001 — isolate per-patient failures
+            stats["failed"] += 1
+            logger.warning(
+                "[DUP_SYNC] refresh failed for patient %s: %s", pid, exc
+            )
+
+    return stats
+
+
 async def sync_plan_item(
     session_factory: async_sessionmaker[AsyncSession],
     semaphore: asyncio.Semaphore,
     plan_item: SyncPlanItem,
+    skip_duplicate_refresh: bool = False,
 ) -> dict[str, Any]:
     async with semaphore:
         async with session_factory() as session:
             try:
                 summary = await sync_snapshot_into_session(session, plan_item.snapshot)
+
+                # Wave 4b hook: refresh medication-duplicate cache for this
+                # patient. Wrapped in try/except so a cache bug can never
+                # block the HIS sync status write below.
+                if not skip_duplicate_refresh:
+                    try:
+                        dup_stats = await post_sync_refresh_duplicates(
+                            session, {summary["patient_id"]}
+                        )
+                        logger.info("[DUP_SYNC] %s", dup_stats)
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning(
+                            "[DUP_SYNC] post-sync hook crashed: %s", exc
+                        )
+
                 await upsert_global_sync_status(session, summary)
                 await session.commit()
                 return {"plan_item": plan_item, "summary": summary, "error": None}
@@ -211,6 +282,7 @@ async def sync(
     state_path: Path,
     force: bool,
     concurrency: int,
+    skip_duplicate_refresh: bool = False,
 ) -> int:
     patient_roots = discover_patient_roots(base, patient_filter)
     state = load_sync_state(state_path)
@@ -271,7 +343,14 @@ async def sync(
 
         semaphore = asyncio.Semaphore(concurrency)
         tasks = [
-            asyncio.create_task(sync_plan_item(session_factory, semaphore, plan_item))
+            asyncio.create_task(
+                sync_plan_item(
+                    session_factory,
+                    semaphore,
+                    plan_item,
+                    skip_duplicate_refresh=skip_duplicate_refresh,
+                )
+            )
             for plan_item in pending
         ]
 
@@ -345,6 +424,15 @@ def main() -> None:
         default=2,
         help="Max number of patients to sync in parallel (default: 2)",
     )
+    parser.add_argument(
+        "--skip-duplicate-refresh",
+        action="store_true",
+        help=(
+            "Disable the post-sync medication-duplicate cache refresh hook. "
+            "Use if the duplicate_cache module is misbehaving and you need "
+            "HIS sync to keep running."
+        ),
+    )
     args = parser.parse_args()
 
     base = Path(args.patient_dir) if args.patient_dir else PATIENT_BASE
@@ -354,7 +442,18 @@ def main() -> None:
     if args.dry_run:
         raise SystemExit(preview(base, args.patient, state_path, args.force))
 
-    raise SystemExit(asyncio.run(sync(base, args.patient, state_path, args.force, concurrency)))
+    raise SystemExit(
+        asyncio.run(
+            sync(
+                base,
+                args.patient,
+                state_path,
+                args.force,
+                concurrency,
+                skip_duplicate_refresh=args.skip_duplicate_refresh,
+            )
+        )
+    )
 
 
 if __name__ == "__main__":
