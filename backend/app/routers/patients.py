@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from typing import Optional
 
@@ -66,6 +66,11 @@ def patient_to_dict(patient: Patient, unread_count: int = 0, intubation_date=Non
         "isIsolated": patient.is_isolated,
         "hasUnreadMessages": unread_count > 0,
         "lastUpdate": (patient.last_update or patient.updated_at).isoformat() if (patient.last_update or patient.updated_at) else None,
+        "archived": bool(patient.archived),
+        "archivedAt": patient.archived_at.isoformat() if patient.archived_at else None,
+        "dischargeType": patient.discharge_type,
+        "dischargeDate": patient.discharge_date.isoformat() if patient.discharge_date else None,
+        "dischargeReason": patient.discharge_reason,
     }
 
 
@@ -409,17 +414,49 @@ async def archive_patient(
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
+    was_archived = bool(patient.archived)
+
     if body is not None:
         patient.archived = body.archived
     else:
         patient.archived = not patient.archived
+
+    # Persist discharge metadata on first archive (active → archived).
+    # On un-archive (archived → active) we clear archived_at but keep
+    # discharge_type/date/reason as a record of the last discharge.
+    if patient.archived and not was_archived:
+        patient.archived_at = datetime.now(timezone.utc)
+        if body is not None:
+            if body.discharge_type:
+                patient.discharge_type = body.discharge_type
+            if body.discharge_date:
+                try:
+                    patient.discharge_date = date.fromisoformat(body.discharge_date)
+                except ValueError:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid discharge_date format: {body.discharge_date}",
+                    )
+            if body.reason:
+                patient.discharge_reason = body.reason
+    elif not patient.archived and was_archived:
+        patient.archived_at = None
+
+    await db.flush()
+    await db.refresh(patient)
+
     status_text = "已歸檔" if patient.archived else "已取消歸檔"
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="病患歸檔", target=pid, status="success",
         ip=request.client.host if request.client else None,
-        details={"archived": patient.archived, "reason": getattr(body, "reason", None)},
+        details={
+            "archived": patient.archived,
+            "reason": getattr(body, "reason", None),
+            "discharge_type": getattr(body, "discharge_type", None),
+            "discharge_date": getattr(body, "discharge_date", None),
+        },
     )
 
     return success_response(data=patient_to_dict(patient), message=f"病患{status_text}")
