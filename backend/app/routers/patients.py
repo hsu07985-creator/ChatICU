@@ -113,10 +113,21 @@ async def list_patients(
     intubated: bool = Query(None),
     criticalStatus: str = Query(None),
     department: str = Query(None),
+    archived: Optional[str] = Query(None, description="true | false | all; omit => active only"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(Patient).where(Patient.archived == False)
+    query = select(Patient)
+    # Archive filter: default (None or "false") shows only active patients to
+    # preserve existing caller behavior; "true" shows only archived; "all"
+    # disables the filter. Unknown values fall back to active-only.
+    archived_param = (archived or "").lower() if archived else ""
+    if archived_param == "true":
+        query = query.where(Patient.archived == True)  # noqa: E712
+    elif archived_param == "all":
+        pass
+    else:
+        query = query.where(Patient.archived == False)  # noqa: E712
 
     if search:
         query = query.where(
