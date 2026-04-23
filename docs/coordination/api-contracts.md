@@ -56,6 +56,21 @@
 
 <!-- Backend: document new endpoints below with full request/response schemas -->
 
+### [READY] Pharmacy advice endpoints scoped per-user (2026-04-24)
+
+> **Status:** Implemented 2026-04-24. Every pharmacist / admin sees only the records they themselves authored — no cross-user visibility.
+
+- **Scope rule applied to all 4 pharmacy-advice endpoints:**
+  - `GET /pharmacy/advice-records` — `WHERE pharmacist_id = current_user.id`
+  - `GET /pharmacy/advice-records/stats` — same filter, then aggregate
+  - `GET /pharmacy/advice-records/tag-stats` — `WHERE patient_messages.author_id = current_user.id`
+  - `GET /pharmacy/advice-records/orphan-tag-stats` — same `author_id` filter as tag-stats
+- **Why match on author_id for bulletin paths:** the bulletin-sync hook sets `PharmacyAdvice.pharmacist_id = PatientMessage.author_id`, so scoping by either column lands on the same row set.
+- **Response shape unchanged.** `byPharmacist` now returns at most one entry (the caller). Frontend should de-emphasize that panel — it no longer communicates anything new.
+- **No admin oversight mode yet.** If needed later, add `scope=all` query param restricted to admins.
+
+---
+
 ### [READY] Bulletin-board VPN tags auto-sync to PharmacyAdvice (migration 067)
 
 > **Status:** Implemented 2026-04-23. Replaces the earlier "F22 block VPN tagging" plan — bulletin messages are now a first-class source of pharmacy-intervention statistics.

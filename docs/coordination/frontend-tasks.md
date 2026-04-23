@@ -271,6 +271,10 @@
 - **Backend already in place:**
   - `POST /patients/{pid}/messages`, `PATCH /tags`, `DELETE /messages` all create / update / remove `PharmacyAdvice` rows automatically when the author is `pharmacist` / `admin` and the tag list contains VPN codes.
   - `GET /pharmacy/advice-records/orphan-tag-stats` still exists but is now an observability gauge for historical orphans (pre-migration-067) and for the edge case of non-pharmacist tagging.
+- **Per-user scoping (2026-04-24):** the 4 pharmacy-advice endpoints now filter to the caller's own records. Statistics page shows **personal** numbers, not hospital-wide aggregation. Implications:
+  - "Top 10 藥師" panel is effectively dead (only 1 entry = self). Hide it or relabel to "我的每月介入趨勢".
+  - Page title should read "我的藥事統計" instead of "藥事統計（管理者）".
+  - No cross-user drill-down needed.
 - **Work items:**
   1. **Confirmation toast on message send / tag update** (`src/components/patient/patient-messages-tab.tsx`, `src/pages/patient-detail.tsx`)
      - When the API response `message` field contains `"已計入統計"`, surface it as a success toast so the pharmacist knows their tag just fed the admin dashboard.

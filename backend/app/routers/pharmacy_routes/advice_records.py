@@ -70,7 +70,11 @@ async def list_advice_records(
     user: User = Depends(require_roles("pharmacist", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(PharmacyAdvice)
+    # Per-user scoping: each pharmacist / admin only sees their own records.
+    # Both stats and list endpoints apply the same filter so the two views
+    # stay consistent (clicking a category bar in the stats page must match
+    # a drill-down in the list).
+    query = select(PharmacyAdvice).where(PharmacyAdvice.pharmacist_id == user.id)
 
     if accepted is not None:
         if accepted == "true":
@@ -120,7 +124,8 @@ async def get_advice_record_stats(
     user: User = Depends(require_roles("pharmacist", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
-    filters = []
+    # Per-user scoping — mirror list_advice_records above.
+    filters = [PharmacyAdvice.pharmacist_id == user.id]
     if month:
         try:
             start, end = _parse_month_range(month)
@@ -132,9 +137,8 @@ async def get_advice_record_stats(
             )
 
     base = select(PharmacyAdvice)
-    if filters:
-        for flt in filters:
-            base = base.where(flt)
+    for flt in filters:
+        base = base.where(flt)
 
     total_result = await db.execute(select(func.count()).select_from(base.subquery()))
     total = total_result.scalar() or 0
@@ -215,9 +219,18 @@ async def get_advice_tag_stats(
     user: User = Depends(require_roles("pharmacist", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Tag usage stats from bulletin board medication-advice messages."""
-    filters = "WHERE pm.message_type = 'medication-advice' AND pm.tags IS NOT NULL AND pm.reply_to_id IS NULL"
-    params = {}
+    """Tag usage stats from bulletin board medication-advice messages.
+
+    Scoped to the caller's own messages (``author_id == user.id``) so
+    every pharmacist / admin sees their own tag usage only.
+    """
+    filters = (
+        "WHERE pm.message_type = 'medication-advice' "
+        "AND pm.tags IS NOT NULL "
+        "AND pm.reply_to_id IS NULL "
+        "AND pm.author_id = :author_id"
+    )
+    params = {"author_id": user.id}
 
     if month:
         try:
@@ -262,7 +275,7 @@ async def get_orphan_tag_stats(
     ``backend/scripts/backfill_orphan_advice.py``) or (b) a tag placed by
     a non-pharmacist role (sync helper deliberately skips those).
     """
-    # Step 1: messages with tags + no widget-path linkage
+    # Step 1: messages with tags + no widget-path linkage, scoped to caller.
     query = select(
         PatientMessage.id,
         PatientMessage.patient_id,
@@ -273,6 +286,7 @@ async def get_orphan_tag_stats(
     ).where(
         PatientMessage.tags.isnot(None),
         PatientMessage.advice_record_id.is_(None),
+        PatientMessage.author_id == user.id,
     )
 
     if month:
