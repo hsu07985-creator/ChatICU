@@ -195,3 +195,94 @@ export async function getMedicationDuplicates(
   return ensureData(response.data, 'API contract');
 }
 
+// ── Batched duplicate summary (Wave 5b) ─────────────────────────────
+// Backed by POST /pharmacy/duplicate-summary — see
+// docs/duplicate-medication-integration-plan.md §4.4 / §7.
+// Used by the pharmacy workstation patient list + dashboard tiles to
+// show per-patient severity badges without N+1 calls.
+export interface DuplicateSeverityCounts {
+  critical: number;
+  high: number;
+  moderate: number;
+  low: number;
+  info: number;
+}
+
+export interface DuplicateCountsByPatient {
+  [patientId: string]: DuplicateSeverityCounts;
+}
+
+export interface DuplicateSummaryResponse {
+  counts: DuplicateCountsByPatient;
+  // patient ids whose cache missed — backend is warming them in background;
+  // caller may refetch after a short delay to pick up populated counts.
+  pending: string[];
+}
+
+// Backend actually wraps per-patient entries under { counts, cached } and
+// returns them under a `results` key (see backend/app/routers/
+// medication_duplicates.py::duplicate_summary). We normalize here so the
+// callsite only has to reason about {patientId → {critical, high, ...}}.
+interface _RawDuplicateSummaryPayload {
+  results?: Record<string, { counts?: Partial<DuplicateSeverityCounts>; cached?: boolean }>;
+  // Tolerate the simpler shape described in the integration plan in case
+  // the backend is upgraded later to flatten the response.
+  counts?: Record<string, Partial<DuplicateSeverityCounts>>;
+  pending?: string[];
+  total?: number;
+}
+
+const _EMPTY_COUNTS: DuplicateSeverityCounts = {
+  critical: 0,
+  high: 0,
+  moderate: 0,
+  low: 0,
+  info: 0,
+};
+
+function _normalizeCounts(partial?: Partial<DuplicateSeverityCounts>): DuplicateSeverityCounts {
+  return {
+    critical: partial?.critical ?? 0,
+    high: partial?.high ?? 0,
+    moderate: partial?.moderate ?? 0,
+    low: partial?.low ?? 0,
+    info: partial?.info ?? 0,
+  };
+}
+
+export async function fetchPharmacyDuplicateSummary(
+  patientIds: string[],
+  context: 'inpatient' | 'outpatient' | 'icu' | 'discharge' = 'inpatient',
+): Promise<DuplicateSummaryResponse> {
+  if (patientIds.length === 0) {
+    return { counts: {}, pending: [] };
+  }
+  const response = await apiClient.post<ApiResponse<_RawDuplicateSummaryPayload>>(
+    `/pharmacy/duplicate-summary?context=${context}`,
+    { patientIds }
+  );
+  const raw = ensureData(response.data, 'API contract');
+  const counts: DuplicateCountsByPatient = {};
+
+  if (raw.results) {
+    for (const [pid, entry] of Object.entries(raw.results)) {
+      counts[pid] = _normalizeCounts(entry?.counts);
+    }
+  } else if (raw.counts) {
+    for (const [pid, partial] of Object.entries(raw.counts)) {
+      counts[pid] = _normalizeCounts(partial);
+    }
+  }
+
+  // Ensure every requested pid has an entry so callers can do
+  // `summary.counts[id]` safely without null checks.
+  for (const pid of patientIds) {
+    if (!counts[pid]) counts[pid] = { ..._EMPTY_COUNTS };
+  }
+
+  return {
+    counts,
+    pending: raw.pending ?? [],
+  };
+}
+

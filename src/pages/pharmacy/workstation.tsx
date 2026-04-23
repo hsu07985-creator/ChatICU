@@ -15,7 +15,12 @@ import { getLatestLabData, type LabData as ApiLabData } from '../../lib/api/lab-
 import { getLatestVitalSigns, type VitalSigns as ApiVitalSigns } from '../../lib/api/vital-signs';
 import { checkInteractions, polishClinicalText, type PatientContext } from '../../lib/api/ai';
 import { createAdviceRecord, getDrugInteractions, getIVCompatibilityBatch, padCalculate, type PadDrugInfo } from '../../lib/api/pharmacy';
-import { getMedications } from '../../lib/api/medications';
+import {
+  getMedications,
+  fetchPharmacyDuplicateSummary,
+  type DuplicateSeverityCounts,
+} from '../../lib/api/medications';
+import { useApiQuery } from '../../hooks/use-api-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
@@ -47,6 +52,40 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+// Wave 5b: inline per-patient duplicate-medication severity badge. Only
+// renders non-zero buckets so the Select row stays compact. Intentionally
+// small (text-[10px]) so it fits inside <SelectItem> without pushing the
+// main label. See docs/duplicate-medication-integration-plan.md §4.4.
+function DuplicateCountsBadge({ counts }: { counts?: DuplicateSeverityCounts }) {
+  if (!counts) return null;
+  const { critical, high, moderate, low } = counts;
+  if (!critical && !high && !moderate && !low) return null;
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] leading-none" aria-label="重複用藥警示">
+      {critical > 0 && (
+        <span className="rounded-full bg-red-100 text-red-700 px-1.5 py-0.5 font-medium">
+          🔴 {critical}
+        </span>
+      )}
+      {high > 0 && (
+        <span className="rounded-full bg-orange-100 text-orange-700 px-1.5 py-0.5 font-medium">
+          🟠 {high}
+        </span>
+      )}
+      {moderate > 0 && (
+        <span className="rounded-full bg-yellow-100 text-yellow-700 px-1.5 py-0.5 font-medium">
+          🟡 {moderate}
+        </span>
+      )}
+      {low > 0 && (
+        <span className="rounded-full bg-blue-100 text-blue-700 px-1.5 py-0.5 font-medium">
+          🔵 {low}
+        </span>
+      )}
+    </span>
+  );
+}
+
 export function PharmacyWorkstationPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -72,6 +111,19 @@ export function PharmacyWorkstationPage() {
       setPatientsLoading(false);
     });
   }, []);
+
+  // Wave 5b: batched duplicate-medication severity counts for the patient
+  // dropdown. Key is derived from the sorted patient id list so adding or
+  // removing a patient refetches; staleTime keeps the first-click snappy.
+  const patientIdsKey = patients.map(p => p.id).sort().join(',');
+  const { data: duplicateSummary } = useApiQuery<
+    Awaited<ReturnType<typeof fetchPharmacyDuplicateSummary>>
+  >({
+    queryKey: ['pharmacy-duplicate-summary', patientIdsKey],
+    queryFn: () => fetchPharmacyDuplicateSummary(patients.map(p => p.id)),
+    enabled: patients.length > 0,
+    staleTime: 60_000,
+  });
 
   // 病患選擇
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
@@ -744,7 +796,12 @@ export function PharmacyWorkstationPage() {
                 <SelectContent>
                   {patients.map(patient => (
                     <SelectItem key={patient.id} value={patient.id}>
-                      {patient.bedNumber} - {maskPatientName(patient.name)} ({patient.age}歲)
+                      <span className="inline-flex items-center gap-2 w-full">
+                        <span>
+                          {patient.bedNumber} - {maskPatientName(patient.name)} ({patient.age}歲)
+                        </span>
+                        <DuplicateCountsBadge counts={duplicateSummary?.counts?.[patient.id]} />
+                      </span>
                     </SelectItem>
                   ))}
                   {!patientsLoading && patients.length === 0 && (
@@ -765,7 +822,10 @@ export function PharmacyWorkstationPage() {
                     </div>
                     <div>
                       <p className="text-muted-foreground text-xs">姓名</p>
-                      <p className="font-semibold">{maskPatientName(selectedPatient.name)}</p>
+                      <p className="font-semibold flex items-center gap-2">
+                        {maskPatientName(selectedPatient.name)}
+                        <DuplicateCountsBadge counts={duplicateSummary?.counts?.[selectedPatient.id]} />
+                      </p>
                     </div>
                     <div>
                       <p className="text-muted-foreground text-xs">年齡/身高/體重</p>

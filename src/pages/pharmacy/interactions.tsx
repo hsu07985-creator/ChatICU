@@ -1,4 +1,4 @@
-import { Search, Plus, BookOpen, AlertTriangle, AlertCircle, Info, Loader2, ShieldAlert, Route, X, User, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Plus, BookOpen, AlertTriangle, AlertCircle, Info, Loader2, ShieldAlert, Route, X, User, ChevronDown, ChevronUp, CheckCircle2, Copy } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -6,16 +6,19 @@ import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Separator } from '../../components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { toast } from 'sonner';
 import { checkInteractions, type InteractionCheckResponse } from '../../lib/api/ai';
 import { maskPatientName } from '../../lib/utils/patient-name';
 import { getDrugInteractions } from '../../lib/api/pharmacy';
 import { type Patient } from '../../lib/api/patients';
 import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from '../../lib/patients-cache';
-import { getMedications, type Medication } from '../../lib/api/medications';
+import { getMedications, getMedicationDuplicates, type Medication, type DuplicateAlert } from '../../lib/api/medications';
 import { copyToClipboard } from '../../lib/clipboard-utils';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
 import { DRUG_LIST, hasInteractionData } from '../../lib/drug-list';
+import { useApiQuery } from '../../hooks/use-api-query';
+import { MedicationDuplicateBadges } from '../../components/patient/medication-duplicate-badges';
 
 interface InteractingMemberGroup {
   group_name: string;
@@ -431,21 +434,43 @@ export function DrugInteractionsPage() {
     return { riskCounts, highestRisk, pairs };
   }, [searchResults, drugs]);
 
+  // ── Tab 2：重複用藥 —— useApiQuery fetch ──
+  // Sharing the patient selector with Tab 1. Context fixed to 'inpatient'
+  // per Wave 5a spec (pharmacy center does not currently expose a ward
+  // context; plan §4.3 only requires a single call).
+  const duplicateContext: 'inpatient' = 'inpatient';
+  const {
+    data: duplicateData,
+    isLoading: duplicateLoading,
+    isError: duplicateIsError,
+  } = useApiQuery<{ alerts: DuplicateAlert[]; counts: Record<string, number> }>({
+    queryKey: ['medication-duplicates', selectedPatientId || '', duplicateContext],
+    queryFn: () => getMedicationDuplicates(selectedPatientId, duplicateContext),
+    enabled: Boolean(selectedPatientId),
+    staleTime: 30_000,
+    retry: 0,
+  });
+  const duplicateAlerts = duplicateData?.alerts ?? [];
+  const duplicateCounts = useMemo(() => {
+    return duplicateAlerts.reduce(
+      (acc, a) => {
+        acc[a.level] = (acc[a.level] ?? 0) + 1;
+        return acc;
+      },
+      { critical: 0, high: 0, moderate: 0, low: 0, info: 0 } as Record<DuplicateAlert['level'], number>,
+    );
+  }, [duplicateAlerts]);
+
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">交互作用查詢</h1>
-        <p className="text-muted-foreground text-sm mt-1">查詢藥物之間的交互作用與處理建議</p>
+        <h1 className="text-2xl font-bold">藥物安全查詢</h1>
+        <p className="text-muted-foreground text-sm mt-1">查詢藥物交互作用、偵測重複用藥</p>
       </div>
 
-      {/* 搜尋區 */}
+      {/* 共用病患選擇器（Tab 1 / Tab 2 共用） */}
       <Card>
-        <CardHeader>
-          <CardTitle>藥品選擇</CardTitle>
-          <CardDescription>選擇至少兩種藥品，系統將自動比對所有兩兩組合的交互作用</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* 病患選擇（可選） */}
+        <CardContent className="pt-4 pb-4 space-y-3">
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium w-16 shrink-0">
               <User className="inline h-3.5 w-3.5 mr-1" />
@@ -454,7 +479,7 @@ export function DrugInteractionsPage() {
             <div className="flex-1">
               <Select value={selectedPatientId} onValueChange={handlePatientSelect} disabled={patientsLoading}>
                 <SelectTrigger className="h-9">
-                  <SelectValue placeholder={patientsLoading ? '載入中...' : '選擇病患自動帶入用藥（可選）'} />
+                  <SelectValue placeholder={patientsLoading ? '載入中...' : '選擇病患（交互作用 / 重複用藥 共用）'} />
                 </SelectTrigger>
                 <SelectContent>
                   {patients.map(p => (
@@ -490,7 +515,30 @@ export function DrugInteractionsPage() {
               載入病患用藥中...
             </div>
           )}
+        </CardContent>
+      </Card>
 
+      <Tabs defaultValue="interactions" className="space-y-4">
+        <TabsList className="h-10">
+          <TabsTrigger value="interactions" className="gap-1.5">
+            <ShieldAlert className="h-3.5 w-3.5" />
+            藥物交互作用
+          </TabsTrigger>
+          <TabsTrigger value="duplicates" className="gap-1.5">
+            <Copy className="h-3.5 w-3.5" />
+            重複用藥
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="interactions" className="space-y-6 mt-0">
+
+      {/* 搜尋區 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>藥品選擇</CardTitle>
+          <CardDescription>選擇至少兩種藥品，系統將自動比對所有兩兩組合的交互作用</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
           {skippedMeds.length > 0 && (
             <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-sm">
               <button
@@ -826,6 +874,90 @@ export function DrugInteractionsPage() {
           <p className="text-muted-foreground">查詢中...</p>
         </div>
       )}
+
+        </TabsContent>
+
+        {/* ─── Tab 2：重複用藥 ─── */}
+        <TabsContent value="duplicates" className="space-y-4 mt-0">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Copy className="h-5 w-5" />
+                重複用藥偵測
+              </CardTitle>
+              <CardDescription>
+                依病人目前住院用藥清單，偵測同機轉 / 同類藥物 / 同給藥途徑之重複項目
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!selectedPatientId ? (
+                <div className="text-center py-10 text-sm text-muted-foreground border border-dashed rounded-md">
+                  <User className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                  請先於上方選擇一位病人
+                </div>
+              ) : duplicateLoading ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    載入重複用藥分析中...
+                  </div>
+                  <div className="h-9 w-full rounded-md bg-muted/60 animate-pulse" />
+                  <div className="h-20 w-full rounded-md bg-muted/60 animate-pulse" />
+                  <div className="h-20 w-full rounded-md bg-muted/60 animate-pulse" />
+                </div>
+              ) : duplicateIsError ? (
+                <Alert className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30">
+                  <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                  <AlertDescription className="text-sm text-red-800 dark:text-red-200">
+                    重複用藥服務暫時無法使用。請稍後再試，或切換到「藥物交互作用」頁。
+                  </AlertDescription>
+                </Alert>
+              ) : duplicateAlerts.length === 0 ? (
+                <Alert className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/30">
+                  <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <AlertDescription className="text-sm text-green-800 dark:text-green-200 font-medium">
+                    ✓ 未偵測到重複用藥
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <>
+                  {/* Counts 摘要 (critical / high / moderate) */}
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                    <span className="font-medium text-muted-foreground">風險分佈：</span>
+                    <span className="inline-flex items-center gap-1 text-red-700 dark:text-red-400">
+                      🔴 Critical {duplicateCounts.critical}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-orange-700 dark:text-orange-400">
+                      🟠 High {duplicateCounts.high}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-yellow-700 dark:text-yellow-500">
+                      🟡 Moderate {duplicateCounts.moderate}
+                    </span>
+                    {duplicateCounts.low > 0 && (
+                      <span className="inline-flex items-center gap-1 text-blue-700 dark:text-blue-400">
+                        🔵 Low {duplicateCounts.low}
+                      </span>
+                    )}
+                    {duplicateCounts.info > 0 && (
+                      <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-400">
+                        ⚪ Info {duplicateCounts.info}
+                      </span>
+                    )}
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      共 {duplicateAlerts.length} 筆
+                    </span>
+                  </div>
+
+                  <Separator />
+
+                  {/* 重複用藥明細 — 沿用共用元件 */}
+                  <MedicationDuplicateBadges alerts={duplicateAlerts} />
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
     </div>
   );
