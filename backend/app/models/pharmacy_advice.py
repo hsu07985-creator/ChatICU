@@ -33,6 +33,23 @@ class PharmacyAdvice(Base):
     responded_by_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     responded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    # Bulletin-board sync: when an advice row is auto-created from a VPN tag
+    # on a PatientMessage, this points back to that message. ON DELETE CASCADE
+    # so removing the message also retracts its auto-synced advices from the
+    # pharmacy statistics (migration 067).
+    source_message_id: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        ForeignKey(
+            "patient_messages.id",
+            ondelete="CASCADE",
+            use_alter=True,
+            name="fk_pharmacy_advices_source_message_id",
+        ),
+        nullable=True,
+        index=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

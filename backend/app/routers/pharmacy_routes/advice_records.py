@@ -250,14 +250,19 @@ async def get_orphan_tag_stats(
     user: User = Depends(require_roles("pharmacist", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Observability: bulletin-board messages carrying VPN-code tags but not
-    linked to a ``PharmacyAdvice`` row (``advice_record_id IS NULL``).
+    """Observability: bulletin-board messages with VPN-code tags that have
+    NO linked ``PharmacyAdvice`` row at all — neither via the widget path
+    (``patient_messages.advice_record_id``) nor via the bulletin sync path
+    (``pharmacy_advices.source_message_id``).
 
-    These "orphan" tags won't show up in the admin pharmacy-intervention
-    statistics page. Frontend task F22 drives them to zero by routing all
-    VPN tagging through the advice widget; this endpoint lets admins watch
-    the backlog drain during that migration.
+    Since migration 067 + the messages-router sync hook, fresh VPN tagging
+    on the bulletin board auto-creates advice rows, so ``total`` should
+    stay at 0 in steady state. A non-zero count means either (a) historic
+    orphans that predate the sync hook (fix with the backfill script at
+    ``backend/scripts/backfill_orphan_advice.py``) or (b) a tag placed by
+    a non-pharmacist role (sync helper deliberately skips those).
     """
+    # Step 1: messages with tags + no widget-path linkage
     query = select(
         PatientMessage.id,
         PatientMessage.patient_id,
@@ -285,12 +290,26 @@ async def get_orphan_tag_stats(
 
     rows = (await db.execute(query)).all()
 
+    # Step 2: of those, drop any that already have at least one
+    # ``PharmacyAdvice`` via the bulletin-sync reverse FK.
+    candidate_ids = [row.id for row in rows]
+    synced_ids = set()
+    if candidate_ids:
+        synced_result = await db.execute(
+            select(PharmacyAdvice.source_message_id)
+            .where(PharmacyAdvice.source_message_id.in_(candidate_ids))
+            .distinct()
+        )
+        synced_ids = {mid for (mid,) in synced_result.all() if mid}
+
     by_tag: dict = {}
     by_type: dict = {}
     samples = []
     total = 0
 
     for row in rows:
+        if row.id in synced_ids:
+            continue
         tags = row.tags or []
         vpn_tags = [t for t in tags if isinstance(t, str) and _VPN_TAG_PATTERN.match(t)]
         if not vpn_tags:

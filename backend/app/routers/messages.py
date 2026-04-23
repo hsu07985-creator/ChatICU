@@ -1,3 +1,4 @@
+import re
 import uuid
 from datetime import datetime, timezone
 
@@ -9,6 +10,8 @@ from app.database import get_db
 from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log
 from app.models.message import PatientMessage
+from app.models.patient import Patient
+from app.models.pharmacy_advice import PharmacyAdvice
 from app.models.user import User
 from app.routers.patients import normalize_patient_id
 from app.models.custom_tag import CustomTag
@@ -33,6 +36,18 @@ CATEGORY_TAG_MAP = {
     "4. 用藥連貫性": "用藥連貫性",
     "4. 用藥適從性": "用藥連貫性",  # legacy alias
 }
+
+# Reverse of CATEGORY_TAG_MAP by code-prefix — used when auto-creating
+# ``PharmacyAdvice`` rows from VPN tags on bulletin-board messages.
+_CATEGORY_BY_CODE_PREFIX = {
+    "1": "1. 建議處方",
+    "2": "2. 主動建議",
+    "3": "3. 建議監測",
+    "4": "4. 用藥連貫性",
+}
+
+# Parse "1-A 給藥問題" / "2-10 用藥劑量" / bare "4-W" into code + inline label.
+_VPN_TAG_PARSE_RE = re.compile(r"^(\d+-[A-Z\d]+)(?:\s+(.*))?$")
 
 # Map advice_code → short label (parenthetical content stripped)
 # Used for readable subcode tags: "1-1 給藥問題" instead of bare "1-1"
@@ -109,6 +124,113 @@ def format_subcode_tag(code: str) -> str:
     if label:
         return f"{code} {label}"
     return code
+
+
+def _parse_vpn_tag(tag):
+    """Extract ``(advice_code, advice_label, category)`` from a tag string.
+
+    Returns ``None`` if the string doesn't look like a VPN-format tag or the
+    code prefix is outside 1-4 (those are the only categories that belong in
+    ``PharmacyAdvice.category``).
+    """
+    if not isinstance(tag, str):
+        return None
+    m = _VPN_TAG_PARSE_RE.match(tag)
+    if not m:
+        return None
+    code = m.group(1)
+    inline_label = (m.group(2) or "").strip()
+    prefix = code.split("-", 1)[0]
+    category = _CATEGORY_BY_CODE_PREFIX.get(prefix)
+    if category is None:
+        return None
+    label = inline_label or CODE_TO_SHORT_LABEL.get(code) or code
+    return code, label, category
+
+
+async def _sync_advices_from_message(msg, author, db):
+    """Ensure ``PharmacyAdvice`` rows mirror the VPN tags on ``msg``.
+
+    Bulletin-board messages carrying VPN tags (e.g. "1-A 給藥問題") now
+    feed the admin pharmacy statistics. Each VPN tag on a message produces
+    one advice row (keyed by ``source_message_id`` + ``advice_code``).
+    Adding / removing / replacing VPN tags flows through here so the
+    statistics stay in lock-step with the message's tag list.
+
+    Skipped when the author isn't pharmacist/admin — the ``PharmacyAdvice``
+    table represents pharmacist interventions and we don't want nurses or
+    doctors inflating those numbers by accident.
+
+    Returns ``(created_ids, deleted_ids)`` for audit purposes. Idempotent:
+    calling twice with the same tag state is a no-op.
+    """
+    if author.role not in ("pharmacist", "admin"):
+        return [], []
+
+    # Messages created by the pharmacist widget already have a 1:1
+    # ``PharmacyAdvice`` via ``advice_record_id``. Don't double-sync those.
+    if msg.advice_record_id:
+        return [], []
+
+    target = {}  # code -> (label, category)
+    for t in (msg.tags or []):
+        parsed = _parse_vpn_tag(t)
+        if parsed:
+            code, label, category = parsed
+            target[code] = (label, category)
+
+    existing_result = await db.execute(
+        select(PharmacyAdvice).where(PharmacyAdvice.source_message_id == msg.id)
+    )
+    existing = {a.advice_code: a for a in existing_result.scalars().all()}
+
+    created_ids = []
+    deleted_ids = []
+
+    for code, advice in existing.items():
+        if code not in target:
+            deleted_ids.append(advice.id)
+            await db.delete(advice)
+
+    to_create = [c for c in target.keys() if c not in existing]
+    if to_create:
+        pat_result = await db.execute(
+            select(Patient).where(Patient.id == msg.patient_id)
+        )
+        patient = pat_result.scalar_one_or_none()
+        if patient is None:
+            return created_ids, deleted_ids
+
+        linked_meds = None
+        if msg.linked_medication:
+            parts = [p.strip() for p in msg.linked_medication.split(",") if p.strip()]
+            linked_meds = parts or None
+
+        for code in to_create:
+            label, category = target[code]
+            new_advice = PharmacyAdvice(
+                id=f"adv_{uuid.uuid4().hex[:8]}",
+                patient_id=patient.id,
+                patient_name=patient.name,
+                bed_number=patient.bed_number,
+                pharmacist_id=author.id,
+                pharmacist_name=author.name,
+                advice_code=code,
+                advice_label=label,
+                category=category,
+                content=msg.content,
+                linked_medications=linked_meds,
+                accepted=None,
+                timestamp=msg.timestamp or datetime.now(timezone.utc),
+                source_message_id=msg.id,
+            )
+            db.add(new_advice)
+            created_ids.append(new_advice.id)
+
+    if created_ids or deleted_ids:
+        await db.flush()
+
+    return created_ids, deleted_ids
 
 
 def msg_to_dict(
@@ -409,6 +531,9 @@ async def create_message(
     db.add(msg)
     await db.flush()
 
+    # Bulletin-board VPN tags → PharmacyAdvice (so they reach /admin/statistics)
+    advice_sync_created, advice_sync_deleted = await _sync_advices_from_message(msg, user, db)
+
     # Increment parent reply_count
     if body.replyToId and parent:
         parent.reply_count = (parent.reply_count or 0) + 1
@@ -457,6 +582,8 @@ async def create_message(
             "message_type": body.messageType,
             "reply_to_id": body.replyToId,
             "advice_action": body.adviceAction,
+            "advice_sync_created": advice_sync_created,
+            "advice_sync_deleted": advice_sync_deleted,
         },
     )
 
@@ -464,6 +591,8 @@ async def create_message(
     if advice_synced:
         action_label = "已接受" if body.adviceAction == "accept" else "已拒絕"
         result_msg = f"訊息已發送，藥事建議{action_label}"
+    elif advice_sync_created:
+        result_msg = f"訊息已發送，{len(advice_sync_created)} 筆藥事介入已計入統計"
 
     return success_response(data=msg_to_dict(msg), message=result_msg)
 
@@ -532,11 +661,19 @@ async def update_message_tags(
 
     msg.tags = current_tags
 
+    # Re-sync PharmacyAdvice rows to match the new VPN-tag set on the message.
+    sync_created, sync_deleted = await _sync_advices_from_message(msg, user, db)
+
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="更新訊息標籤", target=message_id, status="success",
         ip=request.client.host if request.client else None,
-        details={"patient_id": patient_id, "tags": current_tags},
+        details={
+            "patient_id": patient_id,
+            "tags": current_tags,
+            "advice_sync_created": sync_created,
+            "advice_sync_deleted": sync_deleted,
+        },
     )
 
     return success_response(data=msg_to_dict(msg), message="標籤已更新")
@@ -557,11 +694,27 @@ async def delete_patient_message(
     if not msg:
         raise HTTPException(status_code=404, detail="Message not found")
 
+    # Explicitly drop auto-synced advice rows that point back to this message.
+    # The ``source_message_id`` FK has ``ON DELETE CASCADE`` at the DB level,
+    # but SQLite (used in tests) only honours it when ``PRAGMA foreign_keys``
+    # is on, so we handle it here for parity across environments — and to keep
+    # the audit log accurate about what was retracted from the statistics.
+    linked_advices = await db.execute(
+        select(PharmacyAdvice).where(PharmacyAdvice.source_message_id == message_id)
+    )
+    deleted_advice_ids = []
+    for advice in linked_advices.scalars().all():
+        deleted_advice_ids.append(advice.id)
+        await db.delete(advice)
+
     await db.delete(msg)
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="刪除病患留言", target=message_id, status="success",
         ip=request.client.host if request.client else None,
-        details={"patient_id": patient_id},
+        details={
+            "patient_id": patient_id,
+            "advice_sync_deleted": deleted_advice_ids,
+        },
     )
     return success_response(message="訊息已刪除")

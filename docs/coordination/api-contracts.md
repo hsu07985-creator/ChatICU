@@ -56,9 +56,35 @@
 
 <!-- Backend: document new endpoints below with full request/response schemas -->
 
+### [READY] Bulletin-board VPN tags auto-sync to PharmacyAdvice (migration 067)
+
+> **Status:** Implemented 2026-04-23. Replaces the earlier "F22 block VPN tagging" plan — bulletin messages are now a first-class source of pharmacy-intervention statistics.
+
+- **Goal:** when a pharmacist / admin writes or re-tags a bulletin-board message, every VPN-format tag on that message (e.g. `"1-A 給藥問題"`, `"2-O 建議用藥/建議增加用藥"`) is mirrored into a `PharmacyAdvice` row so the intervention shows up in `/admin/statistics`.
+- **Schema change (migration 067):** adds `pharmacy_advices.source_message_id` — nullable FK → `patient_messages.id`, `ON DELETE CASCADE`. One message can produce N advice rows (one per VPN code).
+- **Author role gate:** only messages authored by `pharmacist` or `admin` trigger sync. Nurses / doctors tagging a message do NOT inflate the stats.
+
+**Touched endpoints** (no schema changes to the request/response bodies):
+
+| Method | Path | Sync behaviour |
+|---|---|---|
+| `POST` | `/patients/{pid}/messages` | After insert, each VPN tag on `body.tags` creates one `PharmacyAdvice`. Response `message` gains a suffix `"訊息已發送，N 筆藥事介入已計入統計"` when N > 0. |
+| `PATCH` | `/patients/{pid}/messages/{mid}/tags` | Re-syncs advices by diff: add VPN code → new advice row; remove VPN code → drop the row; swap → delete-then-insert. |
+| `DELETE` | `/patients/{pid}/messages/{mid}` | Explicitly removes all linked advices first (DB CASCADE is the belt-and-suspenders for Postgres). |
+| `POST` | `/pharmacy/advice-records` | Unchanged. Widget-created messages have `advice_record_id` set and are guarded against double-sync. |
+
+**Audit-log additions:** the existing `建立病患訊息` / `更新訊息標籤` / `刪除病患留言` audit rows now carry `details.advice_sync_created` and `details.advice_sync_deleted` arrays of `adv_*` ids.
+
+**Frontend-visible implications:**
+- `Message.tags` semantics unchanged; no new fields in `PatientMessage` response.
+- `PharmacyAdvice` objects now sometimes have `sourceMessageId` set (widget-path rows leave it `null`). Safe to ignore if you don't surface it.
+- The orphan-tag-stats endpoint below stays in place for historical data.
+
+---
+
 ### [READY] GET `/pharmacy/advice-records/orphan-tag-stats` — Orphan VPN-tag monitor
 
-> **Status:** Implemented 2026-04-23. Observability endpoint for the F22 migration away from free-hand VPN tagging on the bulletin board.
+> **Status:** Updated 2026-04-23 to account for bulletin-sync. Remains an observability gauge for pre-migration-067 data + edge cases (non-pharmacist tagging).
 
 - **Auth:** `pharmacist` or `admin`
 - **Purpose:** Count `patient_messages` rows that carry a VPN-code tag (e.g. `"1-A 給藥問題"`, `"4-W 病人用藥遵從性問題"`) but have `advice_record_id IS NULL`. Those messages never reach `/admin/statistics` because the admin page reads only `PharmacyAdvice`.
