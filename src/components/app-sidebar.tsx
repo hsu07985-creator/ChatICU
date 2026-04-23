@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Home, Users, MessageSquare, Database, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Moon, Sun, LogOut, Sparkles, Archive } from 'lucide-react';
+import { Home, Users, MessageSquare, Database, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Moon, Sun, LogOut, Sparkles, Archive, Copy } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import logoImage from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 import {
@@ -82,6 +82,7 @@ export function AppSidebar() {
   // 3) 藥事工具（藥師/管理者可見）— 獨立查詢工具
   const pharmacyToolItems = (user?.role === 'pharmacist' || user?.role === 'admin') ? [
     { title: '交互作用查詢', url: '/pharmacy/interactions', icon: AlertTriangle },
+    { title: '重複用藥', url: '/pharmacy/duplicates', icon: Copy },
     { title: '相容性檢核', url: '/pharmacy/compatibility', icon: Droplets },
     { title: '用藥建議與統計', url: '/pharmacy/advice-statistics', icon: BarChart3 },
   ] : [];

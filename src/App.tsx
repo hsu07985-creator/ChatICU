@@ -24,6 +24,7 @@ const DischargedPatientsPage = lazy(() => import('./pages/discharged-patients').
 // Pharmacy Pages (lazy)
 const PharmacyWorkstationPage = lazy(() => import('./pages/pharmacy/workstation').then(m => ({ default: m.PharmacyWorkstationPage })));
 const DrugInteractionsPage = lazy(() => import('./pages/pharmacy/interactions').then(m => ({ default: m.DrugInteractionsPage })));
+const MedicationDuplicatesPage = lazy(() => import('./pages/pharmacy/duplicates').then(m => ({ default: m.MedicationDuplicatesPage })));
 const CompatibilityPage = lazy(() => import('./pages/pharmacy/compatibility').then(m => ({ default: m.CompatibilityPage })));
 const DosagePage = lazy(() => import('./pages/pharmacy/dosage').then(m => ({ default: m.DosagePage })));
 const PharmacyAdviceStatisticsPage = lazy(() => import('./pages/pharmacy/advice-statistics').then(m => ({ default: m.PharmacyAdviceStatisticsPage })));
@@ -260,6 +261,16 @@ function AppRoutes() {
           <PharmacyRoute>
             <AppLayout>
               <DrugInteractionsPage />
+            </AppLayout>
+          </PharmacyRoute>
+        }
+      />
+      <Route
+        path="/pharmacy/duplicates"
+        element={
+          <PharmacyRoute>
+            <AppLayout>
+              <MedicationDuplicatesPage />
             </AppLayout>
           </PharmacyRoute>
         }

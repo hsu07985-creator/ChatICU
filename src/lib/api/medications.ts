@@ -195,6 +195,40 @@ export async function getMedicationDuplicates(
   return ensureData(response.data, 'API contract');
 }
 
+// ── Manual (stateless) duplicate check ───────────────────────────────
+// Backed by POST /pharmacy/duplicate-check — used by the standalone
+// 重複用藥 page when the pharmacist picks drugs ad-hoc instead of
+// selecting a patient.
+export interface DuplicateCheckDrug {
+  name: string;
+  atcCode?: string | null;
+  route?: string | null;
+  isPrn?: boolean;
+}
+
+export interface DuplicateCheckResolved {
+  name: string;
+  atcCode: string | null;
+}
+
+export async function checkDuplicateMedications(
+  drugs: DuplicateCheckDrug[],
+  context: 'inpatient' | 'outpatient' | 'icu' | 'discharge' = 'inpatient'
+): Promise<{
+  alerts: DuplicateAlert[];
+  counts: Record<string, number>;
+  resolved: DuplicateCheckResolved[];
+}> {
+  const response = await apiClient.post<
+    ApiResponse<{
+      alerts: DuplicateAlert[];
+      counts: Record<string, number>;
+      resolved: DuplicateCheckResolved[];
+    }>
+  >('/pharmacy/duplicate-check', { drugs, context });
+  return ensureData(response.data, 'API contract');
+}
+
 // ── Batched duplicate summary (Wave 5b) ─────────────────────────────
 // Backed by POST /pharmacy/duplicate-summary — see
 // docs/duplicate-medication-integration-plan.md §4.4 / §7.
