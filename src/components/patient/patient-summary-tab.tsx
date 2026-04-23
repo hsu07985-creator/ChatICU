@@ -22,6 +22,7 @@ import {
   type SymptomRecord,
 } from '../../lib/api/symptom-records';
 import { maskPatientName } from '../../lib/utils/patient-name';
+import { MedicationRiskCard } from './medication-risk-card';
 
 interface PatientSummaryTabPatient {
   id: string;
@@ -38,6 +39,7 @@ interface PatientSummaryTabPatient {
   symptoms?: string[];
   diagnosis?: string | null;
   alerts?: string[];
+  allergies?: string[];
   admissionDate?: string;
   icuAdmissionDate?: string;
   ventilatorDays?: number;
@@ -52,6 +54,8 @@ interface PatientSummaryTabProps {
   userRole?: string;
   aiReadiness: AIReadiness | null;
   onPatientUpdate?: (updated: Partial<PatientSummaryTabPatient>) => void;
+  /** Wave 6b — 風險卡片「查看詳情」切到用藥 tab 的 callback */
+  onNavigateToMeds?: () => void;
 }
 
 /* ── Helpers ─────────────────────────────────── */
@@ -192,7 +196,7 @@ function SymptomTimeline({ records }: { records: SymptomRecord[] }) {
 
 /* ── Main Component ─────────────────────────── */
 
-export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: PatientSummaryTabProps) {
+export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate, onNavigateToMeds }: PatientSummaryTabProps) {
   // Symptom editing state
   const initialSymptoms = Array.isArray(patient.symptoms) ? patient.symptoms : [];
   const [editingSymptoms, setEditingSymptoms] = useState<string[]>(initialSymptoms);
@@ -378,6 +382,13 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate }: Pat
             </div>
           </CardContent>
         </Card>
+
+        {/* ── 用藥風險卡片（Wave 6b）── */}
+        <MedicationRiskCard
+          patientId={patient.id}
+          allergies={patient.allergies}
+          onNavigateToMeds={onNavigateToMeds}
+        />
       </div>
 
       {/* ── 右欄：臨床狀態 + 症狀歷程 ── */}

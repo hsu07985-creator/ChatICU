@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import {
   Archive,
   ArrowUpCircle,
+  ClipboardCheck,
   Eye,
   FlaskConical,
   Loader2,
@@ -36,8 +37,16 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog';
 import { EmptyState, ErrorDisplay } from '../components/ui/state-display';
 import { TableSkeleton } from '../components/ui/skeletons';
+import { DischargeCheckPanel } from '../components/patient/discharge-check-panel';
 
 type DischargeType = 'discharge' | 'transfer' | 'death' | 'other';
 
@@ -85,6 +94,7 @@ export function DischargedPatientsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [dischargeCheckPatient, setDischargeCheckPatient] = useState<Patient | null>(null);
 
   const fetchPage = useCallback(async (targetPage: number, append: boolean) => {
     try {
@@ -412,6 +422,15 @@ export function DischargedPatientsPage() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              onClick={() => setDischargeCheckPatient(p)}
+                              title="出院用藥檢查"
+                              className="text-brand hover:text-brand hover:bg-slate-50 dark:hover:bg-slate-800"
+                            >
+                              <ClipboardCheck className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => void handleRestore(p)}
                               disabled={restoringId === p.id}
                               title="復住院"
@@ -482,6 +501,37 @@ export function DischargedPatientsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* 出院用藥檢查 Dialog */}
+      <Dialog
+        open={dischargeCheckPatient !== null}
+        onOpenChange={(open) => {
+          if (!open) setDischargeCheckPatient(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardCheck className="h-5 w-5 text-brand" />
+              出院用藥檢查
+            </DialogTitle>
+            <DialogDescription>
+              {dischargeCheckPatient && (
+                <>
+                  {dischargeCheckPatient.bedNumber ? `${dischargeCheckPatient.bedNumber} · ` : ''}
+                  {maskPatientName(dischargeCheckPatient.name)}
+                  {dischargeCheckPatient.dischargeDate
+                    ? ` · 出院日 ${dischargeCheckPatient.dischargeDate}`
+                    : ''}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {dischargeCheckPatient && (
+            <DischargeCheckPanel patientId={dischargeCheckPatient.id} />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* 底部選取操作列 */}
       {selectedIds.size > 0 && (

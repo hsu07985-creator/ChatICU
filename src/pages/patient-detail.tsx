@@ -2040,6 +2040,7 @@ export function PatientDetailPage() {
             patient={patient}
             userRole={user?.role}
             aiReadiness={aiReadiness}
+            onNavigateToMeds={() => setActiveTab('meds')}
           />
         </TabsContent>
       </Tabs>

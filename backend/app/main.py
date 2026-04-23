@@ -63,6 +63,7 @@ from app.routers import (
     clinical,
     dashboard,
     diagnostic_reports,
+    discharge_check,
     fhir_export,
     health,
     lab_data,
@@ -413,6 +414,7 @@ app.include_router(ventilator.router)
 app.include_router(medications.router)
 app.include_router(medication_duplicates.router)
 app.include_router(medication_duplicates.pharmacy_summary_router)
+app.include_router(discharge_check.router)
 app.include_router(fhir_export.router)
 app.include_router(message_activity.router)  # before messages — /patients/messages/* must match before /patients/{patient_id}/messages
 app.include_router(messages.router)

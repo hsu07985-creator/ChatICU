@@ -12,7 +12,7 @@
 > 每次 Claude 被要求處理「重複用藥」相關任務時，必同步更新此區塊。
 > 關聯文件：[臨床判斷指引](./duplicate-medication-assessment-guide.md) · [串接計畫](./duplicate-medication-integration-plan.md)
 
-**最後更新**：2026-04-23（Phase 1 完成 + Wave 2/3 UI 驗證通過 ✅）
+**最後更新**：2026-04-23（Phase 1 + Phase 2 完成 ✅ 60 pass / 3 skip / 0 fail；Production deployed）
 
 ### Phase 0 — 資料準備
 - [ ] 補齊 15.4% 無 ATC 的 medications（`backfill_missing_atc.py`）
@@ -38,10 +38,10 @@
 - [ ] Shadow mode 驗收（1 週，目標 PPV ≥ 70%）
 
 ### Phase 2 — L3 + L4 + 覆寫 + KPI
-- [ ] L3 偵測（機轉群組 join）
-- [ ] L4 偵測（療效終點 join）
-- [ ] §3.1 強制升級規則
-- [ ] §3.3 白名單規則
+- [x] L3 偵測（機轉群組 join）✅ 7 groups + stacking escalation（QTc/CNS/anticholinergic/serotonergic）
+- [x] L4 偵測（療效終點 join）✅ 5 groups + subtype coverage + bridging downgrade + L3/L4 fold
+- [x] §3.1 強制升級規則 ✅（Wave 1 已完成）
+- [x] §3.3 白名單規則 ✅（含 B05 IV 溶液補丁）
 - [ ] 覆寫 UI + `duplicate_alert_feedback` 表
 - [ ] KPI dashboard（PPV、override rate、intervention rate）
 

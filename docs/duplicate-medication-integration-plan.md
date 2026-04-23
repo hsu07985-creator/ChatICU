@@ -12,7 +12,7 @@
 > 每次 Claude 被要求處理「重複用藥」相關任務時，必同步更新此區塊。
 > 關聯文件：[臨床判斷指引](./duplicate-medication-assessment-guide.md) · [實作計畫](./duplicate-medication-detection-implementation-plan.md)
 
-**最後更新**：2026-04-23（Wave 1–3 完成 ✅ UI 驗證通過）
+**最後更新**：2026-04-23（Wave 1–5 + Phase 2 L3/L4 完成 ✅ Production deployed）
 
 ### Wave 1 — 核心管線 ✅ 完成
 - [x] Migration 063（detection tables + `medication_duplicate_cache`）✅ 7 張表
@@ -33,14 +33,14 @@
 - [x] System prompt template 更新 ✅ 透過 snapshot string 自動注入
 
 ### Wave 4 — 快取與 HIS sync hook（3 天）
-- [ ] `medication_duplicate_cache` 表 + `medications_hash` 邏輯
-- [ ] `post_sync_refresh_duplicates` hook 插入 `sync_his_snapshots.py`
-- [ ] Hook 失敗隔離（try/except + retry queue）
+- [x] `medication_duplicate_cache` 表 + `medications_hash` SHA-256 邏輯 ✅
+- [x] `post_sync_refresh_duplicates` hook 插入 `sync_his_snapshots.py` ✅（加 `--skip-duplicate-refresh` CLI flag）
+- [x] Hook 失敗隔離（try/except per-patient + stats tracking）✅
 
 ### Wave 5 — 藥師中心與審方（4 天）
-- [ ] `POST /pharmacy/duplicate-summary` 批次 endpoint
-- [ ] `pharmacy/interactions.tsx` 新增「重複用藥」Tab
-- [ ] `pharmacy/workstation.tsx` 清單 badge
+- [x] `POST /pharmacy/duplicate-summary` 批次 endpoint ✅（含 BackgroundTasks warmup）
+- [x] `pharmacy/interactions.tsx` 新增「重複用藥」Tab ✅
+- [x] `pharmacy/workstation.tsx` 清單 badge ✅（dropdown + summary card 皆插入）
 
 ### Wave 6 — 出院與 Dashboard（3 天）
 - [ ] `GET /patients/{id}/discharge-check`
@@ -64,9 +64,9 @@
 |--------|------|------|
 | 病人用藥 Tab | 2 | 🟢 已上線（Playwright 驗證通過） |
 | AI 問答 | 3 | 🟢 已上線（snapshot 自動注入重複用藥警示） |
-| HIS sync 自動預算 | 4 | ⬜ 未開始 |
-| 藥師中心 DDI 頁 | 5 | ⬜ 未開始 |
-| 藥師審方工作站 | 5 | ⬜ 未開始 |
+| HIS sync 自動預算 | 4 | 🟢 已上線（--skip-duplicate-refresh CLI flag 可停用） |
+| 藥師中心 DDI 頁 | 5 | 🟢 已上線（新增「重複用藥」Tab，病患選擇器共用） |
+| 藥師審方工作站 | 5 | 🟢 已上線（dropdown + summary card 有 counts badge） |
 | 出院管理 | 6 | ⬜ 未開始 |
 | 病人摘要 Tab | 6 | ⬜ 未開始 |
 | Dashboard | 6 | ⬜ 未開始 |
