@@ -620,3 +620,186 @@ Existing messages were backfilled via migrations 032 + 033.
 - Render the grayed-out buttons using `feature_gates`, not `overall_ready` (partial availability is common — e.g., chat works when evidence is down).
 - `display_reasons` is pre-translated; safe to render directly in a tooltip / banner.
 - `rag.engine` is `"hybrid_rag"` when evidence service is reachable, `"local_rag"` as fallback. Purely informational — don't branch UI on it.
+
+---
+
+## Duplicate Medication Detection (Added by Backend Session · 2026-04-23)
+
+### [READY] GET `/patients/{patient_id}/medication-duplicates` — Single-Patient Duplicate Alerts
+
+> **Status:** Implemented 2026-04-23 (Wave 1 + Wave 4a cache rewrite).
+> Detects L1 (same ATC L5), L2 (same ATC L4), L3 (same mechanism cross-class), L4 (same therapeutic endpoint) duplication.
+
+- **Auth:** any logged-in user with patient access (`verify_patient_access`)
+- **Query params:**
+  | Name | Type | Default | Values |
+  |------|------|---------|--------|
+  | `context` | string | `inpatient` | `inpatient` \| `outpatient` \| `icu` \| `discharge` |
+
+**Cache behavior (Wave 4a):**
+Cache is SHA-256 hashed on sorted `(medication_id, atc_code, status, updated_at)` tuples plus context. Hit returns immediately; miss triggers compute and write-through. `cached: boolean` reflects whether this specific response came from cache.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "alerts": [
+      {
+        "fingerprint": "f62826ad9d9541ae",  // pragma: allowlist secret (SHA-256 fingerprint, not a secret)
+        "level": "critical",
+        "layer": "L2",
+        "mechanism": "PPI × PPI",
+        "members": [
+          {
+            "medicationId": "med_xxx",
+            "genericName": "Omeprazole",
+            "atcCode": "A02BC01",
+            "route": "PO",
+            "isPrn": false,
+            "lastAdminAt": "2026-04-23T04:42:47.207316+00:00"
+          }
+        ],
+        "recommendation": "停用其中一 PPI；若為換藥過渡期，overlap ≤ 48h 後應停單方。",
+        "evidenceUrl": "guide://§3.1",
+        "autoDowngraded": false,
+        "downgradeReason": null
+      }
+    ],
+    "counts": { "critical": 2, "high": 0, "moderate": 0, "low": 0, "info": 0 },
+    "cached": true
+  }
+}
+```
+
+**Field semantics:**
+- `level` — final severity after all upgrade / downgrade / whitelist rules: `critical` \| `high` \| `moderate` \| `low` \| `info`
+- `layer` — which detection layer triggered: `L1` \| `L2` \| `L3` \| `L4`
+- `fingerprint` — SHA-256(sorted medication_ids)[:16]; stable across reloads, usable as React key
+- `autoDowngraded` — `true` when an auto-downgrade rule reduced severity (e.g., route switch, salt switch, PRN + scheduled, overlap ≤ 48h with transition signal)
+- `downgradeReason` — short tag when downgraded: `route_switch` \| `salt_switch` \| `transitional_overlap_le_48h` \| `prn_plus_scheduled`
+- `evidenceUrl` — internal pointer `guide://§3.1` (assessment guide section) or external URL when available
+
+**Frontend client:** `src/lib/api/medications.ts::getMedicationDuplicates(patientId, context)`
+
+---
+
+### [READY] POST `/pharmacy/duplicate-summary` — Batched Counts for Dashboard / Workstation
+
+> **Status:** Implemented 2026-04-23 (Wave 4a + Wave 5b).
+
+- **Auth:** any logged-in user
+- **Query params:** same `context` as above
+
+**Request body:**
+```json
+{
+  "patientIds": ["pat_xxx", "pat_yyy", "..."]
+}
+```
+Accepts up to 200 ids. snake_case `patient_ids` also accepted (Pydantic alias).
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "results": {
+      "pat_xxx": {
+        "counts": { "critical": 1, "high": 0, "moderate": 1, "low": 1, "info": 0 },
+        "cached": true
+      },
+      "pat_yyy": {
+        "counts": { "critical": 0, "high": 0, "moderate": 0, "low": 0, "info": 0 },
+        "cached": false
+      }
+    },
+    "pending": ["pat_zzz"],
+    "total": 3
+  }
+}
+```
+
+**Background warmup semantics:**
+- Cache hits return counts immediately.
+- Cache misses return zeroed counts **and** schedule a background `refresh_patient_cache` via FastAPI `BackgroundTasks` using a fresh `async_session`.
+- `pending[]` contains patient ids that are being warmed — frontend can optionally retry once after ~10s to pick up those counts.
+
+**Frontend client:** `src/lib/api/medications.ts::fetchPharmacyDuplicateSummary(patientIds, context)`
+Normalizer in the client handles both `{results, pending, total}` (current envelope) and `{counts, pending}` (legacy spec) shapes, and guarantees a zeroed entry for every requested id.
+
+---
+
+### [READY] GET `/patients/{patient_id}/discharge-check` — Discharge Medication Reconciliation
+
+> **Status:** Implemented 2026-04-23 (Wave 6a).
+> Compares inpatient meds active at discharge against the discharge order set, flags missed discontinuations by 4 clinical categories, and runs the duplicate detector over the discharge set itself.
+
+- **Auth:** any logged-in user with patient access
+- **Query params:** none
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "patientId": "pat_xxx",
+    "dischargeDate": "2026-04-20",
+    "dischargeType": "一般出院",
+    "inpatientActiveAtDischarge": [
+      {
+        "medicationId": "med_inp_001",
+        "genericName": "Pantoprazole",
+        "atcCode": "A02BC02",
+        "indication": "SUP",
+        "startDate": "2026-04-10"
+      }
+    ],
+    "dischargeMedications": [
+      { "medicationId": "med_out_001", "genericName": "Omeprazole", "atcCode": "A02BC01", "daysSupply": 14 }
+    ],
+    "missedDiscontinuations": [
+      {
+        "medicationId": "med_inp_001",
+        "genericName": "Pantoprazole",
+        "atcCode": "A02BC02",
+        "category": "sup_ppi",
+        "severity": "high",
+        "reason": "住院時開立 IV PPI 作為 SUP，出院單未繼續開立也未記錄停藥；常見 ICU 病房轉出陷阱。",
+        "inpatientStartDate": "2026-04-10"
+      }
+    ],
+    "dischargeDuplicates": [ /* DuplicateAlert[], same schema as /medication-duplicates */ ],
+    "counts": {
+      "missedDiscontinuations": 3,
+      "dischargeDuplicates": { "critical": 0, "high": 1, "moderate": 0, "low": 0, "info": 0 }
+    }
+  }
+}
+```
+
+**Missed-discontinuation categories & severity:**
+| `category` | `severity` | Trigger |
+|------------|-----------|---------|
+| `sup_ppi` | `high` | ATC `A02BC*` or `*prazole` generic name AND (indication contains SUP/stress ulcer/GI prophylaxis/壓力性潰瘍/預防 OR route IV from inpatient) |
+| `empirical_antibiotic` | `high` | `is_antibiotic=True` AND course ≤ 7 days |
+| `prn_only` | `low` | PRN meds not on discharge order |
+| `other` | `moderate` | Scheduled inpatient meds with no discharge continuation |
+
+**Same-drug matching order (for "carried on" check):**
+1. Exact ATC L5 (7 chars)
+2. ATC L4 prefix (5 chars)
+3. Case-insensitive `generic_name` fallback
+
+`end_date < discharge_date` inpatient rows are excluded from `inpatientActiveAtDischarge`. If `discharge_date IS NULL` (still inpatient) the endpoint returns 200 with all arrays empty.
+
+**Frontend client:** `src/lib/api/discharge.ts::getDischargeCheck(patientId)`
+
+---
+
+### Non-HTTP consumers (document for completeness)
+
+These aren't standalone endpoints but are part of the duplicate-medication pipeline and surface in behavior tests:
+
+- **AI snapshot injection** — `POST /ai-chat/*` internally calls `build_clinical_snapshot()` which appends `format_duplicate_text()` output to the system prompt. Context inferred from `patient.unit` (contains "icu" → `icu`, else `inpatient`). Detector crashes log-and-continue, snapshot never fails.
+- **HIS sync post-hook** — `python -m scripts.sync_his_snapshots` calls `post_sync_refresh_duplicates()` after meds upsert, before global sync status write. Wrapped in try/except per-patient. CLI flag `--skip-duplicate-refresh` disables hook for ops debugging.
