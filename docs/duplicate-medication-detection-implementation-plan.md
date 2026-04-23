@@ -12,7 +12,7 @@
 > 每次 Claude 被要求處理「重複用藥」相關任務時，必同步更新此區塊。
 > 關聯文件：[臨床判斷指引](./duplicate-medication-assessment-guide.md) · [串接計畫](./duplicate-medication-integration-plan.md)
 
-**最後更新**：2026-04-23（Phase 1 + Phase 2 完成 ✅ 60 pass / 3 skip / 0 fail；Production deployed）
+**最後更新**：2026-04-23（Phase 1 + Phase 2 完成 + Wave 1–6 消費點全上線 ✅ 60 pass / 3 skip / 0 fail；Production deployed）
 
 ### Phase 0 — 資料準備
 - [ ] 補齊 15.4% 無 ATC 的 medications（`backfill_missing_atc.py`）
@@ -32,9 +32,8 @@
 - [x] `backend/app/utils/duplicate_check.py`（AI snapshot 用）✅
 - [x] `backend/scripts/seed_duplicate_groups.py`（CSV→DB loader）✅
 - [x] `src/lib/api/medications.ts` 加 `getMedicationDuplicates()` + interfaces ✅
-- [ ] 前端 `src/lib/api/medications.ts` 新增 interface + fetch
-- [ ] 前端 `medication-duplicate-badges.tsx`
-- [ ] 串入 `patient-medications-tab.tsx`
+- [x] 前端 `medication-duplicate-badges.tsx` ✅（240 行，沿用 DDI 配色）
+- [x] 串入 `patient-medications-tab.tsx` ✅（Wave 2 完成）
 - [ ] Shadow mode 驗收（1 週，目標 PPV ≥ 70%）
 
 ### Phase 2 — L3 + L4 + 覆寫 + KPI

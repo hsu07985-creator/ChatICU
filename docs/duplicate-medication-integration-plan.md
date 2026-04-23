@@ -12,7 +12,7 @@
 > 每次 Claude 被要求處理「重複用藥」相關任務時，必同步更新此區塊。
 > 關聯文件：[臨床判斷指引](./duplicate-medication-assessment-guide.md) · [實作計畫](./duplicate-medication-detection-implementation-plan.md)
 
-**最後更新**：2026-04-23（Wave 1–5 + Phase 2 L3/L4 完成 ✅ Production deployed）
+**最後更新**：2026-04-23（Wave 1–6 + Phase 2 L3/L4 完成 ✅ Production deployed；全 8 個消費點上線）
 
 ### Wave 1 — 核心管線 ✅ 完成
 - [x] Migration 063（detection tables + `medication_duplicate_cache`）✅ 7 張表
@@ -42,11 +42,11 @@
 - [x] `pharmacy/interactions.tsx` 新增「重複用藥」Tab ✅
 - [x] `pharmacy/workstation.tsx` 清單 badge ✅（dropdown + summary card 皆插入）
 
-### Wave 6 — 出院與 Dashboard（3 天）
-- [ ] `GET /patients/{id}/discharge-check`
-- [ ] `discharged-patients.tsx` 出院 checklist panel
-- [ ] `patient-summary-tab.tsx` 風險卡片
-- [ ] `dashboard.tsx` 病人風險 badge
+### Wave 6 — 出院與 Dashboard ✅ 完成
+- [x] `GET /patients/{id}/discharge-check` ✅ 新 router + 4 分類（sup_ppi / empirical_antibiotic / prn_only / other）
+- [x] `discharged-patients.tsx` 出院 checklist panel ✅（每 row 加 button → shadcn Dialog）
+- [x] `patient-summary-tab.tsx` 風險卡片 ✅（DDI + 重複用藥 counts + 過敏；critical 時紅色邊框 + 警示 chip）
+- [x] `dashboard.tsx` 病人風險 badge ✅（批次 API + 60s staleTime + 10s 一次性 retry for pending cache warmup）
 
 ### Wave 7 — Phase 2 擴充（後續 iteration）
 - [ ] L3 / L4 清單擴充至 P1 / P2
@@ -67,9 +67,9 @@
 | HIS sync 自動預算 | 4 | 🟢 已上線（--skip-duplicate-refresh CLI flag 可停用） |
 | 藥師中心 DDI 頁 | 5 | 🟢 已上線（新增「重複用藥」Tab，病患選擇器共用） |
 | 藥師審方工作站 | 5 | 🟢 已上線（dropdown + summary card 有 counts badge） |
-| 出院管理 | 6 | ⬜ 未開始 |
-| 病人摘要 Tab | 6 | ⬜ 未開始 |
-| Dashboard | 6 | ⬜ 未開始 |
+| 出院管理 | 6 | 🟢 已上線（出院用藥檢查 Dialog，sup_ppi / empirical_antibiotic 等分類） |
+| 病人摘要 Tab | 6 | 🟢 已上線（用藥風險卡 + 導航至用藥頁） |
+| Dashboard | 6 | 🟢 已上線（每病人卡片 🔴/🟠/🟡/🔵 counts badge） |
 
 > 圖例：⬜ 未開始 · 🟡 開發中 · 🟢 已上線 · 🔒 shadow mode
 
