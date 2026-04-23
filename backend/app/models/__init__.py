@@ -19,6 +19,15 @@ from app.models.custom_tag import CustomTag
 from app.models.rag_chunk import RagChunk
 from app.models.diagnostic_report import DiagnosticReport
 from app.models.sync_status import SyncStatus
+from app.models.duplicate_group import (
+    DrugMechanismGroup,
+    DrugMechanismGroupMember,
+    DrugEndpointGroup,
+    DrugEndpointGroupMember,
+)
+from app.models.duplicate_rule import DuplicateRuleOverride
+from app.models.duplicate_alert_feedback import DuplicateAlertFeedback
+from app.models.medication_duplicate_cache import MedicationDuplicateCache
 
 __all__ = [
     "User",
@@ -46,4 +55,11 @@ __all__ = [
     "RagChunk",
     "DiagnosticReport",
     "SyncStatus",
+    "DrugMechanismGroup",
+    "DrugMechanismGroupMember",
+    "DrugEndpointGroup",
+    "DrugEndpointGroupMember",
+    "DuplicateRuleOverride",
+    "DuplicateAlertFeedback",
+    "MedicationDuplicateCache",
 ]

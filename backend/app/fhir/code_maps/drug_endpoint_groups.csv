@@ -1,0 +1,11 @@
+# drug_endpoint_groups.csv
+# Source of truth: docs/duplicate-medication-assessment-guide.md §3.4 (L4 P0 endpoint groups)
+# Fields: group_key,group_name_zh,group_name_en,severity,mechanism_note
+# severity values: critical | high | moderate | low (aligned with §2.2 / §6.1)
+# Lines starting with # are ignored by loader.
+group_key,group_name_zh,group_name_en,severity,mechanism_note
+raas_blockade,RAAS 阻斷,Renin-angiotensin-aldosterone system blockade,critical,"ACEI/ARB/ARNI/DRI 合併使用（或加 MRA）導致高血鉀、AKI、低血壓（ONTARGET 2008、VA-NEPHRON-D 2013；KDIGO 2024 不建議）"
+bleeding_risk,出血風險疊加,Bleeding risk stacking,high,"NSAID + SSRI + 抗凝 + 抗血小板 疊加使 GI 出血風險倍增，老人、腎功能不全、PPI 未併用時更顯著"
+hyperkalemia,升鉀疊加,Hyperkalemia risk stacking,high,"ACEI/ARB + MRA + Trimethoprim + Tacrolimus/CsA + Heparin + K 補充 多來源影響腎鉀排泄與分布，致危及生命之高血鉀"
+nephrotoxic_triple_whammy,三重腎毒（NSAID+RAAS+利尿劑）,Nephrotoxic triple whammy,critical,"NSAID（抑制前列腺素致入球小動脈收縮）+ ACEI/ARB（出球小動脈擴張）+ 利尿劑（容量減少）同時使用顯著增加 AKI 風險（OR ~1.3–1.6）"
+qtc_stacking,QTc 延長疊加,QTc-prolonging stacking (endpoint),high,"L4 終點：同屬延長 QT 間期之藥物合併（重用 mechanism_groups.qtc_prolonging 成員），兩個以上即需警示"

@@ -66,6 +66,7 @@ from app.routers import (
     fhir_export,
     health,
     lab_data,
+    medication_duplicates,
     medications,
     message_activity,
     messages,
@@ -410,6 +411,7 @@ app.include_router(diagnostic_reports.router)
 app.include_router(vital_signs.router)
 app.include_router(ventilator.router)
 app.include_router(medications.router)
+app.include_router(medication_duplicates.router)
 app.include_router(fhir_export.router)
 app.include_router(message_activity.router)  # before messages — /patients/messages/* must match before /patients/{patient_id}/messages
 app.include_router(messages.router)

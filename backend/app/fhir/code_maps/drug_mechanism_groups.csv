@@ -1,0 +1,13 @@
+# drug_mechanism_groups.csv
+# Source of truth: docs/duplicate-medication-assessment-guide.md §3.4 (L3 P0 mechanism groups)
+# Fields: group_key,group_name_zh,group_name_en,severity,mechanism_note
+# severity values: critical | high | moderate | low  (aligned with §2.2 / §6.1)
+# Lines starting with # are ignored by loader.
+group_key,group_name_zh,group_name_en,severity,mechanism_note
+alpha1_blocker,α1 受體阻斷,Alpha-1 adrenergic receptor blockade,high,"同 α1 阻斷疊加（BPH + HTN 用途不同）導致直立性低血壓、暈厥與跌倒，AUA／EAU 不建議併用"
+serotonergic,血清素能,Serotonergic agents,critical,"多重促血清素機轉（SSRI/SNRI/Tramadol/Linezolid/Methylene blue/Triptan）疊加可致血清素症候群（hyperthermia、clonus、autonomic instability）"
+qtc_prolonging,QTc 延長,QTc-prolonging agents,high,"兩種以上 QTc 延長藥物疊加顯著增加 Torsades de Pointes 與心因性猝死風險，ICU／老人／低 K 低 Mg 更甚"
+anticholinergic_burden,抗膽鹼負荷,Anticholinergic burden,moderate,"多重抗膽鹼活性（TCA／一代抗組織胺／Oxybutynin／Benztropine／Quetiapine）累積導致認知惡化、譫妄、尿滯留、便秘與跌倒（Beers 2023）"
+cns_depressant,中樞神經抑制,CNS depressant stacking,critical,"BZD + Opioid + Z-drug + Gabapentinoid + 一代抗組織胺 同時使用致呼吸抑制、過度鎮靜與死亡（FDA Boxed Warning: BZD+Opioid）"
+d2_antagonist_antiemetic,D2 阻斷止吐,D2 antagonist antiemetics,high,"雙 D2 阻斷（Metoclopramide + Prochlorperazine / Haloperidol / Domperidone）疊加 EPS、tardive dyskinesia、NMS 與 QTc 延長；無加成止吐效益"
+promotility,腸道促動力,GI promotility agents,moderate,"雙 promotility（Metoclopramide + Erythromycin + Neostigmine）疊加膽鹼／D2／motilin 機轉，增加腹瀉、心律不整（QTc）與膽鹼亢進副作用"

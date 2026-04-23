@@ -1,0 +1,106 @@
+# duplicate_rule_overrides.csv
+# Source of truth: docs/duplicate-medication-assessment-guide.md §3.1 (upgrade to Critical) & §3.3 (whitelist)
+# Fields: rule_type,atc_code_1,atc_code_2,severity_override,reason,evidence_url
+# rule_type values:
+#   upgrade    — force severity to specified level (typically critical)
+#   whitelist  — suppress alert entirely (合理 multimodal，不警示)
+# severity_override values: critical | high | moderate | low | none
+#   (for whitelist rows use "none")
+# NOTE on ATC code patterns:
+#   - Wildcards (e.g. "A02BC*") represent "any member of ATC class". Loader should
+#     expand to all L5 members under that prefix before persisting.
+#   - Pair-class rules (class×class) expand combinatorially.
+# Lines starting with # are ignored by loader.
+rule_type,atc_code_1,atc_code_2,severity_override,reason,evidence_url
+# ============================================================
+# UPGRADE rules (§3.1 — 幾乎必然為不當重複 🔴 Critical)
+# ============================================================
+# -- 雙 PPI（A02BC*） --
+upgrade,A02BC*,A02BC*,critical,"雙 PPI 機轉完全重疊，無加成療效，長期併用與骨折、低鎂、C. diff、CAP 相關性上升",guide://§3.1
+# -- 雙口服抗凝（Warfarin + DOAC；DOAC × DOAC） --
+upgrade,B01AA03,B01AE07,critical,"Warfarin + Dabigatran 雙口服抗凝致命性出血；橋接需 INR gated",guide://§3.1
+upgrade,B01AA03,B01AF01,critical,"Warfarin + Rivaroxaban 雙口服抗凝致命性出血",guide://§3.1
+upgrade,B01AA03,B01AF02,critical,"Warfarin + Apixaban 雙口服抗凝致命性出血",guide://§3.1
+upgrade,B01AA03,B01AF03,critical,"Warfarin + Edoxaban 雙口服抗凝致命性出血",guide://§3.1
+upgrade,B01AE07,B01AF01,critical,"Dabigatran + Rivaroxaban 雙 DOAC 並用，無任何適應症支持",guide://§3.1
+upgrade,B01AE07,B01AF02,critical,"Dabigatran + Apixaban 雙 DOAC 並用",guide://§3.1
+upgrade,B01AE07,B01AF03,critical,"Dabigatran + Edoxaban 雙 DOAC 並用",guide://§3.1
+upgrade,B01AF01,B01AF02,critical,"Rivaroxaban + Apixaban 雙 FXa DOAC",guide://§3.1
+upgrade,B01AF01,B01AF03,critical,"Rivaroxaban + Edoxaban 雙 FXa DOAC",guide://§3.1
+upgrade,B01AF02,B01AF03,critical,"Apixaban + Edoxaban 雙 FXa DOAC",guide://§3.1
+# -- ACEI × ARB（任一組合；加 DRI 亦同禁，§3.1） --
+upgrade,C09AA*,C09CA*,critical,"ACEI × ARB 雙重 RAAS 阻斷（ONTARGET 2008、VA-NEPHRON-D 2013；KDIGO 2024 任何情境皆不建議）",guide://§3.1
+upgrade,C09AA*,C09DX04,critical,"ACEI + ARNI（含 Valsartan）雙重 RAAS 阻斷；ARNI 啟用前 ACEI 須停藥 ≥36 h（血管性水腫）",guide://§3.1
+upgrade,C09CA*,C09DX04,critical,"ARB + ARNI 重複 valsartan 成分，RAAS 雙阻斷",guide://§3.1
+upgrade,C09AA*,C09XA02,critical,"ACEI + Aliskiren（DRI）雙重 RAAS 阻斷，KDIGO/FDA 警告禁用於糖尿病",guide://§3.1
+upgrade,C09CA*,C09XA02,critical,"ARB + Aliskiren（DRI）雙重 RAAS 阻斷",guide://§3.1
+# -- 雙 DHP CCB（C08CA*） --
+upgrade,C08CA*,C08CA*,critical,"雙 DHP CCB（Amlodipine/Nifedipine/Felodipine 等）反射性心搏過速與水腫疊加，無療效加成",guide://§3.1
+# -- Metformin 單方 × Metformin 複方 --
+upgrade,A10BA02,A10BD*,critical,"Metformin 單方 + Metformin 複方疊加同成分，GI 不良反應加劇、總日劑量超標；開立複方必須停單方",guide://§3.1
+# -- 雙 α1-blocker（不同 ATC class；§3.1 / §3.4） --
+upgrade,C02CA04,G04CA02,critical,"Doxazosin（HTN）+ Tamsulosin（BPH）同 α1 阻斷疊加，直立性低血壓、暈厥",guide://§3.1
+upgrade,C02CA04,G04CA01,critical,"Doxazosin + Alfuzosin 雙 α1 阻斷",guide://§3.1
+upgrade,C02CA04,G04CA03,critical,"Doxazosin + Terazosin 雙 α1 阻斷（同為 C02CA 但仍標記）",guide://§3.1
+upgrade,C02CA04,G04CA04,critical,"Doxazosin + Silodosin 雙 α1 阻斷",guide://§3.1
+upgrade,C02CA01,G04CA02,critical,"Prazosin + Tamsulosin 雙 α1 阻斷",guide://§3.1
+upgrade,C02CA01,G04CA01,critical,"Prazosin + Alfuzosin 雙 α1 阻斷",guide://§3.1
+upgrade,C02CA01,G04CA04,critical,"Prazosin + Silodosin 雙 α1 阻斷",guide://§3.1
+# -- 雙 5-HT3 止吐（§3.1） --
+upgrade,A04AA01,A04AA02,critical,"Ondansetron + Granisetron 雙 5-HT3 阻斷；無加成止吐效益、QTc 疊加",guide://§3.1
+upgrade,A04AA01,A04AA03,critical,"Ondansetron + Tropisetron 雙 5-HT3 阻斷",guide://§3.1
+upgrade,A04AA01,A04AA05,critical,"Ondansetron + Palonosetron 雙 5-HT3 阻斷",guide://§3.1
+upgrade,A04AA02,A04AA05,critical,"Granisetron + Palonosetron 雙 5-HT3 阻斷",guide://§3.1
+# -- 雙 D2 antagonist 止吐（§3.1） --
+upgrade,A03FA01,N05AD01,critical,"Metoclopramide + Haloperidol 雙 D2 阻斷，EPS/tardive/NMS 與 QTc 疊加",guide://§3.1
+upgrade,A03FA01,N05AB04,critical,"Metoclopramide + Prochlorperazine 雙 D2 阻斷",guide://§3.1
+upgrade,A03FA01,A03FA03,critical,"Metoclopramide + Domperidone 雙 D2 阻斷（Domperidone 另有 QTc 警示）",guide://§3.1
+upgrade,A03FA03,N05AD01,critical,"Domperidone + Haloperidol 雙 D2 阻斷；QTc 疊加高風險",guide://§3.1
+upgrade,A03FA03,N05AB04,critical,"Domperidone + Prochlorperazine 雙 D2 阻斷",guide://§3.1
+upgrade,N05AB04,N05AD01,critical,"Prochlorperazine + Haloperidol 雙 D2 阻斷，EPS 與 QTc 疊加",guide://§3.1
+# -- 雙口服 NSAID（M01A*） --
+upgrade,M01A*,M01A*,critical,"雙口服 NSAID 增加 GI 出血、AKI、心血管事件，無加成止痛",guide://§3.1
+# -- 雙 SSRI（N06AB*） --
+upgrade,N06AB*,N06AB*,critical,"雙 SSRI 致血清素症候群（致命）；換藥需 cross-taper",guide://§3.1
+# -- 雙 Statin（C10AA*） --
+upgrade,C10AA*,C10AA*,critical,"雙 Statin 肌病/橫紋肌溶解、肝毒性，無加成 LDL 降幅",guide://§3.1
+# -- 雙 β-blocker（C07AB*） --
+upgrade,C07AB*,C07AB*,critical,"雙 β-blocker 心搏過緩、AV block、HF 惡化；換藥需 taper",guide://§3.1
+# -- 雙長效 BZD（N05BA*） --
+# TODO(Phase 2 mechanism group): 長效 BZD 的 ATC 分布橫跨 N05BA（Diazepam 等 anxiolytics）、
+#   N05CD（部分 sleep BZD）、N03AE（Clonazepam 抗癲癇 BZD）。單一 N05BA*,N05BA* 規則只能
+#   抓到同為 N05BA 的情境，無法覆蓋 N05BA × N03AE / N05CD 的跨 class 組合。這需要 Phase 2
+#   的 mechanism_group "long_acting_bzd" 才能精準處理；目前先補齊幾組已知常見組合。
+upgrade,N05BA*,N05BA*,critical,"雙長效 BZD 呼吸抑制、跌倒、譫妄；Beers 2023 老人所有 BZD 避免",guide://§3.1
+upgrade,N05BA01,N03AE01,critical,"Diazepam + Clonazepam 雙長效 BZD；GABA_A 疊加（呼吸抑制、跌倒、譫妄）",guide://§3.1
+upgrade,N05BA09,N03AE01,critical,"Clobazam + Clonazepam 雙長效 BZD；GABA_A 疊加",guide://§3.1
+upgrade,N05BA01,N05BA09,critical,"Diazepam + Clobazam 雙長效 BZD；GABA_A 疊加",guide://§3.1
+# ============================================================
+# WHITELIST rules (§3.3 — 合理 multimodal，不警示)
+# ============================================================
+# -- Paracetamol + NSAID（機轉不同，ERAS 多模式止痛 foundation） --
+whitelist,N02BE01,M01AE01,none,"Paracetamol + Ibuprofen：中樞 vs 周邊 COX，機轉不同；多模式鎮痛 foundation（注意總日劑量）",guide://§3.3
+whitelist,N02BE01,M01AE02,none,"Paracetamol + Naproxen：機轉不同，合理 multimodal",guide://§3.3
+whitelist,N02BE01,M01AB05,none,"Paracetamol + Diclofenac：機轉不同，合理 multimodal",guide://§3.3
+whitelist,N02BE01,M01AH01,none,"Paracetamol + Celecoxib：機轉不同，合理 multimodal",guide://§3.3
+whitelist,N02BE01,M01AB15,none,"Paracetamol + Ketorolac：機轉不同，術後多模式鎮痛",guide://§3.3
+# -- Loop diuretic + Spironolactone（HFrEF mortality benefit，§3.3） --
+whitelist,C03CA01,C03DA01,none,"Furosemide + Spironolactone（HFrEF）：Spironolactone 為 mortality benefit，非單純利尿；監測 K/Cr",guide://§3.3
+whitelist,C03CA02,C03DA01,none,"Bumetanide + Spironolactone（HFrEF）：mortality benefit，非重複",guide://§3.3
+whitelist,C03CA04,C03DA01,none,"Torasemide + Spironolactone（HFrEF）：mortality benefit，非重複",guide://§3.3
+whitelist,C03CA01,C03DA04,none,"Furosemide + Eplerenone（HFrEF post-MI）：mortality benefit，非重複",guide://§3.3
+# -- ICS + SABA（GINA/GOLD 標準；控制藥 + 急救藥） --
+whitelist,R03BA02,R03AC02,none,"Budesonide ICS + Salbutamol SABA：控制藥 + 急救藥，GINA/GOLD 標準治療",guide://§3.3
+whitelist,R03BA05,R03AC02,none,"Fluticasone ICS + Salbutamol SABA：控制藥 + 急救藥，GINA 標準治療",guide://§3.3
+whitelist,R03BA01,R03AC02,none,"Beclometasone ICS + Salbutamol SABA：控制藥 + 急救藥，GINA 標準治療",guide://§3.3
+whitelist,R03BA02,R03AC03,none,"Budesonide ICS + Terbutaline SABA：合理組合",guide://§3.3
+# -- Basal + Bolus insulin（§3.2 允許的 multimodal — 指引 §3.2 列為 acceptable 情境） --
+whitelist,A10AE04,A10AB04,none,"Insulin glargine (basal) + Insulin lispro (bolus)：basal-bolus 生理化給藥，標準治療",guide://§3.2
+whitelist,A10AE04,A10AB05,none,"Insulin glargine (basal) + Insulin aspart (bolus)：basal-bolus 生理化給藥",guide://§3.2
+whitelist,A10AE05,A10AB04,none,"Insulin detemir (basal) + Insulin lispro (bolus)：basal-bolus 生理化給藥",guide://§3.2
+whitelist,A10AE06,A10AB05,none,"Insulin degludec (basal) + Insulin aspart (bolus)：basal-bolus 生理化給藥",guide://§3.2
+whitelist,A10AE04,A10AB01,none,"Insulin glargine (basal) + Regular insulin (bolus)：basal-bolus 生理化給藥",guide://§3.2
+# TODO: 臨床藥師確認是否納入 Paracetamol 複方（含 tramadol，N02AJ13）+ 單方 Paracetamol whitelist；
+#       指引 §3.3 列為合理但強調必算總日劑量（成人 ≤ 4 g/d，肝病／飲酒 ≤ 2 g/d），
+#       若 whitelist 恐遺漏總量稽核，建議保留為軟警示而非完全抑制。
+# TODO: 臨床藥師確認 H2RA + PPI（§3.2）是否要加入 whitelist 或維持 High（條件性 nocturnal acid breakthrough）

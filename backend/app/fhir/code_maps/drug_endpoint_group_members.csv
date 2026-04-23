@@ -1,0 +1,184 @@
+# drug_endpoint_group_members.csv
+# Source of truth: docs/duplicate-medication-assessment-guide.md §3.4 (L4 P0 endpoint groups)
+# ATC codes verified against WHO ATC/DDD Index.
+# Fields: group_key,atc_code,active_ingredient,member_subtype
+# member_subtype is optional — only nephrotoxic_triple_whammy uses it (nsaid | raas | diuretic).
+# Lines starting with # are ignored by loader.
+group_key,atc_code,active_ingredient,member_subtype
+# -- raas_blockade (§3.4) --
+# ACEI (C09AA)
+raas_blockade,C09AA01,Captopril,
+raas_blockade,C09AA02,Enalapril,
+raas_blockade,C09AA03,Lisinopril,
+raas_blockade,C09AA04,Perindopril,
+raas_blockade,C09AA05,Ramipril,
+raas_blockade,C09AA06,Quinapril,
+raas_blockade,C09AA07,Benazepril,
+raas_blockade,C09AA08,Cilazapril,
+raas_blockade,C09AA09,Fosinopril,
+raas_blockade,C09AA10,Trandolapril,
+raas_blockade,C09AA13,Moexipril,
+raas_blockade,C09AA15,Zofenopril,
+raas_blockade,C09AA16,Imidapril,
+# ARB (C09CA)
+raas_blockade,C09CA01,Losartan,
+raas_blockade,C09CA02,Eprosartan,
+raas_blockade,C09CA03,Valsartan,
+raas_blockade,C09CA04,Irbesartan,
+raas_blockade,C09CA06,Candesartan,
+raas_blockade,C09CA07,Telmisartan,
+raas_blockade,C09CA08,Olmesartan,
+raas_blockade,C09CA09,Azilsartan,
+# ARNI
+raas_blockade,C09DX04,Sacubitril/Valsartan,
+# DRI
+raas_blockade,C09XA02,Aliskiren,
+# MRA (affect K/renal — guide §3.4 explicitly lists with RAAS)
+raas_blockade,C03DA01,Spironolactone,
+raas_blockade,C03DA04,Eplerenone,
+raas_blockade,C03DA05,Finerenone,
+# -- bleeding_risk (§3.4) --
+# NSAID (M01A)
+bleeding_risk,M01AE01,Ibuprofen,
+bleeding_risk,M01AE02,Naproxen,
+bleeding_risk,M01AE03,Ketoprofen,
+bleeding_risk,M01AB05,Diclofenac,
+bleeding_risk,M01AB01,Indometacin,
+bleeding_risk,M01AC01,Piroxicam,
+bleeding_risk,M01AC06,Meloxicam,
+bleeding_risk,M01AH01,Celecoxib,
+bleeding_risk,M01AH05,Etoricoxib,
+bleeding_risk,M01AB15,Ketorolac,
+bleeding_risk,M01AE51,Ibuprofen combinations,
+bleeding_risk,N02BA01,Acetylsalicylic acid (analgesic dose),
+# SSRI (N06AB)
+bleeding_risk,N06AB03,Fluoxetine,
+bleeding_risk,N06AB04,Citalopram,
+bleeding_risk,N06AB05,Paroxetine,
+bleeding_risk,N06AB06,Sertraline,
+bleeding_risk,N06AB08,Fluvoxamine,
+bleeding_risk,N06AB10,Escitalopram,
+# Anticoagulants — VKA (B01AA)
+bleeding_risk,B01AA03,Warfarin,
+bleeding_risk,B01AA07,Acenocoumarol,
+# Anticoagulants — DOAC direct thrombin (B01AE)
+bleeding_risk,B01AE07,Dabigatran,
+# Anticoagulants — DOAC FXa (B01AF)
+bleeding_risk,B01AF01,Rivaroxaban,
+bleeding_risk,B01AF02,Apixaban,
+bleeding_risk,B01AF03,Edoxaban,
+# Heparin / LMWH (B01AB)
+bleeding_risk,B01AB01,Heparin,
+bleeding_risk,B01AB05,Enoxaparin,
+bleeding_risk,B01AB04,Dalteparin,
+bleeding_risk,B01AB10,Tinzaparin,
+bleeding_risk,B01AB06,Nadroparin,
+# Fondaparinux and others (B01AX)
+bleeding_risk,B01AX05,Fondaparinux,
+# Antiplatelet (B01AC)
+bleeding_risk,B01AC06,Acetylsalicylic acid (antiplatelet),
+bleeding_risk,B01AC04,Clopidogrel,
+bleeding_risk,B01AC22,Prasugrel,
+bleeding_risk,B01AC24,Ticagrelor,
+bleeding_risk,B01AC30,Dipyridamole/ASA,
+bleeding_risk,B01AC07,Dipyridamole,
+bleeding_risk,B01AC05,Ticlopidine,
+bleeding_risk,B01AC13,Abciximab,
+bleeding_risk,B01AC16,Eptifibatide,
+bleeding_risk,B01AC17,Tirofiban,
+# -- hyperkalemia (§3.4 升 K 疊加) --
+# ACEI + ARB + ARNI + DRI (reuse from raas_blockade)
+hyperkalemia,C09AA01,Captopril,
+hyperkalemia,C09AA02,Enalapril,
+hyperkalemia,C09AA03,Lisinopril,
+hyperkalemia,C09AA05,Ramipril,
+hyperkalemia,C09AA04,Perindopril,
+hyperkalemia,C09CA01,Losartan,
+hyperkalemia,C09CA03,Valsartan,
+hyperkalemia,C09CA04,Irbesartan,
+hyperkalemia,C09CA06,Candesartan,
+hyperkalemia,C09CA07,Telmisartan,
+hyperkalemia,C09CA08,Olmesartan,
+hyperkalemia,C09DX04,Sacubitril/Valsartan,
+hyperkalemia,C09XA02,Aliskiren,
+# MRA
+hyperkalemia,C03DA01,Spironolactone,
+hyperkalemia,C03DA04,Eplerenone,
+hyperkalemia,C03DA05,Finerenone,
+# K-sparing (non-MRA)
+hyperkalemia,C03DB01,Amiloride,
+hyperkalemia,C03DB02,Triamterene,
+# TMP-SMX
+hyperkalemia,J01EE01,Sulfamethoxazole/Trimethoprim,
+# Calcineurin inhibitors
+hyperkalemia,L04AD02,Tacrolimus,
+hyperkalemia,L04AD01,Cyclosporine,
+# Heparin (B01AB*)
+hyperkalemia,B01AB01,Heparin,
+hyperkalemia,B01AB05,Enoxaparin,
+hyperkalemia,B01AB04,Dalteparin,
+# K supplements
+hyperkalemia,A12BA01,Potassium chloride,
+hyperkalemia,A12BA02,Potassium citrate,
+hyperkalemia,A12BA30,Potassium (combinations),
+# Non-selective beta-blockers (shift K extracellularly — add informational)
+# TODO: 臨床藥師確認是否將 non-selective β-blocker（propranolol 等）納入 hyperkalemia 群組
+# -- nephrotoxic_triple_whammy (§3.4) --
+# Rule engine: fire when ≥1 from each subtype coexist
+# NSAID subgroup
+nephrotoxic_triple_whammy,M01AE01,Ibuprofen,nsaid
+nephrotoxic_triple_whammy,M01AE02,Naproxen,nsaid
+nephrotoxic_triple_whammy,M01AB05,Diclofenac,nsaid
+nephrotoxic_triple_whammy,M01AB01,Indometacin,nsaid
+nephrotoxic_triple_whammy,M01AC06,Meloxicam,nsaid
+nephrotoxic_triple_whammy,M01AC01,Piroxicam,nsaid
+nephrotoxic_triple_whammy,M01AH01,Celecoxib,nsaid
+nephrotoxic_triple_whammy,M01AH05,Etoricoxib,nsaid
+nephrotoxic_triple_whammy,M01AB15,Ketorolac,nsaid
+nephrotoxic_triple_whammy,M01AE03,Ketoprofen,nsaid
+# RAAS subgroup (ACEI + ARB + ARNI + DRI)
+nephrotoxic_triple_whammy,C09AA01,Captopril,raas
+nephrotoxic_triple_whammy,C09AA02,Enalapril,raas
+nephrotoxic_triple_whammy,C09AA03,Lisinopril,raas
+nephrotoxic_triple_whammy,C09AA05,Ramipril,raas
+nephrotoxic_triple_whammy,C09AA04,Perindopril,raas
+nephrotoxic_triple_whammy,C09CA01,Losartan,raas
+nephrotoxic_triple_whammy,C09CA03,Valsartan,raas
+nephrotoxic_triple_whammy,C09CA04,Irbesartan,raas
+nephrotoxic_triple_whammy,C09CA06,Candesartan,raas
+nephrotoxic_triple_whammy,C09CA07,Telmisartan,raas
+nephrotoxic_triple_whammy,C09CA08,Olmesartan,raas
+nephrotoxic_triple_whammy,C09DX04,Sacubitril/Valsartan,raas
+nephrotoxic_triple_whammy,C09XA02,Aliskiren,raas
+# Diuretic subgroup — Loop (C03C) + Thiazide (C03A) + Thiazide-like (C03B) + MRA (C03D)
+nephrotoxic_triple_whammy,C03CA01,Furosemide,diuretic
+nephrotoxic_triple_whammy,C03CA02,Bumetanide,diuretic
+nephrotoxic_triple_whammy,C03CA04,Torasemide,diuretic
+nephrotoxic_triple_whammy,C03CC01,Ethacrynic acid,diuretic
+nephrotoxic_triple_whammy,C03AA03,Hydrochlorothiazide,diuretic
+nephrotoxic_triple_whammy,C03AA01,Bendroflumethiazide,diuretic
+nephrotoxic_triple_whammy,C03BA04,Chlorthalidone,diuretic
+nephrotoxic_triple_whammy,C03BA11,Indapamide,diuretic
+nephrotoxic_triple_whammy,C03BA08,Metolazone,diuretic
+nephrotoxic_triple_whammy,C03DA01,Spironolactone,diuretic
+nephrotoxic_triple_whammy,C03DA04,Eplerenone,diuretic
+# -- qtc_stacking (§3.4 — reuse mechanism_groups.qtc_prolonging members) --
+qtc_stacking,N05AD01,Haloperidol,
+qtc_stacking,A04AA01,Ondansetron,
+qtc_stacking,A04AA02,Granisetron,
+qtc_stacking,J01FA10,Azithromycin,
+qtc_stacking,J01FA01,Erythromycin,
+qtc_stacking,J01MA02,Ciprofloxacin,
+qtc_stacking,J01MA12,Levofloxacin,
+qtc_stacking,J01MA14,Moxifloxacin,
+qtc_stacking,N07BC02,Methadone,
+qtc_stacking,N06AB04,Citalopram,
+qtc_stacking,N06AB10,Escitalopram,
+qtc_stacking,C01BD01,Amiodarone,
+qtc_stacking,C01BD07,Dronedarone,
+qtc_stacking,N05AH04,Quetiapine,
+qtc_stacking,N05AX08,Risperidone,
+qtc_stacking,N05AH03,Olanzapine,
+qtc_stacking,N05AX12,Aripiprazole,
+qtc_stacking,N05AX13,Paliperidone,
+qtc_stacking,N05AA01,Chlorpromazine,

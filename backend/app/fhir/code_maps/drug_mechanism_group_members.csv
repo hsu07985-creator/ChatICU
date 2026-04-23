@@ -1,0 +1,131 @@
+# drug_mechanism_group_members.csv
+# Source of truth: docs/duplicate-medication-assessment-guide.md §3.4
+# ATC codes verified against WHO ATC/DDD Index.
+# Fields: group_key,atc_code,active_ingredient
+# Lines starting with # are ignored by loader.
+group_key,atc_code,active_ingredient
+# -- alpha1_blocker (§3.4 α-blocker; §3.1 雙 α1-blocker) --
+alpha1_blocker,C02CA04,Doxazosin
+alpha1_blocker,G04CA02,Tamsulosin
+alpha1_blocker,C02CA01,Prazosin
+alpha1_blocker,G04CA03,Terazosin
+alpha1_blocker,G04CA01,Alfuzosin
+alpha1_blocker,G04CA04,Silodosin
+# -- serotonergic (§3.4 血清素) --
+# SSRI (N06AB)
+serotonergic,N06AB03,Fluoxetine
+serotonergic,N06AB04,Citalopram
+serotonergic,N06AB05,Paroxetine
+serotonergic,N06AB06,Sertraline
+serotonergic,N06AB08,Fluvoxamine
+serotonergic,N06AB10,Escitalopram
+# SNRI (N06AX)
+serotonergic,N06AX16,Venlafaxine
+serotonergic,N06AX17,Milnacipran
+serotonergic,N06AX21,Duloxetine
+# Opioid with serotonergic activity
+serotonergic,N02AX02,Tramadol
+serotonergic,N02AX06,Tapentadol
+# Antibiotic MAOI-like
+serotonergic,J01XX08,Linezolid
+# Methylene blue (MAOI activity)
+serotonergic,V03AB17,Methylene blue
+# Triptans (N02CC)
+serotonergic,N02CC01,Sumatriptan
+serotonergic,N02CC02,Naratriptan
+serotonergic,N02CC03,Zolmitriptan
+serotonergic,N02CC04,Rizatriptan
+serotonergic,N02CC05,Almotriptan
+serotonergic,N02CC06,Eletriptan
+serotonergic,N02CC07,Frovatriptan
+# 5-HT3 antagonist (serotonergic at high dose per §3.4)
+serotonergic,A04AA01,Ondansetron
+# -- qtc_prolonging (§3.4 QTc 延長) --
+qtc_prolonging,N05AD01,Haloperidol
+qtc_prolonging,A04AA01,Ondansetron
+qtc_prolonging,A04AA02,Granisetron
+qtc_prolonging,J01FA10,Azithromycin
+qtc_prolonging,J01FA01,Erythromycin
+qtc_prolonging,J01MA02,Ciprofloxacin
+qtc_prolonging,J01MA12,Levofloxacin
+qtc_prolonging,J01MA14,Moxifloxacin
+qtc_prolonging,N07BC02,Methadone
+qtc_prolonging,N06AB04,Citalopram
+qtc_prolonging,N06AB10,Escitalopram
+qtc_prolonging,C01BD01,Amiodarone
+qtc_prolonging,C01BD07,Dronedarone
+qtc_prolonging,N05AH04,Quetiapine
+qtc_prolonging,N05AX08,Risperidone
+qtc_prolonging,N05AH03,Olanzapine
+qtc_prolonging,N05AX12,Aripiprazole
+qtc_prolonging,N05AX13,Paliperidone
+qtc_prolonging,N05AA01,Chlorpromazine
+# -- anticholinergic_burden (§3.4 抗膽鹼負荷) --
+anticholinergic_burden,N06AA09,Amitriptyline
+anticholinergic_burden,N06AA10,Nortriptyline
+anticholinergic_burden,N06AA12,Doxepin
+anticholinergic_burden,N06AA04,Clomipramine
+anticholinergic_burden,R06AA02,Diphenhydramine
+anticholinergic_burden,R06AB04,Chlorpheniramine
+anticholinergic_burden,R06AX02,Cyproheptadine
+anticholinergic_burden,G04BD04,Oxybutynin
+anticholinergic_burden,G04BD08,Solifenacin
+anticholinergic_burden,G04BD07,Tolterodine
+anticholinergic_burden,N04AC01,Benztropine
+anticholinergic_burden,N04AA02,Biperiden
+anticholinergic_burden,N04AA01,Trihexyphenidyl
+anticholinergic_burden,N05AH04,Quetiapine
+anticholinergic_burden,N05AH03,Olanzapine
+anticholinergic_burden,N05BB01,Hydroxyzine
+anticholinergic_burden,A03BA01,Atropine
+anticholinergic_burden,A03BB01,Hyoscine butylbromide
+# -- cns_depressant (§3.4 CNS 抑制疊加) --
+# BZD (N05BA* anxiolytics, N05CD* hypnotics)
+cns_depressant,N05BA01,Diazepam
+cns_depressant,N05BA04,Oxazepam
+cns_depressant,N05BA06,Lorazepam
+cns_depressant,N05BA08,Bromazepam
+cns_depressant,N05BA12,Alprazolam
+cns_depressant,N05CD02,Nitrazepam
+cns_depressant,N05CD07,Temazepam
+cns_depressant,N05CD08,Midazolam
+cns_depressant,N05BA09,Clobazam
+cns_depressant,N03AE01,Clonazepam
+# Opioid (N02A*)
+cns_depressant,N02AA01,Morphine
+cns_depressant,N02AA05,Oxycodone
+cns_depressant,N02AB03,Fentanyl
+cns_depressant,N02AB02,Pethidine
+cns_depressant,N02AE01,Buprenorphine
+cns_depressant,N02AJ06,Codeine combinations
+cns_depressant,N02AX02,Tramadol
+cns_depressant,N02AX06,Tapentadol
+cns_depressant,N07BC02,Methadone
+cns_depressant,N02AA03,Hydromorphone
+# Z-drugs (N05CF)
+cns_depressant,N05CF02,Zolpidem
+cns_depressant,N05CF01,Zopiclone
+cns_depressant,N05CF02,Eszopiclone
+# Gabapentinoids (N03AX)
+cns_depressant,N03AX16,Pregabalin
+cns_depressant,N03AX12,Gabapentin
+# First-generation H1 antihistamines
+cns_depressant,R06AA02,Diphenhydramine
+cns_depressant,R06AB04,Chlorpheniramine
+cns_depressant,N05BB01,Hydroxyzine
+# Phenothiazine neuroleptics with strong sedation
+cns_depressant,N05AA01,Chlorpromazine
+# -- d2_antagonist_antiemetic (§3.1 雙 D2 止吐 / §3.4) --
+d2_antagonist_antiemetic,A03FA01,Metoclopramide
+d2_antagonist_antiemetic,N05AB04,Prochlorperazine
+d2_antagonist_antiemetic,N05AD01,Haloperidol
+d2_antagonist_antiemetic,A03FA03,Domperidone
+d2_antagonist_antiemetic,N05AB03,Perphenazine
+d2_antagonist_antiemetic,N05AB02,Fluphenazine
+# -- promotility (§3.4 雙 promotility) --
+promotility,A03FA01,Metoclopramide
+promotility,J01FA01,Erythromycin
+promotility,N07AA01,Neostigmine
+promotility,A03FA03,Domperidone
+promotility,A06AH03,Prucalopride
+# TODO: 臨床藥師確認是否納入 Mosapride（ATC A03FA09）— 地區供應差異大

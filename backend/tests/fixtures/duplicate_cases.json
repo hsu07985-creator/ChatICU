@@ -1,0 +1,534 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-04-23",
+  "cases": [
+    {
+      "id": "L1_same_salt_same_route",
+      "layer": "L1",
+      "expected_level": "critical",
+      "expected_mechanism": "Omeprazole × Omeprazole (identical L5, same salt & route)",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m1", "generic_name": "Omeprazole", "atc_code": "A02BC01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m2", "generic_name": "Omeprazole", "atc_code": "A02BC01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T20:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "同 salt、同 route、完整 L5 相同 → Critical（視為輸入/對帳錯誤，dedupe 後唯一最高等級警示）"
+    },
+    {
+      "id": "L1_same_ingredient_diff_salt",
+      "layer": "L1",
+      "expected_level": "high",
+      "expected_mechanism": "Esomeprazole magnesium × Esomeprazole sodium (same L5 ingredient, different salt)",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m3", "generic_name": "Esomeprazole magnesium", "atc_code": "A02BC05", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T09:00:00Z"},
+        {"medication_id": "m4", "generic_name": "Esomeprazole sodium", "atc_code": "A02BC05", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T21:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "同 L5 但 salt 不同 → §6.3 自動降級 Critical → High"
+    },
+    {
+      "id": "L1_same_ingredient_diff_route",
+      "layer": "L1",
+      "expected_level": "moderate",
+      "expected_mechanism": "Pantoprazole IV × Pantoprazole PO (same L5, route switch)",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m5", "generic_name": "Pantoprazole", "atc_code": "A02BC02", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T10:00:00Z"},
+        {"medication_id": "m6", "generic_name": "Pantoprazole", "atc_code": "A02BC02", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T22:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "同 L5、route 不同 → §6.3 自動降級 Critical → Moderate（換藥過渡期）"
+    },
+    {
+      "id": "L1_same_ingredient_overlap_48h",
+      "layer": "L1",
+      "expected_level": "moderate",
+      "expected_mechanism": "Lansoprazole × Lansoprazole (transitional overlap ≤ 48h)",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m7", "generic_name": "Lansoprazole", "atc_code": "A02BC03", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-21T09:00:00Z"},
+        {"medication_id": "m8", "generic_name": "Lansoprazole", "atc_code": "A02BC03", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T21:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "overlap ≤ 48h 換藥過渡 → Critical → Moderate，標記 auto_downgraded=true"
+    },
+    {
+      "id": "L1_discontinued_over_48h",
+      "layer": "L1",
+      "expected_level": "none",
+      "expected_mechanism": "Rabeprazole (already discontinued > 48h)",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m9", "generic_name": "Rabeprazole", "atc_code": "A02BC04", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-19T08:00:00Z"},
+        {"medication_id": "m10", "generic_name": "Rabeprazole", "atc_code": "A02BC04", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T20:00:00Z"}
+      ],
+      "expected_alert_count": 0,
+      "notes": "一方 last_admin_at > 48h 視為已停藥，不視為 active 重複"
+    },
+    {
+      "id": "L2_double_PPI_upgraded",
+      "layer": "L2",
+      "expected_level": "critical",
+      "expected_mechanism": "PPI × PPI (same ATC L4 A02BC, §3.1 upgrade)",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m11", "generic_name": "Omeprazole", "atc_code": "A02BC01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m12", "generic_name": "Esomeprazole", "atc_code": "A02BC05", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T20:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "同 L4（A02BC）異 L5 原本 High，但 §3.1 黑名單強制升級至 Critical"
+    },
+    {
+      "id": "L2_double_oral_NSAID_upgraded",
+      "layer": "L2",
+      "expected_level": "critical",
+      "expected_mechanism": "Oral NSAID × NSAID (COX-1/2 同機轉，§3.1 upgrade)",
+      "context": "outpatient",
+      "medications": [
+        {"medication_id": "m13", "generic_name": "Ibuprofen", "atc_code": "M01AE01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T09:00:00Z"},
+        {"medication_id": "m14", "generic_name": "Naproxen", "atc_code": "M01AE02", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T21:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "兩口服 NSAID 同 L4（M01AE），§3.1 升級 Critical；無加成止痛，GI／AKI 風險倍增"
+    },
+    {
+      "id": "L2_double_SSRI_upgraded",
+      "layer": "L2",
+      "expected_level": "critical",
+      "expected_mechanism": "SSRI × SSRI (serotonin syndrome risk, §3.1 upgrade)",
+      "context": "outpatient",
+      "medications": [
+        {"medication_id": "m15", "generic_name": "Sertraline", "atc_code": "N06AB06", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m16", "generic_name": "Escitalopram", "atc_code": "N06AB10", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "兩 SSRI 同 L4（N06AB），§3.1 升級 Critical；血清素症候群風險"
+    },
+    {
+      "id": "L2_double_statin_upgraded",
+      "layer": "L2",
+      "expected_level": "critical",
+      "expected_mechanism": "Statin × Statin (HMG-CoA reductase duplicate, §3.1 upgrade)",
+      "context": "outpatient",
+      "medications": [
+        {"medication_id": "m17", "generic_name": "Atorvastatin", "atc_code": "C10AA05", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T21:00:00Z"},
+        {"medication_id": "m18", "generic_name": "Rosuvastatin", "atc_code": "C10AA07", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T21:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "兩 statin 同 L4（C10AA），§3.1 升級 Critical；無加成 LDL 降幅，肌病／橫紋肌溶解風險"
+    },
+    {
+      "id": "L2_double_DHP_CCB_upgraded",
+      "layer": "L2",
+      "expected_level": "critical",
+      "expected_mechanism": "DHP CCB × DHP CCB (L-type Ca channel vasodilation, §3.1 upgrade)",
+      "context": "outpatient",
+      "medications": [
+        {"medication_id": "m19", "generic_name": "Amlodipine", "atc_code": "C08CA01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m20", "generic_name": "Nifedipine", "atc_code": "C08CA05", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T20:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "兩 DHP CCB 同 L4（C08CA），§3.1 升級 Critical；反射性心搏過速、水腫"
+    },
+    {
+      "id": "L2_double_beta_blocker_upgraded",
+      "layer": "L2",
+      "expected_level": "critical",
+      "expected_mechanism": "β-blocker × β-blocker (β1 receptor duplicate, §3.1 upgrade)",
+      "context": "outpatient",
+      "medications": [
+        {"medication_id": "m21", "generic_name": "Bisoprolol", "atc_code": "C07AB07", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m22", "generic_name": "Metoprolol succinate", "atc_code": "C07AB02", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "兩 β-blocker 同 L4（C07AB），§3.1 升級 Critical；心搏過緩、AV block"
+    },
+    {
+      "id": "L2_double_long_acting_BZD_upgraded",
+      "layer": "L2",
+      "expected_level": "critical",
+      "expected_mechanism": "Long-acting BZD × Long-acting BZD (GABA_A duplicate, §3.1 upgrade)",
+      "context": "outpatient",
+      "medications": [
+        {"medication_id": "m23", "generic_name": "Diazepam", "atc_code": "N05BA01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T22:00:00Z"},
+        {"medication_id": "m24", "generic_name": "Clonazepam", "atc_code": "N03AE01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T22:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "雙長效 BZD（Diazepam 屬 N05BA、Clonazepam 屬 N03AE）透過 §3.4 / §3.1 機轉清單升級 Critical；Beers 2023 老人避免"
+    },
+    {
+      "id": "L2_double_5HT3_upgraded",
+      "layer": "L2",
+      "expected_level": "critical",
+      "expected_mechanism": "5-HT3 antagonist × 5-HT3 antagonist (QTc risk, §3.1 upgrade)",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m25", "generic_name": "Ondansetron", "atc_code": "A04AA01", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T10:00:00Z"},
+        {"medication_id": "m26", "generic_name": "Granisetron", "atc_code": "A04AA02", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T22:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "兩 5-HT3 止吐同 L4（A04AA），§3.1 升級 Critical；無加成止吐、QTc 延長"
+    },
+    {
+      "id": "L3_alpha1_blocker_cross_class",
+      "layer": "L3",
+      "expected_level": "critical",
+      "expected_mechanism": "alpha1_blocker (Doxazosin HTN + Tamsulosin BPH cross-class, §3.1 upgrade)",
+      "context": "outpatient",
+      "medications": [
+        {"medication_id": "m27", "generic_name": "Doxazosin", "atc_code": "C02CA04", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T22:00:00Z"},
+        {"medication_id": "m28", "generic_name": "Tamsulosin", "atc_code": "G04CA02", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T22:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "跨 class 同 α1 機轉（C02CA vs G04CA），§3.4 機轉群組抓到，§3.1 升級 Critical；直立性低血壓、暈厥"
+    },
+    {
+      "id": "L3_raas_ACEI_ARB",
+      "layer": "L3",
+      "expected_level": "critical",
+      "expected_mechanism": "raas_blockade (ACEI + ARB, §3.1 upgrade)",
+      "context": "outpatient",
+      "medications": [
+        {"medication_id": "m29", "generic_name": "Enalapril", "atc_code": "C09AA02", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m30", "generic_name": "Losartan", "atc_code": "C09CA01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "ACEI + ARB 跨機轉同 RAAS 阻斷（§3.4 raas_blockade），§3.1 升級 Critical；KDIGO 2024 不建議"
+    },
+    {
+      "id": "L3_serotonergic_SSRI_tramadol",
+      "layer": "L3",
+      "expected_level": "high",
+      "expected_mechanism": "serotonergic (Sertraline + Tramadol)",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m31", "generic_name": "Sertraline", "atc_code": "N06AB06", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m32", "generic_name": "Tramadol", "atc_code": "N02AJ13", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T14:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "血清素機轉疊加（§3.4 serotonergic）→ High；血清素症候群風險"
+    },
+    {
+      "id": "L3_qtc_haloperidol_ondansetron",
+      "layer": "L3",
+      "expected_level": "high",
+      "expected_mechanism": "qtc_prolonging (Haloperidol + Ondansetron, 2-drug stacking)",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m33", "generic_name": "Haloperidol", "atc_code": "N05AD01", "route": "IV", "is_prn": true, "last_admin_at": "2026-04-22T14:00:00Z"},
+        {"medication_id": "m34", "generic_name": "Ondansetron", "atc_code": "A04AA01", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T22:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "2-drug QTc stacking（§3.4 qtc_prolonging）→ High"
+    },
+    {
+      "id": "L3_qtc_triple_stacking_critical",
+      "layer": "L3",
+      "expected_level": "critical",
+      "expected_mechanism": "qtc_prolonging (Haloperidol + Azithromycin + Methadone, ≥3 drug stacking)",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m35", "generic_name": "Haloperidol", "atc_code": "N05AD01", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T10:00:00Z"},
+        {"medication_id": "m36", "generic_name": "Azithromycin", "atc_code": "J01FA10", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T10:00:00Z"},
+        {"medication_id": "m37", "generic_name": "Methadone", "atc_code": "N07BC02", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T22:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "三藥 QTc 疊加 → Critical（§3.4 qtc_prolonging ≥3 升級）；建議 ECG 監測、減少疊加"
+    },
+    {
+      "id": "L3_anticholinergic_burden_triple",
+      "layer": "L3",
+      "expected_level": "high",
+      "expected_mechanism": "anticholinergic_burden (Amitriptyline + Diphenhydramine + Oxybutynin)",
+      "context": "outpatient",
+      "medications": [
+        {"medication_id": "m38", "generic_name": "Amitriptyline", "atc_code": "N06AA09", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T22:00:00Z"},
+        {"medication_id": "m39", "generic_name": "Diphenhydramine", "atc_code": "R06AA02", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T22:00:00Z"},
+        {"medication_id": "m40", "generic_name": "Oxybutynin", "atc_code": "G04BD04", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "抗膽鹼負荷 ≥3（§3.4 anticholinergic_burden）→ High；認知惡化、譫妄、尿滯留"
+    },
+    {
+      "id": "L3_cns_depressant_triple",
+      "layer": "L3",
+      "expected_level": "high",
+      "expected_mechanism": "cns_depressant (Midazolam + Fentanyl + Diphenhydramine)",
+      "context": "ICU",
+      "medications": [
+        {"medication_id": "m41", "generic_name": "Midazolam", "atc_code": "N05CD08", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T14:00:00Z"},
+        {"medication_id": "m42", "generic_name": "Fentanyl", "atc_code": "N02AB03", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T14:00:00Z"},
+        {"medication_id": "m43", "generic_name": "Diphenhydramine", "atc_code": "R06AA02", "route": "IV", "is_prn": true, "last_admin_at": "2026-04-22T18:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "CNS 抑制疊加（§3.4 cns_depressant）→ High；呼吸抑制風險"
+    },
+    {
+      "id": "L3_d2_antagonist_metoclopramide_prochlorperazine",
+      "layer": "L3",
+      "expected_level": "critical",
+      "expected_mechanism": "d2_antagonist_antiemetic (Metoclopramide + Prochlorperazine, §3.1 upgrade)",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m44", "generic_name": "Metoclopramide", "atc_code": "A03FA01", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T10:00:00Z"},
+        {"medication_id": "m45", "generic_name": "Prochlorperazine", "atc_code": "N05AB04", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T22:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "雙 D2 止吐拮抗（§3.4 d2_antagonist_antiemetic），§3.1 升級 Critical；EPS、NMS、QTc 風險"
+    },
+    {
+      "id": "L3_promotility_triple",
+      "layer": "L3",
+      "expected_level": "moderate",
+      "expected_mechanism": "promotility (Metoclopramide + Erythromycin + Neostigmine)",
+      "context": "ICU",
+      "medications": [
+        {"medication_id": "m46", "generic_name": "Metoclopramide", "atc_code": "A03FA01", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T10:00:00Z"},
+        {"medication_id": "m47", "generic_name": "Erythromycin", "atc_code": "J01FA01", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T14:00:00Z"},
+        {"medication_id": "m48", "generic_name": "Neostigmine", "atc_code": "N07AA01", "route": "IV", "is_prn": true, "last_admin_at": "2026-04-22T18:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "三藥 promotility 疊加（§3.4 promotility，P2 優先級）→ Moderate；評估單一保留"
+    },
+    {
+      "id": "L3_metoclopramide_haloperidol_dual_mechanism",
+      "layer": "L3",
+      "expected_level": "critical",
+      "expected_mechanism": "Dual mechanism: d2_antagonist_antiemetic ∩ qtc_prolonging",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m49", "generic_name": "Metoclopramide", "atc_code": "A03FA01", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T10:00:00Z"},
+        {"medication_id": "m50", "generic_name": "Haloperidol", "atc_code": "N05AD01", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T22:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "D2 拮抗 + QTc 延長交集雙機轉（§3.4 d2_antagonist_antiemetic ∩ qtc_prolonging）→ Critical"
+    },
+    {
+      "id": "L4_triple_whammy_nephrotoxic",
+      "layer": "L4",
+      "expected_level": "high",
+      "expected_mechanism": "nephrotoxic_triple_whammy (NSAID + ACEI + Loop diuretic)",
+      "context": "outpatient",
+      "medications": [
+        {"medication_id": "m51", "generic_name": "Ibuprofen", "atc_code": "M01AE01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m52", "generic_name": "Lisinopril", "atc_code": "C09AA03", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m53", "generic_name": "Furosemide", "atc_code": "C03CA01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "腎毒性 triple whammy（§3.4 nephrotoxic_triple_whammy）→ High；AKI 風險顯著"
+    },
+    {
+      "id": "L4_bleeding_risk_quadruple",
+      "layer": "L4",
+      "expected_level": "critical",
+      "expected_mechanism": "bleeding_risk ×4 (Aspirin + Warfarin + Ibuprofen + Sertraline)",
+      "context": "outpatient",
+      "medications": [
+        {"medication_id": "m54", "generic_name": "Aspirin", "atc_code": "B01AC06", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m55", "generic_name": "Warfarin", "atc_code": "B01AA03", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T18:00:00Z"},
+        {"medication_id": "m56", "generic_name": "Ibuprofen", "atc_code": "M01AE01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m57", "generic_name": "Sertraline", "atc_code": "N06AB06", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "四重出血風險疊加（§3.4 bleeding_risk）→ Critical；GI 出血倍增"
+    },
+    {
+      "id": "L4_hyperkalemia_triple",
+      "layer": "L4",
+      "expected_level": "high",
+      "expected_mechanism": "hyperkalemia (Lisinopril + Spironolactone + TMP/SMX)",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m58", "generic_name": "Lisinopril", "atc_code": "C09AA03", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m59", "generic_name": "Spironolactone", "atc_code": "C03DA01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m60", "generic_name": "Trimethoprim/Sulfamethoxazole", "atc_code": "J01EE01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "升 K 疊加（§3.4 hyperkalemia）→ High；需 Q6–12h 監測血鉀"
+    },
+    {
+      "id": "L4_double_anticoagulant_warfarin_apixaban",
+      "layer": "L4",
+      "expected_level": "critical",
+      "expected_mechanism": "Dual oral anticoagulation (Warfarin + Apixaban, §3.1 upgrade)",
+      "context": "outpatient",
+      "medications": [
+        {"medication_id": "m61", "generic_name": "Warfarin", "atc_code": "B01AA03", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T18:00:00Z"},
+        {"medication_id": "m62", "generic_name": "Apixaban", "atc_code": "B01AF02", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T20:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "雙口服抗凝（§3.1 + §3.4 bleeding_risk）→ Critical；致命出血"
+    },
+    {
+      "id": "L4_icu_redflag_heparin_enoxaparin_proph",
+      "layer": "L4",
+      "expected_level": "critical",
+      "expected_mechanism": "ICU red flag: Therapeutic Heparin infusion + Prophylactic Enoxaparin",
+      "context": "ICU",
+      "medications": [
+        {"medication_id": "m63", "generic_name": "Heparin", "atc_code": "B01AB01", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T22:00:00Z"},
+        {"medication_id": "m64", "generic_name": "Enoxaparin", "atc_code": "B01AB05", "route": "SC", "is_prn": false, "last_admin_at": "2026-04-22T22:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "ICU 紅旗：治療劑量 Heparin + 預防 Enoxaparin 為常見交接錯誤（§4.1），嚴重出血風險 → Critical"
+    },
+    {
+      "id": "L4_heparin_enoxaparin_bridging_downgraded",
+      "layer": "L4",
+      "expected_level": "moderate",
+      "expected_mechanism": "Bridging overlap (Heparin infusion → Enoxaparin therapeutic, transitional)",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m65", "generic_name": "Heparin", "atc_code": "B01AB01", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-21T22:00:00Z"},
+        {"medication_id": "m66", "generic_name": "Enoxaparin", "atc_code": "B01AB05", "route": "SC", "is_prn": false, "last_admin_at": "2026-04-22T10:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "橋接換藥合理 overlap ≤ 48h → 自動降級 Critical → Moderate，auto_downgraded=true"
+    },
+    {
+      "id": "whitelist_paracetamol_NSAID_multimodal",
+      "layer": "L4",
+      "expected_level": "none",
+      "expected_mechanism": "Whitelist: multimodal analgesia (central + peripheral COX)",
+      "context": "postop",
+      "medications": [
+        {"medication_id": "m67", "generic_name": "Paracetamol", "atc_code": "N02BE01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m68", "generic_name": "Ibuprofen", "atc_code": "M01AE01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"}
+      ],
+      "expected_alert_count": 0,
+      "notes": "§3.3 白名單：ERAS 多模式鎮痛，機轉不同 → 不產生警示"
+    },
+    {
+      "id": "whitelist_omeprazole_IV_to_PO_transition",
+      "layer": "L1",
+      "expected_level": "moderate",
+      "expected_mechanism": "Route switch (IV → PO), overlap ≤ 24h",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m69", "generic_name": "Omeprazole", "atc_code": "A02BC01", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T06:00:00Z"},
+        {"medication_id": "m70", "generic_name": "Omeprazole", "atc_code": "A02BC01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T18:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "同 L5 但 route 不同且 overlap ≤ 48h 換藥過渡 → Critical → Moderate，auto_downgraded=true"
+    },
+    {
+      "id": "whitelist_fentanyl_patch_morphine_PRN",
+      "layer": "L2",
+      "expected_level": "none",
+      "expected_mechanism": "Whitelist: long-acting + breakthrough PRN opioid (standard of care)",
+      "context": "outpatient",
+      "medications": [
+        {"medication_id": "m71", "generic_name": "Fentanyl", "atc_code": "N02AB03", "route": "transdermal", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m72", "generic_name": "Morphine", "atc_code": "N02AA01", "route": "PO", "is_prn": true, "last_admin_at": "2026-04-22T14:00:00Z"}
+      ],
+      "expected_alert_count": 0,
+      "notes": "§3.3 白名單：長效 + PRN breakthrough 為慢性疼痛標準照護 → 不警示（須另核總 MME）"
+    },
+    {
+      "id": "whitelist_ICS_SABA",
+      "layer": "L4",
+      "expected_level": "none",
+      "expected_mechanism": "Whitelist: ICS controller + SABA rescue (GINA/GOLD standard)",
+      "context": "outpatient",
+      "medications": [
+        {"medication_id": "m73", "generic_name": "Budesonide", "atc_code": "R03BA02", "route": "inhaled", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m74", "generic_name": "Salbutamol", "atc_code": "R03AC02", "route": "inhaled", "is_prn": true, "last_admin_at": "2026-04-22T14:00:00Z"}
+      ],
+      "expected_alert_count": 0,
+      "notes": "§3.3 白名單：控制藥 + 急救藥為 GINA/GOLD 標準治療 → 不警示"
+    },
+    {
+      "id": "whitelist_furosemide_spironolactone_HFrEF",
+      "layer": "L4",
+      "expected_level": "none",
+      "expected_mechanism": "Whitelist: Loop + Spironolactone for HFrEF (mortality benefit)",
+      "context": "outpatient",
+      "medications": [
+        {"medication_id": "m75", "generic_name": "Furosemide", "atc_code": "C03CA01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m76", "generic_name": "Spironolactone", "atc_code": "C03DA01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"}
+      ],
+      "expected_alert_count": 0,
+      "notes": "§3.3 白名單：HFrEF 指引支持，Spironolactone 為 mortality benefit → 不警示（監測 K、Cr）"
+    },
+    {
+      "id": "downgrade_L5_diff_route_IV_PO",
+      "layer": "L1",
+      "expected_level": "moderate",
+      "expected_mechanism": "Same L5 but different route (IV ↔ PO)",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m77", "generic_name": "Metronidazole", "atc_code": "J01XD01", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m78", "generic_name": "Metronidazole", "atc_code": "J01XD01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T20:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "同 L5 route 不同 → §6.3 自動降級 Critical → Moderate"
+    },
+    {
+      "id": "downgrade_L5_diff_salt",
+      "layer": "L1",
+      "expected_level": "high",
+      "expected_mechanism": "Same L5 but different salt (Diclofenac sodium vs potassium)",
+      "context": "outpatient",
+      "medications": [
+        {"medication_id": "m79", "generic_name": "Diclofenac sodium", "atc_code": "M01AB05", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m80", "generic_name": "Diclofenac potassium", "atc_code": "M01AB05", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T20:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "同 L5 salt 不同 → §6.3 自動降級 Critical → High"
+    },
+    {
+      "id": "downgrade_L4_PRN_scheduled",
+      "layer": "L2",
+      "expected_level": "low",
+      "expected_mechanism": "Same L4 with PRN + scheduled combination (not both long-acting)",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m81", "generic_name": "Hydromorphone", "atc_code": "N02AA03", "route": "PO", "is_prn": true, "last_admin_at": "2026-04-22T14:00:00Z"},
+        {"medication_id": "m82", "generic_name": "Oxycodone IR", "atc_code": "N02AA05", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T22:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "一方 PRN + 另一方排程且非同為長效 → §6.3 自動降級 High → Low"
+    },
+    {
+      "id": "downgrade_overlap_within_48h_transition",
+      "layer": "L1",
+      "expected_level": "moderate",
+      "expected_mechanism": "Same ingredient overlap ≤ 48h (transitional)",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m83", "generic_name": "Ceftriaxone", "atc_code": "J01DD04", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-21T06:00:00Z"},
+        {"medication_id": "m84", "generic_name": "Ceftriaxone", "atc_code": "J01DD04", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T18:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "overlap ≤ 48h 過渡 → 降級 + auto_downgraded=true"
+    },
+    {
+      "id": "downgrade_last_admin_beyond_48h",
+      "layer": "L2",
+      "expected_level": "none",
+      "expected_mechanism": "One medication discontinued (last_admin_at > 48h ago)",
+      "context": "inpatient",
+      "medications": [
+        {"medication_id": "m85", "generic_name": "Cefazolin", "atc_code": "J01DB04", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-19T14:00:00Z"},
+        {"medication_id": "m86", "generic_name": "Ceftriaxone", "atc_code": "J01DD04", "route": "IV", "is_prn": false, "last_admin_at": "2026-04-22T18:00:00Z"}
+      ],
+      "expected_alert_count": 0,
+      "notes": "一方 last_admin_at > 48h 視為已停藥，非 active 重複 → 無警示"
+    },
+    {
+      "id": "downgrade_L4_different_indications",
+      "layer": "L2",
+      "expected_level": "moderate",
+      "expected_mechanism": "Same L4 but different indications (Spironolactone for HF vs Eplerenone-like use)",
+      "context": "outpatient",
+      "medications": [
+        {"medication_id": "m87", "generic_name": "Spironolactone", "atc_code": "C03DA01", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"},
+        {"medication_id": "m88", "generic_name": "Eplerenone", "atc_code": "C03DA04", "route": "PO", "is_prn": false, "last_admin_at": "2026-04-22T08:00:00Z"}
+      ],
+      "expected_alert_count": 1,
+      "notes": "同 L4（C03DA）但不同適應症（HF vs 肝腹水等，由 problem list 提示）→ §6.3 自動降級 High → Moderate"
+    }
+  ]
+}
