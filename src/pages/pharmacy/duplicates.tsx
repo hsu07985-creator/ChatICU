@@ -32,17 +32,47 @@ type Context = 'inpatient' | 'outpatient' | 'icu' | 'discharge';
 const MIN_DRUGS = 2;
 const MAX_DRUGS = 30;
 
-/** Extract the best generic-name guess from a Medication for the manual picker. */
+// Noise tokens that commonly appear as "generic name" in HIS exports but
+// carry no drug information on their own. Seeding the manual duplicate
+// checker with these would just waste rows.
+const DRUG_LABEL_BLOCKLIST = new Set([
+  'compound', 'ml', 'mg', 'mcg', 'gm', 'tab', 'cap', 'inj', 'oint',
+  'cream', 'gel', 'injection', 'oral', 'solution', 'syrup', 'patch',
+]);
+
+/**
+ * Extract the best generic-name guess from a Medication for the manual picker.
+ * Returns an empty string when no usable label can be derived — caller must
+ * filter these out.
+ */
 function toDrugLabel(m: Medication): string {
-  // Prefer parenthesised generic ("Takepron OD 30mg tab(Lansoprazole)" → "Lansoprazole").
+  const isUsable = (s: string | null | undefined): s is string => {
+    if (!s) return false;
+    const alpha = s.replace(/[^A-Za-z]/g, '');
+    if (alpha.length < 4) return false;
+    if (DRUG_LABEL_BLOCKLIST.has(s.trim().toLowerCase())) return false;
+    return true;
+  };
+
+  // 1. Rightmost parenthesised English token ("...(Lansoprazole)" → "Lansoprazole").
   const parens = [...(m.name || '').matchAll(/\(([^)]+)\)/g)]
     .map((x) => x[1].trim())
-    .filter((p) => !/^[抗軟]/.test(p) && !/^\d/.test(p));
-  if (parens.length > 0) return parens[parens.length - 1];
-  if (m.genericName && /^[A-Za-z]/.test(m.genericName)) return m.genericName;
-  // Last resort: first alpha run from the brand name.
-  const match = (m.name || '').match(/[A-Za-z][A-Za-z\-]+/);
-  return match?.[0] ?? m.name;
+    .filter((p) => !/^[抗軟]/.test(p) && !/^\d/.test(p) && /[A-Za-z]/.test(p));
+  for (let i = parens.length - 1; i >= 0; i--) {
+    if (isUsable(parens[i])) return parens[i];
+  }
+
+  // 2. Explicit generic field from the API.
+  if (isUsable(m.genericName)) return m.genericName as string;
+
+  // 3. Longest alpha run from the brand name — only if ≥ 4 chars and not
+  //    a known noise token. Avoids seeding "ML" / "MG" as drug names.
+  const alphaRuns = [...(m.name || '').matchAll(/[A-Za-z][A-Za-z\-]{3,}/g)].map((x) => x[0]);
+  for (const r of alphaRuns) {
+    if (isUsable(r)) return r;
+  }
+
+  return '';
 }
 
 export function MedicationDuplicatesPage() {
@@ -104,7 +134,18 @@ export function MedicationDuplicatesPage() {
       // pharmacist can swap in/out candidates and re-run in manual mode.
       try {
         const resp = await getMedications(patientId, { status: 'active' });
-        const names = resp.medications.map(toDrugLabel).filter(Boolean);
+        const rawNames = resp.medications.map(toDrugLabel).filter((x): x is string => Boolean(x));
+        // Dedup while preserving order so the same generic (e.g. Clopidogrel)
+        // doesn't show up twice when the patient has multiple brand-name
+        // formulations of the same ingredient.
+        const seen = new Set<string>();
+        const names: string[] = [];
+        for (const n of rawNames) {
+          const key = n.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          names.push(n);
+        }
         setDrugs(names.length >= MIN_DRUGS ? names : [...names, ...Array(MIN_DRUGS - names.length).fill('')]);
       } catch {
         // non-fatal — manual mode still works

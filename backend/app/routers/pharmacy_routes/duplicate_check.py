@@ -32,6 +32,7 @@ Response::
 from __future__ import annotations
 
 import csv
+import json
 import re
 from pathlib import Path
 from typing import List, Optional
@@ -52,6 +53,16 @@ router = APIRouter(tags=["pharmacy"])
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[3]
 _FORMULARY_CSV = _BACKEND_ROOT / "app" / "fhir" / "code_maps" / "drug_formulary.csv"
+_RXNORM_CACHE = _BACKEND_ROOT / "app" / "fhir" / "code_maps" / "auto_rxnorm_cache.json"
+
+# Words inside a formulary ingredient string that are not the generic itself
+# — mixing these into the lookup map would cause false positives.
+_INGREDIENT_NOISE_TOKENS = frozenset({
+    "mg", "mcg", "ml", "gm", "iu",
+    "tab", "tabs", "cap", "caps", "inj", "oint", "cream", "gel",
+    "oral", "solution", "syrup", "patch",
+    "compound", "ophthalmic", "systemic", "topical",
+})
 
 # Shared with scripts/backfill_drug_interactions_atc.py — multi-word drugs
 # starting with these first-words are NOT eligible for the first-word fallback
@@ -67,19 +78,48 @@ _AMBIGUOUS_FIRST_WORDS = frozenset({
 
 
 def _build_name_to_atc() -> dict[str, str]:
+    """Compose the lookup map from formulary CSV + RxNorm cache.
+
+    The RxNorm cache (``auto_rxnorm_cache.json``) is the network-resolved
+    fallback populated by the HIS import pipeline — it covers drugs that
+    don't appear in the hospital formulary, e.g. Ticagrelor, Enoxaparin,
+    Empagliflozin. Without it the manual duplicate-check endpoint returns
+    "無 ATC" for common ICU drugs that the per-patient path handles fine.
+    """
     out: dict[str, str] = {}
-    if not _FORMULARY_CSV.exists():  # pragma: no cover — defensive
-        return out
-    with _FORMULARY_CSV.open(encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            atc = (row.get("atc_code") or "").strip()
-            ingr = (row.get("ingredient") or "").strip()
-            if not (atc and ingr):
-                continue
-            out.setdefault(ingr.lower(), atc)
-            first = re.split(r"[\s\(\[/\-]", ingr)[0].strip().lower()
-            if first and first not in _AMBIGUOUS_FIRST_WORDS:
-                out.setdefault(first, atc)
+
+    # Formulary — exact name + first word + individual tokens.
+    if _FORMULARY_CSV.exists():
+        with _FORMULARY_CSV.open(encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                atc = (row.get("atc_code") or "").strip()
+                ingr = (row.get("ingredient") or "").strip()
+                if not (atc and ingr):
+                    continue
+                out.setdefault(ingr.lower(), atc)
+                first = re.split(r"[\s\(\[/\-]", ingr)[0].strip().lower()
+                if first and first not in _AMBIGUOUS_FIRST_WORDS:
+                    out.setdefault(first, atc)
+                # Also tokenise the full ingredient string so combination-
+                # product names like "Entresto 200mg(Sacubitril 97-Valsartan
+                # 103)" contribute "sacubitril" → C09DX04 to the map.
+                for tok in re.findall(r"[A-Za-z]{3,}", ingr):
+                    tl = tok.lower()
+                    if tl in _AMBIGUOUS_FIRST_WORDS or tl in _INGREDIENT_NOISE_TOKENS:
+                        continue
+                    out.setdefault(tl, atc)
+
+    # RxNorm cache — lowercase generic → {atc_code, ...}
+    if _RXNORM_CACHE.exists():
+        try:
+            cache = json.loads(_RXNORM_CACHE.read_text(encoding="utf-8"))
+            for key, entry in cache.items():
+                atc = (entry or {}).get("atc_code")
+                if atc:
+                    out.setdefault(str(key).lower(), atc)
+        except Exception:  # pragma: no cover — cache corruption never blocks
+            pass
+
     return out
 
 
@@ -112,6 +152,17 @@ def _lookup_atc(name: str) -> Optional[str]:
     ).strip().lower()
     if stripped and stripped in table:
         return table[stripped]
+    # Fixed-dose combination names: "Sacubitril-Valsartan",
+    # "Amlodipine/Olmesartan", "Piperacillin/Tazobactam". Try each component
+    # in order and return the first hit. First-word alone is often an
+    # ingredient that also has a standalone ATC (e.g. Valsartan C09CA03), so
+    # this lets the detector at least classify the combo into its major
+    # therapeutic group.
+    parts = [p.strip().lower() for p in re.split(r"[\-/]", name) if p.strip()]
+    if len(parts) >= 2:
+        for p in parts:
+            if p and p not in _AMBIGUOUS_FIRST_WORDS and p in table:
+                return table[p]
     return None
 
 

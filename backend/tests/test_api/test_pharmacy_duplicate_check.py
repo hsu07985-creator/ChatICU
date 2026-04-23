@@ -79,6 +79,40 @@ async def test_resolves_atc_from_name_only(client, seeded_db):
 
 
 @pytest.mark.asyncio
+async def test_resolves_rxnorm_cache_drugs(client, seeded_db):
+    """Drugs absent from the formulary but present in auto_rxnorm_cache.json
+    (e.g. Ticagrelor, Enoxaparin, Empagliflozin) must still get an ATC —
+    these are common ICU drugs that the per-patient path handles fine and
+    manual mode was missing until the cache merge was wired in."""
+    response = await client.post(
+        "/pharmacy/duplicate-check",
+        json={"drugs": [{"name": "Ticagrelor"}, {"name": "Enoxaparin"}]},
+    )
+    assert response.status_code == 200
+    resolved = {r["name"]: r["atcCode"] for r in response.json()["data"]["resolved"]}
+    assert resolved.get("Ticagrelor") and resolved["Ticagrelor"].startswith("B01AC"), resolved
+    assert resolved.get("Enoxaparin") and resolved["Enoxaparin"].startswith("B01AB"), resolved
+
+
+@pytest.mark.asyncio
+async def test_resolves_combination_product_via_hyphen_split(client, seeded_db):
+    """"Sacubitril-Valsartan" isn't a single formulary ingredient, but the
+    ingredient-tokenising pass picks up "sacubitril" from the Entresto
+    entry (C09DX04). Any reasonable RAAS-class ATC should resolve."""
+    response = await client.post(
+        "/pharmacy/duplicate-check",
+        json={"drugs": [{"name": "Sacubitril-Valsartan"}, {"name": "Spironolactone"}]},
+    )
+    assert response.status_code == 200
+    resolved = {r["name"]: r["atcCode"] for r in response.json()["data"]["resolved"]}
+    atc = resolved.get("Sacubitril-Valsartan")
+    assert atc is not None, resolved
+    # Either the combo ATC (C09DX04) or a component ATC (C09CA03 for valsartan)
+    # is acceptable — both keep the drug inside the RAAS class for detection.
+    assert atc.startswith("C09"), atc
+
+
+@pytest.mark.asyncio
 async def test_ambiguous_prefix_not_blindly_resolved(client, seeded_db):
     """'Sodium Zirconium Cyclosilicate' must NOT resolve to B05XA03 (saline's
     ATC) — this was the original phantom-DDI bug and applies equally here
