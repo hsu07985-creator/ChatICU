@@ -20,6 +20,7 @@ import { useIsShortViewport } from './ui/use-mobile';
 import { useAuth } from '../lib/auth-context';
 import { Button } from './ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useNotificationSummary } from '../hooks/use-notification-summary';
 
 export function AppSidebar() {
   const { user, logout } = useAuth();
@@ -28,6 +29,11 @@ export function AppSidebar() {
   const { state, toggleSidebar, setOpen, isMobile } = useSidebar();
   const { theme, setTheme } = useTheme();
   const isShortViewport = useIsShortViewport();
+  const { summary: notifSummary } = useNotificationSummary(!!user);
+  const notifCount = notifSummary?.total ?? 0;
+  const notifTitle = notifSummary
+    ? `${notifSummary.mentions} 則 @我的留言，${notifSummary.alerts} 則警示（近 7 天未讀）`
+    : undefined;
 
   // 橫置手機時高度太小，footer 會占掉大部分空間並擋到選單項目 → 自動收合為 icon-only
   const hasAutoCollapsed = useRef(false);
@@ -44,6 +50,14 @@ export function AppSidebar() {
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  type MenuItem = {
+    title: string;
+    url: string;
+    icon: typeof Home;
+    badge?: number;
+    badgeTitle?: string;
   };
 
   const isActive = (path: string) => {
@@ -73,9 +87,15 @@ export function AppSidebar() {
   ] : [];
 
   // 4) 溝通（所有角色可見）
-  const communicationItems = [
+  const communicationItems: MenuItem[] = [
     { title: 'AI 問答', url: '/ai-chat', icon: Sparkles },
-    { title: '團隊聊天室', url: '/chat', icon: MessageSquare },
+    {
+      title: '團隊聊天室',
+      url: '/chat',
+      icon: MessageSquare,
+      badge: notifCount > 0 ? notifCount : undefined,
+      badgeTitle: notifTitle,
+    },
   ];
 
   // 5) 系統管理（僅管理者可見）
@@ -85,7 +105,7 @@ export function AppSidebar() {
     { title: '向量資料庫', url: '/admin/vectors', icon: Database },
   ] : [];
 
-  const renderMenuGroup = (label: string, items: typeof patientCareItems) => (
+  const renderMenuGroup = (label: string, items: MenuItem[]) => (
     <SidebarGroup>
       <SidebarGroupLabel>{label}</SidebarGroupLabel>
       <SidebarGroupContent>
@@ -96,12 +116,27 @@ export function AppSidebar() {
                 asChild
                 isActive={isActive(item.url)}
               >
-                <a href={item.url} onClick={(e) => {
-                  e.preventDefault();
-                  navigate(item.url);
-                }}>
+                <a
+                  href={item.url}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate(item.url);
+                  }}
+                  className="relative"
+                  title={item.badgeTitle}
+                >
                   <item.icon />
                   <span>{item.title}</span>
+                  {item.badge ? (
+                    <span
+                      className={`ml-auto inline-flex items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white min-w-[18px] h-[18px] ${
+                        isCollapsed ? 'absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1' : ''
+                      }`}
+                      aria-label={`未讀通知 ${item.badge}`}
+                    >
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  ) : null}
                 </a>
               </SidebarMenuButton>
             </SidebarMenuItem>

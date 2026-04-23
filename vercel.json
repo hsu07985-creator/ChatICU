@@ -121,6 +121,10 @@
       "destination": "https://chaticu-production-8060.up.railway.app/sync/:path*"
     },
     {
+      "source": "/notifications/:path*",
+      "destination": "https://chaticu-production-8060.up.railway.app/notifications/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

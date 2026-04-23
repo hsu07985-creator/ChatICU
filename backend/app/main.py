@@ -69,6 +69,7 @@ from app.routers import (
     medications,
     message_activity,
     messages,
+    notifications,
     patients,
     patients_v2,
     pharmacy,
@@ -412,6 +413,7 @@ app.include_router(medications.router)
 app.include_router(fhir_export.router)
 app.include_router(message_activity.router)  # before messages — /patients/messages/* must match before /patients/{patient_id}/messages
 app.include_router(messages.router)
+app.include_router(notifications.router)
 app.include_router(team_chat.router)
 app.include_router(dashboard.router)
 app.include_router(admin.router)
