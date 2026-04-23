@@ -44,6 +44,11 @@ def upgrade() -> None:
 
     # 3. Update tags in patient_messages (JSONB array)
     # Replace bare codes like "1-1" and readable tags like "1-1 給藥問題"
+    # NOTE: avoid bind-param names immediately followed by PostgreSQL ``::`` cast
+    # (e.g. ``:new::text``) — SQLAlchemy's text() regex mishandles that pattern
+    # against asyncpg, leaving the literal ``:name`` in the compiled SQL and
+    # causing ``PostgresSyntaxError: syntax error at or near ":"``. Use
+    # ``CAST(:name AS text)`` or non-adjacent params instead.
     for old, new in CODE_MAP.items():
         # Replace exact bare code in tags array
         conn.execute(sa.text("""
@@ -51,17 +56,17 @@ def upgrade() -> None:
             SET tags = (
                 SELECT jsonb_agg(
                     CASE
-                        WHEN elem::text = :old_quoted THEN to_jsonb(:new::text)
-                        WHEN elem::text LIKE :old_prefix THEN to_jsonb(replace(elem::text, :old_bare, :new_bare)::text)
+                        WHEN elem::text = :old_quoted THEN to_jsonb(CAST(:new_val AS text))
+                        WHEN elem::text LIKE :old_prefix THEN to_jsonb(CAST(replace(CAST(elem AS text), :old_bare, :new_bare) AS text))
                         ELSE elem
                     END
                 )
                 FROM jsonb_array_elements(tags) AS elem
             )
-            WHERE tags::text LIKE :search_pattern
+            WHERE CAST(tags AS text) LIKE :search_pattern
         """), {
             "old_quoted": f'"{old}"',
-            "new": new,
+            "new_val": new,
             "old_prefix": f'"{old} %',
             "old_bare": old,
             "new_bare": new,
