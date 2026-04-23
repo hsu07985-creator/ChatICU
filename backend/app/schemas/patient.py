@@ -72,6 +72,7 @@ class PatientArchiveUpdate(BaseModel):
     archived: bool
     reason: Optional[str] = None
     discharge_type: Optional[str] = None
+    discharge_date: Optional[str] = None  # ISO date string (YYYY-MM-DD)
 
 
 class PatientResponse(BaseModel):
@@ -106,5 +107,10 @@ class PatientResponse(BaseModel):
     isIsolated: bool = False
     hasUnreadMessages: bool = False
     lastUpdate: Optional[str] = None
+    archived: bool = False
+    archivedAt: Optional[str] = None
+    dischargeType: Optional[str] = None
+    dischargeDate: Optional[str] = None
+    dischargeReason: Optional[str] = None
 
     model_config = {"from_attributes": True}
