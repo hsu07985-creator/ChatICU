@@ -6,12 +6,20 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models.coding_source import VALID_CODING_SOURCES
+
+
+_CODING_SOURCE_IN_CLAUSE = ", ".join(f"'{v}'" for v in sorted(VALID_CODING_SOURCES))
 
 
 class Medication(Base):
     __tablename__ = "medications"
     __table_args__ = (
         CheckConstraint("status IN ('active','inactive','discontinued','completed','on-hold')", name="ck_medications_status_valid"),
+        CheckConstraint(
+            f"coding_source IS NULL OR coding_source IN ({_CODING_SOURCE_IN_CLAUSE})",
+            name="ck_medications_coding_source_valid",
+        ),
         Index("ix_medications_status_san_category", "status", "san_category"),
     )
 
@@ -52,7 +60,7 @@ class Medication(Base):
     atc_code: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, index=True)
     is_antibiotic: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
     kidney_relevant: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
-    coding_source: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # formulary / abx / manual / legacy / unmapped
+    coding_source: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # see app.models.coding_source.VALID_CODING_SOURCES
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

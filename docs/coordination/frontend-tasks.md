@@ -263,6 +263,34 @@
   - Once all complete, render final answer with citations
 - **References:** architecture plan §8.1 latency tiers
 
+### F21 [READY] Tighten `Medication.codingSource` TS union to the backend SSOT
+- **Added by:** backend session (coding_source SSOT hardening, migration 066)
+- **Date:** 2026-04-23
+- **Priority:** P2 (type-safety cleanup, no runtime bug)
+- **Files:** `src/lib/api/medications.ts` (line ~52, `codingSource` field in `Medication`)
+- **Background:**
+  - Backend now has a single source of truth: `backend/app/models/coding_source.py` → `VALID_CODING_SOURCES`.
+  - A DB CHECK constraint (`ck_medications_coding_source_valid`, migration 066) and a pytest (`tests/test_fhir/test_coding_source_ssot.py`) guard any drift at the backend layer.
+  - The frontend TS union currently ends with `| string | null` — the `| string` makes the union effectively `string`, which defeats type narrowing.
+- **Change:**
+  - Replace the `codingSource?: ... | string | null` union in the `Medication` interface with exactly:
+    ```ts
+    codingSource?:
+      | 'formulary'
+      | 'formulary+abx'
+      | 'abx_only'
+      | 'legacy_only'
+      | 'manual'
+      | 'rxnorm_cache'
+      | 'unmapped'
+      | null
+    ```
+  - If any component currently pattern-matches against values NOT in the list above (e.g. `'abx'`, `'legacy'`, `'demo'`), those branches are dead — remove them. The backend never emits those.
+  - After the change run `npm run build` + `tsc --noEmit` and fix any newly surfaced type errors (they are real drift, not noise).
+- **Verification:**
+  - `rg "codingSource" src/` should show every consumer aligning to one of the 7 literals above.
+  - Manually sanity-check the patient medications tab and pharmacy duplicates page render the same as before (no visual regressions) — this is a type-only change, so runtime behaviour should be identical.
+
 ### F17 [TODO] Archive remaining files in `src/hooks/` per restructure plan
 - **Added by:** backend session (Step 5 verify_restructure cleanup)
 - **Date:** 2026-04-14

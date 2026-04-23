@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from app.fhir.allergy_parser import parse_allergy_texts
 from app.fhir.his_lab_mapping import HIS_LAB_MAP
+from app.models.coding_source import VALID_CODING_SOURCES
 
 
 # ---------------------------------------------------------------------------
@@ -901,6 +902,12 @@ class HISConverter:
                 except Exception:
                     # RxNorm cache is optional — never fail sync on lookup error
                     pass
+
+            if coding_source is not None and coding_source not in VALID_CODING_SOURCES:
+                raise ValueError(
+                    f"Invalid coding_source {coding_source!r} for order_code={odr_code!r}. "
+                    f"Allowed: {sorted(VALID_CODING_SOURCES)}"
+                )
 
             med_dict = {
                 "id": med_id,
