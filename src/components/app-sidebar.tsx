@@ -67,6 +67,9 @@ export function AppSidebar() {
   };
 
   const isCollapsed = state === 'collapsed';
+  // 手機橫置時 Sheet drawer 永遠展開，無法走 icon-only；footer 兩顆 default button 疊起來會擋到 menu。
+  // 短視窗 + 非 collapsed 時改用並排 icon-only，讓出垂直空間。
+  const compactFooter = isShortViewport && !isCollapsed;
 
   // 1) 病人照護（所有角色可見）
   const patientCareItems = [
@@ -203,27 +206,29 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="p-2 border-t space-y-1.5">
-        <Button
-          variant="outline"
-          size={isCollapsed ? 'icon' : 'default'}
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          title={theme === 'dark' ? '淺色模式' : '深色模式'}
-          className={`${isCollapsed ? 'mx-auto' : 'w-full'} border-border text-foreground hover:bg-muted`}
-        >
-          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          {!isCollapsed && <span className="ml-2">{theme === 'dark' ? '淺色模式' : '深色模式'}</span>}
-        </Button>
-        <Button
-          variant="outline"
-          size={isCollapsed ? 'icon' : 'default'}
-          onClick={handleLogout}
-          title="登出"
-          className={`${isCollapsed ? 'mx-auto' : 'w-full'} border-border text-foreground hover:bg-muted`}
-        >
-          <LogOut className="h-4 w-4" />
-          {!isCollapsed && <span className="ml-2">登出</span>}
-        </Button>
+      <SidebarFooter className="p-2 border-t">
+        <div className={compactFooter ? 'flex gap-1.5' : 'space-y-1.5'}>
+          <Button
+            variant="outline"
+            size={isCollapsed || compactFooter ? 'icon' : 'default'}
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            title={theme === 'dark' ? '淺色模式' : '深色模式'}
+            className={`${isCollapsed ? 'mx-auto' : compactFooter ? 'flex-1' : 'w-full'} border-border text-foreground hover:bg-muted`}
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {!isCollapsed && !compactFooter && <span className="ml-2">{theme === 'dark' ? '淺色模式' : '深色模式'}</span>}
+          </Button>
+          <Button
+            variant="outline"
+            size={isCollapsed || compactFooter ? 'icon' : 'default'}
+            onClick={handleLogout}
+            title="登出"
+            className={`${isCollapsed ? 'mx-auto' : compactFooter ? 'flex-1' : 'w-full'} border-border text-foreground hover:bg-muted`}
+          >
+            <LogOut className="h-4 w-4" />
+            {!isCollapsed && !compactFooter && <span className="ml-2">登出</span>}
+          </Button>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );
