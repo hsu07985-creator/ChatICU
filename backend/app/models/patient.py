@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, Integer, String, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -50,6 +50,10 @@ class Patient(Base):
     has_dnr: Mapped[bool] = mapped_column(Boolean, default=False)
     is_isolated: Mapped[bool] = mapped_column(Boolean, default=False)
     archived: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    discharge_type: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    discharge_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    discharge_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     campus: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # 院區
     last_update: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
