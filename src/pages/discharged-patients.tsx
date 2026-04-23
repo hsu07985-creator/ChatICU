@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -6,6 +6,7 @@ import {
   ArrowUpCircle,
   Eye,
   FlaskConical,
+  Loader2,
   MessageSquare,
   Search,
   Trash2,
@@ -66,9 +67,15 @@ export function DischargedPatientsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  const PAGE_SIZE = 100;
+
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const [search, setSearch] = useState('');
   const [dischargeType, setDischargeType] = useState<'all' | DischargeType>('all');
@@ -80,24 +87,63 @@ export function DischargedPatientsPage() {
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const fetchPatients = useCallback(async () => {
+  const fetchPage = useCallback(async (targetPage: number, append: boolean) => {
     try {
-      setLoading(true);
+      if (append) setLoadingMore(true);
+      else setLoading(true);
       setError(null);
-      const resp = await patientsApi.getPatients({ archived: true, limit: 100 });
+      const resp = await patientsApi.getPatients({
+        archived: true,
+        page: targetPage,
+        limit: PAGE_SIZE,
+      });
       const list = (resp.patients ?? []).filter((p) => p.archived !== false);
-      setPatients(list);
+      setPatients((prev) => (append ? [...prev, ...list] : list));
+      setPage(targetPage);
+      setTotal(resp.pagination?.total ?? list.length);
+      setTotalPages(resp.pagination?.totalPages ?? 1);
     } catch (err) {
       console.error('載入已出院病人失敗:', err);
       setError('無法載入已出院病人，請稍後再試');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, []);
 
+  const refetchFromStart = useCallback(() => {
+    setPatients([]);
+    setSelectedIds(new Set());
+    void fetchPage(1, false);
+  }, [fetchPage]);
+
   useEffect(() => {
-    fetchPatients();
-  }, [fetchPatients]);
+    void fetchPage(1, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const hasMore = page < totalPages;
+  const loadMore = useCallback(() => {
+    if (loadingMore || loading || !hasMore) return;
+    void fetchPage(page + 1, true);
+  }, [fetchPage, hasMore, loading, loadingMore, page]);
+
+  // IntersectionObserver — auto-load next page when sentinel is near viewport
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) loadMore();
+        }
+      },
+      { rootMargin: '200px' },
+    );
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, [loadMore]);
 
   const physicianOptions = useMemo(() => {
     const s = new Set<string>();
@@ -161,7 +207,7 @@ export function DischargedPatientsPage() {
     try {
       await patientsApi.archivePatient(patient.id, { archived: false });
       toast.success(`已復住院：${label}`);
-      await fetchPatients();
+      refetchFromStart();
     } catch (err: unknown) {
       console.error('復住院失敗:', err);
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -187,7 +233,7 @@ export function DischargedPatientsPage() {
         next.delete(patient.id);
         return next;
       });
-      await fetchPatients();
+      refetchFromStart();
     } catch (err: unknown) {
       console.error('永久刪除失敗:', err);
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -323,7 +369,7 @@ export function DischargedPatientsPage() {
           {loading && <TableSkeleton rows={6} columns={8} />}
 
           {error && !loading && (
-            <ErrorDisplay type="server" title="載入失敗" message={error} onRetry={fetchPatients} />
+            <ErrorDisplay type="server" title="載入失敗" message={error} onRetry={refetchFromStart} />
           )}
 
           {!loading && !error && filtered.length === 0 && (
@@ -456,6 +502,46 @@ export function DischargedPatientsPage() {
                   })}
                 </TableBody>
               </Table>
+            </div>
+          )}
+
+          {/* 分頁 / 滾動載入 */}
+          {!loading && !error && patients.length > 0 && (
+            <div className="mt-4 flex flex-col items-center gap-2 text-xs text-muted-foreground">
+              <div>
+                已載入 <span className="font-semibold text-foreground">{patients.length}</span> / 共 {total} 位
+                {hasMore && (
+                  <span className="ml-2">（第 {page} / {totalPages} 頁）</span>
+                )}
+              </div>
+              {(search || dischargeType !== 'all' || physician !== 'all' || fromDate || toDate) && hasMore && (
+                <div className="text-amber-700 dark:text-amber-300">
+                  篩選條件僅套用於已載入的資料，若找不到病人請往下捲動或點「載入更多」載入全部
+                </div>
+              )}
+              {hasMore && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="mt-1"
+                >
+                  {loadingMore ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      載入中...
+                    </>
+                  ) : (
+                    <>載入更多（還有 {total - patients.length} 位）</>
+                  )}
+                </Button>
+              )}
+              {!hasMore && patients.length > 0 && (
+                <div className="text-muted-foreground">已載入全部</div>
+              )}
+              {/* Intersection sentinel — triggers auto-load when visible */}
+              <div ref={sentinelRef} className="h-1 w-full" aria-hidden />
             </div>
           )}
         </CardContent>
