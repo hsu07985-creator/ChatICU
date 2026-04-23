@@ -66,17 +66,38 @@ function matchSide(
     }
   }
 
-  // Tier 2: substring — handles formulation suffixes ("Lansoprazole 30mg")
-  for (const med of meds) {
-    const n = (med.name || '').toLowerCase();
-    const g = (med.genericName || '').toLowerCase();
-    if ((n && n.includes(ruleLower)) || (g && g.includes(ruleLower))
-        || (ruleLower && (ruleLower.includes(n) || ruleLower.includes(g)))) {
-      return {
-        display: med.name,
-        aliasOfRuleName: ruleDrug,
-        matched: true,
-      };
+  // Tier 2: substring — patient's full name contains the rule's drug name
+  // (e.g. med "Takepron OD 30mg tab(Lansoprazole)" matches rule "Lansoprazole").
+  // Guard: rule name must be ≥ 4 chars to avoid accidental short-token hits,
+  // and med fields must be non-empty (a null genericName turns into '' and
+  // `anything.includes('')` is always true — the exact bug that made saline
+  // match every rule).
+  const MIN_SUBSTR = 4;
+  if (ruleLower.length >= MIN_SUBSTR) {
+    for (const med of meds) {
+      const n = (med.name || '').toLowerCase();
+      const g = (med.genericName || '').toLowerCase();
+      if ((n && n.includes(ruleLower)) || (g && g.includes(ruleLower))) {
+        return {
+          display: med.name,
+          aliasOfRuleName: ruleDrug,
+          matched: true,
+        };
+      }
+    }
+    // Reverse substring: rule name contains the patient's generic/name.
+    // Only consider when the patient token is long enough to be specific.
+    for (const med of meds) {
+      const n = (med.name || '').toLowerCase();
+      const g = (med.genericName || '').toLowerCase();
+      if ((g.length >= MIN_SUBSTR && ruleLower.includes(g))
+          || (n.length >= MIN_SUBSTR && ruleLower.includes(n))) {
+        return {
+          display: med.name,
+          aliasOfRuleName: ruleDrug,
+          matched: true,
+        };
+      }
     }
   }
 
