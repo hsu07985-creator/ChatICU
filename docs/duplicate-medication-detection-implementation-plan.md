@@ -12,7 +12,7 @@
 > 每次 Claude 被要求處理「重複用藥」相關任務時，必同步更新此區塊。
 > 關聯文件：[臨床判斷指引](./duplicate-medication-assessment-guide.md) · [串接計畫](./duplicate-medication-integration-plan.md)
 
-**最後更新**：2026-04-23（Phase 1 + Phase 2 完成 + Wave 1–6 消費點全上線 ✅ 60 pass / 3 skip / 0 fail；Production deployed）
+**最後更新**：2026-04-24（前端新增 `selectPharmacyReviewMeds()` 共用 helper，藥師中心重複用藥頁不再傳 context；後端 detector 與 cached endpoint 不變，context default=inpatient）
 
 ### Phase 0 — 資料準備
 - [ ] 補齊 15.4% 無 ATC 的 medications（`backfill_missing_atc.py`）

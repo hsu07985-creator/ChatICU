@@ -12,7 +12,7 @@
 > 每次 Claude 被要求處理「重複用藥」相關任務時，必同步更新此區塊。
 > 關聯文件：[臨床判斷指引](./duplicate-medication-assessment-guide.md) · [實作計畫](./duplicate-medication-detection-implementation-plan.md)
 
-**最後更新**：2026-04-23（Wave 1–6 + Phase 2 L3/L4 完成 ✅ Production deployed；全 8 個消費點上線）
+**最後更新**：2026-04-24（藥師中心重複用藥頁拿掉「情境」選項，統一以 `selectPharmacyReviewMeds()` 過濾「住院 + 自備/院外」）
 
 ### Wave 1 — 核心管線 ✅ 完成
 - [x] Migration 063（detection tables + `medication_duplicate_cache`）✅ 7 張表
@@ -66,6 +66,7 @@
 | AI 問答 | 3 | 🟢 已上線（snapshot 自動注入重複用藥警示） |
 | HIS sync 自動預算 | 4 | 🟢 已上線（--skip-duplicate-refresh CLI flag 可停用） |
 | 藥師中心 DDI 頁 | 5 | 🟢 已上線（新增「重複用藥」Tab，病患選擇器共用） |
+| 藥師中心 重複用藥頁 | 5 | 🟢 已上線（2026-04-24：拿掉 context 選項，改走 `selectPharmacyReviewMeds()` 過濾「住院 + 自備/院外」，後端 context default=inpatient） |
 | 藥師審方工作站 | 5 | 🟢 已上線（dropdown + summary card 有 counts badge） |
 | 出院管理 | 6 | 🟢 已上線（出院用藥檢查 Dialog，sup_ppi / empirical_antibiotic 等分類） |
 | 病人摘要 Tab | 6 | 🟢 已上線（用藥風險卡 + 導航至用藥頁） |
