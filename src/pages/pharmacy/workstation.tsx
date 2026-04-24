@@ -771,7 +771,7 @@ export function PharmacyWorkstationPage() {
     <div className="p-6 space-y-4">
       {/* 標題 */}
       <div>
-        <h1 className="text-2xl font-bold">藥事支援工作台</h1>
+        <h1 className="text-2xl font-bold">藥師工作站</h1>
         <p className="text-muted-foreground text-sm mt-1">
           選擇病患、管理用藥、執行全面評估並產生用藥建議
         </p>

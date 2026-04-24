@@ -431,7 +431,7 @@ export function DrugInteractionsPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">藥物交互作用查詢</h1>
+        <h1 className="text-2xl font-bold">用藥交互</h1>
         <p className="text-muted-foreground text-sm mt-1">
           查詢藥物兩兩交互作用（重複用藥已獨立於左側欄「重複用藥」頁）
         </p>

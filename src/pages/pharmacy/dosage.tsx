@@ -250,7 +250,7 @@ export function DosagePage() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">劑量計算與建議</h1>
+        <h1 className="text-2xl font-bold">劑量計算</h1>
         <p className="text-muted-foreground text-sm mt-0.5">ICU PAD 藥物輸注速率計算（含肥胖體重調整）</p>
       </div>
 
