@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import String, and_, cast, func, select
+from sqlalchemy import String, and_, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -15,6 +15,29 @@ from app.schemas.message import TeamChatCreate
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/team/chat", tags=["team-chat"])
+users_router = APIRouter(prefix="/team/users", tags=["team-users"])
+
+
+@users_router.get("")
+async def list_team_users(
+    user: User = Depends(get_current_user),  # noqa: ARG001 — auth gate
+    db: AsyncSession = Depends(get_db),
+):
+    """Minimal user list for @-mention autocomplete in team chat.
+
+    Returns only id/name/role (no PII beyond what teammates already see in
+    chat headers). Authenticated users only.
+    """
+    result = await db.execute(
+        select(User.id, User.name, User.role).where(User.active == True)  # noqa: E712
+    )
+    rows = result.all()
+    return success_response(data={
+        "users": [
+            {"id": r.id, "name": r.name, "role": r.role}
+            for r in rows
+        ]
+    })
 
 
 def chat_to_dict(msg: TeamChatMessage, replies: Optional[List[dict]] = None) -> dict:
@@ -32,6 +55,7 @@ def chat_to_dict(msg: TeamChatMessage, replies: Optional[List[dict]] = None) -> 
         "isRead": msg.is_read or False,
         "readBy": msg.read_by or [],
         "mentionedRoles": msg.mentioned_roles or [],
+        "mentionedUserIds": msg.mentioned_user_ids or [],
         "replyCount": len(replies) if replies is not None else 0,
         "replies": replies if replies is not None else [],
     }
@@ -42,13 +66,20 @@ async def mentions_count(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Count unread messages that mention the current user's role."""
+    """Count unread messages that @ the current user (by role OR user_id)."""
+    role_match = and_(
+        TeamChatMessage.mentioned_roles.isnot(None),
+        cast(TeamChatMessage.mentioned_roles, String).contains(f'"{user.role}"'),
+    )
+    user_match = and_(
+        TeamChatMessage.mentioned_user_ids.isnot(None),
+        cast(TeamChatMessage.mentioned_user_ids, String).contains(f'"{user.id}"'),
+    )
     result = await db.execute(
         select(func.count(TeamChatMessage.id)).where(
             and_(
                 TeamChatMessage.is_read == False,  # noqa: E712
-                TeamChatMessage.mentioned_roles.isnot(None),
-                cast(TeamChatMessage.mentioned_roles, String).contains(f'"{user.role}"'),
+                or_(role_match, user_match),
             )
         )
     )
@@ -137,6 +168,7 @@ async def send_team_chat(
         is_read=False,
         read_by=[],
         mentioned_roles=body.mentionedRoles or [],
+        mentioned_user_ids=body.mentionedUserIds or [],
     )
 
     if body.pinned:

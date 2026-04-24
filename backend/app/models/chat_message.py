@@ -33,6 +33,9 @@ class TeamChatMessage(Base):
     # Role mentions
     mentioned_roles: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True, default=list)
 
+    # Per-user mentions (Path B): list of user.id strings
+    mentioned_user_ids: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True, default=list)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

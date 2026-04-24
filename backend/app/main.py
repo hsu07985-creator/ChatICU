@@ -420,6 +420,7 @@ app.include_router(message_activity.router)  # before messages — /patients/mes
 app.include_router(messages.router)
 app.include_router(notifications.router)
 app.include_router(team_chat.router)
+app.include_router(team_chat.users_router)
 app.include_router(dashboard.router)
 app.include_router(admin.router)
 app.include_router(admin_his_sync.router)
