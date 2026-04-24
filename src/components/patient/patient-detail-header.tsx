@@ -7,6 +7,7 @@ interface PatientDetailHeaderProps {
   patientName: string;
   bedNumber: string | number;
   isIntubated: boolean;
+  hasTracheostomy?: boolean;
   daysAdmitted: number;
   showEditButton: boolean;
   onBackToPatients: () => void;
@@ -16,6 +17,7 @@ export function PatientDetailHeader({
   patientName,
   bedNumber,
   isIntubated,
+  hasTracheostomy = false,
   daysAdmitted,
   showEditButton,
   onBackToPatients,
@@ -37,7 +39,7 @@ export function PatientDetailHeader({
                   <h1 className="text-3xl font-bold text-[#3c7acb] dark:text-[#6fa3e8]">{patientName}</h1>
                   {isIntubated && (
                     <Badge className="bg-[#d1cbf7] text-brand hover:bg-[#d1cbf7]/90 dark:bg-[#4a2f5c] dark:text-[#efe3ff] dark:hover:bg-[#4a2f5c]/90">
-                      插管中
+                      {hasTracheostomy ? '氣切' : '插管中'}
                     </Badge>
                   )}
                 </div>

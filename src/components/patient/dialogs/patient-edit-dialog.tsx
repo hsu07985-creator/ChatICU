@@ -41,6 +41,53 @@ export function PatientEditDialog({
     onPatientChange({ ...patient, [key]: value });
   };
 
+  const hasTracheostomy = patient.tracheostomy === true || Boolean(patient.tracheostomyDate);
+  const airwayReferenceDate = patient.intubationDate ?? patient.tracheostomyDate ?? null;
+  const airwaySupportDays = airwayReferenceDate
+    ? Math.max(Math.floor((Date.now() - new Date(airwayReferenceDate).getTime()) / 86400000), 0)
+    : 0;
+
+  const handleIntubatedChange = (checked: boolean) => {
+    if (!checked) {
+      onPatientChange({
+        ...patient,
+        intubated: false,
+        intubationDate: null,
+        tracheostomy: false,
+        tracheostomyDate: null,
+      });
+      return;
+    }
+
+    updatePatientField('intubated', true);
+  };
+
+  const handleTracheostomyChange = (checked: boolean) => {
+    if (!checked) {
+      onPatientChange({
+        ...patient,
+        tracheostomy: false,
+        tracheostomyDate: null,
+      });
+      return;
+    }
+
+    onPatientChange({
+      ...patient,
+      intubated: true,
+      tracheostomy: true,
+    });
+  };
+
+  const handleTracheostomyDateChange = (value: string) => {
+    onPatientChange({
+      ...patient,
+      intubated: value ? true : patient.intubated,
+      tracheostomy: value ? true : patient.tracheostomy,
+      tracheostomyDate: value || null,
+    });
+  };
+
   return (
     <Dialog open={true} onOpenChange={onCancel}>
       <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
@@ -49,7 +96,7 @@ export function PatientEditDialog({
             <Edit2 className="h-5 w-5 text-brand" />
             編輯病人資料
           </DialogTitle>
-          <DialogDescription>請修改病人資料並儲存。只有管理員可以編輯。</DialogDescription>
+          <DialogDescription>請修改病人資料並儲存。</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
@@ -172,38 +219,74 @@ export function PatientEditDialog({
               className="col-span-3"
             />
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="intubated" className="text-right">插管狀態</Label>
-            <div className="col-span-3 flex items-center gap-2">
-              <Checkbox
-                id="intubated"
-                checked={patient.intubated}
-                onCheckedChange={(checked) => updatePatientField('intubated', checked === true)}
-              />
-              <span className="text-sm text-muted-foreground">勾選表示插管中</span>
+          <div className="grid grid-cols-4 items-start gap-4">
+            <Label className="pt-2 text-right">呼吸道支持</Label>
+            <div className="col-span-3 space-y-4 rounded-lg border border-border/70 bg-muted/30 p-4">
+              <div className="flex flex-wrap items-center gap-6">
+                <label className="flex items-center gap-2">
+                  <Checkbox
+                    id="intubated"
+                    checked={patient.intubated}
+                    onCheckedChange={(checked) => handleIntubatedChange(checked === true)}
+                  />
+                  <span className="text-sm font-medium">目前使用侵入性呼吸道支持</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <Checkbox
+                    id="tracheostomy"
+                    checked={hasTracheostomy}
+                    onCheckedChange={(checked) => handleTracheostomyChange(checked === true)}
+                  />
+                  <span className="text-sm font-medium">已執行氣管切開術</span>
+                </label>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="intubationDate">插管日期</Label>
+                  <Input
+                    id="intubationDate"
+                    type="date"
+                    value={patient.intubationDate ?? ''}
+                    onChange={(e) => updatePatientField('intubationDate', e.target.value || null)}
+                    disabled={!patient.intubated}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    病人入 ICU 前已插管時可直接填寫；日期未知可先留空。
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tracheostomyDate">氣切日期</Label>
+                  <Input
+                    id="tracheostomyDate"
+                    type="date"
+                    value={patient.tracheostomyDate ?? ''}
+                    onChange={(e) => handleTracheostomyDateChange(e.target.value)}
+                    disabled={!hasTracheostomy}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    可只勾選「已執行氣管切開術」；若填日期會自動視為已氣切。
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-md bg-background/80 px-3 py-2 text-xs text-muted-foreground">
+                若病人由氣切處接呼吸器，仍視為侵入性呼吸道支持中；此區塊先提供狀態與日期兩種記錄方式。
+              </div>
             </div>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="intubationDate" className="text-right">插管日期</Label>
-            <Input
-              id="intubationDate"
-              type="date"
-              value={patient.intubationDate ?? ''}
-              onChange={(e) => updatePatientField('intubationDate', e.target.value || null)}
-              className="col-span-3"
-              disabled={!patient.intubated}
-            />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="ventilatorDays" className="text-right">呼吸器天數</Label>
             <div className="col-span-3 flex items-center gap-2">
               <span className="text-sm font-medium">
-                {patient.intubationDate
-                  ? Math.max(Math.floor((Date.now() - new Date(patient.intubationDate).getTime()) / 86400000), 0)
-                  : 0} 天
+                {airwaySupportDays} 天
               </span>
               <span className="text-xs text-muted-foreground">
-                {patient.intubationDate ? '（依插管日期自動計算）' : '（請先設定插管日期）'}
+                {patient.intubationDate
+                  ? '（依插管日期自動計算）'
+                  : patient.tracheostomyDate
+                    ? '（示意：暫以氣切日期估算）'
+                    : '（請先設定插管或氣切日期）'}
               </span>
             </div>
           </div>

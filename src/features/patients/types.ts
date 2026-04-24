@@ -22,6 +22,9 @@ export interface NewPatientFormData {
   icuAdmissionDate: string;
   ventilatorDays: string;
   intubated: boolean;
+  intubationDate: string;
+  tracheostomy: boolean;
+  tracheostomyDate: string;
   hasDNR: boolean;
   isIsolated: boolean;
   sedation: string;
@@ -43,6 +46,9 @@ export function createDefaultNewPatient(): NewPatientFormData {
     icuAdmissionDate: '',
     ventilatorDays: '',
     intubated: false,
+    intubationDate: '',
+    tracheostomy: false,
+    tracheostomyDate: '',
     hasDNR: false,
     isIsolated: false,
     sedation: '',

@@ -16,6 +16,7 @@ import { Button } from '../ui/button';
 import { EmptyState, ErrorDisplay } from '../ui/state-display';
 import { TableSkeleton } from '../ui/skeletons';
 import type { PatientWithFrontendFields } from '../../features/patients/types';
+import { getAirwayStatusLabel } from '../../lib/patient-airway';
 
 interface PatientsListCardProps {
   searchTerm: string;
@@ -169,7 +170,7 @@ export function PatientsListCard({
                   </TableCell>
                   <TableCell>
                     {patient.intubated ? (
-                      <Badge variant="secondary">插管中</Badge>
+                      <Badge variant="secondary">{getAirwayStatusLabel(patient)}</Badge>
                     ) : (
                       <Badge variant="outline">未插管</Badge>
                     )}

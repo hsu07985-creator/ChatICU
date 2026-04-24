@@ -20,6 +20,8 @@ const TRACKED_FIELDS: Partial<Record<keyof Patient, PatientFieldMeta>> = {
   weight:          { label: '體重',     priority: 'high'   },
   intubated:       { label: '插管狀態', priority: 'high'   },
   intubationDate:  { label: '插管日期', priority: 'high'   },
+  tracheostomy:    { label: '氣切狀態', priority: 'high'   },
+  tracheostomyDate:{ label: '氣切日期', priority: 'high'   },
   // 中優先（影響藥局頁面）
   sedation:        { label: '鎮靜劑',   priority: 'medium' },
   analgesia:       { label: '止痛劑',   priority: 'medium' },

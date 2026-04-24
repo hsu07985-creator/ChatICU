@@ -23,15 +23,43 @@ from app.utils.response import escape_like, success_response
 router = APIRouter(prefix="/patients", tags=["patients"])
 
 
-def patient_to_dict(patient: Patient, unread_count: int = 0, intubation_date=None) -> dict:
-    # Auto-calculate ventilator_days from intubation_date when available
-    vent_days = patient.ventilator_days
-    if intubation_date and patient.intubated:
+_MISSING = object()
+
+
+def _coerce_date(value):
+    if value in (None, "", _MISSING):
+        return None
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value))
+
+
+def _derive_ventilator_days(
+    patient: Patient,
+    intubation_date=None,
+    tracheostomy_date=None,
+) -> int:
+    invasive_support = bool(patient.intubated or patient.tracheostomy or tracheostomy_date)
+    if not invasive_support:
+        return 0
+
+    support_start = _coerce_date(intubation_date) or _coerce_date(tracheostomy_date)
+    if support_start:
         today = datetime.now(timezone.utc).date()
-        if isinstance(intubation_date, str):
-            from datetime import date as _date
-            intubation_date = _date.fromisoformat(intubation_date)
-        vent_days = max((today - intubation_date).days, 0)
+        return max((today - support_start).days, 0)
+
+    return patient.ventilator_days
+
+
+def patient_to_dict(
+    patient: Patient,
+    unread_count: int = 0,
+    intubation_date=None,
+    tracheostomy_date=None,
+) -> dict:
+    vent_days = _derive_ventilator_days(patient, intubation_date, tracheostomy_date)
+    tracheostomy = bool(patient.tracheostomy or tracheostomy_date)
+    intubated = bool(patient.intubated or tracheostomy)
 
     return {
         "id": patient.id,
@@ -45,8 +73,10 @@ def patient_to_dict(patient: Patient, unread_count: int = 0, intubation_date=Non
         "bmi": patient.bmi,
         "diagnosis": patient.diagnosis,
         "symptoms": patient.symptoms or [],
-        "intubated": patient.intubated,
+        "intubated": intubated,
         "intubationDate": intubation_date.isoformat() if intubation_date and hasattr(intubation_date, 'isoformat') else intubation_date,
+        "tracheostomy": tracheostomy,
+        "tracheostomyDate": tracheostomy_date.isoformat() if tracheostomy_date and hasattr(tracheostomy_date, 'isoformat') else tracheostomy_date,
         "criticalStatus": patient.critical_status,
         "sedation": patient.sedation or [],
         "analgesia": patient.analgesia or [],
@@ -74,26 +104,61 @@ def patient_to_dict(patient: Patient, unread_count: int = 0, intubation_date=Non
     }
 
 
-async def _fetch_intubation_dates(db: AsyncSession, patient_ids: list) -> dict:
-    """Fetch intubation_date via raw SQL (column not in ORM to avoid async issues)."""
+async def _fetch_airway_dates(db: AsyncSession, patient_ids: list) -> dict:
+    """Fetch airway support dates via raw SQL (date columns live outside ORM)."""
     if not patient_ids:
         return {}
     try:
         nested = await db.begin_nested()
         try:
             result = await db.execute(
-                text("SELECT id, intubation_date FROM patients WHERE id = ANY(:ids)"),
+                text(
+                    """
+                    SELECT id, intubation_date, tracheostomy_date
+                    FROM patients
+                    WHERE id = ANY(:ids)
+                    """
+                ),
                 {"ids": patient_ids},
             )
-            data = {row[0]: row[1] for row in result if row[1] is not None}
+            data = {
+                row[0]: {
+                    "intubation_date": row[1],
+                    "tracheostomy_date": row[2],
+                }
+                for row in result
+                if row[1] is not None or row[2] is not None
+            }
             await nested.commit()
             return data
         except Exception:
             await nested.rollback()
             return {}
     except Exception as exc:
-        logger.warning("_fetch_intubation_dates failed: %s", exc)
+        logger.warning("_fetch_airway_dates failed: %s", exc)
         return {}
+
+
+async def _persist_date_column(
+    db: AsyncSession,
+    patient_id: str,
+    *,
+    column_name: str,
+    value,
+) -> None:
+    try:
+        nested = await db.begin_nested()
+        try:
+            await db.execute(
+                text(f"UPDATE patients SET {column_name} = :val WHERE id = :pid"),
+                {"val": value, "pid": patient_id},
+            )
+            await nested.commit()
+        except Exception as exc:
+            logger.warning("%s UPDATE failed (savepoint rollback): %s", column_name, exc)
+            await nested.rollback()
+    except Exception as exc:
+        logger.warning("%s savepoint setup failed: %s", column_name, exc)
 
 
 def normalize_patient_id(patient_id: str) -> str:
@@ -174,11 +239,15 @@ async def list_patients(
         for pid, count in unread_result:
             unread_counts[pid] = count
 
-    # Fetch intubation_dates via raw SQL (not in ORM model)
-    intub_dates = await _fetch_intubation_dates(db, patient_ids)
+    airway_dates = await _fetch_airway_dates(db, patient_ids)
 
     patient_list = [
-        patient_to_dict(p, unread_counts.get(p.id, 0), intubation_date=intub_dates.get(p.id))
+        patient_to_dict(
+            p,
+            unread_counts.get(p.id, 0),
+            intubation_date=airway_dates.get(p.id, {}).get("intubation_date"),
+            tracheostomy_date=airway_dates.get(p.id, {}).get("tracheostomy_date"),
+        )
         for p in patients
     ]
 
@@ -201,6 +270,16 @@ async def create_patient(
     db: AsyncSession = Depends(get_db),
 ):
     patient_id = f"pat_{uuid.uuid4().hex[:6]}"
+    tracheostomy = bool(body.tracheostomy or body.tracheostomy_date)
+    intubated = bool(body.intubated or tracheostomy)
+    vent_days = body.ventilator_days
+    if intubated:
+        support_start = _coerce_date(body.intubation_date) or _coerce_date(body.tracheostomy_date)
+        if support_start:
+            today = datetime.now(timezone.utc).date()
+            vent_days = max((today - support_start).days, 0)
+    else:
+        vent_days = 0
     bmi = None
     if body.height and body.weight and body.height > 0:
         bmi = round(body.weight / ((body.height / 100) ** 2), 1)
@@ -217,14 +296,15 @@ async def create_patient(
         bmi=bmi,
         diagnosis=body.diagnosis,
         symptoms=body.symptoms,
-        intubated=body.intubated,
+        intubated=intubated,
+        tracheostomy=tracheostomy,
         critical_status=body.critical_status,
         sedation=body.sedation,
         analgesia=body.analgesia,
         nmb=body.nmb,
         admission_date=body.admission_date,
         icu_admission_date=body.icu_admission_date,
-        ventilator_days=body.ventilator_days,
+        ventilator_days=vent_days,
         attending_physician=body.attending_physician,
         department=body.department,
         alerts=body.alerts,
@@ -244,21 +324,20 @@ async def create_patient(
     db.add(patient)
     await db.flush()
 
-    # Set intubation_date via raw SQL if provided (savepoint to avoid aborting transaction)
-    if body.intubation_date:
-        try:
-            nested = await db.begin_nested()
-            try:
-                await db.execute(
-                    text("UPDATE patients SET intubation_date = :val WHERE id = :pid"),
-                    {"val": body.intubation_date, "pid": patient_id},
-                )
-                await nested.commit()
-            except Exception as exc:
-                logger.warning("create_patient intubation_date failed: %s", exc)
-                await nested.rollback()
-        except Exception as exc:
-            logger.warning("create_patient savepoint setup failed: %s", exc)
+    if body.intubation_date is not None:
+        await _persist_date_column(
+            db,
+            patient_id,
+            column_name="intubation_date",
+            value=body.intubation_date,
+        )
+    if body.tracheostomy_date is not None:
+        await _persist_date_column(
+            db,
+            patient_id,
+            column_name="tracheostomy_date",
+            value=body.tracheostomy_date,
+        )
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
@@ -267,7 +346,14 @@ async def create_patient(
         details={"patient_name": body.name, "bed": body.bed_number},
     )
 
-    return success_response(data=patient_to_dict(patient), message="病患建立成功")
+    return success_response(
+        data=patient_to_dict(
+            patient,
+            intubation_date=body.intubation_date,
+            tracheostomy_date=body.tracheostomy_date,
+        ),
+        message="病患建立成功",
+    )
 
 
 @router.get("/{patient_id}")
@@ -293,8 +379,15 @@ async def get_patient(
     unread_result = await db.execute(unread_query)
     unread_count = unread_result.scalar() or 0
 
-    intub_dates = await _fetch_intubation_dates(db, [pid])
-    return success_response(data=patient_to_dict(patient, unread_count, intubation_date=intub_dates.get(pid)))
+    airway_dates = await _fetch_airway_dates(db, [pid])
+    return success_response(
+        data=patient_to_dict(
+            patient,
+            unread_count,
+            intubation_date=airway_dates.get(pid, {}).get("intubation_date"),
+            tracheostomy_date=airway_dates.get(pid, {}).get("tracheostomy_date"),
+        )
+    )
 
 
 @router.patch("/{patient_id}")
@@ -330,8 +423,14 @@ async def update_patient(
         "weight": "weight",
     }
 
-    # Extract intubation_date before ORM loop (not in ORM model)
+    # Extract airway dates before ORM loop (not in ORM model)
     intub_date_val = update_data.pop("intubation_date", None)
+    trach_date_val = update_data.pop("tracheostomy_date", None)
+
+    if trach_date_val is not None:
+        update_data["tracheostomy"] = True
+    if update_data.get("tracheostomy") is True:
+        update_data["intubated"] = True
 
     for key, value in update_data.items():
         db_key = field_mapping.get(key, key)
@@ -345,40 +444,42 @@ async def update_patient(
     elif not h or not w:
         patient.bmi = None
 
-    # Handle intubation_date via raw SQL (use savepoint to avoid aborting transaction)
     if intub_date_val is not None or "intubation_date" in body.model_fields_set:
-        try:
-            nested = await db.begin_nested()
-            try:
-                await db.execute(
-                    text("UPDATE patients SET intubation_date = :val WHERE id = :pid"),
-                    {"val": intub_date_val, "pid": pid},
-                )
-                await nested.commit()
-            except Exception as exc:
-                logger.warning("intubation_date UPDATE failed (savepoint rollback): %s", exc)
-                await nested.rollback()
-        except Exception as exc:
-            logger.warning("intubation_date savepoint setup failed: %s", exc)
-
-    # Auto-calculate ventilator_days from intubation_date
-    # Use intub_date_val directly when provided (more reliable than re-fetching via raw SQL)
-    from datetime import date as _date
-    intub_date_for_resp = None
-    if intub_date_val is not None:
-        # Just saved this value — use it directly without re-querying
-        intub_date_for_resp = (
-            intub_date_val if isinstance(intub_date_val, _date)
-            else _date.fromisoformat(str(intub_date_val))
+        await _persist_date_column(
+            db,
+            pid,
+            column_name="intubation_date",
+            value=intub_date_val,
         )
-    else:
-        # intubation_date not changed in this request — fetch current value
-        intub_dates = await _fetch_intubation_dates(db, [pid])
-        intub_date_for_resp = intub_dates.get(pid)
+    if trach_date_val is not None or "tracheostomy_date" in body.model_fields_set:
+        await _persist_date_column(
+            db,
+            pid,
+            column_name="tracheostomy_date",
+            value=trach_date_val,
+        )
 
-    if intub_date_for_resp and patient.intubated:
-        today = datetime.now(timezone.utc).date()
-        patient.ventilator_days = max((today - intub_date_for_resp).days, 0)
+    airway_dates = await _fetch_airway_dates(db, [pid])
+    airway_date_payload = airway_dates.get(pid, {})
+    intub_date_for_resp = (
+        _coerce_date(intub_date_val)
+        if intub_date_val is not None
+        else airway_date_payload.get("intubation_date")
+    )
+    trach_date_for_resp = (
+        _coerce_date(trach_date_val)
+        if trach_date_val is not None
+        else airway_date_payload.get("tracheostomy_date")
+    )
+
+    if patient.intubated:
+        patient.ventilator_days = _derive_ventilator_days(
+            patient,
+            intubation_date=intub_date_for_resp,
+            tracheostomy_date=trach_date_for_resp,
+        )
+    elif "ventilator_days" not in update_data:
+        patient.ventilator_days = 0
 
     patient.last_update = datetime.now(timezone.utc)
 
@@ -393,10 +494,21 @@ async def update_patient(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="更新病患資料", target=pid, status="success",
         ip=request.client.host if request.client else None,
-        details={"fields_changed": list(update_data.keys())},
+        details={
+            "fields_changed": list(update_data.keys())
+            + (["intubation_date"] if ("intubation_date" in body.model_fields_set) else [])
+            + (["tracheostomy_date"] if ("tracheostomy_date" in body.model_fields_set) else []),
+        },
     )
 
-    return success_response(data=patient_to_dict(patient, intubation_date=intub_date_for_resp), message="病患資料已更新")
+    return success_response(
+        data=patient_to_dict(
+            patient,
+            intubation_date=intub_date_for_resp,
+            tracheostomy_date=trach_date_for_resp,
+        ),
+        message="病患資料已更新",
+    )
 
 
 @router.patch("/{patient_id}/archive")

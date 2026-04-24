@@ -40,6 +40,8 @@ PRESERVE_EXISTING_FIELDS = frozenset(
         "bmi",
         "symptoms",
         "intubated",
+        "tracheostomy",
+        "tracheostomy_date",
         "critical_status",
         "alerts",
         "allergies",

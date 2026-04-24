@@ -38,6 +38,49 @@ export function PatientCreateDialog({
     onNewPatientChange({ ...newPatient, [key]: value });
   };
 
+  const hasTracheostomy = newPatient.tracheostomy || Boolean(newPatient.tracheostomyDate);
+
+  const handleIntubatedChange = (checked: boolean) => {
+    if (!checked) {
+      onNewPatientChange({
+        ...newPatient,
+        intubated: false,
+        intubationDate: '',
+        tracheostomy: false,
+        tracheostomyDate: '',
+      });
+      return;
+    }
+
+    updateNewPatientField('intubated', true);
+  };
+
+  const handleTracheostomyChange = (checked: boolean) => {
+    if (!checked) {
+      onNewPatientChange({
+        ...newPatient,
+        tracheostomy: false,
+        tracheostomyDate: '',
+      });
+      return;
+    }
+
+    onNewPatientChange({
+      ...newPatient,
+      intubated: true,
+      tracheostomy: true,
+    });
+  };
+
+  const handleTracheostomyDateChange = (value: string) => {
+    onNewPatientChange({
+      ...newPatient,
+      intubated: value ? true : newPatient.intubated,
+      tracheostomy: value ? true : newPatient.tracheostomy,
+      tracheostomyDate: value,
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto">
@@ -155,14 +198,52 @@ export function PatientCreateDialog({
             />
           </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right">插管狀態</Label>
-            <div className="col-span-3 flex items-center gap-2">
-              <Checkbox
-                checked={newPatient.intubated}
-                onCheckedChange={(checked) => updateNewPatientField('intubated', Boolean(checked))}
-              />
-              <span className="text-sm text-muted-foreground">勾選表示插管中</span>
+          <div className="grid grid-cols-4 items-start gap-4">
+            <Label className="pt-2 text-right">呼吸道支持</Label>
+            <div className="col-span-3 space-y-4 rounded-lg border border-border/70 bg-muted/30 p-4">
+              <div className="flex flex-wrap items-center gap-6">
+                <label className="flex items-center gap-2">
+                  <Checkbox
+                    checked={newPatient.intubated}
+                    onCheckedChange={(checked) => handleIntubatedChange(Boolean(checked))}
+                  />
+                  <span className="text-sm font-medium">目前使用侵入性呼吸道支持</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <Checkbox
+                    checked={hasTracheostomy}
+                    onCheckedChange={(checked) => handleTracheostomyChange(Boolean(checked))}
+                  />
+                  <span className="text-sm font-medium">已執行氣管切開術</span>
+                </label>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="create-intubation-date">插管日期</Label>
+                  <Input
+                    id="create-intubation-date"
+                    type="date"
+                    value={newPatient.intubationDate}
+                    onChange={(event) => updateNewPatientField('intubationDate', event.target.value)}
+                    disabled={!newPatient.intubated}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="create-tracheostomy-date">氣切日期</Label>
+                  <Input
+                    id="create-tracheostomy-date"
+                    type="date"
+                    value={newPatient.tracheostomyDate}
+                    onChange={(event) => handleTracheostomyDateChange(event.target.value)}
+                    disabled={!hasTracheostomy}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-md bg-background/80 px-3 py-2 text-xs text-muted-foreground">
+                可只勾選「已執行氣管切開術」不填日期；若病人由氣切處接呼吸器，也算在侵入性呼吸道支持。
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">

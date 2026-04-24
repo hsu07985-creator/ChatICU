@@ -92,6 +92,7 @@ import {
 } from 'lucide-react';
 import { LabDataDisplay } from '../components/lab-data-display';
 import chatBotAvatar from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
+import { getAirwayStatusLabel } from '../lib/patient-airway';
 
 // 預設空的 labData 結構（用於 API 載入前）
 const defaultLabData: LabData = {
@@ -1349,7 +1350,7 @@ export function PatientDetailPage() {
               {/* 臨床旗標 badges */}
               {patient.intubated && (
                 <Badge className="bg-[#d1cbf7] text-brand hover:bg-[#d1cbf7]/90 dark:bg-[#4a2f5c] dark:text-[#efe3ff] dark:hover:bg-[#4a2f5c]/90">
-                  插管中
+                  {getAirwayStatusLabel(patient)}
                 </Badge>
               )}
               {patient.hasDNR && (

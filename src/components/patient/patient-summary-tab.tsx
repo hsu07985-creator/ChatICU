@@ -35,6 +35,7 @@ interface PatientSummaryTabPatient {
   bedNumber?: string;
   attendingPhysician?: string;
   intubated?: boolean;
+  tracheostomy?: boolean;
   hasDNR?: boolean;
   symptoms?: string[];
   diagnosis?: string | null;
@@ -47,6 +48,7 @@ interface PatientSummaryTabPatient {
   isIsolated?: boolean;
   codeStatus?: string | null;
   medicalRecordNumber?: string | null;
+  tracheostomyDate?: string | null;
 }
 
 interface PatientSummaryTabProps {
@@ -364,7 +366,7 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate, onNav
               {patient.intubated && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 px-3 py-1 text-sm font-medium text-red-700 dark:text-red-400">
                   <span className="h-2 w-2 rounded-full bg-red-500" />
-                  插管中
+                  {patient.tracheostomy ? '氣切' : '插管中'}
                 </span>
               )}
               {patient.hasDNR && (

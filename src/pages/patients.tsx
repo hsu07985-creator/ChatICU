@@ -28,6 +28,8 @@ import { Checkbox } from '../components/ui/checkbox';
 import { ErrorDisplay, EmptyState } from '../components/ui/state-display';
 import { TableSkeleton } from '../components/ui/skeletons';
 import { toast } from 'sonner';
+import { getAirwayStatusLabel } from '../lib/patient-airway';
+import { canEditPatientProfile } from '../lib/permissions';
 
 interface PatientWithFrontendFields extends Patient {
   sedation?: string[];
@@ -42,6 +44,7 @@ const ICU_DEPARTMENTS = ['內科-李穎灝', '內科-黃英哲', '外科'] as co
 export function PatientsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const canEditPatients = canEditPatientProfile(user?.role);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const cached = getCachedPatientsSync();
@@ -143,6 +146,9 @@ export function PatientsPage() {
     icuAdmissionDate: '',
     ventilatorDays: '',
     intubated: false,
+    intubationDate: '',
+    tracheostomy: false,
+    tracheostomyDate: '',
     hasDNR: false,
     isIsolated: false,
     sedation: '',
@@ -203,6 +209,9 @@ export function PatientsPage() {
       icuAdmissionDate: '',
       ventilatorDays: '',
       intubated: false,
+      intubationDate: '',
+      tracheostomy: false,
+      tracheostomyDate: '',
       hasDNR: false,
       isIsolated: false,
       sedation: '',
@@ -244,7 +253,10 @@ export function PatientsPage() {
         gender: newPatient.gender,
         age: Number(newPatient.age),
         diagnosis: newPatient.diagnosis.trim(),
-        intubated: newPatient.intubated,
+        intubated: newPatient.intubated || newPatient.tracheostomy || Boolean(newPatient.tracheostomyDate),
+        intubationDate: newPatient.intubationDate || undefined,
+        tracheostomy: newPatient.tracheostomy || Boolean(newPatient.tracheostomyDate),
+        tracheostomyDate: newPatient.tracheostomyDate || undefined,
         admissionDate: newPatient.admissionDate || undefined,
         icuAdmissionDate: newPatient.icuAdmissionDate || undefined,
         ventilatorDays: newPatient.ventilatorDays ? Number(newPatient.ventilatorDays) : 0,
@@ -326,17 +338,19 @@ export function PatientsPage() {
     }
   };
 
+  const newPatientHasTracheostomy = newPatient.tracheostomy || Boolean(newPatient.tracheostomyDate);
+
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
-          <FlaskConical className="h-3.5 w-3.5" />
-          模擬資料
-        </div>
-      </div>
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">病人清單</h1>
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold">病人清單</h1>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
+              <FlaskConical className="h-3.5 w-3.5" />
+              模擬資料
+            </div>
+          </div>
           <p className="text-muted-foreground text-sm mt-1">檢視所有病患資料</p>
         </div>
       </div>
@@ -493,13 +507,13 @@ export function PatientsPage() {
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {patient.intubated ? (
-                      <Badge variant="secondary">插管中</Badge>
+                      <Badge variant="secondary">{getAirwayStatusLabel(patient)}</Badge>
                     ) : (
                       <Badge variant="outline">未插管</Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-center">
-                    {(user?.role === 'admin' || user?.role === 'pharmacist') && (
+                    {canEditPatients && (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -512,7 +526,7 @@ export function PatientsPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-center">
-                    {(user?.role === 'admin' || user?.role === 'pharmacist') && (
+                    {canEditPatients && (
                       <span className="inline-flex items-center gap-1">
                         <Button
                           variant="ghost"
@@ -684,14 +698,83 @@ export function PatientsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">插管狀態</Label>
-                <div className="col-span-3 flex items-center gap-2">
-                  <Checkbox
-                    checked={newPatient.intubated}
-                    onCheckedChange={(checked) => setNewPatient({ ...newPatient, intubated: Boolean(checked) })}
-                  />
-                  <span className="text-sm text-muted-foreground">勾選表示插管中</span>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label className="pt-2 text-right">呼吸道支持</Label>
+                <div className="col-span-3 space-y-4 rounded-lg border border-border/70 bg-muted/30 p-4">
+                  <div className="flex flex-wrap items-center gap-6">
+                    <label className="flex items-center gap-2">
+                      <Checkbox
+                        checked={newPatient.intubated}
+                        onCheckedChange={(checked) => {
+                          if (!checked) {
+                            setNewPatient({
+                              ...newPatient,
+                              intubated: false,
+                              intubationDate: '',
+                              tracheostomy: false,
+                              tracheostomyDate: '',
+                            });
+                            return;
+                          }
+                          setNewPatient({ ...newPatient, intubated: true });
+                        }}
+                      />
+                      <span className="text-sm font-medium">目前使用侵入性呼吸道支持</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <Checkbox
+                        checked={newPatientHasTracheostomy}
+                        onCheckedChange={(checked) => {
+                          if (!checked) {
+                            setNewPatient({
+                              ...newPatient,
+                              tracheostomy: false,
+                              tracheostomyDate: '',
+                            });
+                            return;
+                          }
+                          setNewPatient({
+                            ...newPatient,
+                            intubated: true,
+                            tracheostomy: true,
+                          });
+                        }}
+                      />
+                      <span className="text-sm font-medium">已執行氣管切開術</span>
+                    </label>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="create-intubation-date-inline">插管日期</Label>
+                      <Input
+                        id="create-intubation-date-inline"
+                        type="date"
+                        value={newPatient.intubationDate}
+                        onChange={(e) => setNewPatient({ ...newPatient, intubationDate: e.target.value })}
+                        disabled={!newPatient.intubated}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="create-tracheostomy-date-inline">氣切日期</Label>
+                      <Input
+                        id="create-tracheostomy-date-inline"
+                        type="date"
+                        value={newPatient.tracheostomyDate}
+                        onChange={(e) => setNewPatient({
+                          ...newPatient,
+                          intubated: e.target.value ? true : newPatient.intubated,
+                          tracheostomy: e.target.value ? true : newPatient.tracheostomy,
+                          tracheostomyDate: e.target.value,
+                        })}
+                        disabled={!newPatientHasTracheostomy}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-md bg-background/80 px-3 py-2 text-xs text-muted-foreground">
+                    可只勾選「已執行氣管切開術」不填日期；若病人由氣切處接呼吸器，也算侵入性呼吸道支持。
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">

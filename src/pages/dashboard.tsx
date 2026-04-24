@@ -38,6 +38,9 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import { Switch } from '../components/ui/switch';
+import { getAirwayStatusLabel } from '../lib/patient-airway';
+import { useAuth } from '../lib/auth-context';
+import { canEditPatientProfile } from '../lib/permissions';
 
 // 編輯表單的數據類型
 interface EditFormData {
@@ -45,12 +48,17 @@ interface EditFormData {
   bedNumber: string;
   diagnosis: string;
   intubated: boolean;
+  tracheostomy: boolean;
+  intubationDate?: string | null;
+  tracheostomyDate?: string | null;
   age: number;
   attendingPhysician: string;
 }
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canEditPatients = canEditPatientProfile(user?.role);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('bed');
@@ -66,6 +74,9 @@ export function DashboardPage() {
     bedNumber: '',
     diagnosis: '',
     intubated: false,
+    tracheostomy: false,
+    intubationDate: null,
+    tracheostomyDate: null,
     age: 0,
     attendingPhysician: '',
   });
@@ -195,6 +206,9 @@ export function DashboardPage() {
       bedNumber: patient.bedNumber,
       diagnosis: patient.diagnosis,
       intubated: patient.intubated,
+      tracheostomy: patient.tracheostomy ?? false,
+      intubationDate: patient.intubationDate ?? null,
+      tracheostomyDate: patient.tracheostomyDate ?? null,
       age: patient.age,
       attendingPhysician: patient.attendingPhysician,
     });
@@ -314,15 +328,15 @@ export function DashboardPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
-          <FlaskConical className="h-3.5 w-3.5" />
-          模擬資料
-        </div>
-      </div>
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">加護病房總覽</h1>
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold">加護病房總覽</h1>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
+              <FlaskConical className="h-3.5 w-3.5" />
+              模擬資料
+            </div>
+          </div>
           <p className="text-muted-foreground text-sm mt-1">即時病床與病患狀態監控</p>
         </div>
 
@@ -487,15 +501,17 @@ export function DashboardPage() {
                 onClick={() => navigate(`/patient/${patient.id}`)}
               >
                 {/* 編輯按鈕 */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-muted-foreground hover:text-brand hover:bg-brand/10 z-10"
-                  onClick={(e) => handleEditClick(e, patient)}
-                  title="編輯病患資料"
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                {canEditPatients && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-muted-foreground hover:text-brand hover:bg-brand/10 z-10"
+                    onClick={(e) => handleEditClick(e, patient)}
+                    title="編輯病患資料"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
 
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -504,7 +520,7 @@ export function DashboardPage() {
                         <CardTitle className="text-xl text-foreground">{maskPatientName(patient.name)}</CardTitle>
                         {patient.intubated && (
                           <Badge className="bg-[#d1cbf7] text-brand hover:bg-[#d1cbf7]/90 dark:bg-[#4a2f5c] dark:text-[#efe3ff] dark:hover:bg-[#4a2f5c]/90">
-                            插管中
+                            {getAirwayStatusLabel(patient)}
                           </Badge>
                         )}
                         {/* Wave 6c: duplicate-medication severity badge (non-zero only) */}
@@ -675,17 +691,59 @@ export function DashboardPage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-intubated" className="text-right">
-                插管狀態
+                呼吸道支持
               </Label>
-              <div className="col-span-3 flex items-center gap-2">
-                <Switch
-                  id="edit-intubated"
-                  checked={editFormData.intubated}
-                  onCheckedChange={(checked) => setEditFormData(prev => ({ ...prev, intubated: checked }))}
-                />
-                <span className="text-sm text-muted-foreground">
-                  {editFormData.intubated ? '插管中' : '未插管'}
-                </span>
+              <div className="col-span-3 space-y-3 rounded-lg border border-border/70 bg-muted/30 p-3">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="edit-intubated"
+                      checked={editFormData.intubated}
+                      onCheckedChange={(checked) =>
+                        setEditFormData((prev) =>
+                          checked
+                            ? { ...prev, intubated: true }
+                            : { ...prev, intubated: false, tracheostomy: false, intubationDate: null, tracheostomyDate: null }
+                        )
+                      }
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      侵入性呼吸道支持
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={editFormData.tracheostomy}
+                      onCheckedChange={(checked) =>
+                        setEditFormData((prev) =>
+                          checked
+                            ? { ...prev, intubated: true, tracheostomy: true }
+                            : { ...prev, tracheostomy: false, tracheostomyDate: null }
+                        )
+                      }
+                    />
+                    <span className="text-sm text-muted-foreground">已氣切</span>
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input
+                    type="date"
+                    value={editFormData.intubationDate ?? ''}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, intubationDate: e.target.value || null }))}
+                    disabled={!editFormData.intubated}
+                  />
+                  <Input
+                    type="date"
+                    value={editFormData.tracheostomyDate ?? ''}
+                    onChange={(e) => setEditFormData(prev => ({
+                      ...prev,
+                      intubated: e.target.value ? true : prev.intubated,
+                      tracheostomy: e.target.value ? true : prev.tracheostomy,
+                      tracheostomyDate: e.target.value || null,
+                    }))}
+                    disabled={!editFormData.tracheostomy}
+                  />
+                </div>
               </div>
             </div>
           </div>
