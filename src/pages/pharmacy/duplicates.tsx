@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle2, Copy, Loader2, Plus, User, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Alert, AlertDescription } from '../../components/ui/alert';
@@ -10,15 +10,14 @@ import { Separator } from '../../components/ui/separator';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
 import { DRUG_LIST } from '../../lib/drug-list';
 import { MedicationDuplicateBadges } from '../../components/patient/medication-duplicate-badges';
-import { useApiQuery } from '../../hooks/use-api-query';
 import {
   checkDuplicateMedications,
-  getMedicationDuplicates,
   getMedications,
   type DuplicateAlert,
   type DuplicateCheckResolved,
   type Medication,
 } from '../../lib/api/medications';
+import { selectPharmacyReviewMeds } from '../../lib/medication-scope';
 import { type Patient } from '../../lib/api/patients';
 import {
   getCachedPatients,
@@ -26,8 +25,6 @@ import {
   subscribePatientsCache,
 } from '../../lib/patients-cache';
 import { maskPatientName } from '../../lib/utils/patient-name';
-
-type Context = 'inpatient' | 'outpatient' | 'icu' | 'discharge';
 
 const MIN_DRUGS = 2;
 const MAX_DRUGS = 30;
@@ -80,7 +77,6 @@ export function MedicationDuplicatesPage() {
   const [patients, setPatients] = useState<Patient[]>(getCachedPatientsSync() ?? []);
   const [patientsLoading, setPatientsLoading] = useState(!getCachedPatientsSync());
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
-  const [context, setContext] = useState<Context>('inpatient');
 
   useEffect(() => {
     if (patients.length > 0) return;
@@ -102,18 +98,14 @@ export function MedicationDuplicatesPage() {
     };
   }, [patients.length]);
 
-  // ── Patient-mode: fetch duplicates via the cached per-patient endpoint ──
-  const {
-    data: patientData,
-    isLoading: patientLoading,
-    isError: patientError,
-  } = useApiQuery<{ alerts: DuplicateAlert[]; counts: Record<string, number> }>({
-    queryKey: ['medication-duplicates', selectedPatientId, context],
-    queryFn: () => getMedicationDuplicates(selectedPatientId, context),
-    enabled: Boolean(selectedPatientId),
-    staleTime: 30_000,
-    retry: 0,
-  });
+  // ── Patient-mode local state (now driven by the same stateless endpoint
+  //    as manual mode, just on a scoped med list 住院 + 自備 + 院外) ──
+  const [patientAlerts, setPatientAlerts] = useState<DuplicateAlert[]>([]);
+  const [patientCounts, setPatientCounts] = useState<Record<string, number>>({});
+  const [patientLoading, setPatientLoading] = useState(false);
+  const [patientError, setPatientError] = useState(false);
+  const [patientSearched, setPatientSearched] = useState(false);
+  const [skippedMeds, setSkippedMeds] = useState<Medication[]>([]);
 
   // ── Manual mode: user-picked drug list + stateless endpoint ──
   const [drugs, setDrugs] = useState<string[]>(['', '']);
@@ -126,29 +118,47 @@ export function MedicationDuplicatesPage() {
   const handlePatientSelect = useCallback(
     async (patientId: string) => {
       setSelectedPatientId(patientId);
+      setPatientAlerts([]);
+      setPatientCounts({});
+      setPatientError(false);
+      setPatientSearched(false);
+      setSkippedMeds([]);
       if (!patientId) {
         setDrugs(['', '']);
         return;
       }
-      // Populate the manual picker from the patient's active meds so the
-      // pharmacist can swap in/out candidates and re-run in manual mode.
+
+      setPatientLoading(true);
       try {
         const resp = await getMedications(patientId, { status: 'active' });
-        const rawNames = resp.medications.map(toDrugLabel).filter((x): x is string => Boolean(x));
-        // Dedup while preserving order so the same generic (e.g. Clopidogrel)
-        // doesn't show up twice when the patient has multiple brand-name
-        // formulations of the same ingredient.
+        const { reviewed, skipped } = selectPharmacyReviewMeds(resp.medications || []);
+        setSkippedMeds(skipped);
+
+        // Dedup labels for both patient-mode detection and manual prefill,
+        // so a patient on multiple brand-name formulations of the same
+        // ingredient (e.g. Clopidogrel) doesn't seed duplicate rows.
         const seen = new Set<string>();
         const names: string[] = [];
-        for (const n of rawNames) {
-          const key = n.toLowerCase();
+        for (const m of reviewed) {
+          const label = toDrugLabel(m);
+          if (!label) continue;
+          const key = label.toLowerCase();
           if (seen.has(key)) continue;
           seen.add(key);
-          names.push(n);
+          names.push(label);
         }
         setDrugs(names.length >= MIN_DRUGS ? names : [...names, ...Array(MIN_DRUGS - names.length).fill('')]);
+
+        if (names.length >= MIN_DRUGS) {
+          setPatientSearched(true);
+          const res = await checkDuplicateMedications(names.map((name) => ({ name })));
+          setPatientAlerts(res.alerts);
+          setPatientCounts(res.counts);
+        }
       } catch {
-        // non-fatal — manual mode still works
+        setPatientError(true);
+      } finally {
+        setPatientLoading(false);
       }
     },
     [],
@@ -179,10 +189,7 @@ export function MedicationDuplicatesPage() {
     setManualLoading(true);
     setManualSearched(true);
     try {
-      const res = await checkDuplicateMedications(
-        clean.map((name) => ({ name })),
-        context,
-      );
+      const res = await checkDuplicateMedications(clean.map((name) => ({ name })));
       setManualAlerts(res.alerts);
       setManualCounts(res.counts);
       setManualResolved(res.resolved);
@@ -203,6 +210,11 @@ export function MedicationDuplicatesPage() {
     setManualCounts({});
     setManualResolved([]);
     setManualSearched(false);
+    setPatientAlerts([]);
+    setPatientCounts({});
+    setPatientError(false);
+    setPatientSearched(false);
+    setSkippedMeds([]);
   };
 
   // ── Render helpers ──────────────────────────────────────────────────
@@ -222,9 +234,6 @@ export function MedicationDuplicatesPage() {
     </div>
   );
 
-  const patientAlerts = patientData?.alerts ?? [];
-  const patientCounts = patientData?.counts ?? {};
-
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -234,25 +243,9 @@ export function MedicationDuplicatesPage() {
         </p>
       </div>
 
-      {/* 共用選擇器：context + patient（選病人會自動把其用藥帶入手動區） */}
+      {/* 病人選擇器（選病人會自動帶入住院藥 + 自備/院外藥並執行偵測） */}
       <Card>
         <CardContent className="pt-4 pb-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium w-16 shrink-0">情境</label>
-            <div className="w-48">
-              <Select value={context} onValueChange={(v) => setContext(v as Context)}>
-                <SelectTrigger className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="inpatient">住院 Inpatient</SelectItem>
-                  <SelectItem value="outpatient">門診 Outpatient</SelectItem>
-                  <SelectItem value="icu">加護 ICU</SelectItem>
-                  <SelectItem value="discharge">出院 Discharge</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium w-16 shrink-0">
               <User className="inline h-3.5 w-3.5 mr-1" />
@@ -296,7 +289,12 @@ export function MedicationDuplicatesPage() {
               病人用藥重複偵測
             </CardTitle>
             <CardDescription>
-              依病人目前 active 用藥（情境：{context}）執行 L1 / L2 / L3 / L4 重複用藥偵測
+              納入病人目前住院用藥 + 門診中的自備藥 / 院外藥，執行 L1 / L2 / L3 / L4 重複用藥偵測
+              {skippedMeds.length > 0 && (
+                <span className="ml-2 text-xs text-muted-foreground">
+                  （已排除 {skippedMeds.length} 筆門診常規處方）
+                </span>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -310,6 +308,13 @@ export function MedicationDuplicatesPage() {
                 <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
                 <AlertDescription className="text-sm text-red-800 dark:text-red-200">
                   重複用藥服務暫時無法使用，請稍後再試。
+                </AlertDescription>
+              </Alert>
+            ) : !patientSearched ? (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-sm">
+                  納入範圍內的用藥不足 {MIN_DRUGS} 種，無法執行重複用藥偵測。
                 </AlertDescription>
               </Alert>
             ) : patientAlerts.length === 0 ? (
