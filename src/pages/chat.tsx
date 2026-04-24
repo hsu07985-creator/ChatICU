@@ -255,7 +255,7 @@ export function ChatPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pr-14">
         <div>
           <h1 className="text-2xl font-bold">團隊聊天室</h1>
           <p className="text-muted-foreground text-sm mt-1">團隊溝通與工作協調</p>
