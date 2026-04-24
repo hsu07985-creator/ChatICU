@@ -429,18 +429,18 @@ export function PatientsPage() {
             </colgroup>
             <TableHeader>
               <TableRow>
-                <TableHead>床號</TableHead>
-                <TableHead>病例號碼</TableHead>
-                <TableHead>姓名</TableHead>
-                <TableHead>性別</TableHead>
-                <TableHead>年齡</TableHead>
-                <TableHead>主治醫師</TableHead>
+                <TableHead className="text-center">床號</TableHead>
+                <TableHead className="text-center">病例號碼</TableHead>
+                <TableHead className="text-center">姓名</TableHead>
+                <TableHead className="text-center">性別</TableHead>
+                <TableHead className="text-center">年齡</TableHead>
+                <TableHead className="text-center">主治醫師</TableHead>
                 <TableHead>入院診斷</TableHead>
-                <TableHead>入ICU日期</TableHead>
-                <TableHead>呼吸器天數</TableHead>
-                <TableHead>DNR</TableHead>
-                <TableHead>隔離</TableHead>
-                <TableHead>插管</TableHead>
+                <TableHead className="text-center">入ICU日期</TableHead>
+                <TableHead className="text-center">呼吸器天數</TableHead>
+                <TableHead className="text-center">DNR</TableHead>
+                <TableHead className="text-center">隔離</TableHead>
+                <TableHead className="text-center">插管</TableHead>
                 <TableHead className="text-center">編輯</TableHead>
                 <TableHead className="text-center">出院</TableHead>
               </TableRow>
@@ -452,18 +452,18 @@ export function PatientsPage() {
                   className="cursor-pointer transition-colors hover:bg-muted/50"
                   onClick={() => navigate(`/patient/${patient.id}`)}
                 >
-                  <TableCell>
+                  <TableCell className="text-center">
                     <Badge variant="outline" className="font-semibold">
                       {patient.bedNumber}
                     </Badge>
                   </TableCell>
-                  <TableCell className="font-medium text-muted-foreground">
+                  <TableCell className="font-medium text-muted-foreground text-center">
                     {patient.medicalRecordNumber}
                   </TableCell>
-                  <TableCell className="font-medium">{maskPatientName(patient.name)}</TableCell>
-                  <TableCell>{patient.gender}</TableCell>
-                  <TableCell>{patient.age} 歲</TableCell>
-                  <TableCell>
+                  <TableCell className="font-medium text-center">{maskPatientName(patient.name)}</TableCell>
+                  <TableCell className="text-center">{patient.gender}</TableCell>
+                  <TableCell className="text-center">{patient.age} 歲</TableCell>
+                  <TableCell className="text-center">
                     <Badge className={getDepartmentBadgeColor(patient.department)}>
                       {patient.attendingPhysician}
                     </Badge>
@@ -474,32 +474,32 @@ export function PatientsPage() {
                       return trimmed ? <div key={i}>{trimmed}</div> : null;
                     })}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
+                  <TableCell className="text-center">
+                    <div className="flex flex-col items-center gap-1">
                       <span className="text-sm">{patient.icuAdmissionDate}</span>
                       <span className="text-xs text-muted-foreground">({getICUDays(patient.icuAdmissionDate)} 天)</span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     <Badge variant="outline" className="bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/30 dark:border-purple-700 dark:text-purple-300">
                       {patient.ventilatorDays} 天
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     {patient.hasDNR ? (
                       <Badge className="bg-brand hover:bg-brand/90">有</Badge>
                     ) : (
                       <Badge variant="outline" className="text-muted-foreground">無</Badge>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     {patient.isIsolated ? (
                       <Badge className="bg-[#f59e0b] hover:bg-[#f59e0b]/90">隔離</Badge>
                     ) : (
                       <Badge variant="outline" className="text-muted-foreground">無</Badge>
                     )}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">
+                  <TableCell className="whitespace-nowrap text-center">
                     {patient.intubated ? (
                       <Badge variant="secondary">{getAirwayStatusLabel(patient)}</Badge>
                     ) : (
