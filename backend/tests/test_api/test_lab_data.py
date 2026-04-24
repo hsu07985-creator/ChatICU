@@ -3,6 +3,8 @@ import pytest
 from datetime import datetime, timezone, timedelta
 
 from app.models.lab_data import LabData
+from app.models.patient import Patient
+from app.models.vital_sign import VitalSign
 
 pytestmark = pytest.mark.anyio
 
@@ -91,3 +93,103 @@ async def test_lab_data_response_includes_all_categories(client, seeded_lab):
                 "inflammatory", "coagulation", "cardiac", "thyroid",
                 "hormone", "lipid", "other", "corrections"]:
         assert key in data
+
+
+@pytest.fixture
+async def seeded_clcr_history(seeded_db):
+    db = seeded_db
+    now = datetime.now(timezone.utc)
+
+    patient = await db.get(Patient, "pat_001")
+    assert patient is not None
+    patient.weight = None
+
+    labs = [
+        LabData(
+            id="lab_clcr_old_outside_backfill",
+            patient_id="pat_001",
+            timestamp=now - timedelta(days=320),
+            biochemistry={"Scr": 1.0},
+        ),
+        LabData(
+            id="lab_clcr_old_backfill",
+            patient_id="pat_001",
+            timestamp=now - timedelta(days=100),
+            biochemistry={"Scr": 1.0},
+        ),
+        LabData(
+            id="lab_clcr_latest",
+            patient_id="pat_001",
+            timestamp=now - timedelta(days=2),
+            biochemistry={"Scr": 1.0},
+        ),
+    ]
+    vitals = [
+        VitalSign(
+            id="vs_weight_first",
+            patient_id="pat_001",
+            timestamp=now - timedelta(days=90),
+            body_weight=60.0,
+        ),
+        VitalSign(
+            id="vs_weight_second",
+            patient_id="pat_001",
+            timestamp=now - timedelta(days=3),
+            body_weight=55.0,
+        ),
+    ]
+    db.add_all([*labs, *vitals])
+    await db.commit()
+    return db
+
+
+async def test_get_latest_lab_data_computes_clcr_with_effective_weight(client, seeded_clcr_history):
+    resp = await client.get("/patients/pat_001/lab-data/latest")
+    assert resp.status_code == 200
+    clcr = resp.json()["data"]["biochemistry"]["Clcr"]
+    assert clcr["value"] == 57.3
+    assert clcr["weightUsed"] == 55.0
+    assert clcr["weightSource"] == "vital_signs"
+
+
+async def test_get_lab_trends_computes_clcr_with_backfill_and_cutover(client, seeded_clcr_history):
+    resp = await client.get("/patients/pat_001/lab-data/trends?days=365&category=biochemistry&item=Clcr")
+    assert resp.status_code == 200
+    trends = resp.json()["data"]["trends"]
+
+    assert len(trends) == 2
+    first = trends[0]["biochemistry"]["Clcr"]
+    second = trends[1]["biochemistry"]["Clcr"]
+
+    assert first["value"] == 62.5
+    assert first["weightUsed"] == 60.0
+    assert first["weightSource"] == "initial_backfill"
+
+    assert second["value"] == 57.3
+    assert second["weightUsed"] == 55.0
+    assert second["weightSource"] == "vital_signs"
+
+
+async def test_get_lab_trends_clcr_falls_back_to_patient_weight_when_no_history(client, seeded_db):
+    db = seeded_db
+    patient = await db.get(Patient, "pat_001")
+    assert patient is not None
+    patient.weight = 70.0
+    db.add(
+        LabData(
+            id="lab_clcr_patient_weight_fallback",
+            patient_id="pat_001",
+            timestamp=datetime.now(timezone.utc) - timedelta(days=1),
+            biochemistry={"Scr": 1.0},
+        )
+    )
+    await db.commit()
+
+    resp = await client.get("/patients/pat_001/lab-data/trends?days=30&category=biochemistry&item=Clcr")
+    assert resp.status_code == 200
+    trends = resp.json()["data"]["trends"]
+    assert len(trends) == 1
+    clcr = trends[0]["biochemistry"]["Clcr"]
+    assert clcr["value"] == 72.9
+    assert clcr["weightUsed"] == 70.0
+    assert clcr["weightSource"] == "patient_profile"

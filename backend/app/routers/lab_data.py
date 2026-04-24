@@ -1,5 +1,6 @@
 import logging
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -11,6 +12,7 @@ from app.database import get_db
 from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log
 from app.models.lab_data import LabData
+from app.models.vital_sign import VitalSign
 from app.models.user import User
 from app.models.patient import Patient
 from app.routers.patients import normalize_patient_id, verify_patient_access
@@ -20,6 +22,14 @@ from app.utils.response import success_response
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/patients/{patient_id}/lab-data", tags=["lab-data"])
+CLCR_INITIAL_BACKFILL_DAYS = 180
+
+
+@dataclass(frozen=True)
+class WeightRecord:
+    value: float
+    timestamp: datetime
+    source: str
 
 
 def lab_to_dict(lab: LabData) -> dict:
@@ -92,35 +102,163 @@ def _merge_latest_categories(labs: list) -> dict:
     return merged, latest_ts
 
 
-def _compute_clcr(patient: Patient, biochem: dict) -> None:
-    """Inject computed Clcr (Cockcroft-Gault) into biochemistry dict in-place.
+def _to_number(value: object) -> Optional[float]:
+    if isinstance(value, (int, float)):
+        val = float(value)
+        return val if val == val else None
+    return None
+
+
+def _ensure_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _parse_item_timestamp(item: object, default_ts: Optional[datetime]) -> Optional[datetime]:
+    if isinstance(item, dict):
+        ts_raw = item.get("_ts")
+        if isinstance(ts_raw, str):
+            try:
+                return _ensure_utc(datetime.fromisoformat(ts_raw))
+            except ValueError:
+                pass
+    return _ensure_utc(default_ts)
+
+
+def _age_at_time(patient: Patient, at_time: datetime) -> Optional[int]:
+    if patient.date_of_birth:
+        dob = patient.date_of_birth
+        age = at_time.date().year - dob.year
+        if (at_time.date().month, at_time.date().day) < (dob.month, dob.day):
+            age -= 1
+        return age if age > 0 else None
+    if patient.age and patient.age > 0:
+        return patient.age
+    return None
+
+
+def _resolve_weight_for_timestamp(
+    at_time: datetime,
+    weight_history: list[WeightRecord],
+    fallback_weight: Optional[float],
+) -> Optional[WeightRecord]:
+    latest_prior: Optional[WeightRecord] = None
+    for record in weight_history:
+        if record.timestamp <= at_time:
+            latest_prior = record
+            continue
+        break
+
+    if latest_prior is not None:
+        return latest_prior
+
+    if weight_history:
+        first = weight_history[0]
+        if at_time >= first.timestamp - timedelta(days=CLCR_INITIAL_BACKFILL_DAYS):
+            return WeightRecord(value=first.value, timestamp=first.timestamp, source="initial_backfill")
+        return None
+
+    if fallback_weight is not None and fallback_weight > 0:
+        return WeightRecord(value=float(fallback_weight), timestamp=at_time, source="patient_profile")
+
+    return None
+
+
+def _build_clcr_item(
+    patient: Patient,
+    scr_item: object,
+    scr_time: Optional[datetime],
+    weight_history: list[WeightRecord],
+    fallback_weight: Optional[float],
+) -> Optional[dict]:
+    """Build computed Clcr item using the weight effective at the Scr timestamp.
 
     Formula: ((140 - age) × weight) / (72 × Scr)  ×  0.85 if female
     """
-    scr_item = biochem.get("Scr")
-    if not scr_item:
-        return
-    scr_val = scr_item.get("value") if isinstance(scr_item, dict) else scr_item
-    if not isinstance(scr_val, (int, float)) or scr_val <= 0:
-        return
-    if not patient.weight or patient.weight <= 0:
-        return
-    if not patient.age or patient.age <= 0:
-        return
+    if scr_time is None:
+        return None
 
-    clcr = ((140 - patient.age) * patient.weight) / (72 * float(scr_val))
+    scr_val = _to_number(scr_item.get("value") if isinstance(scr_item, dict) else scr_item)
+    if scr_val is None or scr_val <= 0:
+        return None
+
+    age = _age_at_time(patient, scr_time)
+    if age is None:
+        return None
+
+    if patient.gender not in ("M", "F", "男", "女", "Other"):
+        return None
+
+    weight_record = _resolve_weight_for_timestamp(scr_time, weight_history, fallback_weight)
+    if weight_record is None or weight_record.value <= 0:
+        return None
+
+    clcr = ((140 - age) * weight_record.value) / (72 * float(scr_val))
     if patient.gender in ("F", "女"):
         clcr *= 0.85
     clcr = round(clcr, 1)
 
-    biochem["Clcr"] = {
+    return {
         "value": clcr,
         "unit": "mL/min",
         "referenceRange": ">60",
         "isAbnormal": clcr < 60,
         "computed": True,
-        "_ts": scr_item.get("_ts") if isinstance(scr_item, dict) else None,
+        "_ts": scr_time.isoformat(),
+        "scrValue": round(scr_val, 3),
+        "weightUsed": round(weight_record.value, 1),
+        "weightTimestamp": weight_record.timestamp.isoformat(),
+        "weightSource": weight_record.source,
     }
+
+
+async def _load_weight_history(db: AsyncSession, patient_id: str) -> list[WeightRecord]:
+    result = await db.execute(
+        select(VitalSign)
+        .where(
+            VitalSign.patient_id == patient_id,
+            VitalSign.body_weight.is_not(None),
+        )
+        .order_by(VitalSign.timestamp.asc())
+    )
+    rows = result.scalars().all()
+    weight_history: list[WeightRecord] = []
+    for row in rows:
+        if row.body_weight is None or row.body_weight <= 0 or row.timestamp is None:
+            continue
+        weight_history.append(
+            WeightRecord(
+                value=float(row.body_weight),
+                timestamp=_ensure_utc(row.timestamp),
+                source="vital_signs",
+            )
+        )
+    return weight_history
+
+
+def _inject_clcr(
+    patient: Patient,
+    biochem: dict,
+    weight_history: list[WeightRecord],
+    fallback_weight: Optional[float],
+    default_ts: Optional[datetime],
+) -> None:
+    scr_item = biochem.get("Scr")
+    if scr_item is None:
+        return
+    scr_time = _parse_item_timestamp(scr_item, default_ts)
+    clcr_item = _build_clcr_item(
+        patient=patient,
+        scr_item=scr_item,
+        scr_time=scr_time,
+        weight_history=weight_history,
+        fallback_weight=fallback_weight,
+    )
+    if clcr_item is not None:
+        biochem["Clcr"] = clcr_item
 
 
 @router.get("/latest")
@@ -148,12 +286,15 @@ async def get_latest_lab_data(
     if not labs:
         return success_response(data=None, message="No lab data found")
 
+    weight_history = await _load_weight_history(db, pid)
+    fallback_weight = patient.weight if not weight_history else None
+
     # If only 1 record (seed data), return as-is for backward compat
     if len(labs) == 1:
         data = lab_to_dict(labs[0])
         biochem = data.get("biochemistry")
         if biochem and isinstance(biochem, dict):
-            _compute_clcr(patient, biochem)
+            _inject_clcr(patient, biochem, weight_history, fallback_weight, labs[0].timestamp)
         return success_response(data=data)
 
     # Merge latest non-null category from each record
@@ -162,7 +303,7 @@ async def get_latest_lab_data(
     # Compute Clcr from merged Scr + patient demographics
     biochem = merged.get("biochemistry")
     if biochem and isinstance(biochem, dict):
-        _compute_clcr(patient, biochem)
+        _inject_clcr(patient, biochem, weight_history, fallback_weight, latest_ts)
 
     data = {
         "id": labs[0].id,
@@ -206,6 +347,15 @@ async def get_lab_trends(
         _camel_to_col = {v: k for k, v in _COL_TO_CAMEL.items()}
         col_name = _camel_to_col.get(category, category)
         camel_name = _COL_TO_CAMEL.get(col_name, col_name)
+        patient: Optional[Patient] = None
+        weight_history: list[WeightRecord] = []
+        fallback_weight: Optional[float] = None
+        if camel_name == "biochemistry" and item == "Clcr":
+            pat_result = await db.execute(select(Patient).where(Patient.id == pid))
+            patient = pat_result.scalar_one_or_none()
+            if patient:
+                weight_history = await _load_weight_history(db, pid)
+                fallback_weight = patient.weight if not weight_history else None
         slim_trends = []
         for lab in reversed(labs):
             cat_data = getattr(lab, col_name, None)
@@ -213,6 +363,18 @@ async def get_lab_trends(
                 continue
             if item:
                 item_val = cat_data.get(item)
+                if (
+                    camel_name == "biochemistry"
+                    and item == "Clcr"
+                    and patient is not None
+                ):
+                    item_val = _build_clcr_item(
+                        patient=patient,
+                        scr_item=cat_data.get("Scr"),
+                        scr_time=_parse_item_timestamp(cat_data.get("Scr"), lab.timestamp),
+                        weight_history=weight_history,
+                        fallback_weight=fallback_weight,
+                    )
                 if item_val is None:
                     continue
                 slim_trends.append({

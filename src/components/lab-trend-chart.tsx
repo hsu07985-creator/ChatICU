@@ -17,6 +17,10 @@ import {
 export interface LabTrendData {
   date: string;
   value: number;
+  scrValue?: number;
+  weightUsed?: number;
+  weightTimestamp?: string;
+  weightSource?: string;
 }
 
 export interface LabTrendChartProps {
@@ -57,6 +61,19 @@ function formatDateFull(dateStr: string): string {
   const hh = String(d.getHours()).padStart(2, '0');
   const min = String(d.getMinutes()).padStart(2, '0');
   return `${yyyy}/${mm}/${dd} ${hh}:${min}`;
+}
+
+function formatWeightSource(source?: string): string {
+  switch (source) {
+    case 'vital_signs':
+      return '歷史體重';
+    case 'initial_backfill':
+      return '首筆體重回補';
+    case 'patient_profile':
+      return '病人主檔體重';
+    default:
+      return source ?? '';
+  }
 }
 
 function parseReferenceRange(range?: string): { low?: number; high?: number } | null {
@@ -224,6 +241,7 @@ export function LabTrendChart({
                 content={({ active, payload, label }: TooltipProps<number, string>) => {
                   if (!active || !payload?.[0]) return null;
                   const val = payload[0].value as number;
+                  const point = payload[0].payload as LabTrendData | undefined;
                   const color = dotColor(val);
                   const status =
                     refBounds === null
@@ -239,6 +257,22 @@ export function LabTrendChart({
                       <p className="text-sm font-semibold" style={{ color }}>
                         {val} {unit}{status ? ` · ${status}` : ''}
                       </p>
+                      {labName === 'Clcr' && point && (
+                        <div className="mt-1.5 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+                          {typeof point.scrValue === 'number' && (
+                            <p>Scr: {point.scrValue} mg/dL</p>
+                          )}
+                          {typeof point.weightUsed === 'number' && (
+                            <p>使用體重: {point.weightUsed} kg</p>
+                          )}
+                          {point.weightTimestamp && (
+                            <p>體重時間: {formatDateFull(point.weightTimestamp)}</p>
+                          )}
+                          {point.weightSource && (
+                            <p>體重來源: {formatWeightSource(point.weightSource)}</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 }}

@@ -66,6 +66,20 @@ function toFiniteNumber(input: unknown): number | undefined {
   return undefined;
 }
 
+function getTrendPointMeta(input: unknown): Pick<LabTrendData, 'scrValue' | 'weightUsed' | 'weightTimestamp' | 'weightSource'> {
+  if (!input || typeof input !== 'object') {
+    return {};
+  }
+
+  const record = input as Record<string, unknown>;
+  return {
+    scrValue: toFiniteNumber(record.scrValue),
+    weightUsed: toFiniteNumber(record.weightUsed),
+    weightTimestamp: typeof record.weightTimestamp === 'string' ? record.weightTimestamp : undefined,
+    weightSource: typeof record.weightSource === 'string' ? record.weightSource : undefined,
+  };
+}
+
 export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
   const [selectedLab, setSelectedLab] = useState<{
     name: string;
@@ -121,6 +135,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
           trendData.push({
             date: snapshot.timestamp,
             value: trendValue,
+            ...getTrendPointMeta(labItem),
           });
         }
       }
