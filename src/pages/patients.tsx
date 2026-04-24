@@ -107,12 +107,6 @@ export function PatientsPage() {
     return Math.ceil(Math.abs(today.getTime() - admission.getTime()) / (1000 * 60 * 60 * 24));
   };
 
-  const getDepartmentBgColor = (department: string | null | undefined) => {
-    if (department?.includes('內科')) return 'bg-blue-50 hover:bg-blue-100/70 dark:bg-blue-950/30 dark:hover:bg-blue-900/40';
-    if (department?.includes('外科')) return 'bg-amber-50 hover:bg-amber-100/70 dark:bg-amber-950/30 dark:hover:bg-amber-900/40';
-    return 'hover:bg-muted/50';
-  };
-
   const getDepartmentBadgeColor = (department: string | null | undefined) => {
     if (department?.includes('內科')) return 'bg-blue-600 text-white dark:bg-blue-700';
     if (department?.includes('外科')) return 'bg-amber-600 text-white dark:bg-amber-700';
@@ -453,9 +447,9 @@ export function PatientsPage() {
             </TableHeader>
             <TableBody>
               {filteredPatients.map((patient) => (
-                <TableRow 
+                <TableRow
                   key={patient.id}
-                  className={`cursor-pointer transition-colors ${getDepartmentBgColor(patient.department)}`}
+                  className="cursor-pointer transition-colors hover:bg-muted/50"
                   onClick={() => navigate(`/patient/${patient.id}`)}
                 >
                   <TableCell>
