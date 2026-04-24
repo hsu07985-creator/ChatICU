@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   Archive,
-  ArrowUpCircle,
-  ClipboardCheck,
   Eye,
   FlaskConical,
   Loader2,
@@ -37,16 +35,8 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '../components/ui/dialog';
 import { EmptyState, ErrorDisplay } from '../components/ui/state-display';
 import { TableSkeleton } from '../components/ui/skeletons';
-import { DischargeCheckPanel } from '../components/patient/discharge-check-panel';
 
 type DischargeType = 'discharge' | 'transfer' | 'death' | 'other';
 
@@ -92,9 +82,7 @@ export function DischargedPatientsPage() {
   const [toDate, setToDate] = useState('');
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [restoringId, setRestoringId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [dischargeCheckPatient, setDischargeCheckPatient] = useState<Patient | null>(null);
 
   const fetchPage = useCallback(async (targetPage: number, append: boolean) => {
     try {
@@ -194,23 +182,6 @@ export function DischargedPatientsPage() {
     });
   };
 
-  const handleRestore = async (patient: Patient) => {
-    const label = `${patient.bedNumber ?? ''} ${maskPatientName(patient.name)}`.trim();
-    if (!confirm(`確定要將病患「${label}」復住院？\n\n此操作會將病人重新加入住院中清單。`)) return;
-    setRestoringId(patient.id);
-    try {
-      await patientsApi.archivePatient(patient.id, { archived: false });
-      toast.success(`已復住院：${label}`);
-      refetchFromStart();
-    } catch (err: unknown) {
-      console.error('復住院失敗:', err);
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg || '復住院失敗，請稍後再試');
-    } finally {
-      setRestoringId(null);
-    }
-  };
-
   const handleHardDelete = async (patient: Patient) => {
     const label = `${patient.bedNumber ?? ''} ${maskPatientName(patient.name)}`.trim();
     const typed = prompt(`⚠️ 永久刪除病患「${label}」\n\n此操作無法復原，將永久刪除病人所有歷史資料（用藥/檢驗/培養/報告/對話）。\n\n請輸入病人床號「${patient.bedNumber}」以確認：`);
@@ -258,17 +229,18 @@ export function DischargedPatientsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
-        <FlaskConical className="h-3.5 w-3.5" />
-        模擬資料
-      </div>
-
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Archive className="h-6 w-6 text-brand" />
-            已出院病人
-          </h1>
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Archive className="h-6 w-6 text-brand" />
+              已出院病人
+            </h1>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
+              <FlaskConical className="h-3.5 w-3.5" />
+              模擬資料
+            </div>
+          </div>
           <p className="text-muted-foreground text-sm mt-1">回顧歷史出院病人資料，可篩選並對選取病人發起 AI 問答</p>
         </div>
       </div>
@@ -419,25 +391,6 @@ export function DischargedPatientsPage() {
                             >
                               <MessageSquare className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setDischargeCheckPatient(p)}
-                              title="出院用藥檢查"
-                              className="text-brand hover:text-brand hover:bg-slate-50 dark:hover:bg-slate-800"
-                            >
-                              <ClipboardCheck className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => void handleRestore(p)}
-                              disabled={restoringId === p.id}
-                              title="復住院"
-                              className="text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950"
-                            >
-                              {restoringId === p.id ? <ButtonLoadingIndicator compact /> : <ArrowUpCircle className="h-4 w-4" />}
-                            </Button>
                             {canHardDelete && (
                               <Button
                                 variant="ghost"
@@ -501,37 +454,6 @@ export function DischargedPatientsPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* 出院用藥檢查 Dialog */}
-      <Dialog
-        open={dischargeCheckPatient !== null}
-        onOpenChange={(open) => {
-          if (!open) setDischargeCheckPatient(null);
-        }}
-      >
-        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ClipboardCheck className="h-5 w-5 text-brand" />
-              出院用藥檢查
-            </DialogTitle>
-            <DialogDescription>
-              {dischargeCheckPatient && (
-                <>
-                  {dischargeCheckPatient.bedNumber ? `${dischargeCheckPatient.bedNumber} · ` : ''}
-                  {maskPatientName(dischargeCheckPatient.name)}
-                  {dischargeCheckPatient.dischargeDate
-                    ? ` · 出院日 ${dischargeCheckPatient.dischargeDate}`
-                    : ''}
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          {dischargeCheckPatient && (
-            <DischargeCheckPanel patientId={dischargeCheckPatient.id} />
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* 底部選取操作列 */}
       {selectedIds.size > 0 && (
