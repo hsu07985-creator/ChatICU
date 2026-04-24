@@ -13,6 +13,7 @@ import { getDrugInteractions } from '../../lib/api/pharmacy';
 import { type Patient } from '../../lib/api/patients';
 import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from '../../lib/patients-cache';
 import { getMedications, type Medication } from '../../lib/api/medications';
+import { selectPharmacyReviewMeds } from '../../lib/medication-scope';
 import { copyToClipboard } from '../../lib/clipboard-utils';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
 import { DRUG_LIST, hasInteractionData } from '../../lib/drug-list';
@@ -161,16 +162,12 @@ export function DrugInteractionsPage() {
       const resp = await getMedications(patientId, { status: 'active', limit: 200 });
       const allMeds = resp.medications || [];
 
-      // 住院藥全部帶入；門診藥只帶入自備藥（sourceType='self-supplied'）或院外藥（isExternal=true）
-      const skippedList = allMeds.filter(m => m.sourceType === 'outpatient' && !m.isExternal);
-      const filtered = allMeds.filter(m =>
-        m.sourceType !== 'outpatient' || m.isExternal
-      );
-      setSkippedMeds(skippedList);
+      const { reviewed, skipped } = selectPharmacyReviewMeds(allMeds);
+      setSkippedMeds(skipped);
 
       // Try matching on both name and genericName for each medication
       const matchedSet = new Set<string>();
-      for (const m of filtered) {
+      for (const m of reviewed) {
         const fromName = m.name ? matchDrugName(m.name) : null;
         if (fromName) { matchedSet.add(fromName); continue; }
         const fromGeneric = m.genericName ? matchDrugName(m.genericName) : null;
