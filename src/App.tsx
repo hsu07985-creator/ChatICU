@@ -5,6 +5,7 @@ import { queryClient } from './lib/query-client';
 import { AuthProvider, useAuth } from './lib/auth-context';
 import { SidebarProvider } from './components/ui/sidebar';
 import { AppSidebar } from './components/app-sidebar';
+import { NotificationBell } from './components/notification-bell';
 import { Toaster } from './components/ui/sonner';
 import { ErrorBoundary } from './components/error-boundary';
 import { ThemeProvider } from 'next-themes';
@@ -108,6 +109,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 min-w-0 overflow-y-auto">
           {children}
         </main>
+        <div className="fixed top-3 right-4 z-50">
+          <NotificationBell />
+        </div>
       </div>
     </SidebarProvider>
   );
