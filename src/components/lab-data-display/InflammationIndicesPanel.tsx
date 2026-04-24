@@ -185,6 +185,7 @@ export function InflammationIndicesPanel({ labData, patientId }: Props) {
             labNameChinese={INFLAMMATION_META[selectedTrend.key].fullName}
             unit={INFLAMMATION_META[selectedTrend.key].unit}
             trendData={selectedTrend.trendData}
+            valueDecimals={2}
           />
         </Suspense>
       )}

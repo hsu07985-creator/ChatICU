@@ -31,6 +31,7 @@ export interface LabTrendChartProps {
   unit: string;
   trendData: LabTrendData[];
   referenceRange?: string;
+  valueDecimals?: number;
 }
 
 type WindowDays = 7 | 30 | 90 | null;
@@ -106,6 +107,7 @@ export function LabTrendChart({
   unit,
   trendData,
   referenceRange,
+  valueDecimals,
 }: LabTrendChartProps) {
   const [windowDays, setWindowDays] = useState<WindowDays>(30);
 
@@ -144,6 +146,14 @@ export function LabTrendChart({
     if (refBounds?.high !== undefined && value > refBounds.high) return 6;
     if (refBounds?.low !== undefined && value < refBounds.low) return 6;
     return 4;
+  };
+
+  const formatValue = (value: number): string => {
+    if (!Number.isFinite(value)) return '-';
+    if (typeof valueDecimals === 'number') {
+      return value.toFixed(valueDecimals);
+    }
+    return String(value);
   };
 
   return (
@@ -227,6 +237,7 @@ export function LabTrendChart({
               />
               <YAxis
                 domain={[yMin, yMax]}
+                tickFormatter={(value: number) => formatValue(value)}
                 tick={{ fontSize: 14, fill: '#6b7280' }}
                 tickLine={false}
                 axisLine={{ stroke: '#e5e7eb' }}
@@ -255,7 +266,7 @@ export function LabTrendChart({
                     <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 shadow-md">
                       <p className="text-xs text-slate-500 dark:text-slate-400">{formatDateFull(label ?? '')}</p>
                       <p className="text-sm font-semibold" style={{ color }}>
-                        {val} {unit}{status ? ` · ${status}` : ''}
+                        {formatValue(val)} {unit}{status ? ` · ${status}` : ''}
                       </p>
                       {labName === 'Clcr' && point && (
                         <div className="mt-1.5 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
@@ -317,7 +328,7 @@ export function LabTrendChart({
                       fontSize={11}
                       fontWeight={600}
                     >
-                      {v}
+                      {formatValue(v)}
                     </text>
                   );
                 }}
