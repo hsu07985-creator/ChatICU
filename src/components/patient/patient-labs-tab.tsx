@@ -489,7 +489,7 @@ export function PatientLabsTab({
       ) : activeSection === 'microbiology' ? (
         <PatientMicrobiologyCard patientId={patientId} />
       ) : activeSection === 'inflammation' ? (
-        <InflammationIndicesPanel labData={labData} />
+        <InflammationIndicesPanel labData={labData} patientId={patientId} />
       ) : (
         <PatientDiagnosticReports patientId={patientId} />
       )}

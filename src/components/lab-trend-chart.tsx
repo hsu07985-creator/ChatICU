@@ -226,16 +226,18 @@ export function LabTrendChart({
                   const val = payload[0].value as number;
                   const color = dotColor(val);
                   const status =
-                    refBounds?.high !== undefined && val > refBounds.high
-                      ? '偏高'
-                      : refBounds?.low !== undefined && val < refBounds.low
-                        ? '偏低'
-                        : '正常';
+                    refBounds === null
+                      ? null
+                      : refBounds?.high !== undefined && val > refBounds.high
+                        ? '偏高'
+                        : refBounds?.low !== undefined && val < refBounds.low
+                          ? '偏低'
+                          : '正常';
                   return (
                     <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 shadow-md">
                       <p className="text-xs text-slate-500 dark:text-slate-400">{formatDateFull(label ?? '')}</p>
                       <p className="text-sm font-semibold" style={{ color }}>
-                        {val} {unit} · {status}
+                        {val} {unit}{status ? ` · ${status}` : ''}
                       </p>
                     </div>
                   );

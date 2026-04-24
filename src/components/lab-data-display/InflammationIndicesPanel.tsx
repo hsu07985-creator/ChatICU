@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import type { LabData } from '../../lib/api/lab-data';
+import { getLabTrends } from '../../lib/api/lab-data';
 import { LabItem } from './LabItem';
 import {
   INFLAMMATION_META,
@@ -10,8 +11,13 @@ import {
   type InflammationKey,
 } from './inflammation-indices';
 
+const LabTrendChart = lazy(() =>
+  import('../lab-trend-chart').then((m) => ({ default: m.LabTrendChart }))
+);
+
 interface Props {
   labData: LabData;
+  patientId?: string;
 }
 
 const INDEX_ORDER: InflammationKey[] = ['NLR', 'PLR', 'SIRI', 'SII'];
@@ -40,11 +46,52 @@ function formatTimeRange(ts: Record<keyof InflammationInputs, string | null>): s
   return first === last ? first : `${first} – ${last}`;
 }
 
-export function InflammationIndicesPanel({ labData }: Props) {
+export function InflammationIndicesPanel({ labData, patientId }: Props) {
   const computed = useMemo(() => computeAll(labData), [labData]);
   const timestamps = useMemo(() => extractInputTimestamps(labData), [labData]);
   const panelTs = earliestTimestamp(Object.values(timestamps)) ?? undefined;
   const timeRangeLabel = formatTimeRange(timestamps);
+  const [selectedTrend, setSelectedTrend] = useState<{
+    key: InflammationKey;
+    trendData: Array<{ date: string; value: number }>;
+  } | null>(null);
+
+  const handleOpenTrend = async (key: InflammationKey) => {
+    const fallbackTrendData =
+      computed[key].value !== null
+        ? [{ date: panelTs ?? labData.timestamp ?? '目前', value: computed[key].value }]
+        : [];
+
+    setSelectedTrend({ key, trendData: fallbackTrendData });
+
+    if (!patientId) {
+      return;
+    }
+
+    try {
+      const response = await getLabTrends(patientId, { category: 'hematology' });
+      const trendData = response.trends
+        .map((snapshot) => {
+          const snapshotComputed = computeAll(snapshot as LabData);
+          const value = snapshotComputed[key].value;
+          if (value === null || !snapshot.timestamp) {
+            return null;
+          }
+          return {
+            date: snapshot.timestamp,
+            value,
+          };
+        })
+        .filter((point): point is { date: string; value: number } => point !== null);
+
+      setSelectedTrend({
+        key,
+        trendData: trendData.length > 0 ? trendData : fallbackTrendData,
+      });
+    } catch (error) {
+      console.error(`Failed to load ${key} trend data:`, error);
+    }
+  };
 
   const rawItems: Array<{ label: string; value: number | null; unit: string; ts: string | null }> = [
     { label: 'WBC', value: computed.inputs.wbc, unit: '10³/μL', ts: timestamps.wbc },
@@ -78,6 +125,7 @@ export function InflammationIndicesPanel({ labData }: Props) {
                 label={meta.label}
                 value={display === '-' ? null : { value: display, _ts: panelTs }}
                 unit={meta.unit}
+                onClick={display === '-' ? undefined : () => void handleOpenTrend(key)}
               />
             );
           })}
@@ -127,6 +175,19 @@ export function InflammationIndicesPanel({ labData }: Props) {
           ))}
         </ul>
       </section>
+
+      {selectedTrend && (
+        <Suspense fallback={null}>
+          <LabTrendChart
+            isOpen={true}
+            onClose={() => setSelectedTrend(null)}
+            labName={selectedTrend.key}
+            labNameChinese={INFLAMMATION_META[selectedTrend.key].fullName}
+            unit={INFLAMMATION_META[selectedTrend.key].unit}
+            trendData={selectedTrend.trendData}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
