@@ -12,9 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Patient, updatePatient } from '../lib/api/patients';
 import { getCachedPatientsSync, invalidatePatients, subscribePatientsCache } from '../lib/patients-cache';
 import type { DashboardStats } from '../lib/api/dashboard';
-import { fetchPharmacyDuplicateSummary } from '../lib/api/medications';
-import { useApiQuery } from '../hooks/use-api-query';
-import { PatientDuplicateBadge } from '../components/dashboard/patient-duplicate-badge';
 import {
   getCachedDashboardStats,
   getCachedDashboardStatsSync,
@@ -168,34 +165,6 @@ export function DashboardPage() {
     messages: { today: 0, unread: 0 },
     timestamp: new Date().toISOString(),
   } : null);
-
-  // Wave 6c: batched duplicate-medication counts for every patient card.
-  // One POST /pharmacy/duplicate-summary per dashboard render fans out to
-  // all visible patients (cache hits return instantly on the backend). Key
-  // is the sorted id csv so add/remove invalidates; 60s staleTime keeps
-  // clicks snappy. See docs/duplicate-medication-integration-plan.md §4.7.
-  const duplicatePatientIdsKey = patients.map(p => p.id).sort().join(',');
-  const { data: duplicateSummary, refetch: refetchDuplicateSummary } = useApiQuery<
-    Awaited<ReturnType<typeof fetchPharmacyDuplicateSummary>>
-  >({
-    queryKey: ['dashboard-duplicate-summary', duplicatePatientIdsKey],
-    queryFn: () => fetchPharmacyDuplicateSummary(patients.map(p => p.id), 'inpatient'),
-    enabled: patients.length > 0,
-    staleTime: 60_000,
-  });
-
-  // One-shot retry: if the backend reported any `pending` patients (cache
-  // miss being warmed in the background), re-fetch once after 10s to pick
-  // up populated counts. No loop — if still pending, next user interaction
-  // or the 60s staleTime will handle it.
-  useEffect(() => {
-    const pending = duplicateSummary?.pending;
-    if (!pending || pending.length === 0) return;
-    const timer = setTimeout(() => {
-      refetchDuplicateSummary();
-    }, 10_000);
-    return () => clearTimeout(timer);
-  }, [duplicateSummary, refetchDuplicateSummary]);
 
   // 開啟編輯對話框
   const handleEditClick = (e: React.MouseEvent, patient: Patient) => {
@@ -523,11 +492,6 @@ export function DashboardPage() {
                             {getAirwayStatusLabel(patient)}
                           </Badge>
                         )}
-                        {/* Wave 6c: duplicate-medication severity badge (non-zero only) */}
-                        <PatientDuplicateBadge
-                          counts={duplicateSummary?.counts?.[patient.id]}
-                          size={gridCols >= 4 ? 'xs' : 'sm'}
-                        />
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {patient.age} 歲 · {patient.admissionDate ? `住院 ${Math.floor((new Date().getTime() - new Date(patient.admissionDate).getTime()) / (1000 * 60 * 60 * 24))} 天` : '住'}
