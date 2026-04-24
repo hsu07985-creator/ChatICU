@@ -76,7 +76,6 @@ export function AppSidebar() {
     { title: '總覽', url: '/dashboard', icon: Home },
     { title: '病人清單', url: '/patients', icon: Users },
     { title: '已出院病人', url: '/patients/discharged', icon: Archive },
-    { title: '劑量計算與建議', url: '/pharmacy/dosage', icon: Calculator },
   ];
 
   // 2) 藥事評估（藥師/管理者可見）— 整合性工作台
@@ -86,10 +85,11 @@ export function AppSidebar() {
 
   // 3) 藥事工具（藥師/管理者可見）— 獨立查詢工具
   const pharmacyToolItems = (user?.role === 'pharmacist' || user?.role === 'admin') ? [
-    { title: '交互作用查詢', url: '/pharmacy/interactions', icon: AlertTriangle },
+    { title: '劑量計算', url: '/pharmacy/dosage', icon: Calculator },
+    { title: '用藥交互', url: '/pharmacy/interactions', icon: AlertTriangle },
     { title: '重複用藥', url: '/pharmacy/duplicates', icon: Copy },
-    { title: '相容性檢核', url: '/pharmacy/compatibility', icon: Droplets },
-    { title: '用藥建議與統計', url: '/pharmacy/advice-statistics', icon: BarChart3 },
+    { title: '用藥相容', url: '/pharmacy/compatibility', icon: Droplets },
+    { title: '藥物統計', url: '/pharmacy/advice-statistics', icon: BarChart3 },
   ] : [];
 
   // 4) 溝通（所有角色可見）
