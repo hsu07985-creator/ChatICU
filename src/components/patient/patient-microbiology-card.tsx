@@ -133,7 +133,12 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
   const iItems = merged.bestSusceptibility.filter((s) => s.result === 'I');
   const sItems = merged.bestSusceptibility.filter((s) => s.result === 'S');
 
-  const cardStyle = 'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900';
+  const borderAccent = hasR
+    ? 'border-l-2 border-l-rose-300 dark:border-l-rose-800'
+    : hasI
+      ? 'border-l-2 border-l-amber-300 dark:border-l-amber-800'
+      : '';
+  const cardStyle = `border border-slate-200 dark:border-slate-700 ${borderAccent} bg-white dark:bg-slate-900`;
 
   const headerStyle = 'hover:bg-slate-50 dark:hover:bg-slate-800/60';
 
@@ -187,7 +192,7 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
         </span>
 
         {/* Date */}
-        <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums shrink-0">
+        <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums shrink-0 border-l border-slate-200 dark:border-slate-700 pl-2">
           {merged.dates.map((d) => shortDate(d)).join(', ')}
         </span>
       </button>
@@ -202,43 +207,34 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
             </div>
           )}
 
-          {/* S line */}
+          {/* S chips */}
           {sItems.length > 0 && (
-            <div className="flex gap-2 items-start">
-              <span className="font-semibold text-teal-700 dark:text-teal-300 shrink-0 w-4 pt-0.5">S</span>
-              <span className="flex flex-wrap gap-1">
-                {sItems.map((s) => (
-                  <span key={s.antibiotic} className="inline-flex items-center rounded-md border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-950/40 px-1.5 py-0.5 text-xs font-medium text-teal-700 dark:text-teal-300">
-                    {s.antibiotic}
-                  </span>
-                ))}
-              </span>
+            <div className="flex flex-wrap gap-1">
+              {sItems.map((s) => (
+                <span key={s.antibiotic} className="inline-flex items-center rounded-md border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-950/40 px-1.5 py-0.5 text-xs font-medium text-teal-700 dark:text-teal-300">
+                  {s.antibiotic}
+                </span>
+              ))}
             </div>
           )}
-          {/* I line */}
+          {/* I chips */}
           {iItems.length > 0 && (
-            <div className="flex gap-2 items-start">
-              <span className="font-semibold text-amber-700 dark:text-amber-300 shrink-0 w-4 pt-0.5">I</span>
-              <span className="flex flex-wrap gap-1">
-                {iItems.map((s) => (
-                  <span key={s.antibiotic} className="inline-flex items-center rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
-                    {s.antibiotic}
-                  </span>
-                ))}
-              </span>
+            <div className="flex flex-wrap gap-1">
+              {iItems.map((s) => (
+                <span key={s.antibiotic} className="inline-flex items-center rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+                  {s.antibiotic}
+                </span>
+              ))}
             </div>
           )}
-          {/* R line */}
+          {/* R chips */}
           {rItems.length > 0 && (
-            <div className="flex gap-2 items-start">
-              <span className="font-semibold text-rose-700 dark:text-rose-300 shrink-0 w-4 pt-0.5">R</span>
-              <span className="flex flex-wrap gap-1">
-                {rItems.map((s) => (
-                  <span key={s.antibiotic} className="inline-flex items-center rounded-md border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.5 text-xs font-medium text-rose-700 dark:text-rose-300">
-                    {s.antibiotic}
-                  </span>
-                ))}
-              </span>
+            <div className="flex flex-wrap gap-1">
+              {rItems.map((s) => (
+                <span key={s.antibiotic} className="inline-flex items-center rounded-md border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.5 text-xs font-medium text-rose-700 dark:text-rose-300">
+                  {s.antibiotic}
+                </span>
+              ))}
             </div>
           )}
         </div>
@@ -350,21 +346,19 @@ function CategorySection({
         <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
         <h4 className="text-base font-semibold text-slate-800 dark:text-slate-100">{label}</h4>
 
-        {/* Summary count badges */}
-        <span className="flex items-center gap-1.5 ml-auto text-xs">
+        {/* Summary count: 陽性 as pill, others as inline muted text */}
+        <span className="flex items-center gap-2 ml-auto text-xs">
           {posCount > 0 && (
             <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
               陽性 {posCount}
             </span>
           )}
-          {negCount > 0 && (
-            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-              陰性 {negCount}
-            </span>
-          )}
-          {floraCount > 0 && (
-            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-              正常菌 {floraCount}
+          {(negCount > 0 || floraCount > 0) && (
+            <span className="text-slate-500 dark:text-slate-400">
+              {[
+                negCount > 0 ? `陰性 ${negCount}` : null,
+                floraCount > 0 ? `正常菌 ${floraCount}` : null,
+              ].filter(Boolean).join(' · ')}
             </span>
           )}
           {total === 0 && <span className="text-slate-300 dark:text-slate-600">0</span>}
