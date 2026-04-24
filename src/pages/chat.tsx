@@ -1,14 +1,15 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { ButtonLoadingIndicator } from '../components/ui/button-loading-indicator';
 import { Badge } from '../components/ui/badge';
 import { Textarea } from '../components/ui/textarea';
+import { MentionTextarea } from '../components/ui/mention-textarea';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { Send, Pin, MessageSquare, RefreshCw, AtSign, ChevronDown, ChevronRight, ExternalLink, Trash2 } from 'lucide-react';
 import { useAuth } from '../lib/auth-context';
 import { maskPatientName } from '../lib/utils/patient-name';
-import { getTeamChatMessages, sendTeamChatMessage, postAnnouncement, togglePinMessage, deleteTeamChatMessage, TeamChatMessage } from '../lib/api/team-chat';
+import { getTeamChatMessages, sendTeamChatMessage, postAnnouncement, togglePinMessage, deleteTeamChatMessage, getTeamUsers, TeamChatMessage, TeamUser } from '../lib/api/team-chat';
 import { getMyMentions, type MentionGroup } from '../lib/api/messages';
 import { LoadingSpinner } from '../components/ui/state-display';
 import { toast } from 'sonner';
@@ -55,11 +56,20 @@ function formatTimestamp(timestamp: string): string {
 export function ChatPage() {
   const { user } = useAuth();
   const [message, setMessage] = useState('');
+  const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
+  const [teamUsers, setTeamUsers] = useState<TeamUser[]>([]);
   const [messages, setMessages] = useState<TeamChatMessage[]>(_msgsCache ?? []);
   const [loading, setLoading] = useState(!_msgsCache);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // Lookup map for rendering @姓名 → role-aware highlighting in messages.
+  const userByName = useMemo(() => {
+    const map = new Map<string, TeamUser>();
+    for (const u of teamUsers) map.set(u.name, u);
+    return map;
+  }, [teamUsers]);
 
   // 公告對話框狀態
   const [announcementDialogOpen, setAnnouncementDialogOpen] = useState(false);
@@ -122,10 +132,11 @@ export function ChatPage() {
     }
   }, [mentionsUnreadOnly]);
 
-  // Initial load: messages first (priority), mentions in parallel
+  // Initial load: messages first (priority), mentions + team users in parallel
   useEffect(() => {
     loadMessages();
     loadMentions();
+    getTeamUsers().then(setTeamUsers).catch(() => {/* non-fatal — picker just won't populate */});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // unreadOnly 切換 → invalidate mentions cache + refetch
@@ -150,11 +161,12 @@ export function ChatPage() {
 
     setSending(true);
     try {
-      const newMessage = await sendTeamChatMessage(message.trim());
+      const newMessage = await sendTeamChatMessage(message.trim(), { mentionedUserIds });
       const updated = [...messages, newMessage];
       _msgsCache = updated; _msgsTimestamp = Date.now();
       setMessages(updated);
       setMessage('');
+      setMentionedUserIds([]);
       toast.success('訊息已發送');
     } catch (err) {
       console.error('發送訊息失敗:', err);
@@ -163,6 +175,31 @@ export function ChatPage() {
       setSending(false);
     }
   };
+
+  // Render message content, highlighting @姓名 tokens that match real users.
+  const renderContent = useCallback((content: string) => {
+    if (!userByName.size) return content;
+    const parts: Array<string | { name: string; matched: boolean }> = [];
+    const re = /@([\p{L}\p{N}_-]+)/gu;
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(content)) !== null) {
+      if (m.index > last) parts.push(content.slice(last, m.index));
+      parts.push({ name: m[1], matched: userByName.has(m[1]) });
+      last = m.index + m[0].length;
+    }
+    if (last < content.length) parts.push(content.slice(last));
+    return parts.map((p, i) => {
+      if (typeof p === 'string') return <span key={i}>{p}</span>;
+      return p.matched ? (
+        <span key={i} className="inline-flex items-center rounded px-1 bg-brand/10 text-brand font-medium">
+          @{p.name}
+        </span>
+      ) : (
+        <span key={i}>@{p.name}</span>
+      );
+    });
+  }, [userByName]);
 
   // 發布公告
   const handlePostAnnouncement = async () => {
@@ -274,11 +311,13 @@ export function ChatPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {messages.map((msg) => (
+                  {messages.map((msg) => {
+                    const mentionsMe = !!user && (msg.mentionedUserIds?.includes(user.id) ?? false);
+                    return (
                     <div
                       key={msg.id}
                       data-testid="team-chat-message"
-                      className={`group space-y-2 p-3 rounded-lg ${msg.pinned ? 'border-l-4 border-[#f59e0b] bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700'}`}
+                      className={`group space-y-2 p-3 rounded-lg ${msg.pinned ? 'border-l-4 border-[#f59e0b] bg-slate-50 dark:bg-slate-800' : mentionsMe ? 'border-l-4 border-brand bg-brand/5' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700'}`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -287,6 +326,12 @@ export function ChatPage() {
                             {roleDisplayName[msg.userRole] || msg.userRole}
                           </Badge>
                           <span className="text-xs text-muted-foreground">{formatTimestamp(msg.timestamp)}</span>
+                          {mentionsMe && (
+                            <Badge className="bg-brand text-white text-xs">
+                              <AtSign className="h-3 w-3 mr-0.5" />
+                              提到你
+                            </Badge>
+                          )}
                           {msg.pinned && (
                             <Badge className="bg-[#f59e0b] text-white">
                               <Pin className="h-3.5 w-3.5 mr-1" />
@@ -326,9 +371,10 @@ export function ChatPage() {
                           )}
                         </div>
                       </div>
-                      <p className="text-base text-foreground leading-relaxed">{msg.content}</p>
+                      <p className="text-base text-foreground leading-relaxed whitespace-pre-wrap">{renderContent(msg.content)}</p>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </ScrollArea>
@@ -340,10 +386,11 @@ export function ChatPage() {
                 <label className="font-semibold text-foreground">發送訊息給團隊</label>
               </div>
               <div className="flex gap-3">
-                <Textarea
-                  placeholder=""
+                <MentionTextarea
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
+                  onChange={setMessage}
+                  onMentionsChange={setMentionedUserIds}
+                  users={teamUsers}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -366,7 +413,7 @@ export function ChatPage() {
                   )}
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground">按 Enter 發送，Shift + Enter 換行</p>
+              <p className="text-sm text-muted-foreground">按 Enter 發送，Shift + Enter 換行；輸入 @ 可標記成員</p>
             </div>
           </CardContent>
         </Card>
