@@ -537,8 +537,6 @@ interface PatientMedicationsTabProps {
   patientId?: string;
   userRole?: UserRole;
   medicationsLoading: boolean;
-  painIndication?: string;
-  sedationIndication?: string;
   nmbIndication?: string;
   painMedications: Medication[];
   sedationMedications: Medication[];
@@ -564,8 +562,6 @@ export function PatientMedicationsTab({
   patientId,
   userRole,
   medicationsLoading,
-  painIndication,
-  sedationIndication,
   nmbIndication,
   painMedications,
   sedationMedications,
@@ -741,7 +737,7 @@ export function PatientMedicationsTab({
             <Card className="border-border">
               <CardHeader className="pb-2 space-y-1">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">Pain 止痛</CardTitle>
+                  <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">Pain Score</CardTitle>
                   <Button
                     variant="outline"
                     size="sm"
@@ -751,9 +747,6 @@ export function PatientMedicationsTab({
                     趨勢
                   </Button>
                 </div>
-                <CardDescription className="text-sm leading-tight">
-                  {painIndication || 'Pain Score: -'}
-                </CardDescription>
               </CardHeader>
               <CardContent className="pt-0 space-y-3">
                 <ScoreSelector
@@ -782,7 +775,7 @@ export function PatientMedicationsTab({
             <Card className="border-border">
               <CardHeader className="pb-2 space-y-1">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">Sedation 鎮靜</CardTitle>
+                  <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">RASS Score</CardTitle>
                   <Button
                     variant="outline"
                     size="sm"
@@ -792,9 +785,6 @@ export function PatientMedicationsTab({
                     趨勢
                   </Button>
                 </div>
-                <CardDescription className="text-sm leading-tight">
-                  {sedationIndication || 'RASS Score: -/+4'}
-                </CardDescription>
               </CardHeader>
               <CardContent className="pt-0 space-y-3">
                 <ScoreSelector

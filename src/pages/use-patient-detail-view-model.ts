@@ -47,12 +47,6 @@ export function usePatientDetailViewModel({
 
     const painScoreValue = latestScores.pain?.value ?? null;
     const rassScoreValue = latestScores.rass?.value ?? null;
-    const painIndication = painScoreValue !== null
-      ? `Pain Score: ${painScoreValue}/10`
-      : painMedications[0]?.indication;
-    const sedationIndication = rassScoreValue !== null
-      ? `RASS Score: ${rassScoreValue >= 0 ? `+${rassScoreValue}` : rassScoreValue}/+4`
-      : sedationMedications[0]?.indication;
     const nmbIndication = nmbMedications[0]?.indication;
     const unreadMessagesCount = messages.filter((message) => !message.isRead).length;
 
@@ -66,8 +60,6 @@ export function usePatientDetailViewModel({
       outpatientMedications,
       painScoreValue,
       rassScoreValue,
-      painIndication,
-      sedationIndication,
       nmbIndication,
       respiratoryRate: vitalSigns?.respiratoryRate,
       temperature: vitalSigns?.temperature,
