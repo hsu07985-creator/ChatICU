@@ -604,7 +604,7 @@ export function PatientMedicationsTab({
   const [medView, setMedView] = useState<'active' | 'regular' | 'discontinued' | 'all' | 'duplicate'>('active');
   const [painPending, setPainPending] = useState<number | null>(null);
   const [rassPending, setRassPending] = useState<number | null>(null);
-  const [selfSuppliedDialogOpen, setSelfSuppliedDialogOpen] = useState(false);
+  const [selfSuppliedFilter, setSelfSuppliedFilter] = useState(false);
   const [detailMedication, setDetailMedication] = useState<Medication | null>(null);
   const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
   const [editForm, setEditForm] = useState({
@@ -646,10 +646,11 @@ export function PatientMedicationsTab({
   const activeOutpatientMeds = allOutpatientMeds.filter((m) => !isOutpatientExpired(m) && m.status !== 'discontinued');
   const outpatientCount = allOutpatientMeds.length;
   const selfSuppliedMeds = allOutpatientMeds.filter((m) => m.sourceType === 'self-supplied');
+  const visibleOutpatientMeds = selfSuppliedFilter ? selfSuppliedMeds : allOutpatientMeds;
 
   const outpatientGroups = useMemo(() => {
     const groups = new Map<string, { label: string; sortTime: number; meds: Medication[] }>();
-    const medsSortedWithinGroup = [...allOutpatientMeds].sort((a, b) => {
+    const medsSortedWithinGroup = [...visibleOutpatientMeds].sort((a, b) => {
       const timeDiff = parseMedicationTime(b.startDate) - parseMedicationTime(a.startDate);
       if (timeDiff !== 0) return timeDiff;
       return (a.name || '').localeCompare(b.name || '', 'zh-Hant');
@@ -673,7 +674,7 @@ export function PatientMedicationsTab({
     }
 
     return [...groups.values()].sort((a, b) => b.sortTime - a.sortTime);
-  }, [allOutpatientMeds]);
+  }, [visibleOutpatientMeds]);
 
   // Current base list depends on view mode
   const baseMeds =
@@ -1109,19 +1110,29 @@ export function PatientMedicationsTab({
                     <span className="ml-2 text-sm font-normal text-muted-foreground">({outpatientCount})</span>
                   </CardTitle>
                   <Button
-                    variant="outline"
+                    variant={selfSuppliedFilter ? 'default' : 'outline'}
                     size="sm"
-                    className="h-7 px-3 text-xs border-[#d9b6c8] text-brand hover:bg-[#fbf4f8]"
-                    onClick={() => setSelfSuppliedDialogOpen(true)}
+                    aria-pressed={selfSuppliedFilter}
+                    className={
+                      selfSuppliedFilter
+                        ? 'h-7 px-3 text-xs bg-brand text-white border-brand hover:bg-brand-hover'
+                        : 'h-7 px-3 text-xs border-[#d9b6c8] text-brand hover:bg-[#fbf4f8]'
+                    }
+                    onClick={() => setSelfSuppliedFilter((v) => !v)}
                   >
                     聯醫門急診用藥
                     {selfSuppliedMeds.length > 0 && (
-                      <span className="ml-1 text-muted-foreground">({selfSuppliedMeds.length})</span>
+                      <span className={`ml-1 ${selfSuppliedFilter ? 'text-white/80' : 'text-muted-foreground'}`}>
+                        ({selfSuppliedMeds.length})
+                      </span>
                     )}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="pt-0 space-y-4">
+                {selfSuppliedFilter && outpatientGroups.length === 0 && (
+                  <p className="py-3 text-sm text-muted-foreground">目前無聯醫門急診（自備）藥物</p>
+                )}
                 {outpatientGroups.map((group) => (
                   <div key={group.label}>
                     <div className="flex items-center gap-2 mb-2">
@@ -1201,59 +1212,6 @@ export function PatientMedicationsTab({
             open={detailMedication !== null}
             onClose={() => setDetailMedication(null)}
           />
-
-          <Dialog open={selfSuppliedDialogOpen} onOpenChange={setSelfSuppliedDialogOpen}>
-            <DialogContent className="sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle>聯醫門急診用藥（自備藥物）</DialogTitle>
-                <DialogDescription>
-                  病患自備、未由本院開立的藥物清單。
-                </DialogDescription>
-              </DialogHeader>
-              {selfSuppliedMeds.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted-foreground">目前無自備藥物</p>
-              ) : (
-                <ul className="max-h-[60vh] divide-y divide-slate-200 dark:divide-slate-700 overflow-y-auto">
-                  {selfSuppliedMeds.map((m) => (
-                    <li
-                      key={m.id}
-                      className="flex flex-col gap-1 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40 px-2 rounded"
-                      onClick={() => {
-                        setSelfSuppliedDialogOpen(false);
-                        setDetailMedication(m);
-                      }}
-                    >
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-slate-900 dark:text-slate-100">{m.name}</span>
-                        {m.sourceCampus && (
-                          <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400">
-                            {m.sourceCampus}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">{formatMedicationRegimen(m)}</p>
-                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                        {m.startDate && (
-                          <span>開立時間：{new Date(m.startDate).toLocaleDateString('zh-TW')}</span>
-                        )}
-                        {m.prescribingDepartment && (
-                          <span>科別：{m.prescribingDepartment}</span>
-                        )}
-                        {m.prescribingDoctorName && (
-                          <span>醫師：{m.prescribingDoctorName}</span>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <DialogFooter>
-                <Button variant="outline" size="sm" onClick={() => setSelfSuppliedDialogOpen(false)}>
-                  關閉
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
 
           <Dialog open={editingMedication !== null} onOpenChange={(open) => { if (!open) closeMedicationEditor(); }}>
             <DialogContent className="sm:max-w-xl">
