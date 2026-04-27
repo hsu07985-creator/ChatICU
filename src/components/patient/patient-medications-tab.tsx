@@ -437,7 +437,7 @@ function MedicationDetailModal({
                 <span className="font-medium">{med.startDate ? new Date(med.startDate).toLocaleDateString('zh-TW') : '—'}</span>
               </div>
               <div className="flex gap-2">
-                <span className="text-muted-foreground shrink-0">用完日期</span>
+                <span className="text-muted-foreground shrink-0">截止日期</span>
                 <span className="font-medium">{formatCalendarDate(displayEndDate)}</span>
               </div>
             </div>
