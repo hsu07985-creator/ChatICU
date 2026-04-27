@@ -604,6 +604,7 @@ export function PatientMedicationsTab({
   const [medView, setMedView] = useState<'active' | 'regular' | 'discontinued' | 'all' | 'duplicate'>('active');
   const [painPending, setPainPending] = useState<number | null>(null);
   const [rassPending, setRassPending] = useState<number | null>(null);
+  const [selfSuppliedDialogOpen, setSelfSuppliedDialogOpen] = useState(false);
   const [detailMedication, setDetailMedication] = useState<Medication | null>(null);
   const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
   const [editForm, setEditForm] = useState({
@@ -644,6 +645,7 @@ export function PatientMedicationsTab({
   const allOutpatientMeds = outpatientMedications || [];
   const activeOutpatientMeds = allOutpatientMeds.filter((m) => !isOutpatientExpired(m) && m.status !== 'discontinued');
   const outpatientCount = allOutpatientMeds.length;
+  const selfSuppliedMeds = allOutpatientMeds.filter((m) => m.sourceType === 'self-supplied');
 
   const outpatientGroups = useMemo(() => {
     const groups = new Map<string, { label: string; sortTime: number; meds: Medication[] }>();
@@ -1101,10 +1103,23 @@ export function PatientMedicationsTab({
           {outpatientCount > 0 && (
             <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">
-                  門診用藥 Outpatient Medications
-                  <span className="ml-2 text-sm font-normal text-muted-foreground">({outpatientCount})</span>
-                </CardTitle>
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">
+                    門診用藥 Outpatient Medications
+                    <span className="ml-2 text-sm font-normal text-muted-foreground">({outpatientCount})</span>
+                  </CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-3 text-xs border-[#d9b6c8] text-brand hover:bg-[#fbf4f8]"
+                    onClick={() => setSelfSuppliedDialogOpen(true)}
+                  >
+                    聯醫門急診用藥
+                    {selfSuppliedMeds.length > 0 && (
+                      <span className="ml-1 text-muted-foreground">({selfSuppliedMeds.length})</span>
+                    )}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="pt-0 space-y-4">
                 {outpatientGroups.map((group) => (
@@ -1186,6 +1201,48 @@ export function PatientMedicationsTab({
             open={detailMedication !== null}
             onClose={() => setDetailMedication(null)}
           />
+
+          <Dialog open={selfSuppliedDialogOpen} onOpenChange={setSelfSuppliedDialogOpen}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>聯醫門急診用藥（自備藥物）</DialogTitle>
+                <DialogDescription>
+                  病患自備、未由本院開立的藥物清單。
+                </DialogDescription>
+              </DialogHeader>
+              {selfSuppliedMeds.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">目前無自備藥物</p>
+              ) : (
+                <ul className="max-h-[60vh] divide-y divide-slate-200 dark:divide-slate-700 overflow-y-auto">
+                  {selfSuppliedMeds.map((m) => (
+                    <li
+                      key={m.id}
+                      className="flex flex-col gap-1 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40 px-2 rounded"
+                      onClick={() => {
+                        setSelfSuppliedDialogOpen(false);
+                        setDetailMedication(m);
+                      }}
+                    >
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-slate-900 dark:text-slate-100">{m.name}</span>
+                        {m.sourceCampus && (
+                          <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400">
+                            {m.sourceCampus}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{formatMedicationRegimen(m)}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <DialogFooter>
+                <Button variant="outline" size="sm" onClick={() => setSelfSuppliedDialogOpen(false)}>
+                  關閉
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <Dialog open={editingMedication !== null} onOpenChange={(open) => { if (!open) closeMedicationEditor(); }}>
             <DialogContent className="sm:max-w-xl">
