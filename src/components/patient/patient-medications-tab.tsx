@@ -1104,10 +1104,6 @@ export function PatientMedicationsTab({
             <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between gap-2">
-                  <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">
-                    門診用藥 Outpatient Medications
-                    <span className="ml-2 text-sm font-normal text-muted-foreground">({outpatientCount})</span>
-                  </CardTitle>
                   <Button
                     variant="outline"
                     size="sm"
@@ -1119,6 +1115,10 @@ export function PatientMedicationsTab({
                       <span className="ml-1 text-muted-foreground">({selfSuppliedMeds.length})</span>
                     )}
                   </Button>
+                  <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">
+                    門診用藥 Outpatient Medications
+                    <span className="ml-2 text-sm font-normal text-muted-foreground">({outpatientCount})</span>
+                  </CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="pt-0 space-y-4">
@@ -1232,6 +1232,17 @@ export function PatientMedicationsTab({
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">{formatMedicationRegimen(m)}</p>
+                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                        {m.startDate && (
+                          <span>開立時間：{new Date(m.startDate).toLocaleDateString('zh-TW')}</span>
+                        )}
+                        {m.prescribingDepartment && (
+                          <span>科別：{m.prescribingDepartment}</span>
+                        )}
+                        {m.prescribingDoctorName && (
+                          <span>醫師：{m.prescribingDoctorName}</span>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
