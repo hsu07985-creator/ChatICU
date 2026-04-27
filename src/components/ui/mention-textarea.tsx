@@ -78,9 +78,11 @@ export function MentionTextarea({
   }, [value, users, onMentionsChange]);
 
   const filtered = useMemo(() => {
-    if (!query) return users.slice(0, 8);
+    // Show all team members when no query — the popover scrolls (max-h-60).
+    // The previous slice(0, 8) silently hid 黃英哲 / 曾涵雲 etc.
+    if (!query) return users;
     const q = query.toLowerCase();
-    return users.filter((u) => u.name.toLowerCase().includes(q)).slice(0, 8);
+    return users.filter((u) => u.name.toLowerCase().includes(q));
   }, [users, query]);
 
   // Keep activeIdx in range when filter changes
