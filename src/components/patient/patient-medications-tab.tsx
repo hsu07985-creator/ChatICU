@@ -232,9 +232,6 @@ function ScoreSelector({
       {/* 確認列 */}
       {hasPending && (
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-brand">
-            {fmt(pending!)}
-          </span>
           <Button
             size="sm"
             className="h-7 px-3 text-xs font-medium bg-brand hover:bg-brand-hover rounded-md"
