@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, AlertCircle, CheckCircle2, ChevronRight, Clock, Filter, MessagesSquare, Pill, Plus, Reply, Shield, Stethoscope, Tag, ThumbsDown, ThumbsUp, Trash2, User, Send, X, XCircle } from 'lucide-react';
+import { Activity, AlertCircle, CheckCircle2, ChevronRight, Clock, Filter, MessagesSquare, Pill, Plus, Reply, Shield, Stethoscope, Tag, ThumbsDown, ThumbsUp, Trash2, User, Users, Send, X, XCircle } from 'lucide-react';
 import type { UserRole } from '../../lib/auth-context';
 import type { PatientMessage } from '../../lib/api';
 import { getTeamUsers, type TeamUser } from '../../lib/api/team-chat';
@@ -58,6 +58,7 @@ const ROLE_CONFIG: Record<string, { icon: typeof Pill; color: string; label: str
   np: { icon: Stethoscope, color: 'text-teal-600', label: '專科護理師' },
   nurse: { icon: Activity, color: 'text-purple-600', label: '護理師' },
   admin: { icon: Shield, color: 'text-orange-600', label: '管理者' },
+  all: { icon: Users, color: 'text-rose-600', label: 'all' },
 };
 
 const MSG_TYPE_STYLE: Record<string, string> = {
@@ -538,7 +539,7 @@ export function PatientMessagesTab({
             {/* 角色提及 */}
             <div className="flex flex-wrap items-center gap-1">
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">提及:</span>
-              {(['doctor', 'np', 'nurse', 'pharmacist', 'admin'] as const).map((role) => {
+              {(['doctor', 'np', 'nurse', 'pharmacist', 'all'] as const).map((role) => {
                 const selected = composeMentionedRoles.includes(role);
                 const cfg = ROLE_CONFIG[role];
                 return (
@@ -725,9 +726,10 @@ export function PatientMessagesTab({
                     const replies = message.replies ?? [];
                     const isThreadExpanded = expandedThreads.has(message.id);
 
+                    const mentionsAll = !!message.mentionedRoles?.includes('all');
                     const mentionsMeByRole = !!userRole && !!message.mentionedRoles?.includes(userRole);
                     const mentionsMeById = !!userId && !!message.mentionedUserIds?.includes(userId);
-                    const mentionsMe = mentionsMeByRole || mentionsMeById;
+                    const mentionsMe = mentionsAll || mentionsMeByRole || mentionsMeById;
 
                     return (
                       <div key={message.id}>

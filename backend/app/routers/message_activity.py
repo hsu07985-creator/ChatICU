@@ -131,17 +131,18 @@ async def get_my_mentions(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return messages where the current user is mentioned (by role OR user_id), grouped by patient."""
+    """Return messages where the current user is mentioned (by role, "all", or user_id), grouped by patient."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_back)
     role = user.role
 
-    # Find messages that mention this user (by role OR by user_id)
+    # Find messages that mention this user (by their role, by the "all" pseudo-role, or by user_id)
     base_stmt = (
         select(PatientMessage)
         .where(PatientMessage.timestamp >= cutoff)
         .where(
             or_(
                 cast(PatientMessage.mentioned_roles, String).contains(f'"{role}"'),
+                cast(PatientMessage.mentioned_roles, String).contains('"all"'),
                 cast(PatientMessage.mentioned_user_ids, String).contains(f'"{user.id}"'),
             )
         )

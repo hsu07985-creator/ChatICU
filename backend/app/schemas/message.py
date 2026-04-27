@@ -33,7 +33,8 @@ class MessageCreate(BaseModel):
     @classmethod
     def check_mentioned_roles(cls, v: Optional[List[str]]) -> Optional[List[str]]:
         if v is not None:
-            allowed = {"doctor", "np", "nurse", "pharmacist", "admin"}
+            # "all" is a pseudo-role that matches every user regardless of role.
+            allowed = {"doctor", "np", "nurse", "pharmacist", "admin", "all"}
             for role in v:
                 if role not in allowed:
                     raise ValueError(f"角色須為 {', '.join(sorted(allowed))} 之一")

@@ -37,9 +37,10 @@ def _team_chat_mention_predicate(user: User):
 
 
 def _patient_board_mention_predicate(user: User):
-    """Match patient-board rows where the current user is @-ed by role OR by user_id."""
+    """Match patient-board rows where the current user is @-ed by role, by user_id, or by "all"."""
     return or_(
         cast(PatientMessage.mentioned_roles, String).contains(f'"{user.role}"'),
+        cast(PatientMessage.mentioned_roles, String).contains('"all"'),
         cast(PatientMessage.mentioned_user_ids, String).contains(f'"{user.id}"'),
     )
 
