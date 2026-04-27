@@ -108,7 +108,7 @@ function getMedicationEndDate(medication: Medication): Date | null {
 }
 
 function formatCalendarDate(date?: Date | null): string {
-  if (!date || isNaN(date.getTime())) return '—';
+  if (!date || isNaN(date.getTime())) return '';
   return date.toLocaleDateString('zh-TW');
 }
 
