@@ -3,11 +3,13 @@
 Revision ID: 070
 Revises: 069
 Create Date: 2026-04-27 10:00:00.000000
+
+Uses raw SQL ``ADD COLUMN IF NOT EXISTS`` (Postgres ≥ 9.6) so the migration is
+robust to the column already existing or alembic introspection differences
+between dev/prod environments.
 """
 
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
 
 
 revision = "070"
@@ -17,20 +19,12 @@ depends_on = None
 
 
 def upgrade() -> None:
-    bind = op.get_bind()
-    insp = sa.inspect(bind)
-    cols = {c["name"] for c in insp.get_columns("patient_messages")}
-    if "mentioned_user_ids" not in cols:
-        op.add_column(
-            "patient_messages",
-            sa.Column(
-                "mentioned_user_ids",
-                JSONB,
-                nullable=True,
-                server_default=sa.text("'[]'::jsonb"),
-            ),
-        )
+    op.execute(
+        "ALTER TABLE patient_messages "
+        "ADD COLUMN IF NOT EXISTS mentioned_user_ids JSONB "
+        "DEFAULT '[]'::jsonb"
+    )
 
 
 def downgrade() -> None:
-    op.drop_column("patient_messages", "mentioned_user_ids")
+    op.execute("ALTER TABLE patient_messages DROP COLUMN IF EXISTS mentioned_user_ids")
