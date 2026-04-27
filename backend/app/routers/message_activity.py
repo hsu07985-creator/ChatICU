@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Set
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import String, case, cast, func, or_, select
+from sqlalchemy import String, case, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -131,20 +131,16 @@ async def get_my_mentions(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return messages where the current user is mentioned (by role OR user_id), grouped by patient."""
+    """Return messages where the current user's role is mentioned, grouped by patient."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_back)
     role = user.role
 
-    # Find messages that mention this user (by role OR by user_id)
+    # Find messages that mention this user's role (JSONB contains)
     base_stmt = (
         select(PatientMessage)
         .where(PatientMessage.timestamp >= cutoff)
-        .where(
-            or_(
-                cast(PatientMessage.mentioned_roles, String).contains(f'"{role}"'),
-                cast(PatientMessage.mentioned_user_ids, String).contains(f'"{user.id}"'),
-            )
-        )
+        .where(PatientMessage.mentioned_roles.isnot(None))
+        .where(cast(PatientMessage.mentioned_roles, String).contains(f'"{role}"'))
     )
     if unread_only:
         base_stmt = base_stmt.where(PatientMessage.is_read == False)  # noqa: E712
@@ -185,7 +181,6 @@ async def get_my_mentions(
                     "timestamp": m.timestamp.isoformat() if m.timestamp else None,
                     "isRead": m.is_read,
                     "mentionedRoles": m.mentioned_roles or [],
-                    "mentionedUserIds": m.mentioned_user_ids or [],
                     "tags": m.tags or [],
                 }
                 for m in msgs

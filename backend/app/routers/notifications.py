@@ -36,14 +36,6 @@ def _team_chat_mention_predicate(user: User):
     )
 
 
-def _patient_board_mention_predicate(user: User):
-    """Match patient-board rows where the current user is @-ed by role OR by user_id."""
-    return or_(
-        cast(PatientMessage.mentioned_roles, String).contains(f'"{user.role}"'),
-        cast(PatientMessage.mentioned_user_ids, String).contains(f'"{user.id}"'),
-    )
-
-
 @router.get("/summary")
 async def get_notification_summary(
     user: User = Depends(get_current_user),
@@ -63,7 +55,8 @@ async def get_notification_summary(
         select(func.count(PatientMessage.id))
         .where(PatientMessage.timestamp >= cutoff)
         .where(PatientMessage.is_read == False)  # noqa: E712
-        .where(_patient_board_mention_predicate(user))
+        .where(PatientMessage.mentioned_roles.isnot(None))
+        .where(cast(PatientMessage.mentioned_roles, String).contains(f'"{user.role}"'))
     )
     tc_mentions_stmt = (
         select(func.count(TeamChatMessage.id))
@@ -111,7 +104,8 @@ async def get_recent_notifications(
         select(PatientMessage, Patient.bed_number, Patient.name)
         .join(Patient, Patient.id == PatientMessage.patient_id, isouter=True)
         .where(PatientMessage.timestamp >= cutoff)
-        .where(_patient_board_mention_predicate(user))
+        .where(PatientMessage.mentioned_roles.isnot(None))
+        .where(cast(PatientMessage.mentioned_roles, String).contains(f'"{user.role}"'))
         .order_by(PatientMessage.timestamp.desc())
         .limit(limit)
     )
