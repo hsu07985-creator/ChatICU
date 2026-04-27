@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { getUsers, createUser, updateUser as updateUserApi, UsersResponse, User as ApiUser } from '../../lib/api/admin';
+import { useAuth } from '../../lib/auth-context';
 import { Button } from '../../components/ui/button';
 import { ButtonLoadingIndicator } from '../../components/ui/button-loading-indicator';
 import { Badge } from '../../components/ui/badge';
@@ -56,8 +57,13 @@ interface User {
   createdAt: string;
 }
 
+type StatusFilter = 'all' | 'active' | 'inactive';
+
 export function UsersPage() {
+  const { user: currentUser } = useAuth();
+  const currentUserId = currentUser?.id;
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -107,12 +113,17 @@ export function UsersPage() {
     },
   };
 
-  const filteredUsers = users.filter(user =>
-    user.name.includes(searchTerm) ||
-    user.username.includes(searchTerm) ||
-    user.email.includes(searchTerm) ||
-    user.unit.includes(searchTerm)
-  );
+  const filteredUsers = users.filter(user => {
+    const matchesSearch =
+      user.name.includes(searchTerm) ||
+      user.username.includes(searchTerm) ||
+      user.email.includes(searchTerm) ||
+      user.unit.includes(searchTerm);
+    if (!matchesSearch) return false;
+    if (statusFilter === 'active') return user.active;
+    if (statusFilter === 'inactive') return !user.active;
+    return true;
+  });
 
   const getRoleBadge = (role: User['role']) => {
     const config = {
@@ -232,10 +243,11 @@ export function UsersPage() {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('確定要停用此帳號嗎？')) return;
-
     const user = users.find(u => u.id === userId);
     if (!user) return;
+
+    const adminWarning = user.role === 'admin' ? '\n\n⚠️ 這是管理員帳號，停用後該管理員將無法登入。' : '';
+    if (!confirm(`確定要停用帳號「${user.name}（${user.username}）」嗎？${adminWarning}`)) return;
 
     setDeletingUserId(userId);
     try {
@@ -315,14 +327,37 @@ export function UsersPage() {
                 系統中所有使用者帳號的詳細資訊
               </CardDescription>
             </div>
-            <div className="w-[300px] relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="搜尋帳號、姓名、單位..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex items-center gap-2">
+              <div className="inline-flex rounded-md border border-slate-200 dark:border-slate-700 overflow-hidden text-xs">
+                {([
+                  { key: 'all', label: `全部 (${users.length})` },
+                  { key: 'active', label: `啟用中 (${users.filter(u => u.active).length})` },
+                  { key: 'inactive', label: `已停用 (${users.filter(u => !u.active).length})` },
+                ] as const).map(({ key, label }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setStatusFilter(key)}
+                    aria-pressed={statusFilter === key}
+                    className={`px-3 h-8 transition-colors ${
+                      statusFilter === key
+                        ? 'bg-brand text-white'
+                        : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    } ${key !== 'all' ? 'border-l border-slate-200 dark:border-slate-700' : ''}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="w-[300px] relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="搜尋帳號、姓名、單位..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -368,7 +403,8 @@ export function UsersPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => void handleToggleStatus(user.id)}
-                          disabled={user.role === 'admin' || togglingUserId === user.id}
+                          disabled={user.id === currentUserId || togglingUserId === user.id}
+                          title={user.id === currentUserId ? '無法停用自己的帳號' : (user.active ? '停用此帳號' : '啟用此帳號')}
                         >
                           {user.active ? (
                             <Lock className="h-4 w-4" />
@@ -383,7 +419,8 @@ export function UsersPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => void handleDeleteUser(user.id)}
-                          disabled={user.role === 'admin' || deletingUserId === user.id}
+                          disabled={user.id === currentUserId || deletingUserId === user.id}
+                          title={user.id === currentUserId ? '無法刪除自己的帳號' : '停用此帳號'}
                           className="text-red-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
                         >
                           <Trash2 className="h-4 w-4" />
