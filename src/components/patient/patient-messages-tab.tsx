@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { Activity, AlertCircle, CheckCircle2, ChevronRight, Clock, Filter, MessagesSquare, Pill, Plus, Reply, Shield, Stethoscope, Tag, ThumbsDown, ThumbsUp, Trash2, User, Send, X, XCircle } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Activity, AlertCircle, AtSign, CheckCircle2, ChevronRight, Clock, Filter, MessagesSquare, Pill, Plus, Reply, Shield, Stethoscope, Tag, ThumbsDown, ThumbsUp, Trash2, User, Send, X, XCircle } from 'lucide-react';
 import type { UserRole } from '../../lib/auth-context';
 import type { PatientMessage } from '../../lib/api';
+import { getTeamUsers, type TeamUser } from '../../lib/api/team-chat';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { ButtonLoadingIndicator } from '../ui/button-loading-indicator';
@@ -29,13 +30,14 @@ interface CustomTagInfo {
 
 interface PatientMessagesTabProps {
   patientId?: string;
+  userId?: string;
   userRole?: UserRole;
   messages: PatientMessage[];
   messagesLoading: boolean;
   messageInput: string;
   onMessageInputChange: (value: string) => void;
-  onSendGeneralMessage: (replyToId?: string, tags?: string[], mentionedRoles?: string[]) => void | Promise<void>;
-  onSendMedicationAdvice: (replyToId?: string, tags?: string[], mentionedRoles?: string[]) => void | Promise<void>;
+  onSendGeneralMessage: (replyToId?: string, tags?: string[], mentionedRoles?: string[], mentionedUserIds?: string[]) => void | Promise<void>;
+  onSendMedicationAdvice: (replyToId?: string, tags?: string[], mentionedRoles?: string[], mentionedUserIds?: string[]) => void | Promise<void>;
   onMarkAllRead: () => void | Promise<void>;
   onMarkMessageRead: (messageId: string) => void | Promise<void>;
   formatTimestamp: (timestamp: string) => string;
@@ -191,6 +193,78 @@ function TagSelector({
   );
 }
 
+function UserMentionSelector({
+  users,
+  selectedIds,
+  onAdd,
+}: {
+  users: TeamUser[];
+  selectedIds: string[];
+  onAdd: (userId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+
+  const selectedSet = new Set(selectedIds);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return users
+      .filter((u) => !selectedSet.has(u.id))
+      .filter((u) => (q ? u.name.toLowerCase().includes(q) : true))
+      .slice(0, 12);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [users, query, selectedIds.join(',')]);
+
+  if (users.length === 0) return null;
+
+  return (
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setQuery(''); }}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+        >
+          <AtSign className="h-3 w-3" />
+          指定人員
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-2" align="start">
+        <Input
+          placeholder="搜尋姓名..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="h-7 text-xs mb-2"
+          autoFocus
+        />
+        <div className="max-h-56 overflow-y-auto space-y-0.5">
+          {filtered.length === 0 ? (
+            <div className="text-xs text-muted-foreground px-2 py-3 text-center">
+              {query ? '無符合的使用者' : '已全部加入'}
+            </div>
+          ) : (
+            filtered.map((u) => {
+              const cfg = ROLE_CONFIG[u.role];
+              return (
+                <button
+                  key={u.id}
+                  type="button"
+                  className="w-full flex items-center gap-2 rounded px-2 py-1 text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left"
+                  onClick={() => { onAdd(u.id); setQuery(''); setOpen(false); }}
+                >
+                  <span className="font-medium text-slate-800 dark:text-slate-200 truncate">{u.name}</span>
+                  {cfg && (
+                    <span className={`text-[10px] ${cfg.color} shrink-0`}>{cfg.label}</span>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   '建議處方': { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
   '主動建議': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
@@ -288,6 +362,7 @@ function PharmacyTagSelector({
 
 export function PatientMessagesTab({
   patientId,
+  userId,
   userRole,
   messages,
   messagesLoading,
@@ -312,9 +387,31 @@ export function PatientMessagesTab({
   const [composeTags, setComposeTags] = useState<string[]>([]);
   const [filterTag, setFilterTag] = useState<string | null>(null);
   const [composeMentionedRoles, setComposeMentionedRoles] = useState<string[]>([]);
+  const [composeMentionedUserIds, setComposeMentionedUserIds] = useState<string[]>([]);
+  const [teamUsers, setTeamUsers] = useState<TeamUser[]>([]);
   const [sending, setSending] = useState(false);
   const [processingMessageId, setProcessingMessageId] = useState<string | null>(null);
   const [respondingAdviceId, setRespondingAdviceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getTeamUsers()
+      .then((users) => { if (!cancelled) setTeamUsers(users); })
+      .catch(() => { /* picker just stays empty if it fails */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  const userMap = useMemo(() => {
+    const m = new Map<string, TeamUser>();
+    for (const u of teamUsers) m.set(u.id, u);
+    return m;
+  }, [teamUsers]);
+
+  // Exclude the current user from the picker — @ing yourself is a no-op
+  const pickableUsers = useMemo(
+    () => teamUsers.filter((u) => u.id !== userId),
+    [teamUsers, userId],
+  );
 
   const filteredMessages = filterTag
     ? messages.filter((m) => m.tags?.includes(filterTag))
@@ -370,17 +467,19 @@ export function PatientMessagesTab({
     );
   };
 
-  const handleSend = async (sendFn: (replyToId?: string, tags?: string[], mentionedRoles?: string[]) => void | Promise<void>) => {
+  const handleSend = async (sendFn: (replyToId?: string, tags?: string[], mentionedRoles?: string[], mentionedUserIds?: string[]) => void | Promise<void>) => {
     setSending(true);
     try {
       await sendFn(
         replyToId ?? undefined,
         composeTags.length > 0 ? composeTags : undefined,
         composeMentionedRoles.length > 0 ? composeMentionedRoles : undefined,
+        composeMentionedUserIds.length > 0 ? composeMentionedUserIds : undefined,
       );
       setReplyToId(null);
       setComposeTags([]);
       setComposeMentionedRoles([]);
+      setComposeMentionedUserIds([]);
     } finally {
       setSending(false);
     }
@@ -526,6 +625,27 @@ export function PatientMessagesTab({
                   </button>
                 );
               })}
+              {composeMentionedUserIds.map((uid) => {
+                const u = userMap.get(uid);
+                const label = u?.name ?? uid;
+                return (
+                  <button
+                    key={uid}
+                    type="button"
+                    onClick={() => setComposeMentionedUserIds((prev) => prev.filter((x) => x !== uid))}
+                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium border bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-200"
+                    title="移除指定"
+                  >
+                    @{label}
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                );
+              })}
+              <UserMentionSelector
+                users={pickableUsers}
+                selectedIds={composeMentionedUserIds}
+                onAdd={(uid) => setComposeMentionedUserIds((prev) => prev.includes(uid) || prev.length >= 20 ? prev : [...prev, uid])}
+              />
             </div>
 
             <div className="flex gap-2">
@@ -695,10 +815,14 @@ export function PatientMessagesTab({
                     const replies = message.replies ?? [];
                     const isThreadExpanded = expandedThreads.has(message.id);
 
+                    const mentionsMeByRole = !!userRole && !!message.mentionedRoles?.includes(userRole);
+                    const mentionsMeById = !!userId && !!message.mentionedUserIds?.includes(userId);
+                    const mentionsMe = mentionsMeByRole || mentionsMeById;
+
                     return (
                       <div key={message.id}>
                         <div className={`rounded-md border border-slate-200 dark:border-slate-700 border-l-[3px] ${
-                          userRole && message.mentionedRoles?.includes(userRole)
+                          mentionsMe
                             ? 'border-l-orange-400 bg-orange-50/30'
                             : typeStyle
                         } ${!message.isRead ? 'ring-1 ring-blue-200' : ''}`}>
@@ -733,6 +857,20 @@ export function PatientMessagesTab({
                                   @{ROLE_CONFIG[role]?.label ?? role}
                                 </Badge>
                               ))}
+                              {(message.mentionedUserIds?.length ?? 0) > 0 && message.mentionedUserIds!.map((uid) => {
+                                const u = userMap.get(uid);
+                                const isSelf = !!userId && uid === userId;
+                                return (
+                                  <Badge
+                                    key={uid}
+                                    className={`text-xs shrink-0 hover:bg-orange-100 border-orange-300 ${
+                                      isSelf ? 'bg-orange-200 text-orange-900 font-semibold' : 'bg-orange-100 text-orange-800'
+                                    }`}
+                                  >
+                                    @{u?.name ?? uid.slice(0, 8)}
+                                  </Badge>
+                                );
+                              })}
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setReplyToId(message.id)}>

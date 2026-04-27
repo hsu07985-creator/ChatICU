@@ -257,6 +257,7 @@ def msg_to_dict(
         "replyCount": msg.reply_count or 0,
         "tags": msg.tags or [],
         "mentionedRoles": msg.mentioned_roles or [],
+        "mentionedUserIds": msg.mentioned_user_ids or [],
     }
     if advice_accepted is not _UNSET:
         d["adviceAccepted"] = advice_accepted
@@ -527,6 +528,7 @@ async def create_message(
         reply_to_id=body.replyToId,
         tags=body.tags or [],
         mentioned_roles=body.mentionedRoles or [],
+        mentioned_user_ids=body.mentionedUserIds or [],
     )
     db.add(msg)
     await db.flush()

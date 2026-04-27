@@ -671,7 +671,7 @@ export function PatientDetailPage() {
   }, [id, refreshTags]);
 
   // 發送留言板留言
-  const handleSendBoardMessage = useCallback(async (replyToId?: string, tags?: string[], mentionedRoles?: string[]) => {
+  const handleSendBoardMessage = useCallback(async (replyToId?: string, tags?: string[], mentionedRoles?: string[], mentionedUserIds?: string[]) => {
     if (!messageInput.trim() || !id) return;
 
     try {
@@ -681,6 +681,7 @@ export function PatientDetailPage() {
         replyToId,
         tags,
         mentionedRoles,
+        mentionedUserIds,
       });
       if (replyToId) {
         await refreshMessagesOnly();
@@ -696,7 +697,7 @@ export function PatientDetailPage() {
   }, [messageInput, id, refreshMessagesOnly]);
 
   // 發送用藥建議
-  const handleSendMedicationAdvice = useCallback(async (replyToId?: string, tags?: string[], mentionedRoles?: string[]) => {
+  const handleSendMedicationAdvice = useCallback(async (replyToId?: string, tags?: string[], mentionedRoles?: string[], mentionedUserIds?: string[]) => {
     if (!messageInput.trim() || !id) return;
     if (user?.role !== 'pharmacist') {
       toast.error('只有藥師可以發送用藥建議');
@@ -709,6 +710,7 @@ export function PatientDetailPage() {
         replyToId,
         tags,
         mentionedRoles,
+        mentionedUserIds,
       });
       if (replyToId) {
         await refreshMessagesOnly();
@@ -1935,6 +1937,7 @@ export function PatientDetailPage() {
         {/* 留言板 */}
         <PatientMessagesTab
           patientId={id}
+          userId={user?.id}
           userRole={user?.role}
           messages={messages}
           messagesLoading={messagesLoading}

@@ -23,6 +23,7 @@ export interface PatientMessage {
   replies?: PatientMessage[];
   tags?: string[];
   mentionedRoles?: string[];
+  mentionedUserIds?: string[];
   adviceRecordId?: string;
   adviceAccepted?: boolean | null;
   adviceRespondedBy?: string;
@@ -42,6 +43,7 @@ export interface SendMessageData {
   replyToId?: string;
   tags?: string[];
   mentionedRoles?: string[];
+  mentionedUserIds?: string[];
 }
 
 // API 回應類型
@@ -125,6 +127,7 @@ export interface MentionMessage {
   timestamp: string;
   isRead: boolean;
   mentionedRoles: string[];
+  mentionedUserIds?: string[];
   tags: string[];
 }
 
