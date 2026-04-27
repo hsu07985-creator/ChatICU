@@ -737,7 +737,14 @@ export function PatientMedicationsTab({
             <Card className="border-border">
               <CardHeader className="pb-2 space-y-1">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">Pain Score</CardTitle>
+                  <div className="flex items-baseline gap-2">
+                    <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">Pain Score</CardTitle>
+                    {painScoreValue !== null && (
+                      <span className="text-2xl font-bold tabular-nums leading-none text-slate-900 dark:text-slate-100">
+                        {painScoreValue}
+                      </span>
+                    )}
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"
@@ -775,7 +782,14 @@ export function PatientMedicationsTab({
             <Card className="border-border">
               <CardHeader className="pb-2 space-y-1">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">RASS Score</CardTitle>
+                  <div className="flex items-baseline gap-2">
+                    <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">RASS Score</CardTitle>
+                    {rassScoreValue !== null && (
+                      <span className="text-2xl font-bold tabular-nums leading-none text-slate-900 dark:text-slate-100">
+                        {rassScoreValue > 0 ? `+${rassScoreValue}` : rassScoreValue}
+                      </span>
+                    )}
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"
