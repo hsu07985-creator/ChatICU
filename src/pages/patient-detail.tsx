@@ -2018,6 +2018,8 @@ export function PatientDetailPage() {
           formatMedicationRegimen={formatMedicationRegimen}
           painScoreValue={scores.painScoreValue}
           rassScoreValue={scores.rassScoreValue}
+          painScoreTimestamp={scores.painScoreTimestamp}
+          rassScoreTimestamp={scores.rassScoreTimestamp}
           onRecordScore={scores.handleRecordScore}
           onOpenScoreTrend={scores.handleOpenScoreTrend}
           scoreTrendOpen={scores.scoreTrendOpen}

@@ -5,6 +5,8 @@ import { getLatestScores, recordScore, deleteScore, getScoreTrends, type ScoreEn
 export interface PatientScoresState {
   painScoreValue: number | null;
   rassScoreValue: number | null;
+  painScoreTimestamp: string | null;
+  rassScoreTimestamp: string | null;
   scoreTrendOpen: boolean;
   scoreTrendType: 'pain' | 'rass';
   scoreTrendData: { date: string; value: number }[];
@@ -19,6 +21,8 @@ export interface PatientScoresState {
 export function usePatientScores(patientId: string | undefined): PatientScoresState {
   const [painScoreValue, setPainScoreValue] = useState<number | null>(null);
   const [rassScoreValue, setRassScoreValue] = useState<number | null>(null);
+  const [painScoreTimestamp, setPainScoreTimestamp] = useState<string | null>(null);
+  const [rassScoreTimestamp, setRassScoreTimestamp] = useState<string | null>(null);
   const [scoreTrendOpen, setScoreTrendOpen] = useState(false);
   const [scoreTrendType, setScoreTrendType] = useState<'pain' | 'rass'>('pain');
   const [scoreTrendData, setScoreTrendData] = useState<{ date: string; value: number }[]>([]);
@@ -43,9 +47,14 @@ export function usePatientScores(patientId: string | undefined): PatientScoresSt
 
   const handleRecordScore = useCallback(async (scoreType: 'pain' | 'rass', value: number) => {
     if (!patientId) return;
-    await recordScore(patientId, { score_type: scoreType, value });
-    if (scoreType === 'pain') setPainScoreValue(value);
-    else setRassScoreValue(value);
+    const entry = await recordScore(patientId, { score_type: scoreType, value });
+    if (scoreType === 'pain') {
+      setPainScoreValue(value);
+      setPainScoreTimestamp(entry.timestamp);
+    } else {
+      setRassScoreValue(value);
+      setRassScoreTimestamp(entry.timestamp);
+    }
     toast.success(`已記錄 ${scoreType === 'pain' ? 'Pain' : 'RASS'} = ${value}`);
     setScoreTrendType(scoreType);
     setScoreTrendOpen(true);
@@ -74,6 +83,8 @@ export function usePatientScores(patientId: string | undefined): PatientScoresSt
       const latest = await getLatestScores(patientId);
       setPainScoreValue(latest.pain?.value ?? null);
       setRassScoreValue(latest.rass?.value ?? null);
+      setPainScoreTimestamp(latest.pain?.timestamp ?? null);
+      setRassScoreTimestamp(latest.rass?.timestamp ?? null);
     } catch {
       // scores endpoint may not exist yet
     }
@@ -82,6 +93,8 @@ export function usePatientScores(patientId: string | undefined): PatientScoresSt
   return {
     painScoreValue,
     rassScoreValue,
+    painScoreTimestamp,
+    rassScoreTimestamp,
     scoreTrendOpen,
     scoreTrendType,
     scoreTrendData,

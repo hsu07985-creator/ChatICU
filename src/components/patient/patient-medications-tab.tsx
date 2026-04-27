@@ -154,11 +154,22 @@ function rassColor(v: number): string {
   return 'bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800';
 }
 
+function formatScoreTimestamp(ts: string): string {
+  return new Date(ts).toLocaleString('zh-TW', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
 function ScoreSelector({
   min,
   max,
   currentValue,
   onSelect,
+  onPendingChange,
   formatLabel,
   colorFn,
 }: {
@@ -166,6 +177,7 @@ function ScoreSelector({
   max: number;
   currentValue: number | null;
   onSelect: (v: number) => void;
+  onPendingChange?: (v: number | null) => void;
   formatLabel?: (v: number) => string;
   colorFn?: (v: number) => string;
 }) {
@@ -175,12 +187,17 @@ function ScoreSelector({
   const fmt = useCallback((v: number) => formatLabel ? formatLabel(v) : `${v}`, [formatLabel]);
   const values = Array.from({ length: max - min + 1 }, (_, i) => min + i);
 
+  const updatePending = (v: number | null) => {
+    setPending(v);
+    onPendingChange?.(v);
+  };
+
   const handleConfirm = async () => {
     if (pending === null) return;
     setSubmitting(true);
     try {
       await onSelect(pending);
-      setPending(null);
+      updatePending(null);
     } finally {
       setSubmitting(false);
     }
@@ -198,7 +215,7 @@ function ScoreSelector({
               key={v}
               type="button"
               disabled={submitting}
-              onClick={() => setPending(v)}
+              onClick={() => updatePending(v)}
               className={`flex-1 py-1.5 text-xs font-semibold tabular-nums rounded transition-all border
                 ${isSelected
                   ? `${color} ring-2 ring-brand ring-offset-1 scale-105 shadow-sm`
@@ -231,7 +248,7 @@ function ScoreSelector({
             size="sm"
             className="h-7 px-2 text-xs text-muted-foreground"
             disabled={submitting}
-            onClick={() => setPending(null)}
+            onClick={() => updatePending(null)}
           >
             取消
           </Button>
@@ -547,6 +564,8 @@ interface PatientMedicationsTabProps {
   formatMedicationRegimen: (medication: Medication) => string;
   painScoreValue: number | null;
   rassScoreValue: number | null;
+  painScoreTimestamp?: string | null;
+  rassScoreTimestamp?: string | null;
   onRecordScore: (scoreType: 'pain' | 'rass', value: number) => Promise<void>;
   onOpenScoreTrend: (scoreType: 'pain' | 'rass') => void;
   scoreTrendOpen: boolean;
@@ -572,6 +591,8 @@ export function PatientMedicationsTab({
   formatMedicationRegimen,
   painScoreValue,
   rassScoreValue,
+  painScoreTimestamp,
+  rassScoreTimestamp,
   onRecordScore,
   onOpenScoreTrend,
   scoreTrendOpen,
@@ -584,6 +605,8 @@ export function PatientMedicationsTab({
 }: PatientMedicationsTabProps) {
   // medView：all=全部 / active=使用中 / regular=常規（使用中且非 PRN,STAT）/ discontinued=已停用 / duplicate=重複用藥
   const [medView, setMedView] = useState<'active' | 'regular' | 'discontinued' | 'all' | 'duplicate'>('active');
+  const [painPending, setPainPending] = useState<number | null>(null);
+  const [rassPending, setRassPending] = useState<number | null>(null);
   const [detailMedication, setDetailMedication] = useState<Medication | null>(null);
   const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
   const [editForm, setEditForm] = useState({
@@ -739,9 +762,9 @@ export function PatientMedicationsTab({
                 <div className="flex items-center justify-between">
                   <div className="flex items-baseline gap-2">
                     <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">Pain Score</CardTitle>
-                    {painScoreValue !== null && (
+                    {(painPending ?? painScoreValue) !== null && (
                       <span className="text-2xl font-bold tabular-nums leading-none text-slate-900 dark:text-slate-100">
-                        {painScoreValue}
+                        {painPending ?? painScoreValue}
                       </span>
                     )}
                   </div>
@@ -754,6 +777,11 @@ export function PatientMedicationsTab({
                     趨勢
                   </Button>
                 </div>
+                {painPending === null && painScoreTimestamp && (
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    最後紀錄：{formatScoreTimestamp(painScoreTimestamp)}
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="pt-0 space-y-3">
                 <ScoreSelector
@@ -761,6 +789,7 @@ export function PatientMedicationsTab({
                   max={10}
                   currentValue={painScoreValue}
                   onSelect={(v) => onRecordScore('pain', v)}
+                  onPendingChange={setPainPending}
                   colorFn={painColor}
                 />
                 <div>
@@ -784,11 +813,15 @@ export function PatientMedicationsTab({
                 <div className="flex items-center justify-between">
                   <div className="flex items-baseline gap-2">
                     <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">RASS Score</CardTitle>
-                    {rassScoreValue !== null && (
-                      <span className="text-2xl font-bold tabular-nums leading-none text-slate-900 dark:text-slate-100">
-                        {rassScoreValue > 0 ? `+${rassScoreValue}` : rassScoreValue}
-                      </span>
-                    )}
+                    {(() => {
+                      const display = rassPending ?? rassScoreValue;
+                      if (display === null) return null;
+                      return (
+                        <span className="text-2xl font-bold tabular-nums leading-none text-slate-900 dark:text-slate-100">
+                          {display > 0 ? `+${display}` : display}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <Button
                     variant="outline"
@@ -799,6 +832,11 @@ export function PatientMedicationsTab({
                     趨勢
                   </Button>
                 </div>
+                {rassPending === null && rassScoreTimestamp && (
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    最後紀錄：{formatScoreTimestamp(rassScoreTimestamp)}
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="pt-0 space-y-3">
                 <ScoreSelector
@@ -806,6 +844,7 @@ export function PatientMedicationsTab({
                   max={4}
                   currentValue={rassScoreValue}
                   onSelect={(v) => onRecordScore('rass', v)}
+                  onPendingChange={setRassPending}
                   formatLabel={(v) => v > 0 ? `+${v}` : `${v}`}
                   colorFn={rassColor}
                 />
