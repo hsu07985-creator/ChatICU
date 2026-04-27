@@ -4,31 +4,24 @@ Used to debug why a recent migration silently failed on Railway. Gated by the
 same ``ADMIN_SYNC_TOKEN`` shared secret as the HIS sync endpoints. Remove
 after the investigation closes.
 """
-from typing import Optional
-
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.database import get_db
+from app.middleware.auth import require_roles
+from app.models.user import User
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/admin", tags=["admin-diag"])
 
 
-def _check_token(x_admin_token: Optional[str]) -> None:
-    if not settings.ADMIN_SYNC_TOKEN or x_admin_token != settings.ADMIN_SYNC_TOKEN:
-        raise HTTPException(status_code=401, detail="Invalid admin token")
-
-
 @router.get("/db-diag")
 async def db_diag(
     table: str = Query("patient_messages", max_length=64, pattern=r"^[a-z_][a-z0-9_]*$"),
-    x_admin_token: Optional[str] = Header(None, alias="x-admin-token"),
+    user: User = Depends(require_roles("admin", "pharmacist")),
     db: AsyncSession = Depends(get_db),
 ):
-    _check_token(x_admin_token)
 
     rev_row = (await db.execute(text("SELECT version_num FROM alembic_version"))).first()
     cols_rows = (
