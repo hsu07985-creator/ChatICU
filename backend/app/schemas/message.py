@@ -11,6 +11,7 @@ class MessageCreate(BaseModel):
     replyToId: Optional[str] = Field(None, max_length=50)
     tags: Optional[List[str]] = None
     mentionedRoles: Optional[List[str]] = None
+    mentionedUserIds: Optional[List[str]] = None
     adviceAction: Optional[str] = Field(None, description="accept or reject (doctor reply to pharmacy advice)")
 
     @field_validator("messageType")
@@ -36,6 +37,17 @@ class MessageCreate(BaseModel):
             for role in v:
                 if role not in allowed:
                     raise ValueError(f"角色須為 {', '.join(sorted(allowed))} 之一")
+        return v
+
+    @field_validator("mentionedUserIds")
+    @classmethod
+    def check_mentioned_user_ids(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        if v is not None:
+            if len(v) > 50:
+                raise ValueError("一次最多 @ 50 位使用者")
+            for uid in v:
+                if not uid or len(uid) > 50:
+                    raise ValueError("使用者 ID 格式不正確")
         return v
 
 
