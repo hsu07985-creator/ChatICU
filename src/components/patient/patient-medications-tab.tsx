@@ -672,7 +672,7 @@ export function PatientMedicationsTab({
   });
 
   const displayedMeds = sortOtherMeds(baseMeds);
-  const canEditMedication = userRole === 'doctor' || userRole === 'np' || userRole === 'pharmacist';
+  const canEditMedication = false;
 
   // Duplicate medication detection: same generic across inpatient ↔ outpatient (active only)
   const duplicateMeds = useMemo(() => {
