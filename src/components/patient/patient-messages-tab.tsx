@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, AlertCircle, AtSign, CheckCircle2, ChevronRight, Clock, Filter, MessagesSquare, Pill, Plus, Reply, Shield, Stethoscope, Tag, ThumbsDown, ThumbsUp, Trash2, User, Send, X, XCircle } from 'lucide-react';
+import { Activity, AlertCircle, CheckCircle2, ChevronRight, Clock, Filter, MessagesSquare, Pill, Plus, Reply, Shield, Stethoscope, Tag, ThumbsDown, ThumbsUp, Trash2, User, Send, X, XCircle } from 'lucide-react';
 import type { UserRole } from '../../lib/auth-context';
 import type { PatientMessage } from '../../lib/api';
 import { getTeamUsers, type TeamUser } from '../../lib/api/team-chat';
+import { MentionTextarea } from '../ui/mention-textarea';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { ButtonLoadingIndicator } from '../ui/button-loading-indicator';
@@ -186,78 +187,6 @@ function TagSelector({
                 </div>
               )}
             </>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function UserMentionSelector({
-  users,
-  selectedIds,
-  onAdd,
-}: {
-  users: TeamUser[];
-  selectedIds: string[];
-  onAdd: (userId: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-
-  const selectedSet = new Set(selectedIds);
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return users
-      .filter((u) => !selectedSet.has(u.id))
-      .filter((u) => (q ? u.name.toLowerCase().includes(q) : true))
-      .slice(0, 12);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [users, query, selectedIds.join(',')]);
-
-  if (users.length === 0) return null;
-
-  return (
-    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setQuery(''); }}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-        >
-          <AtSign className="h-3 w-3" />
-          指定人員
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-64 p-2" align="start">
-        <Input
-          placeholder="搜尋姓名..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="h-7 text-xs mb-2"
-          autoFocus
-        />
-        <div className="max-h-56 overflow-y-auto space-y-0.5">
-          {filtered.length === 0 ? (
-            <div className="text-xs text-muted-foreground px-2 py-3 text-center">
-              {query ? '無符合的使用者' : '已全部加入'}
-            </div>
-          ) : (
-            filtered.map((u) => {
-              const cfg = ROLE_CONFIG[u.role];
-              return (
-                <button
-                  key={u.id}
-                  type="button"
-                  className="w-full flex items-center gap-2 rounded px-2 py-1 text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left"
-                  onClick={() => { onAdd(u.id); setQuery(''); setOpen(false); }}
-                >
-                  <span className="font-medium text-slate-800 dark:text-slate-200 truncate">{u.name}</span>
-                  {cfg && (
-                    <span className={`text-[10px] ${cfg.color} shrink-0`}>{cfg.label}</span>
-                  )}
-                </button>
-              );
-            })
           )}
         </div>
       </PopoverContent>
@@ -559,10 +488,12 @@ export function PatientMessagesTab({
               </div>
             )}
 
-            <Textarea
-              placeholder={replyToMessage ? '輸入回覆內容...' : '輸入照護相關訊息或用藥建議...'}
+            <MentionTextarea
+              placeholder={replyToMessage ? '輸入回覆內容...（輸入 @ 可指定人員）' : '輸入照護相關訊息或用藥建議（輸入 @ 可指定人員）...'}
               value={messageInput}
-              onChange={(e) => onMessageInputChange(e.target.value)}
+              onChange={onMessageInputChange}
+              users={pickableUsers}
+              onMentionsChange={setComposeMentionedUserIds}
               className="min-h-[60px] text-sm border-slate-200"
             />
 
@@ -625,27 +556,6 @@ export function PatientMessagesTab({
                   </button>
                 );
               })}
-              {composeMentionedUserIds.map((uid) => {
-                const u = userMap.get(uid);
-                const label = u?.name ?? uid;
-                return (
-                  <button
-                    key={uid}
-                    type="button"
-                    onClick={() => setComposeMentionedUserIds((prev) => prev.filter((x) => x !== uid))}
-                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium border bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-200"
-                    title="移除指定"
-                  >
-                    @{label}
-                    <X className="h-2.5 w-2.5" />
-                  </button>
-                );
-              })}
-              <UserMentionSelector
-                users={pickableUsers}
-                selectedIds={composeMentionedUserIds}
-                onAdd={(uid) => setComposeMentionedUserIds((prev) => prev.includes(uid) || prev.length >= 20 ? prev : [...prev, uid])}
-              />
             </div>
 
             <div className="flex gap-2">
