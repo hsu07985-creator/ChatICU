@@ -1103,7 +1103,11 @@ export function PatientMedicationsTab({
           {outpatientCount > 0 && (
             <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20">
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-col items-start gap-2">
+                  <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">
+                    門診用藥 Outpatient Medications
+                    <span className="ml-2 text-sm font-normal text-muted-foreground">({outpatientCount})</span>
+                  </CardTitle>
                   <Button
                     variant="outline"
                     size="sm"
@@ -1115,10 +1119,6 @@ export function PatientMedicationsTab({
                       <span className="ml-1 text-muted-foreground">({selfSuppliedMeds.length})</span>
                     )}
                   </Button>
-                  <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">
-                    門診用藥 Outpatient Medications
-                    <span className="ml-2 text-sm font-normal text-muted-foreground">({outpatientCount})</span>
-                  </CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="pt-0 space-y-4">
