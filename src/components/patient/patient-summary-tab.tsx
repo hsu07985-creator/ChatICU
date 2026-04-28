@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   streamClinicalSummary,
-  getReadinessReason,
-  type AIReadiness,
 } from '../../lib/api/ai';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
@@ -54,7 +52,6 @@ interface PatientSummaryTabPatient {
 interface PatientSummaryTabProps {
   patient: PatientSummaryTabPatient;
   userRole?: string;
-  aiReadiness: AIReadiness | null;
   onPatientUpdate?: (updated: Partial<PatientSummaryTabPatient>) => void;
   /** Wave 6b — 風險卡片「查看詳情」切到用藥 tab 的 callback */
   onNavigateToMeds?: () => void;
@@ -198,7 +195,7 @@ function SymptomTimeline({ records }: { records: SymptomRecord[] }) {
 
 /* ── Main Component ─────────────────────────── */
 
-export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate, onNavigateToMeds }: PatientSummaryTabProps) {
+export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }: PatientSummaryTabProps) {
   // Symptom editing state
   const initialSymptoms = Array.isArray(patient.symptoms) ? patient.symptoms : [];
   const [editingSymptoms, setEditingSymptoms] = useState<string[]>(initialSymptoms);
@@ -214,8 +211,9 @@ export function PatientSummaryTab({ patient, aiReadiness, onPatientUpdate, onNav
 
   const hasChanges = JSON.stringify(editingSymptoms) !== JSON.stringify(initialSymptoms);
 
-  const canSummary = aiReadiness ? aiReadiness.feature_gates.clinical_summary : true;
-  const summaryReason = getReadinessReason(aiReadiness, 'clinical_summary');
+  // RAG layer removed — clinical summary is always available.
+  const canSummary = true;
+  const summaryReason = '';
 
   // Load symptom history
   useEffect(() => {

@@ -221,64 +221,6 @@ interface ApiResponse<T> {
   data?: T;
 }
 
-export interface AIReadinessFeatureGates {
-  chat: boolean;
-  clinical_summary: boolean;
-  patient_explanation: boolean;
-  guideline_interpretation: boolean;
-  decision_support: boolean;
-  clinical_polish: boolean;
-  dose_calculation: boolean;
-  drug_interactions: boolean;
-  clinical_query: boolean;
-}
-
-export interface AIReadiness {
-  overall_ready: boolean;
-  checked_at: string;
-  llm: {
-    ready: boolean;
-    provider: string;
-    model: string;
-    reason: string | null;
-  };
-  evidence: {
-    reachable: boolean;
-    ready: boolean;
-    reason: string | null;
-    last_error: string | null;
-  };
-  rag: {
-    ready: boolean;
-    is_indexed: boolean;
-    total_chunks: number;
-    total_documents: number;
-    engine: string;
-    clinical_rules_loaded: boolean;
-  };
-  feature_gates: AIReadinessFeatureGates;
-  blocking_reasons: string[];
-  display_reasons: string[];
-}
-
-export async function getAIReadiness(): Promise<AIReadiness> {
-  const response = await apiClient.get<ApiResponse<AIReadiness>>('/api/v1/ai/readiness');
-  return ensureData(response.data, 'API contract');
-}
-
-export function getReadinessReason(
-  readiness: AIReadiness | null,
-  feature: keyof AIReadinessFeatureGates,
-  fallback = 'AI 服務尚未就緒，請稍後重試。'
-): string {
-  if (!readiness) return fallback;
-  if (readiness.feature_gates[feature]) return '';
-  if (Array.isArray(readiness.display_reasons) && readiness.display_reasons.length > 0) {
-    return readiness.display_reasons.join(' ');
-  }
-  return fallback;
-}
-
 // 發送聊天訊息
 export async function sendChatMessage(
   message: string,
@@ -954,21 +896,6 @@ export async function streamPolishClinicalText(
   return final;
 }
 
-// ─── RAG Status ─────────────────────────────────────────────
-
-export interface RAGStatus {
-  is_indexed: boolean;
-  total_chunks: number;
-  total_documents: number;
-  categories?: Record<string, number>;
-  embedding_dim?: number;
-  embedding_model?: string;
-}
-
-export async function getRAGStatus(): Promise<RAGStatus> {
-  const response = await apiClient.get<ApiResponse<RAGStatus>>('/api/v1/rag/status');
-  return ensureData(response.data, 'API contract');
-}
 
 // ─── Dose Calculation (P3-1) ────────────────────────────────────────
 

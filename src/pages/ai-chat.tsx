@@ -32,8 +32,6 @@ import {
   type DataFreshness,
 } from '../lib/api/ai';
 import type { SessionChatMessage } from '../hooks/use-chat-sessions';
-import { useAiReadiness } from '../hooks/use-ai-readiness';
-import { getReadinessReason } from '../lib/api/ai';
 import { ChatMessageThread } from '../components/patient/chat-message-thread';
 import {
   AlertDialog,
@@ -200,9 +198,9 @@ export function AiChatPage() {
     navigate({ pathname: '/ai-chat', search: next.toString() ? `?${next}` : '' }, { replace: true });
   }, [navigate, searchParams]);
 
-  const { aiReadiness } = useAiReadiness();
-  const canSendAiChat = aiReadiness ? aiReadiness.feature_gates.chat : true;
-  const aiChatGateReason = getReadinessReason(aiReadiness, 'chat');
+  // RAG layer removed — AI chat is pure LLM and always available.
+  const canSendAiChat = true;
+  const aiChatGateReason = '';
 
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | undefined>(undefined);

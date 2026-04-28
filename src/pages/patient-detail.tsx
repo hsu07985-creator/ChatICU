@@ -18,7 +18,6 @@ import {
   updateChatSessionTitle,
   updateMessageFeedback,
   deleteChatSession,
-  getReadinessReason,
   type ChatResponse,
   type Citation as AiCitation,
   type DataFreshness,
@@ -28,7 +27,6 @@ import { copyToClipboard } from '../lib/clipboard-utils';
 import { maskPatientName } from '../lib/utils/patient-name';
 import { useAuth } from '../lib/auth-context';
 import { usePatientScores } from '../hooks/use-patient-scores';
-import { useAiReadiness } from '../hooks/use-ai-readiness';
 import { useTrendChart, type TrendSource } from '../hooks/use-trend-chart';
 import { refreshSharedPatientDataAfterMutation } from '../lib/patient-data-sync';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
@@ -428,8 +426,7 @@ export function PatientDetailPage() {
   const [feedbackingMessageIndex, setFeedbackingMessageIndex] = useState<number | null>(null);
   const [regeneratingMessageIndex, setRegeneratingMessageIndex] = useState<number | null>(null);
 
-  // AI 狀態（hook）
-  const { ragStatus, aiReadiness, isCheckingAiReadiness, refreshAiReadiness } = useAiReadiness();
+  // RAG layer removed — AI features are always available, no readiness gating.
 
   // 病人資料狀態
   const [patient, setPatient] = useState<PatientWithFrontendFields | null>(null);
@@ -863,8 +860,8 @@ export function PatientDetailPage() {
   const getSedation = () => patient.sedation || patient.sanSummary?.sedation || [];
   const getAnalgesia = () => patient.analgesia || patient.sanSummary?.analgesia || [];
   const getNmb = () => patient.nmb || patient.sanSummary?.nmb || [];
-  const canSendAiChat = aiReadiness ? aiReadiness.feature_gates.chat : true;
-  const aiChatGateReason = getReadinessReason(aiReadiness, 'chat');
+  const canSendAiChat = true;
+  const aiChatGateReason = '';
 
   const refreshChatSessions = async () => {
     if (!id) return;
@@ -1963,7 +1960,6 @@ export function PatientDetailPage() {
           <MedicalRecords
             patientId={patient.id}
             patientName={maskPatientName(patient.name)}
-            aiReadiness={aiReadiness}
             labData={labData}
             medications={allMedications}
           />
@@ -2039,7 +2035,6 @@ export function PatientDetailPage() {
           <PatientSummaryTab
             patient={patient}
             userRole={user?.role}
-            aiReadiness={aiReadiness}
             onNavigateToMeds={() => setActiveTab('meds')}
           />
         </TabsContent>

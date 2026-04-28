@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { getReadinessReason, streamPolishClinicalText, type AIReadiness } from '../lib/api/ai';
+import { streamPolishClinicalText } from '../lib/api/ai';
 import {
   listRecordTemplates,
   createRecordTemplate,
@@ -44,7 +44,6 @@ import { toast } from 'sonner';
 interface MedicalRecordsProps {
   patientId: string;
   patientName?: string;
-  aiReadiness?: AIReadiness | null;
   labData?: LabData | null;
   medications?: Medication[] | null;
 }
@@ -231,13 +230,13 @@ function saveDrafts(patientId: string, drafts: Drafts) {
 
 export function MedicalRecords({
   patientId,
-  aiReadiness = null,
   labData = null,
   medications = null,
 }: MedicalRecordsProps) {
   const { user } = useAuth();
-  const canPolish = aiReadiness ? aiReadiness.feature_gates.clinical_polish : true;
-  const polishReason = getReadinessReason(aiReadiness, 'clinical_polish');
+  // RAG layer removed — clinical polish is always available.
+  const canPolish = true;
+  const polishReason = '';
 
   const getDefaultRecordType = (): RecordType => {
     if (user?.role === 'pharmacist') return 'medication-advice';

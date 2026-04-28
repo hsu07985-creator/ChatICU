@@ -1,6 +1,6 @@
 import type { Medication, VentilatorSettings, VitalSigns } from '../lib/api';
 import type { PatientMessage } from '../lib/api/messages';
-import type { AIReadiness, Citation as AiCitation, DataFreshness } from '../lib/api/ai';
+import type { Citation as AiCitation, DataFreshness } from '../lib/api/ai';
 
 const LAB_CHINESE_NAMES_MAP: Record<string, string> = {
   RespiratoryRate: '呼吸速率', Temperature: '體溫',
@@ -333,42 +333,3 @@ export function groupMessagesByWeek(messages: PatientMessage[]): MessageWeekGrou
   return groups;
 }
 
-export function createReadinessFallback(reason: string): AIReadiness {
-  return {
-    overall_ready: false,
-    checked_at: new Date().toISOString(),
-    llm: {
-      ready: false,
-      provider: 'unknown',
-      model: 'unknown',
-      reason: 'READINESS_CHECK_FAILED',
-    },
-    evidence: {
-      reachable: false,
-      ready: false,
-      reason: 'READINESS_CHECK_FAILED',
-      last_error: reason,
-    },
-    rag: {
-      ready: false,
-      is_indexed: false,
-      total_chunks: 0,
-      total_documents: 0,
-      engine: 'unknown',
-      clinical_rules_loaded: false,
-    },
-    feature_gates: {
-      chat: false,
-      clinical_summary: false,
-      patient_explanation: false,
-      guideline_interpretation: false,
-      decision_support: false,
-      clinical_polish: false,
-      dose_calculation: false,
-      drug_interactions: false,
-      clinical_query: false,
-    },
-    blocking_reasons: ['READINESS_CHECK_FAILED'],
-    display_reasons: ['AI 服務狀態檢查失敗，已暫時停用 AI 功能。'],
-  };
-}
