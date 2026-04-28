@@ -18,8 +18,8 @@
 | 階段 | 內容 | 工 | 何時 |
 |---|---|---|---|
 | ✅ Phase 0 | 13 個 commits 已上線（DB、cache、HIS sync、bundle、http pool） | 完成 | — |
-| 🔥 Phase 1 | RAG 整層移除（~6000 行刪除） | 1-1.5 天 | **現在** |
-| 📅 Phase 2 | 清雜物（v2、ui/chart、根目錄、sync 腳本提交） | 半天 | Phase 1 完一週後 |
+| ✅ Phase 1 | RAG 整層移除（**已完成 2026-04-29**，6 commits、~6800 行 prod + 1500 行 test 刪除） | 1.5 天 | 完成 |
+| 🔥 Phase 2 | 清雜物（v2、ui/chart、根目錄、sync 腳本提交） | 半天 | **下一步** |
 | 🏗️ Phase 3 | 病人詳情頁大整理（API fan-out + 拆檔 + memo） | 3-4 天 | Phase 2 完後 |
 | 🛠️ Phase 4 | startup_migrations 拆解 + 修 prod warning | 1-2 天 | Phase 3 完後 |
 | 🚧 Phase 5 | Vercel `/api/*` namespace 收斂 | 2-3 天 | Phase 4 完後 |
@@ -45,7 +45,37 @@
 
 ---
 
-## 🔥 Phase 1 — RAG 整層移除（**現在**）
+## ✅ Phase 1 — RAG 整層移除（已完成 2026-04-29）
+
+### 完成摘要
+
+| 階段 | Commit | 內容 |
+|---|---|---|
+| D1a | `6a8537545` | `/admin/vectors` 整層（page + admin.ts/sidebar/App.tsx）— 455 行 |
+| D1b | `fb88ef759` | AI readiness gating 移除（`use-ai-readiness` / `use-patient-ai-status` / pharmacist-advice-widget + ai-chat / patient-detail / medical-records / patient-summary-tab gate 簡化） |
+| D1c | `d42ac156c` | ClinicalQueryPanel + clinical-query 整層（5 個 component/hook + ai.ts 5 個 type/函式） |
+| D2a | `e7bbb0bf9` | RAG routers (`rag.py`、`ai_readiness.py`) + clinical.py 8 個 RAG endpoint + admin/vectors backend handlers + main.py register/RAG warmup（clinical.py 1671→721 行；test_clinical.py 556→148 行；4 test 檔整刪）|
+| D2b | （內含於 D2a） | `/interactions` endpoint 內部本就無 RAG fallback，剝離工作隱性完成 |
+| D3+D4 | `129cf67d0` | 17 個 service 檔（leaf 8 + middle 9）+ 11 個 service test 檔；llm.py 移除 4 dead 函式 + 2 dead TASK_PROMPTS key；main.py / conftest.py / pharmacy_routes/interactions.py 細修 |
+| D5 | `7c58c32f0` | config.py 32 RAG 欄位 + `.env.example` 13 行 + `evidence_gate.py` 整檔（106 行）+ llm.py rerank/citation 函式（183 行）；加 Pydantic `extra="ignore"` 讓 Railway 殘留 env 不擋 startup |
+
+**累積數字**：6 個 commits、~6800 行 prod code 刪除、~1500 行 test code 刪除。全程 pytest 零失敗、prod `/health` 200 不中斷。
+
+### Phase 1 結尾還沒做的事
+
+| 項目 | 負責 | 備註 |
+|---|---|---|
+| Railway dashboard 清掉殘留 RAG env vars | 你（手動） | 不影響 runtime（已加 `extra="ignore"`），純清潔 |
+| 觀察 prod log 1-2 天確認無 ImportError | 你 | Railway redeploy 已驗證 /health 200 |
+| 當 Railway env 清乾淨後，把 `app/config.py:124` 的 `"extra": "ignore"` 改回嚴格 | 任何時候 | 讓未來 typo 能立即發現 |
+
+---
+
+## 📜 Phase 1 原始計劃（保留歷史紀錄）
+
+下面是執行前的 plan，與實際完成內容做對照。
+
+### Phase 1 計劃 — RAG 整層移除（執行前）
 
 ### 為什麼要做
 
@@ -169,9 +199,9 @@
 
 ---
 
-## 📅 Phase 2 — 操作層清理
+## 🔥 Phase 2 — 操作層清理（**下一步**）
 
-完成 Phase 1 後 1-2 週執行。低風險、可一個下午做完。
+Phase 1 已完成（2026-04-29）。低風險、可一個下午做完。
 
 | # | 項目 | 風險 | 工 | 收益 |
 |---|---|---|---|---|
@@ -338,12 +368,16 @@ Phase 5.2 router 整合（看實際需求）
 ## 完整 backlog 看板
 
 ```
-✅ 已上線（13 commits）
-   #1 DB pooler / #2 cache / #3 HIS sync 6× / #4 v2 log /
-   #5 charts / #7A #7B http pool
+✅ 已上線（19 commits）
+   Phase 0:
+     #1 DB pooler / #2 cache / #3 HIS sync 6× / #4 v2 log /
+     #5 charts / #7A #7B http pool
+   Phase 1 RAG 整層移除:
+     D1a 6a8537545 / D1b fb88ef759 / D1c d42ac156c
+     D2a e7bbb0bf9 / D3+D4 129cf67d0 / D5 7c58c32f0
 
-🔥 進行中
-   Phase 1: RAG 整層刪除 (D1-D5)  ← 等 sign-off
+🔥 下一步
+   Phase 2: 操作層清理（v2 / ui-chart / repo 雜物 / sync 腳本 / v2 log）
 
 📅 排隊（已盤點，等動）
    Phase 2.1  /v2/patients 觀察期到 → 刪

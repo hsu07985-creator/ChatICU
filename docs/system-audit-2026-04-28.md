@@ -21,6 +21,33 @@
 | 第二批 | #3 Step 3A：寫 7 個新 invariant 測試 + `SchemaInconsistencyError` 類別 | ✅ 已 push | 2026-04-29 | `9ee1e7780` |
 | 第二批 | #3 Step 3B：實作 batch helpers + refactor `upsert_records` / `insert_records` | ✅ 已 push（107 測試全綠 / Railway 健康） | 2026-04-29 | `4724fa117` |
 | 第二批 | #3 Step 3C：本機跑 `sync_his_snapshots_serial.py -p 50480738 --force` 對比 Step 2 baseline | ✅ 2026-04-29 **19.87 sec/patient**（vs Step 2 ~2 min，6× 提速）；row summary 與 Step 2 一致；Railway log 30m 乾淨 | 2026-04-29 | — |
+| 第三批 | #4 + hotfix：`/v2/patients` PHI-safe access logger middleware | ✅ 觀察 1-2 週累積中 | 2026-04-29 | `52fd9cb9a` `cdb4a6ab0` |
+| 第三批 | #5：移除 charts chunk 首屏 modulepreload（節省 ~113 KB gz） | ✅ Vercel HTML 已驗證無 charts preload | 2026-04-29 | `9f14a92aa` |
+| 第四批 | #7A：drug_rag_client + pad_client 改用 shared `httpx.AsyncClient` (`app/services/_http.py`) | ✅ 已 push | 2026-04-29 | `69eae4ab6` |
+| 第四批 | #7B：source_registry health check 沿用同一 helper | ✅ 已 push | 2026-04-29 | `d728b5543` |
+| **Phase 1 RAG 整層移除** | D1a 前端 `/admin/vectors` 整層 | ✅ 455 行 | 2026-04-29 | `6a8537545` |
+| Phase 1 | D1b AI readiness gating 移除（hooks + ai-chat / patient-detail / medical-records / patient-summary-tab gate 簡化 + 刪 `pharmacist-advice-widget` dead code） | ✅ | 2026-04-29 | `fb88ef759` |
+| Phase 1 | D1c ClinicalQueryPanel + clinical-query 整層（5 個 component/hook + ai.ts 5 個 type/函式） | ✅ | 2026-04-29 | `d42ac156c` |
+| Phase 1 | D2a 後端 RAG routers (`rag.py` / `ai_readiness.py`) 整刪 + clinical.py 8 個 RAG endpoint 刪 + admin/vectors backend handlers + main.py register/RAG warmup（clinical.py 1671→721 行） | ✅ pytest 742 passed | 2026-04-29 | `e7bbb0bf9` |
+| Phase 1 | D2b（內含於 D2a）`/interactions` 內部本就無 RAG fallback，剝離工作隱性完成 | ✅ | — | — |
+| Phase 1 | D3+D4 17 個 service 檔（leaf 8 + middle 9）+ 11 個 service test 檔；llm.py 移除 4 dead 函式 + 2 dead TASK_PROMPTS key；main.py / conftest.py / pharmacy_routes/interactions.py 細修 | ✅ pytest 544 passed | 2026-04-29 | `129cf67d0` |
+| Phase 1 | D5 config.py 32 RAG 欄位 + `.env.example` 13 行 + `evidence_gate.py` 整檔（106 行）+ llm.py rerank/citation 函式（183 行）；加 Pydantic `extra="ignore"` 讓 Railway 殘留 env 不擋 startup | ✅ pytest 544 passed / Railway healthy | 2026-04-29 | `7c58c32f0` |
+
+### Phase 1 累積摘要
+
+- **6 個 commits**（D1a / D1b / D1c / D2a / D3+D4 / D5）
+- **~6800 行 production code 刪除** + **~1500 行 test code 刪除**
+- 完整 pytest **零失敗**（544 passed），prod `/health` 全程 200
+- 移除整個外部 RAG 微服務生態（Source A / Source B / PAD）的客戶端與所有依賴
+- 保留純 LLM endpoint（`/api/v1/clinical/summary/stream`、`/polish*`）+ DB-only `/interactions`
+- AI chat (`/ai/*`) 與 patient_context_builder 完全不變動
+
+### Phase 1 結尾未完成（owner-driven）
+
+| 項目 | 影響 |
+|---|---|
+| Railway dashboard 清掉殘留 RAG env vars（`RAG_AGENTIC_ENABLED` / `RAG_AUTO_INDEX_ON_STARTUP` / `COHERE_API_KEY` 等） | 純清潔，runtime 不影響（已 `extra="ignore"`） |
+| 清完後把 `app/config.py` 的 `extra="ignore"` 改回嚴格預設 | 讓未來 typo 能立即發現 |
 
 ### Step 3 已實作完成（2026-04-29）
 
