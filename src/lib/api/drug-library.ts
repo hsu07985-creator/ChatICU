@@ -64,8 +64,12 @@ export interface DdiDetailItem {
   id: string;
   other_drug: string;
   other_drug_atc: string | null;
+  // effective (override-aware) values used for display
   risk_rating: string;
   severity: string | null;
+  // source (vendor) values — never modified by hospital edits
+  source_risk_rating?: string | null;
+  source_severity?: string | null;
   severity_label: string | null;
   reliability: string | null;
   mechanism: string | null;
@@ -80,6 +84,38 @@ export interface DdiDetailItem {
   verified_by?: string | null;
   verified_by_name?: string | null;
   etag?: number;
+  // Phase 4b override metadata (null when no override active)
+  override_risk_rating?: string | null;
+  override_severity?: string | null;
+  override_reason?: string | null;
+  override_citation?: string | null;
+  overridden_by?: string | null;
+  overridden_by_name?: string | null;
+  overridden_at?: string | null;
+  override_expires_at?: string | null;
+}
+
+export interface ProposalItem {
+  id: number;
+  rule_id: string;
+  kind: string;
+  proposed_changes: Record<string, unknown>;
+  status: 'pending' | 'approved' | 'rejected' | 'withdrawn';
+  proposer_id: string;
+  proposer_name: string;
+  proposer_role: string | null;
+  reason: string;
+  citation: string | null;
+  created_at: string;
+  approver_id: string | null;
+  approver_name: string | null;
+  decided_at: string | null;
+  decision_comment: string | null;
+  source_drug1: string | null;
+  source_drug2: string | null;
+  source_risk_rating: string | null;
+  source_severity: string | null;
+  source_ref: string | null;
 }
 
 export interface RuleHistoryEntry {
@@ -177,4 +213,60 @@ export async function getRuleHistory(ruleId: string): Promise<{ rule_id: string;
     `/pharmacy/drug-library/rules/${encodeURIComponent(ruleId)}/history`,
   );
   return ensureData(r.data, '規則歷史');
+}
+
+// ── Phase 4b proposal/approval endpoints ────────────────────────────
+
+export interface ProposeOverrideBody {
+  override_risk_rating: 'X' | 'D' | 'C' | 'B' | 'A';
+  reason: string;       // ≥30 chars
+  citation: string;     // ≥10 chars (PMID / UpToDate / 院內 SOP)
+  expires_in_days?: number;
+}
+
+export async function proposeOverride(ruleId: string, body: ProposeOverrideBody): Promise<{ proposal_id: number; rule_id: string; status: string }> {
+  const r = await apiClient.post(
+    `/pharmacy/drug-library/rules/${encodeURIComponent(ruleId)}/propose-override`,
+    body,
+  );
+  return ensureData(r.data, '提議 override');
+}
+
+export async function listProposals(status: 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'all' = 'pending'): Promise<{ items: ProposalItem[]; total: number; status_filter: string }> {
+  const r = await apiClient.get('/pharmacy/drug-library/proposals', {
+    params: { status },
+  });
+  return ensureData(r.data, '待批准提議列表');
+}
+
+export async function approveProposal(proposalId: number, comment?: string): Promise<{ proposal_id: number; rule_id: string; applied_risk: string }> {
+  const r = await apiClient.post(
+    `/pharmacy/drug-library/proposals/${proposalId}/approve`,
+    { comment: comment || null },
+  );
+  return ensureData(r.data, '核准提議');
+}
+
+export async function rejectProposal(proposalId: number, comment: string): Promise<{ proposal_id: number; status: string }> {
+  const r = await apiClient.post(
+    `/pharmacy/drug-library/proposals/${proposalId}/reject`,
+    { comment },
+  );
+  return ensureData(r.data, '拒絕提議');
+}
+
+export async function withdrawProposal(proposalId: number): Promise<{ proposal_id: number; status: string }> {
+  const r = await apiClient.post(
+    `/pharmacy/drug-library/proposals/${proposalId}/withdraw`,
+    {},
+  );
+  return ensureData(r.data, '撤回提議');
+}
+
+export async function clearOverride(ruleId: string, comment: string): Promise<{ id: string; override_cleared: boolean }> {
+  const r = await apiClient.post(
+    `/pharmacy/drug-library/rules/${encodeURIComponent(ruleId)}/clear-override`,
+    { comment },
+  );
+  return ensureData(r.data, '清除 override');
 }

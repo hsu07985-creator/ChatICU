@@ -568,14 +568,17 @@ async def get_drug_detail(
           mechanism, clinical_effect, management, discussion,
           "references" AS source_ref, pubmed_ids,
           interacting_members,
-          pharmacist_note, last_verified_at, verified_by, etag
+          pharmacist_note, last_verified_at, verified_by, etag,
+          override_risk_rating, override_severity, override_reason,
+          override_citation, overridden_by, overridden_at, override_expires_at
         FROM drug_interactions
         WHERE is_active = TRUE
           AND (drug1 ILIKE :pat OR drug2 ILIKE :pat
                OR CAST(interacting_members AS TEXT) ILIKE :pat)
         ORDER BY
-          CASE risk_rating WHEN 'X' THEN 0 WHEN 'D' THEN 1 WHEN 'C' THEN 2
-                          WHEN 'B' THEN 3 WHEN 'A' THEN 4 ELSE 5 END
+          CASE COALESCE(override_risk_rating, risk_rating)
+              WHEN 'X' THEN 0 WHEN 'D' THEN 1 WHEN 'C' THEN 2
+              WHEN 'B' THEN 3 WHEN 'A' THEN 4 ELSE 5 END
     """), {"pat": f"%{escaped}%"})
 
     ddi_rows = list(r)
@@ -671,12 +674,19 @@ async def get_drug_detail(
             )
         except Exception:
             pmids = []
+        # Phase 4b: effective risk = override (if set) ELSE source
+        effective_risk = (row.override_risk_rating or row.risk_rating or "").upper()
+        effective_severity = row.override_severity or row.severity
         ddi_out.append({
             "id": row.id,
             "other_drug": other,
             "other_drug_atc": other_atc,
-            "risk_rating": risk_str,
-            "severity": row.severity,
+            # source (vendor) values — never modified
+            "source_risk_rating": risk_str,
+            "source_severity": row.severity,
+            # effective values — what UI should treat as the rule's current rating
+            "risk_rating": effective_risk,
+            "severity": effective_severity,
             "severity_label": row.severity_label,
             "reliability": row.reliability_rating,
             "mechanism": row.mechanism,
@@ -690,6 +700,14 @@ async def get_drug_detail(
             "last_verified_at": row.last_verified_at.isoformat() if row.last_verified_at else None,
             "verified_by": row.verified_by,
             "etag": row.etag,
+            # Phase 4b: override metadata (null when no override active)
+            "override_risk_rating": row.override_risk_rating,
+            "override_severity": row.override_severity,
+            "override_reason": row.override_reason,
+            "override_citation": row.override_citation,
+            "overridden_by": row.overridden_by,
+            "overridden_at": row.overridden_at.isoformat() if row.overridden_at else None,
+            "override_expires_at": row.override_expires_at.isoformat() if row.override_expires_at else None,
         })
 
     # ATC path with Chinese labels for L1/L2/L3 (L4/L5 stay code-only)
@@ -710,16 +728,19 @@ async def get_drug_detail(
         if d["risk_rating"] in risk_counts:
             risk_counts[d["risk_rating"]] += 1
 
-    # Resolve verified_by user IDs → display names (single batch query)
-    verifier_ids = {d["verified_by"] for d in ddi_out if d.get("verified_by")}
-    if verifier_ids:
+    # Resolve verified_by + overridden_by user IDs → display names (one batch)
+    user_ids = {d["verified_by"] for d in ddi_out if d.get("verified_by")}
+    user_ids |= {d["overridden_by"] for d in ddi_out if d.get("overridden_by")}
+    if user_ids:
         ur = await db.execute(text(
             "SELECT id, name FROM users WHERE id = ANY(:ids)"
-        ), {"ids": list(verifier_ids)})
-        verifier_names = {row.id: row.name for row in ur}
+        ), {"ids": list(user_ids)})
+        names = {row.id: row.name for row in ur}
         for d in ddi_out:
             if d.get("verified_by"):
-                d["verified_by_name"] = verifier_names.get(d["verified_by"])
+                d["verified_by_name"] = names.get(d["verified_by"])
+            if d.get("overridden_by"):
+                d["overridden_by_name"] = names.get(d["overridden_by"])
 
     # ── IV compatibility for this drug (Trissel's Handbook etc.) ───
     iv_rows = await db.execute(text("""
@@ -1012,3 +1033,382 @@ async def rule_history(
         "created_at": row.created_at.isoformat() if row.created_at else None,
     } for row in r]
     return success_response(data={"rule_id": rule_id, "history": out})
+
+
+# ────────────────────────────────────────────────────────────────────
+# Phase 4b — hospital override + 4-eye proposal/approval workflow
+# ────────────────────────────────────────────────────────────────────
+
+_RISK_ORDER = {"X": 0, "D": 1, "C": 2, "B": 3, "A": 4}
+_RISK_TO_SEVERITY = {
+    "X": "contraindicated", "D": "major", "C": "moderate",
+    "B": "minor", "A": "none",
+}
+
+
+def _require_admin(user: User) -> None:
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin (director) only")
+
+
+def _validate_override(source_rating: str, override_rating: str) -> None:
+    """Reject illegal severity changes. X→任何降級永禁."""
+    src = (source_rating or "").upper()
+    new = (override_rating or "").upper()
+    if new not in _RISK_ORDER:
+        raise HTTPException(status_code=400, detail=f"Invalid override risk_rating: {new!r}")
+    # Hard rule: contraindicated (X) cannot be downgraded under any circumstance
+    if src == "X" and new != "X":
+        raise HTTPException(
+            status_code=400,
+            detail="X (Avoid combination) 永遠禁止降級。如有必要請改修內部 SOP/警示文字，但 risk_rating 必須維持 X。",
+        )
+
+
+class _ProposeOverrideIn(BaseModel):
+    override_risk_rating: str = Field(min_length=1, max_length=2,
+                                       description="X / D / C / B / A")
+    reason: str = Field(min_length=30, max_length=1000,
+                         description="院內共識決定的理由（≥30 字，存進稽核）")
+    citation: str = Field(min_length=10, max_length=500,
+                           description="證據引用（PMID / UpToDate URL / 院內 SOP 文號）")
+    expires_in_days: int = Field(default=365, ge=30, le=730,
+                                  description="多少天後須重新核驗（30-730）")
+
+
+class _DecisionIn(BaseModel):
+    comment: Optional[str] = Field(default=None, max_length=500)
+
+
+class _RejectIn(BaseModel):
+    comment: str = Field(min_length=10, max_length=500,
+                          description="拒絕理由（≥10 字）")
+
+
+@router.post("/rules/{rule_id}/propose-override")
+async def propose_override(
+    rule_id: str,
+    body: _ProposeOverrideIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Any pharmacist can propose a hospital-side severity override.
+    Validates X→ downgrade hard rule, then writes a pending proposal.
+    Admin must approve (different person) for the override to take effect."""
+    _require_pharmacist(user)
+    rule = await _fetch_rule_or_404(db, rule_id)
+    _validate_override(rule["risk_rating"], body.override_risk_rating)
+
+    # Reject if same proposer already has a pending proposal on this rule
+    r = await db.execute(text("""
+        SELECT COUNT(*) FROM drug_rule_proposals
+        WHERE rule_id = :rid AND proposer_id = :uid AND status = 'pending'
+    """), {"rid": rule_id, "uid": user.id})
+    if r.scalar_one() > 0:
+        raise HTTPException(status_code=409, detail="您對此規則已有一筆待批准的提議")
+
+    new_risk = body.override_risk_rating.upper()
+    proposed_changes = {
+        "override_risk_rating": new_risk,
+        "override_severity": _RISK_TO_SEVERITY.get(new_risk, "moderate"),
+        "expires_in_days": body.expires_in_days,
+    }
+    pid_row = await db.execute(text("""
+        INSERT INTO drug_rule_proposals
+            (rule_id, kind, proposed_changes, proposer_id, proposer_name,
+             proposer_role, reason, citation)
+        VALUES (:rid, 'override', CAST(:changes AS JSONB), :uid, :uname,
+                :urole, :reason, :citation)
+        RETURNING id
+    """), {
+        "rid": rule_id,
+        "changes": _json.dumps(proposed_changes, ensure_ascii=False),
+        "uid": user.id, "uname": user.name, "urole": user.role,
+        "reason": body.reason, "citation": body.citation,
+    })
+    pid = pid_row.scalar_one()
+
+    await _write_audit_log(
+        db, request, user,
+        action="propose_override", entity_type="rule", entity_id=rule_id,
+        before={"source_risk": rule["risk_rating"]},
+        after={"proposed_override_risk": new_risk, "proposal_id": pid},
+        reason=body.reason,
+    )
+    await db.commit()
+    return success_response(data={
+        "proposal_id": pid, "rule_id": rule_id, "status": "pending",
+    })
+
+
+@router.get("/proposals")
+async def list_proposals(
+    status: str = Query("pending", pattern="^(pending|approved|rejected|withdrawn|all)$"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin queue. Lists proposals with embedded source rule info."""
+    _require_admin(user)
+    if status == "all":
+        sql = """
+            SELECT p.id, p.rule_id, p.kind, p.proposed_changes, p.status,
+                   p.proposer_id, p.proposer_name, p.proposer_role,
+                   p.reason, p.citation, p.created_at,
+                   p.approver_id, p.approver_name, p.decided_at, p.decision_comment,
+                   r.drug1, r.drug2, r.risk_rating AS source_risk_rating,
+                   r.severity AS source_severity, r."references" AS source_ref
+            FROM drug_rule_proposals p
+            LEFT JOIN drug_interactions r ON r.id = p.rule_id
+            ORDER BY p.created_at DESC
+            LIMIT 200
+        """
+        params = {}
+    else:
+        sql = """
+            SELECT p.id, p.rule_id, p.kind, p.proposed_changes, p.status,
+                   p.proposer_id, p.proposer_name, p.proposer_role,
+                   p.reason, p.citation, p.created_at,
+                   p.approver_id, p.approver_name, p.decided_at, p.decision_comment,
+                   r.drug1, r.drug2, r.risk_rating AS source_risk_rating,
+                   r.severity AS source_severity, r."references" AS source_ref
+            FROM drug_rule_proposals p
+            LEFT JOIN drug_interactions r ON r.id = p.rule_id
+            WHERE p.status = :status
+            ORDER BY p.created_at DESC
+            LIMIT 200
+        """
+        params = {"status": status}
+
+    r = await db.execute(text(sql), params)
+    out = []
+    for row in r:
+        out.append({
+            "id": row.id,
+            "rule_id": row.rule_id,
+            "kind": row.kind,
+            "proposed_changes": row.proposed_changes,
+            "status": row.status,
+            "proposer_id": row.proposer_id,
+            "proposer_name": row.proposer_name,
+            "proposer_role": row.proposer_role,
+            "reason": row.reason,
+            "citation": row.citation,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+            "approver_id": row.approver_id,
+            "approver_name": row.approver_name,
+            "decided_at": row.decided_at.isoformat() if row.decided_at else None,
+            "decision_comment": row.decision_comment,
+            "source_drug1": row.drug1,
+            "source_drug2": row.drug2,
+            "source_risk_rating": row.source_risk_rating,
+            "source_severity": row.source_severity,
+            "source_ref": row.source_ref,
+        })
+    return success_response(data={"items": out, "total": len(out), "status_filter": status})
+
+
+@router.post("/proposals/{proposal_id}/approve")
+async def approve_proposal(
+    proposal_id: int,
+    body: _DecisionIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin approves a pending override proposal. Cannot self-approve.
+    Applies override + records audit."""
+    _require_admin(user)
+
+    p = await db.execute(text("""
+        SELECT id, rule_id, status, proposer_id, proposer_name, reason, citation,
+               proposed_changes
+        FROM drug_rule_proposals WHERE id = :id
+    """), {"id": proposal_id})
+    prow = p.first()
+    if not prow:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    if prow.status != "pending":
+        raise HTTPException(status_code=409, detail=f"Proposal already {prow.status}")
+    if prow.proposer_id == user.id:
+        raise HTTPException(status_code=400, detail="不可核准自己的提議（4-eye 簽核）")
+
+    rule = await _fetch_rule_or_404(db, prow.rule_id)
+    changes = prow.proposed_changes or {}
+    new_risk = (changes.get("override_risk_rating") or "").upper()
+    new_sev = changes.get("override_severity") or _RISK_TO_SEVERITY.get(new_risk)
+    expires_days = int(changes.get("expires_in_days") or 365)
+    # Re-validate at approve time (rule could have changed since proposal)
+    _validate_override(rule["risk_rating"], new_risk)
+
+    # 1. Mark proposal approved
+    await db.execute(text("""
+        UPDATE drug_rule_proposals
+        SET status = 'approved', approver_id = :uid, approver_name = :uname,
+            decided_at = NOW(), decision_comment = :comment
+        WHERE id = :id
+    """), {"uid": user.id, "uname": user.name,
+            "comment": body.comment, "id": proposal_id})
+
+    # 2. Apply override to drug_interactions
+    await db.execute(text("""
+        UPDATE drug_interactions
+        SET override_risk_rating = :rr,
+            override_severity    = :sev,
+            override_reason      = :reason,
+            override_citation    = :cit,
+            overridden_by        = :uid,
+            overridden_at        = NOW(),
+            override_expires_at  = NOW() + (:days || ' days')::INTERVAL,
+            etag = etag + 1,
+            updated_at = NOW()
+        WHERE id = :rid
+    """), {
+        "rr": new_risk, "sev": new_sev,
+        "reason": prow.reason, "cit": prow.citation,
+        "uid": user.id, "days": str(expires_days),
+        "rid": prow.rule_id,
+    })
+
+    await _write_audit_log(
+        db, request, user,
+        action="approve_override", entity_type="rule", entity_id=prow.rule_id,
+        before={
+            "source_risk": rule["risk_rating"],
+            "previous_override": rule.get("override_risk_rating"),
+            "proposer_id": prow.proposer_id,
+            "proposer_name": prow.proposer_name,
+        },
+        after={
+            "override_risk": new_risk,
+            "expires_in_days": expires_days,
+            "proposal_id": proposal_id,
+        },
+        reason=body.comment,
+    )
+    await db.commit()
+    return success_response(data={
+        "proposal_id": proposal_id, "rule_id": prow.rule_id,
+        "status": "approved", "applied_risk": new_risk,
+    })
+
+
+@router.post("/proposals/{proposal_id}/reject")
+async def reject_proposal(
+    proposal_id: int,
+    body: _RejectIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _require_admin(user)
+    p = await db.execute(text("""
+        SELECT id, rule_id, status, proposer_id FROM drug_rule_proposals WHERE id = :id
+    """), {"id": proposal_id})
+    prow = p.first()
+    if not prow:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    if prow.status != "pending":
+        raise HTTPException(status_code=409, detail=f"Proposal already {prow.status}")
+
+    await db.execute(text("""
+        UPDATE drug_rule_proposals
+        SET status = 'rejected', approver_id = :uid, approver_name = :uname,
+            decided_at = NOW(), decision_comment = :comment
+        WHERE id = :id
+    """), {"uid": user.id, "uname": user.name,
+            "comment": body.comment, "id": proposal_id})
+
+    await _write_audit_log(
+        db, request, user,
+        action="reject_override", entity_type="rule", entity_id=prow.rule_id,
+        before={"proposal_status": "pending"},
+        after={"proposal_status": "rejected", "proposal_id": proposal_id},
+        reason=body.comment,
+    )
+    await db.commit()
+    return success_response(data={
+        "proposal_id": proposal_id, "status": "rejected",
+    })
+
+
+@router.post("/proposals/{proposal_id}/withdraw")
+async def withdraw_proposal(
+    proposal_id: int,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _require_pharmacist(user)
+    p = await db.execute(text("""
+        SELECT id, rule_id, status, proposer_id FROM drug_rule_proposals WHERE id = :id
+    """), {"id": proposal_id})
+    prow = p.first()
+    if not prow:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    if prow.status != "pending":
+        raise HTTPException(status_code=409, detail=f"Proposal already {prow.status}")
+    # Only proposer or admin can withdraw
+    if prow.proposer_id != user.id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only the proposer or admin can withdraw")
+
+    await db.execute(text("""
+        UPDATE drug_rule_proposals
+        SET status = 'withdrawn', decided_at = NOW()
+        WHERE id = :id
+    """), {"id": proposal_id})
+
+    await _write_audit_log(
+        db, request, user,
+        action="withdraw_proposal", entity_type="rule", entity_id=prow.rule_id,
+        after={"proposal_id": proposal_id, "proposal_status": "withdrawn"},
+    )
+    await db.commit()
+    return success_response(data={
+        "proposal_id": proposal_id, "status": "withdrawn",
+    })
+
+
+@router.post("/rules/{rule_id}/clear-override")
+async def clear_override(
+    rule_id: str,
+    body: _RejectIn,  # reuse — needs comment ≥10 chars
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin can clear an active override (e.g. consensus changed back).
+    Reason ≥10 chars logged for audit."""
+    _require_admin(user)
+    rule = await _fetch_rule_or_404(db, rule_id)
+    if not rule.get("override_risk_rating"):
+        # _fetch_rule_or_404 doesn't return override fields; query specifically
+        rr = await db.execute(text("""
+            SELECT override_risk_rating FROM drug_interactions WHERE id = :id
+        """), {"id": rule_id})
+        if not (rr.scalar() or None):
+            raise HTTPException(status_code=409, detail="此規則目前無 override")
+
+    await db.execute(text("""
+        UPDATE drug_interactions
+        SET override_risk_rating = NULL,
+            override_severity    = NULL,
+            override_reason      = NULL,
+            override_citation    = NULL,
+            overridden_by        = NULL,
+            overridden_at        = NULL,
+            override_expires_at  = NULL,
+            etag = etag + 1,
+            updated_at = NOW()
+        WHERE id = :id
+    """), {"id": rule_id})
+
+    await _write_audit_log(
+        db, request, user,
+        action="clear_override", entity_type="rule", entity_id=rule_id,
+        before={"had_override": True},
+        after={"had_override": False},
+        reason=body.comment,
+    )
+    await db.commit()
+    return success_response(data={"id": rule_id, "override_cleared": True})

@@ -93,6 +93,9 @@ export function AppSidebar() {
     { title: '重複用藥', url: '/pharmacy/duplicates', icon: Copy },
     { title: '用藥相容', url: '/pharmacy/compatibility', icon: Droplets },
     { title: '藥物資料庫', url: '/pharmacy/drug-library', icon: Library },
+    ...(user?.role === 'admin'
+      ? [{ title: '提議審核', url: '/pharmacy/drug-library/proposals', icon: FileText }]
+      : []),
     { title: '藥物統計', url: '/pharmacy/advice-statistics', icon: BarChart3 },
   ] : [];
 

@@ -25,6 +25,7 @@ import {
   deprecateRule,
   getDrugDetail,
   getRuleHistory,
+  proposeOverride,
   updateRuleNote,
   verifyRule,
 } from '../../lib/api/drug-library';
@@ -65,6 +66,7 @@ function DdiEditRail({
   const [verifying, setVerifying] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deprecateOpen, setDeprecateOpen] = useState(false);
+  const [proposeOpen, setProposeOpen] = useState(false);
 
   const noteDirty = (noteDraft || '') !== (item.pharmacist_note || '');
 
@@ -139,6 +141,14 @@ function DdiEditRail({
         <Button
           size="sm"
           variant="outline"
+          onClick={() => setProposeOpen(true)}
+          className="h-7 text-xs text-blue-400 border-blue-500/30 hover:bg-blue-500/10"
+        >
+          提議 override
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
           onClick={() => setDeprecateOpen(true)}
           className="h-7 text-xs text-rose-400 border-rose-500/30 hover:bg-rose-500/10"
         >
@@ -154,6 +164,14 @@ function DdiEditRail({
         </Button>
       </div>
 
+      <ProposeOverrideDialog
+        open={proposeOpen}
+        onClose={() => setProposeOpen(false)}
+        ruleId={item.id}
+        ruleLabel={item.other_drug}
+        sourceRisk={item.source_risk_rating || item.risk_rating}
+        onProposed={() => setProposeOpen(false)}
+      />
       <DeprecateDialog
         open={deprecateOpen}
         onClose={() => setDeprecateOpen(false)}
@@ -170,6 +188,136 @@ function DdiEditRail({
         ruleId={item.id}
       />
     </div>
+  );
+}
+
+function ProposeOverrideDialog({
+  open,
+  onClose,
+  ruleId,
+  ruleLabel,
+  sourceRisk,
+  onProposed,
+}: {
+  open: boolean;
+  onClose: () => void;
+  ruleId: string;
+  ruleLabel: string;
+  sourceRisk: string;
+  onProposed: () => void;
+}) {
+  const RISKS = ['X', 'D', 'C', 'B', 'A'] as const;
+  const [newRisk, setNewRisk] = useState<typeof RISKS[number]>('C');
+  const [reason, setReason] = useState('');
+  const [citation, setCitation] = useState('');
+  const [days, setDays] = useState(365);
+  const [submitting, setSubmitting] = useState(false);
+
+  // X→ downgrade is permanently forbidden
+  const xDowngradeBlocked = sourceRisk === 'X' && newRisk !== 'X';
+  const reasonOk = reason.trim().length >= 30;
+  const citOk = citation.trim().length >= 10;
+  const ok = !xDowngradeBlocked && reasonOk && citOk;
+
+  const submit = async () => {
+    if (!ok) return;
+    setSubmitting(true);
+    try {
+      await proposeOverride(ruleId, {
+        override_risk_rating: newRisk,
+        reason: reason.trim(),
+        citation: citation.trim(),
+        expires_in_days: days,
+      });
+      toast.success('已送出提議，等待 admin 核准');
+      onProposed();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || e?.message || '失敗');
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>提議院內 override</DialogTitle>
+          <DialogDescription>
+            來源規則：「× {ruleLabel}」目前為 <Badge variant="outline" className="text-[10px]">{sourceRisk}</Badge>
+            。提議後須經 admin 核准（4-eye）才會生效。
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">院內覆寫為：</div>
+            <div className="flex gap-1.5">
+              {RISKS.map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setNewRisk(r)}
+                  className={`px-3 py-1.5 rounded border text-sm font-mono transition-colors ${
+                    newRisk === r ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+            {xDowngradeBlocked && (
+              <div className="text-xs text-rose-400 mt-1">
+                X (Avoid combination) 永遠禁止降級（僅可維持 X）
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">院內共識理由（≥30 字）</div>
+            <Textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="例：本院神內 2024 共識，SAH 病人在嚴密 BP 監測下可允許此組合..."
+              className="min-h-[80px]"
+              maxLength={1000}
+            />
+            <div className="text-[10px] text-muted-foreground">{reason.length} / 1000（最少 30 字）</div>
+          </div>
+
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">證據引用（≥10 字 — PMID / UpToDate / 院內 SOP 文號）</div>
+            <Textarea
+              value={citation}
+              onChange={(e) => setCitation(e.target.value)}
+              placeholder="例：PMID:32887891；院內 SOP-NEU-2024-03；UpToDate Vasopressors topic"
+              className="min-h-[50px]"
+              maxLength={500}
+            />
+            <div className="text-[10px] text-muted-foreground">{citation.length} / 500（最少 10 字）</div>
+          </div>
+
+          <div>
+            <div className="text-xs text-muted-foreground mb-1">需重新核驗的天數（30-730）</div>
+            <input
+              type="number"
+              min={30}
+              max={730}
+              value={days}
+              onChange={(e) => setDays(parseInt(e.target.value) || 365)}
+              className="w-32 px-2 py-1 text-sm rounded border bg-background"
+            />
+            <span className="ml-2 text-xs text-muted-foreground">天後到期</span>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>取消</Button>
+          <Button disabled={!ok || submitting} onClick={submit}>
+            {submitting && <Loader2 className="size-4 mr-1 animate-spin" />}
+            送出提議
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -330,8 +478,10 @@ function DdiCard({
   onChange: (updates: Partial<DdiDetailItem>) => void;
 }) {
   const reliability = item.reliability ? RELIABILITY_META[item.reliability] : null;
+  const hasOverride = !!item.override_risk_rating;
+  const sourceRisk = item.source_risk_rating || item.risk_rating;
   return (
-    <Card className="border-border/40">
+    <Card className={`border-border/40 ${hasOverride ? 'ring-1 ring-blue-500/30' : ''}`}>
       <CardContent className="py-3 space-y-2">
         <div className="flex items-start justify-between gap-2 flex-wrap">
           <div className="font-medium">
@@ -354,6 +504,31 @@ function DdiCard({
             )}
           </div>
         </div>
+
+        {hasOverride && (
+          <div className="bg-blue-500/5 border border-blue-500/20 rounded p-2 text-xs space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-muted-foreground">原始來源：</span>
+              <span className={`px-1.5 py-0.5 rounded border ${RISK_META[sourceRisk]?.cls || ''} font-mono text-[11px]`}>{sourceRisk}</span>
+              <span className="text-muted-foreground">→ 院內覆寫：</span>
+              <span className={`px-1.5 py-0.5 rounded border ${RISK_META[item.risk_rating]?.cls || ''} font-mono text-[11px] font-semibold`}>{item.risk_rating}</span>
+              <span className="text-blue-400 ml-auto">
+                by {item.overridden_by_name || item.overridden_by}
+              </span>
+            </div>
+            {item.override_reason && (
+              <div><span className="text-muted-foreground">理由：</span>{item.override_reason}</div>
+            )}
+            {item.override_citation && (
+              <div><span className="text-muted-foreground">證據：</span>{item.override_citation}</div>
+            )}
+            {item.override_expires_at && (
+              <div className="text-muted-foreground">
+                到期：{formatTaipei(item.override_expires_at)}
+              </div>
+            )}
+          </div>
+        )}
 
         {item.mechanism && (
           <div className="text-xs">
