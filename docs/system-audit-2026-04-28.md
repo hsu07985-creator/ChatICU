@@ -18,7 +18,16 @@
 | 第一批 | #2 抽 `query-keys.ts` + `patient-data-sync.ts` 補 TanStack invalidate | ✅ 部署完成，新 bundle 上線 | 2026-04-28 | `e2f97b2fd` |
 | 第二批 | #3 Step 1：寫 invariant 測試保護 reconcile / created_at / 邊界 case | ✅ 已 push（純測試，Railway 健康） | 2026-04-28 | `46d39ff38` |
 | 第二批 | #3 Step 2：`upsert_records` 改 `INSERT ... ON CONFLICT DO UPDATE` | ✅ 已 push、人工 review、本機 22 測試綠、單病人實測 ~2 min | 2026-04-28 | `3ad388bde` |
-| 第二批 | #3 Step 3：multi-row VALUES batch + reconcile 改寫 | ⏸ 等尖峰觀察期過後再動 | — | — |
+| 第二批 | #3 Step 3：multi-row VALUES batch + reconcile 改寫 | ⏸ 4 個 gate（見下） + 設計確認後動 | — | — |
+
+### Step 3 進入 gate（必須全部 ✅ 才能動實作）
+
+| Gate | 動作 | 負責 | 狀態 |
+|---|---|---|---|
+| G1 | `railway login` 恢復 live log 觀測能力 | 你 | ⏸ |
+| G2 | 尖峰時段觀察 1-2 小時，確認無 DB pool / prepared statement / ON CONFLICT 相關錯誤 | 你 | ⏸ |
+| G3 | 同一 tab 內 mutation 後切 `/dashboard`、`/patients`，確認有重抓且無 stale | 你 | ⏸ |
+| G4 | Step 3 batch 設計確認（見附錄 D） | 雙方 | ⏸ |
 
 **前置確認**：✅ `backend/.env.his-sync` 顯示 prod 走 Supabase pooler `aws-1-ap-southeast-2.pooler.supabase.com:6543`（transaction mode），§1.1 / §1.2 修法適用。
 
@@ -979,6 +988,175 @@ curl -s https://chaticu-production-8060.up.railway.app/health
 2. VITE_API_URL 洩漏 → ✅ prod bundle 量測 = 0 命中
 3. Vercel 共用路徑 x-request-id → ✅ 仍在
 4. HIS sync 寫入後前端 cache 不知情 → 結合 §3.3 polling + §3.1 雙軌制可解釋整個 stale 鏈路
+
+## 附錄 D：Step 3 batch 設計（實作前確認）
+
+> **目的**：把效能優化和語意變更切乾淨。Step 3 動 SQL 改寫前，先把以下決策定案，避免在 PR review 階段才發現「batch 順手把 delete+insert 改掉了」這類隱性語意改動。
+
+### D.1 batch 範圍 — 只動 SQL 形狀，不動上層流程
+
+**動的部分**：
+- `insert_records()`：per-row `INSERT VALUES (...)` → multi-row `INSERT VALUES (...), (...), ...`
+- `upsert_records()`：per-row `INSERT ... ON CONFLICT` → multi-row `INSERT ... VALUES (...),(...) ON CONFLICT (id) DO UPDATE`
+
+**不動的部分（即使「順手」也不能改）**：
+- `replace_patient_records()` 的 **DELETE + INSERT** 兩段式語意（見 D.3）
+- `reconcile_medications()` 的 **per-stale-med admin check 迴圈**（保護 protected medication 邏輯，見 D.4）
+- 三函式的回傳 shape（`total/added/removed/added_ids/removed_ids` for replace；`upserted/added/deleted/protected` for reconcile）
+
+### D.2 records 欄位不一致時的處理
+
+**現況觀察**：HIS converter (`his_converter.py`) 對同一 table 的 records 產出 schema 一致；同 sync 內理論上 keys 應該全部相同。
+
+**但 batch SQL 對 schema 不一致是「致命」的**：multi-row VALUES 必須所有 row 同 column 數 + 同順序。混到一個 row 多/少欄位就會 SQL error 或欄位錯位。
+
+**設計選擇**（兩條路擇一）：
+
+| 路 | 行為 | 優點 | 缺點 |
+|---|---|---|---|
+| **(A) Group by signature** | 用 `frozenset(record.keys())` 分組，每組獨立 batch | 容忍 schema 偏移 | 多一層複雜度；隱藏 converter bug |
+| **(B) Assert + fail loud** | 用第一筆 record 的 keys 為基準，後續 record key set 不符就 raise | 簡單；converter bug 立刻浮現 | 一筆壞資料會擋掉整批 sync |
+
+**建議走 (B)**：
+- 上游 converter 是受控代碼，schema 偏移是 bug 而非常態
+- HIS sync 是夜間批次，fail loud 能及時抓到上游回歸
+- 加一個明確的 `SchemaInconsistencyError` 例外讓 caller 處理（必要時 fallback 到 per-row）
+
+```python
+def _assert_uniform_schema(records: list[dict]) -> list[str]:
+    """Return the column list, raising if records disagree."""
+    if not records:
+        return []
+    expected = set(records[0].keys())
+    for i, record in enumerate(records[1:], start=1):
+        if set(record.keys()) != expected:
+            raise SchemaInconsistencyError(
+                f"records[{i}] has different keys: "
+                f"{set(record.keys()) ^ expected}"
+            )
+    return [k for k in records[0].keys() if k not in {"created_at", "updated_at"}]
+```
+
+### D.3 `replace_patient_records()` delete+insert delta 不可動
+
+**現況**（必須保留）：
+```
+SELECT existing IDs → compute added=incoming-existing, removed=existing-incoming
+→ DELETE all rows for patient
+→ INSERT all incoming rows
+→ return {total, added, removed, added_ids, removed_ids}
+```
+
+**為什麼不能優化成「只 DELETE removed + 只 INSERT added」**：
+- 對「ID 沒變但欄位值變了」的 row（例如 lab 的 `value` 修正、status 變化），如果只 INSERT added 不會更新到
+- 改成 upsert 又會丟失「DELETE 後留下乾淨痕跡」的特性（雖然目前沒有審計日誌依賴這個，但下游可能假設）
+- frontend toast feed (`recent_deltas`) 用 `added_ids` 與 `removed_ids` 顯示「N 筆新 lab、M 筆消失」，這個語意必須維持
+
+**Step 3 對 `replace_patient_records()` 唯一允許的改動**：把內部呼叫的 `insert_records(records)` 從 per-row 改成 multi-row batch。整個函式的入出參與行為不變。
+
+### D.4 `reconcile_medications()` 保護邏輯不可動
+
+**現況**（必須保留）：
+```
+SELECT existing IDs
+→ upsert_records(incoming)              # ← Step 3 內部改 batch OK
+→ stale_ids = existing - incoming
+→ for med_id in stale_ids:              # ← 此迴圈保持 per-row
+    if has_administrations(med_id):
+        UPDATE status = 'discontinued'   # protected
+    else:
+        DELETE                           # deletable
+→ return {upserted, added, deleted, protected, ...}
+```
+
+**為什麼 stale-loop 不 batch**：
+- 每筆 stale 都要先查 `medication_administrations` 才能決定 `discontinued` vs `delete`
+- 改成「先 batch SELECT 哪些有 admins → 再 batch UPDATE protected → 再 batch DELETE deletable」**理論上可以**，但牽動三個 SQL 而不是一個重構，風險超出 Step 3 範圍
+- Step 3 先省 RTT 在 upsert 路徑（最大宗），stale-loop 留待之後若還有需求再優化
+
+### D.5 PG 參數綁定上限與 chunk size
+
+PostgreSQL 預設 `bind parameter` 上限是 32767/statement。每筆 medication ~20 欄位 → 理論單批最多 ~1600 筆。
+
+**保守取值**：`CHUNK_SIZE = 500`
+- 留足 buffer
+- ICU 病人單次 sync 通常 < 500 筆 records，多數情境一批就完成
+- 超過時自動分多批
+
+```python
+CHUNK_SIZE = 500
+for chunk in (records[i:i+CHUNK_SIZE] for i in range(0, len(records), CHUNK_SIZE)):
+    await _execute_batch_upsert(session, table, chunk)
+```
+
+### D.6 dedupe 防護
+
+PG 規則：**單一 INSERT 語句不能用 `ON CONFLICT DO UPDATE` 對同一 row 更新兩次**——同 batch 內 `id` 重複會 `cannot affect row a second time` 報錯。
+
+**設計選擇**：batch 入口先 dedupe by `id`，**保留最後一筆**（與目前 per-row 流程下「後者覆蓋前者」行為一致）：
+
+```python
+def _dedupe_by_id(records: list[dict]) -> list[dict]:
+    seen: dict[Any, dict] = {}
+    for r in records:
+        seen[r["id"]] = r  # last-write-wins
+    return list(seen.values())
+```
+
+### D.7 SQL 模板 — 安全 placeholder 命名
+
+避免 placeholder 衝突：每筆 record 在 batch 中用 `_{i}` 後綴。
+
+```python
+def _build_batch_upsert_sql(table: str, cols: list[str], n_records: int) -> str:
+    rows = []
+    for i in range(n_records):
+        placeholders = [f":{c}_{i}" for c in cols]
+        rows.append(f"({', '.join(placeholders)})")
+    update_cols = [c for c in cols if c != "id"]
+    set_clauses = [f"{c} = excluded.{c}" for c in update_cols]
+    set_clauses.append("updated_at = CURRENT_TIMESTAMP")
+    return (
+        f"INSERT INTO {table} ({', '.join(cols)}) "
+        f"VALUES {', '.join(rows)} "
+        f"ON CONFLICT (id) DO UPDATE SET {', '.join(set_clauses)}"
+    )
+
+# params:
+# {f"{col}_{i}": _serialize(record[col]) for i, record in enumerate(chunk) for col in cols}
+```
+
+### D.8 既有 invariant 測試覆蓋情況檢查
+
+實作前先 review Step 1 的 9 個測試是否仍能擋住 batch 重構的退化：
+
+| 測試 | Step 3 是否仍能擋退化 | 備註 |
+|---|---|---|
+| `preserves_created_at_on_update` | ✅ | SET 子句邏輯不變 |
+| `is_idempotent` | ⚠️ 需新增 batch idempotency 案例 | 同一 batch 內 dupe id 的處理（D.6） |
+| `handles_empty_list` (×2) | ✅ | guard 一樣有效 |
+| `returns_inserted_count` | ✅ | count 仍 = len(records) |
+| `empty_incoming_protects_admins_only` | ✅ | reconcile 保護邏輯沒動 |
+| `mixed_added_protected_deleted` | ✅ | 同上 |
+| `replace_*` 兩個 | ✅ | replace 結構沒動 |
+
+**Step 3 動工前要補的測試**：
+1. `test_upsert_records_batch_dedupes_within_chunk` — 同 batch 出現兩筆相同 id，最後一筆勝出，無報錯
+2. `test_upsert_records_raises_on_inconsistent_schema` — 兩筆 record key set 不同，raise `SchemaInconsistencyError`
+3. `test_upsert_records_chunks_large_input` — > CHUNK_SIZE 筆 records，分多批正確處理
+4. `test_replace_patient_records_still_uses_delete_then_insert` — 用 spy / 觀察行為驗證沒被改成 upsert（白盒測試）
+
+### D.9 實作順序建議
+
+1. 加 D.8 的 4 個新測試（pre-fail，確認新測試在現行 per-row 碼上通過或合理失敗）
+2. 寫 `_assert_uniform_schema` / `_dedupe_by_id` / `_build_batch_upsert_sql` helper
+3. 改 `upsert_records` 用 batch，跑全測試
+4. 改 `insert_records` 用 batch，跑全測試
+5. **不動** `replace_patient_records` / `reconcile_medications` 結構，只享用底層加速
+6. 本機跑 `sync_his_snapshots_serial.py -p <某 MRN>` 對比 Step 2 後的 ~2 min baseline
+7. 預期 < 30 sec/patient → push
+
+---
 
 ## 附錄 C：本次審計仍未涵蓋（後續可加）
 
