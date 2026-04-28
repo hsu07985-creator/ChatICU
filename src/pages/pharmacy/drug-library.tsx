@@ -1,6 +1,6 @@
-import { Library, Search, Loader2, ExternalLink, AlertTriangle, ShieldCheck, Sparkles } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Search, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -19,17 +19,25 @@ import {
 const PAGE_SIZE = 50;
 
 const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
-  green: { label: '🟢 完整', cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
-  yellow: { label: '🟡 缺資料', cls: 'bg-amber-500/10 text-amber-400 border-amber-500/30' },
-  red: { label: '🔴 待補 ATC', cls: 'bg-rose-500/10 text-rose-400 border-rose-500/30' },
+  green: { label: '完整', cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
+  yellow: { label: '缺資料', cls: 'bg-amber-500/10 text-amber-400 border-amber-500/30' },
+  red: { label: '待補 ATC', cls: 'bg-rose-500/10 text-rose-400 border-rose-500/30' },
+};
+
+const RISK_CLS: Record<string, string> = {
+  X: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+  D: 'bg-orange-500/10 text-orange-400 border-orange-500/30',
+  C: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+  B: 'bg-slate-500/10 text-slate-400 border-slate-500/30',
+  A: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30',
 };
 
 function StatsBanner({ stats }: { stats: DrugLibraryStats | null }) {
   if (!stats) {
     return (
       <Card className="bg-card/40 border-border/40">
-        <CardContent className="py-4 flex items-center gap-3 text-muted-foreground text-sm">
-          <Loader2 className="size-4 animate-spin" /> 載入系統覆蓋總覽…
+        <CardContent className="py-4 flex items-center gap-2 text-muted-foreground text-sm">
+          <Loader2 className="size-4 animate-spin" /> 載入系統覆蓋總覽
         </CardContent>
       </Card>
     );
@@ -43,10 +51,7 @@ function StatsBanner({ stats }: { stats: DrugLibraryStats | null }) {
     <Card className="bg-card/60 border-border/40">
       <CardContent className="py-4 space-y-3">
         <div className="flex items-baseline justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <ShieldCheck className="size-4" />
-            <span>系統覆蓋總覽</span>
-          </div>
+          <div className="text-sm text-muted-foreground">系統覆蓋總覽</div>
           <div className="text-xs text-muted-foreground">最後更新 {updated}</div>
         </div>
         <div className="flex items-center gap-4 flex-wrap text-sm">
@@ -57,16 +62,16 @@ function StatsBanner({ stats }: { stats: DrugLibraryStats | null }) {
           <span className="text-muted-foreground">條交互作用</span>
           {stats.recently_added > 0 && (
             <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/30">
-              <Sparkles className="size-3 mr-1" /> 近期新增 {stats.recently_added.toLocaleString()} 條
+              近期新增 {stats.recently_added.toLocaleString()} 條
             </Badge>
           )}
         </div>
         <div className="flex items-center gap-2 flex-wrap text-xs">
-          <Badge variant="outline" className="bg-rose-500/10 text-rose-400 border-rose-500/30">🚫 X {stats.ddi_by_risk.X.toLocaleString()}</Badge>
-          <Badge variant="outline" className="bg-orange-500/10 text-orange-400 border-orange-500/30">⚠️ D {stats.ddi_by_risk.D.toLocaleString()}</Badge>
-          <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30">👁 C {stats.ddi_by_risk.C.toLocaleString()}</Badge>
-          <Badge variant="outline" className="bg-slate-500/10 text-slate-400 border-slate-500/30">○ B {stats.ddi_by_risk.B.toLocaleString()}</Badge>
-          <Badge variant="outline" className="bg-zinc-500/10 text-zinc-400 border-zinc-500/30">─ A {stats.ddi_by_risk.A.toLocaleString()}</Badge>
+          {(['X', 'D', 'C', 'B', 'A'] as const).map((r) => (
+            <Badge key={r} variant="outline" className={RISK_CLS[r]}>
+              {r} {stats.ddi_by_risk[r].toLocaleString()}
+            </Badge>
+          ))}
         </div>
         <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
           資料源：
@@ -98,16 +103,16 @@ function DrugCard({ item, onClick }: { item: DrugListItem; onClick: () => void }
               )}
               {item.in_formulary ? (
                 <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
-                  ✅ 院內
+                  院內
                 </Badge>
               ) : (
                 <Badge variant="outline" className="text-xs bg-zinc-500/10 text-zinc-400 border-zinc-500/30">
-                  ❌ 院外
+                  院外
                 </Badge>
               )}
               {item.recently_added && (
                 <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-400 border-blue-500/30">
-                  <Sparkles className="size-3 mr-1" />新增
+                  新增
                 </Badge>
               )}
             </div>
@@ -131,13 +136,16 @@ function DrugCard({ item, onClick }: { item: DrugListItem; onClick: () => void }
           </div>
         )}
 
-        <div className="flex items-center gap-2 text-xs flex-wrap">
-          <span className="text-muted-foreground">💊</span>
-          <span className="font-medium">{item.ddi_counts.total} 條 DDI</span>
-          {item.ddi_counts.X > 0 && <span className="text-rose-400">🚫 {item.ddi_counts.X}</span>}
-          {item.ddi_counts.D > 0 && <span className="text-orange-400">⚠️ {item.ddi_counts.D}</span>}
-          {item.ddi_counts.C > 0 && <span className="text-amber-400">👁 {item.ddi_counts.C}</span>}
-          {item.ddi_counts.B > 0 && <span className="text-slate-400">○ {item.ddi_counts.B}</span>}
+        <div className="flex items-center gap-3 text-xs flex-wrap">
+          <span className="text-muted-foreground">交互作用</span>
+          <span className="font-medium">{item.ddi_counts.total} 條</span>
+          {(['X', 'D', 'C', 'B'] as const).map((r) =>
+            item.ddi_counts[r] > 0 ? (
+              <span key={r} className={`px-1.5 py-0.5 rounded border ${RISK_CLS[r]} text-[10px]`}>
+                {r} {item.ddi_counts[r]}
+              </span>
+            ) : null
+          )}
         </div>
       </CardContent>
     </Card>
@@ -164,7 +172,6 @@ export function DrugLibraryPage() {
 
   const [qInput, setQInput] = useState(q);
 
-  // Sync local search input to URL after debounce
   useEffect(() => {
     const t = setTimeout(() => {
       const next = new URLSearchParams(searchParams);
@@ -177,12 +184,10 @@ export function DrugLibraryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qInput]);
 
-  // Load stats once
   useEffect(() => {
     getDrugLibraryStats().then(setStats).catch(() => setStats(null));
   }, []);
 
-  // Load list whenever filters change
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -221,21 +226,15 @@ export function DrugLibraryPage() {
 
   return (
     <div className="container mx-auto p-4 lg:p-6 space-y-4 max-w-screen-2xl">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Library className="size-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold">藥物資料庫</h1>
-          <p className="text-sm text-muted-foreground">
-            系統涵蓋的所有藥物與交互作用規則總覽 · 藥師/管理者專用
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold">藥物資料庫</h1>
+        <p className="text-sm text-muted-foreground">
+          系統涵蓋的所有藥物與交互作用規則總覽 · 藥師/管理者專用
+        </p>
       </div>
 
-      {/* Stats banner */}
       <StatsBanner stats={stats} />
 
-      {/* Search + filters */}
       <Card>
         <CardContent className="py-4 space-y-3">
           <div className="flex items-center gap-2 flex-wrap">
@@ -253,7 +252,7 @@ export function DrugLibraryPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="icu_usage">🔥 ICU 30 天熱度</SelectItem>
+                <SelectItem value="icu_usage">ICU 30 天熱度</SelectItem>
                 <SelectItem value="name">名稱 A → Z</SelectItem>
                 <SelectItem value="ddi_count">DDI 條數多 → 少</SelectItem>
               </SelectContent>
@@ -286,9 +285,7 @@ export function DrugLibraryPage() {
         </CardContent>
       </Card>
 
-      {/* Body: ATC sidebar + cards */}
       <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr] gap-4">
-        {/* ATC sidebar */}
         <Card className="h-fit lg:sticky lg:top-4">
           <CardContent className="py-3 space-y-1">
             <div className="text-xs font-semibold text-muted-foreground mb-2">ATC 分類</div>
@@ -313,20 +310,17 @@ export function DrugLibraryPage() {
           </CardContent>
         </Card>
 
-        {/* Drug list */}
         <div className="space-y-3 min-w-0">
           {error && (
             <Card className="border-rose-500/40">
-              <CardContent className="py-3 text-sm text-rose-400 flex items-center gap-2">
-                <AlertTriangle className="size-4" /> {error}
-              </CardContent>
+              <CardContent className="py-3 text-sm text-rose-400">{error}</CardContent>
             </Card>
           )}
 
           {loading && !data && (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground flex items-center justify-center gap-2">
-                <Loader2 className="size-4 animate-spin" /> 載入中…
+                <Loader2 className="size-4 animate-spin" /> 載入中
               </CardContent>
             </Card>
           )}
@@ -359,7 +353,6 @@ export function DrugLibraryPage() {
             </Card>
           )}
 
-          {/* Pagination */}
           {data && totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 pt-2">
               <Button
@@ -368,7 +361,7 @@ export function DrugLibraryPage() {
                 disabled={page <= 1 || loading}
                 onClick={() => updateParam('page', String(page - 1))}
               >
-                ◀ 上一頁
+                上一頁
               </Button>
               <span className="text-sm text-muted-foreground">
                 {page} / {totalPages}
@@ -379,7 +372,7 @@ export function DrugLibraryPage() {
                 disabled={page >= totalPages || loading}
                 onClick={() => updateParam('page', String(page + 1))}
               >
-                下一頁 ▶
+                下一頁
               </Button>
             </div>
           )}

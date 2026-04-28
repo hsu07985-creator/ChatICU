@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronDown, ChevronRight, Library, Loader2, AlertTriangle, ShieldCheck, BookOpen, Droplets, Users, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -14,12 +14,12 @@ import {
 } from '../../lib/api/drug-library';
 import { maskPatientName } from '../../lib/utils/patient-name';
 
-const RISK_META: Record<string, { label: string; emoji: string; cls: string; descr: string }> = {
-  X: { label: 'X', emoji: '🚫', cls: 'bg-rose-500/10 text-rose-400 border-rose-500/30', descr: 'Avoid combination' },
-  D: { label: 'D', emoji: '⚠️', cls: 'bg-orange-500/10 text-orange-400 border-orange-500/30', descr: 'Consider therapy modification' },
-  C: { label: 'C', emoji: '👁', cls: 'bg-amber-500/10 text-amber-400 border-amber-500/30', descr: 'Monitor therapy' },
-  B: { label: 'B', emoji: '○', cls: 'bg-slate-500/10 text-slate-400 border-slate-500/30', descr: 'No action needed' },
-  A: { label: 'A', emoji: '─', cls: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30', descr: 'No known interaction' },
+const RISK_META: Record<string, { cls: string; descr: string }> = {
+  X: { cls: 'bg-rose-500/10 text-rose-400 border-rose-500/30', descr: 'Avoid combination' },
+  D: { cls: 'bg-orange-500/10 text-orange-400 border-orange-500/30', descr: 'Consider therapy modification' },
+  C: { cls: 'bg-amber-500/10 text-amber-400 border-amber-500/30', descr: 'Monitor therapy' },
+  B: { cls: 'bg-slate-500/10 text-slate-400 border-slate-500/30', descr: 'No action needed' },
+  A: { cls: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30', descr: 'No known interaction' },
 };
 
 const RELIABILITY_META: Record<string, { cls: string; tip: string }> = {
@@ -41,7 +41,6 @@ function PatientChip({ p }: { p: ActivePatient }) {
     >
       <span className="font-mono">{p.bed_number || '?'}</span>
       <span>{maskPatientName(p.name)}</span>
-      <ExternalLink className="size-2.5" />
     </Link>
   );
 }
@@ -76,19 +75,19 @@ function DdiCard({ item }: { item: DdiDetailItem }) {
 
         {item.mechanism && (
           <div className="text-xs">
-            <span className="text-muted-foreground">⚙ 機制：</span>
+            <span className="text-muted-foreground">機制：</span>
             <span>{item.mechanism}</span>
           </div>
         )}
         {item.management && (
           <div className="text-xs">
-            <span className="text-muted-foreground">📋 處置：</span>
+            <span className="text-muted-foreground">處置：</span>
             <span>{item.management}</span>
           </div>
         )}
         {item.discussion && (
           <details className="text-xs text-muted-foreground">
-            <summary className="cursor-pointer hover:text-foreground">📖 詳細討論</summary>
+            <summary className="cursor-pointer hover:text-foreground">詳細討論</summary>
             <div className="mt-1 pl-2 border-l-2 border-border/40 whitespace-pre-wrap">
               {item.discussion}
             </div>
@@ -96,12 +95,11 @@ function DdiCard({ item }: { item: DdiDetailItem }) {
         )}
         {item.pubmed_count > 0 && (
           <div className="text-xs text-muted-foreground">
-            📚 {item.pubmed_count} 篇文獻引用
+            {item.pubmed_count} 篇文獻引用
           </div>
         )}
         {affected.length > 0 && (
           <div className="text-xs flex items-start gap-1.5 flex-wrap pt-1 border-t border-border/30">
-            <Users className="size-3 mt-0.5 text-rose-400" />
             <span className="text-rose-400 font-medium">影響 {affected.length} 床：</span>
             {affected.map((p) => <PatientChip key={p.id} p={p} />)}
           </div>
@@ -131,12 +129,10 @@ function RiskGroup({
         className="w-full flex items-center gap-2 text-sm font-semibold hover:bg-accent rounded p-2 transition-colors"
       >
         {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-        <span className={`px-2 py-0.5 rounded border ${meta.cls}`}>
-          {meta.emoji} {meta.label}
-        </span>
+        <span className={`px-2 py-0.5 rounded border ${meta.cls}`}>{risk}</span>
         <span className="text-muted-foreground font-normal">— {meta.descr} ({items.length})</span>
         {affectedSum > 0 && (
-          <span className="text-[10px] text-rose-400 font-normal ml-auto">⚠️ 影響 {affectedSum} 床次</span>
+          <span className="text-[10px] text-rose-400 font-normal ml-auto">影響 {affectedSum} 床次</span>
         )}
       </button>
       {open && (
@@ -156,13 +152,12 @@ function IvCompatList({ items }: { items: IvCompatItem[] }) {
       </div>
     );
   }
-  // Group by compatible
   const compatible = items.filter((i) => i.compatible);
   const incompatible = items.filter((i) => !i.compatible);
-  const sectionRender = (label: string, list: IvCompatItem[], cls: string, icon: string) => (
+  const sectionRender = (label: string, list: IvCompatItem[], cls: string) => (
     list.length > 0 && (
       <div className="space-y-1.5">
-        <div className={`text-xs font-semibold ${cls}`}>{icon} {label} ({list.length})</div>
+        <div className={`text-xs font-semibold ${cls}`}>{label} ({list.length})</div>
         <div className="space-y-1.5">
           {list.map((it) => (
             <Card key={it.id} className="border-border/40">
@@ -191,8 +186,8 @@ function IvCompatList({ items }: { items: IvCompatItem[] }) {
   );
   return (
     <div className="space-y-3">
-      {sectionRender('相容', compatible, 'text-emerald-400', '🟢')}
-      {sectionRender('不相容', incompatible, 'text-rose-400', '🔴')}
+      {sectionRender('相容', compatible, 'text-emerald-400')}
+      {sectionRender('不相容', incompatible, 'text-rose-400')}
     </div>
   );
 }
@@ -219,7 +214,6 @@ function ActivePatientsPanel({ patients }: { patients: ActivePatient[] }) {
               {p.bed_number || '?'}
             </Badge>
             <span className="flex-1 truncate">{maskPatientName(p.name)}</span>
-            <ExternalLink className="size-3.5 text-muted-foreground" />
           </Link>
         ))}
       </div>
@@ -290,16 +284,14 @@ export function DrugLibraryDetailPage() {
       {loading && (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground flex items-center justify-center gap-2">
-            <Loader2 className="size-4 animate-spin" /> 載入中…
+            <Loader2 className="size-4 animate-spin" /> 載入中
           </CardContent>
         </Card>
       )}
 
       {error && (
         <Card className="border-rose-500/40">
-          <CardContent className="py-4 text-rose-400 text-sm flex items-center gap-2">
-            <AlertTriangle className="size-4" /> {error}
-          </CardContent>
+          <CardContent className="py-4 text-rose-400 text-sm">{error}</CardContent>
         </Card>
       )}
 
@@ -313,21 +305,19 @@ export function DrugLibraryDetailPage() {
 
       {data && data.exists && (
         <>
-          {/* Header */}
           <Card className="bg-card/60">
             <CardContent className="py-4 space-y-3">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Library className="size-5 text-primary" />
                     <h1 className="text-2xl font-bold">{data.name}</h1>
                     {data.atc && (
                       <Badge variant="outline" className="font-mono">{data.atc}</Badge>
                     )}
                     {data.in_formulary ? (
-                      <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30">✅ 院內 formulary</Badge>
+                      <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30">院內 formulary</Badge>
                     ) : (
-                      <Badge variant="outline" className="bg-zinc-500/10 text-zinc-400 border-zinc-500/30">❌ 院外</Badge>
+                      <Badge variant="outline" className="bg-zinc-500/10 text-zinc-400 border-zinc-500/30">院外</Badge>
                     )}
                     {activeCount > 0 && (
                       <Badge
@@ -335,7 +325,7 @@ export function DrugLibraryDetailPage() {
                         className="bg-blue-500/10 text-blue-400 border-blue-500/30 cursor-pointer hover:bg-blue-500/20"
                         onClick={() => setTab('patients')}
                       >
-                        <Users className="size-3 mr-1" /> ICU 在用 {activeCount} 床
+                        ICU 在用 {activeCount} 床
                       </Badge>
                     )}
                   </div>
@@ -344,7 +334,7 @@ export function DrugLibraryDetailPage() {
                       ATC 階層：
                       {data.atc_path.map((p, i) => (
                         <span key={p.code} className="flex items-center gap-1">
-                          {i > 0 && <ChevronRight className="size-3" />}
+                          {i > 0 && <span className="text-muted-foreground">/</span>}
                           <span className="font-mono">{p.code}</span>
                           {p.name && <span>{p.name}</span>}
                         </span>
@@ -363,7 +353,7 @@ export function DrugLibraryDetailPage() {
 
               {data.icu_30d_rx > 0 && (
                 <div className="flex items-center gap-2 text-sm bg-accent/40 rounded p-2">
-                  <span className="text-muted-foreground">📊 ICU 30 天用藥：</span>
+                  <span className="text-muted-foreground">ICU 30 天用藥：</span>
                   <span className="font-semibold">{data.icu_30d_rx} 次</span>
                   <span className="text-muted-foreground">·</span>
                   <span className="font-semibold">{data.icu_active_beds}</span>
@@ -373,7 +363,6 @@ export function DrugLibraryDetailPage() {
 
               {data.sources.length > 0 && (
                 <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-                  <ShieldCheck className="size-3" />
                   資料源：
                   {data.sources.map((s) => (
                     <Badge key={s} variant="outline" className="text-[10px]">{s}</Badge>
@@ -383,20 +372,16 @@ export function DrugLibraryDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Tabs */}
           <Card>
             <CardContent className="py-0 px-0">
               <div className="border-b border-border/40 flex items-center gap-2 px-3">
                 <button onClick={() => setTab('ddi')} className={tabClass('ddi')}>
-                  <BookOpen className="inline size-4 mr-1" />
                   交互作用 ({data.ddi_total})
                 </button>
                 <button onClick={() => setTab('iv')} className={tabClass('iv')}>
-                  <Droplets className="inline size-4 mr-1" />
                   IV 相容性 ({ivCount})
                 </button>
                 <button onClick={() => setTab('patients')} className={tabClass('patients')}>
-                  <Users className="inline size-4 mr-1" />
                   在用病人 ({activeCount})
                 </button>
               </div>
@@ -416,7 +401,7 @@ export function DrugLibraryDetailPage() {
                             onClick={() => toggleRisk(r)}
                             className={`px-2 py-0.5 rounded border text-[11px] transition-opacity ${meta.cls} ${active || riskFilter.size === 0 ? '' : 'opacity-30'}`}
                           >
-                            {meta.emoji} {r} {count}
+                            {r} {count}
                           </button>
                         );
                       })}
@@ -460,12 +445,9 @@ export function DrugLibraryDetailPage() {
           </Card>
 
           <Card className="border-amber-500/30 bg-amber-500/5">
-            <CardContent className="py-3 text-xs text-amber-400 flex items-start gap-2">
-              <AlertTriangle className="size-4 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-semibold">資料缺口提示：</span>
-                未列規則 ≠ 安全。本系統來源主要為 Lexicomp + MICROMEDEX，罕見組合 / 中草藥 / 食物交互可能未涵蓋。IV 相容性以 Trissel's Handbook 為主，未列組合請諮詢藥劑科。
-              </div>
+            <CardContent className="py-3 text-xs text-amber-400">
+              <span className="font-semibold">資料缺口提示：</span>
+              未列規則 ≠ 安全。本系統來源主要為 Lexicomp + MICROMEDEX，罕見組合 / 中草藥 / 食物交互可能未涵蓋。IV 相容性以 Trissel's Handbook 為主，未列組合請諮詢藥劑科。
             </CardContent>
           </Card>
         </>
