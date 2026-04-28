@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import csv
 import json as _json
+import re
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -187,6 +188,16 @@ def _require_pharmacist(user: User) -> None:
 # ────────────────────────────────────────────────────────────────────
 _formulary_cache: dict | None = None
 
+# Tokens that aren't standalone drugs — skip when used as first-word fallback.
+_AMBIGUOUS_FIRST_WORDS = frozenset({
+    "sodium", "potassium", "calcium", "magnesium",
+    "iron", "ferric", "ferrous", "aluminum", "aluminium",
+    "zinc", "lithium",
+    "insulin", "insulim",
+    "human", "hepatitis", "vitamin", "amino", "recombinant",
+    "mag.",
+})
+
 
 def _load_formulary() -> dict:
     """Return {ingredient_lower: {atc, brand_names, hospital_codes}}."""
@@ -215,20 +226,34 @@ def _load_formulary() -> dict:
             code = (row.get("odr_code") or "").strip()
             if code and code not in entry["hospital_codes"]:
                 entry["hospital_codes"].append(code)
+            # Index by first word too — so DDI's "Morphine (Systemic)" can
+            # find formulary's "Morphine HCl 10mg/ml Inj" via "morphine".
+            first = re.split(r"[\s\(\[/\-]", ingr)[0].strip().lower()
+            if first and first != key and first not in _AMBIGUOUS_FIRST_WORDS:
+                out.setdefault(first, entry)
     _formulary_cache = out
     return out
 
 
 def _formulary_lookup(name: str) -> Optional[dict]:
+    """Try several normalisations to find a formulary entry."""
     fm = _load_formulary()
     if not name:
         return None
     key = name.strip().lower()
     if key in fm:
         return fm[key]
-    # First word fallback
-    first = key.split()[0] if " " in key else key
-    return fm.get(first)
+    # Strip parens: "Morphine (Systemic)" → "morphine"
+    no_paren = re.sub(r"\s*\([^)]*\)\s*", " ", key).strip()
+    no_paren = re.sub(r"\s+", " ", no_paren)
+    if no_paren and no_paren != key and no_paren in fm:
+        return fm[no_paren]
+    # First word fallback (skip ambiguous ions like sodium / potassium)
+    base = no_paren or key
+    first = re.split(r"[\s\(\[/\-]", base)[0].strip().lower()
+    if first and first not in _AMBIGUOUS_FIRST_WORDS and first in fm:
+        return fm[first]
+    return None
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -338,6 +363,52 @@ def _coverage_status(ddi_total: int, has_atc: bool) -> str:
     if not has_atc:
         return "red"  # 待補 ATC
     return "green"
+
+
+def _drug_name_is(target: str, full_name: str) -> bool:
+    """True iff `target` is a drug-level match for `full_name` — not a
+    substring of a class name. Splits parens to handle 'Foo (Bar)' synonym
+    forms but does NOT split slashes (which appear inside class names like
+    'Serotonin/Norepinephrine Reuptake Inhibitor').
+    """
+    if not full_name or not target:
+        return False
+    target_l = target.strip().lower()
+    full_l = full_name.strip().lower()
+    if target_l == full_l:
+        return True
+    # Split parens: "Acetylsalicylic Acid (Aspirin)" → ["acetylsalicylic acid", "aspirin"]
+    parts = [p.strip() for p in re.split(r"\s*[()]\s*", full_l) if p.strip()]
+    return target_l in parts
+
+
+def _row_about_target(row, target: str) -> bool:
+    """True iff DDI row truly involves `target` as a drug — either exactly
+    on side 1 / side 2 / or as a member of a class group, NOT just as a
+    substring of a class name.
+    """
+    if _drug_name_is(target, row.drug1) or _drug_name_is(target, row.drug2):
+        return True
+    raw = row.interacting_members
+    if isinstance(raw, str):
+        try:
+            raw = _json.loads(raw)
+        except Exception:
+            raw = None
+    members_lists: list = []
+    if isinstance(raw, list):
+        for grp in raw:
+            if isinstance(grp, dict):
+                members_lists.append(grp.get("members") or [])
+    elif isinstance(raw, dict):
+        members_lists.extend(raw.values())
+    for ms in members_lists:
+        if not isinstance(ms, list):
+            continue
+        for m in ms:
+            if _drug_name_is(target, m):
+                return True
+    return False
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -587,14 +658,16 @@ async def get_drug_detail(
     if not primary_atc and fm:
         primary_atc = fm.get("atc")
 
-    # Build DDI list (the OTHER drug)
+    # Build DDI list (the OTHER drug). Reject string-pollution rows where
+    # the target drug only appears as a substring of a class name.
     ddi_out = []
     sources_seen = set()
     for row in ddi_rows:
+        if not _row_about_target(row, primary_name):
+            continue
         d1, d2 = row.drug1 or "", row.drug2 or ""
-        is_d1 = d1.lower() == name_lower
-        is_d2 = d2.lower() == name_lower
-        # If the matching drug is in interacting_members, treat the row as a class rule
+        is_d1 = _drug_name_is(primary_name, d1)
+        is_d2 = _drug_name_is(primary_name, d2)
         if is_d1:
             other = d2
             other_atc = row.drug2_atc
@@ -602,8 +675,37 @@ async def get_drug_detail(
             other = d1
             other_atc = row.drug1_atc
         else:
-            other = f"{d1} ↔ {d2}"
-            other_atc = None
+            # Class-member match — pick the side whose group/name does NOT
+            # contain the target as a member, since target is on the other.
+            raw = row.interacting_members
+            if isinstance(raw, str):
+                try:
+                    raw = _json.loads(raw)
+                except Exception:
+                    raw = None
+            target_in_d1_group = False
+            if isinstance(raw, list):
+                for grp in raw:
+                    if not isinstance(grp, dict):
+                        continue
+                    if (grp.get("group_name") or "").lower() == d1.lower():
+                        for m in grp.get("members") or []:
+                            if _drug_name_is(primary_name, m):
+                                target_in_d1_group = True
+                                break
+            elif isinstance(raw, dict):
+                for gn, mems in raw.items():
+                    if gn.lower() == d1.lower():
+                        for m in mems or []:
+                            if _drug_name_is(primary_name, m):
+                                target_in_d1_group = True
+                                break
+            if target_in_d1_group:
+                other = d2
+                other_atc = row.drug2_atc
+            else:
+                other = d1
+                other_atc = row.drug1_atc
         risk_str = (row.risk_rating or "").upper()
         if risk_filter and risk_str not in risk_filter:
             continue
