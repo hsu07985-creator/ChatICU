@@ -17,8 +17,8 @@
 | 第一批 | #1 `database.py` 加 connect_args + 降 pool size | ✅ 部署完成，2h log 乾淨 | 2026-04-28 | `e2f97b2fd` |
 | 第一批 | #2 抽 `query-keys.ts` + `patient-data-sync.ts` 補 TanStack invalidate | ✅ 部署完成，新 bundle 上線 | 2026-04-28 | `e2f97b2fd` |
 | 第二批 | #3 Step 1：寫 invariant 測試保護 reconcile / created_at / 邊界 case | ✅ 已 push（純測試，Railway 健康） | 2026-04-28 | `46d39ff38` |
-| 第二批 | #3 Step 2：`upsert_records` 改 `INSERT ... ON CONFLICT DO UPDATE` | ✅ 本機完成（15 個測試全綠），待 push | 2026-04-28 | (pending) |
-| 第二批 | #3 Step 3：multi-row VALUES batch + reconcile 改寫 | ⏸ 待 Step 2 完成 | — | — |
+| 第二批 | #3 Step 2：`upsert_records` 改 `INSERT ... ON CONFLICT DO UPDATE` | ✅ 已 push、人工 review、本機 22 測試綠、單病人實測 ~2 min | 2026-04-28 | `3ad388bde` |
+| 第二批 | #3 Step 3：multi-row VALUES batch + reconcile 改寫 | ⏸ 等尖峰觀察期過後再動 | — | — |
 
 **前置確認**：✅ `backend/.env.his-sync` 顯示 prod 走 Supabase pooler `aws-1-ap-southeast-2.pooler.supabase.com:6543`（transaction mode），§1.1 / §1.2 修法適用。
 
@@ -113,6 +113,18 @@
 **預期 prod 效益**：
 - 每筆 RTT：2 → 1（省一半）
 - 每位病人 sync 時間：4-5 min → 預估 2-2.5 min（Step 3 batch 後再砍到 < 30 sec）
+
+**人工 review + 本機驗證結果（2026-04-28）**：
+
+| 項目 | 結果 |
+|---|---|
+| Diff review | ✅ empty guard / created_at 不入 SET / id-only 走 DO NOTHING 全部符合 |
+| `tests/test_fhir/test_snapshot_sync.py` + `_invariants.py` + `tests/test_api/test_admin_his_sync.py` 22 個 | ✅ 全綠 |
+| `tests/test_fhir/` 整目錄 | 99 passed / 5 skipped / 6 failed（**6 failed 與本次改動無關**：`test_allergy_parser.py` 硬編碼 snapshot id `20260415_152444`，本機 patient 目錄已是 `20260427_215128`） |
+| 單病人實測 `sync_his_snapshots_serial.py -p 50480738 --force` | ✅ errors=0, synced=1, med_upserted=112, labs=42, cultures=2, reports=16 |
+| 實測耗時 | ~**2 分鐘**（落在預估 2-2.5 min 區間，比 Step 2 前的 4-5 min 砍一半） |
+| Railway `/health` | ✅ 200 |
+| Railway live log | ⚠️ Railway CLI token 失效，目前只能監控公開 /health；尖峰觀察需重新 `railway login` |
 
 ---
 
