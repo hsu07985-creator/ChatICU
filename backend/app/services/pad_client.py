@@ -17,6 +17,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 from app.config import settings
+from app.services._http import get_shared_client
 
 logger = logging.getLogger(__name__)
 
@@ -112,10 +113,14 @@ class PadClient:
             params["concentration_unit"] = concentration_unit
 
         try:
-            async with httpx.AsyncClient(timeout=_CALCULATE_TIMEOUT) as client:
-                resp = await client.get(f"{self.base_url}/calculate", params=params)
-                resp.raise_for_status()
-                data = resp.json()
+            client = get_shared_client()
+            resp = await client.get(
+                f"{self.base_url}/calculate",
+                params=params,
+                timeout=_CALCULATE_TIMEOUT,
+            )
+            resp.raise_for_status()
+            data = resp.json()
             return PadDosingResult(**data)
 
         except httpx.TimeoutException:
@@ -145,13 +150,14 @@ class PadClient:
             payload["patient_info"] = patient_info
 
         try:
-            async with httpx.AsyncClient(timeout=_CHAT_TIMEOUT) as client:
-                resp = await client.post(
-                    f"{self.base_url}/chat",
-                    json=payload,
-                )
-                resp.raise_for_status()
-                data = resp.json()
+            client = get_shared_client()
+            resp = await client.post(
+                f"{self.base_url}/chat",
+                json=payload,
+                timeout=_CHAT_TIMEOUT,
+            )
+            resp.raise_for_status()
+            data = resp.json()
 
             sources = []
             for s in data.get("sources", []):
@@ -194,9 +200,9 @@ class PadClient:
     async def health(self) -> bool:
         """Check if PAD API is reachable."""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.get(f"{self.base_url}/health")
-                return resp.status_code == 200
+            client = get_shared_client()
+            resp = await client.get(f"{self.base_url}/health", timeout=5.0)
+            return resp.status_code == 200
         except Exception:
             return False
 

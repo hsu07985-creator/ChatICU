@@ -1,4 +1,11 @@
-"""Tests for Drug RAG client (B03)."""
+"""Tests for Drug RAG client (B03).
+
+Updated for #7A: DrugRagClient now reuses the shared httpx.AsyncClient
+from app.services._http instead of creating a new one per call. Tests
+patch ``app.services.drug_rag_client.get_shared_client`` to inject a
+mock that exposes the same ``post`` / ``get`` async methods, so call
+counts and call args remain assertable.
+"""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -21,6 +28,18 @@ def _mock_httpx_response(data, status_code=200):
     resp.raise_for_status.return_value = None
     resp.text = str(data)
     return resp
+
+
+def _mock_shared_client(*, post_return=None, post_side_effect=None,
+                       get_return=None, get_side_effect=None):
+    """Build a mock that mimics the relevant async methods of the
+    shared ``httpx.AsyncClient``. Only ``post`` and ``get`` are used by
+    DrugRagClient — anything else stays a vanilla MagicMock attribute.
+    """
+    mock = MagicMock()
+    mock.post = AsyncMock(return_value=post_return, side_effect=post_side_effect)
+    mock.get = AsyncMock(return_value=get_return, side_effect=get_side_effect)
+    return mock
 
 
 class TestDrugRagClientQuery:
@@ -47,15 +66,9 @@ class TestDrugRagClientQuery:
                 },
             ],
         }
-        mock_resp = _mock_httpx_response(mock_data)
+        shared = _mock_shared_client(post_return=_mock_httpx_response(mock_data))
 
-        with patch("app.services.drug_rag_client.httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_resp)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client_cls.return_value = mock_client
-
+        with patch("app.services.drug_rag_client.get_shared_client", return_value=shared):
             client = DrugRagClient(base_url="http://localhost:8100")
             result = await client.query("Vancomycin dosing in renal failure")
 
@@ -74,15 +87,9 @@ class TestDrugRagClientQuery:
             "category": "interaction",
             "citations": [],
         }
-        mock_resp = _mock_httpx_response(mock_data)
+        shared = _mock_shared_client(post_return=_mock_httpx_response(mock_data))
 
-        with patch("app.services.drug_rag_client.httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_resp)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client_cls.return_value = mock_client
-
+        with patch("app.services.drug_rag_client.get_shared_client", return_value=shared):
             client = DrugRagClient(base_url="http://localhost:8100")
             result = await client.query(
                 "Warfarin interactions",
@@ -91,21 +98,31 @@ class TestDrugRagClientQuery:
 
         assert result.success is True
         # Verify category was sent in payload
-        call_kwargs = mock_client.post.call_args
+        call_kwargs = shared.post.call_args
         payload = call_kwargs.kwargs.get("json", call_kwargs[1].get("json", {}))
         assert payload.get("category") == "interaction"
 
     @pytest.mark.asyncio
-    async def test_query_timeout_returns_empty(self):
-        with patch("app.services.drug_rag_client.httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(
-                side_effect=httpx.ReadTimeout("timeout")
-            )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client_cls.return_value = mock_client
+    async def test_query_passes_per_request_timeout(self):
+        """Per-request timeout replaces the old constructor-level
+        timeout that the per-call AsyncClient(timeout=...) used to set
+        — verify it is now sent on each .post() call so behaviour is
+        preserved across the shared-client refactor.
+        """
+        mock_data = {"answer": "ok", "category": None, "citations": []}
+        shared = _mock_shared_client(post_return=_mock_httpx_response(mock_data))
 
+        with patch("app.services.drug_rag_client.get_shared_client", return_value=shared):
+            client = DrugRagClient(base_url="http://localhost:8100", timeout=7.5)
+            await client.query("anything")
+
+        call_kwargs = shared.post.call_args.kwargs
+        assert call_kwargs.get("timeout") == 7.5
+
+    @pytest.mark.asyncio
+    async def test_query_timeout_returns_empty(self):
+        shared = _mock_shared_client(post_side_effect=httpx.ReadTimeout("timeout"))
+        with patch("app.services.drug_rag_client.get_shared_client", return_value=shared):
             client = DrugRagClient(base_url="http://localhost:8100", timeout=2.0)
             result = await client.query("test query")
 
@@ -115,15 +132,8 @@ class TestDrugRagClientQuery:
 
     @pytest.mark.asyncio
     async def test_query_connection_error(self):
-        with patch("app.services.drug_rag_client.httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(
-                side_effect=httpx.ConnectError("refused")
-            )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client_cls.return_value = mock_client
-
+        shared = _mock_shared_client(post_side_effect=httpx.ConnectError("refused"))
+        with patch("app.services.drug_rag_client.get_shared_client", return_value=shared):
             client = DrugRagClient(base_url="http://localhost:8100")
             result = await client.query("test query")
 
@@ -138,14 +148,9 @@ class TestDrugRagClientQuery:
         mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
             "500", request=MagicMock(), response=mock_resp
         )
+        shared = _mock_shared_client(post_return=mock_resp)
 
-        with patch("app.services.drug_rag_client.httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_resp)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client_cls.return_value = mock_client
-
+        with patch("app.services.drug_rag_client.get_shared_client", return_value=shared):
             client = DrugRagClient(base_url="http://localhost:8100")
             result = await client.query("test query")
 
@@ -160,14 +165,9 @@ class TestDrugRagClientHealth:
     async def test_health_check_success(self):
         mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
+        shared = _mock_shared_client(get_return=mock_resp)
 
-        with patch("app.services.drug_rag_client.httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client.get = AsyncMock(return_value=mock_resp)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client_cls.return_value = mock_client
-
+        with patch("app.services.drug_rag_client.get_shared_client", return_value=shared):
             client = DrugRagClient(base_url="http://localhost:8100")
             result = await client.health()
 
@@ -175,15 +175,8 @@ class TestDrugRagClientHealth:
 
     @pytest.mark.asyncio
     async def test_health_check_failure(self):
-        with patch("app.services.drug_rag_client.httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client.get = AsyncMock(
-                side_effect=httpx.ConnectError("refused")
-            )
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client_cls.return_value = mock_client
-
+        shared = _mock_shared_client(get_side_effect=httpx.ConnectError("refused"))
+        with patch("app.services.drug_rag_client.get_shared_client", return_value=shared):
             client = DrugRagClient(base_url="http://localhost:8100")
             result = await client.health()
 

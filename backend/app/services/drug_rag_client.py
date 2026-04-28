@@ -17,6 +17,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 from app.config import settings
+from app.services._http import get_shared_client
 
 logger = logging.getLogger(__name__)
 
@@ -101,13 +102,14 @@ class DrugRagClient:
             payload["category"] = category_hint
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                resp = await client.post(
-                    f"{self.base_url}/query",
-                    json=payload,
-                )
-                resp.raise_for_status()
-                data = resp.json()
+            client = get_shared_client()
+            resp = await client.post(
+                f"{self.base_url}/query",
+                json=payload,
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+            data = resp.json()
 
             # Parse response — the Drug RAG API may return various formats
             chunks = []
@@ -178,9 +180,9 @@ class DrugRagClient:
     async def health(self) -> bool:
         """Check if the Drug RAG API is reachable."""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.get(f"{self.base_url}/health")
-                return resp.status_code == 200
+            client = get_shared_client()
+            resp = await client.get(f"{self.base_url}/health", timeout=5.0)
+            return resp.status_code == 200
         except Exception:
             return False
 
