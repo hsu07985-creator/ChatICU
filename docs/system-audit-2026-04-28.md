@@ -26,8 +26,22 @@
 |---|---|---|---|
 | G1 | `railway login` 恢復 live log 觀測能力 | 你 | ✅ 2026-04-29 token 已恢復（Project: scintillating-compassion / production / ChatICU） |
 | G2 | 尖峰時段觀察 1-2 小時，無 DB pool / prepared statement / ON CONFLICT 相關錯誤 | 你 | ✅ 2026-04-29 近 24h / 近 2h / 近 30m 三段都乾淨；技術上無 DB pooler / ON CONFLICT 路徑相關問題（細節見下） |
-| G3 | 同一 tab 內 mutation 後切 `/dashboard`、`/patients`，確認有重抓且無 stale | 你（需 prod 登入） | ⏸ 待手動驗證 |
+| G3 | 同一 tab 內 mutation 後切 `/dashboard`、`/patients`，確認有重抓且無 stale | Playwright MCP 自動驗證 | ✅ 2026-04-29 PATCH 後雙軌 invalidate 立即觸發（細節見下） |
 | G4 | Step 3 batch 設計確認（附錄 D） | 雙方 | ✅ 2026-04-29 4 個修正併入 |
+
+### G3 驗證結果（2026-04-29，Playwright MCP）
+
+走完 1-5 步：
+
+| 步驟 | 動作 | 觀察 |
+|---|---|---|
+| 1 | 開 https://chat-icu.vercel.app/ | `/auth/me` 401 → `/auth/refresh` 200 → `/auth/me` 200，正常 session 流程 |
+| 2 | 進 `/patients`，點 I-17 (周○鄉, MRN 50480738) 編輯 → 直接「儲存變更」（no-op update） | `PATCH /patients/pat_b00e859b => 200` |
+| 3 | 直接觀察 mutation 後的 network log | **`GET /patients?limit=100 => 200`**（patients.all invalidate 觸發）<br>**`GET /dashboard/stats => 200`**（dashboard.all invalidate 也觸發） |
+| 4 | 切 `/dashboard` → 切回 `/patients` | 兩頁皆已 staleTime fresh（5 min），不需再 refetch；資料一致無 stale |
+| 5 | DevTools console | 0 個 `queryClient is undefined`、0 個 `queryKeys is undefined`，僅初始 `/auth/me` 401（正常 refresh 流程） |
+
+**結論**：§3.1 修法（`patient-data-sync.ts` 補 `queryClient.invalidateQueries`）在 prod 正確觸發雙軌 cache 同步——這是 v3 修正後的設計目標。
 
 ### G2 觀察結果（2026-04-29）
 
