@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Home, Users, MessageSquare, Database, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Moon, Sun, LogOut, Sparkles, Archive, Copy, Library } from 'lucide-react';
+import { Home, Users, MessageSquare, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Moon, Sun, LogOut, Sparkles, Archive, Copy, Library } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import logoImage from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 import {
@@ -112,7 +112,6 @@ export function AppSidebar() {
   const adminItems = user?.role === 'admin' ? [
     { title: '稽核紀錄', url: '/admin/audit', icon: FileText },
     { title: '帳號與權限', url: '/admin/users', icon: UserCog },
-    { title: '向量資料庫', url: '/admin/vectors', icon: Database },
   ] : [];
 
   const renderMenuGroup = (label: string, items: MenuItem[]) => (

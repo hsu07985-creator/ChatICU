@@ -1,4 +1,3 @@
-import type { AxiosProgressEvent } from 'axios';
 import apiClient, { ensureData } from '../api-client';
 
 interface ApiResponse<T> {
@@ -134,73 +133,6 @@ export async function updateUser(
   return ensureData(response.data, 'API contract');
 }
 
-// ========== 向量資料庫 ==========
-
-export interface VectorDatabase {
-  id: string;
-  name: string;
-  documentCount: number;
-  chunkCount: number;
-  status: 'active' | 'updating' | 'error';
-  embeddingModel: string;
-}
-
-export interface VectorsResponse {
-  databases: VectorDatabase[];
-}
-
-export interface UploadVectorDocumentResponse {
-  documentId: string;
-  fileName: string;
-  collection: string;
-  status: 'indexed' | 'processing';
-  database: VectorDatabase;
-  metadata?: Record<string, unknown>;
-}
-
-export interface UploadVectorDocumentParams {
-  file: File;
-  collection: string;
-  metadata?: Record<string, unknown>;
-  onUploadProgress?: (progress: number) => void;
-}
-
-export async function getVectorDatabases(): Promise<VectorsResponse> {
-  const response = await apiClient.get<ApiResponse<VectorsResponse>>('/admin/vectors');
-  return ensureData(response.data, 'API contract');
-}
-
-export async function uploadVectorDocument(
-  params: UploadVectorDocumentParams
-): Promise<UploadVectorDocumentResponse> {
-  const formData = new FormData();
-  formData.append('file', params.file);
-  formData.append('collection', params.collection);
-  if (params.metadata) {
-    formData.append('metadata', JSON.stringify(params.metadata));
-  }
-
-  const response = await apiClient.post<ApiResponse<UploadVectorDocumentResponse>>(
-    '/admin/vectors/upload',
-    formData,
-    {
-      onUploadProgress: (event: AxiosProgressEvent) => {
-        if (!event.total || event.total <= 0) return;
-        const progress = Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100)));
-        params.onUploadProgress?.(progress);
-      },
-    }
-  );
-  return ensureData(response.data, 'API contract');
-}
-
-export async function rebuildVectorIndex(): Promise<{ message: string; database: VectorDatabase }> {
-  const response = await apiClient.post<
-    ApiResponse<{ message: string; database: VectorDatabase }>
-  >('/admin/vectors/rebuild');
-  return ensureData(response.data, 'API contract');
-}
-
 // ========== 用藥標準化字典 ==========
 
 export interface MedicationNormalizationConfig {
@@ -237,9 +169,6 @@ export const adminApi = {
   getUserById,
   createUser,
   updateUser,
-  getVectorDatabases,
-  uploadVectorDocument,
-  rebuildVectorIndex,
   getMedicationNormalizationConfig,
   updateMedicationNormalizationConfig,
 };

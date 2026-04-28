@@ -36,7 +36,6 @@ const ChangePasswordPage = lazy(() => import('./pages/change-password').then(m =
 
 // Admin Pages (lazy)
 const AuditPage = lazy(() => import('./pages/admin/placeholder').then(m => ({ default: m.AuditPage })));
-const VectorsPage = lazy(() => import('./pages/admin/vectors').then(m => ({ default: m.VectorsPage })));
 const UsersPage = lazy(() => import('./pages/admin/users').then(m => ({ default: m.UsersPage })));
 const AdminStatisticsPage = lazy(() => import('./pages/admin/statistics').then(m => ({ default: m.AdminStatisticsPage })));
 
@@ -216,16 +215,6 @@ function AppRoutes() {
           <AdminRoute>
             <AppLayout>
               <AuditPage />
-            </AppLayout>
-          </AdminRoute>
-        }
-      />
-      <Route
-        path="/admin/vectors"
-        element={
-          <AdminRoute>
-            <AppLayout>
-              <VectorsPage />
             </AppLayout>
           </AdminRoute>
         }
