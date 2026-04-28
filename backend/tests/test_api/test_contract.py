@@ -32,7 +32,7 @@ async def test_root_follows_envelope(client):
 @pytest.mark.asyncio
 async def test_success_response_has_required_fields(client):
     """Any 200 response must have success=True."""
-    response = await client.get("/api/v1/rag/status")
+    response = await client.get("/health")
     assert response.status_code == 200
     data = response.json()
     assert "success" in data
@@ -43,8 +43,8 @@ async def test_success_response_has_required_fields(client):
 async def test_404_error_envelope(client):
     """404 must return {success: false, error: 'NOT_FOUND', message: ...}."""
     response = await client.post(
-        "/api/v1/clinical/summary",
-        json={"patient_id": "NONEXIST"},
+        "/api/v1/clinical/polish",
+        json={"patient_id": "NONEXIST", "content": "test", "polish_type": "progress_note"},
     )
     assert response.status_code == 404
     data = response.json()
@@ -79,23 +79,9 @@ async def test_422_validation_error_envelope(client):
     assert "trace_id" in data
 
 
-@pytest.mark.asyncio
-async def test_503_error_envelope(client):
-    """503 must return {success: false, error: 'SERVICE_UNAVAILABLE', message: ...}."""
-    # Force local RAG fallback by disabling hybrid evidence_client
-    with patch("app.routers.rag.evidence_client") as mock_ec:
-        mock_ec.query.side_effect = Exception("func/ unavailable in test")
-        response = await client.post(
-            "/api/v1/rag/query",
-            json={"question": "test"},
-        )
-    assert response.status_code == 503
-    data = response.json()
-    assert data["success"] is False
-    assert data["error"] == "SERVICE_UNAVAILABLE"
-    assert "message" in data
-    assert "request_id" in data
-    assert "trace_id" in data
+# test_503_error_envelope removed in Phase 1 D2a — the only 503 path
+# in scope was /api/v1/rag/query which depended on evidence_client; both
+# are deleted.
 
 
 @pytest.mark.asyncio
@@ -160,8 +146,6 @@ async def test_all_success_endpoints_return_envelope(client):
     endpoints = [
         ("GET", "/health"),
         ("GET", "/"),
-        ("GET", "/api/v1/ai/readiness"),
-        ("GET", "/api/v1/rag/status"),
         ("POST", "/api/v1/rules/ckd-stage", {"egfr": 90.0}),
     ]
     for entry in endpoints:
@@ -180,90 +164,14 @@ async def test_all_success_endpoints_return_envelope(client):
             assert data["success"] is True, f"{method} {path} should have success=True"
 
 
-@pytest.mark.asyncio
-async def test_clinical_summary_contract_includes_structured_schema(client):
-    with patch(
-        "app.routers.clinical.generate_clinical_summary",
-        return_value={"summary": "病患呼吸狀態穩定，建議持續監測血氧。", "metadata": {}},
-    ):
-        response = await client.post("/api/v1/clinical/summary", json={"patient_id": "pat_001"})
-        assert response.status_code == 200
-        payload = response.json()["data"]
-        assert isinstance(payload["summary"], str)
-        structured = payload["summary_structured"]
-        assert structured["schema_version"] == "clinical_summary.v1"
-        assert isinstance(structured["overview"], str)
-        assert isinstance(structured["key_findings"], list)
-        assert isinstance(structured["recommended_actions"], list)
+# test_clinical_summary/explanation/decision contract tests removed in
+# Phase 1 D2a along with the underlying /api/v1/clinical/{summary,
+# explanation,decision} endpoints. /summary/stream still exists but is
+# SSE — its contract is exercised end-to-end by the frontend in dev.
 
-
-@pytest.mark.asyncio
-async def test_clinical_explanation_contract_includes_structured_schema(client):
-    with patch(
-        "app.routers.clinical.generate_patient_explanation",
-        return_value={"explanation": "目前藥物目標是維持鎮靜穩定並降低不適。", "metadata": {}},
-    ):
-        response = await client.post(
-            "/api/v1/clinical/explanation",
-            json={
-                "patient_id": "pat_001",
-                "topic": "目前鎮靜策略",
-                "reading_level": "moderate",
-            },
-        )
-        assert response.status_code == 200
-        payload = response.json()["data"]
-        assert isinstance(payload["explanation"], str)
-        structured = payload["explanation_structured"]
-        assert structured["schema_version"] == "patient_explanation.v1"
-        assert structured["topic"] == "目前鎮靜策略"
-        assert structured["reading_level"] == "moderate"
-        assert isinstance(structured["key_points"], list)
-        assert isinstance(structured["care_advice"], list)
-
-
-@pytest.mark.asyncio
-async def test_clinical_decision_contract_includes_structured_schema(client):
-    with patch(
-        "app.routers.clinical.call_llm",
-        return_value={
-            "status": "success",
-            "content": "建議逐步減量 Midazolam 並每 4 小時重評 RASS。",
-            "metadata": {},
-        },
-    ):
-        response = await client.post(
-            "/api/v1/clinical/decision",
-            json={"patient_id": "pat_001", "question": "Should we change sedation?"},
-        )
-        assert response.status_code == 200
-        payload = response.json()["data"]
-        assert isinstance(payload["recommendation"], str)
-        structured = payload["decision_structured"]
-        assert structured["schema_version"] == "decision_support.v1"
-        assert structured["question"] == "Should we change sedation?"
-        assert isinstance(structured["rationale_points"], list)
-        assert isinstance(structured["action_items"], list)
-
-
-@pytest.mark.asyncio
-async def test_multipart_upload_contract_is_limited_to_admin_vectors_upload(client):
-    """Multipart surface must stay minimal and only expose admin vectors upload."""
-    response = await client.get("/openapi.json")
-    assert response.status_code == 200
-    spec = response.json()
-
-    multipart_ops = []
-    for path, methods in spec.get("paths", {}).items():
-        for method, op in methods.items():
-            request_body = op.get("requestBody", {})
-            content = request_body.get("content", {})
-            if "multipart/form-data" in content:
-                multipart_ops.append(f"{method.upper()} {path}")
-
-    assert "POST /admin/vectors/upload" in multipart_ops
-    unexpected = [op for op in multipart_ops if op != "POST /admin/vectors/upload"]
-    assert unexpected == [], f"Unexpected multipart upload endpoints: {unexpected}"
+# test_multipart_upload_contract removed in Phase 1 D2a — there is now
+# zero multipart upload surface in the API (the only consumer was
+# /admin/vectors/upload, which is deleted).
 
 
 # ── F09: Dashboard stats contract ────────────────────────────────────

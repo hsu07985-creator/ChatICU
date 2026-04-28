@@ -58,7 +58,6 @@ from app.routers import (
     admin,
     admin_his_sync,
     ai_chat,
-    ai_readiness,
     auth,
     clinical,
     dashboard,
@@ -75,7 +74,6 @@ from app.routers import (
     patients,
     patients_v2,
     pharmacy,
-    rag,
     record_templates,
     rules,
     scores,
@@ -148,32 +146,8 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("[INTG][DB] Startup migrations failed (non-fatal): %s", e)
 
-        if not getattr(settings, "RAG_AUTO_INDEX_ON_STARTUP", True):
-            return
-
-        from app.services.llm_services.rag_service import rag_service
-
-        try:
-            if await rag_service.load_persisted():
-                if settings.RAG_DOCS_PATH and await rag_service._needs_rebuild(settings.RAG_DOCS_PATH):
-                    logger.info("[INTG][RAG] Source documents changed, rebuilding index")
-                    chunks = rag_service.load_and_chunk(settings.RAG_DOCS_PATH)
-                    result = await rag_service.index(chunks)
-                    logger.info("[INTG][RAG] Rebuilt index: %d chunks", result["total_chunks"])
-                else:
-                    logger.info("[INTG][RAG] Persisted index is up-to-date (%d chunks)", len(rag_service.chunks))
-            elif settings.RAG_DOCS_PATH:
-                logger.info("[INTG][RAG] Building index from %s", settings.RAG_DOCS_PATH)
-                chunks = rag_service.load_and_chunk(settings.RAG_DOCS_PATH)
-                result = await rag_service.index(chunks)
-                logger.info("[INTG][RAG] Built index: %d chunks", result["total_chunks"])
-            else:
-                logger.info("[INTG][RAG] No RAG_DOCS_PATH and no persisted index")
-        except asyncio.CancelledError:
-            logger.info("[INTG][RAG] Warmup cancelled during shutdown")
-            raise
-        except Exception as e:
-            logger.warning("[INTG][RAG] Auto-indexing failed (non-fatal): %s", e)
+        # RAG warmup removed (Phase 1 D2a) — rag_service is gone, no
+        # in-process index to load.
 
     startup_warmup_task = asyncio.create_task(_run_startup_warmups(), name="startup-warmups")
     app.state.startup_warmup_task = startup_warmup_task
@@ -440,11 +414,9 @@ app.include_router(admin.router)
 app.include_router(admin_his_sync.router)
 app.include_router(pharmacy.router)
 
-# Phase 3: AI / RAG / Rules
+# Phase 3: AI / Rules (RAG routers removed in Phase 1 D2a)
 app.include_router(ai_chat.router)
 app.include_router(clinical.router)
-app.include_router(ai_readiness.router)
-app.include_router(rag.router)
 app.include_router(rules.router)
 # Phase 4: V2 endpoints + Clinical Scores
 app.include_router(patients_v2.router)
