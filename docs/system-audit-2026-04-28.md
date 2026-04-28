@@ -20,12 +20,26 @@
 | 第二批 | #3 Step 2：`upsert_records` 改 `INSERT ... ON CONFLICT DO UPDATE` | ✅ 已 push、人工 review、本機 22 測試綠、單病人實測 ~2 min | 2026-04-28 | `3ad388bde` |
 | 第二批 | #3 Step 3A：寫 7 個新 invariant 測試 + `SchemaInconsistencyError` 類別 | ✅ 已 push | 2026-04-29 | `9ee1e7780` |
 | 第二批 | #3 Step 3B：實作 batch helpers + refactor `upsert_records` / `insert_records` | ✅ 已 push（107 測試全綠 / Railway 健康） | 2026-04-29 | `4724fa117` |
-| 第二批 | #3 Step 3C：本機跑 `sync_his_snapshots_serial.py -p 50480738 --force` 對比 Step 2 baseline | ⏸ 等你跑（預期 < 30 sec） | — | — |
+| 第二批 | #3 Step 3C：本機跑 `sync_his_snapshots_serial.py -p 50480738 --force` 對比 Step 2 baseline | ✅ 2026-04-29 **19.87 sec/patient**（vs Step 2 ~2 min，6× 提速）；row summary 與 Step 2 一致；Railway log 30m 乾淨 | 2026-04-29 | — |
 
 ### Step 3 已實作完成（2026-04-29）
 
 - **3A** (`9ee1e7780`)：定義 `SchemaInconsistencyError`，新增 7 個 invariant 測試，`raises_on_inconsistent_schema` 暫 xfail
 - **3B** (`4724fa117`)：實作 6 個 helper（`_TIMESTAMP_FIELDS`、`_effective_keys`、`_assert_uniform_schema`、`_dedupe_by_id_for_upsert`、`_build_values_clause`、`_build_batch_params`、`_execute_batch_upsert`、`_execute_batch_insert`）+ refactor `upsert_records` / `insert_records` 為 batch；移除 xfail，所有 16 個 invariant + 6 個 happy-path + 7 個 admin_his_sync 測試全綠
+
+**Step 3C prod 實測（2026-04-29）**：
+
+| 項目 | 結果 |
+|---|---|
+| `time python3 scripts/sync_his_snapshots_serial.py -p 50480738 --force` | **real 19.87s** |
+| Step 2 baseline | ~2 min |
+| 提速 | **~6×**，達成 < 30 sec/patient 目標 |
+| Row summary | `errors=0, med_upserted=112, labs=42, cultures=2, reports=16` — 與 Step 2 完全一致 |
+| `tests/test_fhir/test_snapshot_sync*.py` + `test_admin_his_sync.py` | 29 passed |
+| Railway `/health` | 200 |
+| Railway log 30m | 0 個 `SchemaInconsistencyError` / `DuplicatePreparedStatement` / `QueuePool` / `IntegrityError` / `ON CONFLICT` 相關 / `column does not exist` / `unique constraint` / `TimeoutError` / 5xx |
+
+**已知未提交檔案**：`backend/scripts/sync_his_snapshots_serial.py` 仍是 untracked。本機可用但不在版本庫；後續若要在 Railway 端排程 HIS sync 需另行提交。
 
 **Pre-flight HISConverter audit（2026-04-29，避免 prod 觸發 SchemaInconsistencyError 誤判）**：
 - `convert_medications` → 固定 30 keys ✅
@@ -892,8 +906,17 @@ asyncio.create_task(_run_startup_warmups(), ...)
 ### 第三批（觀測類）
 | # | 修什麼 | 風險 | 工 | 收益 |
 |---|---|---|---|---|
-| 4 | `patients_v2.py` 加非 PHI access logging，觀測 1-2 週 | 低 | 30 min | ⭐⭐（觀測為主） |
+| 4 | `patients_v2.py` 加非 PHI access logging，觀測 1-2 週 | ✅ 2026-04-29 上線（middleware + 6 PHI 安全測試） | 完成 | 累積觀察中 |
 | 5 | 跑 bundle analyzer 反查 charts 為何進首屏，再決定 lazy 策略 | 低 | 半天 | ⭐⭐⭐ |
+
+**#4 實作摘要**：
+- `backend/app/middleware/v2_access_log.py`：`V2AccessLogMiddleware` BaseHTTPMiddleware
+- 只攔 `/v2/patients` 前綴（非該前綴一律 pass-through）
+- 記錄欄位：`ts / method / route(template) / status / user_hash / ua`
+- **絕不**記錄：request body、response body、query string 值、原始 user id、URL 中的 patient_id / medication_id / lab_id / MRN、患者姓名
+- JWT 解碼純記憶體運算（不查 Redis、不查 DB）→ middleware 零額外 RTT
+- 404 / unmatched route 也記錄但用 `<unmatched>` 取代真實 segments，避免外部探測把 PHI 灌進 audit trail
+- 6 個測試（`test_middleware/test_v2_access_log.py`）強制驗證 PHI 不洩漏：route template 而非實際 URL、UA 截 80 字、anon 標記、JWT 子身份 hash 不顯示原始 id、unmatched path 不洩漏 segments
 
 ### 第四批（中期架構）
 | # | 修什麼 | 風險 | 工 | 收益 |

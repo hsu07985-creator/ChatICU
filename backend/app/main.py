@@ -269,6 +269,16 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 
 
+# ── /v2/patients access logging (audit doc §4.1) ──
+# PHI-safe observation logger for the legacy v2 router. Emits one INFO
+# line per request so we can confirm zero traffic over 1-2 weeks before
+# deleting the router. Non-v2 paths pass through with a single string
+# comparison.
+from app.middleware.v2_access_log import V2AccessLogMiddleware  # noqa: E402
+
+app.add_middleware(V2AccessLogMiddleware)
+
+
 def _request_id_from_request(request: Request) -> str:
     return getattr(request.state, "request_id", None) or request.headers.get("X-Request-ID") or uuid.uuid4().hex[:12]
 
