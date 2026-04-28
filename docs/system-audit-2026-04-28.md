@@ -14,9 +14,11 @@
 
 | 批次 | 項目 | 狀態 | 完成時間 | Commit |
 |---|---|---|---|---|
-| 第一批 | #1 `database.py` 加 connect_args + 降 pool size | ✅ 本機完成，待 push & 觀察 | 2026-04-28 | (pending) |
-| 第一批 | #2 抽 `query-keys.ts` + `patient-data-sync.ts` 補 TanStack invalidate | ✅ 本機完成，typecheck 通過 | 2026-04-28 | (pending) |
-| 第二批 | #3 `snapshot_sync.py` 改 upsert + batch | ⏸ 待第一批 prod 驗證 24h 後動 | — | — |
+| 第一批 | #1 `database.py` 加 connect_args + 降 pool size | ✅ 部署完成，2h log 乾淨 | 2026-04-28 | `e2f97b2fd` |
+| 第一批 | #2 抽 `query-keys.ts` + `patient-data-sync.ts` 補 TanStack invalidate | ✅ 部署完成，新 bundle 上線 | 2026-04-28 | `e2f97b2fd` |
+| 第二批 | #3 Step 1：寫 invariant 測試保護 reconcile / created_at / 邊界 case | ✅ 完成（9 個新測試全綠） | 2026-04-28 | 待 commit |
+| 第二批 | #3 Step 2：`upsert_records` 改 `INSERT ... ON CONFLICT DO UPDATE` | ⏸ 待第一批觀察期結束 + Step 1 commit | — | — |
+| 第二批 | #3 Step 3：multi-row VALUES batch + reconcile 改寫 | ⏸ 待 Step 2 完成 | — | — |
 
 **前置確認**：✅ `backend/.env.his-sync` 顯示 prod 走 Supabase pooler `aws-1-ap-southeast-2.pooler.supabase.com:6543`（transaction mode），§1.1 / §1.2 修法適用。
 
@@ -46,14 +48,54 @@
   - 結論：第一批改動**未引入任何新失敗**
 - [x] 前端 `npx tsc --noEmit` 全綠
 - [x] 後端 `python3 -c "from app.database import engine"` smoke test 通過
-- [ ] 開 feature branch + commit + merge main + push（依 CLAUDE.md 部署流程）
-- [ ] **後端**推 `personal` remote（Railway 部署）
-- [ ] **前端**推 `railway` remote（Vercel 部署）
-- [ ] 部署 60-90 秒後 `curl /health` 驗活
-- [ ] **觀察 Railway log 1-2h**：
-  - 不再出現 `DuplicatePreparedStatementError`（§1.1 修對了）
-  - 不出現 `QueuePool limit reached` / pool timeout（§1.2 沒砍過頭）
-- [ ] Vercel 前端：手動操作一次 patient mutation，確認列表 + dashboard 即時更新（§3.1 雙軌 invalidate 生效）
+- [x] 開 feature branch `fix/db-pooler-and-cache-invalidate` + commit `e2f97b2fd` + merge main
+- [x] **後端**推 `personal main`（Railway 自動部署）
+- [x] **前端**推 `railway main`（Vercel 自動 build）
+- [x] Railway `/health` 立即 verify 200（version 1.4.5）
+- [x] Vercel 新 bundle 已上：`assets/index-CNtjDJ4u.js`（舊 `index-CMJMMXm_.js` 已替換）
+- [x] **Railway log 觀察 2h**（透過 Railway CLI）：
+  - ✅ 沒看到 `DuplicatePreparedStatementError`
+  - ✅ 沒看到 `prepared statement ... already exists`
+  - ✅ 沒看到 `QueuePool` 警示
+  - ✅ 沒看到 `TimeoutError`
+  - ✅ 近 30 分鐘 HTTP 5xx 沒查到
+- [ ] 持續觀察尖峰時段 1-2h（多人 + AI chat + HIS sync 沒在跑時最值得看）
+- [ ] 同一 tab 內手動操作驗證雙軌 invalidate（修正後的方法見 §九 prod 驗證 SOP）
+
+### 第二批 #3 Step 1 改動明細
+
+**新增 `backend/tests/test_fhir/test_snapshot_sync_invariants.py`（9 個測試）**：
+
+零 production 程式碼變動，只新增 baseline 測試鎖定後續重構的不變量：
+
+| 測試 | 鎖定的契約 |
+|---|---|
+| `test_upsert_records_preserves_created_at_on_update` | **最關鍵**：refactor 改 `INSERT ... ON CONFLICT DO UPDATE` 時 SET 子句**不可包含 `excluded.created_at`**，否則 audit/billing 時間軸錯亂 |
+| `test_upsert_records_is_idempotent` | 重複呼叫不重複插入、不報錯 |
+| `test_upsert_records_handles_empty_list` | 空輸入回 0 不發 SQL（PostgreSQL `INSERT ... VALUES` 不接受空 tuple） |
+| `test_insert_records_handles_empty_list` | 同上 |
+| `test_insert_records_returns_inserted_count` | 回傳值 = `len(records)`，summary/coverage 報告依賴此數字 |
+| `test_reconcile_medications_with_empty_incoming_protects_admins_only` | HIS 全空時 → 有 administrations 的 med 必須 discontinued 不可 delete |
+| `test_reconcile_medications_mixed_added_protected_deleted` | 混合情境下 4 個 counter 同時正確；`protected_ids` 與 `deleted_ids` 不可有交集 |
+| `test_replace_patient_records_with_empty_incoming_removes_all` | lab/culture/diagnostic_reports 是「全替換」語意，無 protection 機制 |
+| `test_replace_patient_records_with_unchanged_set_reports_zero_delta` | 同 ID 進出 → `added=0, removed=0`，前端 toast 跳過 zero-delta 事件依賴此契約 |
+
+**驗證**：
+- ✅ 新測試 9/9 全綠（在現行碼上 0.47s）
+- ✅ `tests/test_fhir/` 整目錄 93 個測試全綠（扣掉 17 個 datamock 相關的 pre-existing 失敗）
+
+**特別說明**：這些測試**只在 SQLite test fixture 上驗證邏輯契約**——但這正是測試 invariant 而非 SQL 語法的目的。Step 2 改 `INSERT ... ON CONFLICT DO UPDATE` 時這些測試仍要全綠，才能 prod 部署。
+
+---
+
+### prod 觀察期間發現的 non-fatal warnings（不影響本次回退決策）
+
+兩個 startup warning，**非本次 #1/#2 引入**，但呼應第五批 #10「startup_migrations 整理」的必要性：
+
+1. **seed 日期型別錯**：seed data 寫入時 date/datetime 序列化問題
+2. **diagnostic_report FK violation**：FK 約束在 startup repair 階段觸發
+
+→ 列入第五批 #10 的具體修法輸入，當時拆 schema vs seed/repair job 時要直接修掉這兩個。
 
 ---
 
@@ -769,6 +811,54 @@ asyncio.create_task(_run_startup_warmups(), ...)
 | 10 | `startup_migrations` 拆解：schema → Alembic、seed/repair → 明確 job、移除 `\|\| echo WARN` | 低 | 1-2 天 | ⭐⭐ |
 | 11 | `dashboard-stats-cache.ts` 等 dashboard 完全遷 TanStack 後再刪 | 低 | 等 §3.1 後 | ⭐ |
 | 12 | Vercel `/api/*` namespace 收斂，**保留舊路由 compatibility rewrite**，不一次改完 | 高 | 2-3 天 | ⭐⭐ |
+
+### 9.0 prod 驗證 SOP（v3 修正版，必讀）
+
+> v2 的「兩個 browser tab 互相通知」測法**錯誤**——不同 tab 各自有獨立 memory cache，本來就不會自動同步。本次 #2 修的是**同一個 tab 內**手刻 cache 與 TanStack cache 不再不同步。
+
+**A. Railway 後端觀察（事件處理流程）**
+
+| 觀察結果 | 正確處理 |
+|---|---|
+| `DuplicatePreparedStatementError` 出現 | **不要立即 rollback**。先確認：(1) 新版本是否真的部署（railway log 找新 commit hash）、(2) DATABASE_URL 是否仍走 pooler 6543、(3) `connect_args` 是否生效（log 中應看到 asyncpg 連線而非每次握手）。**只有確認是新 commit 導致 outage** 才 rollback |
+| `QueuePool limit size 5 overflow 5 reached` 偶發 1-2 次 | 部署剛啟動或短暫尖峰，**不調整** |
+| `QueuePool limit reached` **持續出現** + API 變慢 / 5xx 上升 | 才考慮調 `pool_size=8, max_overflow=8`；同時確認 Supabase pooler plan 上限與 Railway replica 數 |
+| `TimeoutError: QueuePool` | 同上，先看頻率 |
+| 一切平靜 | ✅ 可進第二批 |
+
+**B. Vercel 前端驗證（同一 tab 內）**
+
+> 跨 tab 即時同步**不是本次修法的範圍**——那需要 `BroadcastChannel` 或 `localStorage` 事件，是未來另一個議題。
+
+正確測法（**單一 tab**）：
+1. 開 https://chat-icu.vercel.app/ 登入
+2. 進 `/patients` 列表，記住某個病人狀態（例如 archived 與否）
+3. 對該病人做 update / archive
+4. **同一 tab 內** 立即切到 `/dashboard` → 統計卡片應反映變更
+5. **同一 tab 內** 切回 `/patients` → 列表應反映變更
+6. DevTools Network 看：mutation 完成後應看到 `/patients`、`/dashboard` 立即重抓一次
+
+| 結果 | 意思 |
+|---|---|
+| 同 tab 內切換頁面 → 立即看到新資料 | ✅ 雙軌 invalidate 修好 |
+| 同 tab 內切換頁面 → 仍是舊資料、需 reload | ❌ invalidate 沒走到 |
+
+**C. 如果真要 rollback（注意 worktree 髒）**
+
+目前本地有大量未 commit 變更（CLAUDE.md mod、datamock 刪除、untracked artifacts），直接 `git revert` 可能被卡。正確做法：
+
+```bash
+# 在 *clean clone* 或 *clean worktree* 上做：
+git clone https://github.com/jht12020304/ChatICU.git /tmp/chaticu-rollback
+cd /tmp/chaticu-rollback
+git revert e2f97b2fd --no-edit
+git push personal main
+git push railway main
+```
+
+不要在現有的髒 worktree 上做 revert。
+
+---
 
 ### 9.1 #1 詳細修法
 
