@@ -758,10 +758,16 @@ async def _stream_openai(
     # NOTE: gpt-5.x reasoning models only accept the default temperature (1),
     # so we do NOT pass temperature at all — let the API use its default.
     # Non-reasoning models (gpt-4o, etc.) honor LLM_TEMPERATURE.
+    # When we want to skip reasoning on a gpt-5.x model we must explicitly send
+    # reasoning_effort="minimal" — omitting the field makes OpenAI fall back to
+    # the server default (medium), which can consume the entire
+    # max_completion_tokens budget and yield an empty stream.
     use_reasoning = bool(_REASONING_EFFORT) and task != "icu_chat" and not disable_reasoning
     if use_reasoning:
         create_kwargs["reasoning_effort"] = _REASONING_EFFORT
-    elif not settings.LLM_MODEL.startswith("gpt-5"):
+    elif settings.LLM_MODEL.startswith("gpt-5"):
+        create_kwargs["reasoning_effort"] = "minimal"
+    else:
         create_kwargs["temperature"] = settings.LLM_TEMPERATURE
     stream = await client.chat.completions.create(**create_kwargs)
 
@@ -852,7 +858,12 @@ def _call_openai(
     )
     if _REASONING_EFFORT and not disable_reasoning:
         create_kwargs["reasoning_effort"] = _REASONING_EFFORT
-    elif not settings.LLM_MODEL.startswith("gpt-5"):
+    elif settings.LLM_MODEL.startswith("gpt-5"):
+        # When we explicitly want to skip reasoning on a gpt-5.x model we must
+        # send reasoning_effort="minimal" — omitting the field falls back to the
+        # server default (medium), which can eat all max_completion_tokens.
+        create_kwargs["reasoning_effort"] = "minimal"
+    else:
         # gpt-5.x reasoning models reject non-default temperature; only set it
         # for non-reasoning models (gpt-4o, etc.).
         create_kwargs["temperature"] = temperature
