@@ -907,7 +907,18 @@ asyncio.create_task(_run_startup_warmups(), ...)
 | # | 修什麼 | 風險 | 工 | 收益 |
 |---|---|---|---|---|
 | 4 | `patients_v2.py` 加非 PHI access logging，觀測 1-2 週 | ✅ 2026-04-29 上線（middleware + 6 PHI 安全測試） | 完成 | 累積觀察中 |
-| 5 | 跑 bundle analyzer 反查 charts 為何進首屏，再決定 lazy 策略 | 低 | 半天 | ⭐⭐⭐ |
+| 5 | 跑 bundle analyzer 反查 charts 為何進首屏，再決定 lazy 策略 | ✅ 2026-04-29 找到原因 + 修復（`build.modulePreload.resolveDependencies` 過濾 async-only chunks） | 完成 | ~113 KB gz 不再首屏預載 |
+
+**#5 反查結論**：所有 chart consumer 都已用 `lazy()` 動態載入（`patient-detail.tsx:7`、`patient-medications-tab.tsx:25`、`lab-data-display.tsx:18`、`InflammationIndicesPanel.tsx:14`）。charts chunk 進入首屏 modulepreload 不是因為 static import，而是 **Vite 預設行為**：entry HTML 會 modulepreload **所有** entry 可達的 chunks，包括 lazy() 之後才執行的 async dep（速度優化）。
+
+**修法**：在 `vite.config.ts:build.modulePreload.resolveDependencies` 過濾 `^/charts-[^/]*\.js$`，只保留 `vendor` + `ui`（真正 static dep）。Vite 的 runtime 仍會在 `lazy()` 觸發時自動 preload + load chunk，只是不在 HTML head 載入時就先抓。
+
+**結果**：
+- Before：`<link rel="modulepreload" ... charts-BImDY05S.js>` 在首屏（~113 KB gz 無條件下載）
+- After：移除；charts 只在使用者進 `/patient/:id`（含 LabTrendChart）或 `/admin/statistics` 等頁時才載
+- /dashboard、/patients 首屏不再付這 113 KB 流量
+
+**備註（dead code 未動）**：`src/components/ui/chart.tsx` 是 shadcn 預設 wrapper，內含 `import * as RechartsPrimitive from "recharts@2.15.2"`，但**整個檔案沒有任何 consumer**（已 grep 確認 `ChartContainer/ChartTooltip/ChartConfig` 等 export 名稱在 src/ 其他地方零命中）。Rollup 已 tree-shake 掉，所以 charts chunk 大小不受影響；但檔案本身是 dead code，下次重新整理 ui/ 時可一併刪除。
 
 **#4 實作摘要**：
 - `backend/app/middleware/v2_access_log.py`：`V2AccessLogMiddleware` BaseHTTPMiddleware

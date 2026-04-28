@@ -58,6 +58,22 @@
     build: {
       target: 'esnext',
       outDir: 'build',
+      // Drop async-only chunks from the entry HTML's <link rel="modulepreload">.
+      // Vite's default behaviour is to preload everything the entry can
+      // eventually reach — including chunks only loaded via lazy(). For
+      // ChatICU that means the 113 KB gz `charts` chunk (recharts) is
+      // preloaded on first paint of /dashboard and /patients even though
+      // neither page uses charts; charts are only reached through the
+      // lazy LabTrendChart / ScoreTrendChart imports inside patient detail.
+      // The browser will still fetch the chunk when the lazy import runs
+      // — we are merely declining to download it speculatively at boot.
+      // See docs/system-audit-2026-04-28.md §6.2.
+      modulePreload: {
+        resolveDependencies(filename, deps, { hostType }) {
+          if (hostType !== 'html') return deps;
+          return deps.filter((dep) => !/\/charts-[^/]*\.js$/.test(dep));
+        },
+      },
       rollupOptions: {
         output: {
           manualChunks: {
