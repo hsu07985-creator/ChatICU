@@ -6,7 +6,7 @@ import { Badge } from '../components/ui/badge';
 import { Textarea } from '../components/ui/textarea';
 import { MentionTextarea } from '../components/ui/mention-textarea';
 import { ScrollArea } from '../components/ui/scroll-area';
-import { Send, Pin, MessageSquare, RefreshCw, AtSign, ChevronDown, ChevronRight, ExternalLink, Trash2 } from 'lucide-react';
+import { Send, Pin, MessageSquare, RefreshCw, AtSign, ChevronDown, ChevronRight, ExternalLink, Trash2, CornerUpLeft, X } from 'lucide-react';
 import { useAuth } from '../lib/auth-context';
 import { maskPatientName } from '../lib/utils/patient-name';
 import { getTeamChatMessages, sendTeamChatMessage, postAnnouncement, togglePinMessage, deleteTeamChatMessage, getTeamUsers, TeamChatMessage, TeamUser } from '../lib/api/team-chat';
@@ -85,6 +85,7 @@ export function ChatPage() {
   const [mentionsUnreadOnly, setMentionsUnreadOnly] = useState(false);
   const [pinningMessageId, setPinningMessageId] = useState<string | null>(null);
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<TeamChatMessage | null>(null);
   const navigate = useNavigate();
 
   // 載入訊息（帶快取）
@@ -161,13 +162,34 @@ export function ChatPage() {
 
     setSending(true);
     try {
-      const newMessage = await sendTeamChatMessage(message.trim(), { mentionedUserIds });
-      const updated = [...messages, newMessage];
+      const newMessage = await sendTeamChatMessage(message.trim(), {
+        mentionedUserIds,
+        replyToId: replyingTo?.id,
+      });
+
+      // Backend flattens deeper threads → newMessage.replyToId is the root id
+      // (or null for top-level). Append to the right place.
+      const rootId = newMessage.replyToId ?? null;
+      let updated: TeamChatMessage[];
+      if (rootId) {
+        updated = messages.map((m) =>
+          m.id === rootId
+            ? {
+                ...m,
+                replies: [...(m.replies ?? []), newMessage],
+                replyCount: (m.replyCount ?? 0) + 1,
+              }
+            : m,
+        );
+      } else {
+        updated = [...messages, newMessage];
+      }
       _msgsCache = updated; _msgsTimestamp = Date.now();
       setMessages(updated);
       setMessage('');
       setMentionedUserIds([]);
-      toast.success('訊息已發送');
+      setReplyingTo(null);
+      toast.success(rootId ? '回覆已發送' : '訊息已發送');
     } catch (err) {
       console.error('發送訊息失敗:', err);
       toast.error('發送訊息失敗，請稍後再試');
@@ -238,6 +260,100 @@ export function ChatPage() {
     } finally {
       setPinningMessageId(null);
     }
+  };
+
+  // Render a single chat bubble (top-level or nested reply). Closes over
+  // user/state so call-sites stay tight.
+  const renderMessage = (msg: TeamChatMessage, isReply: boolean) => {
+    const mentionsMe = !!user && (msg.mentionedUserIds?.includes(user.id) ?? false);
+    const isSelf = !!user && msg.userId === user.id;
+
+    // Priority: pinned (root only) > mentionsMe (others') > isSelf > default.
+    let cardClass: string;
+    if (msg.pinned && !isReply) {
+      cardClass = 'border-l-4 border-[#f59e0b] bg-slate-50 dark:bg-slate-800';
+    } else if (mentionsMe && !isSelf) {
+      cardClass = 'border-l-4 border-brand bg-brand/5';
+    } else if (isSelf) {
+      cardClass = 'bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800';
+    } else {
+      cardClass = 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700';
+    }
+    const sizing = isReply ? 'p-2.5 rounded-md' : 'p-3 rounded-lg';
+
+    return (
+      <div
+        data-testid="team-chat-message"
+        className={`group space-y-2 ${sizing} ${cardClass}`}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className={`font-semibold text-foreground ${isReply ? 'text-sm' : ''}`}>{msg.userName}</span>
+            <Badge variant="outline" className="text-xs">
+              {roleDisplayName[msg.userRole] || msg.userRole}
+            </Badge>
+            <span className="text-xs text-muted-foreground">{formatTimestamp(msg.timestamp)}</span>
+            {mentionsMe && !isSelf && (
+              <Badge className="bg-brand text-white text-xs">
+                <AtSign className="h-3 w-3 mr-0.5" />
+                提到你
+              </Badge>
+            )}
+            {msg.pinned && !isReply && (
+              <Badge className="bg-[#f59e0b] text-white">
+                <Pin className="h-3.5 w-3.5 mr-1" />
+                已釘選
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-brand"
+              onClick={() => setReplyingTo(msg)}
+              title="回覆此訊息"
+            >
+              <CornerUpLeft className="h-4 w-4" />
+            </Button>
+            {/* Pin only on top-level — pinning a reply is confusing */}
+            {!isReply && (
+              <span className="inline-flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`opacity-0 group-hover:opacity-100 transition-opacity ${msg.pinned ? 'text-[#f59e0b]' : 'text-muted-foreground hover:text-[#f59e0b]'}`}
+                  onClick={() => void handleTogglePin(msg.id)}
+                  disabled={pinningMessageId === msg.id}
+                  title={msg.pinned ? '取消釘選' : '釘選此訊息'}
+                >
+                  <Pin className="h-4 w-4" />
+                </Button>
+                {pinningMessageId === msg.id ? <ButtonLoadingIndicator compact /> : null}
+              </span>
+            )}
+            {user?.role === 'admin' && (
+              <span className="inline-flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600 hover:bg-red-50"
+                  onClick={() => void handleDeleteMessage(msg.id)}
+                  disabled={deletingMessageId === msg.id}
+                  title="刪除訊息"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+                {deletingMessageId === msg.id ? <ButtonLoadingIndicator compact /> : null}
+              </span>
+            )}
+          </div>
+        </div>
+        <p className={`text-foreground leading-relaxed whitespace-pre-wrap ${isReply ? 'text-sm' : 'text-base'}`}>
+          {renderContent(msg.content)}
+        </p>
+      </div>
+    );
   };
 
   const handleDeleteMessage = async (messageId: string) => {
@@ -311,70 +427,18 @@ export function ChatPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {messages.map((msg) => {
-                    const mentionsMe = !!user && (msg.mentionedUserIds?.includes(user.id) ?? false);
-                    return (
-                    <div
-                      key={msg.id}
-                      data-testid="team-chat-message"
-                      className={`group space-y-2 p-3 rounded-lg ${msg.pinned ? 'border-l-4 border-[#f59e0b] bg-slate-50 dark:bg-slate-800' : mentionsMe ? 'border-l-4 border-brand bg-brand/5' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700'}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground">{msg.userName}</span>
-                          <Badge variant="outline" className="text-xs">
-                            {roleDisplayName[msg.userRole] || msg.userRole}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">{formatTimestamp(msg.timestamp)}</span>
-                          {mentionsMe && (
-                            <Badge className="bg-brand text-white text-xs">
-                              <AtSign className="h-3 w-3 mr-0.5" />
-                              提到你
-                            </Badge>
-                          )}
-                          {msg.pinned && (
-                            <Badge className="bg-[#f59e0b] text-white">
-                              <Pin className="h-3.5 w-3.5 mr-1" />
-                              已釘選
-                            </Badge>
-                          )}
+                  {messages.map((msg) => (
+                    <div key={msg.id} className="space-y-2">
+                      {renderMessage(msg, false)}
+                      {msg.replies && msg.replies.length > 0 && (
+                        <div className="ml-8 space-y-2 border-l-2 border-slate-200 dark:border-slate-700 pl-3">
+                          {msg.replies.map((reply) => (
+                            <div key={reply.id}>{renderMessage(reply, true)}</div>
+                          ))}
                         </div>
-                        <div className="flex items-center gap-1">
-                          {/* 釘選按鈕 - hover 時顯示 */}
-                          <span className="inline-flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className={`opacity-0 group-hover:opacity-100 transition-opacity ${msg.pinned ? 'text-[#f59e0b]' : 'text-muted-foreground hover:text-[#f59e0b]'}`}
-                              onClick={() => void handleTogglePin(msg.id)}
-                              disabled={pinningMessageId === msg.id}
-                              title={msg.pinned ? '取消釘選' : '釘選此訊息'}
-                            >
-                              <Pin className="h-4 w-4" />
-                            </Button>
-                            {pinningMessageId === msg.id ? <ButtonLoadingIndicator compact /> : null}
-                          </span>
-                          {user?.role === 'admin' && (
-                            <span className="inline-flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600 hover:bg-red-50"
-                                onClick={() => void handleDeleteMessage(msg.id)}
-                                disabled={deletingMessageId === msg.id}
-                                title="刪除訊息"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                              {deletingMessageId === msg.id ? <ButtonLoadingIndicator compact /> : null}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <p className="text-base text-foreground leading-relaxed whitespace-pre-wrap">{renderContent(msg.content)}</p>
+                      )}
                     </div>
-                    );
-                  })}
+                  ))}
                 </div>
               )}
             </ScrollArea>
@@ -383,8 +447,30 @@ export function ChatPage() {
             <div className="space-y-2 border-t border-slate-200 dark:border-slate-700 pt-4">
               <div className="flex items-center gap-2">
                 <Send className="h-5 w-5 text-brand" />
-                <label className="font-semibold text-foreground">發送訊息給團隊</label>
+                <label className="font-semibold text-foreground">
+                  {replyingTo ? '回覆訊息' : '發送訊息給團隊'}
+                </label>
               </div>
+              {replyingTo && (
+                <div className="flex items-start gap-2 px-3 py-2 bg-brand/5 border-l-4 border-brand rounded">
+                  <CornerUpLeft className="h-4 w-4 mt-0.5 text-brand shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-muted-foreground">
+                      回覆 <span className="font-medium text-foreground">{replyingTo.userName}</span>
+                    </div>
+                    <div className="text-sm text-foreground truncate">{replyingTo.content}</div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 shrink-0"
+                    onClick={() => setReplyingTo(null)}
+                    title="取消回覆"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
               <div className="flex gap-3">
                 <MentionTextarea
                   value={message}

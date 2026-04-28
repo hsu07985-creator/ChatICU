@@ -2,6 +2,12 @@ import apiClient, { ensureData } from '../api-client';
 
 export type UserRole = 'doctor' | 'np' | 'nurse' | 'pharmacist' | 'admin';
 
+export interface TeamChatReadReceipt {
+  userId: string;
+  userName: string;
+  readAt: string;
+}
+
 export interface TeamChatMessage {
   id: string;
   userId: string;
@@ -10,8 +16,15 @@ export interface TeamChatMessage {
   content: string;
   timestamp: string;
   pinned?: boolean;
+  pinnedBy?: { userId: string; userName: string } | null;
+  pinnedAt?: string | null;
+  replyToId?: string | null;
+  isRead?: boolean;
+  readBy?: TeamChatReadReceipt[];
   mentionedRoles?: string[];
   mentionedUserIds?: string[];
+  replyCount?: number;
+  replies?: TeamChatMessage[];
 }
 
 export interface TeamChatResponse {
@@ -43,6 +56,7 @@ export interface SendTeamChatOptions {
   pinned?: boolean;
   mentionedUserIds?: string[];
   mentionedRoles?: string[];
+  replyToId?: string;
 }
 
 export async function sendTeamChatMessage(
@@ -55,6 +69,9 @@ export async function sendTeamChatMessage(
   }
   if (opts.mentionedRoles && opts.mentionedRoles.length > 0) {
     body.mentionedRoles = opts.mentionedRoles;
+  }
+  if (opts.replyToId) {
+    body.replyToId = opts.replyToId;
   }
   const response = await apiClient.post<ApiResponse<TeamChatMessage>>('/team/chat', body);
   return ensureData(response.data, 'API contract');
