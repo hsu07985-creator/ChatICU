@@ -16,8 +16,8 @@
 |---|---|---|---|---|
 | 第一批 | #1 `database.py` 加 connect_args + 降 pool size | ✅ 部署完成，2h log 乾淨 | 2026-04-28 | `e2f97b2fd` |
 | 第一批 | #2 抽 `query-keys.ts` + `patient-data-sync.ts` 補 TanStack invalidate | ✅ 部署完成，新 bundle 上線 | 2026-04-28 | `e2f97b2fd` |
-| 第二批 | #3 Step 1：寫 invariant 測試保護 reconcile / created_at / 邊界 case | ✅ 完成（9 個新測試全綠） | 2026-04-28 | 待 commit |
-| 第二批 | #3 Step 2：`upsert_records` 改 `INSERT ... ON CONFLICT DO UPDATE` | ⏸ 待第一批觀察期結束 + Step 1 commit | — | — |
+| 第二批 | #3 Step 1：寫 invariant 測試保護 reconcile / created_at / 邊界 case | ✅ 已 push（純測試，Railway 健康） | 2026-04-28 | `46d39ff38` |
+| 第二批 | #3 Step 2：`upsert_records` 改 `INSERT ... ON CONFLICT DO UPDATE` | ✅ 本機完成（15 個測試全綠），待 push | 2026-04-28 | (pending) |
 | 第二批 | #3 Step 3：multi-row VALUES batch + reconcile 改寫 | ⏸ 待 Step 2 完成 | — | — |
 
 **前置確認**：✅ `backend/.env.his-sync` 顯示 prod 走 Supabase pooler `aws-1-ap-southeast-2.pooler.supabase.com:6543`（transaction mode），§1.1 / §1.2 修法適用。
@@ -85,6 +85,34 @@
 - ✅ `tests/test_fhir/` 整目錄 93 個測試全綠（扣掉 17 個 datamock 相關的 pre-existing 失敗）
 
 **特別說明**：這些測試**只在 SQLite test fixture 上驗證邏輯契約**——但這正是測試 invariant 而非 SQL 語法的目的。Step 2 改 `INSERT ... ON CONFLICT DO UPDATE` 時這些測試仍要全綠，才能 prod 部署。
+
+### 第二批 #3 Step 2 改動明細
+
+**改 `backend/app/fhir/snapshot_sync.py:221-260`（`upsert_records` 函式）**：
+
+從 per-row SELECT-then-INSERT/UPDATE（2 RTT/筆）改為 `INSERT ... ON CONFLICT (id) DO UPDATE`（1 RTT/筆）。
+
+**關鍵實作細節**：
+- 加空列表 guard：`if not records: return 0`（PG batch INSERT 不接受空 tuple，預先擋下）
+- INSERT cols 排除 `created_at` / `updated_at`（讓 server default 接管）
+- ON CONFLICT SET 子句：`{c} = excluded.{c}` for each non-id col + `updated_at = CURRENT_TIMESTAMP`
+- **絕不**包含 `excluded.created_at`（否則覆蓋原始插入時間，audit/billing 出錯）
+- 退化 case：若 record 只有 `id` 一個欄位 → `ON CONFLICT (id) DO NOTHING`（保留 legacy「不 bump updated_at」行為）
+
+**驗證**：
+- ✅ Step 1 的 9 個 invariant 測試全綠（含最關鍵的 `preserves_created_at_on_update`）
+- ✅ 原 `test_snapshot_sync.py` 6 個 happy-path 測試全綠
+- ✅ `tests/test_api/test_admin_his_sync.py` 全綠（其他 snapshot_sync consumer）
+- ✅ `tests/test_fhir/` 整目錄 100 個測試全綠
+
+**SQL 語法相容性**：
+- PostgreSQL 9.5+ 支援 `INSERT ... ON CONFLICT` ✅
+- SQLite 3.24+ 支援同語法（test fixture 用 SQLite in-memory）✅
+- `excluded` keyword 在兩個 dialect 都接受
+
+**預期 prod 效益**：
+- 每筆 RTT：2 → 1（省一半）
+- 每位病人 sync 時間：4-5 min → 預估 2-2.5 min（Step 3 batch 後再砍到 < 30 sec）
 
 ---
 

@@ -219,29 +219,43 @@ async def insert_records(session: Any, table: str, records: list[dict[str, Any]]
 
 
 async def upsert_records(session: Any, table: str, records: list[dict[str, Any]]) -> int:
+    """Insert each record, falling back to UPDATE on id conflict.
+
+    Uses ``INSERT ... ON CONFLICT (id) DO UPDATE`` so each record costs one
+    round-trip instead of the legacy SELECT-then-INSERT-or-UPDATE (two RTTs).
+    Critical: ``created_at`` is intentionally excluded from both the INSERT
+    column list (server default fills it) and the SET clause (so a conflict
+    update never overwrites the original insertion timestamp). See
+    docs/system-audit-2026-04-28.md §2.2 and the
+    test_upsert_records_preserves_created_at_on_update invariant test.
+    """
+    if not records:
+        return 0
+
     count = 0
     for record in records:
-        row = await session.execute(
-            text(f"SELECT id FROM {table} WHERE id = :id"),
-            {"id": record["id"]},
-        )
-        exists = row.scalar() is not None
-
         cols = [key for key in record.keys() if key not in {"created_at", "updated_at"}]
+        placeholders = [f":{key}" for key in cols]
         params = {key: _serialize(record[key]) for key in cols}
+        update_cols = [c for c in cols if c != "id"]
 
-        if exists:
-            sets = [f"{key} = :{key}" for key in cols if key != "id"]
-            if sets:
-                sql = (
-                    f"UPDATE {table} SET {', '.join(sets)}, "
-                    "updated_at = CURRENT_TIMESTAMP WHERE id = :id"
-                )
-                await session.execute(text(sql), params)
+        if update_cols:
+            set_clauses = [f"{c} = excluded.{c}" for c in update_cols]
+            set_clauses.append("updated_at = CURRENT_TIMESTAMP")
+            sql = (
+                f"INSERT INTO {table} ({', '.join(cols)}) "
+                f"VALUES ({', '.join(placeholders)}) "
+                f"ON CONFLICT (id) DO UPDATE SET {', '.join(set_clauses)}"
+            )
         else:
-            placeholders = [f":{key}" for key in cols]
-            sql = f"INSERT INTO {table} ({', '.join(cols)}) VALUES ({', '.join(placeholders)})"
-            await session.execute(text(sql), params)
+            # Only ``id`` provided — preserve legacy behaviour of "do nothing
+            # on conflict, do not bump updated_at".
+            sql = (
+                f"INSERT INTO {table} ({', '.join(cols)}) "
+                f"VALUES ({', '.join(placeholders)}) "
+                f"ON CONFLICT (id) DO NOTHING"
+            )
+        await session.execute(text(sql), params)
         count += 1
     return count
 
