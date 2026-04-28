@@ -6,36 +6,9 @@ import {
   type QueryKey,
 } from '@tanstack/react-query';
 
-/**
- * Query-key factory helpers.
- *
- * Usage:
- *   queryKeys.patients.all          → ['patients']
- *   queryKeys.patients.list(filters) → ['patients', 'list', filters]
- *   queryKeys.patients.detail(id)    → ['patients', 'detail', id]
- *   queryKeys.dashboard.stats()      → ['dashboard', 'stats']
- */
-export const queryKeys = {
-  patients: {
-    all: ['patients'] as const,
-    lists: () => [...queryKeys.patients.all, 'list'] as const,
-    list: (filters?: Record<string, unknown>) =>
-      [...queryKeys.patients.lists(), filters ?? {}] as const,
-    details: () => [...queryKeys.patients.all, 'detail'] as const,
-    detail: (id: string) => [...queryKeys.patients.details(), id] as const,
-  },
-  dashboard: {
-    all: ['dashboard'] as const,
-    stats: () => [...queryKeys.dashboard.all, 'stats'] as const,
-  },
-  ai: {
-    all: ['ai'] as const,
-    readiness: () => [...queryKeys.ai.all, 'readiness'] as const,
-    sessions: (params?: Record<string, unknown>) =>
-      [...queryKeys.ai.all, 'sessions', params ?? {}] as const,
-    session: (id: string) => [...queryKeys.ai.all, 'session', id] as const,
-  },
-} as const;
+// queryKeys moved to src/lib/query-keys.ts so non-hook modules can import it
+// without a lib → hooks reverse dependency. Re-exported here for compatibility.
+export { queryKeys } from '../lib/query-keys';
 
 // ────────────────────────────────────────────────────────────────
 // useApiQuery — thin wrapper around useQuery

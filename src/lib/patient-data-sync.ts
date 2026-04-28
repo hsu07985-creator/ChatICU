@@ -1,6 +1,8 @@
 import type { Patient } from './api/patients';
 import { invalidateDashboardStats } from './dashboard-stats-cache';
 import { invalidatePatients } from './patients-cache';
+import { queryClient } from './query-client';
+import { queryKeys } from './query-keys';
 
 interface RefreshSharedPatientDataOptions {
   refreshDashboardStats?: boolean;
@@ -16,6 +18,16 @@ export async function refreshSharedPatientDataAfterMutation(
   options: RefreshSharedPatientDataOptions = {},
 ): Promise<RefreshSharedPatientDataResult> {
   const { refreshDashboardStats = true } = options;
+
+  // Invalidate the legacy hand-rolled module-level caches AND the TanStack
+  // Query cache. Both code paths read patient/dashboard data, and historically
+  // a write would only invalidate one side, leaving the other stale until its
+  // own TTL expired (5 min for the hand-rolled caches). See
+  // docs/system-audit-2026-04-28.md §3.1.
+  queryClient.invalidateQueries({ queryKey: queryKeys.patients.all });
+  if (refreshDashboardStats) {
+    queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+  }
 
   const [patientsResult, dashboardStatsResult] = await Promise.allSettled([
     invalidatePatients(),
