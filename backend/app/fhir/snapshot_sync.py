@@ -21,6 +21,129 @@ class SchemaInconsistencyError(ValueError):
     """
 
 
+_TIMESTAMP_FIELDS = frozenset({"created_at", "updated_at"})
+CHUNK_SIZE = 500  # well under PostgreSQL's 32767 bind-parameter ceiling
+
+
+def _effective_keys(record: dict[str, Any]) -> frozenset[str]:
+    """Return the record's keys with timestamp fields stripped.
+
+    Per-row legacy code already drops created_at / updated_at before INSERT
+    (server defaults fill them), so a record that happens to carry an extra
+    timestamp must NOT cause batch sync to fail loud. See audit doc §D.2.
+    """
+    return frozenset(record.keys()) - _TIMESTAMP_FIELDS
+
+
+def _assert_uniform_schema(records: list[dict[str, Any]]) -> list[str]:
+    """Return the canonical column list (sans timestamps), raising
+    SchemaInconsistencyError if records disagree on their effective key
+    set. The returned order follows records[0]'s insertion order.
+    """
+    if not records:
+        return []
+    expected = _effective_keys(records[0])
+    for i, record in enumerate(records[1:], start=1):
+        if _effective_keys(record) != expected:
+            raise SchemaInconsistencyError(
+                f"records[{i}] effective keys differ from records[0]: "
+                f"diff={sorted(_effective_keys(record) ^ expected)}"
+            )
+    return [k for k in records[0].keys() if k not in _TIMESTAMP_FIELDS]
+
+
+def _dedupe_by_id_for_upsert(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Last-write-wins dedupe for upsert_records' batch path only.
+
+    Mirrors per-row legacy behaviour where a later record with the same id
+    UPDATEs the earlier one. Necessary because PostgreSQL rejects an
+    ON CONFLICT DO UPDATE statement that touches the same conflict target
+    twice within a single INSERT (``cannot affect row a second time``).
+
+    Do NOT use this in insert_records — duplicate ids there must still
+    raise IntegrityError so an upstream converter bug surfaces immediately
+    (audit doc §D.6).
+    """
+    seen: dict[Any, dict[str, Any]] = {}
+    for record in records:
+        seen[record["id"]] = record
+    return list(seen.values())
+
+
+def _build_values_clause(cols: list[str], n_records: int) -> str:
+    """Render ``(:c0_0, :c1_0, ...), (:c0_1, :c1_1, ...)`` with positional
+    placeholder names so a single statement can carry many rows without
+    name collisions.
+    """
+    rows = []
+    for i in range(n_records):
+        placeholders = ", ".join(f":{col}_{i}" for col in cols)
+        rows.append(f"({placeholders})")
+    return ", ".join(rows)
+
+
+def _build_batch_params(records: list[dict[str, Any]], cols: list[str]) -> dict[str, Any]:
+    params: dict[str, Any] = {}
+    for i, record in enumerate(records):
+        for col in cols:
+            params[f"{col}_{i}"] = _serialize(record[col])
+    return params
+
+
+async def _execute_batch_upsert(
+    session: Any,
+    table: str,
+    cols: list[str],
+    records: list[dict[str, Any]],
+) -> None:
+    """One ``INSERT ... VALUES (...), (...) ON CONFLICT (id) DO UPDATE`` round-trip.
+
+    SET clause uses ``excluded.{col}`` for every non-id column plus
+    ``updated_at = CURRENT_TIMESTAMP``. ``created_at`` is intentionally
+    omitted from both the column list (server default fills it on INSERT)
+    and the SET clause (so a conflict update preserves the original
+    insertion timestamp). See audit doc §D.6.1 / Step 1 invariant tests.
+    """
+    if not records:
+        return
+    values_clause = _build_values_clause(cols, len(records))
+    update_cols = [c for c in cols if c != "id"]
+    if update_cols:
+        set_clauses = [f"{c} = excluded.{c}" for c in update_cols]
+        set_clauses.append("updated_at = CURRENT_TIMESTAMP")
+        sql = (
+            f"INSERT INTO {table} ({', '.join(cols)}) "
+            f"VALUES {values_clause} "
+            f"ON CONFLICT (id) DO UPDATE SET {', '.join(set_clauses)}"
+        )
+    else:
+        # Only `id` supplied — preserve legacy "no UPDATE, no updated_at bump".
+        sql = (
+            f"INSERT INTO {table} ({', '.join(cols)}) "
+            f"VALUES {values_clause} "
+            f"ON CONFLICT (id) DO NOTHING"
+        )
+    await session.execute(text(sql), _build_batch_params(records, cols))
+
+
+async def _execute_batch_insert(
+    session: Any,
+    table: str,
+    cols: list[str],
+    records: list[dict[str, Any]],
+) -> None:
+    """One ``INSERT ... VALUES (...), (...)`` round-trip — strict path,
+    no ON CONFLICT clause. Same-id duplicates surface as IntegrityError
+    so an upstream converter regression becomes visible immediately
+    (audit doc §D.6).
+    """
+    if not records:
+        return
+    values_clause = _build_values_clause(cols, len(records))
+    sql = f"INSERT INTO {table} ({', '.join(cols)}) VALUES {values_clause}"
+    await session.execute(text(sql), _build_batch_params(records, cols))
+
+
 HIS_OWNED_FIELDS = frozenset(
     {
         "id",
@@ -216,57 +339,64 @@ async def replace_patient_records(
 
 
 async def insert_records(session: Any, table: str, records: list[dict[str, Any]]) -> int:
-    count = 0
-    for record in records:
-        cols = [key for key in record.keys() if key not in {"created_at", "updated_at"}]
-        placeholders = [f":{key}" for key in cols]
-        params = {key: _serialize(record[key]) for key in cols}
-        sql = f"INSERT INTO {table} ({', '.join(cols)}) VALUES ({', '.join(placeholders)})"
-        await session.execute(text(sql), params)
-        count += 1
-    return count
+    """Insert all records via multi-row ``INSERT VALUES`` batches.
+
+    Strict path with NO dedupe — duplicate ids inside a single call surface
+    as ``IntegrityError`` so a converter regression (e.g. emitting two
+    lab rows with the same id) is caught immediately rather than being
+    silently collapsed. Use ``upsert_records`` when the caller actually
+    wants id-collision recovery. See audit doc §D.6.
+
+    Schema is asserted uniform across all records (timestamps stripped
+    before comparison) before any SQL fires.
+    """
+    if not records:
+        return 0
+    cols = _assert_uniform_schema(records)
+    for offset in range(0, len(records), CHUNK_SIZE):
+        chunk = records[offset : offset + CHUNK_SIZE]
+        await _execute_batch_insert(session, table, cols, chunk)
+    return len(records)
 
 
 async def upsert_records(session: Any, table: str, records: list[dict[str, Any]]) -> int:
-    """Insert each record, falling back to UPDATE on id conflict.
+    """Insert all records via multi-row ``INSERT VALUES`` batches with
+    ``ON CONFLICT (id) DO UPDATE`` recovery.
 
-    Uses ``INSERT ... ON CONFLICT (id) DO UPDATE`` so each record costs one
-    round-trip instead of the legacy SELECT-then-INSERT-or-UPDATE (two RTTs).
-    Critical: ``created_at`` is intentionally excluded from both the INSERT
-    column list (server default fills it) and the SET clause (so a conflict
-    update never overwrites the original insertion timestamp). See
-    docs/system-audit-2026-04-28.md §2.2 and the
-    test_upsert_records_preserves_created_at_on_update invariant test.
+    Workflow:
+    1. ``_assert_uniform_schema`` validates that every record carries the
+       same effective key set (timestamp fields excluded from comparison).
+       Mismatches raise SchemaInconsistencyError so an upstream
+       HISConverter regression cannot silently misalign columns.
+    2. ``_dedupe_by_id_for_upsert`` collapses same-id duplicates to a
+       last-write-wins single entry. This avoids PostgreSQL's
+       "cannot affect row a second time" error inside a batch
+       INSERT...ON CONFLICT and matches the per-row legacy behaviour
+       where successive UPDATEs let the later record win.
+    3. The deduped list is chunked (``CHUNK_SIZE``) and each chunk runs
+       in one ON CONFLICT round-trip.
+
+    Returns ``len(records)`` — the *original* input length, NOT
+    ``len(deduped)``. ``reconcile_medications`` writes this number into
+    the user-visible ``med_upserted`` summary; leaking dedupe count would
+    change the external contract (audit doc §D.6.1).
+
+    ``created_at`` is excluded from both the INSERT column list and the
+    SET clause so a conflict update never overwrites the original
+    insertion timestamp. Verified by
+    ``test_upsert_records_preserves_created_at_on_update``.
     """
     if not records:
         return 0
 
-    count = 0
-    for record in records:
-        cols = [key for key in record.keys() if key not in {"created_at", "updated_at"}]
-        placeholders = [f":{key}" for key in cols]
-        params = {key: _serialize(record[key]) for key in cols}
-        update_cols = [c for c in cols if c != "id"]
+    cols = _assert_uniform_schema(records)
+    deduped = _dedupe_by_id_for_upsert(records)
 
-        if update_cols:
-            set_clauses = [f"{c} = excluded.{c}" for c in update_cols]
-            set_clauses.append("updated_at = CURRENT_TIMESTAMP")
-            sql = (
-                f"INSERT INTO {table} ({', '.join(cols)}) "
-                f"VALUES ({', '.join(placeholders)}) "
-                f"ON CONFLICT (id) DO UPDATE SET {', '.join(set_clauses)}"
-            )
-        else:
-            # Only ``id`` provided — preserve legacy behaviour of "do nothing
-            # on conflict, do not bump updated_at".
-            sql = (
-                f"INSERT INTO {table} ({', '.join(cols)}) "
-                f"VALUES ({', '.join(placeholders)}) "
-                f"ON CONFLICT (id) DO NOTHING"
-            )
-        await session.execute(text(sql), params)
-        count += 1
-    return count
+    for offset in range(0, len(deduped), CHUNK_SIZE):
+        chunk = deduped[offset : offset + CHUNK_SIZE]
+        await _execute_batch_upsert(session, table, cols, chunk)
+
+    return len(records)
 
 
 async def reconcile_medications(

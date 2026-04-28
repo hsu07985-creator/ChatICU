@@ -467,19 +467,12 @@ async def test_upsert_records_returns_original_input_length_when_deduped(
     assert distinct_ids == {"med_a", "med_b"}
 
 
-@pytest.mark.xfail(
-    reason="Step 3 refactor required: _assert_uniform_schema not yet wired into upsert_records",
-    strict=True,
-)
 @pytest.mark.asyncio
 async def test_upsert_records_raises_on_inconsistent_schema(db_session) -> None:
     """Effective-key-set mismatch between records must raise
     SchemaInconsistencyError so an upstream HISConverter regression
     surfaces immediately rather than silently misaligning columns inside
     a batch VALUES tuple. (audit doc §D.2)
-
-    Marked xfail until the refactor wires _assert_uniform_schema into
-    upsert_records; remove the marker as part of that commit.
     """
     await _seed_patient(db_session)
 
