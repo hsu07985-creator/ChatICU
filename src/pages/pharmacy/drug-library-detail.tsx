@@ -1,18 +1,16 @@
 import { ArrowLeft, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import {
-  type ActivePatient,
   type DdiDetailItem,
   type DrugDetail,
   type IvCompatItem,
   getDrugDetail,
 } from '../../lib/api/drug-library';
-import { maskPatientName } from '../../lib/utils/patient-name';
 
 const RISK_META: Record<string, { cls: string; descr: string }> = {
   X: { cls: 'bg-rose-500/10 text-rose-400 border-rose-500/30', descr: 'Avoid combination' },
@@ -32,22 +30,8 @@ const RELIABILITY_META: Record<string, { cls: string; tip: string }> = {
   'Intermediate-Low': { cls: 'bg-amber-500/10 text-amber-400 border-amber-500/30', tip: '證據強度：中-低' },
 };
 
-function PatientChip({ p }: { p: ActivePatient }) {
-  return (
-    <Link
-      to={`/patient/${p.id}`}
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-blue-500/30 bg-blue-500/10 text-blue-400 text-[10px] hover:bg-blue-500/20"
-      title={`病床 ${p.bed_number || '?'} · ${maskPatientName(p.name)}`}
-    >
-      <span className="font-mono">{p.bed_number || '?'}</span>
-      <span>{maskPatientName(p.name)}</span>
-    </Link>
-  );
-}
-
 function DdiCard({ item }: { item: DdiDetailItem }) {
   const reliability = item.reliability ? RELIABILITY_META[item.reliability] : null;
-  const affected = item.affected_patients || [];
   return (
     <Card className="border-border/40">
       <CardContent className="py-3 space-y-2">
@@ -98,12 +82,6 @@ function DdiCard({ item }: { item: DdiDetailItem }) {
             {item.pubmed_count} 篇文獻引用
           </div>
         )}
-        {affected.length > 0 && (
-          <div className="text-xs flex items-start gap-1.5 flex-wrap pt-1 border-t border-border/30">
-            <span className="text-rose-400 font-medium">影響 {affected.length} 床：</span>
-            {affected.map((p) => <PatientChip key={p.id} p={p} />)}
-          </div>
-        )}
       </CardContent>
     </Card>
   );
@@ -121,7 +99,6 @@ function RiskGroup({
   const [open, setOpen] = useState(defaultOpen);
   const meta = RISK_META[risk];
   if (!meta || items.length === 0) return null;
-  const affectedSum = items.reduce((s, it) => s + (it.affected_count || 0), 0);
   return (
     <div className="space-y-2">
       <button
@@ -131,9 +108,6 @@ function RiskGroup({
         {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
         <span className={`px-2 py-0.5 rounded border ${meta.cls}`}>{risk}</span>
         <span className="text-muted-foreground font-normal">— {meta.descr} ({items.length})</span>
-        {affectedSum > 0 && (
-          <span className="text-[10px] text-rose-400 font-normal ml-auto">影響 {affectedSum} 床次</span>
-        )}
       </button>
       {open && (
         <div className="space-y-2 pl-6">
@@ -192,36 +166,7 @@ function IvCompatList({ items }: { items: IvCompatItem[] }) {
   );
 }
 
-function ActivePatientsPanel({ patients }: { patients: ActivePatient[] }) {
-  if (patients.length === 0) {
-    return (
-      <div className="text-sm text-muted-foreground py-4 text-center">
-        目前 ICU 沒有病人在用此藥
-      </div>
-    );
-  }
-  return (
-    <div className="space-y-1.5">
-      <div className="text-xs text-muted-foreground mb-2">點任一床位前往病歷</div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-        {patients.map((p) => (
-          <Link
-            key={p.id}
-            to={`/patient/${p.id}`}
-            className="flex items-center gap-2 px-3 py-2 rounded border border-border/40 hover:border-primary/40 hover:bg-accent transition-colors text-sm"
-          >
-            <Badge variant="outline" className="font-mono text-xs">
-              {p.bed_number || '?'}
-            </Badge>
-            <span className="flex-1 truncate">{maskPatientName(p.name)}</span>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-type TabKey = 'ddi' | 'iv' | 'patients';
+type TabKey = 'ddi' | 'iv';
 
 export function DrugLibraryDetailPage() {
   const { name } = useParams<{ name: string }>();
@@ -261,7 +206,6 @@ export function DrugLibraryDetailPage() {
 
   const visibleRisks = riskFilter.size === 0 ? ['X', 'D', 'C', 'B', 'A'] : Array.from(riskFilter);
   const ivCount = data?.iv_compatibility?.length || 0;
-  const activeCount = data?.active_patients?.length || 0;
 
   const tabClass = (k: TabKey) =>
     `px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
@@ -319,15 +263,6 @@ export function DrugLibraryDetailPage() {
                     ) : (
                       <Badge variant="outline" className="bg-zinc-500/10 text-zinc-400 border-zinc-500/30">院外</Badge>
                     )}
-                    {activeCount > 0 && (
-                      <Badge
-                        variant="outline"
-                        className="bg-blue-500/10 text-blue-400 border-blue-500/30 cursor-pointer hover:bg-blue-500/20"
-                        onClick={() => setTab('patients')}
-                      >
-                        ICU 在用 {activeCount} 床
-                      </Badge>
-                    )}
                   </div>
                   {data.atc_path.length > 0 && (
                     <div className="text-xs text-muted-foreground mt-2 flex items-center gap-1 flex-wrap">
@@ -351,16 +286,6 @@ export function DrugLibraryDetailPage() {
                 </div>
               </div>
 
-              {data.icu_30d_rx > 0 && (
-                <div className="flex items-center gap-2 text-sm bg-accent/40 rounded p-2">
-                  <span className="text-muted-foreground">ICU 30 天用藥：</span>
-                  <span className="font-semibold">{data.icu_30d_rx} 次</span>
-                  <span className="text-muted-foreground">·</span>
-                  <span className="font-semibold">{data.icu_active_beds}</span>
-                  <span className="text-muted-foreground">床目前在用</span>
-                </div>
-              )}
-
               {data.sources.length > 0 && (
                 <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
                   資料源：
@@ -380,9 +305,6 @@ export function DrugLibraryDetailPage() {
                 </button>
                 <button onClick={() => setTab('iv')} className={tabClass('iv')}>
                   IV 相容性 ({ivCount})
-                </button>
-                <button onClick={() => setTab('patients')} className={tabClass('patients')}>
-                  在用病人 ({activeCount})
                 </button>
               </div>
 
@@ -435,10 +357,6 @@ export function DrugLibraryDetailPage() {
 
                 {tab === 'iv' && (
                   <IvCompatList items={data.iv_compatibility || []} />
-                )}
-
-                {tab === 'patients' && (
-                  <ActivePatientsPanel patients={data.active_patients || []} />
                 )}
               </div>
             </CardContent>

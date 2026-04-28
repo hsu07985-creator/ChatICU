@@ -137,31 +137,21 @@ function DrugCard({ item, onClick }: { item: DrugListItem; onClick: () => void }
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-3 flex-wrap text-xs">
-          <div className="flex items-center gap-3 flex-wrap">
-            {item.icu_30d_rx > 0 ? (
-              <span className="text-muted-foreground">
-                ICU 30 天 <span className="font-semibold text-foreground">{item.icu_30d_rx}</span> 次
-                {item.icu_active_beds > 0 && (
-                  <> · 在用 <span className="font-semibold text-foreground">{item.icu_active_beds}</span> 床</>
-                )}
+        <div className="flex items-center gap-2 flex-wrap text-xs">
+          <span className="text-muted-foreground">交互作用</span>
+          <span className="font-medium">{item.ddi_counts.total} 條</span>
+          {(['X', 'D', 'C', 'B'] as const).map((r) =>
+            item.ddi_counts[r] > 0 ? (
+              <span key={r} className={`px-1.5 py-0.5 rounded border ${RISK_CLS[r]} text-[10px]`}>
+                {r} {item.ddi_counts[r]}
               </span>
-            ) : (
-              <span className="text-muted-foreground/60">ICU 近 30 天無紀錄</span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-muted-foreground">交互作用</span>
-            <span className="font-medium">{item.ddi_counts.total}</span>
-            {(['X', 'D', 'C', 'B'] as const).map((r) =>
-              item.ddi_counts[r] > 0 ? (
-                <span key={r} className={`px-1.5 py-0.5 rounded border ${RISK_CLS[r]} text-[10px]`}>
-                  {r} {item.ddi_counts[r]}
-                </span>
-              ) : null
-            )}
-          </div>
+            ) : null
+          )}
+          {item.sources.length > 0 && (
+            <span className="text-muted-foreground/70 ml-auto">
+              {item.sources.length} 個資料源
+            </span>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -194,7 +184,7 @@ export function DrugLibraryPage() {
 
   const q = searchParams.get('q') || '';
   const atc = searchParams.get('atc') || '';
-  const sort = (searchParams.get('sort') as 'icu_usage' | 'name' | 'ddi_count') || 'icu_usage';
+  const sort = (searchParams.get('sort') as 'name' | 'ddi_count') || 'name';
   const page = parseInt(searchParams.get('page') || '1', 10);
   const inFormularyOnly = searchParams.get('in_formulary') === '1';
   const hasXOnly = searchParams.get('has_x') === '1';
@@ -283,7 +273,6 @@ export function DrugLibraryPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="icu_usage">ICU 30 天用量</SelectItem>
                 <SelectItem value="name">名稱 A → Z</SelectItem>
                 <SelectItem value="ddi_count">DDI 條數多 → 少</SelectItem>
               </SelectContent>

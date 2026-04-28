@@ -36,9 +36,6 @@ export interface DrugListItem {
   in_formulary: boolean;
   ddi_counts: DdiCounts;
   sources: string[];
-  icu_30d_rx: number;
-  icu_30d_beds: number;
-  icu_active_beds: number;
   recently_added: boolean;
   status: 'green' | 'yellow' | 'red';
 }
@@ -54,19 +51,13 @@ export interface DrugListResponse {
 export interface DrugListParams {
   q?: string;
   atc?: string;
-  sort?: 'icu_usage' | 'name' | 'ddi_count';
+  sort?: 'name' | 'ddi_count';
   page?: number;
   size?: number;
   in_formulary_only?: boolean;
   has_x_only?: boolean;
   missing_atc_only?: boolean;
   recently_added_only?: boolean;
-}
-
-export interface ActivePatient {
-  id: string;
-  name: string;
-  bed_number: string | null;
 }
 
 export interface DdiDetailItem {
@@ -83,8 +74,6 @@ export interface DdiDetailItem {
   discussion: string | null;
   source: string | null;
   pubmed_count: number;
-  affected_patients?: ActivePatient[];
-  affected_count?: number;
 }
 
 export interface IvCompatItem {
@@ -111,14 +100,10 @@ export interface DrugDetail {
   hospital_codes: string[];
   in_formulary: boolean;
   sources: string[];
-  icu_30d_rx: number;
-  icu_30d_beds: number;
-  icu_active_beds: number;
   ddi_total: number;
   ddi_by_risk: Omit<DdiCounts, 'total'>;
   ddi: DdiDetailItem[];
   iv_compatibility?: IvCompatItem[];
-  active_patients?: ActivePatient[];
 }
 
 export async function getDrugLibraryStats(): Promise<DrugLibraryStats> {

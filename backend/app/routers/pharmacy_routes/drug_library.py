@@ -312,51 +312,6 @@ async def _aggregate_per_drug(db: AsyncSession) -> dict:
     return per_drug
 
 
-async def _icu_usage(db: AsyncSession, days: int = 30) -> dict:
-    """Aggregate medications.name + generic_name usage in the last N days."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    r = await db.execute(text("""
-        SELECT
-          LOWER(COALESCE(generic_name, name)) AS key,
-          COUNT(*) AS rx_count,
-          COUNT(DISTINCT patient_id) AS bed_count,
-          COUNT(*) FILTER (WHERE status = 'active') AS active_count,
-          COUNT(DISTINCT patient_id) FILTER (WHERE status = 'active') AS active_bed_count
-        FROM medications
-        WHERE created_at >= :cutoff
-        GROUP BY key
-    """), {"cutoff": cutoff})
-    out: dict[str, dict] = {}
-    for row in r:
-        if row.key:
-            out[row.key] = {
-                "rx_count": row.rx_count,
-                "bed_count": row.bed_count,
-                "active_count": row.active_count,
-                "active_bed_count": row.active_bed_count,
-            }
-    return out
-
-
-def _match_icu_usage(drug_name: str, icu_index: dict) -> dict:
-    """Try multiple normalisations to find ICU usage for a drug."""
-    if not drug_name:
-        return {"rx_count": 0, "bed_count": 0, "active_count": 0, "active_bed_count": 0}
-    keys = [drug_name.strip().lower()]
-    # First word
-    first = keys[0].split()[0] if " " in keys[0] else None
-    if first:
-        keys.append(first)
-    # Strip parens
-    no_paren = drug_name.split("(")[0].strip().lower()
-    if no_paren and no_paren not in keys:
-        keys.append(no_paren)
-    for k in keys:
-        if k in icu_index:
-            return icu_index[k]
-    return {"rx_count": 0, "bed_count": 0, "active_count": 0, "active_bed_count": 0}
-
-
 def _coverage_status(ddi_total: int, has_atc: bool) -> str:
     if ddi_total == 0:
         return "yellow"  # 缺資料
@@ -480,7 +435,7 @@ async def get_stats(
 async def list_drugs(
     q: Optional[str] = Query(None, description="搜尋關鍵字（藥名/ATC/院內代碼）"),
     atc: Optional[str] = Query(None, description="ATC 前綴篩選"),
-    sort: str = Query("icu_usage", pattern="^(icu_usage|name|ddi_count)$"),
+    sort: str = Query("name", pattern="^(name|ddi_count)$"),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=200),
     in_formulary_only: bool = Query(False),
@@ -493,7 +448,6 @@ async def list_drugs(
     _require_pharmacist(user)
 
     per_drug = await _aggregate_per_drug(db)
-    icu_index = await _icu_usage(db)
 
     # Enrich + filter
     items: list[dict] = []
@@ -513,7 +467,6 @@ async def list_drugs(
         brand_names = fm["brand_names"] if fm else []
         hospital_codes = fm["hospital_codes"] if fm else []
 
-        usage = _match_icu_usage(name, icu_index)
         recently_added = agg["recently_added_count"] > 0 and agg["ddi_counts"]["total"] == agg["recently_added_count"]
         status = _coverage_status(agg["ddi_counts"]["total"], bool(primary_atc))
 
@@ -551,24 +504,17 @@ async def list_drugs(
             "in_formulary": in_formulary,
             "ddi_counts": agg["ddi_counts"],
             "sources": sorted(agg["sources"]),
-            "icu_30d_rx": usage["rx_count"],
-            "icu_30d_beds": usage["bed_count"],
-            "icu_active_beds": usage["active_bed_count"],
             "recently_added": recently_added,
             "status": status,
         })
         if atc_chapter:
             atc_chapter_counts[atc_chapter] += 1
 
-    # Sort
-    if sort == "name":
+    # Sort — library default is alphabetical
+    if sort == "ddi_count":
+        items.sort(key=lambda x: (-x["ddi_counts"]["total"], x["name"].lower()))
+    else:  # name (default)
         items.sort(key=lambda x: x["name"].lower())
-    elif sort == "ddi_count":
-        items.sort(key=lambda x: -x["ddi_counts"]["total"])
-    else:  # icu_usage (default)
-        items.sort(key=lambda x: (
-            -x["icu_30d_rx"], -x["ddi_counts"]["total"], x["name"].lower()
-        ))
 
     total = len(items)
     start = (page - 1) * size
@@ -751,11 +697,7 @@ async def get_drug_detail(
         if d["risk_rating"] in risk_counts:
             risk_counts[d["risk_rating"]] += 1
 
-    # ICU usage
-    icu_index = await _icu_usage(db)
-    usage = _match_icu_usage(primary_name, icu_index)
-
-    # ── IV compatibility for this drug (Phase 2) ────────────────────
+    # ── IV compatibility for this drug (Trissel's Handbook etc.) ───
     iv_rows = await db.execute(text("""
         SELECT id, drug1, drug2, solution, compatible, time_stability,
                notes, "references" AS source_ref
@@ -783,51 +725,6 @@ async def get_drug_detail(
             "source": row.source_ref,
         })
 
-    # ── Currently active ICU patients on THIS drug (Phase 2) ────────
-    active_pat_rows = await db.execute(text("""
-        SELECT DISTINCT p.id, p.name, p.bed_number
-        FROM patients p
-        JOIN medications m ON m.patient_id = p.id
-        WHERE m.status = 'active'
-          AND (LOWER(m.name) = :n OR LOWER(m.generic_name) = :n
-               OR LOWER(m.name) LIKE :pat OR LOWER(m.generic_name) LIKE :pat)
-        ORDER BY p.bed_number
-    """), {"n": primary_name.lower(), "pat": f"%{primary_name.lower()}%"})
-    active_patients = [
-        {"id": r.id, "name": r.name, "bed_number": r.bed_number}
-        for r in active_pat_rows
-    ]
-    active_pat_ids = {p["id"] for p in active_patients}
-
-    # ── Per-DDI: who's on BOTH drugs right now? ────────────────────
-    if active_pat_ids:
-        # Pre-build patient → set(drug_names) map for active meds
-        co_rx = await db.execute(text("""
-            SELECT patient_id, LOWER(COALESCE(generic_name, name)) AS drug
-            FROM medications
-            WHERE status = 'active' AND patient_id = ANY(:ids)
-        """), {"ids": list(active_pat_ids)})
-        patient_drugs: dict[str, set] = {}
-        for r in co_rx:
-            patient_drugs.setdefault(r.patient_id, set()).add(r.drug)
-    else:
-        patient_drugs = {}
-
-    for d in ddi_out:
-        other_l = (d["other_drug"] or "").lower()
-        # Tokenize "other" — for class-vs-class rule, fall back to substring
-        affected = []
-        if active_pat_ids:
-            for pid, drug_set in patient_drugs.items():
-                # Heuristic: any drug in patient's active list contains "other_drug" or vice versa
-                hit = any(other_l in dr or dr in other_l for dr in drug_set if other_l and dr)
-                if hit:
-                    pat = next((p for p in active_patients if p["id"] == pid), None)
-                    if pat:
-                        affected.append(pat)
-        d["affected_patients"] = affected
-        d["affected_count"] = len(affected)
-
     return success_response(data={
         "name": primary_name,
         "exists": True,
@@ -837,12 +734,8 @@ async def get_drug_detail(
         "hospital_codes": fm["hospital_codes"] if fm else [],
         "in_formulary": in_formulary,
         "sources": sorted(sources_seen),
-        "icu_30d_rx": usage["rx_count"],
-        "icu_30d_beds": usage["bed_count"],
-        "icu_active_beds": usage["active_bed_count"],
         "ddi_total": len(ddi_out),
         "ddi_by_risk": risk_counts,
         "ddi": ddi_out,
         "iv_compatibility": iv_compat,
-        "active_patients": active_patients,
     })
