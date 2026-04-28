@@ -199,8 +199,12 @@ export function ChatPage() {
   };
 
   // Render message content, highlighting @姓名 tokens that match real users.
-  const renderContent = useCallback((content: string) => {
+  // mentionClass lets the caller pick a highlight that contrasts with the
+  // surrounding bubble color (green self-bubbles need a different shade than
+  // gray others-bubbles).
+  const renderContent = useCallback((content: string, mentionClass?: string) => {
     if (!userByName.size) return content;
+    const cls = mentionClass ?? 'inline-flex items-center rounded px-1 bg-brand/10 text-brand font-medium';
     const parts: Array<string | { name: string; matched: boolean }> = [];
     const re = /@([\p{L}\p{N}_-]+)/gu;
     let last = 0;
@@ -214,7 +218,7 @@ export function ChatPage() {
     return parts.map((p, i) => {
       if (typeof p === 'string') return <span key={i}>{p}</span>;
       return p.matched ? (
-        <span key={i} className="inline-flex items-center rounded px-1 bg-brand/10 text-brand font-medium">
+        <span key={i} className={cls}>
           @{p.name}
         </span>
       ) : (
@@ -222,6 +226,25 @@ export function ChatPage() {
       );
     });
   }, [userByName]);
+
+  // Flatten {root, replies} into a single chronological list so the chat reads
+  // top-to-bottom like LINE (replies show next to where they were sent, with a
+  // quote block referencing the parent — no nested indentation).
+  const flatMessages = useMemo(() => {
+    const flat: TeamChatMessage[] = [];
+    for (const m of messages) {
+      flat.push(m);
+      if (m.replies && m.replies.length > 0) flat.push(...m.replies);
+    }
+    flat.sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''));
+    return flat;
+  }, [messages]);
+
+  const messageById = useMemo(() => {
+    const map = new Map<string, TeamChatMessage>();
+    for (const m of flatMessages) map.set(m.id, m);
+    return map;
+  }, [flatMessages]);
 
   // 發布公告
   const handlePostAnnouncement = async () => {
@@ -262,96 +285,134 @@ export function ChatPage() {
     }
   };
 
-  // Render a single chat bubble (top-level or nested reply). Closes over
-  // user/state so call-sites stay tight.
-  const renderMessage = (msg: TeamChatMessage, isReply: boolean) => {
+  // LINE-style chat bubble: self → right-aligned green/black, others →
+  // left-aligned gray with avatar + name above. Replies show a quote block
+  // INSIDE the bubble pointing back to the parent.
+  const renderMessage = (msg: TeamChatMessage) => {
     const mentionsMe = !!user && (msg.mentionedUserIds?.includes(user.id) ?? false);
     const isSelf = !!user && msg.userId === user.id;
+    const repliedTo = msg.replyToId ? messageById.get(msg.replyToId) : null;
 
-    // Priority: pinned (root only) > mentionsMe (others') > isSelf > default.
-    let cardClass: string;
-    if (msg.pinned && !isReply) {
-      cardClass = 'border-l-4 border-[#f59e0b] bg-slate-50 dark:bg-slate-800';
-    } else if (mentionsMe && !isSelf) {
-      cardClass = 'border-l-4 border-brand bg-brand/5';
-    } else if (isSelf) {
-      cardClass = 'bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800';
-    } else {
-      cardClass = 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700';
-    }
-    const sizing = isReply ? 'p-2.5 rounded-md' : 'p-3 rounded-lg';
+    // Bubble bg/text. User asked for: self = green bg + black text, others =
+    // gray bg + (default text — white in dark, dark in light).
+    const bubbleClass = isSelf
+      ? 'bg-emerald-300 dark:bg-emerald-400 text-slate-900'
+      : 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100';
+
+    // Speech-tail: the corner adjacent to the speaker is less rounded.
+    const cornerClass = isSelf ? 'rounded-2xl rounded-tr-sm' : 'rounded-2xl rounded-tl-sm';
+
+    // @mention chip needs different contrast inside green vs gray bubbles.
+    const mentionClass = isSelf
+      ? 'inline-flex items-center rounded px-1 bg-black/15 font-semibold'
+      : 'inline-flex items-center rounded px-1 bg-brand/15 text-brand dark:text-brand-light font-semibold';
 
     return (
       <div
         data-testid="team-chat-message"
-        className={`group space-y-2 ${sizing} ${cardClass}`}
+        className={`group flex gap-2 ${isSelf ? 'flex-row-reverse' : 'flex-row'}`}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className={`font-semibold text-foreground ${isReply ? 'text-sm' : ''}`}>{msg.userName}</span>
-            <Badge variant="outline" className="text-xs">
-              {roleDisplayName[msg.userRole] || msg.userRole}
-            </Badge>
-            <span className="text-xs text-muted-foreground">{formatTimestamp(msg.timestamp)}</span>
-            {mentionsMe && !isSelf && (
-              <Badge className="bg-brand text-white text-xs">
-                <AtSign className="h-3 w-3 mr-0.5" />
-                提到你
-              </Badge>
-            )}
-            {msg.pinned && !isReply && (
-              <Badge className="bg-[#f59e0b] text-white">
-                <Pin className="h-3.5 w-3.5 mr-1" />
-                已釘選
-              </Badge>
-            )}
+        {/* Avatar — only for others (self knows it's themself) */}
+        {!isSelf && (
+          <div className="shrink-0 mt-5 h-8 w-8 rounded-full bg-slate-300 dark:bg-slate-600 flex items-center justify-center text-xs font-semibold text-slate-700 dark:text-slate-200">
+            {msg.userName.slice(0, 1)}
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-brand"
-              onClick={() => setReplyingTo(msg)}
-              title="回覆此訊息"
-            >
-              <CornerUpLeft className="h-4 w-4" />
-            </Button>
-            {/* Pin only on top-level — pinning a reply is confusing */}
-            {!isReply && (
-              <span className="inline-flex items-center gap-1">
+        )}
+
+        <div className={`flex flex-col max-w-[78%] ${isSelf ? 'items-end' : 'items-start'}`}>
+          {/* Header row above bubble — name+role for others, badges for both */}
+          {(!isSelf || msg.pinned || (mentionsMe && !isSelf)) && (
+            <div className={`flex items-center gap-1.5 mb-1 px-1 ${isSelf ? 'flex-row-reverse' : ''}`}>
+              {!isSelf && (
+                <>
+                  <span className="text-xs font-medium text-foreground">{msg.userName}</span>
+                  <Badge variant="outline" className="text-[10px] px-1 py-0">
+                    {roleDisplayName[msg.userRole] || msg.userRole}
+                  </Badge>
+                </>
+              )}
+              {msg.pinned && (
+                <Badge className="bg-[#f59e0b] text-white text-[10px] px-1 py-0 h-4">
+                  <Pin className="h-2.5 w-2.5 mr-0.5" />
+                  已釘選
+                </Badge>
+              )}
+              {mentionsMe && !isSelf && (
+                <Badge className="bg-brand text-white text-[10px] px-1 py-0 h-4">
+                  <AtSign className="h-2.5 w-2.5 mr-0.5" />
+                  提到你
+                </Badge>
+              )}
+            </div>
+          )}
+
+          {/* Bubble + hover actions, side-by-side */}
+          <div className={`flex items-end gap-1 ${isSelf ? 'flex-row-reverse' : 'flex-row'}`}>
+            <div className={`px-3 py-2 ${bubbleClass} ${cornerClass} shadow-sm`}>
+              {/* Reply quote — looks up the parent message */}
+              {repliedTo && (
+                <div className={`mb-1.5 pl-2 border-l-2 ${isSelf ? 'border-slate-700/40' : 'border-slate-500/40 dark:border-slate-300/40'} opacity-90`}>
+                  <div className="text-[11px] font-medium flex items-center gap-1">
+                    <CornerUpLeft className="h-2.5 w-2.5" />
+                    回覆 {repliedTo.userName}
+                  </div>
+                  <div className="text-xs truncate max-w-[260px] sm:max-w-[320px]">
+                    {repliedTo.content}
+                  </div>
+                </div>
+              )}
+              <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
+                {renderContent(msg.content, mentionClass)}
+              </p>
+            </div>
+
+            {/* Hover actions, opposite side from the bubble */}
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity self-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-brand"
+                onClick={() => setReplyingTo(msg)}
+                title="回覆此訊息"
+              >
+                <CornerUpLeft className="h-3.5 w-3.5" />
+              </Button>
+              <span className="inline-flex items-center">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={`opacity-0 group-hover:opacity-100 transition-opacity ${msg.pinned ? 'text-[#f59e0b]' : 'text-muted-foreground hover:text-[#f59e0b]'}`}
+                  className={`h-7 w-7 p-0 ${msg.pinned ? 'text-[#f59e0b]' : 'text-muted-foreground hover:text-[#f59e0b]'}`}
                   onClick={() => void handleTogglePin(msg.id)}
                   disabled={pinningMessageId === msg.id}
                   title={msg.pinned ? '取消釘選' : '釘選此訊息'}
                 >
-                  <Pin className="h-4 w-4" />
+                  <Pin className="h-3.5 w-3.5" />
                 </Button>
                 {pinningMessageId === msg.id ? <ButtonLoadingIndicator compact /> : null}
               </span>
-            )}
-            {user?.role === 'admin' && (
-              <span className="inline-flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600 hover:bg-red-50"
-                  onClick={() => void handleDeleteMessage(msg.id)}
-                  disabled={deletingMessageId === msg.id}
-                  title="刪除訊息"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-                {deletingMessageId === msg.id ? <ButtonLoadingIndicator compact /> : null}
-              </span>
-            )}
+              {user?.role === 'admin' && (
+                <span className="inline-flex items-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
+                    onClick={() => void handleDeleteMessage(msg.id)}
+                    disabled={deletingMessageId === msg.id}
+                    title="刪除訊息"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                  {deletingMessageId === msg.id ? <ButtonLoadingIndicator compact /> : null}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Timestamp under bubble */}
+          <div className={`text-[10px] text-muted-foreground mt-1 px-1 ${isSelf ? 'text-right' : 'text-left'}`}>
+            {formatTimestamp(msg.timestamp)}
           </div>
         </div>
-        <p className={`text-foreground leading-relaxed whitespace-pre-wrap ${isReply ? 'text-sm' : 'text-base'}`}>
-          {renderContent(msg.content)}
-        </p>
       </div>
     );
   };
@@ -426,18 +487,9 @@ export function ChatPage() {
                   目前沒有訊息，開始與團隊對話吧！
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {messages.map((msg) => (
-                    <div key={msg.id} className="space-y-2">
-                      {renderMessage(msg, false)}
-                      {msg.replies && msg.replies.length > 0 && (
-                        <div className="ml-8 space-y-2 border-l-2 border-slate-200 dark:border-slate-700 pl-3">
-                          {msg.replies.map((reply) => (
-                            <div key={reply.id}>{renderMessage(reply, true)}</div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                <div className="space-y-3">
+                  {flatMessages.map((msg) => (
+                    <div key={msg.id}>{renderMessage(msg)}</div>
                   ))}
                 </div>
               )}
