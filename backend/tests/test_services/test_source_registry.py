@@ -307,3 +307,73 @@ class TestModels:
         assert c.min_sources_for_confidence == 1
         assert c.refuse_if_no_results is False
         assert c.confidence_threshold == 0.55
+
+
+class TestCheckHttpHealthUsesSharedClient:
+    """Audit doc #7B: ``_check_http_health`` must reuse the shared
+    ``httpx.AsyncClient`` from ``app.services._http`` so its connection
+    pool is shared with drug_rag_client / pad_client. A regression here
+    would mean every health probe re-handshakes its own TCP/TLS
+    connection — invisible in unit tests but expensive in prod.
+    """
+
+    @pytest.mark.asyncio
+    async def test_calls_get_shared_client_and_passes_per_call_timeout(self):
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        import httpx
+
+        ok = MagicMock(spec=httpx.Response)
+        ok.status_code = 200
+        shared = MagicMock()
+        shared.get = AsyncMock(return_value=ok)
+
+        with patch(
+            "app.services.source_registry.get_shared_client", return_value=shared
+        ) as mock_factory:
+            result = await SourceRegistry._check_http_health("http://probe-target")
+
+        assert result is True
+        mock_factory.assert_called_once()
+        # Per-call timeout still 5.0s (was the constructor default).
+        assert shared.get.call_args.kwargs.get("timeout") == 5.0
+        # URL composed with /health suffix.
+        url_arg = shared.get.call_args.args[0]
+        assert url_arg == "http://probe-target/health"
+
+    @pytest.mark.asyncio
+    async def test_does_not_construct_new_async_client(self):
+        """Belt-and-braces: if anyone re-introduces a per-call
+        ``async with httpx.AsyncClient(...)`` inside _check_http_health,
+        this test catches it because httpx.AsyncClient never gets
+        instantiated when the helper is exercised.
+        """
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        import httpx
+
+        ok = MagicMock(spec=httpx.Response)
+        ok.status_code = 200
+        shared = MagicMock()
+        shared.get = AsyncMock(return_value=ok)
+
+        with patch(
+            "app.services.source_registry.get_shared_client", return_value=shared
+        ), patch(
+            "app.services.source_registry.httpx.AsyncClient"
+        ) as mock_async_client:
+            await SourceRegistry._check_http_health("http://probe-target")
+
+        mock_async_client.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_empty_base_url_short_circuits_without_calling_client(self):
+        from unittest.mock import patch
+
+        with patch(
+            "app.services.source_registry.get_shared_client"
+        ) as mock_factory:
+            result = await SourceRegistry._check_http_health("")
+
+        assert result is False
+        mock_factory.assert_not_called()

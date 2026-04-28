@@ -934,7 +934,7 @@ asyncio.create_task(_run_startup_warmups(), ...)
 |---|---|---|---|---|
 | 6 | RAG retrieval 分階段改 pgvector：先 vector top-k 走 DB、BM25/rerank 留 Python，跑 offline eval | 中 | 2-3 天 | ⭐⭐⭐⭐ |
 | 7A | drug_rag_client + pad_client 改用 shared `AsyncClient`（lifespan 管理） | ✅ 2026-04-29 | 完成 | 連線池共用、shutdown drain |
-| 7B | source_registry health check 沿用同一 helper | ⏸ | — | — |
+| 7B | source_registry health check 沿用同一 helper | ✅ 2026-04-29 | 完成 | health 探測也走 shared pool |
 | 7C | evidence_client 改 async（測試面較大，最後動） | ⏸ | — | — |
 | 8 | Patient detail **initial bundle**（不是 full-context！）+ `useQueries` 共用 cache | 中 | 1-2 天 | ⭐⭐⭐ |
 | 9 | `patient-detail.tsx` 用 React Profiler 量測後再決定拆檔順序 | 中 | 1-2 天 | ⭐⭐ |

@@ -22,6 +22,8 @@ from typing import Any, Dict, List, Optional
 import httpx
 from pydantic import BaseModel, Field
 
+from app.services._http import get_shared_client
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -279,14 +281,19 @@ class SourceRegistry:
 
     @staticmethod
     async def _check_http_health(base_url: str) -> bool:
-        """Check HTTP health endpoint."""
+        """Check HTTP health endpoint.
+
+        Uses the shared httpx.AsyncClient (#7A / #7B) so this probe joins
+        the same connection pool as drug_rag_client / pad_client. Timeout
+        stays at 5s — passed per-call now that the client itself is shared.
+        """
         if not base_url:
             return False
         url = f"{base_url.rstrip('/')}/health"
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.get(url)
-                return resp.status_code == 200
+            client = get_shared_client()
+            resp = await client.get(url, timeout=5.0)
+            return resp.status_code == 200
         except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout):
             return False
         except Exception as exc:
