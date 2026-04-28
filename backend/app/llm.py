@@ -437,7 +437,11 @@ TASK_PROMPTS: dict[str, str] = {
         "其他規則：\n"
         "- 重要數值與藥物名稱使用 **粗體** 強調\n"
         "- 一律不加結尾免責聲明\n\n"
-        "語言：繁體中文，藥名與數值縮寫保留英文（如 Cr、WBC、MAP、propofol）。"
+        "語言：繁體中文。\n"
+        "- 醫學名詞、檢驗值、疾病名稱**一律寫全名**，禁止只給縮寫。範例：寫「肌酸酐」不寫 Cr；寫「白血球計數」不寫 WBC；寫「平均動脈壓」不寫 MAP；寫「急性呼吸窘迫症候群」不寫 ARDS；寫「慢性阻塞性肺病」不寫 COPD；寫「血中尿素氮」不寫 BUN。\n"
+        "- 必要時可在第一次出現時於全名後加括號附英文縮寫（如「肌酸酐（Cr）」），後文仍以全名為主。\n"
+        "- 藥物使用學名全寫（如 propofol、midazolam、norepinephrine、fentanyl），不使用 NE / Levo / DAPT 等簡稱。\n"
+        "- 量表、指引、研究名稱屬專有名詞，保留原稱（如 SOFA、APACHE II、qSOFA、PADIS、ARDS Net、AHA、ESC）。"
     ),
     "citation_summary": (
         "你是 ICU 臨床文獻整理助手。將醫療文獻的原文段落精煉為簡潔的參考引述。\n"
