@@ -90,14 +90,17 @@ function isSoapTemplate(tpl: TemplateContent | undefined): tpl is { soap: SoapDr
 
 function flattenSoapTemplate(tpl: { soap: SoapDraft }): string {
   const { s, o, a, p } = tpl.soap;
-  return [
-    s && `S:\n${s}`,
-    o && `O:\n${o}`,
-    a && `A:\n${a}`,
-    p && `P:\n${p}`,
-  ]
-    .filter(Boolean)
-    .join('\n\n');
+  const sections = [
+    { key: 'S', value: s },
+    { key: 'O', value: o },
+    { key: 'A', value: a },
+    { key: 'P', value: p },
+  ].filter(({ value }) => value && value.trim().length > 0);
+  // When only one section has content, drop the section header. The polish
+  // prompt expects no synthetic 'P:' / 'A:' prefix unless the pharmacist
+  // wrote one — a leaked header would echo back into the AI output.
+  if (sections.length === 1) return sections[0].value;
+  return sections.map(({ key, value }) => `${key}:\n${value}`).join('\n\n');
 }
 
 const BUILTIN_TEMPLATES: Record<RecordType, Record<string, TemplateContent>> = {
