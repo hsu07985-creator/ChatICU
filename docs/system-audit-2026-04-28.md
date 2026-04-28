@@ -18,7 +18,23 @@
 | 第一批 | #2 抽 `query-keys.ts` + `patient-data-sync.ts` 補 TanStack invalidate | ✅ 部署完成，新 bundle 上線 | 2026-04-28 | `e2f97b2fd` |
 | 第二批 | #3 Step 1：寫 invariant 測試保護 reconcile / created_at / 邊界 case | ✅ 已 push（純測試，Railway 健康） | 2026-04-28 | `46d39ff38` |
 | 第二批 | #3 Step 2：`upsert_records` 改 `INSERT ... ON CONFLICT DO UPDATE` | ✅ 已 push、人工 review、本機 22 測試綠、單病人實測 ~2 min | 2026-04-28 | `3ad388bde` |
-| 第二批 | #3 Step 3：multi-row VALUES batch + reconcile 改寫 | ⏸ 4 個 gate（見下） + 設計確認後動 | — | — |
+| 第二批 | #3 Step 3A：寫 7 個新 invariant 測試 + `SchemaInconsistencyError` 類別 | ✅ 已 push | 2026-04-29 | `9ee1e7780` |
+| 第二批 | #3 Step 3B：實作 batch helpers + refactor `upsert_records` / `insert_records` | ✅ 已 push（107 測試全綠 / Railway 健康） | 2026-04-29 | `4724fa117` |
+| 第二批 | #3 Step 3C：本機跑 `sync_his_snapshots_serial.py -p 50480738 --force` 對比 Step 2 baseline | ⏸ 等你跑（預期 < 30 sec） | — | — |
+
+### Step 3 已實作完成（2026-04-29）
+
+- **3A** (`9ee1e7780`)：定義 `SchemaInconsistencyError`，新增 7 個 invariant 測試，`raises_on_inconsistent_schema` 暫 xfail
+- **3B** (`4724fa117`)：實作 6 個 helper（`_TIMESTAMP_FIELDS`、`_effective_keys`、`_assert_uniform_schema`、`_dedupe_by_id_for_upsert`、`_build_values_clause`、`_build_batch_params`、`_execute_batch_upsert`、`_execute_batch_insert`）+ refactor `upsert_records` / `insert_records` 為 batch；移除 xfail，所有 16 個 invariant + 6 個 happy-path + 7 個 admin_his_sync 測試全綠
+
+**Pre-flight HISConverter audit（2026-04-29，避免 prod 觸發 SchemaInconsistencyError 誤判）**：
+- `convert_medications` → 固定 30 keys ✅
+- `convert_lab_data` → 固定 14 keys（init 時 11 個 categories 全填 None；HIS_LAB_MAP 所有類別都 fall into 初始 11 + remap）✅
+- `convert_culture_results` → 固定 12 keys ✅
+- `convert_diagnostic_reports` (imaging+surgery+ai_results 三個 sub) → **同** 9 keys ✅
+- `convert_all` 合併三個 reports list → uniform 9 keys ✅
+
+→ 所有 prod converter 輸出 uniform schema，`_assert_uniform_schema` 不會誤觸發。
 
 ### Step 3 進入 gate（必須全部 ✅ 才能動實作）
 
