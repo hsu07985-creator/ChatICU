@@ -15,6 +15,55 @@ import { useState, useEffect } from 'react';
 import { getAuditLogs, AuditLog, AuditLogsResponse } from '../../lib/api/admin';
 import { getApiErrorMessage } from '../../lib/api-client';
 
+// ── helpers ───────────────────────────────────────────────────────────
+// DB 存 UTC，顯示一律台北時間 (UTC+8)
+const TAIPEI_DATE_FMT = new Intl.DateTimeFormat('zh-TW', {
+  timeZone: 'Asia/Taipei',
+  year: 'numeric', month: '2-digit', day: '2-digit',
+});
+const TAIPEI_TIME_FMT = new Intl.DateTimeFormat('zh-TW', {
+  timeZone: 'Asia/Taipei',
+  hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+});
+function formatTaipei(iso: string): { date: string; time: string } {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return { date: iso, time: '' };
+  return {
+    date: TAIPEI_DATE_FMT.format(d).replace(/\//g, '-'),
+    time: TAIPEI_TIME_FMT.format(d),
+  };
+}
+
+// 後端回傳的 role 是英文 key，這裡做顯示對應
+const ROLE_LABEL: Record<string, string> = {
+  admin: '系統管理員',
+  doctor: '醫師',
+  nurse: '護理師',
+  np: '專科護理師',
+  pharmacist: '藥師',
+  // 兼容舊資料的中文 key
+  管理者: '系統管理員',
+  醫師: '醫師',
+  護理師: '護理師',
+  藥師: '藥師',
+};
+const ROLE_COLOR: Record<string, string> = {
+  admin: 'bg-brand text-white',
+  doctor: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200',
+  nurse: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200',
+  np: 'bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200',
+  pharmacist: 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200',
+  管理者: 'bg-brand text-white',
+  醫師: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200',
+  護理師: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200',
+  藥師: 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200',
+};
+
+// 系統類 target 顯示 dash 比較好掃；ID 類 (pat_/med_/pmsg_) 用 mono
+function isIdLike(target: string): boolean {
+  return /^(pat|med|pmsg|usr|sess|pi|ord)_/.test(target);
+}
+
 // 稽核紀錄頁面
 export function AuditPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -69,27 +118,13 @@ export function AuditPage() {
   };
 
   const getRoleBadge = (role: string) => {
-    const config: Record<string, { label: string; color: string; icon: typeof ShieldCheck }> = {
-      '管理者': { label: '系統管理員', color: 'bg-brand text-white', icon: ShieldCheck },
-      '醫師': { label: '醫師', color: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200', icon: Shield },
-      '護理師': { label: '護理師', color: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200', icon: Shield },
-      '藥師': { label: '藥師', color: 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200', icon: Shield },
-    };
-
-    const entry = config[role];
-    if (entry) {
-      const Icon = entry.icon;
-      return (
-        <Badge className={entry.color}>
-          <Icon className="h-3.5 w-3.5 mr-1" />
-          {entry.label}
-        </Badge>
-      );
-    }
+    const label = ROLE_LABEL[role] ?? role;
+    const color = ROLE_COLOR[role] ?? 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-200';
+    const Icon = role === 'admin' || role === '管理者' ? ShieldCheck : Shield;
     return (
-      <Badge className="bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-200">
-        <Shield className="h-3.5 w-3.5 mr-1" />
-        {role}
+      <Badge className={color}>
+        <Icon className="h-3.5 w-3.5 mr-1" />
+        {label}
       </Badge>
     );
   };
@@ -197,17 +232,26 @@ export function AuditPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedLogs.map((log) => (
-                <TableRow key={log.id}>
-                  <TableCell className="font-mono text-sm">{log.timestamp}</TableCell>
-                  <TableCell className="font-medium">{log.user}</TableCell>
-                  <TableCell>{getRoleBadge(log.role)}</TableCell>
-                  <TableCell>{log.action}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{log.target}</TableCell>
-                  <TableCell>{getStatusBadge(log.status)}</TableCell>
-                  <TableCell className="font-mono text-sm text-muted-foreground">{log.ip}</TableCell>
-                </TableRow>
-              ))}
+              {paginatedLogs.map((log) => {
+                const t = formatTaipei(log.timestamp);
+                const isSystemTarget = !log.target || log.target === '系統' || log.target === 'system';
+                return (
+                  <TableRow key={log.id}>
+                    <TableCell className="whitespace-nowrap font-mono text-sm leading-tight">
+                      <div>{t.date}</div>
+                      <div className="text-muted-foreground">{t.time}</div>
+                    </TableCell>
+                    <TableCell className="font-medium whitespace-nowrap">{log.user}</TableCell>
+                    <TableCell className="whitespace-nowrap">{getRoleBadge(log.role)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{log.action}</TableCell>
+                    <TableCell className={`text-sm ${isSystemTarget ? 'text-muted-foreground/50' : isIdLike(log.target) ? 'font-mono text-muted-foreground' : 'text-muted-foreground'}`}>
+                      {isSystemTarget ? '—' : log.target}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(log.status)}</TableCell>
+                    <TableCell className="font-mono text-sm text-muted-foreground whitespace-nowrap">{log.ip}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
 
