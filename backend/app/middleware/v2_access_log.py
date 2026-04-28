@@ -31,6 +31,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.middleware.auth import COOKIE_ACCESS_KEY
 from app.utils.security import decode_token
 
 
@@ -45,14 +46,16 @@ def _hash_user_id(user_id: str) -> str:
 
 
 def _extract_token(request: Request) -> Optional[str]:
-    """Best-effort token extraction without raising. Mirrors auth middleware
-    cases (Authorization: Bearer ... and access_token cookie) but never
-    consults Redis or the DB — middleware must stay cheap.
+    """Best-effort token extraction without raising. Mirrors auth
+    middleware: ``Authorization: Bearer ...`` first, then the
+    ``chaticu_access`` cookie (the canonical name used by the auth
+    router and the get_current_user dependency). Never consults Redis
+    or the DB — middleware must stay cheap.
     """
     auth = request.headers.get("Authorization", "")
     if auth.startswith("Bearer "):
         return auth[7:].strip() or None
-    cookie_token = request.cookies.get("access_token")
+    cookie_token = request.cookies.get(COOKIE_ACCESS_KEY)
     return cookie_token or None
 
 

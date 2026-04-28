@@ -140,6 +140,62 @@ async def test_logs_user_hash_for_valid_jwt_without_db_lookup(
 
 
 @pytest.mark.asyncio
+async def test_logs_user_hash_for_valid_auth_cookie(
+    captured_logs: pytest.LogCaptureFixture,
+) -> None:
+    """The middleware must read the same cookie name that auth.py uses
+    (``chaticu_access``) — not a generic ``access_token``. Otherwise
+    browser-cookie callers (the only realistic v2 traffic in production
+    if any exists) would all be tagged anon and we lose the ability to
+    distinguish callers in the 1-2 week observation window.
+
+    Regression test for the hotfix on top of 52fd9cb9a.
+    """
+    from app.middleware.auth import COOKIE_ACCESS_KEY
+    from app.utils.security import create_access_token
+
+    app = _build_app()
+    raw_user_id = "usr_cookie_caller_xyz"
+    token = create_access_token({"sub": raw_user_id})
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://t",
+        cookies={COOKIE_ACCESS_KEY: token},
+    ) as c:
+        await c.get("/v2/patients")
+
+    v2_records = [r for r in captured_logs.records if r.name == "chaticu.v2_access"]
+    assert len(v2_records) == 1
+    msg = v2_records[0].getMessage()
+
+    # Raw subject id must NOT appear
+    assert raw_user_id not in msg
+
+    # A real 16-char hex hash is present, NOT the anon sentinel
+    import re
+    match = re.search(r"user_hash=([0-9a-f]+)", msg)
+    assert match is not None, f"no user_hash in {msg!r}"
+    user_hash = match.group(1)
+    assert len(user_hash) == 16
+    assert user_hash != "anon"
+
+    # The legacy "access_token" cookie name must NOT pick up the token
+    # (sanity-check that the test is exercising the new behaviour, not
+    # accidentally passing because of fallback).
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://t",
+        cookies={"access_token": token},
+    ) as c2:
+        await c2.get("/v2/patients")
+    legacy_records = [r for r in captured_logs.records if r.name == "chaticu.v2_access"]
+    # Two log records total now; the second one must be anon.
+    assert len(legacy_records) == 2
+    assert "user_hash=anon" in legacy_records[1].getMessage()
+
+
+@pytest.mark.asyncio
 async def test_does_not_log_non_v2_paths(
     captured_logs: pytest.LogCaptureFixture,
 ) -> None:
