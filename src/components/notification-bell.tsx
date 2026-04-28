@@ -10,6 +10,7 @@ import { useAuth } from '../lib/auth-context';
 import { useNotificationSummary } from '../hooks/use-notification-summary';
 import {
   getRecentNotifications,
+  markAllNotificationsRead,
   type NotificationItem,
 } from '../lib/api/notifications';
 
@@ -66,8 +67,20 @@ export function NotificationBell() {
   }, []);
 
   useEffect(() => {
-    if (open) void loadItems();
-  }, [open, loadItems]);
+    if (!open) return;
+    void (async () => {
+      await loadItems();
+      // Clear the badge: mark every contributing message as read, then refetch
+      // the summary so the red dot drops to 0 (covers alerts, which never
+      // appear in the dropdown but still count toward `total`).
+      try {
+        await markAllNotificationsRead();
+      } catch {
+        // best-effort; summary will catch up on next 60s poll
+      }
+      refresh();
+    })();
+  }, [open, loadItems, refresh]);
 
   const handleClickItem = (item: NotificationItem) => {
     setOpen(false);

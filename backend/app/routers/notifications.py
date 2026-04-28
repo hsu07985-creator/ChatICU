@@ -173,3 +173,57 @@ async def get_recent_notifications(
         "windowHours": _WINDOW_HOURS,
         "generatedAt": datetime.now(timezone.utc).isoformat(),
     })
+
+
+@router.post("/mark-read")
+async def mark_all_notifications_read(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark every unread message that contributes to this user's bell count as read.
+
+    Covers patient-board mentions, patient-board alerts, and team-chat mentions
+    inside the look-back window. Sets `is_read=True` and appends a read receipt
+    to `read_by` (matching the per-message endpoint at messages.py:602).
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=_WINDOW_HOURS)
+    now = datetime.now(timezone.utc)
+    receipt = {"userId": user.id, "userName": user.name, "readAt": now.isoformat()}
+
+    pb_stmt = select(PatientMessage).where(
+        PatientMessage.timestamp >= cutoff,
+        PatientMessage.is_read == False,  # noqa: E712
+        or_(
+            _patient_board_mention_predicate(user),
+            PatientMessage.message_type.in_(_ALERT_TYPES),
+        ),
+    )
+    pb_msgs = (await db.execute(pb_stmt)).scalars().all()
+
+    tc_stmt = select(TeamChatMessage).where(
+        TeamChatMessage.timestamp >= cutoff,
+        TeamChatMessage.is_read == False,  # noqa: E712
+        _team_chat_mention_predicate(user),
+    )
+    tc_msgs = (await db.execute(tc_stmt)).scalars().all()
+
+    for m in pb_msgs:
+        m.is_read = True
+        rb = list(m.read_by or [])
+        rb.append(receipt)
+        m.read_by = rb
+
+    for m in tc_msgs:
+        m.is_read = True
+        rb = list(m.read_by or [])
+        rb.append(receipt)
+        m.read_by = rb
+
+    await db.commit()
+
+    return success_response(data={
+        "markedPatientBoard": len(pb_msgs),
+        "markedTeamChat": len(tc_msgs),
+        "total": len(pb_msgs) + len(tc_msgs),
+        "generatedAt": now.isoformat(),
+    })

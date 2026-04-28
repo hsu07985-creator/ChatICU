@@ -64,3 +64,23 @@ export async function getRecentNotifications(limit = 30): Promise<RecentNotifica
     generatedAt: raw.generatedAt ?? new Date().toISOString(),
   };
 }
+
+export interface MarkReadResult {
+  markedPatientBoard: number;
+  markedTeamChat: number;
+  total: number;
+}
+
+export async function markAllNotificationsRead(): Promise<MarkReadResult> {
+  const response = await apiClient.post<ApiResponse<MarkReadResult>>(
+    '/notifications/mark-read',
+    undefined,
+    { suppressErrorToast: true },
+  );
+  const raw = (response.data.data || {}) as Partial<MarkReadResult>;
+  return {
+    markedPatientBoard: raw.markedPatientBoard ?? 0,
+    markedTeamChat: raw.markedTeamChat ?? 0,
+    total: raw.total ?? 0,
+  };
+}

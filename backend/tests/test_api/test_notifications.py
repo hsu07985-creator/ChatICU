@@ -144,3 +144,88 @@ async def test_summary_excludes_old_messages(client, seeded_db):
     data = resp.json()["data"]
     assert data["mentions"] == 0
     assert data["alerts"] == 0
+
+
+@pytest.mark.asyncio
+async def test_mark_read_clears_mentions_and_alerts(client, seeded_db):
+    """POST /notifications/mark-read should mark contributing messages read.
+
+    Coverage:
+    - Unread mention matching role → marked read
+    - Unread alert (no mention) → marked read
+    - Already-read mention → untouched
+    - Out-of-window unread alert → untouched
+    - Mention NOT matching this user's role → untouched
+    """
+    now = datetime.now(timezone.utc)
+    long_ago = now - timedelta(hours=200)
+    seeded_db.add_all([
+        PatientMessage(
+            id="pmsg_mark_001",
+            patient_id="pat_001",
+            author_id="usr_test", author_name="Nurse A", author_role="nurse",
+            message_type="general", content="@admin 請看",
+            timestamp=now, is_read=False, mentioned_roles=["admin"],
+        ),
+        PatientMessage(
+            id="pmsg_mark_002",
+            patient_id="pat_001",
+            author_id="usr_test", author_name="Nurse A", author_role="nurse",
+            message_type="alert", content="警示",
+            timestamp=now, is_read=False,
+        ),
+        PatientMessage(
+            id="pmsg_mark_003_read",
+            patient_id="pat_001",
+            author_id="usr_test", author_name="Nurse A", author_role="nurse",
+            message_type="general", content="@admin 已讀",
+            timestamp=now, is_read=True, mentioned_roles=["admin"],
+        ),
+        PatientMessage(
+            id="pmsg_mark_004_old",
+            patient_id="pat_001",
+            author_id="usr_test", author_name="Nurse A", author_role="nurse",
+            message_type="alert", content="超過 window",
+            timestamp=long_ago, is_read=False,
+        ),
+        PatientMessage(
+            id="pmsg_mark_005_other_role",
+            patient_id="pat_001",
+            author_id="usr_test", author_name="Nurse A", author_role="nurse",
+            message_type="general", content="@doctor 不關 admin",
+            timestamp=now, is_read=False, mentioned_roles=["doctor"],
+        ),
+    ])
+    await seeded_db.commit()
+
+    # Sanity: pre-mark badge = 2 (1 mention + 1 alert)
+    pre = (await client.get("/notifications/summary")).json()["data"]
+    assert pre["total"] == 2
+
+    resp = await client.post("/notifications/mark-read")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["success"] is True
+    assert body["data"]["markedPatientBoard"] == 2
+    assert body["data"]["markedTeamChat"] == 0
+    assert body["data"]["total"] == 2
+
+    # Badge cleared
+    post = (await client.get("/notifications/summary")).json()["data"]
+    assert post["total"] == 0
+
+    # Untouched rows stay unread / out of count
+    seeded_db.expire_all()
+    from sqlalchemy import select as _select
+    rows = (await seeded_db.execute(
+        _select(PatientMessage).order_by(PatientMessage.id)
+    )).scalars().all()
+    by_id = {r.id: r for r in rows}
+    assert by_id["pmsg_mark_001"].is_read is True
+    assert by_id["pmsg_mark_002"].is_read is True
+    assert by_id["pmsg_mark_003_read"].is_read is True  # already was
+    assert by_id["pmsg_mark_004_old"].is_read is False
+    assert by_id["pmsg_mark_005_other_role"].is_read is False
+    # read_by receipt appended on the rows we touched
+    assert (by_id["pmsg_mark_001"].read_by or [])[-1]["userId"] == "usr_test"
+    assert (by_id["pmsg_mark_002"].read_by or [])[-1]["userId"] == "usr_test"
