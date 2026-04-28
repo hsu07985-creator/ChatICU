@@ -293,19 +293,17 @@ export function ChatPage() {
     const isSelf = !!user && msg.userId === user.id;
     const repliedTo = msg.replyToId ? messageById.get(msg.replyToId) : null;
 
-    // Bubble bg/text. User asked for: self = green bg + black text, others =
-    // gray bg + (default text — white in dark, dark in light).
+    // Self → soft WhatsApp/LINE-style mint, others → light gray.
     const bubbleClass = isSelf
-      ? 'bg-emerald-300 dark:bg-emerald-400 text-slate-900'
+      ? 'bg-[#DCF8C6] dark:bg-emerald-600 text-slate-900 dark:text-white'
       : 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100';
 
     // Speech-tail: the corner adjacent to the speaker is less rounded.
     const cornerClass = isSelf ? 'rounded-2xl rounded-tr-sm' : 'rounded-2xl rounded-tl-sm';
 
-    // @mention chip needs different contrast inside green vs gray bubbles.
-    const mentionClass = isSelf
-      ? 'inline-flex items-center rounded px-1 bg-black/15 font-semibold'
-      : 'inline-flex items-center rounded px-1 bg-brand/15 text-brand dark:text-brand-light font-semibold';
+    // Solid brand chip for @mentions — same prominence as the "提到你" badge,
+    // works on both green and gray bubbles.
+    const mentionClass = 'inline-flex items-center rounded px-1.5 bg-brand text-white font-medium';
 
     return (
       <div
