@@ -86,7 +86,30 @@ export function ChatPage() {
   const [pinningMessageId, setPinningMessageId] = useState<string | null>(null);
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<TeamChatMessage | null>(null);
+  const [flashedMessageId, setFlashedMessageId] = useState<string | null>(null);
+  const flashTimerRef = useRef<number | null>(null);
   const navigate = useNavigate();
+
+  // Scroll the chat ScrollArea to a specific message and briefly ring it.
+  // scrollIntoView walks scrollable ancestors so it works inside Radix
+  // ScrollArea's viewport without needing a viewport-specific calc.
+  const scrollToMessage = useCallback((id: string) => {
+    const el = document.getElementById(`msg-${id}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
+    setFlashedMessageId(id);
+    flashTimerRef.current = window.setTimeout(() => {
+      setFlashedMessageId((curr) => (curr === id ? null : curr));
+      flashTimerRef.current = null;
+    }, 1600);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
+    };
+  }, []);
 
   // 載入訊息（帶快取）
   const loadMessages = useCallback(async (force = false) => {
@@ -305,10 +328,13 @@ export function ChatPage() {
     // of the sentence and still pops against the bubble bg.
     const mentionClass = 'font-semibold text-brand dark:text-brand-light';
 
+    const isFlashed = flashedMessageId === msg.id;
+
     return (
       <div
+        id={`msg-${msg.id}`}
         data-testid="team-chat-message"
-        className={`group flex gap-2 ${isSelf ? 'flex-row-reverse' : 'flex-row'}`}
+        className={`group flex gap-2 transition-all duration-300 rounded-2xl py-1 ${isSelf ? 'flex-row-reverse' : 'flex-row'} ${isFlashed ? 'ring-2 ring-brand ring-offset-2 ring-offset-background bg-brand/5' : 'ring-0'}`}
       >
         {/* Avatar — only for others (self knows it's themself) */}
         {!isSelf && (
@@ -347,9 +373,14 @@ export function ChatPage() {
           {/* Bubble + hover actions, side-by-side */}
           <div className={`flex items-end gap-1 ${isSelf ? 'flex-row-reverse' : 'flex-row'}`}>
             <div className={`px-3 py-2 ${bubbleClass} ${cornerClass} shadow-sm`}>
-              {/* Reply quote — looks up the parent message */}
+              {/* Reply quote — click to jump to the parent message */}
               {repliedTo && (
-                <div className={`mb-1.5 pl-2 border-l-2 ${isSelf ? 'border-slate-700/40' : 'border-slate-500/40 dark:border-slate-300/40'} opacity-90`}>
+                <button
+                  type="button"
+                  onClick={() => scrollToMessage(repliedTo.id)}
+                  className={`mb-1.5 pl-2 border-l-2 text-left w-full block rounded transition-colors hover:bg-black/5 ${isSelf ? 'border-slate-700/40' : 'border-slate-500/40 dark:border-slate-300/40'} opacity-90 hover:opacity-100`}
+                  title="跳到原訊息"
+                >
                   <div className="text-[11px] font-medium flex items-center gap-1">
                     <CornerUpLeft className="h-2.5 w-2.5" />
                     回覆 {repliedTo.userName}
@@ -357,7 +388,7 @@ export function ChatPage() {
                   <div className="text-xs truncate max-w-[260px] sm:max-w-[320px]">
                     {repliedTo.content}
                   </div>
-                </div>
+                </button>
               )}
               <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
                 {renderContent(msg.content, mentionClass)}
