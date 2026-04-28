@@ -78,6 +78,7 @@ export interface DdiDetailItem {
   pharmacist_note?: string | null;
   last_verified_at?: string | null;
   verified_by?: string | null;
+  verified_by_name?: string | null;
   etag?: number;
 }
 

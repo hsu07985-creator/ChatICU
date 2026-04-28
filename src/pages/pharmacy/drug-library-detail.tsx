@@ -88,6 +88,7 @@ function DdiEditRail({
       onChange({
         last_verified_at: r.last_verified_at,
         verified_by: r.verified_by,
+        verified_by_name: r.verified_by_name,
         etag: r.etag,
       });
       toast.success(`已標記核對 by ${r.verified_by_name}`);
@@ -390,7 +391,9 @@ function DdiCard({
         {!editMode && item.last_verified_at && (
           <div className="text-[10px] text-emerald-400">
             ✓ 已核對 {formatTaipei(item.last_verified_at)}
-            {item.verified_by && ` by ${item.verified_by}`}
+            {(item.verified_by_name || item.verified_by) && (
+              <> by {item.verified_by_name || item.verified_by}</>
+            )}
           </div>
         )}
 
@@ -554,7 +557,7 @@ export function DrugLibraryDetailPage() {
 
   return (
     <div className="container mx-auto p-4 lg:p-6 space-y-4 max-w-screen-xl">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div className="flex items-center justify-between gap-2 flex-wrap pr-12 lg:pr-14">
         <Button
           variant="ghost"
           size="sm"

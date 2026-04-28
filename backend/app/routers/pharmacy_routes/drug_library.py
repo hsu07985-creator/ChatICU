@@ -710,6 +710,17 @@ async def get_drug_detail(
         if d["risk_rating"] in risk_counts:
             risk_counts[d["risk_rating"]] += 1
 
+    # Resolve verified_by user IDs → display names (single batch query)
+    verifier_ids = {d["verified_by"] for d in ddi_out if d.get("verified_by")}
+    if verifier_ids:
+        ur = await db.execute(text(
+            "SELECT id, name FROM users WHERE id = ANY(:ids)"
+        ), {"ids": list(verifier_ids)})
+        verifier_names = {row.id: row.name for row in ur}
+        for d in ddi_out:
+            if d.get("verified_by"):
+                d["verified_by_name"] = verifier_names.get(d["verified_by"])
+
     # ── IV compatibility for this drug (Trissel's Handbook etc.) ───
     iv_rows = await db.execute(text("""
         SELECT id, drug1, drug2, solution, compatible, time_stability,
