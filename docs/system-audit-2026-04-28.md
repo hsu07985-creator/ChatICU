@@ -24,10 +24,10 @@
 
 | Gate | 動作 | 負責 | 狀態 |
 |---|---|---|---|
-| G1 | `railway login` 恢復 live log 觀測能力 | 你 | ⏸ |
-| G2 | 尖峰時段觀察 1-2 小時，確認無 DB pool / prepared statement / ON CONFLICT 相關錯誤 | 你 | ⏸ |
-| G3 | 同一 tab 內 mutation 後切 `/dashboard`、`/patients`，確認有重抓且無 stale | 你 | ⏸ |
-| G4 | Step 3 batch 設計確認（見附錄 D） | 雙方 | ⏸ |
+| G1 | `railway login` 恢復 live log 觀測能力 | 你 | ❌ 2026-04-29 確認 token 仍 Unauthorized |
+| G2 | 尖峰時段觀察 1-2 小時，無 DB pool / prepared statement / ON CONFLICT 相關錯誤 | 你 | ⏸ 阻塞於 G1 |
+| G3 | 同一 tab 內 mutation 後切 `/dashboard`、`/patients`，確認有重抓且無 stale | 你（需 prod 測試帳號） | ⏸ |
+| G4 | Step 3 batch 設計確認（附錄 D） | 雙方 | 🟢 2026-04-29 已併入 4 個修正（key set 排除 timestamp、insert 不 dedupe、upsert count 維持原始長度、移除 fallback 描述） |
 
 **前置確認**：✅ `backend/.env.his-sync` 顯示 prod 走 Supabase pooler `aws-1-ap-southeast-2.pooler.supabase.com:6543`（transaction mode），§1.1 / §1.2 修法適用。
 
@@ -1017,24 +1017,40 @@ curl -s https://chaticu-production-8060.up.railway.app/health
 | **(A) Group by signature** | 用 `frozenset(record.keys())` 分組，每組獨立 batch | 容忍 schema 偏移 | 多一層複雜度；隱藏 converter bug |
 | **(B) Assert + fail loud** | 用第一筆 record 的 keys 為基準，後續 record key set 不符就 raise | 簡單；converter bug 立刻浮現 | 一筆壞資料會擋掉整批 sync |
 
-**建議走 (B)**：
+**走 (B)**：
 - 上游 converter 是受控代碼，schema 偏移是 bug 而非常態
 - HIS sync 是夜間批次，fail loud 能及時抓到上游回歸
-- 加一個明確的 `SchemaInconsistencyError` 例外讓 caller 處理（必要時 fallback 到 per-row）
+- 加一個明確的 `SchemaInconsistencyError` 例外讓 caller 知道是上游 bug 而非 DB 問題
+- 不做「fallback 到 per-row」（**Step 3 範圍外**）：fail loud 就 fail loud，fallback 會把 schema bug 掩蓋成「sync 變慢但沒人發現」
+
+> **v3 修正 (2026-04-29)**：key set 比較必須**先排除 `created_at` / `updated_at`** 才比較。
+> 現有 per-row 邏輯會在組 cols 時跳過這兩個欄位（snapshot_sync.py:212, 230），等於「某筆 record 多帶 created_at」對行為無影響。batch 版本必須維持同樣容忍度，否則 converter 偶爾多帶一個 timestamp 欄位就會整批 sync 失敗，與既有語意不符。
 
 ```python
+_TIMESTAMP_FIELDS = frozenset({"created_at", "updated_at"})
+
+def _effective_keys(record: dict) -> frozenset[str]:
+    return frozenset(record.keys()) - _TIMESTAMP_FIELDS
+
 def _assert_uniform_schema(records: list[dict]) -> list[str]:
-    """Return the column list, raising if records disagree."""
+    """Return the canonical column list (sans created_at/updated_at),
+    raising if records disagree on the *effective* key set.
+
+    Records may differ on whether they carry created_at/updated_at — both
+    are stripped before insertion and supplied by server defaults — so
+    those fields are excluded from the equality check.
+    """
     if not records:
         return []
-    expected = set(records[0].keys())
+    expected = _effective_keys(records[0])
     for i, record in enumerate(records[1:], start=1):
-        if set(record.keys()) != expected:
+        if _effective_keys(record) != expected:
             raise SchemaInconsistencyError(
-                f"records[{i}] has different keys: "
-                f"{set(record.keys()) ^ expected}"
+                f"records[{i}] effective keys differ from records[0]: "
+                f"{_effective_keys(record) ^ expected}"
             )
-    return [k for k in records[0].keys() if k not in {"created_at", "updated_at"}]
+    # Preserve insertion order from the first record.
+    return [k for k in records[0].keys() if k not in _TIMESTAMP_FIELDS]
 ```
 
 ### D.3 `replace_patient_records()` delete+insert delta 不可動
@@ -1089,18 +1105,46 @@ for chunk in (records[i:i+CHUNK_SIZE] for i in range(0, len(records), CHUNK_SIZE
     await _execute_batch_upsert(session, table, chunk)
 ```
 
-### D.6 dedupe 防護
+### D.6 dedupe 防護（**僅** `upsert_records`，**不**動 `insert_records`）
 
 PG 規則：**單一 INSERT 語句不能用 `ON CONFLICT DO UPDATE` 對同一 row 更新兩次**——同 batch 內 `id` 重複會 `cannot affect row a second time` 報錯。
 
-**設計選擇**：batch 入口先 dedupe by `id`，**保留最後一筆**（與目前 per-row 流程下「後者覆蓋前者」行為一致）：
+> **v3 修正 (2026-04-29)**：dedupe 只能套用在 `upsert_records()`，**不可順手套到 `insert_records()`**。
+>
+> 對照現有行為：
+> - `upsert_records()` per-row 流程下，同批同 id 的兩筆 record，後者會 UPDATE 前者插入的 row，等於「後者覆蓋前者」。batch 版本用 last-write-wins dedupe 完全等價。
+> - `insert_records()` per-row 流程下，同批同 id 會在第二筆觸發 PK violation → `IntegrityError` → transaction rollback。這是上游 bug 浮現的方式。Step 3 若把 `insert_records` 也加 dedupe，會把 converter bug 靜悄悄掩蓋掉，這是語意變更不是效能優化，**禁止**。
+> - 結論：`insert_records` 的 batch 重構**不加 dedupe**；同批 dupe id 仍要讓 PG raise，行為與現況一致。
 
 ```python
-def _dedupe_by_id(records: list[dict]) -> list[dict]:
+def _dedupe_by_id_for_upsert(records: list[dict]) -> list[dict]:
+    """Last-write-wins dedupe for upsert_records batch path only.
+
+    This matches per-row legacy behaviour (later record overwrites earlier).
+    Do NOT use this in insert_records — same-id duplicates there must still
+    raise IntegrityError so converter bugs surface immediately.
+    """
     seen: dict[Any, dict] = {}
     for r in records:
-        seen[r["id"]] = r  # last-write-wins
+        seen[r["id"]] = r
     return list(seen.values())
+```
+
+### D.6.1 `upsert_records` count 回傳值
+
+> **v3 修正 (2026-04-29)**：dedupe 後的 batch 仍要回傳 `len(records)`（**原始輸入長度**），不是 `len(deduped)`。
+>
+> 原因：`reconcile_medications()` 把 `upserted = await upsert_records(...)` 直接寫進 summary，前端（toast、coverage report、`med_upserted` 統計）都假設這個數字 = HIS 送來的 medication 筆數。如果改成 dedupe 後的筆數，duplicate input 情境下使用者會看到「醫院送 112 筆但只 upsert 110 筆」的詭異回報，等於把 dedupe 這個內部優化洩漏成對外契約變更。
+
+```python
+async def upsert_records(session, table, records):
+    if not records:
+        return 0
+    deduped = _dedupe_by_id_for_upsert(records)
+    cols = _assert_uniform_schema(deduped)
+    for chunk in (deduped[i:i+CHUNK_SIZE] for i in range(0, len(deduped), CHUNK_SIZE)):
+        await _execute_batch_upsert(session, table, cols, chunk)
+    return len(records)  # NOT len(deduped) — preserve external contract
 ```
 
 ### D.7 SQL 模板 — 安全 placeholder 命名
@@ -1142,9 +1186,12 @@ def _build_batch_upsert_sql(table: str, cols: list[str], n_records: int) -> str:
 
 **Step 3 動工前要補的測試**：
 1. `test_upsert_records_batch_dedupes_within_chunk` — 同 batch 出現兩筆相同 id，最後一筆勝出，無報錯
-2. `test_upsert_records_raises_on_inconsistent_schema` — 兩筆 record key set 不同，raise `SchemaInconsistencyError`
-3. `test_upsert_records_chunks_large_input` — > CHUNK_SIZE 筆 records，分多批正確處理
-4. `test_replace_patient_records_still_uses_delete_then_insert` — 用 spy / 觀察行為驗證沒被改成 upsert（白盒測試）
+2. `test_upsert_records_returns_original_input_length_when_deduped` — 輸入 3 筆（含 1 筆 dupe id），回傳值 = 3 不是 2（D.6.1 契約）
+3. `test_upsert_records_raises_on_inconsistent_schema` — 兩筆 record **effective** key set 不同（排除 created_at/updated_at 後仍不同），raise `SchemaInconsistencyError`
+4. `test_upsert_records_tolerates_extra_timestamp_keys` — 一筆 record 多帶 `created_at`、另一筆沒帶，**不**該 raise（既有 per-row 行為等價）
+5. `test_insert_records_raises_on_duplicate_id_within_batch` — 同 batch 同 id 必須 raise IntegrityError，**不**走 dedupe（D.6 契約）
+6. `test_upsert_records_chunks_large_input` — > CHUNK_SIZE 筆 records，分多批正確處理
+7. `test_replace_patient_records_still_uses_delete_then_insert` — 用 spy / 觀察行為驗證沒被改成 upsert（白盒測試）
 
 ### D.9 實作順序建議
 
