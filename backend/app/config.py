@@ -87,52 +87,14 @@ class Settings(BaseSettings):
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-large"
     ANTHROPIC_API_KEY: str = ""
 
-    # Embedding Cache (Redis)
-    EMBEDDING_CACHE_ENABLED: bool = True
-    EMBEDDING_CACHE_TTL_SECONDS: int = 604800  # 7 days
+    # RAG-related settings removed in Phase 1 D5 — see commit history.
+    # The RAG layer (evidence_client / rag_service / orchestrator / source
+    # registry / reranker / contextual retrieval / agentic RAG / Cohere /
+    # FUNC_API microservice / SOURCE_A_URL / SOURCE_B_URL / NHI_SERVICE_URL /
+    # PAD_API_URL / EMBEDDING_CACHE_* / GUARDRAIL_LLM_ENABLED / etc.) is
+    # gone. Settings that survived the cleanup are below.
 
-    # Reranker — "cohere" (fast, dedicated) or "llm" (GPT-based fallback)
-    RERANKER_PROVIDER: str = "cohere"
-    COHERE_API_KEY: str = ""
-    COHERE_RERANK_MODEL: str = "rerank-v3.5"
-
-    # Agentic RAG — LLM decides search strategy (multi-round retrieval)
-    RAG_AGENTIC_ENABLED: bool = False
-    RAG_AGENTIC_MAX_ROUNDS: int = 3
-    RAG_AGENTIC_MODEL: str = "gpt-5-mini"
-
-    # LLM-based Guardrail — augments regex guardrail with LLM safety check
-    GUARDRAIL_LLM_ENABLED: bool = True
-
-    # RAG (Phase 3)
-    RAG_DOCS_PATH: str = ""
-    RAG_MIN_CITATIONS: int = 1
-    RAG_MIN_CONFIDENCE: float = 0.55
-
-    # RAG Reranker — LLM-based cross-encoder reranking for improved retrieval
-    RAG_RERANK_ENABLED: bool = True
-    RAG_RERANK_MODEL: str = "gpt-5-mini"
-    RAG_RERANK_CANDIDATES: int = 20  # over-retrieve count before reranking
-
-    # RAG Hybrid Search — combine vector similarity with BM25 keyword matching
-    RAG_HYBRID_ENABLED: bool = True
-    RAG_BM25_WEIGHT: float = 0.3  # BM25 weight (vector weight = 1 - this)
-
-    # RAG Citation Summary — LLM refines raw chunks into structured citations
-    RAG_CITATION_SUMMARY_ENABLED: bool = False  # disabled — no RAG index active
-
-    # RAG Index Persistence — persist embeddings + BM25 to disk
-    RAG_INDEX_DIR: str = ""  # default: backend/data/rag_index/
-    RAG_AUTO_INDEX_ON_STARTUP: bool = True
-
-    # RAG Contextual Retrieval — prepend LLM-generated context to each chunk
-    # before embedding (Anthropic technique, ~67% fewer retrieval failures)
-    RAG_CONTEXTUAL_RETRIEVAL_ENABLED: bool = True
-    RAG_CONTEXTUAL_MODEL: str = "gpt-5.4-mini"
-    RAG_CONTEXTUAL_MAX_DOC_CHARS: int = 8000  # truncate long docs for context prompt
-    RAG_CONTEXTUAL_WORKERS: int = 8  # parallel LLM calls for context generation
-
-    # Drug Interaction Graph (local DrugData)
+    # Drug Interaction Graph (local DrugData) — non-RAG, kept.
     DRUG_GRAPH_ENABLED: bool = True
     DRUG_GRAPH_SCRIPT_PATH: str = str(
         Path(__file__).resolve().parents[2] / "data" / "drug_interactions" / "DrugData" / "drug_graph_rag.py"
@@ -141,26 +103,8 @@ class Settings(BaseSettings):
         Path(__file__).resolve().parents[2] / "data" / "drug_interactions" / "DrugData"
     )
 
-    # Layer2 structured data store (JSONL files)
+    # Layer2 structured data store (JSONL files) — non-RAG, kept.
     LAYER2_ROOT: str = ""
-
-    # Evidence RAG microservice (func/) — hybrid RAG, dose calc, interactions
-    # Override FUNC_API_URL in containers (e.g. FUNC_API_URL=http://func:8001)
-    FUNC_API_URL: str = "http://127.0.0.1:8001"
-    FUNC_API_TIMEOUT: float = 30.0  # HTTP timeout in seconds for evidence service (F12)
-    FUNC_API_RETRY_COUNT: int = 2
-    FUNC_API_RETRY_BACKOFF_SECONDS: float = 0.5
-
-    # Drug RAG microservices (Source A = guideline, Source B = drug-specific)
-    SOURCE_A_URL: str = "http://127.0.0.1:8003"
-    SOURCE_B_URL: str = "http://127.0.0.1:8004"
-    SOURCE_PRIORITIES_PATH: str = "config/source_priorities.json"
-
-    # Orchestrator (B07) — unified query endpoint
-    ORCHESTRATOR_ENABLED: bool = False
-
-    # NHI reimbursement RAG microservice
-    NHI_SERVICE_URL: str = "http://127.0.0.1:8002"
 
     # Alerting (T28) — Webhook URL for severe error notifications (Slack/PagerDuty/email)
     ALERT_WEBHOOK_URL: str = ""
@@ -176,6 +120,12 @@ class Settings(BaseSettings):
         "env_file": str(Path(__file__).resolve().parents[1] / ".env"),
         "env_file_encoding": "utf-8",
         "case_sensitive": True,
+        # Tolerate stale RAG-era env vars (RAG_*, SOURCE_A_URL, COHERE_*,
+        # etc.) lingering in local .env files and on Railway. They have no
+        # consumer after Phase 1 D5 — Pydantic's default would reject them
+        # at startup. Once the cleanup task to delete them from Railway is
+        # done, this can flip back to the stricter default.
+        "extra": "ignore",
     }
 
 
