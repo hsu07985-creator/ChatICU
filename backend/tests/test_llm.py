@@ -28,8 +28,26 @@ def test_medication_advice_preserves_monitoring_items():
     assert "PRESERVE every bullet the pharmacist wrote" in prompt
     assert "Monitor:" in prompt
     assert "Never silently drop a draft bullet." in prompt
-    assert "Do NOT write paragraphs of background or pharmacology." in prompt
     assert "extended monitoring plans" not in prompt
+
+
+def test_medication_advice_preserves_reason_clause():
+    """Regression: medication_advice polish must keep the pharmacist's stated
+    rationale/reason. Earlier wording ('Concise recommendation only', 'at most ONE
+    short rationale line', 'Do NOT write paragraphs of background') caused the LLM
+    to drop reason clauses like 'In view of elevated blood sugar even under Trajenta
+    and Glitis'. The new prompt must explicitly preserve the reason and require the
+    '<reason>, please consider <action>' shape.
+    """
+    prompt = TASK_PROMPTS["clinical_polish"]
+    # New preservation rules must be present
+    assert "rationale/reason clause" in prompt
+    assert "Reason FIRST" in prompt
+    assert "Never drop the reason" in prompt
+    # Old over-trim rules must be gone
+    assert "Concise recommendation only" not in prompt
+    assert "at most ONE short rationale" not in prompt
+    assert "Do NOT write paragraphs of background or pharmacology" not in prompt
 
 
 def test_medication_advice_route_fidelity():
