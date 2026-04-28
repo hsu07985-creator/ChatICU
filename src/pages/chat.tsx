@@ -301,9 +301,9 @@ export function ChatPage() {
     // Speech-tail: the corner adjacent to the speaker is less rounded.
     const cornerClass = isSelf ? 'rounded-2xl rounded-tr-sm' : 'rounded-2xl rounded-tl-sm';
 
-    // Solid brand chip for @mentions — same prominence as the "提到你" badge,
-    // works on both green and gray bubbles.
-    const mentionClass = 'inline-flex items-center rounded px-1.5 bg-brand text-white font-medium';
+    // @mentions read as colored bold text, no pill — keeps the inline flow
+    // of the sentence and still pops against the bubble bg.
+    const mentionClass = 'font-semibold text-brand dark:text-brand-light';
 
     return (
       <div
