@@ -1,6 +1,7 @@
 # ChatICU 優化路線圖
 
 - **建立日期**：2026-04-29
+- **驗證**：2026-04-29 由 4 個 agent 平行查驗（Phase 1 RAG 刪除候選 / Phase 0 commits / Phase 2-5 細節 / RAG 邊界與隱藏依賴），詳見最後 §「驗證紀錄」
 - **目的**：彙整接下來所有優化工作的順序、範圍與決策依據
 - **範圍**：從 RAG 整層移除（Phase 1）到結構性收斂（Phase 5），含觀察類項目
 - **配套文件**：
@@ -100,9 +101,11 @@
 | `routers/ai_readiness.py` | 整檔刪 |
 | `routers/pharmacy_routes/interactions.py` | 部分刪：移除 drug_rag_client，**保留 drug_graph_bridge**（local DrugData 圖譜，非 RAG） |
 | `routers/admin.py` | 檢查並移除 `/admin/vectors` 相關段落 |
-| `app/main.py` | 移除 router 註冊 + lifespan RAG warmup + close_shared_client |
-| `app/config.py` | 移除約 30 個 `RAG_*` / `SOURCE_*_URL` / `EMBEDDING_CACHE_*` 等欄位 |
+| `app/main.py` | 移除 router 註冊 + lifespan RAG warmup + **`main.py:194-195` 的 `close_shared_client` hook**（agent 確認此行隨 `_http.py` 一起刪） |
+| `app/config.py` | 移除 **32 個欄位**（agent 實測）：`RAG_×17`、`EMBEDDING_CACHE_×2`、`RERANKER×1`、`COHERE×2`、`SOURCE_×3`、`FUNC_API_×4`、`ORCHESTRATOR×1`、`NHI_SERVICE×1` + `RAG_DOCS_PATH` + `RAG_INDEX_DIR` |
+| `app/llm.py` | **修兩處**：(a) 移除 `line 1181` 的 `from app.services.embedding_cache import ...`（embedding_cache 被刪後此 lazy-import 會壞）；(b) 移除 `line 472` `TASK_PROMPTS` 的 `"agentic_rag_router"` 死 key |
 | `config/source_priorities.json` | 刪 |
+| `.env.example` | 約 13 個 RAG 註解/變數要清 |
 
 #### 前端
 
@@ -111,13 +114,27 @@
 | `src/lib/api/ai.ts` | 刪 RAG 相關函式（getReadiness、clinicalSummary 等含 stream 變體） |
 | `src/lib/api/pharmacy.ts` | 部分刪（drug-interactions 相關） |
 | `src/lib/api/admin.ts` | 刪 `/admin/vectors` 相關 |
+| `src/lib/api/medications.ts` | **agent 漏網**：含 RAG 相關 API 呼叫，需 grep 並清理 |
+| `src/hooks/use-ai-readiness.ts` | **agent 漏網**：整檔刪（基於 `/api/v1/ai/readiness`） |
+| `src/components/app-sidebar.tsx` | **agent 漏網**：移除 `/admin/vectors` 與 `/pharmacy/interactions` 連結 |
+| `src/components/patient/citation-display.tsx` | **agent 漏網**：整檔刪（RAG citation 顯示） |
+| `src/components/patient/multi-source-loader.tsx` | **agent 漏網**：整檔刪（多源 RAG loading 狀態） |
+| `src/components/patient/clinical-query-panel.tsx` | **agent 漏網**：整檔刪（接 /api/v1/clinical） |
+| `src/components/patient/drug-comparison-panel.tsx` | **agent 漏網**：整檔刪（RAG drug comparison） |
+| `src/components/patient/drug-interaction-badges.tsx` | **agent 漏網**：可能整檔刪或改用 graph DDI（需驗證） |
+| `src/components/patient/medication-duplicate-badges.tsx` | **agent 漏網**：含 evidence 字串，需驗證是否 RAG 還是純文案 |
 | `src/pages/admin/vectors.tsx` | 整檔刪 |
 | `src/pages/pharmacy/interactions.tsx` | 視 (a) 決策 |
+| `src/pages/ai-chat.tsx` | 用到上述被刪 component，**留檔但要清 import** |
+| `src/pages/patient-detail.tsx` | 用到上述被刪 component（multi-source-loader / citation-display 等），**留檔但要清 import** |
+| `src/pages/patient-detail-utils.ts` | 同上 |
 | `src/App.tsx` | 移除被刪頁面 route |
 
 #### 後端 tests（~12 個檔）
 
 `tests/test_services/test_orchestrator.py`、`test_drug_rag_client.py`、`test_evidence_client.py`、`test_evidence_fuser.py`、`test_source_registry.py`、`test_http_shared_client.py`、`tests/test_api/test_clinical*.py`、`test_rag.py`、`test_ai_readiness.py`、`test_pharmacy_interactions_bridge.py`、`test_contract.py`（部分）
+
+**agent 漏網**：`tests/conftest.py:221-226` 有 `rag_service` fixture state reset，Phase 1 commit 一定要一起清，否則 import 會失敗。
 
 ### 保留（不是 RAG）
 
@@ -144,7 +161,7 @@
 | **D2** 後端 routers | `clinical.py` / `rag.py` / `ai_readiness.py` + main.py register | -2000~2500 行 | 低 |
 | **D3** 後端 services（leaf） | evidence_client / drug_rag_client / pad_client / guideline_rag_client / agentic_rag / rag_service / clinical_summary / patient_explanation / safety_guardrail / chat_router | -1500~2000 行 | 中 |
 | **D4** 後端 services（中介） | orchestrator / source_registry / evidence_fuser / intent_classifier / citation_builder / embedding_cache / graph_context_enricher / safety_gate / _http | -1500 行 | 中 |
-| **D5** 設定 + tests | config.py 約 30 個欄位、刪對應 tests、source_priorities.json、Railway env 清單 | -500 行 | 低 |
+| **D5** 設定 + tests | config.py **32 個欄位**、刪對應 tests、`tests/conftest.py:221-226` rag_service fixture、`.env.example` 13 個變數、source_priorities.json、Railway env 清單 | -500 行 | 低 |
 
 每 stage 完成後跑 pytest + tsc 才 push。任何一階段出錯可以單獨 revert。
 
@@ -160,7 +177,7 @@
 |---|---|---|---|---|
 | **2.1** | `/v2/patients` deletion（觀察期 1-2 週後） | 低 | 30 min | 刪 ~826 行 router + tests + Vercel rewrite |
 | **2.2** | `ui/chart.tsx` dead code 刪除（zero consumer） | 0 | 5 min | 清潔（已 tree-shake，無 prod 收益） |
-| **2.3** | Repo 根目錄清理 | 0 | 30 min | 22+ 個 `.png` / `.yml` artifacts、`_archive_candidates/` 19MB → 加 `.gitignore` |
+| **2.3** | Repo 根目錄清理 | 0 | 30 min | **51 個** `.png` / `.yml` artifacts（agent 實測）、`_archive_candidates/` 19MB → 加 `.gitignore` |
 | **2.4** | `backend/scripts/sync_his_snapshots_serial.py` 提交 | 0 | 5 min | 目前 untracked，下次重灌就消失 |
 | **2.5** | 移除 V2AccessLog middleware（觀察結束後） | 低 | 15 min | 確認無流量後可移除 |
 
@@ -201,7 +218,7 @@
 |---|---|---|---|---|
 | **3.1** | Patient detail initial bundle endpoint | 中 | 1-2 天 | 進入單一病人頁從 4-7 個 API → 1 個 aggregate；首屏少 3-5 秒 |
 | **3.2** | `patient-detail.tsx` 拆檔 + memo + Context | 中 | 1-2 天 | 2072 行、42 useState、0 React.memo；目前任一 state 動就重渲整個 tree |
-| **3.3** | `dashboard-stats-cache.ts` 整檔刪、改 TanStack | 低 | 半天 | 雙軌 cache 完全收斂，dashboard 也走純 TanStack |
+| **3.3** | `dashboard-stats-cache.ts` 整檔刪、改 TanStack | 低 | 半天 | 雙軌 cache 完全收斂；**agent 註**：51 行檔本身可刪，但要先清 2 個 caller（`src/lib/patient-data-sync.ts:2`、`src/pages/dashboard.tsx:20`） |
 | **3.4** | Patient detail tab 化 lazy | 中 | 半天 | 減少 patient-detail bundle（目前 213 KB raw） |
 
 **註**：3.1 + 3.2 強烈建議綁在一起做。先 3.1 開 aggregate endpoint，3.2 順便重構消費端。
@@ -372,3 +389,56 @@ Phase 5.2 router 整合（看實際需求）
 | 4 | 在 Phase 3 完成後立即做 | 修 2 個 prod warning 是低工高收益 |
 | 5 | 看實際需求再動 | 高風險，舊路徑相容期至少 1-2 個月 |
 | 6 | 不主動 | 等指標說話 |
+
+---
+
+## 附錄：驗證紀錄（2026-04-29）
+
+4 個 agent 平行驗證本 roadmap 的正確性。整體可信度 **95-99%**，5 個漏網已併入上文修正。
+
+### Agent A — Phase 1 RAG 刪除候選
+
+驗證 19 個刪除候選 + 保留清單。**結論：95% 正確**
+
+- 17/19 完全乾淨可直接刪
+- 2 個有漏記連動（已併入 D4）：
+  - `embedding_cache.py` ← `app/llm.py:1181` lazy-import
+  - `_http.py` ← `app/main.py:194-195` close_shared_client lifespan hook
+- 保留清單（ai_chat.py / patient_context_builder.py / drug_graph_bridge.py / ddi_check.py / llm.py）全部驗證為非 RAG
+
+### Agent B — Phase 0 commits + Phase 3 數字
+
+逐一驗 13 個 commit hash 與 5 個量化數字。**結論：100% 正確**
+
+- 13 個 commit hash 全部存在於 main，commit 訊息與 roadmap 描述對齊
+- patient-detail.tsx 2072 行 ✅
+- 42 個 useState ✅
+- 0 個 React.memo ✅
+- 0 個 Context ✅
+- 213 KB raw chunk ✅
+- 首屏 7 個並發 API（Promise.all 行 534-540 + 會話列表）✅
+- dashboard-stats-cache.ts 51 行 + 2 個 caller（已加註）
+
+### Agent C — Phase 2/4/5 細節
+
+驗證 12 個結構性宣告。**結論：99% 正確**
+
+- patients_v2.py 826 行 ✅
+- vercel.json `x-request-id` 出現 8 次（4 path × 2 rules）✅
+- startup_migrations.py 真的有 outpatient seed (line 1135) + diagnostic_reports seed (line 1203) 邏輯，~25 個 `pat_001` 命中 ✅
+- ui/chart.tsx 真零 caller ✅
+- `_archive_candidates/` 19 MB ✅
+- **錯誤**：根目錄 artifacts 實際 51 個（不是 22+）— 已修正
+
+### Agent D — RAG 邊界與隱藏依賴
+
+找漏網。**結論：漏網度 2/5（輕微，可補）**
+
+5 個漏網全部已併入上文修正：
+1. `app/llm.py:1181` `embedding_cache` import → D4
+2. `app/main.py:194-195` close_shared_client → D4
+3. `tests/conftest.py:221-226` rag_service fixture → D5
+4. 前端 9 個漏列檔（app-sidebar / citation-display / multi-source-loader / clinical-query-panel / drug-comparison-panel / drug-interaction-badges / medication-duplicate-badges / lib/api/medications.ts / hooks/use-ai-readiness.ts）→ D1
+5. config.py 實際 32 欄位（不是「約 30」）+ `.env.example` 13 變數 → D5
+
+`guideline_rag_client` 與 `agentic_rag` 確認**真零 active caller**。
