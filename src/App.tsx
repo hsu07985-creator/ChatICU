@@ -29,6 +29,8 @@ const MedicationDuplicatesPage = lazy(() => import('./pages/pharmacy/duplicates'
 const CompatibilityPage = lazy(() => import('./pages/pharmacy/compatibility').then(m => ({ default: m.CompatibilityPage })));
 const DosagePage = lazy(() => import('./pages/pharmacy/dosage').then(m => ({ default: m.DosagePage })));
 const PharmacyAdviceStatisticsPage = lazy(() => import('./pages/pharmacy/advice-statistics').then(m => ({ default: m.PharmacyAdviceStatisticsPage })));
+const DrugLibraryPage = lazy(() => import('./pages/pharmacy/drug-library').then(m => ({ default: m.DrugLibraryPage })));
+const DrugLibraryDetailPage = lazy(() => import('./pages/pharmacy/drug-library-detail').then(m => ({ default: m.DrugLibraryDetailPage })));
 const ChangePasswordPage = lazy(() => import('./pages/change-password').then(m => ({ default: m.ChangePasswordPage })));
 
 // Admin Pages (lazy)
@@ -305,6 +307,26 @@ function AppRoutes() {
           <PharmacyRoute>
             <AppLayout>
               <PharmacyAdviceStatisticsPage />
+            </AppLayout>
+          </PharmacyRoute>
+        }
+      />
+      <Route
+        path="/pharmacy/drug-library"
+        element={
+          <PharmacyRoute>
+            <AppLayout>
+              <DrugLibraryPage />
+            </AppLayout>
+          </PharmacyRoute>
+        }
+      />
+      <Route
+        path="/pharmacy/drug-library/:name"
+        element={
+          <PharmacyRoute>
+            <AppLayout>
+              <DrugLibraryDetailPage />
             </AppLayout>
           </PharmacyRoute>
         }

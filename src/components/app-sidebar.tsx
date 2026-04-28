@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Home, Users, MessageSquare, Database, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Moon, Sun, LogOut, Sparkles, Archive, Copy } from 'lucide-react';
+import { Home, Users, MessageSquare, Database, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Moon, Sun, LogOut, Sparkles, Archive, Copy, Library } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import logoImage from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 import {
@@ -92,6 +92,7 @@ export function AppSidebar() {
     { title: '用藥交互', url: '/pharmacy/interactions', icon: AlertTriangle },
     { title: '重複用藥', url: '/pharmacy/duplicates', icon: Copy },
     { title: '用藥相容', url: '/pharmacy/compatibility', icon: Droplets },
+    { title: '藥物資料庫', url: '/pharmacy/drug-library', icon: Library },
     { title: '藥物統計', url: '/pharmacy/advice-statistics', icon: BarChart3 },
   ] : [];
 
