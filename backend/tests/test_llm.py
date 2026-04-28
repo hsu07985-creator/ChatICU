@@ -57,3 +57,25 @@ def test_medication_advice_route_fidelity():
     prompt = TASK_PROMPTS["clinical_polish"]
     assert "ROUTE FIDELITY" in prompt
     assert "do NOT infer IV/PO" in prompt
+
+
+def test_pharmacist_polish_preserves_reason_clause():
+    """Regression: pharmacist_polish (used by PharmacistSoapEditor) must keep
+    the pharmacist's stated rationale/reason. Earlier the PRESERVATION rule
+    listed only drug/dose/lab/monitoring but omitted rationale, so descriptive
+    reasons (e.g. 'In view of elevated blood sugar even under Trajenta and Glitis')
+    were dropped at polish time. New rules must (a) include rationale in the
+    do-not-remove list, (b) explicitly forbid dropping a written reason in the
+    drug-change shape, and (c) provide a few-shot example covering the failure case.
+    """
+    prompt = TASK_PROMPTS["pharmacist_polish"]
+    # Preservation rule must list rationale/reason
+    assert "rationale/reason" in prompt
+    # Explicit "never drop reason" guidance in drug-change shape
+    assert "NEVER drop the reason" in prompt
+    # Few-shot anchor for descriptive reasons
+    assert "In view of suboptimal glycemic control" in prompt
+    # SELF-CHECK list must include the reason check
+    assert "reason/rationale clause" in prompt
+    # Old hard cap on reason length must be gone (was the cause of trimming)
+    assert "≤20 words" not in prompt
