@@ -252,7 +252,7 @@ export function DrugLibraryPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="icu_usage">ICU 30 天熱度</SelectItem>
+                <SelectItem value="icu_usage">ICU 30 天用量</SelectItem>
                 <SelectItem value="name">名稱 A → Z</SelectItem>
                 <SelectItem value="ddi_count">DDI 條數多 → 少</SelectItem>
               </SelectContent>
