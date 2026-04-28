@@ -24,10 +24,29 @@
 
 | Gate | 動作 | 負責 | 狀態 |
 |---|---|---|---|
-| G1 | `railway login` 恢復 live log 觀測能力 | 你 | ❌ 2026-04-29 確認 token 仍 Unauthorized |
-| G2 | 尖峰時段觀察 1-2 小時，無 DB pool / prepared statement / ON CONFLICT 相關錯誤 | 你 | ⏸ 阻塞於 G1 |
-| G3 | 同一 tab 內 mutation 後切 `/dashboard`、`/patients`，確認有重抓且無 stale | 你（需 prod 測試帳號） | ⏸ |
-| G4 | Step 3 batch 設計確認（附錄 D） | 雙方 | 🟢 2026-04-29 已併入 4 個修正（key set 排除 timestamp、insert 不 dedupe、upsert count 維持原始長度、移除 fallback 描述） |
+| G1 | `railway login` 恢復 live log 觀測能力 | 你 | ✅ 2026-04-29 token 已恢復（Project: scintillating-compassion / production / ChatICU） |
+| G2 | 尖峰時段觀察 1-2 小時，無 DB pool / prepared statement / ON CONFLICT 相關錯誤 | 你 | ✅ 2026-04-29 近 24h / 近 2h / 近 30m 三段都乾淨；技術上無 DB pooler / ON CONFLICT 路徑相關問題（細節見下） |
+| G3 | 同一 tab 內 mutation 後切 `/dashboard`、`/patients`，確認有重抓且無 stale | 你（需 prod 登入） | ⏸ 待手動驗證 |
+| G4 | Step 3 batch 設計確認（附錄 D） | 雙方 | ✅ 2026-04-29 4 個修正併入 |
+
+### G2 觀察結果（2026-04-29）
+
+| 關鍵字 | 出現次數 |
+|---|---|
+| `DuplicatePreparedStatementError` | 0 |
+| `prepared statement` | 0 |
+| `QueuePool` | 0 |
+| `TimeoutError` | 0 |
+| `ON CONFLICT` 相關 IntegrityError | 0 |
+| `unique constraint` | 0 |
+| `SchemaInconsistencyError` | 0 |
+| HTTP 5xx (近 24h) | 無輸出 |
+
+**唯一觀察到的 startup fallback warning（非 #1/#2 引入，不擋 Step 3）**：
+- outpatient seed 日期型別錯
+- `diagnostic_reports` FK violation，`pat_001` 不存在
+
+→ 這兩個與 §8.5 提到的 startup_migrations 拆解 (#10) 同源；之前已列為第五批 #10 的具體修法輸入。**不擋 Step 3**。
 
 **前置確認**：✅ `backend/.env.his-sync` 顯示 prod 走 Supabase pooler `aws-1-ap-southeast-2.pooler.supabase.com:6543`（transaction mode），§1.1 / §1.2 修法適用。
 
