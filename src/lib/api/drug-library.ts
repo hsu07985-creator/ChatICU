@@ -74,6 +74,22 @@ export interface DdiDetailItem {
   discussion: string | null;
   source: string | null;
   pubmed_count: number;
+  // Phase 4a editor metadata
+  pharmacist_note?: string | null;
+  last_verified_at?: string | null;
+  verified_by?: string | null;
+  etag?: number;
+}
+
+export interface RuleHistoryEntry {
+  action: string;
+  actor_id: string;
+  actor_name: string;
+  actor_role: string | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  reason: string | null;
+  created_at: string;
 }
 
 export interface IvCompatItem {
@@ -119,4 +135,45 @@ export async function listDrugs(params: DrugListParams = {}): Promise<DrugListRe
 export async function getDrugDetail(name: string, params?: { scope?: 'all' | 'icu'; risk?: string }): Promise<DrugDetail> {
   const r = await apiClient.get(`/pharmacy/drug-library/drugs/${encodeURIComponent(name)}`, { params });
   return ensureData(r.data, `藥物詳情: ${name}`);
+}
+
+// ── Phase 4a editor endpoints ───────────────────────────────────────
+
+export async function updateRuleNote(ruleId: string, note: string | null): Promise<{ pharmacist_note: string | null; etag: number }> {
+  const r = await apiClient.patch(
+    `/pharmacy/drug-library/rules/${encodeURIComponent(ruleId)}/note`,
+    { note },
+  );
+  return ensureData(r.data, '更新藥師備註');
+}
+
+export async function verifyRule(ruleId: string): Promise<{ last_verified_at: string; verified_by: string; verified_by_name: string; etag: number }> {
+  const r = await apiClient.post(
+    `/pharmacy/drug-library/rules/${encodeURIComponent(ruleId)}/verify`,
+    {},
+  );
+  return ensureData(r.data, '標記已核對');
+}
+
+export async function deprecateRule(ruleId: string, reason: string): Promise<{ id: string; is_active: boolean }> {
+  const r = await apiClient.post(
+    `/pharmacy/drug-library/rules/${encodeURIComponent(ruleId)}/deprecate`,
+    { reason },
+  );
+  return ensureData(r.data, '標記 deprecated');
+}
+
+export async function restoreRule(ruleId: string, reason: string): Promise<{ id: string; is_active: boolean }> {
+  const r = await apiClient.post(
+    `/pharmacy/drug-library/rules/${encodeURIComponent(ruleId)}/restore`,
+    { reason },
+  );
+  return ensureData(r.data, '還原規則');
+}
+
+export async function getRuleHistory(ruleId: string): Promise<{ rule_id: string; history: RuleHistoryEntry[] }> {
+  const r = await apiClient.get(
+    `/pharmacy/drug-library/rules/${encodeURIComponent(ruleId)}/history`,
+  );
+  return ensureData(r.data, '規則歷史');
 }

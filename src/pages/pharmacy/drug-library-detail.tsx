@@ -1,15 +1,32 @@
 import { ArrowLeft, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog';
+import { Textarea } from '../../components/ui/textarea';
+import { useAuth } from '../../lib/auth-context';
+import { useEditMode } from '../../lib/drug-library-edit-mode';
+import {
   type DdiDetailItem,
   type DrugDetail,
   type IvCompatItem,
+  type RuleHistoryEntry,
+  deprecateRule,
   getDrugDetail,
+  getRuleHistory,
+  updateRuleNote,
+  verifyRule,
 } from '../../lib/api/drug-library';
 
 const RISK_META: Record<string, { cls: string; descr: string }> = {
@@ -30,7 +47,287 @@ const RELIABILITY_META: Record<string, { cls: string; tip: string }> = {
   'Intermediate-Low': { cls: 'bg-amber-500/10 text-amber-400 border-amber-500/30', tip: '證據強度：中-低' },
 };
 
-function DdiCard({ item }: { item: DdiDetailItem }) {
+function formatTaipei(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false });
+}
+
+// ── Edit-mode action rail per DDI card ─────────────────────────────────
+function DdiEditRail({
+  item,
+  onChange,
+}: {
+  item: DdiDetailItem;
+  onChange: (updates: Partial<DdiDetailItem>) => void;
+}) {
+  const [noteDraft, setNoteDraft] = useState<string>(item.pharmacist_note ?? '');
+  const [savingNote, setSavingNote] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [deprecateOpen, setDeprecateOpen] = useState(false);
+
+  const noteDirty = (noteDraft || '') !== (item.pharmacist_note || '');
+
+  const saveNote = async () => {
+    setSavingNote(true);
+    try {
+      const r = await updateRuleNote(item.id, noteDraft || null);
+      onChange({ pharmacist_note: r.pharmacist_note, etag: r.etag });
+      toast.success('備註已儲存');
+    } catch (e: any) {
+      toast.error(e?.message || '儲存失敗');
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  const doVerify = async () => {
+    setVerifying(true);
+    try {
+      const r = await verifyRule(item.id);
+      onChange({
+        last_verified_at: r.last_verified_at,
+        verified_by: r.verified_by,
+        etag: r.etag,
+      });
+      toast.success(`已標記核對 by ${r.verified_by_name}`);
+    } catch (e: any) {
+      toast.error(e?.message || '失敗');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  return (
+    <div className="border-t border-border/30 pt-2 mt-2 space-y-2">
+      <div className="space-y-1">
+        <div className="text-[10px] text-muted-foreground">藥師備註</div>
+        <Textarea
+          value={noteDraft}
+          onChange={(e) => setNoteDraft(e.target.value)}
+          placeholder="例：本院共識為 SAH 病人 Aspirin + Warfarin 不警告，依神內 2024 SOP"
+          className="text-xs min-h-[60px]"
+          maxLength={2000}
+        />
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-muted-foreground">{noteDraft.length} / 2000</span>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!noteDirty || savingNote}
+            onClick={saveNote}
+            className="h-7 text-xs"
+          >
+            {savingNote && <Loader2 className="size-3 mr-1 animate-spin" />}
+            儲存備註
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={verifying}
+          onClick={doVerify}
+          className="h-7 text-xs"
+        >
+          {verifying && <Loader2 className="size-3 mr-1 animate-spin" />}
+          標記已核對
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setDeprecateOpen(true)}
+          className="h-7 text-xs text-rose-400 border-rose-500/30 hover:bg-rose-500/10"
+        >
+          標 deprecated
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setHistoryOpen(true)}
+          className="h-7 text-xs ml-auto"
+        >
+          歷史
+        </Button>
+      </div>
+
+      <DeprecateDialog
+        open={deprecateOpen}
+        onClose={() => setDeprecateOpen(false)}
+        ruleId={item.id}
+        ruleLabel={item.other_drug}
+        onDeprecated={() => {
+          // Caller will refetch; close dialog
+          setDeprecateOpen(false);
+        }}
+      />
+      <HistoryDialog
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        ruleId={item.id}
+      />
+    </div>
+  );
+}
+
+function DeprecateDialog({
+  open,
+  onClose,
+  ruleId,
+  ruleLabel,
+  onDeprecated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  ruleId: string;
+  ruleLabel: string;
+  onDeprecated: () => void;
+}) {
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const ok = reason.trim().length >= 30;
+  const submit = async () => {
+    if (!ok) return;
+    setSubmitting(true);
+    try {
+      await deprecateRule(ruleId, reason.trim());
+      toast.success('已標記 deprecated（reload 後從清單消失）');
+      onDeprecated();
+      // Reload page so the row disappears (is_active=FALSE filter)
+      setTimeout(() => window.location.reload(), 500);
+    } catch (e: any) {
+      toast.error(e?.message || '失敗');
+      setSubmitting(false);
+    }
+  };
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>標記 deprecated</DialogTitle>
+          <DialogDescription>
+            此規則「× {ruleLabel}」將被軟刪除（is_active = FALSE），
+            後續所有藥師查詢、API 都不會再回傳這條。可隨時 restore。
+            必填理由（≥30 字，存進稽核 log）。
+          </DialogDescription>
+        </DialogHeader>
+        <Textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="例：與 Lexicomp 2026.07 撤銷規則，本院神內 SOP 也不再採用"
+          className="min-h-[100px]"
+          maxLength={500}
+        />
+        <div className="text-xs text-muted-foreground">
+          {reason.length} / 500（最少 30 字）
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>取消</Button>
+          <Button
+            variant="destructive"
+            disabled={!ok || submitting}
+            onClick={submit}
+          >
+            {submitting && <Loader2 className="size-4 mr-1 animate-spin" />}
+            確認標記
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function HistoryDialog({
+  open,
+  onClose,
+  ruleId,
+}: {
+  open: boolean;
+  onClose: () => void;
+  ruleId: string;
+}) {
+  const [history, setHistory] = useState<RuleHistoryEntry[] | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    setHistory(null);
+    getRuleHistory(ruleId)
+      .then((d) => setHistory(d.history))
+      .catch(() => setHistory([]))
+      .finally(() => setLoading(false));
+  }, [open, ruleId]);
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>規則異動歷史</DialogTitle>
+          <DialogDescription>
+            <span className="font-mono text-xs">{ruleId}</span> 的所有編輯紀錄（最多 200 筆，新→舊）
+          </DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[60vh] overflow-y-auto space-y-2">
+          {loading && (
+            <div className="text-sm text-muted-foreground py-4 text-center flex items-center justify-center gap-2">
+              <Loader2 className="size-4 animate-spin" /> 載入歷史
+            </div>
+          )}
+          {history && history.length === 0 && (
+            <div className="text-sm text-muted-foreground py-4 text-center">
+              尚無編輯紀錄
+            </div>
+          )}
+          {history?.map((h, i) => (
+            <Card key={i} className="border-border/40">
+              <CardContent className="py-2.5 space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px]">{h.action}</Badge>
+                    <span className="font-medium">{h.actor_name}</span>
+                    {h.actor_role && (
+                      <span className="text-muted-foreground">{h.actor_role}</span>
+                    )}
+                  </div>
+                  <span className="text-muted-foreground">{formatTaipei(h.created_at)}</span>
+                </div>
+                {h.reason && (
+                  <div className="text-xs">
+                    <span className="text-muted-foreground">理由：</span>{h.reason}
+                  </div>
+                )}
+                {h.before && (
+                  <div className="text-[10px] text-muted-foreground">
+                    Before: <code>{JSON.stringify(h.before)}</code>
+                  </div>
+                )}
+                {h.after && (
+                  <div className="text-[10px] text-muted-foreground">
+                    After: <code>{JSON.stringify(h.after)}</code>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── DDI card ────────────────────────────────────────────────────────────
+function DdiCard({
+  item,
+  editMode,
+  onChange,
+}: {
+  item: DdiDetailItem;
+  editMode: boolean;
+  onChange: (updates: Partial<DdiDetailItem>) => void;
+}) {
   const reliability = item.reliability ? RELIABILITY_META[item.reliability] : null;
   return (
     <Card className="border-border/40">
@@ -82,6 +379,23 @@ function DdiCard({ item }: { item: DdiDetailItem }) {
             {item.pubmed_count} 篇文獻引用
           </div>
         )}
+
+        {/* Read-mode pinned note + verify status */}
+        {!editMode && item.pharmacist_note && (
+          <div className="text-xs bg-blue-500/5 border border-blue-500/20 rounded p-2 mt-1">
+            <span className="text-blue-400 font-medium">藥師備註：</span>
+            <span className="whitespace-pre-wrap">{item.pharmacist_note}</span>
+          </div>
+        )}
+        {!editMode && item.last_verified_at && (
+          <div className="text-[10px] text-emerald-400">
+            ✓ 已核對 {formatTaipei(item.last_verified_at)}
+            {item.verified_by && ` by ${item.verified_by}`}
+          </div>
+        )}
+
+        {/* Edit-mode rail */}
+        {editMode && <DdiEditRail item={item} onChange={onChange} />}
       </CardContent>
     </Card>
   );
@@ -91,10 +405,14 @@ function RiskGroup({
   risk,
   items,
   defaultOpen,
+  editMode,
+  onItemChange,
 }: {
   risk: string;
   items: DdiDetailItem[];
   defaultOpen: boolean;
+  editMode: boolean;
+  onItemChange: (id: string, updates: Partial<DdiDetailItem>) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const meta = RISK_META[risk];
@@ -111,7 +429,14 @@ function RiskGroup({
       </button>
       {open && (
         <div className="space-y-2 pl-6">
-          {items.map((it) => <DdiCard key={it.id} item={it} />)}
+          {items.map((it) => (
+            <DdiCard
+              key={it.id}
+              item={it}
+              editMode={editMode}
+              onChange={(u) => onItemChange(it.id, u)}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -171,6 +496,10 @@ type TabKey = 'ddi' | 'iv';
 export function DrugLibraryDetailPage() {
   const { name } = useParams<{ name: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isPharmOrAdmin = user?.role === 'pharmacist' || user?.role === 'admin';
+  const [editMode, setEditMode] = useEditMode();
+
   const [data, setData] = useState<DrugDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -186,6 +515,17 @@ export function DrugLibraryDetailPage() {
       .catch((e) => setError(e?.message || '載入失敗'))
       .finally(() => setLoading(false));
   }, [name]);
+
+  // Local optimistic update so a saved note/verify doesn't require full reload
+  const onItemChange = (id: string, updates: Partial<DdiDetailItem>) => {
+    setData((cur) => {
+      if (!cur) return cur;
+      return {
+        ...cur,
+        ddi: cur.ddi.map((d) => (d.id === id ? { ...d, ...updates } : d)),
+      };
+    });
+  };
 
   const grouped = useMemo(() => {
     const m: Record<string, DdiDetailItem[]> = { X: [], D: [], C: [], B: [], A: [] };
@@ -214,7 +554,7 @@ export function DrugLibraryDetailPage() {
 
   return (
     <div className="container mx-auto p-4 lg:p-6 space-y-4 max-w-screen-xl">
-      <div>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <Button
           variant="ghost"
           size="sm"
@@ -223,6 +563,27 @@ export function DrugLibraryDetailPage() {
         >
           <ArrowLeft className="size-4 mr-1" /> 回藥物資料庫
         </Button>
+        {isPharmOrAdmin && (
+          <div className="flex items-center gap-1 text-xs">
+            <span className="text-muted-foreground">模式：</span>
+            <Button
+              size="sm"
+              variant={editMode ? 'outline' : 'default'}
+              onClick={() => setEditMode(false)}
+              className="h-7 text-xs"
+            >
+              檢視
+            </Button>
+            <Button
+              size="sm"
+              variant={editMode ? 'default' : 'outline'}
+              onClick={() => setEditMode(true)}
+              className="h-7 text-xs"
+            >
+              編輯
+            </Button>
+          </div>
+        )}
       </div>
 
       {loading && (
@@ -344,6 +705,8 @@ export function DrugLibraryDetailPage() {
                           risk={r}
                           items={grouped[r] || []}
                           defaultOpen={r === 'X' || r === 'D'}
+                          editMode={editMode && isPharmOrAdmin}
+                          onItemChange={onItemChange}
                         />
                       ))}
                       {data.ddi_total === 0 && (

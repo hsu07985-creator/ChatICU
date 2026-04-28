@@ -18,7 +18,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -268,6 +269,7 @@ async def _aggregate_per_drug(db: AsyncSession) -> dict:
     r = await db.execute(text("""
         SELECT drug1, drug2, drug1_atc, drug2_atc, risk_rating, "references"
         FROM drug_interactions
+        WHERE is_active = TRUE
     """))
     per_drug: dict[str, dict] = {}
     name_form_counts: dict[str, Counter] = {}
@@ -389,6 +391,7 @@ async def get_stats(
           COUNT(*) FILTER (WHERE drug1_atc IS NULL OR drug2_atc IS NULL) AS missing_atc,
           MAX(updated_at) AS last_updated
         FROM drug_interactions
+        WHERE is_active = TRUE
     """))
     row = r.first()
 
@@ -396,6 +399,7 @@ async def get_stats(
     r2 = await db.execute(text("""
         SELECT COALESCE("references", 'unspecified') AS src, COUNT(*) AS n
         FROM drug_interactions
+        WHERE is_active = TRUE
         GROUP BY src
         ORDER BY n DESC
     """))
@@ -404,9 +408,11 @@ async def get_stats(
     # Distinct drug names (drug1 ∪ drug2)
     r3 = await db.execute(text("""
         SELECT COUNT(*) AS n FROM (
-          SELECT DISTINCT LOWER(drug1) AS d FROM drug_interactions WHERE drug1 IS NOT NULL
+          SELECT DISTINCT LOWER(drug1) AS d FROM drug_interactions
+          WHERE is_active = TRUE AND drug1 IS NOT NULL
           UNION
-          SELECT DISTINCT LOWER(drug2) FROM drug_interactions WHERE drug2 IS NOT NULL
+          SELECT DISTINCT LOWER(drug2) FROM drug_interactions
+          WHERE is_active = TRUE AND drug2 IS NOT NULL
         ) t
     """))
     total_drugs = r3.scalar_one()
@@ -561,10 +567,12 @@ async def get_drug_detail(
           risk_rating, severity, severity_label, reliability_rating,
           mechanism, clinical_effect, management, discussion,
           "references" AS source_ref, pubmed_ids,
-          interacting_members
+          interacting_members,
+          pharmacist_note, last_verified_at, verified_by, etag
         FROM drug_interactions
-        WHERE drug1 ILIKE :pat OR drug2 ILIKE :pat
-           OR CAST(interacting_members AS TEXT) ILIKE :pat
+        WHERE is_active = TRUE
+          AND (drug1 ILIKE :pat OR drug2 ILIKE :pat
+               OR CAST(interacting_members AS TEXT) ILIKE :pat)
         ORDER BY
           CASE risk_rating WHEN 'X' THEN 0 WHEN 'D' THEN 1 WHEN 'C' THEN 2
                           WHEN 'B' THEN 3 WHEN 'A' THEN 4 ELSE 5 END
@@ -677,6 +685,11 @@ async def get_drug_detail(
             "discussion": row.discussion,
             "source": row.source_ref,
             "pubmed_count": len(pmids) if isinstance(pmids, list) else 0,
+            # Phase 4a: editor metadata
+            "pharmacist_note": row.pharmacist_note,
+            "last_verified_at": row.last_verified_at.isoformat() if row.last_verified_at else None,
+            "verified_by": row.verified_by,
+            "etag": row.etag,
         })
 
     # ATC path with Chinese labels for L1/L2/L3 (L4/L5 stay code-only)
@@ -739,3 +752,252 @@ async def get_drug_detail(
         "ddi": ddi_out,
         "iv_compatibility": iv_compat,
     })
+
+
+# ────────────────────────────────────────────────────────────────────
+# Phase 4a — editor endpoints (note / verify / deprecate / restore / history)
+# ────────────────────────────────────────────────────────────────────
+
+class _NoteIn(BaseModel):
+    note: Optional[str] = Field(default=None, max_length=2000)
+
+
+class _DeprecateIn(BaseModel):
+    reason: str = Field(min_length=30, max_length=500,
+                         description="軟刪除原因，至少 30 字（合規要求）")
+
+
+class _RestoreIn(BaseModel):
+    reason: str = Field(min_length=10, max_length=500)
+
+
+async def _write_audit_log(
+    db: AsyncSession,
+    request: Optional[Request],
+    user: User,
+    *,
+    action: str,
+    entity_type: str,
+    entity_id: str,
+    before: Optional[dict] = None,
+    after: Optional[dict] = None,
+    reason: Optional[str] = None,
+) -> None:
+    """Insert an immutable audit row. Triggered by every mutating editor endpoint."""
+    ip = None
+    ua = None
+    if request is not None:
+        ip = request.client.host if request.client else None
+        ua = request.headers.get("user-agent")
+    await db.execute(text("""
+        INSERT INTO drug_library_audit_log
+            (action, entity_type, entity_id, before_json, after_json,
+             actor_id, actor_name, actor_role, reason, ip_address, user_agent)
+        VALUES (:action, :etype, :eid, CAST(:before AS JSONB), CAST(:after AS JSONB),
+                :aid, :aname, :arole, :reason, :ip, :ua)
+    """), {
+        "action": action,
+        "etype": entity_type,
+        "eid": entity_id,
+        "before": _json.dumps(before, ensure_ascii=False) if before is not None else None,
+        "after": _json.dumps(after, ensure_ascii=False) if after is not None else None,
+        "aid": user.id,
+        "aname": user.name,
+        "arole": user.role,
+        "reason": reason,
+        "ip": ip,
+        "ua": ua,
+    })
+
+
+async def _fetch_rule_or_404(db: AsyncSession, rule_id: str) -> dict:
+    r = await db.execute(text("""
+        SELECT id, drug1, drug2, risk_rating, severity, is_active,
+               pharmacist_note, last_verified_at, verified_by, etag
+        FROM drug_interactions WHERE id = :id
+    """), {"id": rule_id})
+    row = r.first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    return {
+        "id": row.id, "drug1": row.drug1, "drug2": row.drug2,
+        "risk_rating": row.risk_rating, "severity": row.severity,
+        "is_active": row.is_active, "pharmacist_note": row.pharmacist_note,
+        "last_verified_at": row.last_verified_at,
+        "verified_by": row.verified_by, "etag": row.etag,
+    }
+
+
+@router.patch("/rules/{rule_id}/note")
+async def update_note(
+    rule_id: str,
+    body: _NoteIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set or clear the pharmacist note on a rule. Single-pharmacist OK."""
+    _require_pharmacist(user)
+    before = await _fetch_rule_or_404(db, rule_id)
+    new_note = (body.note or "").strip() or None
+
+    await db.execute(text("""
+        UPDATE drug_interactions
+        SET pharmacist_note = :note, etag = etag + 1, updated_at = NOW()
+        WHERE id = :id
+    """), {"note": new_note, "id": rule_id})
+
+    await _write_audit_log(
+        db, request, user,
+        action="note", entity_type="rule", entity_id=rule_id,
+        before={"pharmacist_note": before["pharmacist_note"]},
+        after={"pharmacist_note": new_note},
+    )
+    await db.commit()
+    after = await _fetch_rule_or_404(db, rule_id)
+    return success_response(data={
+        "id": rule_id,
+        "pharmacist_note": after["pharmacist_note"],
+        "etag": after["etag"],
+    })
+
+
+@router.post("/rules/{rule_id}/verify")
+async def mark_verified(
+    rule_id: str,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Stamp 'last_verified_at = now, verified_by = me' on a rule."""
+    _require_pharmacist(user)
+    before = await _fetch_rule_or_404(db, rule_id)
+
+    await db.execute(text("""
+        UPDATE drug_interactions
+        SET last_verified_at = NOW(), verified_by = :uid,
+            etag = etag + 1, updated_at = NOW()
+        WHERE id = :id
+    """), {"uid": user.id, "id": rule_id})
+
+    await _write_audit_log(
+        db, request, user,
+        action="verify", entity_type="rule", entity_id=rule_id,
+        before={"last_verified_at": before["last_verified_at"].isoformat()
+                                     if before["last_verified_at"] else None,
+                "verified_by": before["verified_by"]},
+        after={"verified_by": user.id, "verified_by_name": user.name},
+    )
+    await db.commit()
+    after = await _fetch_rule_or_404(db, rule_id)
+    return success_response(data={
+        "id": rule_id,
+        "last_verified_at": after["last_verified_at"].isoformat()
+                             if after["last_verified_at"] else None,
+        "verified_by": after["verified_by"],
+        "verified_by_name": user.name,
+        "etag": after["etag"],
+    })
+
+
+@router.post("/rules/{rule_id}/deprecate")
+async def deprecate_rule(
+    rule_id: str,
+    body: _DeprecateIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Soft-delete a rule. Marks is_active=FALSE; reason ≥30 chars required."""
+    _require_pharmacist(user)
+    before = await _fetch_rule_or_404(db, rule_id)
+    if not before["is_active"]:
+        raise HTTPException(status_code=409, detail="Rule already deprecated")
+
+    await db.execute(text("""
+        UPDATE drug_interactions
+        SET is_active = FALSE,
+            deprecated_at = NOW(),
+            deprecated_by = :uid,
+            deprecated_reason = :reason,
+            etag = etag + 1,
+            updated_at = NOW()
+        WHERE id = :id
+    """), {"uid": user.id, "reason": body.reason, "id": rule_id})
+
+    await _write_audit_log(
+        db, request, user,
+        action="deprecate", entity_type="rule", entity_id=rule_id,
+        before={"is_active": True},
+        after={"is_active": False, "deprecated_by": user.id},
+        reason=body.reason,
+    )
+    await db.commit()
+    return success_response(data={
+        "id": rule_id, "is_active": False, "deprecated_at_utc": "now",
+    })
+
+
+@router.post("/rules/{rule_id}/restore")
+async def restore_rule(
+    rule_id: str,
+    body: _RestoreIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Undo a soft-delete. Reason required for audit trail."""
+    _require_pharmacist(user)
+    before = await _fetch_rule_or_404(db, rule_id)
+    if before["is_active"]:
+        raise HTTPException(status_code=409, detail="Rule is already active")
+
+    await db.execute(text("""
+        UPDATE drug_interactions
+        SET is_active = TRUE,
+            deprecated_at = NULL,
+            deprecated_by = NULL,
+            deprecated_reason = NULL,
+            etag = etag + 1,
+            updated_at = NOW()
+        WHERE id = :id
+    """), {"id": rule_id})
+
+    await _write_audit_log(
+        db, request, user,
+        action="restore", entity_type="rule", entity_id=rule_id,
+        before={"is_active": False},
+        after={"is_active": True},
+        reason=body.reason,
+    )
+    await db.commit()
+    return success_response(data={"id": rule_id, "is_active": True})
+
+
+@router.get("/rules/{rule_id}/history")
+async def rule_history(
+    rule_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Audit log for one rule, newest first. Pharmacist/admin only."""
+    _require_pharmacist(user)
+    r = await db.execute(text("""
+        SELECT action, actor_id, actor_name, actor_role,
+               before_json, after_json, reason, created_at
+        FROM drug_library_audit_log
+        WHERE entity_type = 'rule' AND entity_id = :id
+        ORDER BY created_at DESC
+        LIMIT 200
+    """), {"id": rule_id})
+    out = [{
+        "action": row.action,
+        "actor_id": row.actor_id,
+        "actor_name": row.actor_name,
+        "actor_role": row.actor_role,
+        "before": row.before_json,
+        "after": row.after_json,
+        "reason": row.reason,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    } for row in r]
+    return success_response(data={"rule_id": rule_id, "history": out})
