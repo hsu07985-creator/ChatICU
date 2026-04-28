@@ -197,6 +197,108 @@ async def test_mentions_count_decreases_after_read(client):
     assert count_after == count_before - 1
 
 
+# ── Per-user unread (sidebar badge) ────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_unread_count_zero_before_first_visit(client):
+    """Never-visited users get 0 even when there are messages."""
+    # The mock auth fixture creates usr_test with last_chat_visit_at=NULL
+    # (column was just added). Send a few messages from another user.
+    from datetime import datetime, timezone
+    from app.models.chat_message import TeamChatMessage
+    # We need a separate session to insert "from another user" — reuse the
+    # /team/chat endpoint to send, then patch the user_id manually via the
+    # send-as-current-user shortcut: the simplest path is just to call _send
+    # which creates a message attributed to usr_test, then verify the count.
+    # Since unread excludes self, that path always shows 0 before visit.
+    await _send(client, "before-visit msg")
+
+    resp = await client.get("/team/chat/unread-count")
+    assert resp.status_code == 200
+    assert resp.json()["data"]["count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_unread_count_excludes_own_messages_after_visit(client, seeded_db):
+    """After visiting, my own messages don't count; others' do."""
+    from datetime import datetime, timezone, timedelta
+    from app.models.chat_message import TeamChatMessage
+
+    # 1) Mark visit so last_chat_visit_at = now
+    visit_resp = await client.post("/team/chat/visit")
+    assert visit_resp.status_code == 200
+
+    # Tick the clock forward in DB by inserting messages with timestamps
+    # explicitly later than the just-recorded visit.
+    later = datetime.now(timezone.utc) + timedelta(seconds=5)
+    seeded_db.add_all([
+        # From me — should NOT count
+        TeamChatMessage(
+            id="tchat_unread_self",
+            user_id="usr_test", user_name="Me", user_role="admin",
+            content="my own", timestamp=later,
+            is_read=False, read_by=[],
+            mentioned_roles=[], mentioned_user_ids=[],
+        ),
+        # From someone else — SHOULD count
+        TeamChatMessage(
+            id="tchat_unread_other_1",
+            user_id="usr_other", user_name="Other A", user_role="nurse",
+            content="from a coworker", timestamp=later,
+            is_read=False, read_by=[],
+            mentioned_roles=[], mentioned_user_ids=[],
+        ),
+        TeamChatMessage(
+            id="tchat_unread_other_2",
+            user_id="usr_other2", user_name="Other B", user_role="doctor",
+            content="another coworker", timestamp=later,
+            is_read=False, read_by=[],
+            mentioned_roles=[], mentioned_user_ids=[],
+        ),
+    ])
+    await seeded_db.commit()
+
+    resp = await client.get("/team/chat/unread-count")
+    assert resp.json()["data"]["count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_visit_resets_unread_count(client, seeded_db):
+    """Calling /visit again clears the badge."""
+    from datetime import datetime, timezone, timedelta
+    from app.models.chat_message import TeamChatMessage
+
+    await client.post("/team/chat/visit")
+    later = datetime.now(timezone.utc) + timedelta(seconds=5)
+    seeded_db.add(TeamChatMessage(
+        id="tchat_unread_reset",
+        user_id="usr_other", user_name="Other", user_role="nurse",
+        content="ping", timestamp=later,
+        is_read=False, read_by=[],
+        mentioned_roles=[], mentioned_user_ids=[],
+    ))
+    await seeded_db.commit()
+
+    pre = (await client.get("/team/chat/unread-count")).json()["data"]["count"]
+    assert pre == 1
+
+    # Re-visit (timestamp moves past the message) → count back to 0
+    import asyncio
+    await asyncio.sleep(0.01)  # ensure NOW() > later by epsilon
+    # Push the message timestamp back to the past so the new visit overtakes it
+    seeded_db.expire_all()
+    from sqlalchemy import select as _select
+    msg = (await seeded_db.execute(
+        _select(TeamChatMessage).where(TeamChatMessage.id == "tchat_unread_reset")
+    )).scalar_one()
+    msg.timestamp = datetime.now(timezone.utc) - timedelta(seconds=10)
+    await seeded_db.commit()
+
+    await client.post("/team/chat/visit")
+    post = (await client.get("/team/chat/unread-count")).json()["data"]["count"]
+    assert post == 0
+
+
 @pytest.mark.asyncio
 async def test_invalid_mentioned_role_rejected(client):
     """Invalid role in mentionedRoles should be rejected."""

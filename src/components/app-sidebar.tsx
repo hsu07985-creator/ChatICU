@@ -21,6 +21,7 @@ import { useAuth } from '../lib/auth-context';
 import { Button } from './ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNotificationSummary } from '../hooks/use-notification-summary';
+import { useTeamChatUnread } from '../hooks/use-team-chat-unread';
 
 export function AppSidebar() {
   const { user, logout } = useAuth();
@@ -30,10 +31,12 @@ export function AppSidebar() {
   const { theme, setTheme } = useTheme();
   const isShortViewport = useIsShortViewport();
   const { summary: notifSummary } = useNotificationSummary(!!user);
-  const notifCount = notifSummary?.total ?? 0;
-  const notifTitle = notifSummary
-    ? `${notifSummary.mentions} 則 @我的留言，${notifSummary.alerts} 則警示（近 7 天未讀）`
-    : undefined;
+  // Kept for any future sidebar item that wants the global bell count.
+  void notifSummary;
+
+  // Per-user team-chat unread count (separate from the global bell).
+  const { count: chatUnread } = useTeamChatUnread(!!user);
+  const chatTitle = chatUnread > 0 ? `${chatUnread} 則新訊息` : undefined;
 
   // 橫置手機時高度太小，footer 會占掉大部分空間並擋到選單項目 → 自動收合為 icon-only
   // 視窗恢復高度時要自動展開回來，否則會卡在 icon-only 狀態（sidebar_state cookie 讓問題更明顯）
@@ -99,8 +102,8 @@ export function AppSidebar() {
       title: '團隊聊天室',
       url: '/chat',
       icon: MessageSquare,
-      badge: notifCount > 0 ? notifCount : undefined,
-      badgeTitle: notifTitle,
+      badge: chatUnread > 0 ? chatUnread : undefined,
+      badgeTitle: chatTitle,
     },
   ];
 

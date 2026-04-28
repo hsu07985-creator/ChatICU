@@ -9,7 +9,7 @@ import { ScrollArea } from '../components/ui/scroll-area';
 import { Send, Pin, MessageSquare, RefreshCw, AtSign, ChevronDown, ChevronRight, ExternalLink, Trash2, CornerUpLeft, X } from 'lucide-react';
 import { useAuth } from '../lib/auth-context';
 import { maskPatientName } from '../lib/utils/patient-name';
-import { getTeamChatMessages, sendTeamChatMessage, postAnnouncement, togglePinMessage, deleteTeamChatMessage, getTeamUsers, TeamChatMessage, TeamUser } from '../lib/api/team-chat';
+import { getTeamChatMessages, sendTeamChatMessage, postAnnouncement, togglePinMessage, deleteTeamChatMessage, getTeamUsers, markChatVisited, TeamChatMessage, TeamUser } from '../lib/api/team-chat';
 import { getMyMentions, type MentionGroup } from '../lib/api/messages';
 import { LoadingSpinner } from '../components/ui/state-display';
 import { toast } from 'sonner';
@@ -116,6 +116,9 @@ export function ChatPage() {
     if (!force && _msgsCache && Date.now() - _msgsTimestamp < MSGS_STALE_MS) {
       setMessages(_msgsCache);
       setLoading(false);
+      // Even on a cache hit, bump the visit timestamp — entering the page
+      // should always clear the badge.
+      void markChatVisited().catch(() => {});
       return;
     }
     try {
@@ -124,6 +127,10 @@ export function ChatPage() {
       _msgsCache = response.messages;
       _msgsTimestamp = Date.now();
       setMessages(response.messages);
+      // Bump the user's last-visit timestamp so the sidebar's unread badge
+      // stays at 0 while the page is open. Fire-and-forget — UI doesn't
+      // need to wait for the server ack.
+      void markChatVisited().catch(() => {});
     } catch (err) {
       console.error('載入團隊聊天訊息失敗:', err);
       setError('無法載入聊天訊息');

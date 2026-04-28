@@ -92,6 +92,23 @@ export async function deleteTeamChatMessage(messageId: string): Promise<void> {
   await apiClient.delete(`/team/chat/${messageId}`);
 }
 
+export async function markChatVisited(): Promise<{ lastVisitAt: string }> {
+  const response = await apiClient.post<ApiResponse<{ lastVisitAt: string }>>(
+    '/team/chat/visit',
+    undefined,
+    { suppressErrorToast: true },
+  );
+  return ensureData(response.data, 'API contract');
+}
+
+export async function getChatUnreadCount(): Promise<{ count: number }> {
+  const response = await apiClient.get<ApiResponse<{ count: number }>>(
+    '/team/chat/unread-count',
+    { suppressErrorToast: true },
+  );
+  return ensureData(response.data, 'API contract');
+}
+
 // Module-level cache (5 min) — user list rarely changes within a session.
 let _teamUsersCache: TeamUser[] | null = null;
 let _teamUsersFetchedAt = 0;

@@ -61,6 +61,55 @@ def chat_to_dict(msg: TeamChatMessage, replies: Optional[List[dict]] = None) -> 
     }
 
 
+@router.post("/visit")
+async def mark_chat_visited(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Bump the user's last visit timestamp.
+
+    Used by the sidebar's per-user team-chat unread badge: messages with
+    timestamp > user.last_chat_visit_at count as unread for this user.
+    Called by the frontend when ChatPage mounts and on every successful
+    message refresh while the page is open.
+
+    We re-fetch the row through this session so the update is tracked
+    regardless of whether `user` came from the request session or a
+    detached/test instance.
+    """
+    now = datetime.now(timezone.utc)
+    db_user = await db.get(User, user.id)
+    if db_user is not None:
+        db_user.last_chat_visit_at = now
+        await db.commit()
+    return success_response(data={"lastVisitAt": now.isoformat()})
+
+
+@router.get("/unread-count")
+async def get_chat_unread_count(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Per-user unread count for the team chat.
+
+    A message is unread for me when timestamp > my last_chat_visit_at and
+    I am not the author. First-time users (last_chat_visit_at IS NULL)
+    return 0 — the badge appears once they've visited at least once.
+    """
+    db_user = await db.get(User, user.id)
+    last_visit = db_user.last_chat_visit_at if db_user is not None else None
+    if last_visit is None:
+        return success_response(data={"count": 0})
+
+    result = await db.execute(
+        select(func.count(TeamChatMessage.id)).where(
+            TeamChatMessage.timestamp > last_visit,
+            TeamChatMessage.user_id != user.id,
+        )
+    )
+    return success_response(data={"count": int(result.scalar() or 0)})
+
+
 @router.get("/mentions/count")
 async def mentions_count(
     user: User = Depends(get_current_user),
