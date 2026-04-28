@@ -27,6 +27,7 @@ export interface AtcClass {
 
 export interface DrugListItem {
   name: string;
+  aliases: string[];
   atc: string | null;
   atc_chapter: string | null;
   atc_codes: string[];

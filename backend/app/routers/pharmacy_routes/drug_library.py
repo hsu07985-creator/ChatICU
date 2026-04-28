@@ -50,6 +50,132 @@ ATC_TOP = {
     "V": "其他",
 }
 
+# Common ATC level-2 (3-char) Chinese labels — covers ICU usage hot spots
+ATC_LEVEL2 = {
+    "A02": "胃酸相關疾病",
+    "A03": "腸胃功能性疾病",
+    "A04": "止吐劑",
+    "A06": "便秘用藥",
+    "A07": "止瀉/腸抗發炎",
+    "A10": "糖尿病用藥",
+    "A11": "維生素",
+    "A12": "礦物質補充",
+    "B01": "抗血栓劑",
+    "B02": "抗出血劑",
+    "B03": "抗貧血藥",
+    "B05": "血液代用品/灌注液",
+    "C01": "心臟治療",
+    "C02": "降血壓劑",
+    "C03": "利尿劑",
+    "C07": "β-腎上腺素受體阻斷",
+    "C08": "鈣通道阻斷",
+    "C09": "腎素-血管收縮素系統",
+    "C10": "降血脂藥",
+    "D07": "皮膚 corticosteroid",
+    "G03": "性荷爾蒙",
+    "G04": "泌尿科用藥",
+    "H01": "腦垂體/下視丘荷爾蒙",
+    "H02": "系統性 corticosteroid",
+    "H03": "甲狀腺治療",
+    "J01": "全身性抗菌劑",
+    "J02": "全身性抗黴菌",
+    "J04": "抗結核",
+    "J05": "全身性抗病毒",
+    "J06": "免疫血清及免疫球蛋白",
+    "J07": "疫苗",
+    "L01": "抗腫瘤",
+    "L02": "內分泌治療",
+    "L04": "免疫抑制",
+    "M01": "抗發炎/抗風濕",
+    "M03": "肌肉鬆弛劑",
+    "M05": "骨疾病治療",
+    "N01": "麻醉劑",
+    "N02": "鎮痛劑",
+    "N03": "抗癲癇",
+    "N04": "抗帕金森",
+    "N05": "精神藥/鎮靜",
+    "N06": "抗憂鬱/精神刺激",
+    "N07": "其他神經系統藥",
+    "R01": "鼻用藥",
+    "R03": "氣喘/COPD 吸入",
+    "R05": "止咳化痰",
+    "R06": "全身性抗組織胺",
+    "S01": "眼科",
+    "S02": "耳科",
+}
+
+# Common ATC level-3 (5-char) Chinese labels for ICU-relevant drugs
+ATC_LEVEL3 = {
+    "A02BA": "H2 受體拮抗劑",
+    "A02BC": "氫離子幫浦抑制劑 (PPI)",
+    "A03FA": "促腸蠕動劑",
+    "A04AA": "5-HT3 拮抗劑",
+    "A06AD": "滲透性瀉劑",
+    "A10AB": "短效胰島素",
+    "A10AC": "中效胰島素",
+    "A10AE": "長效胰島素",
+    "B01AA": "Vitamin K 拮抗劑",
+    "B01AB": "肝素類",
+    "B01AC": "抗血小板劑（不含肝素）",
+    "B01AE": "直接凝血酶抑制",
+    "B01AF": "直接 Xa 抑制",
+    "B02BA": "Vitamin K 補充",
+    "B05AA": "血漿代用品 (Albumin)",
+    "B05BA": "靜脈輸注 (parenteral)",
+    "C01AA": "強心糖苷",
+    "C01BA": "Class Ia 抗心律不整",
+    "C01BC": "Class Ic 抗心律不整",
+    "C01BD": "Class III 抗心律不整 (Amiodarone)",
+    "C01CA": "腎上腺素及去甲腎上腺素類",
+    "C01CE": "Phosphodiesterase 抑制",
+    "C01EB": "其他心臟治療",
+    "C03CA": "環利尿劑 (Loop)",
+    "C03DA": "醛固酮拮抗",
+    "C07AB": "選擇性 β1 阻斷",
+    "C08CA": "Dihydropyridine CCB",
+    "C09AA": "ACEI",
+    "C09CA": "ARB",
+    "C10AA": "Statin (HMG-CoA 還原抑制)",
+    "H02AB": "Glucocorticoid",
+    "J01CA": "廣效 penicillin",
+    "J01CR": "Penicillin + β-lactamase 抑制",
+    "J01DC": "Cephalosporin 第 2 代",
+    "J01DD": "Cephalosporin 第 3 代",
+    "J01DE": "Cephalosporin 第 4 代",
+    "J01DH": "Carbapenem",
+    "J01FA": "Macrolide",
+    "J01GB": "Aminoglycoside",
+    "J01MA": "Fluoroquinolone",
+    "J01XA": "Glycopeptide (Vancomycin)",
+    "J02AC": "Triazole 抗黴菌",
+    "J05AP": "C 肝抗病毒",
+    "L04AA": "選擇性免疫抑制",
+    "M01AB": "醋酸類 NSAID",
+    "M01AC": "Oxicam NSAID",
+    "M01AE": "丙酸類 NSAID",
+    "M03AC": "其他季銨化合物 NMB",
+    "M03AX": "其他周邊肌鬆",
+    "N01AH": "鴉片類麻醉",
+    "N01AX": "其他全身麻醉",
+    "N02AA": "天然 opium 衍生",
+    "N02AB": "Phenylpiperidine 衍生",
+    "N02AX": "其他鴉片類",
+    "N02BE": "Anilide 鎮痛 (Acetaminophen)",
+    "N03AF": "Carboxamide 抗癲癇",
+    "N03AX": "其他抗癲癇",
+    "N05AD": "Butyrophenone 抗精神病",
+    "N05AH": "Diazepine/Oxazepine/Thiazepine",
+    "N05AX": "其他抗精神病",
+    "N05BA": "Benzodiazepine 抗焦慮",
+    "N05CD": "Benzodiazepine 安眠",
+    "N05CM": "其他催眠/鎮靜",
+    "N06AB": "SSRI",
+    "N06AX": "其他抗憂鬱",
+    "R03AC": "選擇性 β2 拮抗 吸入",
+    "R03AK": "β2 拮抗 + 其他",
+    "R03BB": "抗膽鹼吸入",
+}
+
 
 def _require_pharmacist(user: User) -> None:
     if user.role not in ("pharmacist", "admin"):
@@ -109,24 +235,32 @@ def _formulary_lookup(name: str) -> Optional[dict]:
 # Aggregation helpers
 # ────────────────────────────────────────────────────────────────────
 async def _aggregate_per_drug(db: AsyncSession) -> dict:
-    """Walk drug_interactions and build per-drug counters."""
+    """Walk drug_interactions and build per-drug counters.
+    Dedup key = name.lower() so 'FentaNYL' and 'Fentanyl' merge into one
+    entry. Display name = the most-frequent case form. Other forms saved
+    as `aliases`.
+    """
     r = await db.execute(text("""
         SELECT drug1, drug2, drug1_atc, drug2_atc, risk_rating, "references"
         FROM drug_interactions
     """))
     per_drug: dict[str, dict] = {}
+    name_form_counts: dict[str, Counter] = {}
+
     for row in r:
         for name, atc in ((row.drug1, row.drug1_atc), (row.drug2, row.drug2_atc)):
             if not name:
                 continue
-            key = name
+            key = name.strip().lower()
             entry = per_drug.setdefault(key, {
-                "name": key,
+                "_lower_key": key,
                 "atc_codes": set(),
                 "ddi_counts": {"X": 0, "D": 0, "C": 0, "B": 0, "A": 0, "total": 0},
                 "sources": set(),
                 "recently_added_count": 0,
+                "_unique_rule_ids": set(),
             })
+            name_form_counts.setdefault(key, Counter())[name.strip()] += 1
             if atc:
                 entry["atc_codes"].add(atc)
             risk = (row.risk_rating or "").upper()
@@ -137,6 +271,19 @@ async def _aggregate_per_drug(db: AsyncSession) -> dict:
                 entry["sources"].add(row.references)
                 if row.references == "Lexicomp 2026":
                     entry["recently_added_count"] += 1
+
+    # Pick display name = most common case form; rest become aliases
+    for key, entry in per_drug.items():
+        forms = name_form_counts.get(key, Counter())
+        if forms:
+            display, _ = forms.most_common(1)[0]
+            entry["name"] = display
+            other_forms = sorted(f for f in forms.keys() if f != display)
+            entry["aliases"] = other_forms
+        else:
+            entry["name"] = key
+            entry["aliases"] = []
+
     return per_drug
 
 
@@ -283,7 +430,9 @@ async def list_drugs(
     q_lower = (q or "").strip().lower()
     atc_lower = (atc or "").strip().upper()
 
-    for name, agg in per_drug.items():
+    for _key, agg in per_drug.items():
+        name = agg["name"]
+        aliases = agg.get("aliases", [])
         atcs = sorted(agg["atc_codes"])
         primary_atc = atcs[0] if atcs else None
         atc_chapter = primary_atc[0] if primary_atc else None
@@ -301,6 +450,7 @@ async def list_drugs(
         if q_lower:
             haystack = " ".join([
                 name.lower(),
+                " ".join(a.lower() for a in aliases),
                 " ".join(b.lower() for b in brand_names),
                 " ".join(c.lower() for c in hospital_codes),
                 primary_atc.lower() if primary_atc else "",
@@ -321,6 +471,7 @@ async def list_drugs(
 
         items.append({
             "name": name,
+            "aliases": aliases,
             "atc": primary_atc,
             "atc_chapter": atc_chapter,
             "atc_codes": atcs,
@@ -480,15 +631,15 @@ async def get_drug_detail(
             "pubmed_count": len(pmids) if isinstance(pmids, list) else 0,
         })
 
-    # ATC path
+    # ATC path with Chinese labels for L1/L2/L3 (L4/L5 stay code-only)
     atc_path = []
     if primary_atc:
         if len(primary_atc) >= 1:
             atc_path.append({"code": primary_atc[:1], "name": ATC_TOP.get(primary_atc[:1], "")})
         if len(primary_atc) >= 3:
-            atc_path.append({"code": primary_atc[:3], "name": ""})
+            atc_path.append({"code": primary_atc[:3], "name": ATC_LEVEL2.get(primary_atc[:3], "")})
         if len(primary_atc) >= 5:
-            atc_path.append({"code": primary_atc[:5], "name": ""})
+            atc_path.append({"code": primary_atc[:5], "name": ATC_LEVEL3.get(primary_atc[:5], "")})
         if len(primary_atc) >= 7:
             atc_path.append({"code": primary_atc, "name": ""})
 

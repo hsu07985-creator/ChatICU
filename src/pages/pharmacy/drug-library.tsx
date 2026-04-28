@@ -18,8 +18,9 @@ import {
 
 const PAGE_SIZE = 50;
 
-const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
-  green: { label: '完整', cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
+// Status badges: only show when ABNORMAL — "完整" is the silent default.
+const STATUS_LABEL: Record<string, { label: string; cls: string } | null> = {
+  green: null,
   yellow: { label: '缺資料', cls: 'bg-amber-500/10 text-amber-400 border-amber-500/30' },
   red: { label: '待補 ATC', cls: 'bg-rose-500/10 text-rose-400 border-rose-500/30' },
 };
@@ -87,66 +88,96 @@ function StatsBanner({ stats }: { stats: DrugLibraryStats | null }) {
 }
 
 function DrugCard({ item, onClick }: { item: DrugListItem; onClick: () => void }) {
-  const status = STATUS_LABEL[item.status] || STATUS_LABEL.yellow;
+  const status = STATUS_LABEL[item.status];
+  const aliasText = item.aliases.length > 0 ? `（另有 ${item.aliases.join(' · ')}）` : '';
   return (
     <Card
       className="cursor-pointer hover:border-primary/40 transition-colors"
       onClick={onClick}
     >
-      <CardContent className="py-4 space-y-2">
+      <CardContent className="py-3 space-y-1.5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-base">{item.name}</h3>
+              <h3 className="font-semibold text-base leading-tight">{item.name}</h3>
               {item.atc && (
-                <Badge variant="outline" className="text-xs font-mono">{item.atc}</Badge>
+                <Badge variant="outline" className="text-[10px] font-mono py-0">{item.atc}</Badge>
               )}
-              {item.in_formulary ? (
-                <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
-                  院內
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-xs bg-zinc-500/10 text-zinc-400 border-zinc-500/30">
+              {!item.in_formulary && (
+                <Badge variant="outline" className="text-[10px] bg-zinc-500/10 text-zinc-400 border-zinc-500/30 py-0">
                   院外
                 </Badge>
               )}
               {item.recently_added && (
-                <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-400 border-blue-500/30">
+                <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/30 py-0">
                   新增
                 </Badge>
               )}
+              {status && (
+                <Badge variant="outline" className={`text-[10px] py-0 ${status.cls}`}>{status.label}</Badge>
+              )}
             </div>
-            {item.brand_names.length > 0 && (
-              <div className="text-xs text-muted-foreground mt-1">
-                商品 {item.brand_names.slice(0, 3).join(' · ')}
-                {item.brand_names.length > 3 && ` 等 ${item.brand_names.length} 種`}
+            {(item.brand_names.length > 0 || aliasText) && (
+              <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                {item.brand_names.length > 0 && (
+                  <>
+                    商品 {item.brand_names.slice(0, 3).join(' · ')}
+                    {item.brand_names.length > 3 && ` 等 ${item.brand_names.length} 種`}
+                  </>
+                )}
+                {item.brand_names.length > 0 && item.hospital_codes.length > 0 && ' · '}
                 {item.hospital_codes.length > 0 && (
-                  <> · 院內代碼 {item.hospital_codes.slice(0, 2).join(' · ')}</>
+                  <>院內代碼 {item.hospital_codes.slice(0, 2).join(' · ')}</>
+                )}
+                {aliasText && (
+                  <span className="ml-1 text-muted-foreground/70">{aliasText}</span>
                 )}
               </div>
             )}
           </div>
-          <Badge variant="outline" className={`text-xs ${status.cls}`}>{status.label}</Badge>
         </div>
 
-        {item.icu_30d_rx > 0 && (
-          <div className="text-xs text-muted-foreground">
-            ICU 30 天開立 <span className="font-semibold text-foreground">{item.icu_30d_rx}</span> 次 ·{' '}
-            <span className="font-semibold text-foreground">{item.icu_active_beds}</span> 床在用
-          </div>
-        )}
-
-        <div className="flex items-center gap-3 text-xs flex-wrap">
-          <span className="text-muted-foreground">交互作用</span>
-          <span className="font-medium">{item.ddi_counts.total} 條</span>
-          {(['X', 'D', 'C', 'B'] as const).map((r) =>
-            item.ddi_counts[r] > 0 ? (
-              <span key={r} className={`px-1.5 py-0.5 rounded border ${RISK_CLS[r]} text-[10px]`}>
-                {r} {item.ddi_counts[r]}
+        <div className="flex items-center justify-between gap-3 flex-wrap text-xs">
+          <div className="flex items-center gap-3 flex-wrap">
+            {item.icu_30d_rx > 0 ? (
+              <span className="text-muted-foreground">
+                ICU 30 天 <span className="font-semibold text-foreground">{item.icu_30d_rx}</span> 次
+                {item.icu_active_beds > 0 && (
+                  <> · 在用 <span className="font-semibold text-foreground">{item.icu_active_beds}</span> 床</>
+                )}
               </span>
-            ) : null
-          )}
+            ) : (
+              <span className="text-muted-foreground/60">ICU 近 30 天無紀錄</span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-muted-foreground">交互作用</span>
+            <span className="font-medium">{item.ddi_counts.total}</span>
+            {(['X', 'D', 'C', 'B'] as const).map((r) =>
+              item.ddi_counts[r] > 0 ? (
+                <span key={r} className={`px-1.5 py-0.5 rounded border ${RISK_CLS[r]} text-[10px]`}>
+                  {r} {item.ddi_counts[r]}
+                </span>
+              ) : null
+            )}
+          </div>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CardSkeleton() {
+  return (
+    <Card className="border-border/30">
+      <CardContent className="py-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="h-5 w-32 bg-muted/40 rounded animate-pulse" />
+          <div className="h-4 w-16 bg-muted/30 rounded animate-pulse" />
+        </div>
+        <div className="h-3 w-3/4 bg-muted/30 rounded animate-pulse" />
+        <div className="h-3 w-2/3 bg-muted/30 rounded animate-pulse" />
       </CardContent>
     </Card>
   );
@@ -285,13 +316,13 @@ export function DrugLibraryPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr] gap-4">
-        <Card className="h-fit lg:sticky lg:top-4">
-          <CardContent className="py-3 space-y-1">
-            <div className="text-xs font-semibold text-muted-foreground mb-2">ATC 分類</div>
+      <div className="grid grid-cols-1 lg:grid-cols-[148px_1fr] gap-4">
+        <Card className="h-fit lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] overflow-hidden">
+          <CardContent className="py-2 px-2 space-y-0.5 overflow-y-auto max-h-[60vh] lg:max-h-[calc(100vh-3rem)]">
+            <div className="text-[10px] font-semibold text-muted-foreground px-2 py-1 sticky top-0 bg-card">ATC 分類</div>
             <button
               onClick={() => updateParam('atc', null)}
-              className={`w-full text-left px-2 py-1 rounded text-sm hover:bg-accent ${!atc ? 'bg-accent font-semibold' : ''}`}
+              className={`w-full text-left px-2 py-1 rounded text-xs hover:bg-accent ${!atc ? 'bg-accent font-semibold' : ''}`}
             >
               全部
             </button>
@@ -299,29 +330,22 @@ export function DrugLibraryPage() {
               <button
                 key={c.code}
                 onClick={() => updateParam('atc', c.code)}
-                className={`w-full text-left px-2 py-1 rounded text-sm hover:bg-accent flex items-center justify-between ${atc === c.code ? 'bg-accent font-semibold' : ''}`}
+                className={`w-full text-left px-2 py-1 rounded text-xs hover:bg-accent flex items-center justify-between gap-1 ${atc === c.code ? 'bg-accent font-semibold' : ''}`}
+                title={`${c.code} ${c.name}`}
               >
-                <span>
+                <span className="truncate">
                   <span className="font-mono">{c.code}</span> {c.name}
                 </span>
-                <span className="text-xs text-muted-foreground">{c.count}</span>
+                <span className="text-[10px] text-muted-foreground shrink-0">{c.count}</span>
               </button>
             ))}
           </CardContent>
         </Card>
 
-        <div className="space-y-3 min-w-0">
+        <div className="space-y-2 min-w-0">
           {error && (
             <Card className="border-rose-500/40">
               <CardContent className="py-3 text-sm text-rose-400">{error}</CardContent>
-            </Card>
-          )}
-
-          {loading && !data && (
-            <Card>
-              <CardContent className="py-8 text-center text-muted-foreground flex items-center justify-center gap-2">
-                <Loader2 className="size-4 animate-spin" /> 載入中
-              </CardContent>
             </Card>
           )}
 
@@ -335,7 +359,8 @@ export function DrugLibraryPage() {
             </div>
           )}
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
+            {loading && !data && Array.from({ length: 8 }).map((_, i) => <CardSkeleton key={i} />)}
             {data?.items.map((item) => (
               <DrugCard
                 key={item.name}
