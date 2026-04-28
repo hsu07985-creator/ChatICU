@@ -132,6 +132,12 @@ def lookup_atc(drug_name: str, name_to_atc: dict[str, str]) -> str | None:
 async def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true", help="preview only, no writes")
+    parser.add_argument(
+        "--scope-references",
+        default=None,
+        help='Limit to rows where "references" equals this string '
+             '(e.g. "Lexicomp 2026") to avoid touching pre-existing ATC values.',
+    )
     args = parser.parse_args()
 
     name_to_atc = build_name_to_atc()
@@ -152,7 +158,14 @@ async def main() -> int:
     updates: list[tuple[str, str | None, str | None]] = []
 
     async with eng.connect() as conn:
-        r = await conn.execute(text("SELECT id, drug1, drug2 FROM drug_interactions"))
+        if args.scope_references:
+            r = await conn.execute(
+                text('SELECT id, drug1, drug2 FROM drug_interactions WHERE "references" = :ref'),
+                {"ref": args.scope_references},
+            )
+            print(f"Scope: rows where \"references\" = {args.scope_references!r}")
+        else:
+            r = await conn.execute(text("SELECT id, drug1, drug2 FROM drug_interactions"))
         rows = list(r)
         total = len(rows)
 
