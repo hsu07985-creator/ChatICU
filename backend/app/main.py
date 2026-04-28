@@ -163,10 +163,8 @@ async def lifespan(app: FastAPI):
     from app.middleware.auth import _redis_client
     if _redis_client:
         await _redis_client.close()
-    # Drain the shared httpx connection pool used by drug_rag_client /
-    # pad_client. See docs/system-audit-2026-04-28.md §7 (#7A).
-    from app.services._http import close_shared_client
-    await close_shared_client()
+    # Shared httpx connection pool removed in Phase 1 D3 — drug_rag_client
+    # and pad_client are gone, so there is nothing to drain here anymore.
     print("Shutting down...")
 
 

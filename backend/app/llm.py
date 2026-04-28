@@ -410,13 +410,6 @@ TASK_PROMPTS: dict[str, str] = {
         "Output a structured summary in 300 words or fewer. "
         + _LANG_DIRECTIVE
     ),
-    "contextual_chunk": (
-        "你是 ICU 醫學文獻分析助手。"
-        "給定一份完整文件和其中一個片段，"
-        "請用 1-2 句繁體中文簡要描述該片段在整份文件中的位置與主題。"
-        "重點：該片段屬於哪個章節/主題、涵蓋什麼具體內容。"
-        "只輸出簡要上下文，不要其他文字。"
-    ),
     "icu_chat": (
         "你是 ChatICU 的 ICU 臨床決策輔助 AI。以實證醫學為依據，給出直接、可執行的建議。\n\n"
         "安全規則：\n"
@@ -468,13 +461,6 @@ TASK_PROMPTS: dict[str, str] = {
         '  "severity": "none" | "low" | "medium" | "high"\n'
         "Only output JSON, no other text. "
         "Be conservative: only flag genuine safety concerns, not general medical advice."
-    ),
-    "agentic_rag_router": (
-        "You are an ICU clinical search strategist. "
-        "Given a clinical question, decide the best search strategy. "
-        "You can search multiple times with different queries to gather comprehensive evidence. "
-        "Rewrite queries to be specific and medical when needed. "
-        + _LANG_DIRECTIVE
     ),
 }
 
@@ -1166,85 +1152,6 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
         )
         all_embeddings.extend([item.embedding for item in response.data])
     return all_embeddings
-
-
-async def embed_texts_cached(texts: List[str]) -> List[List[float]]:
-    """Embed texts with Redis caching layer.
-
-    Checks Redis for cached embeddings first; only calls OpenAI API for
-    cache misses. Falls back to direct API call if cache is unavailable.
-    """
-    if not settings.EMBEDDING_CACHE_ENABLED:
-        return embed_texts(texts)
-
-    from app.middleware.auth import get_redis
-    from app.services.embedding_cache import get_cached_embedding, set_cached_embedding
-
-    redis_client = await get_redis()
-    model = settings.OPENAI_EMBEDDING_MODEL
-
-    results: List[Optional[List[float]]] = [None] * len(texts)
-    uncached_indices: List[int] = []
-
-    for i, t in enumerate(texts):
-        cached = await get_cached_embedding(redis_client, t, model)
-        if cached is not None:
-            results[i] = cached
-        else:
-            uncached_indices.append(i)
-
-    if uncached_indices:
-        uncached_texts = [texts[i] for i in uncached_indices]
-        new_embeddings = embed_texts(uncached_texts)
-        for j, idx in enumerate(uncached_indices):
-            results[idx] = new_embeddings[j]
-            await set_cached_embedding(redis_client, texts[idx], model, new_embeddings[j])
-
-    cache_hits = len(texts) - len(uncached_indices)
-    if cache_hits > 0:
-        logger.info("[EMB_CACHE] %d/%d cache hits", cache_hits, len(texts))
-
-    return results  # type: ignore[return-value]
-
-
-def generate_chunk_context(doc_text: str, chunk_text: str) -> str:
-    """Generate a short contextual prefix for a chunk using LLM.
-
-    Used by Contextual Retrieval to situate each chunk within its source
-    document before embedding, improving retrieval accuracy by ~67%.
-
-    Args:
-        doc_text: Full (or truncated) source document text.
-        chunk_text: The specific chunk to contextualize.
-
-    Returns:
-        A 1-2 sentence context string in Traditional Chinese.
-    """
-    if not settings.OPENAI_API_KEY:
-        raise RuntimeError("OPENAI_API_KEY is required for contextual retrieval.")
-    client = _get_openai_sync()
-
-    system_prompt = TASK_PROMPTS["contextual_chunk"]
-    max_doc = getattr(settings, "RAG_CONTEXTUAL_MAX_DOC_CHARS", 8000)
-    truncated_doc = doc_text[:max_doc]
-    if len(doc_text) > max_doc:
-        truncated_doc += "\n...(文件已截斷)..."
-
-    user_msg = (
-        f"<document>\n{truncated_doc}\n</document>\n\n"
-        f"<chunk>\n{chunk_text}\n</chunk>"
-    )
-
-    model = getattr(settings, "RAG_CONTEXTUAL_MODEL", "gpt-5")
-    response = client.chat.completions.create(
-        model=model,
-        max_completion_tokens=2048,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_msg},
-        ],
-    )
-    return response.choices[0].message.content.strip()
 
 
 def _call_anthropic(

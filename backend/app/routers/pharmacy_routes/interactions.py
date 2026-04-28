@@ -13,7 +13,6 @@ from app.middleware.auth import get_current_user
 from app.models.drug_interaction import DrugInteraction, IVCompatibility
 from app.models.user import User
 from app.services.drug_graph_bridge import drug_graph_bridge
-from app.services.drug_rag_client import drug_rag_client
 from app.utils.response import escape_like, success_response
 
 router = APIRouter(tags=["pharmacy"])

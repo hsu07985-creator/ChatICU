@@ -218,10 +218,5 @@ async def real_auth_client(auth_seeded_db, db_engine, test_redis, monkeypatch):
 async def client(mock_auth_client):
     """Backwards-compatible alias used by existing tests."""
     from app.middleware.rate_limit import limiter
-    from app.services.llm_services.rag_service import rag_service
     limiter.reset()
-    rag_service.chunks = []
-    rag_service.embeddings = None
-    rag_service.bm25 = None
-    rag_service.is_indexed = False
     yield mock_auth_client
