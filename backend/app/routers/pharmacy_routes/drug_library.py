@@ -502,6 +502,79 @@ async def get_drug_detail(
     icu_index = await _icu_usage(db)
     usage = _match_icu_usage(primary_name, icu_index)
 
+    # ── IV compatibility for this drug (Phase 2) ────────────────────
+    iv_rows = await db.execute(text("""
+        SELECT id, drug1, drug2, solution, compatible, time_stability,
+               notes, "references" AS source_ref
+        FROM iv_compatibilities
+        WHERE drug1 ILIKE :pat OR drug2 ILIKE :pat
+        ORDER BY compatible DESC, drug1, drug2
+    """), {"pat": f"%{escaped}%"})
+    iv_compat = []
+    for row in iv_rows:
+        d1 = row.drug1 or ""
+        d2 = row.drug2 or ""
+        if d1.lower() == name_lower:
+            other = d2
+        elif d2.lower() == name_lower:
+            other = d1
+        else:
+            other = f"{d1} ↔ {d2}"
+        iv_compat.append({
+            "id": row.id,
+            "other_drug": other,
+            "solution": row.solution,
+            "compatible": row.compatible,
+            "time_stability": row.time_stability,
+            "notes": row.notes,
+            "source": row.source_ref,
+        })
+
+    # ── Currently active ICU patients on THIS drug (Phase 2) ────────
+    active_pat_rows = await db.execute(text("""
+        SELECT DISTINCT p.id, p.name, p.bed_number
+        FROM patients p
+        JOIN medications m ON m.patient_id = p.id
+        WHERE m.status = 'active'
+          AND (LOWER(m.name) = :n OR LOWER(m.generic_name) = :n
+               OR LOWER(m.name) LIKE :pat OR LOWER(m.generic_name) LIKE :pat)
+        ORDER BY p.bed_number
+    """), {"n": primary_name.lower(), "pat": f"%{primary_name.lower()}%"})
+    active_patients = [
+        {"id": r.id, "name": r.name, "bed_number": r.bed_number}
+        for r in active_pat_rows
+    ]
+    active_pat_ids = {p["id"] for p in active_patients}
+
+    # ── Per-DDI: who's on BOTH drugs right now? ────────────────────
+    if active_pat_ids:
+        # Pre-build patient → set(drug_names) map for active meds
+        co_rx = await db.execute(text("""
+            SELECT patient_id, LOWER(COALESCE(generic_name, name)) AS drug
+            FROM medications
+            WHERE status = 'active' AND patient_id = ANY(:ids)
+        """), {"ids": list(active_pat_ids)})
+        patient_drugs: dict[str, set] = {}
+        for r in co_rx:
+            patient_drugs.setdefault(r.patient_id, set()).add(r.drug)
+    else:
+        patient_drugs = {}
+
+    for d in ddi_out:
+        other_l = (d["other_drug"] or "").lower()
+        # Tokenize "other" — for class-vs-class rule, fall back to substring
+        affected = []
+        if active_pat_ids:
+            for pid, drug_set in patient_drugs.items():
+                # Heuristic: any drug in patient's active list contains "other_drug" or vice versa
+                hit = any(other_l in dr or dr in other_l for dr in drug_set if other_l and dr)
+                if hit:
+                    pat = next((p for p in active_patients if p["id"] == pid), None)
+                    if pat:
+                        affected.append(pat)
+        d["affected_patients"] = affected
+        d["affected_count"] = len(affected)
+
     return success_response(data={
         "name": primary_name,
         "exists": True,
@@ -517,4 +590,6 @@ async def get_drug_detail(
         "ddi_total": len(ddi_out),
         "ddi_by_risk": risk_counts,
         "ddi": ddi_out,
+        "iv_compatibility": iv_compat,
+        "active_patients": active_patients,
     })

@@ -62,6 +62,12 @@ export interface DrugListParams {
   recently_added_only?: boolean;
 }
 
+export interface ActivePatient {
+  id: string;
+  name: string;
+  bed_number: string | null;
+}
+
 export interface DdiDetailItem {
   id: string;
   other_drug: string;
@@ -76,6 +82,18 @@ export interface DdiDetailItem {
   discussion: string | null;
   source: string | null;
   pubmed_count: number;
+  affected_patients?: ActivePatient[];
+  affected_count?: number;
+}
+
+export interface IvCompatItem {
+  id: string;
+  other_drug: string;
+  solution: string | null;
+  compatible: boolean;
+  time_stability: string | null;
+  notes: string | null;
+  source: string | null;
 }
 
 export interface AtcPathNode {
@@ -98,6 +116,8 @@ export interface DrugDetail {
   ddi_total: number;
   ddi_by_risk: Omit<DdiCounts, 'total'>;
   ddi: DdiDetailItem[];
+  iv_compatibility?: IvCompatItem[];
+  active_patients?: ActivePatient[];
 }
 
 export async function getDrugLibraryStats(): Promise<DrugLibraryStats> {
