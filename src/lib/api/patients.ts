@@ -1,4 +1,8 @@
 import apiClient, { ensureData } from '../api-client';
+import type { LabData } from './lab-data';
+import type { MedicationsResponse } from './medications';
+import type { VentilatorSettings } from './ventilator';
+import type { VitalSigns } from './vital-signs';
 
 // 類型定義
 export interface Patient {
@@ -44,6 +48,7 @@ export interface Patient {
   dischargeType?: 'discharge' | 'transfer' | 'death' | 'other' | null;
   dischargeDate?: string | null;
   dischargeReason?: string | null;
+  hasUnreadMessages?: boolean;
 }
 
 export interface PaginationInfo {
@@ -100,6 +105,21 @@ export async function getAllPatients(filters: PatientFilters = {}): Promise<Pati
 // 取得單一病人詳情
 export async function getPatient(id: string): Promise<Patient> {
   const response = await apiClient.get<ApiResponse<Patient>>(`/patients/${id}`);
+  return ensureData(response.data, 'API contract');
+}
+
+export interface PatientBootstrapResponse {
+  patient: Patient;
+  latestLab: LabData | null;
+  medications: MedicationsResponse;
+  latestVitals: VitalSigns | null;
+  latestVentilator: VentilatorSettings | null;
+}
+
+export async function getPatientBootstrap(id: string): Promise<PatientBootstrapResponse> {
+  const response = await apiClient.get<ApiResponse<PatientBootstrapResponse>>(
+    `/patients/${id}/bootstrap`
+  );
   return ensureData(response.data, 'API contract');
 }
 
@@ -244,6 +264,7 @@ export async function dischargePatient(id: string): Promise<{ id: string }> {
 export const patientsApi = {
   getPatients,
   getPatient,
+  getPatientBootstrap,
   updatePatient,
   createPatient,
   archivePatient,

@@ -22,7 +22,7 @@ import {
   type Citation as AiCitation,
   type DataFreshness,
 } from '../lib/api/ai';
-import { patientsApi, labDataApi, medicationsApi, messagesApi, vitalSignsApi, ventilatorApi, type Patient, type LabData, type Medication, type PatientMessage, type VitalSigns, type VentilatorSettings, type WeaningAssessment } from '../lib/api';
+import { patientsApi, labDataApi, medicationsApi, messagesApi, vitalSignsApi, ventilatorApi, type Patient, type LabData, type Medication, type MedicationsResponse, type PatientMessage, type VitalSigns, type VentilatorSettings, type WeaningAssessment } from '../lib/api';
 import { copyToClipboard } from '../lib/clipboard-utils';
 import { maskPatientName } from '../lib/utils/patient-name';
 import { useAuth } from '../lib/auth-context';
@@ -176,6 +176,12 @@ const EMPTY_MEDICATION_GROUPS: MedicationGroups = {
   nmb: [],
   other: [],
   outpatient: [],
+};
+
+const EMPTY_MEDICATION_RESPONSE: MedicationsResponse = {
+  medications: [],
+  grouped: EMPTY_MEDICATION_GROUPS,
+  interactions: [],
 };
 
 const MED_CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
@@ -469,7 +475,6 @@ export function PatientDetailPage() {
   const [messages, setMessages] = useState<PatientMessage[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [messageInput, setMessageInput] = useState('');
-  const [unreadCount, setUnreadCount] = useState(0);
   const [presetTags, setPresetTags] = useState<string[]>([]);
   const [pharmacyTagCategories, setPharmacyTagCategories] = useState<{ category: string; tags: string[] }[]>([]);
   const [customTags, setCustomTags] = useState<{ id: string; name: string; createdByName: string }[]>([]);
@@ -489,6 +494,12 @@ export function PatientDetailPage() {
   const [selectedSession, setSelectedSession] = useState<ChatSession | null>(null);
   const [sessionTitle, setSessionTitle] = useState('');
   const [showSessionList, setShowSessionList] = useState(true);
+  const [chatSessionsLoading, setChatSessionsLoading] = useState(false);
+  const [chatSessionsLoaded, setChatSessionsLoaded] = useState(false);
+  const [messagesLoaded, setMessagesLoaded] = useState(false);
+  const [messageTagsLoaded, setMessageTagsLoaded] = useState(false);
+  const [scoresLoaded, setScoresLoaded] = useState(false);
+  const [weaningLoaded, setWeaningLoaded] = useState(false);
 
   // 趨勢圖表（hook）
   const { selectedTrendMetric, setSelectedTrendMetric, trendChartData } = useTrendChart(id);
@@ -516,55 +527,68 @@ export function PatientDetailPage() {
       if (mode === 'initial') {
         setPatientLoading(true);
         setPatientError(null);
+        setMessages([]);
+        setPresetTags([]);
+        setPharmacyTagCategories([]);
+        setCustomTags([]);
+        setChatSessions([]);
+        setSelectedSession(null);
+        setChatMessages([]);
+        setSessionTitle('');
+        setWeaningAssessment(null);
+        setMessagesLoaded(false);
+        setMessageTagsLoaded(false);
+        setChatSessionsLoaded(false);
+        setScoresLoaded(false);
+        setWeaningLoaded(false);
       } else {
         setIsRefreshingPatientData(true);
       }
 
       setMedicationsLoading(true);
-      setMessagesLoading(true);
       setVitalSignsLoading(true);
       setVentilatorLoading(true);
       setLabDataLoading(true);
 
-      // 同時載入所有數據
-      const [patientData, labDataResult, medicationsResult, messagesResult, vitalSignsResult, ventilatorResult, weaningResult] = await Promise.all([
-        patientsApi.getPatient(id),
-        labDataApi.getLatestLabData(id).catch(() => defaultLabData),
-        medicationsApi.getMedications(id, { status: 'all' }).catch(() => ({ medications: [], grouped: EMPTY_MEDICATION_GROUPS, interactions: [] })),
-        messagesApi.getMessages(id).catch(() => ({ messages: [], total: 0, unreadCount: 0 })),
-        vitalSignsApi.getLatestVitalSigns(id).catch(() => null),
-        ventilatorApi.getLatestVentilatorSettings(id).catch(() => null),
-        ventilatorApi.getWeaningAssessment(id).catch(() => null)
-      ]);
-
-      setPatient(patientData as PatientWithFrontendFields);
-      setLabData(labDataResult);
-      setMedicationGroups(medicationsResult.grouped || deriveMedicationGroups(medicationsResult.medications));
-      setMessages(messagesResult.messages);
-      setUnreadCount(messagesResult.unreadCount);
-      setVitalSigns(vitalSignsResult);
-      setVentilator(ventilatorResult);
-      setWeaningAssessment(weaningResult);
-
-      // 載入臨床評分（via hook）
-      await scores.loadLatestScores();
-
-      // 載入對話記錄
+      let bundle;
       try {
-        const sessionsData = await fetchChatSessionsApi({ patientId: id });
-	        setChatSessions(sessionsData.sessions.map(s => ({
-	          id: s.id,
-	          patientId: s.patientId || id,
-	          sessionDate: new Date(s.createdAt).toISOString().split('T')[0],
-	          sessionTime: new Date(s.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
-	          title: s.title,
-	          messages: [],
-	          lastUpdated: new Date(s.updatedAt).toLocaleString('zh-TW'),
-	          messageCount: s.messageCount,
-	        })));
-      } catch {
-        setChatSessions([]);
+        bundle = await patientsApi.getPatientBootstrap(id);
+      } catch (err) {
+        const status = isAxiosError(err) ? err.response?.status : undefined;
+        const shouldFallback = status === undefined || status >= 500;
+        if (!shouldFallback) {
+          throw err;
+        }
+        console.warn('Patient bootstrap failed; falling back to individual first-screen APIs.', err);
+        const [
+          patientData,
+          labDataResult,
+          medicationsResult,
+          vitalSignsResult,
+          ventilatorResult,
+        ] = await Promise.all([
+          patientsApi.getPatient(id),
+          labDataApi.getLatestLabData(id).catch(() => null),
+          medicationsApi.getMedications(id, { status: 'all' }).catch(() => EMPTY_MEDICATION_RESPONSE),
+          vitalSignsApi.getLatestVitalSigns(id).catch(() => null),
+          ventilatorApi.getLatestVentilatorSettings(id).catch(() => null),
+        ]);
+        bundle = {
+          patient: patientData,
+          latestLab: labDataResult,
+          medications: medicationsResult,
+          latestVitals: vitalSignsResult,
+          latestVentilator: ventilatorResult,
+        };
       }
+
+      setPatient(bundle.patient as PatientWithFrontendFields);
+      setLabData(bundle.latestLab ?? defaultLabData);
+      setMedicationGroups(
+        bundle.medications.grouped || deriveMedicationGroups(bundle.medications.medications),
+      );
+      setVitalSigns(bundle.latestVitals);
+      setVentilator(bundle.latestVentilator);
 
       if (mode === 'refresh') {
         toast.success('已更新患者數值');
@@ -583,7 +607,6 @@ export function PatientDetailPage() {
         setIsRefreshingPatientData(false);
       }
       setMedicationsLoading(false);
-      setMessagesLoading(false);
       setVitalSignsLoading(false);
       setVentilatorLoading(false);
       setLabDataLoading(false);
@@ -596,7 +619,7 @@ export function PatientDetailPage() {
       setMessagesLoading(true);
       const res = await messagesApi.getMessages(id);
       setMessages(res.messages);
-      setUnreadCount(res.unreadCount);
+      setMessagesLoaded(true);
     } catch (err) {
       console.error('重新載入留言失敗:', err);
       toast.error('重新載入留言失敗');
@@ -605,10 +628,90 @@ export function PatientDetailPage() {
     }
   }, [id]);
 
+  const refreshChatSessions = useCallback(async () => {
+    if (!id) return;
+    setChatSessionsLoading(true);
+    try {
+      const sessionsData = await fetchChatSessionsApi({ patientId: id });
+      setChatSessions(sessionsData.sessions.map(s => ({
+        id: s.id,
+        patientId: s.patientId || id,
+        sessionDate: new Date(s.createdAt).toISOString().split('T')[0],
+        sessionTime: new Date(s.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
+        title: s.title,
+        messages: [],
+        lastUpdated: new Date(s.updatedAt).toLocaleString('zh-TW'),
+        messageCount: s.messageCount,
+      })));
+      setChatSessionsLoaded(true);
+    } catch {
+      setChatSessions([]);
+      setChatSessionsLoaded(true);
+    } finally {
+      setChatSessionsLoading(false);
+    }
+  }, [id]);
+
+  const refreshTags = useCallback(async () => {
+    if (!id) return;
+    const [preset, custom] = await Promise.all([
+      messagesApi.getPresetTags(id).catch(() => [] as string[]),
+      messagesApi.getCustomTags(id).catch(() => [] as { id: string; name: string; createdById: string; createdByName: string; createdAt: string }[]),
+    ]);
+    setPresetTags(preset);
+    setCustomTags(custom);
+    setMessageTagsLoaded(true);
+  }, [id]);
+
+  const refreshPharmacyTags = useCallback(async () => {
+    if (!id) return;
+    const categories = await messagesApi.getPharmacyTags(id).catch(() => []);
+    setPharmacyTagCategories(categories);
+  }, [id]);
+
   // 載入病人資料、檢驗數據、用藥數據、留言、生命徵象和呼吸器數據
   useEffect(() => {
     loadPatientBundle('initial');
   }, [loadPatientBundle]);
+
+  useEffect(() => {
+    if (!id || !patient || activeTab !== 'chat' || chatSessionsLoaded) return;
+    void refreshChatSessions();
+  }, [activeTab, chatSessionsLoaded, id, patient, refreshChatSessions]);
+
+  useEffect(() => {
+    if (!id || !patient || activeTab !== 'messages') return;
+    if (!messagesLoaded) {
+      void refreshMessagesOnly();
+    }
+    if (!messageTagsLoaded) {
+      void Promise.all([refreshTags(), refreshPharmacyTags()]).then(() => {
+        setMessageTagsLoaded(true);
+      });
+    }
+  }, [
+    activeTab,
+    id,
+    messageTagsLoaded,
+    messagesLoaded,
+    patient,
+    refreshMessagesOnly,
+    refreshPharmacyTags,
+    refreshTags,
+  ]);
+
+  useEffect(() => {
+    if (!id || !patient || activeTab !== 'meds' || scoresLoaded) return;
+    void scores.loadLatestScores().finally(() => setScoresLoaded(true));
+  }, [activeTab, id, patient, scores.loadLatestScores, scoresLoaded]);
+
+  useEffect(() => {
+    if (!id || !patient || activeTab !== 'labs' || weaningLoaded) return;
+    void ventilatorApi.getWeaningAssessment(id)
+      .then(setWeaningAssessment)
+      .catch(() => setWeaningAssessment(null))
+      .finally(() => setWeaningLoaded(true));
+  }, [activeTab, id, patient, weaningLoaded]);
 
   // Auto-scroll to bottom when chat messages update (including during streaming)
   useEffect(() => {
@@ -633,23 +736,6 @@ export function PatientDetailPage() {
       setMedicationsLoading(false);
     }
   }, [id]);
-
-  // 載入預設標籤
-  const refreshTags = useCallback(async () => {
-    if (!id) return;
-    const [preset, custom] = await Promise.all([
-      messagesApi.getPresetTags(id).catch(() => [] as string[]),
-      messagesApi.getCustomTags(id).catch(() => [] as { id: string; name: string; createdById: string; createdByName: string; createdAt: string }[]),
-    ]);
-    setPresetTags(preset);
-    setCustomTags(custom);
-  }, [id]);
-
-  useEffect(() => {
-    if (!id) return;
-    void refreshTags();
-    messagesApi.getPharmacyTags(id).then(setPharmacyTagCategories).catch(() => setPharmacyTagCategories([]));
-  }, [id, refreshTags]);
 
   const handleCreateCustomTag = useCallback(async (name: string) => {
     if (!id) return;
@@ -862,25 +948,9 @@ export function PatientDetailPage() {
   const getNmb = () => patient.nmb || patient.sanSummary?.nmb || [];
   const canSendAiChat = true;
   const aiChatGateReason = '';
-
-  const refreshChatSessions = async () => {
-    if (!id) return;
-    try {
-      const sessionsData = await fetchChatSessionsApi({ patientId: id });
-      setChatSessions(sessionsData.sessions.map(s => ({
-        id: s.id,
-        patientId: s.patientId || id,
-        sessionDate: new Date(s.createdAt).toISOString().split('T')[0],
-        sessionTime: new Date(s.createdAt).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
-        title: s.title,
-        messages: [],
-        lastUpdated: new Date(s.updatedAt).toLocaleString('zh-TW'),
-        messageCount: s.messageCount,
-      })));
-    } catch {
-      setChatSessions([]);
-    }
-  };
+  const unreadMessageCount = messages.filter(m => !m.isRead).length;
+  const showUnreadBadge = unreadMessageCount > 0 || (messages.length === 0 && !!patient.hasUnreadMessages);
+  const unreadBadgeLabel = messages.length > 0 ? String(unreadMessageCount) : '新';
 
   const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
@@ -1409,9 +1479,9 @@ export function PatientDetailPage() {
           <TabsTrigger value="messages" className="text-xs font-medium data-[state=active]:bg-brand data-[state=active]:text-white relative rounded-md">
             <MessagesSquare className="mr-1.5 h-4 w-4" />
             留言板
-            {messages.filter(m => !m.isRead).length > 0 && (
+            {showUnreadBadge && (
               <Badge className="ml-2 bg-[#ff3975] text-white px-2 py-0.5 text-xs">
-                {messages.filter(m => !m.isRead).length}
+                {unreadBadgeLabel}
               </Badge>
             )}
           </TabsTrigger>
@@ -1506,7 +1576,11 @@ export function PatientDetailPage() {
                   </CardHeader>
                   <CardContent className="p-0">
                     <ScrollArea style={{ height: 'calc(100vh - 220px)', minHeight: '400px' }}>
-                      {chatSessions.length === 0 ? (
+                      {chatSessionsLoading ? (
+                        <div className="p-8 flex flex-col items-center gap-2 text-center text-muted-foreground">
+                          <LoadingSpinner size="sm" text="載入對話記錄中..." />
+                        </div>
+                      ) : chatSessions.length === 0 ? (
                         <div className="p-8 flex flex-col items-center gap-2 text-center text-muted-foreground">
                           <MessageSquare className="h-10 w-10 opacity-30 text-[#9ca3af]" />
                           <p className="text-sm font-medium text-muted-foreground">尚無對話記錄</p>

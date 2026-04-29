@@ -14,9 +14,10 @@
 
 ### Phase 3 — Patient-detail performance
 
-### F00 [READY] Switch patient-detail.tsx to /patients/{id}/bootstrap aggregator
+### F00 [DONE] Switch patient-detail.tsx to /patients/{id}/bootstrap aggregator
 - **Added by:** backend session (Phase 3.1)
 - **Endpoint ready since:** 2026-04-29
+- **Completed:** 2026-04-29
 - **API contract:** See `api-contracts.md` — `GET /patients/{patient_id}/bootstrap`
 - **Date:** 2026-04-29
 - **Priority:** P0 (collapses 9-RTT serial chain to 1 RTT, expected −0.5~1.0s p95)
@@ -38,6 +39,10 @@
 - **Out of scope (later phases):**
   - Phase 3.2 = chat-tab extraction (separate PR after 3.1 stabilizes)
   - Phase 3.4 = lazy-wrap remaining tabs
+- **Implementation:** Added `getPatientBootstrap()` and rewired `patient-detail.tsx`
+  first paint to use bootstrap + 5-call fallback. Messages/tags/chat sessions,
+  scores, and weaning assessment now load from tab activation paths instead of
+  blocking `setPatientLoading(false)`.
 
 ---
 
