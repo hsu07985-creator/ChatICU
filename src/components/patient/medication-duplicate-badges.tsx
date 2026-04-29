@@ -8,7 +8,7 @@ import { cn } from '../ui/utils';
  *
  * Parallel component to `drug-interaction-badges.tsx` — same visual
  * language, but backed by the `/patients/{id}/medication-duplicates`
- * endpoint (Wave 2 of docs/duplicate-medication-integration-plan.md).
+ * endpoint.
  */
 
 export interface MedicationDuplicateBadgesProps {

@@ -149,7 +149,7 @@ async def post_sync_refresh_duplicates(
     """
     # Imported lazily so that a half-implemented duplicate_cache module does
     # not break the HIS sync entry-point at import time (Wave 4a is being
-    # authored by a sister agent; see docs/duplicate-medication-integration-plan.md §6).
+    # authored by a sister agent).
     from app.services.duplicate_cache import refresh_patient_cache
     from app.models.medication import Medication
 

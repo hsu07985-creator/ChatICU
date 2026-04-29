@@ -1,6 +1,5 @@
 /**
- * Generic lab section renderer — Step 2 of the lab-display refactor
- * (see `docs/lab-display-refactor-plan.md`).
+ * Generic lab section renderer.
  *
  * Given a `RenderItem[]` produced by `groupLabData()`, renders a titled grid
  * of `<LabItem />` cards matching the existing layout of hand-written sections

@@ -1,7 +1,5 @@
 """Medication duplicate-detection endpoints.
 
-Per docs/duplicate-medication-integration-plan.md §7:
-
     GET  /patients/{patient_id}/medication-duplicates?context=inpatient
     POST /pharmacy/duplicate-summary   (batched counts for N patients)
 

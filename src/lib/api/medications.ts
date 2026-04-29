@@ -161,8 +161,7 @@ export async function recordAdministration(
 }
 
 // ── Duplicate medication detection (Wave 1) ─────────────────────────
-// Backed by GET /patients/{patient_id}/medication-duplicates — see
-// docs/duplicate-medication-integration-plan.md §7.
+// Backed by GET /patients/{patient_id}/medication-duplicates.
 export interface DuplicateAlertMember {
   medicationId: string;
   genericName: string;
@@ -230,8 +229,7 @@ export async function checkDuplicateMedications(
 }
 
 // ── Batched duplicate summary (Wave 5b) ─────────────────────────────
-// Backed by POST /pharmacy/duplicate-summary — see
-// docs/duplicate-medication-integration-plan.md §4.4 / §7.
+// Backed by POST /pharmacy/duplicate-summary.
 // Used by the pharmacy workstation patient list + dashboard tiles to
 // show per-patient severity badges without N+1 calls.
 export interface DuplicateSeverityCounts {

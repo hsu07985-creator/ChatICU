@@ -2,8 +2,7 @@ import apiClient, { ensureData } from '../api-client';
 import type { DuplicateAlert, DuplicateSeverityCounts } from './medications';
 
 // ── Discharge medication reconciliation (Wave 6a) ──────────────────────
-// Backed by GET /patients/{patient_id}/discharge-check — see
-// docs/duplicate-medication-integration-plan.md §4.5 (出院管理).
+// Backed by GET /patients/{patient_id}/discharge-check.
 //
 // Surfaces two categories of discharge-related med issues:
 //   1) missedDiscontinuations — inpatient meds that were active at discharge

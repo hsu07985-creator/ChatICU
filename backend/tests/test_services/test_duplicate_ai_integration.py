@@ -1,6 +1,6 @@
 """Integration tests for duplicate-medication warnings in the AI clinical snapshot.
 
-Wave 3 — docs/duplicate-medication-integration-plan.md §4.2.
+Wave 3.
 
 Covers the wiring between ``app.services.patient_context_builder.build_clinical_snapshot``
 and ``app.utils.duplicate_check.format_duplicate_metadata``:

@@ -2,9 +2,8 @@ import type { DuplicateSeverityCounts } from '../../lib/api/medications';
 
 // Wave 6c: compact per-patient duplicate-medication severity badge for the
 // ICU dashboard card. Parallels the inline badge in pharmacy/workstation.tsx
-// (intentional copy rather than shared symbol — see
-// docs/duplicate-medication-integration-plan.md §4.7) so dashboard sizing
-// can diverge without affecting the workstation dropdown.
+// (intentional copy rather than shared symbol) so dashboard sizing can
+// diverge without affecting the workstation dropdown.
 //
 // Renders only non-zero severity buckets so a "clean" patient shows nothing
 // at all (no dead pixels in the common case).

@@ -55,7 +55,7 @@ import { toast } from 'sonner';
 // Wave 5b: inline per-patient duplicate-medication severity badge. Only
 // renders non-zero buckets so the Select row stays compact. Intentionally
 // small (text-[10px]) so it fits inside <SelectItem> without pushing the
-// main label. See docs/duplicate-medication-integration-plan.md §4.4.
+// main label.
 function DuplicateCountsBadge({ counts }: { counts?: DuplicateSeverityCounts }) {
   if (!counts) return null;
   const { critical, high, moderate, low } = counts;

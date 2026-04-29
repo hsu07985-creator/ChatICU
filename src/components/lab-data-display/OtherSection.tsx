@@ -1,6 +1,5 @@
 /**
- * "其他檢驗" (Other Labs) section renderer — Step 2 of the lab-display
- * refactor (see `docs/lab-display-refactor-plan.md`).
+ * "其他檢驗" (Other Labs) section renderer.
  *
  * Buckets RenderItems by `subGroup` (U / ST / PF / misc) and renders each
  * non-empty bucket under an h4 sub-heading, matching the existing

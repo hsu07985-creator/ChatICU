@@ -1,9 +1,8 @@
 """SQLAlchemy model for per-patient precomputed duplicate-detection alerts.
 
-Matches docs/duplicate-medication-integration-plan.md §5.1. Reads are keyed by
-``patient_id`` (one row per patient); cache validity is decided by hashing
-sorted ``(medication_id, atc_code, updated_at)`` tuples and comparing against
-``medications_hash``.
+Reads are keyed by ``patient_id`` (one row per patient); cache validity is
+decided by hashing sorted ``(medication_id, atc_code, updated_at)`` tuples
+and comparing against ``medications_hash``.
 
 ``counts`` holds the severity histogram (``{"critical": 2, "high": 1, ...}``)
 so dashboard / batch queries do not have to parse ``alerts_json``.

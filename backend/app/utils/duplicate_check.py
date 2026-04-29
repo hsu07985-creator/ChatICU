@@ -6,9 +6,8 @@
     )
 
 ``format_duplicate_metadata`` wraps the shared DuplicateDetector service
-(docs/duplicate-medication-integration-plan.md §2) and retains only the
-levels most relevant to LLM decisions (critical / high) to keep prompts
-compact.
+and retains only the levels most relevant to LLM decisions (critical /
+high) to keep prompts compact.
 
 ``format_duplicate_text`` formats those filtered warnings into a system-prompt
 text block.

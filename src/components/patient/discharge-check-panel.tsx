@@ -20,8 +20,7 @@ import { MedicationDuplicateBadges } from './medication-duplicate-badges';
  *   2. Discharge medication duplicates (reuses <MedicationDuplicateBadges />)
  *
  * Data source: `GET /patients/{id}/discharge-check` — typed client in
- * `src/lib/api/discharge.ts`; spec in
- * docs/duplicate-medication-integration-plan.md §4.5.
+ * `src/lib/api/discharge.ts`.
  */
 
 // ── UI constants ────────────────────────────────────────────────────

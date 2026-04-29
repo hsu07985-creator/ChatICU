@@ -1,6 +1,6 @@
 """Duplicate medication detection service (L1/L2 + auto-downgrade + overrides).
 
-Central Single Source of Truth per docs/duplicate-medication-integration-plan.md §2.
+Central Single Source of Truth for duplicate-medication analysis.
 Consumed by the REST API, AI clinical snapshot builder, and the pre-computed
 cache layer — all call DuplicateDetector(session).analyze(meds).
 

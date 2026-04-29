@@ -1,11 +1,9 @@
 /**
  * Pure lookup helpers for the lab-data display.
  *
- * Extracted as Step 2 of the lab-display refactor (see
- * `docs/lab-display-refactor-plan.md`). Behavior must match the in-closure
- * helpers currently defined inside `lab-data-display.tsx` 1:1 — the difference
- * is that these functions take `labData` as their first argument instead of
- * closing over it.
+ * Behavior must match the in-closure helpers currently defined inside
+ * `lab-data-display.tsx` 1:1 — the difference is that these functions take
+ * `labData` as their first argument instead of closing over it.
  */
 
 import { type LabData } from '../../lib/api';

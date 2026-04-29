@@ -684,7 +684,7 @@ async def build_clinical_snapshot(patient_id: str, db: AsyncSession) -> str:
         _fmt_med_section(meds),
     ]
 
-    # Duplicate-medication warnings (Wave 3 — docs/duplicate-medication-integration-plan.md §4.2).
+    # Duplicate-medication warnings (Wave 3).
     # Runs after _fmt_med_section so the LLM sees the med list first, then the
     # auto-detected duplicates that refer back to it. Failure is isolated in
     # _safe_duplicate_warnings; a detector crash drops the section silently.

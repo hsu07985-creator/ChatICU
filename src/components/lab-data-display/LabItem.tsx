@@ -1,6 +1,5 @@
 /**
- * LabItem card component — copied verbatim from `lab-data-display.tsx` as
- * Step 2 of the lab-display refactor (see `docs/lab-display-refactor-plan.md`).
+ * LabItem card component — copied verbatim from `lab-data-display.tsx`.
  *
  * Rendering, styling and prop names are intentionally identical to the old
  * in-file `LabItem`. Step 3 will switch the main file to import from here and

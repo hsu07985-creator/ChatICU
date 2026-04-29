@@ -1,6 +1,6 @@
 """Tests for the Wave 4b post-sync hook in ``scripts/sync_his_snapshots.py``.
 
-Contract under test (per docs/duplicate-medication-integration-plan.md §6):
+Contract under test:
 
     async def post_sync_refresh_duplicates(
         session: AsyncSession,

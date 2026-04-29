@@ -1,10 +1,9 @@
 /**
  * Section configuration and pure grouping helper for the lab-data display.
  *
- * Extracted as Step 1 of the lab-display refactor (see
- * `docs/lab-display-refactor-plan.md`). This module is intentionally pure —
- * no React / JSX — so it can be unit-tested independently and consumed by
- * the refactored `<LabDataDisplay />` in a later step.
+ * This module is intentionally pure — no React / JSX — so it can be
+ * unit-tested independently and consumed by the refactored
+ * `<LabDataDisplay />` in a later step.
  */
 
 import { type LabData } from '../../lib/api';
