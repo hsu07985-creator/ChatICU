@@ -4,7 +4,7 @@ import logging
 import logging.config
 import os
 import uuid
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -129,37 +129,13 @@ async def lifespan(app: FastAPI):
             validation_report,
         )
 
-    startup_warmup_task: asyncio.Task | None = None
-
-    # Run non-critical startup work in the background. Railway already runs
-    # Alembic before boot; these fallback migrations and RAG warmup are
-    # best-effort and must not block /health or turn the whole API into 502s.
-    async def _run_startup_warmups() -> None:
-        try:
-            from app.database import engine
-            from app.startup_migrations import run_all as run_startup_migrations
-
-            await run_startup_migrations(engine)
-        except asyncio.CancelledError:
-            logger.info("[INTG][DB] Startup warmups cancelled during shutdown")
-            raise
-        except Exception as e:
-            logger.warning("[INTG][DB] Startup migrations failed (non-fatal): %s", e)
-
-        # RAG warmup removed (Phase 1 D2a) — rag_service is gone, no
-        # in-process index to load.
-
-    startup_warmup_task = asyncio.create_task(_run_startup_warmups(), name="startup-warmups")
-    app.state.startup_warmup_task = startup_warmup_task
-    logger.info("[INTG][DB] Startup warmups scheduled in background")
+    # Phase 4.1 Step 4: startup_migrations runtime bag retired. Schema is
+    # owned by Alembic (revisions 001-074); seed/repair lives in the explicit
+    # CLI runner backend/scripts/run_seed_repair.py and is invoked manually
+    # rather than during web boot.
 
     yield
     # Shutdown
-    task = getattr(app.state, "startup_warmup_task", None)
-    if task and not task.done():
-        task.cancel()
-        with suppress(asyncio.CancelledError):
-            await task
     from app.middleware.auth import _redis_client
     if _redis_client:
         await _redis_client.close()
