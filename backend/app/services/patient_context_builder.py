@@ -720,6 +720,123 @@ async def build_clinical_snapshot(patient_id: str, db: AsyncSession) -> str:
     return "\n".join(sections)
 
 
+async def build_critical_snapshot(
+    patient_id: str, db: AsyncSession
+) -> tuple[str, Dict[str, Any], Dict[str, Any]]:
+    """B15-A1 critical-only path. Returns first-turn snapshot text + delta
+    key values + metadata for the deferred follow-up.
+
+    Includes (must be ready before LLM streams):
+      patient, latest_lab + 24h-prior lab (for trend), active_medications,
+      latest_vital, duplicate_warnings.
+
+    Excludes — fetched separately by build_deferred_snapshot in a background
+    task after the first response yields:
+      latest_vent, recent_reports, latest_scores.
+
+    Per docs/b15-snapshot-latency-plan-2026-04-30.md §3.1+§4.1:
+    - duplicate stays in critical (medication safety)
+    - lab_before_24h stays in critical (small ~600ms, trend matters clinically)
+    - vent: even when not intubated _fmt_vent_section returns empty, so deferring
+      it never visibly hurts; when intubated the deferred fill catches up by
+      turn 2
+
+    Returns:
+      (snapshot_text, key_values_for_delta, deferred_meta_dict)
+    """
+    # Same warm-up as build_clinical_snapshot (B15-D); makes the contract
+    # explicit so the gather below never races on connection acquisition.
+    await db.connection()
+
+    patient, latest_lab, meds, vitals = await asyncio.gather(
+        _get_patient(db, patient_id),
+        _get_latest_lab(db, patient_id),
+        _get_active_medications(db, patient_id),
+        _get_latest_vital(db, patient_id),
+    )
+
+    if not patient:
+        return f"[無法取得患者資料 patient_id={patient_id}]", {}, {}
+
+    prev_lab = None
+    if latest_lab and latest_lab.timestamp:
+        prev_lab = await _get_lab_before_24h(db, patient_id, latest_lab.timestamp)
+
+    duplicate_warnings = await _safe_duplicate_warnings(
+        db, meds, context=_infer_duplicate_context(patient)
+    )
+
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+
+    sections = [
+        "=== ICU 病患臨床快照 ===",
+        f"時間戳記：{now_str}",
+        "",
+        _fmt_patient_section(patient),
+        "",
+        _fmt_vital_section(vitals),
+        "",
+        _fmt_lab_section(latest_lab, prev_lab),
+        "",
+        _fmt_med_section(meds),
+    ]
+
+    duplicate_section = _fmt_duplicate_section(duplicate_warnings)
+    if duplicate_section:
+        sections += ["", duplicate_section]
+
+    sections.append("\n=== 快照結束 ===")
+
+    key_values = extract_snapshot_key_values(latest_lab, meds)
+    deferred_meta = {"intubated": bool(patient.intubated)}
+    return "\n".join(sections), key_values, deferred_meta
+
+
+async def build_deferred_snapshot(
+    patient_id: str, db: AsyncSession, *, intubated: bool
+) -> str:
+    """B15-A1 deferred-only path. Fetched in background after first-turn
+    LLM stream completes; result is appended to the critical snapshot for
+    subsequent turns (separated by blank line).
+
+    Includes:
+      latest_vent (only when intubated; otherwise the section text is empty
+        anyway so we save an RTT),
+      recent_reports,
+      latest_scores.
+
+    Returns the formatted deferred section text. Empty string if all three
+    sections are empty (nothing to append).
+    """
+    await db.connection()
+
+    if intubated:
+        vent, reports, scores = await asyncio.gather(
+            _get_latest_vent(db, patient_id),
+            _get_recent_reports(db, patient_id, limit=3),
+            _get_latest_scores(db, patient_id),
+        )
+    else:
+        reports, scores = await asyncio.gather(
+            _get_recent_reports(db, patient_id, limit=3),
+            _get_latest_scores(db, patient_id),
+        )
+        vent = None
+
+    parts = []
+    vent_section = _fmt_vent_section(vent) if vent else ""
+    if vent_section:
+        parts.append(vent_section)
+    reports_section = _fmt_reports_section(reports)
+    if reports_section:
+        parts.append(reports_section)
+    scores_section = _fmt_scores_section(scores)
+    if scores_section:
+        parts.append(scores_section)
+
+    return "\n\n".join(parts)
+
+
 def extract_snapshot_key_values(
     lab: Optional[LabData],
     meds: List[Medication],

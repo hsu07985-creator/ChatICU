@@ -24,13 +24,16 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.config import settings
+from app.database import async_session, get_db
 from app.llm import call_llm_stream, TASK_PROMPTS
 from app.middleware.auth import get_current_user
 from app.models.ai_session import AISession, AIMessage
 from app.models.user import User
 from app.services.patient_context_builder import (
     build_clinical_snapshot,
+    build_critical_snapshot,
+    build_deferred_snapshot,
     build_delta,
     extract_snapshot_key_values,
     _get_latest_lab,
@@ -113,6 +116,63 @@ async def _load_messages(
 def _build_system_prompt(snapshot: str) -> str:
     base = TASK_PROMPTS["icu_chat"]
     return f"{base}\n\n[病患臨床快照]\n{snapshot}"
+
+
+def _merged_snapshot(meta: dict) -> str:
+    """B15-A1: combine critical snapshot text with deferred follow-up if ready.
+
+    Falls back to critical-only when the background fill hasn't completed.
+    """
+    critical = meta.get("clinical_snapshot") or ""
+    deferred = meta.get("clinical_snapshot_deferred") or ""
+    if not deferred:
+        return critical
+    # Append after the snapshot footer so the section ordering is stable
+    # for OpenAI prompt cache. Use a blank-line separator consistent with
+    # build_clinical_snapshot's section glue.
+    return f"{critical}\n\n{deferred}"
+
+
+async def _fill_deferred_snapshot_bg(
+    session_id: str, patient_id: str, intubated: bool
+) -> None:
+    """Fire-and-forget background task: fetch deferred snapshot sections
+    (vent / reports / scores) and persist into AISession.snapshot_metadata.
+
+    Runs on its own AsyncSession (the request session is already closed
+    by the time this fires). Failures are non-fatal — chat keeps working
+    with critical-only snapshot if this background fill never completes.
+    """
+    try:
+        async with async_session() as bg_db:
+            deferred_text = await build_deferred_snapshot(
+                patient_id, bg_db, intubated=intubated
+            )
+            result = await bg_db.execute(
+                select(AISession).where(AISession.id == session_id)
+            )
+            sess = result.scalar_one_or_none()
+            if sess is None:
+                logger.warning(
+                    "[CHAT][DEFERRED] session=%s gone before deferred fill landed",
+                    session_id,
+                )
+                return
+            meta = dict(sess.snapshot_metadata or {})
+            meta["clinical_snapshot_deferred"] = deferred_text
+            meta["deferred_status"] = "ready" if deferred_text else "empty"
+            meta["deferred_filled_at"] = datetime.now(timezone.utc).isoformat()
+            sess.snapshot_metadata = meta
+            await bg_db.commit()
+            logger.info(
+                "[CHAT][DEFERRED] session=%s deferred_chars=%d status=%s",
+                session_id, len(deferred_text), meta["deferred_status"],
+            )
+    except Exception as exc:  # pragma: no cover - background fault tolerance
+        logger.warning(
+            "[CHAT][DEFERRED] background fill failed session=%s: %s",
+            session_id, exc,
+        )
 
 
 def _messages_to_api_format(messages: List[AIMessage]) -> List[dict]:
@@ -297,30 +357,59 @@ async def chat_stream(
 
     # ── Build system prompt ────────────────────────────────────────────────
     if patient_id and is_first_turn:
-        # First turn: build full snapshot and store only the snapshot text.
+        # First turn: build snapshot and store only the snapshot text.
         # We do NOT store the full system_prompt so that prompt updates in
         # TASK_PROMPTS["icu_chat"] take effect immediately for all sessions.
-        # Run snapshot build + key-value lab/med fetch in parallel so we don't
-        # pay two sequential round-trips on the first turn.
-        snapshot, (lab, meds) = await asyncio.gather(
-            build_clinical_snapshot(patient_id, db),
-            asyncio.gather(
-                _get_latest_lab(db, patient_id),
-                _get_active_medications(db, patient_id),
-            ),
-        )
-        key_vals = extract_snapshot_key_values(lab, meds)
-        session.snapshot_metadata = {
-            "snapshot_taken_at": datetime.now(timezone.utc).isoformat(),
-            "snapshot_key_values": key_vals,
-            "clinical_snapshot": snapshot,  # store snapshot text, not the full prompt
-        }
-        await db.flush()
+        if settings.SNAPSHOT_DEFERRED_ENABLED:
+            # B15-A1 fast path: critical-only synchronously, deferred in
+            # background. Goal is first-turn snapshot_ms ~3s vs ~6s.
+            critical, key_vals, deferred_meta = await build_critical_snapshot(
+                patient_id, db
+            )
+            session.snapshot_metadata = {
+                "snapshot_taken_at": datetime.now(timezone.utc).isoformat(),
+                "snapshot_key_values": key_vals,
+                "clinical_snapshot": critical,
+                "deferred_status": "pending",
+                "deferred_intubated": deferred_meta.get("intubated", False),
+            }
+            await db.flush()
+            # Fire-and-forget. Uses its own AsyncSession (the request one is
+            # closed shortly after this handler returns). Failures are logged
+            # but never break the chat reply.
+            asyncio.create_task(
+                _fill_deferred_snapshot_bg(
+                    session.id,
+                    patient_id,
+                    deferred_meta.get("intubated", False),
+                )
+            )
+        else:
+            # Existing v1 path (full snapshot up front). Run snapshot build
+            # + key-value lab/med fetch in parallel so we don't pay two
+            # sequential round-trips on the first turn.
+            snapshot, (lab, meds) = await asyncio.gather(
+                build_clinical_snapshot(patient_id, db),
+                asyncio.gather(
+                    _get_latest_lab(db, patient_id),
+                    _get_active_medications(db, patient_id),
+                ),
+            )
+            key_vals = extract_snapshot_key_values(lab, meds)
+            session.snapshot_metadata = {
+                "snapshot_taken_at": datetime.now(timezone.utc).isoformat(),
+                "snapshot_key_values": key_vals,
+                "clinical_snapshot": snapshot,
+            }
+            await db.flush()
     t_snapshot = time.perf_counter()
 
     if session.snapshot_metadata and session.snapshot_metadata.get("clinical_snapshot"):
-        # Always rebuild from current TASK_PROMPTS so prompt updates apply immediately
-        system_prompt = _build_system_prompt(session.snapshot_metadata["clinical_snapshot"])
+        # Always rebuild from current TASK_PROMPTS so prompt updates apply immediately.
+        # _merged_snapshot appends the deferred text when B15-A1 background fill
+        # has completed; falls back to critical-only otherwise (a no-op when
+        # SNAPSHOT_DEFERRED_ENABLED was off, since deferred_text is unset).
+        system_prompt = _build_system_prompt(_merged_snapshot(session.snapshot_metadata))
     elif session.snapshot_metadata and session.snapshot_metadata.get("system_prompt"):
         # Backward compat: old sessions that stored full system_prompt
         system_prompt = _build_system_prompt(

@@ -83,6 +83,12 @@ class Settings(BaseSettings):
     # Optional audit capture of provider raw payloads (disabled by default).
     LLM_AUDIT_CAPTURE_RAW: bool = False
     LLM_AUDIT_CAPTURE_DIR: str = "reports/operations/llm_raw_capture"
+    # B15-A1: split build_clinical_snapshot into critical (returned synchronously
+    # to LLM on first turn) and deferred (vent/reports/scores, fetched in
+    # background after the first response and merged into subsequent turns).
+    # Off by default; flip to true in Railway env to canary the optimization.
+    # See docs/b15-snapshot-latency-plan-2026-04-30.md.
+    SNAPSHOT_DEFERRED_ENABLED: bool = False
     OPENAI_API_KEY: str = ""
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-large"
     ANTHROPIC_API_KEY: str = ""
