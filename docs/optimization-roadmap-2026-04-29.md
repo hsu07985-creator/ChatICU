@@ -19,8 +19,8 @@
 |---|---|---|---|
 | ✅ Phase 0 | 13 個 commits 已上線（DB、cache、HIS sync、bundle、http pool） | 完成 | — |
 | ✅ Phase 1 | RAG 整層移除（**已完成 2026-04-29**，6 commits、~6800 行 prod + 1500 行 test 刪除） | 1.5 天 | 完成 |
-| 🔥 Phase 2 | 清雜物（v2、ui/chart、根目錄、sync 腳本提交） | 半天 | **下一步** |
-| 🏗️ Phase 3 | 病人詳情頁大整理（API fan-out + 拆檔 + memo） | 3-4 天 | Phase 2 完後 |
+| 🟡 Phase 2 | 清雜物（active cleanup 已完成；P2.1 + P2.5 deferred to **2026-05-13+** 等觀察期） | 半天 active；剩餘 deferred | active 已完成 2026-04-29 |
+| 🔥 Phase 3 | 病人詳情頁大整理（API fan-out + 拆檔 + memo） | 3-4 天 | **下一步**（先 preflight） |
 | 🛠️ Phase 4 | startup_migrations 拆解 + 修 prod warning | 1-2 天 | Phase 3 完後 |
 | 🚧 Phase 5 | Vercel `/api/*` namespace 收斂 | 2-3 天 | Phase 4 完後 |
 | **合計** | **約 8-11 天工** | | **Phase 1 從現在算起 3-4 週內完成** |
@@ -199,7 +199,36 @@
 
 ---
 
-## 🔥 Phase 2 — 操作層清理（**下一步**）
+## 🟡 Phase 2 — 操作層清理（active 已完成 2026-04-29；觀察類 deferred）
+
+### 已完成（active cleanup）
+
+| # | Commit | 內容 |
+|---|---|---|
+| P2.2 | `f381c6a3e` | `src/components/ui/chart.tsx` dead code 整刪（-353 行） |
+| P2.3 | `8b8f56fa7` | `.gitignore` 加 `/*.png` `/*.yml` `.env.local` `.playwright-cli/` 等 root-only patterns（+14 行）；51 個 .png/.yml 從 `git status` 雜訊消失 |
+| P2.4 | `710e3fc91` | `backend/scripts/sync_his_snapshots_serial.py` 提交版本庫（+165 行）；之前 untracked，CLAUDE.md 引用但不在 repo |
+
+### Deferred（等觀察期到才動）
+
+| # | 項目 | 觸發條件 | 預估執行時間 |
+|---|---|---|---|
+| P2.1 | `/v2/patients` deletion（router + tests + Vercel rewrite + `src/lib/api/layer2-mode.ts`；保留 `services/layer2_store.py` 給 `scores.py` 用） | V2_ACCESS log 累積 1-2 週 0 命中 | **2026-05-13+** |
+| P2.5 | V2AccessLog middleware retire | P2.1 完成後 | 2026-05-13+ |
+
+**為什麼 defer**：V2_ACCESS log 從 `cdb4a6ab0`（2026-04-29 上午）才開始記錄，現在觀察窗 < 24h，不足以判斷 prod 真的零流量。提早刪會失去驗證依據——若有外部 cron / 監控 / 殘留腳本還在打 `/v2/patients`，會在 P2.1 後才發現。
+
+**到觀察日期後做的事**：
+```bash
+railway logs --since 14d | grep -c V2_ACCESS
+railway logs --since 14d | grep V2_ACCESS | grep -oE 'route=[^ ]+' | sort | uniq -c
+```
+- 若 0 hit / 全是健檢 UA → 執行 P2.1 + P2.5
+- 若有未知 user_hash → 用 hash 對照 user 表找 caller，先聯絡再決定
+
+---
+
+## 📜 Phase 2 原始計劃（保留歷史紀錄）
 
 Phase 1 已完成（2026-04-29）。低風險、可一個下午做完。
 
@@ -376,15 +405,17 @@ Phase 5.2 router 整合（看實際需求）
      D1a 6a8537545 / D1b fb88ef759 / D1c d42ac156c
      D2a e7bbb0bf9 / D3+D4 129cf67d0 / D5 7c58c32f0
 
+🟡 Phase 2 active cleanup 已完成
+   ✅ P2.2 (f381c6a3e)  ui/chart.tsx dead code
+   ✅ P2.3 (8b8f56fa7)  .gitignore root artifacts
+   ✅ P2.4 (710e3fc91)  sync_his_snapshots_serial.py tracked
+
 🔥 下一步
-   Phase 2: 操作層清理（v2 / ui-chart / repo 雜物 / sync 腳本 / v2 log）
+   Phase 3 preflight: 量 patient-detail API fan-out / 拆檔邊界
 
 📅 排隊（已盤點，等動）
-   Phase 2.1  /v2/patients 觀察期到 → 刪
-   Phase 2.2  ui/chart.tsx dead code
-   Phase 2.3  根目錄垃圾清理 + .gitignore
-   Phase 2.4  sync_his_snapshots_serial.py 提交
-   Phase 2.5  v2 access log middleware 觀察期到 → 移除
+   Phase 2.1  /v2/patients deletion         → 等 V2_ACCESS 觀察 (2026-05-13+)
+   Phase 2.5  V2AccessLog middleware retire → 等 P2.1
 
    Phase 3.1  Patient detail initial bundle endpoint  (#8)
    Phase 3.2  patient-detail.tsx 拆 + memo + Context  (#9)
