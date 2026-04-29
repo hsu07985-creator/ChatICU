@@ -19,3 +19,35 @@ exclude = [".git", "__pycache__", "alembic"]
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 testpaths = ["tests"]
+
+# Coverage is opt-in (slows test runs ~2×). Run with:
+#   pytest --cov=app --cov-report=term-missing
+#   pytest --cov=app --cov-report=html  # browse htmlcov/index.html
+[tool.coverage.run]
+source = ["app"]
+branch = true
+omit = [
+    "app/__init__.py",
+    "app/*/__init__.py",
+    # Migration / startup paths exercised at boot, not via pytest
+    "app/database.py",
+    # FastAPI bootstrap glue — covered indirectly by every API test
+    "app/main.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+precision = 1
+exclude_also = [
+    # Standard non-executable patterns
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@(abc\\.)?abstractmethod",
+    # Defensive logging-only branches
+    "logger\\.(debug|warning|exception)",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"

@@ -27,6 +27,14 @@ playwright-report/
 test-results/
 .vite/
 
+# Coverage artifacts (pytest-cov / coverage.py)
+.coverage
+.coverage.*
+backend/.coverage
+backend/.coverage.*
+htmlcov/
+backend/htmlcov/
+
 # Large seed files (too big for git, seeded via scripts)
 backend/seeds/drug_interactions_full.json
 
