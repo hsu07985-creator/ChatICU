@@ -44,6 +44,68 @@
   scores, and weaning assessment now load from tab activation paths instead of
   blocking `setPatientLoading(false)`.
 
+### F00b [DONE] Phase 3.2 — Extract chat tab from patient-detail.tsx
+- **Added by:** backend session (Phase 3.2 — pure frontend refactor, no API changes)
+- **Date:** 2026-04-29
+- **Priority:** P1 (maintainability; patient-detail.tsx is currently 2072 lines)
+- **Backend dependency:** none
+- **Files (must equal exactly these — see verification step 4):**
+  - `src/pages/patient-detail.tsx` (remove chat-tab JSX + state, keep tab wiring)
+  - `src/components/patient/patient-chat-tab.tsx` (existing empty shell — fill in)
+  - `docs/coordination/frontend-tasks.md` (flip F00b → `[DONE]`)
+- **Scope (locked tight, do NOT expand):**
+  - Move chat tab JSX (~line 1437–1932, ~496 lines) into `patient-chat-tab.tsx`
+  - Move chat-only `useState` (the 14 chat-scoped pieces — search around the chat
+    tab for `useState` references), session handlers, and chat-only callbacks into
+    the same component
+  - `patient-detail.tsx` keeps: `activeTab`, `patient`/shared clinical data
+    (`labData`, `allMedications`, `vitalSigns`, `ventilator`, `weaningAssessment`),
+    tab `<TabsContent>` wiring
+  - Pass shared state down as props (or via the existing context if one already wraps
+    the tabs); do **not** add a new context just for this refactor
+- **HARD CONSTRAINT — must NOT change bootstrap / fallback / loading behavior:**
+  - `loadPatientBundle` body, `getPatientBootstrap` call site, the 5-call
+    fallback, and `setPatientLoading` timing must be byte-identical before/after
+    this commit. 3.2 is a pure extraction refactor; the 3.1 latency contract
+    stays intact and can be reasoned about independently.
+  - Lazy paths (scores / chat sessions / messages / tags / weaning / symptom
+    records) keep their current trigger points — do not re-shuffle them.
+  - If you find yourself touching `loadPatientBundle`, the bootstrap fetcher,
+    or any `setPatientLoading(...)` line, **stop and re-scope**.
+- **Out of scope (do NOT touch in this PR):**
+  - Phase 3.4 tab `React.lazy` wrap — separate PR after 3.2 lands
+  - Bootstrap fallback removal (still observing 1 week)
+  - AI chat API surface, streaming logic, prompt construction
+  - Adding `React.memo` / context — only if a measurable render-cost issue surfaces
+- **Cross-tab state (must stay in parent or be lifted, NOT siloed in chat tab):**
+  - `patient`, `labData`, `allMedications` — read by multiple tabs
+  - `activeTab` — summary tab does `setActiveTab('meds')`, must stay in parent
+  - `vitalSigns` / `ventilator` / `weaningAssessment` — labs tab consumes,
+    weaning callback writes back; lift state up, pass setter down
+- **Verification (all four are blocking — do not commit until each passes):**
+  1. `npm run typecheck` — zero errors
+  2. `npm run build` — clean production build
+  3. **Playwright smoke** (against the running dev server):
+     - Open `/patients`, click into any real patient → detail page loads
+     - Chat tab is the default-visible tab and renders without error
+     - Chat session-list lazy loading state is observed (skeleton / spinner →
+       resolved list); no "white flash" longer than ~500 ms
+     - Switch tab order: chat → messages → labs → meds → summary → back to chat;
+       on return to chat the input box, session list, and "新對話" button still
+       render correctly (no unmounted-state crash, no double fetch)
+     - **Do NOT need to send a real AI message.** Confirm only: input field is
+       editable, session list shows items (or empty state), "新對話" button is
+       clickable. Streaming behavior is out of scope.
+     - No console errors during any of the above
+  4. **`git diff --name-only` must list exactly:**
+     - `src/pages/patient-detail.tsx`
+     - `src/components/patient/patient-chat-tab.tsx`
+     - `docs/coordination/frontend-tasks.md`
+
+     Anything else (worktree noise, unrelated tweaks) means scope leaked — stash
+     or commit those separately before pushing 3.2.
+- **Suggested commit:** `refactor(patient): extract patient chat tab`
+
 ---
 
 ### Phase 1-2 — Foundation + Core Integration

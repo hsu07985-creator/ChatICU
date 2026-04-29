@@ -1,19 +1,26 @@
-import { useMemo, useState } from 'react';
-import type React from 'react';
-import { AlertCircle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Info, MessageSquare, Plus, Send, Trash2 } from 'lucide-react';
-import type { Citation as AiCitation, DataFreshness } from '../../lib/api/ai';
-import type { SessionChatMessage, SessionListItem } from '../../hooks/use-chat-sessions';
-import { ChatMessageThread } from './chat-message-thread';
+// Patient chat tab — extracted from patient-detail.tsx (Phase 3.2 refactor)
+// Pure presentational component: all chat state, handlers, and lazy-loading
+// effects remain owned by `PatientDetailPage` and are passed in as props.
+import type { RefObject } from 'react';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '../ui/alert-dialog';
+  AlertCircle,
+  ArrowDown,
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Copy,
+  History,
+  MessageSquare,
+  Plus,
+  RefreshCw,
+  Send,
+  ThumbsDown,
+  ThumbsUp,
+  Trash2,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import type { Citation as AiCitation, DataFreshness } from '../../lib/api/ai';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { ButtonLoadingIndicator } from '../ui/button-loading-indicator';
@@ -21,211 +28,296 @@ import { Card, CardContent, CardHeader } from '../ui/card';
 import { ScrollArea } from '../ui/scroll-area';
 import { TabsContent } from '../ui/tabs';
 import { Textarea } from '../ui/textarea';
+import { AiMarkdown, SafetyWarnings } from '../ui/ai-markdown';
+import { LoadingSpinner } from '../ui/state-display';
+import { copyToClipboard } from '../../lib/clipboard-utils';
+
+// Local mirrors of the parent's `ChatSession` / `ChatMessage` shapes. Kept as
+// generic structural interfaces so the parent can keep its own types without
+// forcing a shared `types.ts` move (out of scope for 3.2).
+export interface PatientChatTabSession {
+  id: string;
+  patientId: string;
+  sessionDate: string;
+  sessionTime: string;
+  title: string;
+  messages: PatientChatTabMessage[];
+  lastUpdated: string;
+  messageCount?: number;
+  labDataSnapshot?: {
+    K?: number;
+    Na?: number;
+    Scr?: number;
+    eGFR?: number;
+    CRP?: number;
+    WBC?: number;
+  };
+}
+
+export interface PatientChatTabMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  messageId?: string;
+  explanation?: string | null;
+  timestamp?: string;
+  references?: AiCitation[];
+  warnings?: string[] | null;
+  requiresExpertReview?: boolean;
+  degraded?: boolean;
+  degradedReason?: string | null;
+  upstreamStatus?: string | null;
+  dataFreshness?: DataFreshness | null;
+  feedback?: 'up' | 'down' | null;
+}
 
 interface PatientChatTabProps {
+  // Session list state (owned by parent — lazy loaded on tab activation)
+  chatSessions: PatientChatTabSession[];
+  chatSessionsLoading: boolean;
+  selectedSession: PatientChatTabSession | null;
   showSessionList: boolean;
-  chatSessions: SessionListItem[];
-  selectedSessionId?: string;
-  onStartNewSession: () => void;
-  onOpenSession: (session: SessionListItem) => void | Promise<void>;
-  onDeleteSession: (sessionId: string) => void | Promise<void>;
-  onCancelDeleteSession: () => void | Promise<void>;
-  onConfirmDeleteSession: () => void | Promise<void>;
-  deleteSessionDialogOpen: boolean;
-  deleteSessionTargetId?: string | null;
-  deletingSession: boolean;
-  formatSnapshotValue: (value: number | undefined) => string;
-
-  disclaimerCollapsed: boolean;
-  onSetDisclaimerCollapsed: (value: boolean) => void;
-  canSendAiChat: boolean;
   onToggleSessionList: () => void;
 
-  chatMessages: SessionChatMessage[];
-  isSending: boolean;
-  thinkingStatus?: string | null;
-  messagesContainerRef: React.RefObject<HTMLDivElement | null>;
-  messagesEndRef: React.RefObject<HTMLDivElement | null>;
-  onMessagesScroll: () => void;
-  showScrollToBottom: boolean;
-  onJumpToLatest: () => void;
-  expandedExplanations: Set<number>;
-  expandedReferences: Set<number>;
-  expandedDataQuality: Set<number>;
-  onToggleExplanation: (index: number) => void;
-  onToggleReferences: (index: number) => void;
-  onToggleDataQuality: (index: number) => void;
-  getDisplayFreshnessHints: (dataFreshness?: DataFreshness | null) => string[];
-  formatAiDegradedReason: (reason?: string | null, upstreamStatus?: string | null) => string;
-  formatCitationPageText: (citation: AiCitation) => string;
-  compactSnippet: (snippet?: string) => string;
-  avatarSrc: string;
+  // Session-list management
+  isSelectMode: boolean;
+  onToggleSelectMode: () => void;
+  selectedSessionIds: string[];
+  onToggleSessionSelection: (sessionId: string) => void;
+  onSelectAllSessions: () => void;
+  onBatchDelete: () => void | Promise<void>;
+  isDeletingSessions: boolean;
+  isStartingSession: boolean;
+  onStartNewSession: () => void | Promise<void>;
+  onOpenSession: (session: PatientChatTabSession) => void | Promise<void>;
+  onDeleteSession: (event: React.MouseEvent, sessionId: string) => void | Promise<void>;
+  deletingSessionId: string | null;
 
-  chatInputRef: React.RefObject<HTMLTextAreaElement | null>;
+  // Chat thread state
+  chatMessages: PatientChatTabMessage[];
+  isSending: boolean;
+  feedbackingMessageIndex: number | null;
+  regeneratingMessageIndex: number | null;
+  expandedExplanations: number[];
+  expandedReferences: number[];
+  expandedDataQuality: number[];
+  onSetExpandedExplanations: React.Dispatch<React.SetStateAction<number[]>>;
+  onSetExpandedReferences: React.Dispatch<React.SetStateAction<number[]>>;
+  onSetExpandedDataQuality: React.Dispatch<React.SetStateAction<number[]>>;
+
+  // Scroll
+  messagesContainerRef: RefObject<HTMLDivElement | null>;
+  messagesEndRef: RefObject<HTMLDivElement | null>;
+  showScrollToBottom: boolean;
+  onMessagesScroll: () => void;
+  onJumpToLatest: () => void;
+
+  // Input
   chatInput: string;
   onChatInputChange: (value: string) => void;
+  chatInputRef: RefObject<HTMLTextAreaElement | null>;
   onSendMessage: () => void | Promise<void>;
-  onSetMessageFeedback: (msgIndex: number, feedback: 'up' | 'down' | null) => void;
-  onRegenerateMessage: (msgIndex: number) => void;
-  feedbackingMessageIndex?: number | null;
-  regeneratingMessageIndex?: number | null;
+  canSendAiChat: boolean;
+
+  // Feedback / regenerate
+  onSetMessageFeedback: (msgIndex: number, feedback: 'up' | 'down' | null) => void | Promise<void>;
+  onRegenerateMessage: (msgIndex: number) => void | Promise<void>;
+
+  // Formatting helpers (shared utilities live in parent module)
+  formatSnapshotValue: (value: number | undefined) => string;
+  formatCitationPageText: (citation: AiCitation) => string;
+  formatAiDegradedReason: (reason?: string | null, upstreamStatus?: string | null) => string;
+  getDisplayFreshnessHints: (dataFreshness?: DataFreshness | null) => string[];
+  compactSnippet: (snippet?: string) => string;
+
+  chatBotAvatar: string;
 }
 
 export function PatientChatTab({
-  showSessionList,
   chatSessions,
-  selectedSessionId,
+  chatSessionsLoading,
+  selectedSession,
+  showSessionList,
+  onToggleSessionList,
+  isSelectMode,
+  onToggleSelectMode,
+  selectedSessionIds,
+  onToggleSessionSelection,
+  onSelectAllSessions,
+  onBatchDelete,
+  isDeletingSessions,
+  isStartingSession,
   onStartNewSession,
   onOpenSession,
   onDeleteSession,
-  onCancelDeleteSession,
-  onConfirmDeleteSession,
-  deleteSessionDialogOpen,
-  deleteSessionTargetId,
-  deletingSession,
-  formatSnapshotValue,
-  disclaimerCollapsed,
-  onSetDisclaimerCollapsed,
-  canSendAiChat,
-  onToggleSessionList,
+  deletingSessionId,
   chatMessages,
   isSending,
-  thinkingStatus,
-  messagesContainerRef,
-  messagesEndRef,
-  onMessagesScroll,
-  showScrollToBottom,
-  onJumpToLatest,
+  feedbackingMessageIndex,
+  regeneratingMessageIndex,
   expandedExplanations,
   expandedReferences,
   expandedDataQuality,
-  onToggleExplanation,
-  onToggleReferences,
-  onToggleDataQuality,
-  getDisplayFreshnessHints,
-  formatAiDegradedReason,
-  formatCitationPageText,
-  compactSnippet,
-  avatarSrc,
-  chatInputRef,
+  onSetExpandedExplanations,
+  onSetExpandedReferences,
+  onSetExpandedDataQuality,
+  messagesContainerRef,
+  messagesEndRef,
+  showScrollToBottom,
+  onMessagesScroll,
+  onJumpToLatest,
   chatInput,
   onChatInputChange,
+  chatInputRef,
   onSendMessage,
+  canSendAiChat,
   onSetMessageFeedback,
   onRegenerateMessage,
-  feedbackingMessageIndex = null,
-  regeneratingMessageIndex = null,
+  formatSnapshotValue,
+  formatCitationPageText,
+  formatAiDegradedReason,
+  getDisplayFreshnessHints,
+  compactSnippet,
+  chatBotAvatar,
 }: PatientChatTabProps) {
-  const [startingSession, setStartingSession] = useState(false);
-  const deleteTargetSession = useMemo(
-    () => chatSessions.find((session) => session.id === deleteSessionTargetId) || null,
-    [chatSessions, deleteSessionTargetId],
-  );
-
-  const handleStartSession = async () => {
-    setStartingSession(true);
-    try {
-      await Promise.resolve(onStartNewSession());
-    } finally {
-      setStartingSession(false);
-    }
-  };
-
-  const now = new Date();
-  const todayDateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
   return (
     <TabsContent value="chat" className="space-y-2">
-      <div className="flex gap-3">
+      <div className="grid grid-cols-12 gap-2">
         {/* 左側對話記錄列表 */}
         {showSessionList && (
-          <div className="w-[320px] shrink-0">
+          <div className="col-span-3">
             <Card className="border">
-              <CardHeader className="border-b bg-slate-50 dark:bg-slate-800 px-3 py-2">
+              <CardHeader className="bg-slate-50 dark:bg-slate-800 border-b py-1.5 px-3" style={{ paddingBottom: '6px' }}>
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-sm font-semibold text-[#374151] dark:text-slate-300">
-                    <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="flex items-center gap-1 text-xs font-semibold text-[#374151]">
+                    <History className="h-3.5 w-3.5 text-muted-foreground" />
                     對話記錄
                   </span>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
+                    {chatSessions.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant={isSelectMode ? "outline" : "ghost"}
+                        className="h-6 px-2 text-xs"
+                        onClick={onToggleSelectMode}
+                      >
+                        {isSelectMode ? '完成' : '管理'}
+                      </Button>
+                    )}
+                    {!isSelectMode && (
+                      <Button
+                        size="sm"
+                        className="h-6 px-2 text-xs bg-gray-700 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500 text-white"
+                        onClick={() => void onStartNewSession()}
+                        disabled={isStartingSession}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        <span>{isStartingSession ? '處理中' : '新對話'}</span>
+                        {isStartingSession ? <ButtonLoadingIndicator compact /> : null}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {isSelectMode && (
+                  <div className="flex items-center justify-between mt-1.5">
                     <Button
+                      size="sm"
                       variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-[#374151] dark:hover:text-slate-200"
-                      onClick={onToggleSessionList}
-                      title="收合對話記錄"
+                      className="h-6 px-2 text-xs"
+                      onClick={onSelectAllSessions}
                     >
-                      <ChevronLeft className="h-3.5 w-3.5" />
+                      {selectedSessionIds.length === chatSessions.length ? '取消全選' : '全選'}
                     </Button>
                     <Button
                       size="sm"
-                      className="h-7 px-2.5 text-xs bg-gray-700 hover:bg-gray-700 text-white"
-                      onClick={() => void handleStartSession()}
-                      disabled={startingSession}
+                      variant="destructive"
+                      className="h-6 px-2 text-xs"
+                      disabled={isDeletingSessions || selectedSessionIds.length === 0}
+                      onClick={() => void onBatchDelete()}
                     >
-                      <Plus className="mr-1 h-3 w-3" />
-                      <span>{startingSession ? '處理中' : '新對話'}</span>
-                      {startingSession ? <ButtonLoadingIndicator /> : null}
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      <span>{isDeletingSessions ? '處理中' : `刪除 (${selectedSessionIds.length})`}</span>
+                      {isDeletingSessions ? <ButtonLoadingIndicator compact /> : null}
                     </Button>
                   </div>
-                </div>
+                )}
               </CardHeader>
               <CardContent className="p-0">
                 <ScrollArea style={{ height: 'calc(100vh - 220px)', minHeight: '400px' }}>
-                  {chatSessions.length === 0 ? (
+                  {chatSessionsLoading ? (
+                    <div className="p-8 flex flex-col items-center gap-2 text-center text-muted-foreground">
+                      <LoadingSpinner size="sm" text="載入對話記錄中..." />
+                    </div>
+                  ) : chatSessions.length === 0 ? (
                     <div className="p-8 flex flex-col items-center gap-2 text-center text-muted-foreground">
                       <MessageSquare className="h-10 w-10 opacity-30 text-[#9ca3af]" />
                       <p className="text-sm font-medium text-muted-foreground">尚無對話記錄</p>
-                      <p className="text-xs text-[#9ca3af] leading-relaxed">點擊「新對話」開始<br />向 AI 詢問照護問題</p>
+                      <p className="text-xs text-[#9ca3af] leading-relaxed">點擊「新對話」開始<br/>向 AI 詢問照護問題</p>
                     </div>
                   ) : (
-                    <div className="space-y-2 p-2.5">
+                    <div className="space-y-1 p-2">
                       {chatSessions.map((session) => (
                         <div
                           role="button"
                           tabIndex={0}
                           key={session.id}
                           onClick={() => {
+                            if (isSelectMode) {
+                              onToggleSessionSelection(session.id);
+                              return;
+                            }
                             void onOpenSession(session);
                           }}
-                          className={`group w-full rounded-xl border px-3 py-2.5 text-left transition-all hover:bg-slate-50 dark:hover:bg-slate-800 ${
-                            selectedSessionId === session.id
-                              ? 'border-[#d7dce5] dark:border-slate-600 bg-slate-50 dark:bg-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)]'
-                              : 'border-[#edf0f4] dark:border-slate-700 bg-white dark:bg-slate-900'
+                          className={`group w-full text-left px-2.5 py-2 rounded-lg border transition-all hover:bg-slate-50 dark:hover:bg-slate-800 ${
+                            isSelectMode && selectedSessionIds.includes(session.id)
+                              ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-700'
+                              : selectedSession?.id === session.id
+                                ? 'bg-slate-50 border-border dark:bg-slate-800'
+                                : 'border-transparent'
                           }`}
                         >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                              <p className="break-words pr-1 text-sm font-semibold leading-5 text-foreground">
+                          <div className="flex items-start gap-2">
+                            {isSelectMode && (
+                              <div className="flex items-center pt-0.5 shrink-0">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedSessionIds.includes(session.id)}
+                                  onChange={() => onToggleSessionSelection(session.id)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="h-3.5 w-3.5 rounded border-gray-300 accent-red-500 cursor-pointer"
+                                />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-sm text-foreground truncate">
                                 {session.title}
                               </p>
-                              <p className="mt-1 text-xs leading-4 text-[#9ca3af]">
-                                {session.sessionDate === todayDateKey ? session.sessionTime : `${session.sessionDate} ${session.sessionTime}`}
-                              </p>
+                              <span className="text-xs text-[#b0b0b0] mt-0.5">
+                                {session.sessionDate === new Date().toISOString().slice(0, 10) ? session.sessionTime : `${session.sessionDate} ${session.sessionTime}`}
+                              </span>
                               {session.labDataSnapshot && (
-                                <div className="mt-1.5 text-xs leading-4 text-muted-foreground">
+                                <div className="mt-1 text-xs text-muted-foreground">
                                   K: {formatSnapshotValue(session.labDataSnapshot.K)} • eGFR: {formatSnapshotValue(session.labDataSnapshot.eGFR)}
                                 </div>
                               )}
                             </div>
-                            <div className="flex shrink-0 flex-col items-end gap-1.5">
-                              <Badge className="h-5 min-w-[1.5rem] justify-center border border-border bg-gray-100 dark:bg-slate-800 px-1.5 text-xs text-[#374151] dark:text-slate-300">
-                                {session.messageCount ?? session.messages.length}
-                              </Badge>
-                              <span className="inline-flex items-center gap-1">
-                                <button
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    void onDeleteSession(session.id);
-                                  }}
-                                  className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-red-100 hover:text-red-600 group-hover:opacity-100"
-                                  title="刪除對話"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                                {deletingSession && deleteSessionTargetId === session.id ? <ButtonLoadingIndicator compact /> : null}
-                              </span>
-                            </div>
+                            {!isSelectMode && (
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Badge className="text-xs bg-gray-100 dark:bg-gray-700 text-[#374151] dark:text-gray-200 border border-border">
+                                  {session.messageCount ?? session.messages.length}
+                                </Badge>
+                                <span className="inline-flex items-center gap-1">
+                                  <button
+                                    onClick={(e) => void onDeleteSession(e, session.id)}
+                                    disabled={deletingSessionId === session.id}
+                                    className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 disabled:opacity-100 disabled:text-red-600"
+                                    title="刪除對話"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                  {deletingSessionId === session.id ? <ButtonLoadingIndicator compact /> : null}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -238,98 +330,291 @@ export function PatientChatTab({
         )}
 
         {/* 右側對話區 */}
-        <div className="min-w-0 flex-1">
+        <div className={showSessionList ? "col-span-9" : "col-span-12"}>
           <Card className="border">
             <CardHeader className="bg-slate-50 dark:bg-slate-800 border-b py-1 px-3" style={{ paddingBottom: '4px' }}>
               <div className="flex items-center gap-1.5">
-                {!showSessionList && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs text-muted-foreground hover:text-[#374151] dark:hover:text-slate-200"
-                    onClick={onToggleSessionList}
-                    title="顯示對話記錄"
-                  >
-                    <ChevronRight className="mr-1 h-3.5 w-3.5" />
-                    對話記錄
-                  </Button>
-                )}
-                {/* Disclaimer inline */}
-                {disclaimerCollapsed ? (
-                  <button
-                    onClick={() => onSetDisclaimerCollapsed(false)}
-                    className="flex items-center gap-1 text-xs text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
-                  >
-                    <Info className="h-3.5 w-3.5" />
-                    <span>AI 僅供參考</span>
-                    <ChevronDown className="h-2.5 w-2.5" />
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                    <Info className="h-3.5 w-3.5 shrink-0 text-amber-600" />
-                    <span>AI 輔助產生，僅供臨床參考，不可取代醫師專業判斷。</span>
-                    <button onClick={() => onSetDisclaimerCollapsed(true)} className="shrink-0 text-[#9CA3AF] hover:text-[#6B7280]">
-                      <ChevronUp className="h-3 w-3" />
-                    </button>
-                  </div>
-                )}
                 <div className="flex-1" />
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-brand"
+                    onClick={onToggleSessionList} title={showSessionList ? '隱藏記錄列表' : '顯示記錄列表'}>
+                    <History className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
               <div className="flex flex-col" style={{ height: 'max(calc(100vh - 260px), 480px)' }}>
-                {/* AI 未就緒 warning */}
-                {!canSendAiChat && (
-                  <div className="flex-none mx-4 mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 flex items-start gap-2">
-                    <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium">AI 對話功能暫時無法使用</p>
-                      <p className="text-amber-700 mt-0.5">請聯繫系統管理員或稍後重試。</p>
-                    </div>
-                  </div>
-                )}
-
-                <ChatMessageThread
-                  chatMessages={chatMessages}
-                  isSending={isSending}
-                  thinkingStatus={thinkingStatus}
-                  containerRef={messagesContainerRef}
-                  endRef={messagesEndRef}
+                {/* 對話區 */}
+                <div
+                  ref={messagesContainerRef}
                   onScroll={onMessagesScroll}
-                  showScrollToBottom={showScrollToBottom}
-                  onJumpToLatest={onJumpToLatest}
-                  expandedExplanations={expandedExplanations}
-                  expandedReferences={expandedReferences}
-                  expandedDataQuality={expandedDataQuality}
-                  onToggleExplanation={onToggleExplanation}
-                  onToggleReferences={onToggleReferences}
-                  onToggleDataQuality={onToggleDataQuality}
-                  getDisplayFreshnessHints={getDisplayFreshnessHints}
-                  formatAiDegradedReason={formatAiDegradedReason}
-                  formatCitationPageText={formatCitationPageText}
-                  compactSnippet={compactSnippet}
-                  avatarSrc={avatarSrc}
-                  onSetMessageFeedback={onSetMessageFeedback}
-                  onRegenerateMessage={onRegenerateMessage}
-                  feedbackingMessageIndex={feedbackingMessageIndex}
-                  regeneratingMessageIndex={regeneratingMessageIndex}
-                />
+                  className="relative flex-1 overflow-y-auto space-y-2 px-4 py-2"
+                >
+                  {chatMessages.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-12">
+                      <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-30 text-[#9ca3af]" />
+                      <p className="text-base font-medium">開始對話以獲得 AI 協助</p>
+                      <p className="text-sm text-muted-foreground mt-2">可以詢問檢驗數據、用藥建議、治療指引等</p>
+                    </div>
+                  ) : (
+                    chatMessages.map((msg, idx) => {
+                      const isStreamingThis = isSending && idx === chatMessages.length - 1;
+                      const isWaiting = isStreamingThis && !msg.content;
+                      const displayContent = isStreamingThis && msg.content ? msg.content + '▌' : msg.content;
+                      const references = msg.role === 'assistant' ? (msg.references || []) : [];
+                      const freshnessHints = msg.role === 'assistant' ? getDisplayFreshnessHints(msg.dataFreshness) : [];
+                      const hasDataQuality = msg.role === 'assistant' && (msg.degraded || freshnessHints.length > 0);
+                      const isDetailExpanded = expandedExplanations.includes(idx);
+                      const isRefsExpanded = expandedReferences.includes(idx);
+                      const isQualityExpanded = expandedDataQuality.includes(idx);
+                      const isFirstOfRound = idx > 0 && msg.role === 'user' && chatMessages[idx - 1].role === 'assistant';
+                      return (
+                        <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}${isFirstOfRound ? ' mt-3' : ''}`}>
+                          {msg.role === 'user' ? (
+                            <div className="max-w-[65%] w-fit rounded-2xl px-4 py-2.5 bg-white dark:bg-slate-900 border border-border">
+                              <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1F2937]">{msg.content}</p>
+                              {msg.timestamp && (
+                                <p className="text-xs text-[#9ca3af] mt-1.5 text-right">{msg.timestamp}</p>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-start gap-2 max-w-[92%]">
+                              {/* AI avatar */}
+                              <img src={chatBotAvatar} alt="AI" className="h-8 w-8 rounded-full shadow-sm shrink-0 mt-0.5 object-cover" />
+                              <div className="flex flex-1 min-w-0 rounded-2xl bg-white dark:bg-slate-900 border border-border overflow-hidden">
+                                {/* Accent bar */}
+                                <div className="w-[3px] shrink-0 rounded-l-full" style={{ backgroundColor: '#d1d5db' }} />
+                                {/* Content */}
+                                <div className="flex-1 min-w-0 px-3 py-2.5">
+                                  {/* Summary / waiting state */}
+                                  {isWaiting ? (
+                                    <div className="flex items-center gap-1.5 py-1">
+                                      <div className="h-2 w-2 rounded-full animate-bounce" style={{ backgroundColor: '#9ca3af', animationDelay: '0ms' }} />
+                                      <div className="h-2 w-2 rounded-full animate-bounce" style={{ backgroundColor: '#9ca3af', animationDelay: '160ms' }} />
+                                      <div className="h-2 w-2 rounded-full animate-bounce" style={{ backgroundColor: '#9ca3af', animationDelay: '320ms' }} />
+                                    </div>
+                                  ) : isStreamingThis ? (
+                                    // During streaming render as plain whitespace-pre-wrap <p> so we
+                                    // avoid re-parsing markdown on every delta — huge win for long answers.
+                                    // Swaps to <AiMarkdown> automatically once isStreamingThis becomes false.
+                                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1F2937]">{displayContent}</p>
+                                  ) : (
+                                    <AiMarkdown content={displayContent} className="text-sm text-[#1F2937]" />
+                                  )}
+
+                                  {/* Expandable panels — shown after streaming */}
+                                  {!isStreamingThis && (<>
+                                    {/* Detail / explanation panel */}
+                                    {isDetailExpanded && msg.explanation && msg.explanation.trim().length > 0 && (
+                                      <div className="mt-2 rounded-md bg-[#F7F8F9] border border-[#E5E7EB] px-3 py-2.5">
+                                        <AiMarkdown content={msg.explanation} className="text-xs" />
+                                        <SafetyWarnings warnings={msg.warnings} />
+                                        {msg.requiresExpertReview && (
+                                          <div className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700">
+                                            此回覆包含潛在高風險資訊，建議醫師/藥師覆核。
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {/* References panel */}
+                                    {isRefsExpanded && (
+                                      <div className="mt-2 rounded-md bg-slate-50 dark:bg-slate-800 border border-border p-2.5">
+                                        {references.length === 0 ? (
+                                          <p className="text-xs text-muted-foreground">本次回答未擷取到可顯示的文獻段落，可改用更具體關鍵詞再詢問。</p>
+                                        ) : (
+                                          <ul className="space-y-2">
+                                            {references.map((ref, refIdx) => (
+                                              <li key={`${ref.id || 'ref'}-${refIdx}`} className="text-xs text-muted-foreground">
+                                                <div className="flex items-start gap-1">
+                                                  <span className="mt-0.5 text-muted-foreground">•</span>
+                                                  <div className="flex-1">
+                                                    <p className="font-medium text-[#374151]">{ref.title || ref.sourceFile || 'unknown'}</p>
+                                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                                      {(ref.sourceFile || ref.source || 'unknown')}
+                                                      {' • '}
+                                                      {formatCitationPageText(ref)}
+                                                      {' • '}
+                                                      相關度 {Number.isFinite(Number(ref.relevance)) ? Number(ref.relevance).toFixed(3) : 'N/A'}
+                                                    </p>
+                                                    {ref.summary ? (
+                                                      <div className="mt-1 space-y-1">
+                                                        <p className="text-xs text-[#374151] leading-relaxed">
+                                                          <span className="font-medium text-[#374151]">重點：</span>{ref.summary}
+                                                        </p>
+                                                        {ref.keyQuote && (
+                                                          <div className="rounded border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs leading-relaxed text-muted-foreground italic">
+                                                            「{ref.keyQuote}」
+                                                          </div>
+                                                        )}
+                                                        {ref.relevanceNote && (
+                                                          <p className="text-xs text-[#9ca3af]">{ref.relevanceNote}</p>
+                                                        )}
+                                                      </div>
+                                                    ) : Array.isArray(ref.snippets) && ref.snippets.length > 1 ? (
+                                                      <div className="mt-1 space-y-1.5">
+                                                        {ref.snippets.map((s, si) => (
+                                                          <div key={si} className="rounded border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 p-2 text-xs leading-relaxed text-[#374151] dark:text-slate-200 whitespace-pre-wrap">
+                                                            <span className="inline-block text-xs font-medium mb-0.5 text-muted-foreground">段落 {si + 1}</span>
+                                                            <div>{compactSnippet(s)}</div>
+                                                          </div>
+                                                        ))}
+                                                      </div>
+                                                    ) : ref.snippet && ref.snippet.trim().length > 0 ? (
+                                                      <div className="mt-1 rounded border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 p-2 text-xs leading-relaxed text-[#374151] dark:text-slate-200 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                                                        {compactSnippet(ref.snippet)}
+                                                      </div>
+                                                    ) : (
+                                                      <p className="text-xs text-[#9ca3af] mt-1">未提供原文段落。</p>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {/* Data quality panel */}
+                                    {isQualityExpanded && hasDataQuality && (
+                                      <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 px-2.5 py-2 text-xs text-amber-700 flex items-start gap-1.5 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300">
+                                        <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                                        <div className="space-y-0.5">
+                                          {msg.degraded && <p>系統狀態：{formatAiDegradedReason(msg.degradedReason, msg.upstreamStatus)}</p>}
+                                          {freshnessHints.length > 0 && <p>資料品質：{freshnessHints.join(' ')}</p>}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </>)}
+
+                                  {/* Inline toolbar */}
+                                  {!isStreamingThis && (
+                                    <div className="flex items-center gap-2.5 mt-2 pt-1.5 border-t border-[#F0F0F0] text-xs text-[#9CA3AF]">
+                                      {msg.explanation && msg.explanation.trim().length > 0 && (
+                                        <button
+                                          onClick={() => onSetExpandedExplanations(prev => isDetailExpanded ? prev.filter(i => i !== idx) : [...prev, idx])}
+                                          className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
+                                          aria-label={isDetailExpanded ? '收合說明' : '展開說明'}
+                                        >
+                                          {isDetailExpanded ? <><ChevronDown className="h-3 w-3" />收合</> : <><ChevronRight className="h-3 w-3" />詳細</>}
+                                        </button>
+                                      )}
+                                      {references.length > 0 && (
+                                        <button
+                                          onClick={() => onSetExpandedReferences(prev => isRefsExpanded ? prev.filter(i => i !== idx) : [...prev, idx])}
+                                          className="flex items-center gap-0.5 hover:text-[#4B5563] cursor-pointer transition-colors"
+                                          aria-label="參考依據"
+                                        >
+                                          <BookOpen className="h-3.5 w-3.5" />
+                                          {references.length}
+                                        </button>
+                                      )}
+                                      {hasDataQuality && (
+                                        <button
+                                          onClick={() => onSetExpandedDataQuality(prev => isQualityExpanded ? prev.filter(i => i !== idx) : [...prev, idx])}
+                                          className="flex items-center gap-0.5 text-amber-500 hover:text-amber-700 transition-colors"
+                                          aria-label="資料品質警告"
+                                        >
+                                          <AlertCircle className="h-3.5 w-3.5" />
+                                        </button>
+                                      )}
+                                      {msg.timestamp && (
+                                        <span className="flex items-center gap-0.5 text-xs text-[#9ca3af]">
+                                          <Clock className="h-3.5 w-3.5" />
+                                          {msg.timestamp}
+                                        </span>
+                                      )}
+                                      <div className="flex-1" />
+                                      <button
+                                        onClick={async () => {
+                                          const success = await copyToClipboard(msg.content);
+                                          if (success) toast.success('已複製到剪貼簿');
+                                          else toast.error('複製失敗，請手動複製');
+                                        }}
+                                        className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
+                                        aria-label="複製回覆"
+                                      >
+                                        <Copy className="h-3 w-3" />
+                                      </button>
+                                      <span className="inline-flex items-center gap-1">
+                                        <button
+                                          onClick={() => void onSetMessageFeedback(idx, 'up')}
+                                          className={`flex items-center gap-0.5 transition-colors ${
+                                            msg.feedback === 'up' ? 'text-green-600' : 'hover:text-[#4B5563]'
+                                          }`}
+                                          aria-label="讚"
+                                          disabled={feedbackingMessageIndex === idx || regeneratingMessageIndex === idx}
+                                        >
+                                          <ThumbsUp className="h-3 w-3" />
+                                        </button>
+                                        {feedbackingMessageIndex === idx ? <ButtonLoadingIndicator compact /> : null}
+                                      </span>
+                                      <span className="inline-flex items-center gap-1">
+                                        <button
+                                          onClick={() => void onSetMessageFeedback(idx, 'down')}
+                                          className={`flex items-center gap-0.5 transition-colors ${
+                                            msg.feedback === 'down' ? 'text-red-500' : 'hover:text-[#4B5563]'
+                                          }`}
+                                          aria-label="倒讚"
+                                          disabled={feedbackingMessageIndex === idx || regeneratingMessageIndex === idx}
+                                        >
+                                          <ThumbsDown className="h-3 w-3" />
+                                        </button>
+                                        {feedbackingMessageIndex === idx ? <ButtonLoadingIndicator compact /> : null}
+                                      </span>
+                                      <span className="inline-flex items-center gap-1">
+                                        <button
+                                          onClick={() => void onRegenerateMessage(idx)}
+                                          className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
+                                          aria-label="重新生成"
+                                          disabled={isSending || feedbackingMessageIndex === idx || regeneratingMessageIndex === idx}
+                                        >
+                                          <RefreshCw className={`h-3 w-3 ${isSending || regeneratingMessageIndex === idx ? 'opacity-40' : ''}`} />
+                                        </button>
+                                        {regeneratingMessageIndex === idx ? <ButtonLoadingIndicator compact /> : null}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                  <div ref={messagesEndRef} />
+                  {showScrollToBottom && (
+                    <button
+                      onClick={onJumpToLatest}
+                      className="sticky bottom-2 ml-auto flex items-center gap-1 text-white text-xs rounded-full px-3 py-1.5 shadow-lg transition-colors z-10 bg-gray-700 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500"
+                      aria-label="跳到最新訊息"
+                    >
+                      <ArrowDown className="h-3.5 w-3.5" />
+                      跳到最新
+                    </button>
+                  )}
+                </div>
 
                 {/* 輸入區 */}
                 <div className="flex-none px-4 pb-1.5 pt-0 border-t border-border bg-white dark:bg-slate-900">
                   <div className="flex gap-2 pt-1.5 items-end">
                     <Textarea
                       ref={chatInputRef}
-                      placeholder={canSendAiChat ? '例如：這位病患的鎮靜深度是否適當？' : 'AI 功能未就緒'}
+                      placeholder={canSendAiChat ? "" : "AI 功能未就緒"}
                       value={chatInput}
-                      onChange={(event) => onChatInputChange(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' && !event.shiftKey) {
-                          event.preventDefault();
+                      onChange={(e) => onChatInputChange(e.target.value)}
+                      onKeyDown={(e) => {
+                        // Skip Enter while IME composition is active (zh-TW/zh-CN input methods)
+                        // otherwise compositionend fires after we clear, re-populating the textarea
+                        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                          e.preventDefault();
                           void onSendMessage();
                         }
                       }}
-                      className={`min-h-[120px] border text-sm transition-colors rounded-xl ${
+                      className={`min-h-[36px] border text-xs transition-colors rounded-xl ${
                         canSendAiChat
                           ? 'border-border'
                           : 'border-border bg-slate-50 dark:bg-slate-800 text-[#9ca3af] cursor-not-allowed'
@@ -337,57 +622,28 @@ export function PatientChatTab({
                       disabled={!canSendAiChat}
                     />
                     <Button
-                      onClick={onSendMessage}
+                      onClick={() => void onSendMessage()}
                       size="icon"
-                      className={`h-[120px] w-[36px] shrink-0 transition-colors rounded-xl ${
+                      className={`h-[36px] w-[36px] shrink-0 transition-colors rounded-xl ${
                         canSendAiChat
-                          ? 'bg-gray-700 hover:bg-gray-700'
-                          : 'bg-[#d1d5db] cursor-not-allowed'
+                          ? 'bg-gray-700 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500'
+                          : 'bg-[#d1d5db] dark:bg-gray-600 cursor-not-allowed'
                       }`}
-                      disabled={isSending || !chatInput.trim() || !canSendAiChat}
-                    >
+                      disabled={isSending || !chatInput.trim() || !canSendAiChat}>
                       <Send className={`h-4.5 w-4.5 ${isSending ? 'opacity-40' : ''}`} />
                     </Button>
                   </div>
-                  <p className="text-[9px] text-[#d0d0d0] mt-1">Enter 發送 · Shift+Enter 換行</p>
+                  <p className="text-xs text-[#d0d0d0] mt-1">Enter 發送 · Shift+Enter 換行</p>
                 </div>
-              </div>
+              </div>{/* end flex column */}
             </CardContent>
           </Card>
         </div>
       </div>
 
-      <AlertDialog
-        open={deleteSessionDialogOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            void onCancelDeleteSession();
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>刪除對話記錄</AlertDialogTitle>
-            <AlertDialogDescription>
-              {`確定要刪除「${deleteTargetSession?.title || '這筆對話'}」嗎？此操作無法復原。`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingSession}>取消</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
-              disabled={deletingSession}
-              onClick={() => {
-                void onConfirmDeleteSession();
-              }}
-            >
-              <span>{deletingSession ? '處理中' : '確認刪除'}</span>
-              {deletingSession ? <ButtonLoadingIndicator /> : null}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <div aria-hidden="true" style={{ height: '10rem' }} />
+      {/* Progress Note 功能已統一至「病歷記錄」tab */}
+
+      {/* RAG 來源側欄 - 已移除 */}
     </TabsContent>
   );
 }
