@@ -12,12 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Patient, updatePatient } from '../lib/api/patients';
 import { getCachedPatientsSync, invalidatePatients, subscribePatientsCache } from '../lib/patients-cache';
 import type { DashboardStats } from '../lib/api/dashboard';
-import {
-  getCachedDashboardStats,
-  getCachedDashboardStatsSync,
-  invalidateDashboardStats,
-  subscribeDashboardStats,
-} from '../lib/dashboard-stats-cache';
+import { useDashboardStats } from '../hooks/use-dashboard';
 import { refreshSharedPatientDataAfterMutation } from '../lib/patient-data-sync';
 import {
   triggerHisSync,
@@ -78,7 +73,7 @@ export function DashboardPage() {
     attendingPhysician: '',
   });
   const [saving, setSaving] = useState(false);
-  const [stats, setStats] = useState<DashboardStats | null>(getCachedDashboardStatsSync());
+  const { data: stats } = useDashboardStats();
 
   // Manual HIS sync state — see docs/his-sync-end-to-end-tutorial.md §11
   const hisSyncEnabled = isHisSyncAvailable();
@@ -114,35 +109,18 @@ export function DashboardPage() {
     }
   }, []);
 
-  // 從 API 獲取儀表板統計（帶快取，背景靜默更新）
-  const fetchStats = useCallback(async () => {
-    try {
-      const data = await getCachedDashboardStats();
-      setStats(data);
-    } catch (err) {
-      console.error('載入統計數據失敗:', err);
-    }
-  }, []);
-
   useEffect(() => {
-    // Patients: skip fetch entirely if sync cache already populated state
+    // Patients: skip fetch entirely if sync cache already populated state.
+    // Dashboard stats are now fetched by useDashboardStats() (TanStack Query).
     if (!getCachedPatientsSync()) {
       fetchPatients();
     }
-    // Stats: always fetch (don't skip — cache may contain stale zeros)
-    fetchStats();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     return subscribePatientsCache((nextPatients) => {
       setPatients(nextPatients);
       setLoading(false);
-    });
-  }, []);
-
-  useEffect(() => {
-    return subscribeDashboardStats((nextStats) => {
-      setStats(nextStats);
     });
   }, []);
 
@@ -191,9 +169,10 @@ export function DashboardPage() {
     setSaving(true);
     try {
       const updated = await updatePatient(editingPatient.id, editFormData);
-      const { patients: freshPatients } = await refreshSharedPatientDataAfterMutation({
-        refreshDashboardStats: false,
-      });
+      // refreshSharedPatientDataAfterMutation invalidates both the patients
+      // cache and the TanStack dashboard.all key — useDashboardStats() will
+      // refetch automatically.
+      const { patients: freshPatients } = await refreshSharedPatientDataAfterMutation();
       if (freshPatients) {
         setPatients(freshPatients);
       } else {
@@ -201,8 +180,6 @@ export function DashboardPage() {
           current.map((item) => (item.id === editingPatient.id ? updated : item)),
         );
       }
-      const freshStats = await invalidateDashboardStats();
-      setStats(freshStats);
       setEditDialogOpen(false);
       toast.success('病患資料已更新');
     } catch (err) {
