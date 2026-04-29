@@ -12,6 +12,35 @@
 
 ## Pending Tasks
 
+### Phase 3 — Patient-detail performance
+
+### F00 [READY] Switch patient-detail.tsx to /patients/{id}/bootstrap aggregator
+- **Added by:** backend session (Phase 3.1)
+- **Endpoint ready since:** 2026-04-29
+- **API contract:** See `api-contracts.md` — `GET /patients/{patient_id}/bootstrap`
+- **Date:** 2026-04-29
+- **Priority:** P0 (collapses 9-RTT serial chain to 1 RTT, expected −0.5~1.0s p95)
+- **Files:**
+  - `src/lib/api/patients.ts` (add `getPatientBootstrap()` helper)
+  - `src/pages/patient-detail.tsx` (rewrite `loadPatientBundle` ~line 530)
+- **Description:**
+  - Replace the existing `Promise.all` (7 calls) + the two serial `await`s
+    (`getLatestScores`, `fetchChatSessionsApi`) with a single `getPatientBootstrap(id)` call
+    that returns `{ patient, latestLab, medications, latestVitals, latestVentilator }`.
+  - Move `getLatestScores`, `fetchChatSessionsApi`, `getWeaningAssessment`,
+    `getPresetTags`, `getCustomTags`, `getPharmacyTags`, `getSymptomRecords` to
+    fire **on tab activation** (not on page mount). `useEffect(() => {...}, [activeTab])`.
+  - For the "messages unread badge", use `patient.hasUnreadMessages` from the bootstrap
+    payload — no need for a separate `getMessages` call on first paint.
+- **Safety net (recommended):** wrap in try/catch and fall back to the legacy 5
+  individual GETs if `/bootstrap` returns 5xx. Remove fallback after 1 week of
+  prod observation.
+- **Out of scope (later phases):**
+  - Phase 3.2 = chat-tab extraction (separate PR after 3.1 stabilizes)
+  - Phase 3.4 = lazy-wrap remaining tabs
+
+---
+
 ### Phase 1-2 — Foundation + Core Integration
 
 ### F01 [READY] Add NHI reimbursement query UI to pharmacy workstation

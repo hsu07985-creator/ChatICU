@@ -390,6 +390,97 @@ async def get_patient(
     )
 
 
+@router.get("/{patient_id}/bootstrap")
+async def get_patient_bootstrap(
+    patient_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Aggregate first-screen payload for the patient detail page.
+
+    Collapses 5 individual GETs (patient, lab-data/latest, medications,
+    vital-signs/latest, ventilator/latest) into a single round-trip while
+    preserving each sub-payload's exact shape. Auxiliary tabs (scores, chat
+    sessions, weaning, message tags, symptom records) are intentionally
+    excluded — those load lazily on tab activation.
+
+    Implementation note: queries run sequentially on one AsyncSession.
+    Concurrent ``asyncio.gather`` on a shared session is unsafe with
+    SQLAlchemy async; the savings come from collapsing front-end RTT, not
+    parallel DB execution.
+    """
+    # Local imports avoid an import cycle: lab_data/medications routers both
+    # import normalize_patient_id from this module.
+    from app.routers.lab_data import compute_latest_lab_payload
+    from app.routers.medications import compute_medications_payload
+    from app.routers.vital_signs import vital_to_dict
+    from app.routers.ventilator import vent_to_dict
+    from app.models.lab_data import LabData
+    from app.models.medication import Medication  # noqa: F401 — keeps mapper warmed
+    from app.models.vital_sign import VitalSign
+    from app.models.ventilator import VentilatorSetting
+
+    pid = normalize_patient_id(patient_id)
+    result = await db.execute(select(Patient).where(Patient.id == pid))
+    patient = result.scalar_one_or_none()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    verify_patient_access(user, patient)
+
+    # 1. Patient header (with unread + airway dates)
+    unread_result = await db.execute(
+        select(func.count(PatientMessage.id))
+        .where(PatientMessage.patient_id == pid)
+        .where(PatientMessage.is_read == False)  # noqa: E712
+    )
+    unread_count = unread_result.scalar() or 0
+    airway_dates = await _fetch_airway_dates(db, [pid])
+    patient_dict = patient_to_dict(
+        patient,
+        unread_count,
+        intubation_date=airway_dates.get(pid, {}).get("intubation_date"),
+        tracheostomy_date=airway_dates.get(pid, {}).get("tracheostomy_date"),
+    )
+
+    # 2. Latest lab data (None when empty — same as /lab-data/latest)
+    latest_lab = await compute_latest_lab_payload(db, patient, pid)
+
+    # 3. Medications (always returns dict — empty arrays when none)
+    medications_payload = await compute_medications_payload(
+        db, pid, status_filter="all"
+    )
+
+    # 4. Latest vital signs
+    vs_result = await db.execute(
+        select(VitalSign)
+        .where(VitalSign.patient_id == pid)
+        .order_by(VitalSign.timestamp.desc())
+        .limit(1)
+    )
+    vs = vs_result.scalar_one_or_none()
+    latest_vitals = vital_to_dict(vs) if vs else None
+
+    # 5. Latest ventilator
+    vent_result = await db.execute(
+        select(VentilatorSetting)
+        .where(VentilatorSetting.patient_id == pid)
+        .order_by(VentilatorSetting.timestamp.desc())
+        .limit(1)
+    )
+    vent = vent_result.scalar_one_or_none()
+    latest_ventilator = vent_to_dict(vent) if vent else None
+
+    return success_response(
+        data={
+            "patient": patient_dict,
+            "latestLab": latest_lab,
+            "medications": medications_payload,
+            "latestVitals": latest_vitals,
+            "latestVentilator": latest_ventilator,
+        }
+    )
+
+
 @router.patch("/{patient_id}")
 async def update_patient(
     patient_id: str,

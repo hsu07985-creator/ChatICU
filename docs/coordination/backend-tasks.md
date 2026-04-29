@@ -178,6 +178,15 @@
 - **Files:** `backend/app/schemas/clinical.py` (UnifiedCitationItem + citations fields), `backend/app/services/citation_builder.py` (126 lines)
 - **Summary:** Citations schema with source_system, text_snippet, evidence_grade, relevance_score. Citation builder service.
 
+### P3.1 [DONE] Patient-detail bootstrap aggregator endpoint
+- **Completed:** 2026-04-29
+- **Files modified:**
+  - `backend/app/routers/patients.py` — added `GET /patients/{id}/bootstrap`
+  - `backend/app/routers/lab_data.py` — extracted `compute_latest_lab_payload()` helper
+  - `backend/app/routers/medications.py` — extracted `compute_medications_payload()` helper
+  - `backend/tests/test_api/test_patient_bootstrap.py` — 4 contract tests (incl. anti-drift)
+- **Summary:** Single endpoint returning `{patient, latestLab, medications, latestVitals, latestVentilator}` with shapes byte-equal to the 5 source endpoints. Sequential queries on shared AsyncSession (no `asyncio.gather` per SQLAlchemy async constraint). Frontend `[READY]` task added (F00).
+
 ### B12 [DONE] Add per-intent confidence thresholds + "I don't know" enforcer
 - **Completed:** 2026-03-02
 - **Files:** `backend/app/services/safety_gate.py` (164 lines), `backend/tests/test_services/test_safety_gate.py` (340 lines)

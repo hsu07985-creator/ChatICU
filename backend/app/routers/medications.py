@@ -141,21 +141,17 @@ def administration_to_dict(administration: MedicationAdministration) -> dict:
     }
 
 
-@router.get("")
-async def list_medications(
-    patient_id: str,
-    status_filter: str = Query(None, alias="status"),
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    pid = normalize_patient_id(patient_id)
-    # T09: verify patient access
-    pat_result = await db.execute(select(Patient).where(Patient.id == pid))
-    patient_obj = pat_result.scalar_one_or_none()
-    if not patient_obj:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    verify_patient_access(user, patient_obj)
+async def compute_medications_payload(
+    db: AsyncSession,
+    pid: str,
+    status_filter: Optional[str] = None,
+) -> dict:
+    """Return the same ``{medications, grouped, interactions}`` payload that
+    ``GET /patients/{id}/medications`` puts in ``data``.
 
+    Caller is responsible for auth + 404. Extracted so the bootstrap endpoint
+    can reuse the SAN grouping + DDI logic without duplication.
+    """
     query = select(Medication).where(Medication.patient_id == pid)
 
     if status_filter and status_filter != "all":
@@ -285,11 +281,30 @@ async def list_medications(
     except Exception:
         interactions = []
 
-    return success_response(data={
+    return {
         "medications": all_meds,
         "grouped": grouped,
         "interactions": interactions,
-    })
+    }
+
+
+@router.get("")
+async def list_medications(
+    patient_id: str,
+    status_filter: str = Query(None, alias="status"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    pid = normalize_patient_id(patient_id)
+    # T09: verify patient access
+    pat_result = await db.execute(select(Patient).where(Patient.id == pid))
+    patient_obj = pat_result.scalar_one_or_none()
+    if not patient_obj:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    verify_patient_access(user, patient_obj)
+
+    payload = await compute_medications_payload(db, pid, status_filter)
+    return success_response(data=payload)
 
 
 @router.get("/{medication_id}")

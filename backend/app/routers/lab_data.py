@@ -261,6 +261,56 @@ def _inject_clcr(
         biochem["Clcr"] = clcr_item
 
 
+async def compute_latest_lab_payload(
+    db: AsyncSession,
+    patient: Patient,
+    pid: str,
+) -> Optional[dict]:
+    """Return the same dict that ``GET /lab-data/latest`` puts in ``data``.
+
+    ``None`` when the patient has no lab records. Caller is responsible for
+    auth + 404. Extracted so ``/patients/{id}/bootstrap`` can reuse the exact
+    same shaping (incl. Clcr injection) without duplicating SQL.
+    """
+    result = await db.execute(
+        select(LabData)
+        .where(LabData.patient_id == pid)
+        .order_by(LabData.timestamp.desc())
+        .limit(50)  # enough to cover all categories across recent draws
+    )
+    labs = result.scalars().all()
+
+    if not labs:
+        return None
+
+    weight_history = await _load_weight_history(db, pid)
+    fallback_weight = patient.weight if not weight_history else None
+
+    # If only 1 record (seed data), return as-is for backward compat
+    if len(labs) == 1:
+        data = lab_to_dict(labs[0])
+        biochem = data.get("biochemistry")
+        if biochem and isinstance(biochem, dict):
+            _inject_clcr(patient, biochem, weight_history, fallback_weight, labs[0].timestamp)
+        return data
+
+    # Merge latest non-null category from each record
+    merged, latest_ts = _merge_latest_categories(labs)
+
+    # Compute Clcr from merged Scr + patient demographics
+    biochem = merged.get("biochemistry")
+    if biochem and isinstance(biochem, dict):
+        _inject_clcr(patient, biochem, weight_history, fallback_weight, latest_ts)
+
+    return {
+        "id": labs[0].id,
+        "patientId": pid,
+        "timestamp": latest_ts.isoformat() if latest_ts else None,
+        **{_COL_TO_CAMEL.get(c, c): merged.get(_COL_TO_CAMEL.get(c, c)) for c in _CATEGORY_COLS},
+        "corrections": labs[0].corrections,
+    }
+
+
 @router.get("/latest")
 async def get_latest_lab_data(
     patient_id: str,
@@ -275,44 +325,10 @@ async def get_latest_lab_data(
         raise HTTPException(status_code=404, detail="Patient not found")
     verify_patient_access(user, patient)
 
-    result = await db.execute(
-        select(LabData)
-        .where(LabData.patient_id == pid)
-        .order_by(LabData.timestamp.desc())
-        .limit(50)  # enough to cover all categories across recent draws
-    )
-    labs = result.scalars().all()
-
-    if not labs:
+    payload = await compute_latest_lab_payload(db, patient, pid)
+    if payload is None:
         return success_response(data=None, message="No lab data found")
-
-    weight_history = await _load_weight_history(db, pid)
-    fallback_weight = patient.weight if not weight_history else None
-
-    # If only 1 record (seed data), return as-is for backward compat
-    if len(labs) == 1:
-        data = lab_to_dict(labs[0])
-        biochem = data.get("biochemistry")
-        if biochem and isinstance(biochem, dict):
-            _inject_clcr(patient, biochem, weight_history, fallback_weight, labs[0].timestamp)
-        return success_response(data=data)
-
-    # Merge latest non-null category from each record
-    merged, latest_ts = _merge_latest_categories(labs)
-
-    # Compute Clcr from merged Scr + patient demographics
-    biochem = merged.get("biochemistry")
-    if biochem and isinstance(biochem, dict):
-        _inject_clcr(patient, biochem, weight_history, fallback_weight, latest_ts)
-
-    data = {
-        "id": labs[0].id,
-        "patientId": pid,
-        "timestamp": latest_ts.isoformat() if latest_ts else None,
-        **{_COL_TO_CAMEL.get(c, c): merged.get(_COL_TO_CAMEL.get(c, c)) for c in _CATEGORY_COLS},
-        "corrections": labs[0].corrections,
-    }
-    return success_response(data=data)
+    return success_response(data=payload)
 
 
 @router.get("/trends")

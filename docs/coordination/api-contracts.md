@@ -56,6 +56,77 @@
 
 <!-- Backend: document new endpoints below with full request/response schemas -->
 
+### [READY] Patient-detail bootstrap aggregator (2026-04-29, Phase 3.1)
+
+> **Status:** Implemented 2026-04-29. Single round-trip replacement for the 5 first-screen GETs the patient-detail page fans out today.
+
+- **Endpoint:** `GET /patients/{patient_id}/bootstrap`
+- **Auth:** Bearer JWT (same `get_current_user` dependency as the wrapped routes)
+- **Path param:** `patient_id` accepts both `pat_001` and bare `001`/`1` (normalized via `normalize_patient_id`)
+- **Errors:**
+  - `404 Patient not found` — patient row missing
+  - `401` — unauthenticated (default `get_current_user` behavior)
+- **Response shape:**
+  ```jsonc
+  {
+    "success": true,
+    "data": {
+      // Identical to GET /patients/{id}
+      "patient": { "id": "pat_001", "name": "...", "bedNumber": "I-1", "ventilatorDays": 0, ...},
+
+      // Identical to GET /patients/{id}/lab-data/latest .data
+      // (null when no lab records — same null contract as the source endpoint)
+      "latestLab": null | {
+        "id": "lab_...", "patientId": "pat_001", "timestamp": "ISO8601",
+        "biochemistry": { ... }, "hematology": { ... }, "bloodGas": { ... },
+        "venousBloodGas": { ... }, "inflammatory": { ... }, "coagulation": { ... },
+        "cardiac": { ... }, "thyroid": { ... }, "hormone": { ... },
+        "lipid": { ... }, "other": { ... }, "corrections": [ ... ]
+      },
+
+      // Identical to GET /patients/{id}/medications?status=all .data
+      // ALWAYS a dict — empty arrays when nothing exists (NOT null)
+      "medications": {
+        "medications": [ /* med_to_dict */ ],
+        "grouped": {
+          "sedation": [], "analgesia": [], "nmb": [],
+          "other": [], "outpatient": []
+        },
+        "interactions": [ /* DDI rows */ ]
+      },
+
+      // Identical to GET /patients/{id}/vital-signs/latest .data
+      "latestVitals": null | {
+        "id": "vs_...", "patientId": "pat_001", "timestamp": "ISO8601",
+        "heartRate": 88,
+        "bloodPressure": { "systolic": 120, "diastolic": 80, "mean": null },
+        "respiratoryRate": null, "spo2": 97, "temperature": 37.0,
+        "etco2": null, "cvp": null, "icp": null, "cpp": null,
+        "bodyWeight": null,
+        "referenceRanges": { /* fixed map */ }
+      },
+
+      // Identical to GET /patients/{id}/ventilator/latest .data
+      "latestVentilator": null | {
+        "id": "vent_...", "patientId": "pat_001", "timestamp": "ISO8601",
+        "mode": "SIMV", "fio2": 40, "peep": 5, "tidalVolume": 450,
+        "respiratoryRate": 14, "inspiratoryPressure": null, "pressureSupport": null,
+        "ieRatio": null, "pip": null, "plateau": null,
+        "compliance": null, "resistance": null
+      }
+    }
+  }
+  ```
+- **Drift protection:** `tests/test_api/test_patient_bootstrap.py::test_bootstrap_matches_individual_endpoints`
+  asserts that each sub-payload is byte-equal to the corresponding individual endpoint response.
+- **Excluded from bootstrap (intentionally lazy):**
+  - `scores/latest`, `weaning-assessment`, `messages` (unread badge can read `patient.hasUnreadMessages`)
+  - `ai/sessions?patientId=...`, `messages/preset-tags|custom-tags|pharmacy-tags`, `symptom-records`
+  - These are tab-scoped and should fetch on tab activation, not first paint.
+- **Implementation note:** sequential queries on a single `AsyncSession`. SQLAlchemy async does not support concurrent queries on a shared session, so `asyncio.gather` is **not** used. Latency win comes from collapsing front-end RTT (9 → 1 + lazy), not parallel DB execution.
+
+---
+
 ### [READY] Pharmacy advice endpoints scoped per-user (2026-04-24)
 
 > **Status:** Implemented 2026-04-24. Every pharmacist / admin sees only the records they themselves authored — no cross-user visibility.
