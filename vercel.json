@@ -25,10 +25,6 @@
       "destination": "https://chaticu-production-8060.up.railway.app/team/:path*"
     },
     {
-      "source": "/v2/:path*",
-      "destination": "https://chaticu-production-8060.up.railway.app/v2/:path*"
-    },
-    {
       "source": "/record-templates",
       "destination": "https://chaticu-production-8060.up.railway.app/record-templates"
     },

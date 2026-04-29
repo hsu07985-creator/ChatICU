@@ -13,13 +13,13 @@
 
 ## 摘要（白話文）
 
-> **2026-04-29 收尾**：RAG 整層刪除、病人詳情頁大整理、startup_migrations 退役全部上線。剩下都是觀察期內的時間 gate 與長期高風險項，不主動推進。
+> **2026-04-29 收尾**：RAG 整層刪除、Phase 2 操作層清理、病人詳情頁大整理、startup_migrations 退役全部上線。短期時間 gate 已清空，剩下是長期高風險項或觀察類工作。
 
 | 階段 | 內容 | 狀態 |
 |---|---|---|
 | ✅ Phase 0 | 13 個 commits 已上線（DB、cache、HIS sync、bundle、http pool） | 完成 |
 | ✅ Phase 1 | RAG 整層移除（6 commits、~6800 行 prod + 1500 行 test 刪除）+ 收尾（Railway env 清乾淨、`extra="ignore"` 已恢復嚴格） | 完成 |
-| 🟡 Phase 2 | active cleanup 完成；P2.1 + P2.5 deferred to **2026-05-13+** 等觀察期 | active 完成 |
+| ✅ Phase 2 | 操作層清理完成（active cleanup + `/v2/patients` retire） | 完成 |
 | ✅ Phase 3 | 病人詳情頁大整理（3.1 bootstrap、3.2 chat tab 抽出、3.4 lazy tabs、3.3 dashboard cache 收斂）— 全 prod 上線 | 完成 |
 | ✅ Phase 4 | 4.1 startup_migrations 拆解（2a 074 alembic / 3a runner / 4 retire bag / 5 Procfile fail-fast）— 全 prod 上線 | 完成 |
 | 🔮 Phase 5 | Vercel `/api/*` namespace 收斂 — long-term / high-risk，不主動開 | 暫停（看實際需求） |
@@ -28,8 +28,7 @@
 
 | 日期 | 動作 |
 |---|---|
-| **~2026-05-06** | 評估移除 patient-detail.tsx 的 bootstrap 5-call fallback safety net（觀察 prod telemetry 1 週後） |
-| **2026-05-13+** | 評估 `/v2/patients` router + V2AccessLog middleware retire（V2_ACCESS log 累積 ~2 週後判讀） |
+| — | 無短期時間 gate；下一批只剩 Phase 5/6 研究或需求觸發項 |
 
 ---
 
@@ -205,32 +204,26 @@
 
 ---
 
-## 🟡 Phase 2 — 操作層清理（active 已完成 2026-04-29；觀察類 deferred）
+## ✅ Phase 2 — 操作層清理（已完成 2026-04-29）
 
-### 已完成（active cleanup）
+### 已完成
 
 | # | Commit | 內容 |
 |---|---|---|
 | P2.2 | `f381c6a3e` | `src/components/ui/chart.tsx` dead code 整刪（-353 行） |
 | P2.3 | `8b8f56fa7` | `.gitignore` 加 `/*.png` `/*.yml` `.env.local` `.playwright-cli/` 等 root-only patterns（+14 行）；51 個 .png/.yml 從 `git status` 雜訊消失 |
 | P2.4 | `710e3fc91` | `backend/scripts/sync_his_snapshots_serial.py` 提交版本庫（+165 行）；之前 untracked，CLAUDE.md 引用但不在 repo |
+| P2.1 + P2.5 | 本次收尾 | 24h `V2_ACCESS` = 0 後提前刪 `/v2/patients` router / tests / Vercel rewrite / `layer2-mode.ts` / generated API types，並 retire `V2AccessLogMiddleware` |
 
-### Deferred（等觀察期到才動）
+### P2.1 / P2.5 收尾依據
 
-| # | 項目 | 觸發條件 | 預估執行時間 |
-|---|---|---|---|
-| P2.1 | `/v2/patients` deletion（router + tests + Vercel rewrite + `src/lib/api/layer2-mode.ts`；保留 `services/layer2_store.py` 給 `scores.py` 用） | V2_ACCESS log 累積 1-2 週 0 命中 | **2026-05-13+** |
-| P2.5 | V2AccessLog middleware retire | P2.1 完成後 | 2026-05-13+ |
+原本規劃等 2026-05-13+ 才判讀 `V2_ACCESS`，但 2026-04-29 當日使用者決定接受提前刪除風險。收尾前先查 prod log：
 
-**為什麼 defer**：V2_ACCESS log 從 `cdb4a6ab0`（2026-04-29 上午）才開始記錄，現在觀察窗 < 24h，不足以判斷 prod 真的零流量。提早刪會失去驗證依據——若有外部 cron / 監控 / 殘留腳本還在打 `/v2/patients`，會在 P2.1 後才發現。
-
-**到觀察日期後做的事**：
 ```bash
-railway logs --since 14d | grep -c V2_ACCESS
-railway logs --since 14d | grep V2_ACCESS | grep -oE 'route=[^ ]+' | sort | uniq -c
+railway logs --since 24h --deployment --lines 2000 --filter "V2_ACCESS" | wc -l
 ```
-- 若 0 hit / 全是健檢 UA → 執行 P2.1 + P2.5
-- 若有未知 user_hash → 用 hash 對照 user 表找 caller，先聯絡再決定
+
+結果：`0` hit。刪除時仍保留 `backend/app/services/layer2_store.py`，因為 `backend/app/routers/scores.py` 仍用它解析 layer2 JSON patient id。
 
 ---
 
@@ -271,14 +264,15 @@ Phase 1 已完成（2026-04-29）。低風險、可一個下午做完。
 
 | 項目 | Commit | 收益 |
 |---|---|---|
-| **3.1** Patient bootstrap aggregate endpoint + frontend consumer | `e55e1761b` (backend) + `39a52fd6a` (frontend) | 9-RTT serial chain → 1 RTT bootstrap + 5-call fallback safety net；首屏延遲 −0.5~1s p95（前端 telemetry 內） |
+| **3.1** Patient bootstrap aggregate endpoint + frontend consumer | `e55e1761b` (backend) + `39a52fd6a` (frontend) | 9-RTT serial chain → 1 RTT bootstrap；首屏延遲 −0.5~1s p95（前端 telemetry 內） |
+| **3.1b** Bootstrap fallback safety net 移除 | `9611e78e7` | 首屏只保留 `/patients/{id}/bootstrap`；移除 5-call fallback，bootstrap 5xx 時 fail-loud |
 | **3.2** chat tab 抽出 → `patient-chat-tab.tsx`（presentational props-only） | `0747f09e9` | `patient-detail.tsx` 2072 → ~1620 行（淨 -453）；bootstrap/fallback/loading byte-identical（HARD CONSTRAINT 守住） |
 | **3.4** 5 個 tab `React.lazy` + Suspense | `bb5c033bc` | `patient-detail` 入口 chunk **59.66 → 17.76 KB gzip（−70%）**；5 個 lazy chunk 5–16 KB 按需載入；chat tab 維持靜態 |
 | **3.3** `dashboard-stats-cache.ts` 整檔刪 → 統一 TanStack | `0f843d924` | 雙軌 cache 完全收斂（51 行刪 + 2 caller 清理）；mutation invalidation 維持單一 path |
 
 **Prod 驗證**：4 個 commit 部署後 `/health` 200、Vercel asset hash 每次都翻新、Playwright smoke 通過（chat default、tab round-trip、lazy chunks 按需 fetch、second-click cached、`/dashboard` stats render）、console error 0。
 
-**Note**：3.1 fallback safety net 仍在 patient-detail.tsx 中，等觀察期到（~2026-05-06）再評估拔除。
+**Note**：3.1 fallback safety net 已在 `9611e78e7` 移除；prod smoke 驗證首屏病人 API 僅剩 `/bootstrap`。
 
 ---
 
@@ -404,8 +398,8 @@ Phase 0 (13 commits)                                  ✅ 2026-04-28~29
   └→ Phase 1 RAG 整層移除 (6 commits)                ✅ 2026-04-29
        └→ Phase 1 收尾（Railway env + extra=strict） ✅ 2026-04-29
   └→ Phase 2 active cleanup (P2.2/2.3/2.4)            ✅ 2026-04-29
-       └→ Phase 2.1 /v2/patients deletion             📅 2026-05-13+
-       └→ Phase 2.5 V2AccessLog retire                📅 等 2.1
+       └→ Phase 2.1 /v2/patients deletion             ✅ 2026-04-29
+       └→ Phase 2.5 V2AccessLog retire                ✅ 2026-04-29
   └→ Phase 3 病人詳情頁 (3.1/3.2/3.4/3.3, 4 commits)  ✅ 2026-04-29
        └→ Phase 3.1 fallback 拔除                      📅 ~2026-05-06
   └→ Phase 4.1 startup migrations 拆解 (4 commits)    ✅ 2026-04-29
@@ -428,20 +422,19 @@ Phase 0 (13 commits)                                  ✅ 2026-04-28~29
      D2a e7bbb0bf9 / D3+D4 129cf67d0 / D5 7c58c32f0
      + Phase 1 closeout: Railway env 清空、config.py extra=strict 已恢復
 
-   Phase 2 active cleanup (3):
+   Phase 2 操作層清理 (5):
      P2.2 f381c6a3e / P2.3 8b8f56fa7 / P2.4 710e3fc91
+     P2.1 + P2.5 本次收尾（/v2/patients + V2AccessLog retire）
 
-   Phase 3 病人詳情頁 (4):
+   Phase 3 病人詳情頁 (5):
      3.1 e55e1761b (backend) + 39a52fd6a (frontend)
-     3.2 0747f09e9 / 3.4 bb5c033bc / 3.3 0f843d924
+     3.1b 9611e78e7 / 3.2 0747f09e9 / 3.4 bb5c033bc / 3.3 0f843d924
 
    Phase 4.1 startup migrations 拆解 (4):
      2a a871fcf3b / 3a 480d23856 / 4 d1693c063 / 5 8a6e39f71
 
-📅 觀察期 / 時間 gate（不需動手，等日期）
-   ~2026-05-06   Phase 3.1 fallback 拔除（patient-detail 5-call safety net）
-   2026-05-13+   Phase 2.1 /v2/patients deletion（V2_ACCESS log 累積後判讀）
-   2026-05-13+   Phase 2.5 V2AccessLog middleware retire（接 2.1）
+📅 觀察期 / 時間 gate
+   無短期項目；Phase 3.1 fallback、Phase 2.1、Phase 2.5 已在 2026-04-29 提前收完
 
 🔮 長期 / 看需求（不主動推）
    Phase 5.1  Vercel /api/* namespace 收斂（high-risk）

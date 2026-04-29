@@ -21,7 +21,7 @@
 | 第二批 | #3 Step 3A：寫 7 個新 invariant 測試 + `SchemaInconsistencyError` 類別 | ✅ 已 push | 2026-04-29 | `9ee1e7780` |
 | 第二批 | #3 Step 3B：實作 batch helpers + refactor `upsert_records` / `insert_records` | ✅ 已 push（107 測試全綠 / Railway 健康） | 2026-04-29 | `4724fa117` |
 | 第二批 | #3 Step 3C：本機跑 `sync_his_snapshots_serial.py -p 50480738 --force` 對比 Step 2 baseline | ✅ 2026-04-29 **19.87 sec/patient**（vs Step 2 ~2 min，6× 提速）；row summary 與 Step 2 一致；Railway log 30m 乾淨 | 2026-04-29 | — |
-| 第三批 | #4 + hotfix：`/v2/patients` PHI-safe access logger middleware | ✅ 觀察 1-2 週累積中 | 2026-04-29 | `52fd9cb9a` `cdb4a6ab0` |
+| 第三批 | #4 + hotfix：`/v2/patients` PHI-safe access logger middleware | ✅ 已完成觀測並退役（24h `V2_ACCESS` = 0） | 2026-04-29 | `52fd9cb9a` `cdb4a6ab0` |
 | 第三批 | #5：移除 charts chunk 首屏 modulepreload（節省 ~113 KB gz） | ✅ Vercel HTML 已驗證無 charts preload | 2026-04-29 | `9f14a92aa` |
 | 第四批 | #7A：drug_rag_client + pad_client 改用 shared `httpx.AsyncClient` (`app/services/_http.py`) | ✅ 已 push | 2026-04-29 | `69eae4ab6` |
 | 第四批 | #7B：source_registry health check 沿用同一 helper | ✅ 已 push | 2026-04-29 | `d728b5543` |
@@ -33,6 +33,7 @@
 | Phase 1 | D3+D4 17 個 service 檔（leaf 8 + middle 9）+ 11 個 service test 檔；llm.py 移除 4 dead 函式 + 2 dead TASK_PROMPTS key；main.py / conftest.py / pharmacy_routes/interactions.py 細修 | ✅ pytest 544 passed | 2026-04-29 | `129cf67d0` |
 | Phase 1 | D5 config.py 32 RAG 欄位 + `.env.example` 13 行 + `evidence_gate.py` 整檔（106 行）+ llm.py rerank/citation 函式（183 行）；加 Pydantic `extra="ignore"` 讓 Railway 殘留 env 不擋 startup | ✅ pytest 544 passed / Railway healthy | 2026-04-29 | `7c58c32f0` |
 | **Phase 3.1** | Patient bootstrap aggregate endpoint（backend）+ frontend consumer：9-RTT serial chain → 1 RTT bootstrap + 5-call fallback safety net | ✅ /health 200、Vercel asset hash 翻新、Playwright smoke pass | 2026-04-29 | `e55e1761b` (backend) `39a52fd6a` (frontend) |
+| Phase 3.1b | 移除 patient-detail bootstrap 5-call fallback safety net；首屏 patient API 只剩 `/patients/{id}/bootstrap` | ✅ Vercel hash 翻新、Playwright prod smoke 確認 fallback endpoints 0 hit | 2026-04-29 | `9611e78e7` |
 | Phase 3.2 | chat tab 抽出 → `patient-chat-tab.tsx`（presentational props-only）；patient-detail.tsx 2072 → ~1620 行（淨 -453） | ✅ tsc + build OK / Playwright tab round-trip pass / bootstrap 行為 byte-identical | 2026-04-29 | `0747f09e9` |
 | Phase 3.4 | 5 個 tab `React.lazy` + Suspense；patient-detail entry chunk 59.66 → 17.76 KB gzip（−70%） | ✅ Playwright 確認 5 個 lazy chunk 按需 fetch、second-click cached、console error 0 | 2026-04-29 | `bb5c033bc` |
 | Phase 3.3 | `dashboard-stats-cache.ts` 整檔刪 → 統一 TanStack；雙軌 cache 完全收斂 | ✅ /dashboard stats 12 與 /patients 清單一致、console error 0 | 2026-04-29 | `0f843d924` |
@@ -40,6 +41,7 @@
 | Phase 4.1 Step 3a | `backend/scripts/run_seed_repair.py`（+1086 行）— 10 個 seed/repair helper + `--dry-run/--only/--skip/--list` CLI；修 outpatient demo `_date(...)` + diagnostic_reports patient EXISTS guard | ✅ dry-run 連 prod DB pass / 60/60 targeted tests pass | 2026-04-29 | `480d23856` |
 | Phase 4.1 Step 4 | 整檔刪 `backend/app/startup_migrations.py`（-1418 行）+ 拔 `app/main.py` 的 `_run_startup_warmups` lifespan hook（-26 行）；boot 從 ~90s 縮到 uvicorn ~1ms startup | ✅ 三個 retired marker 全消失（`Startup warmups scheduled` / `outpatient seed failed` / `diagnostic_reports failed`）/ 74/74 targeted tests pass | 2026-04-29 | `d1693c063` |
 | Phase 4.1 Step 5 | `backend/Procfile`：`alembic upgrade head \|\| echo WARN ; uvicorn` → `alembic upgrade head && uvicorn`（fail-fast） | ✅ deploy log 0 個 ERROR/WARN level，未來 alembic 失敗會讓 Railway 部署直接 fail | 2026-04-29 | `8a6e39f71` |
+| Phase 2.1 + 2.5 | `/v2/patients` router / tests / Vercel rewrite / `layer2-mode.ts` / generated API types 整理，並 retire `V2AccessLogMiddleware` | ✅ 24h `V2_ACCESS` = 0；保留 `services/layer2_store.py` 給 `scores.py` | 2026-04-29 | 本次收尾 |
 
 ### Phase 1 累積摘要
 
@@ -583,6 +585,8 @@ export async function refreshSharedPatientDataAfterMutation(options = {}) {
 
 ### 4.1 `patients_v2.py` 需先觀測再決定
 
+> **2026-04-29 收尾更新**：使用者決定提前接受刪除風險。執行前查 prod log，24h `V2_ACCESS` = 0；因此刪除 `/v2/patients` router、router tests、Vercel `/v2/:path*` rewrite、`src/lib/api/layer2-mode.ts`、generated API type blocks，並退役 `V2AccessLogMiddleware`。`services/layer2_store.py` 保留，因為 `scores.py` 仍使用。
+
 **證據**：
 
 `backend/app/main.py:75-76, 436` 註冊：
@@ -941,7 +945,7 @@ asyncio.create_task(_run_startup_warmups(), ...)
 ### 第三批（觀測類）
 | # | 修什麼 | 風險 | 工 | 收益 |
 |---|---|---|---|---|
-| 4 | `patients_v2.py` 加非 PHI access logging，觀測 1-2 週 | ✅ 2026-04-29 上線（middleware + 6 PHI 安全測試） | 完成 | 累積觀察中 |
+| 4 | `patients_v2.py` 加非 PHI access logging，觀測 1-2 週 | ✅ 2026-04-29 上線後退役（24h `V2_ACCESS` = 0） | 完成 | router + middleware 已刪 |
 | 5 | 跑 bundle analyzer 反查 charts 為何進首屏，再決定 lazy 策略 | ✅ 2026-04-29 找到原因 + 修復（`build.modulePreload.resolveDependencies` 過濾 async-only chunks） | 完成 | ~113 KB gz 不再首屏預載 |
 
 **#5 反查結論**：所有 chart consumer 都已用 `lazy()` 動態載入（`patient-detail.tsx:7`、`patient-medications-tab.tsx:25`、`lab-data-display.tsx:18`、`InflammationIndicesPanel.tsx:14`）。charts chunk 進入首屏 modulepreload 不是因為 static import，而是 **Vite 預設行為**：entry HTML 會 modulepreload **所有** entry 可達的 chunks，包括 lazy() 之後才執行的 async dep（速度優化）。
@@ -955,7 +959,7 @@ asyncio.create_task(_run_startup_warmups(), ...)
 
 **備註（dead code 未動）**：`src/components/ui/chart.tsx` 是 shadcn 預設 wrapper，內含 `import * as RechartsPrimitive from "recharts@2.15.2"`，但**整個檔案沒有任何 consumer**（已 grep 確認 `ChartContainer/ChartTooltip/ChartConfig` 等 export 名稱在 src/ 其他地方零命中）。Rollup 已 tree-shake 掉，所以 charts chunk 大小不受影響；但檔案本身是 dead code，下次重新整理 ui/ 時可一併刪除。
 
-**#4 實作摘要**：
+**#4 實作摘要（歷史紀錄；後續已退役）**：
 - `backend/app/middleware/v2_access_log.py`：`V2AccessLogMiddleware` BaseHTTPMiddleware
 - 只攔 `/v2/patients` 前綴（非該前綴一律 pass-through）
 - 記錄欄位：`ts / method / route(template) / status / user_hash / ua`
@@ -1088,8 +1092,8 @@ curl -s https://chaticu-production-8060.up.railway.app/health
 | 雙軌 cache 橋接（**P1 修這裡**） | `src/lib/patient-data-sync.ts` | 全檔 |
 | 手刻 cache copy/paste | `src/lib/dashboard-stats-cache.ts` | 全檔 |
 | 手刻 cache 原型 | `src/lib/patients-cache.ts` | 全檔 |
-| Dead 嫌疑 router（先觀測） | `backend/app/routers/patients_v2.py` | 全檔 |
-| Dead helper（無 import） | `src/lib/api/layer2-mode.ts` | 全檔 |
+| Retired router | `backend/app/routers/patients_v2.py` | 已刪 |
+| Retired helper | `src/lib/api/layer2-mode.ts` | 已刪 |
 | 巨型元件 | `src/pages/patient-detail.tsx` | 411-494（state 集中區） |
 | Patient detail fan-out | `src/pages/patient-detail.tsx` | 534-540, 612, 617, 651 |
 | AI chat 首輪 snapshot | `backend/app/routers/ai_chat.py` | 296-316 |

@@ -72,7 +72,6 @@ from app.routers import (
     messages,
     notifications,
     patients,
-    patients_v2,
     pharmacy,
     record_templates,
     rules,
@@ -219,16 +218,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(SecurityHeadersMiddleware)
-
-
-# ── /v2/patients access logging (audit doc §4.1) ──
-# PHI-safe observation logger for the legacy v2 router. Emits one INFO
-# line per request so we can confirm zero traffic over 1-2 weeks before
-# deleting the router. Non-v2 paths pass through with a single string
-# comparison.
-from app.middleware.v2_access_log import V2AccessLogMiddleware  # noqa: E402
-
-app.add_middleware(V2AccessLogMiddleware)
 
 
 def _request_id_from_request(request: Request) -> str:
@@ -392,8 +381,7 @@ app.include_router(pharmacy.router)
 app.include_router(ai_chat.router)
 app.include_router(clinical.router)
 app.include_router(rules.router)
-# Phase 4: V2 endpoints + Clinical Scores
-app.include_router(patients_v2.router)
+# Phase 4: Clinical Scores
 app.include_router(scores.router)
 app.include_router(record_templates.router)
 app.include_router(symptom_records.router)
