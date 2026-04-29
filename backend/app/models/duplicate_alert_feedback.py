@@ -1,8 +1,7 @@
 """SQLAlchemy model for pharmacist/clinician action trail on duplicate alerts.
 
-Feeds the KPI dashboard described in
-docs/duplicate-medication-detection-implementation-plan.md §4.1 /
-§10.3 (acceptance rate, override reasons, modified counts).
+Feeds the duplicate-detection KPI dashboard (acceptance rate, override
+reasons, modified counts).
 
 ``alert_fingerprint`` is a SHA256 over the sorted medication-id list that
 produced the alert, so identical recommendations on the same patient can be

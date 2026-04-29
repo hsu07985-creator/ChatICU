@@ -486,8 +486,7 @@
 - **Commit & push:**
   - Feature branch required (pre-commit hook blocks direct main commits).
   - Push to `railway` remote (Vercel). Backend already deployed to Railway — no `personal` push needed.
-- **Tracking doc:** After `[DONE]`, update Phase 3 row in `docs/medical-records-pharmacist-revamp.md` to ✅.
-- **References:** `docs/medical-records-pharmacist-revamp.md` §"Phase 3 — 前端 4-Textarea split UI"
+- **References:** Phase 3 — 前端 4-Textarea split UI
 
 </details>
 

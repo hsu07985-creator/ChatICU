@@ -1,7 +1,6 @@
 # Patient Data Sync Audit（現況版）
 
 日期: 2026-04-16
-前版: [patient-data-sync-audit.md](./patient-data-sync-audit.md)（歷史快照，2026-04-14）
 
 目的:
 - 確認 2026-04-14 歷史 audit 所描述的問題是否仍存在

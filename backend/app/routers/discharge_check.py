@@ -1,8 +1,7 @@
 """Discharge medication reconciliation endpoint (Wave 6a).
 
-Per docs/duplicate-medication-integration-plan.md §4.5 (出院管理) and
-docs/duplicate-medication-assessment-guide.md §4.2 (Med Rec 節點), this router
-exposes::
+Per docs/duplicate-medication-integration-plan.md §4.5 (出院管理),
+this router exposes::
 
     GET /patients/{patient_id}/discharge-check
 

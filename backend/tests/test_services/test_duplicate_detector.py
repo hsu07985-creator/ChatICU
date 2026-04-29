@@ -1,8 +1,7 @@
 """Tests for app.services.duplicate_detector — Duplicate medication detector.
 
-Covers the contract described in
-docs/duplicate-medication-detection-implementation-plan.md §10 and uses the
-40-case fixture at backend/tests/fixtures/duplicate_cases.json.
+Uses the 40-case fixture at backend/tests/fixtures/duplicate_cases.json
+to lock in the L1-L5 detection contract.
 
 The DuplicateDetector service itself is under active implementation by a
 sister agent. These tests are authored against the agreed contract:

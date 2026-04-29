@@ -1,7 +1,6 @@
 """Unit tests for the pharmacist_polish flow added in Phase 1.
 
-Covers the Phase 1 review carry-over items from
-`docs/medical-records-pharmacist-revamp.md`:
+Covers Phase 1 review carry-over items:
 
 - P2.8  pharmacist refinement keeps bullets/Monitor when user says "改短"
 - P2.9  _try_parse_soap_json edge cases (fences, prose, partial keys, etc.)

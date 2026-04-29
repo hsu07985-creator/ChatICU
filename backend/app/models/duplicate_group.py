@@ -1,7 +1,6 @@
 """SQLAlchemy models for duplicate-medication L3 (機轉) / L4 (療效終點)
 group catalogs.
 
-Source of truth: docs/duplicate-medication-detection-implementation-plan.md §4.1.
 Backed by migration 063 and seeded from
 backend/app/fhir/code_maps/drug_mechanism_group{,_members}.csv and the
 endpoint equivalents.

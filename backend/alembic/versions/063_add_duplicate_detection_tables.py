@@ -4,8 +4,7 @@ feedback, cache).
 Revision ID: 063
 Revises: 062
 
-Supports docs/duplicate-medication-detection-implementation-plan.md §4.1 and
-docs/duplicate-medication-integration-plan.md §5.1. Seven tables total:
+Supports docs/duplicate-medication-integration-plan.md §5.1. Seven tables total:
 
   * drug_mechanism_groups / drug_mechanism_group_members  — L3 (同機轉)
   * drug_endpoint_groups  / drug_endpoint_group_members   — L4 (同療效終點)

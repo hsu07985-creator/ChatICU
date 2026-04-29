@@ -2,7 +2,6 @@
 
 > 文件產生日期：2026-02-15
 > 狀態：Phase 0 ✅ → Phase 1 ✅ → Phase 2 ✅ → Phase 3 ✅ → Phase 4 ✅（另：P1 UX/安全呈現 ✅）
-> 前置文件：`docs/frontend-data-inventory.md`（前端資料完整盤點）
 
 ---
 
