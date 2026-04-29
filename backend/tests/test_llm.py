@@ -8,8 +8,13 @@ def test_call_llm_exists():
 
 
 def test_task_prompts_defined():
-    expected = ["clinical_summary", "patient_explanation", "guideline_interpretation",
-                "multi_agent_decision", "rag_generation"]
+    # RAG-era keys (patient_explanation / guideline_interpretation /
+    # multi_agent_decision / rag_generation / citation_summary /
+    # safety_check / conversation_compress / agentic_rag_router /
+    # contextual_chunk) were removed in Phase 1. Surviving keys are the
+    # ones consumed by /api/v1/clinical/* (LLM-only routes) and /ai/chat.
+    expected = ["clinical_summary", "clinical_polish",
+                "pharmacist_polish", "icu_chat"]
     for task in expected:
         assert task in TASK_PROMPTS
 

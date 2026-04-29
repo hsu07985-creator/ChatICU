@@ -81,37 +81,7 @@ def build_summary_structured(summary_text: str) -> dict[str, Any]:
     }
 
 
-def build_explanation_structured(
-    explanation_text: str,
-    *,
-    topic: str,
-    reading_level: str | None,
-) -> dict[str, Any]:
-    points = _fallback_points(explanation_text, limit=8)
-    summary = points[0] if points else ""
-    return {
-        "schema_version": "patient_explanation.v1",
-        "topic": topic.strip() or "general",
-        "reading_level": reading_level or "moderate",
-        "plain_language_summary": summary,
-        "key_points": points[:5],
-        "care_advice": _select_action_items(points, limit=4),
-    }
-
-
-def build_decision_structured(
-    recommendation_text: str,
-    *,
-    question: str,
-    assessments: list[dict[str, Any]] | None,
-) -> dict[str, Any]:
-    points = _fallback_points(recommendation_text, limit=8)
-    recommendation = points[0] if points else recommendation_text.strip()
-    return {
-        "schema_version": "decision_support.v1",
-        "question": question,
-        "recommendation": recommendation,
-        "rationale_points": points[:5],
-        "action_items": _select_action_items(points, limit=4),
-        "assessments_count": len(assessments or []),
-    }
+# build_explanation_structured / build_decision_structured removed in
+# Phase 1 closure — their consumers (clinical /explanation and /decision
+# endpoints) were deleted in D2a. build_summary_structured (above) is the
+# only structured-output helper still in use.

@@ -16,7 +16,6 @@ from app.models.pharmacy_favorite import PharmacyCompatibilityFavorite
 from app.models.culture_result import CultureResult
 from app.models.symptom_record import SymptomRecord
 from app.models.custom_tag import CustomTag
-from app.models.rag_chunk import RagChunk
 from app.models.diagnostic_report import DiagnosticReport
 from app.models.sync_status import SyncStatus
 from app.models.duplicate_group import (
@@ -52,7 +51,6 @@ __all__ = [
     "CultureResult",
     "SymptomRecord",
     "CustomTag",
-    "RagChunk",
     "DiagnosticReport",
     "SyncStatus",
     "DrugMechanismGroup",
