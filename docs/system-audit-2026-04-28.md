@@ -32,6 +32,14 @@
 | Phase 1 | D2b（內含於 D2a）`/interactions` 內部本就無 RAG fallback，剝離工作隱性完成 | ✅ | — | — |
 | Phase 1 | D3+D4 17 個 service 檔（leaf 8 + middle 9）+ 11 個 service test 檔；llm.py 移除 4 dead 函式 + 2 dead TASK_PROMPTS key；main.py / conftest.py / pharmacy_routes/interactions.py 細修 | ✅ pytest 544 passed | 2026-04-29 | `129cf67d0` |
 | Phase 1 | D5 config.py 32 RAG 欄位 + `.env.example` 13 行 + `evidence_gate.py` 整檔（106 行）+ llm.py rerank/citation 函式（183 行）；加 Pydantic `extra="ignore"` 讓 Railway 殘留 env 不擋 startup | ✅ pytest 544 passed / Railway healthy | 2026-04-29 | `7c58c32f0` |
+| **Phase 3.1** | Patient bootstrap aggregate endpoint（backend）+ frontend consumer：9-RTT serial chain → 1 RTT bootstrap + 5-call fallback safety net | ✅ /health 200、Vercel asset hash 翻新、Playwright smoke pass | 2026-04-29 | `e55e1761b` (backend) `39a52fd6a` (frontend) |
+| Phase 3.2 | chat tab 抽出 → `patient-chat-tab.tsx`（presentational props-only）；patient-detail.tsx 2072 → ~1620 行（淨 -453） | ✅ tsc + build OK / Playwright tab round-trip pass / bootstrap 行為 byte-identical | 2026-04-29 | `0747f09e9` |
+| Phase 3.4 | 5 個 tab `React.lazy` + Suspense；patient-detail entry chunk 59.66 → 17.76 KB gzip（−70%） | ✅ Playwright 確認 5 個 lazy chunk 按需 fetch、second-click cached、console error 0 | 2026-04-29 | `bb5c033bc` |
+| Phase 3.3 | `dashboard-stats-cache.ts` 整檔刪 → 統一 TanStack；雙軌 cache 完全收斂 | ✅ /dashboard stats 12 與 /patients 清單一致、console error 0 | 2026-04-29 | `0f843d924` |
+| **Phase 4.1 Step 2a** | Alembic `074_consolidate_startup_schema.py`（+215 行）— 補 `ai_messages.feedback`、`sync_status` 表、`vital_signs.{etco2,cvp,icp,cpp}`、3 perf index、2 FK constraint、drug_interactions JSONB type、DROP `_startup_flags` | ✅ 074 alembic 跑成功（log 確認）/ 60/60 targeted tests pass | 2026-04-29 | `a871fcf3b` |
+| Phase 4.1 Step 3a | `backend/scripts/run_seed_repair.py`（+1086 行）— 10 個 seed/repair helper + `--dry-run/--only/--skip/--list` CLI；修 outpatient demo `_date(...)` + diagnostic_reports patient EXISTS guard | ✅ dry-run 連 prod DB pass / 60/60 targeted tests pass | 2026-04-29 | `480d23856` |
+| Phase 4.1 Step 4 | 整檔刪 `backend/app/startup_migrations.py`（-1418 行）+ 拔 `app/main.py` 的 `_run_startup_warmups` lifespan hook（-26 行）；boot 從 ~90s 縮到 uvicorn ~1ms startup | ✅ 三個 retired marker 全消失（`Startup warmups scheduled` / `outpatient seed failed` / `diagnostic_reports failed`）/ 74/74 targeted tests pass | 2026-04-29 | `d1693c063` |
+| Phase 4.1 Step 5 | `backend/Procfile`：`alembic upgrade head \|\| echo WARN ; uvicorn` → `alembic upgrade head && uvicorn`（fail-fast） | ✅ deploy log 0 個 ERROR/WARN level，未來 alembic 失敗會讓 Railway 部署直接 fail | 2026-04-29 | `8a6e39f71` |
 
 ### Phase 1 累積摘要
 
@@ -42,12 +50,12 @@
 - 保留純 LLM endpoint（`/api/v1/clinical/summary/stream`、`/polish*`）+ DB-only `/interactions`
 - AI chat (`/ai/*`) 與 patient_context_builder 完全不變動
 
-### Phase 1 結尾未完成（owner-driven）
+### Phase 1 結尾已完成（2026-04-29）
 
-| 項目 | 影響 |
+| 項目 | 證據 |
 |---|---|
-| Railway dashboard 清掉殘留 RAG env vars（`RAG_AGENTIC_ENABLED` / `RAG_AUTO_INDEX_ON_STARTUP` / `COHERE_API_KEY` 等） | 純清潔，runtime 不影響（已 `extra="ignore"`） |
-| 清完後把 `app/config.py` 的 `extra="ignore"` 改回嚴格預設 | 讓未來 typo 能立即發現 |
+| Railway dashboard 清掉殘留 RAG env vars | 殘留清單目標數 = 0；多次 redeploy `/health` 200，未見 ImportError |
+| `app/config.py` 的 `extra="ignore"` 改回嚴格預設 | `grep extra= app/config.py` 0 hits（恢復 Pydantic v2 預設嚴格） |
 
 ### Step 3 已實作完成（2026-04-29）
 
