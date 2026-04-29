@@ -17,8 +17,8 @@ class PharmacyAdvice(Base):
     )
     patient_name: Mapped[str] = mapped_column(String(100))
     bed_number: Mapped[str] = mapped_column(String(20))
-    pharmacist_id: Mapped[str] = mapped_column(
-        String(50), ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    pharmacist_id: Mapped[Optional[str]] = mapped_column(
+        String(50), ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True
     )
     pharmacist_name: Mapped[str] = mapped_column(String(100))
     advice_code: Mapped[str] = mapped_column(String(10))  # e.g. '1-D', '2-L'
@@ -28,7 +28,7 @@ class PharmacyAdvice(Base):
     linked_medications: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     accepted: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
     responded_by_id: Mapped[Optional[str]] = mapped_column(
-        String(50), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True,
+        String(50), ForeignKey("users.id", ondelete="SET NULL"), nullable=True,
     )
     responded_by_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     responded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

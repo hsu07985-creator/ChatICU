@@ -38,7 +38,7 @@ class DuplicateAlertFeedback(Base):
     action: Mapped[str] = mapped_column(String(20), nullable=False)
     override_reason: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     pharmacist_id: Mapped[Optional[str]] = mapped_column(
-        String(50), ForeignKey("users.id"), nullable=True
+        String(50), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

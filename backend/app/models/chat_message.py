@@ -12,8 +12,8 @@ class TeamChatMessage(Base):
     __tablename__ = "team_chat_messages"
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
-    user_id: Mapped[str] = mapped_column(
-        String(50), ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    user_id: Mapped[Optional[str]] = mapped_column(
+        String(50), ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True
     )
     user_name: Mapped[str] = mapped_column(String(100))
     user_role: Mapped[str] = mapped_column(String(20))

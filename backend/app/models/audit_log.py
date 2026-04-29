@@ -16,8 +16,8 @@ class AuditLog(Base):
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    user_id: Mapped[str] = mapped_column(
-        String(50), ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    user_id: Mapped[Optional[str]] = mapped_column(
+        String(50), ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True
     )
     user_name: Mapped[str] = mapped_column(String(100))
     role: Mapped[str] = mapped_column(String(20))

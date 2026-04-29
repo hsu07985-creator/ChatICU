@@ -19,12 +19,12 @@ class RecordTemplate(Base):
     is_system: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
-    created_by_id: Mapped[str] = mapped_column(
-        String(50), ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    created_by_id: Mapped[Optional[str]] = mapped_column(
+        String(50), ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True
     )
     created_by_name: Mapped[str] = mapped_column(String(100))
     updated_by_id: Mapped[Optional[str]] = mapped_column(
-        String(50), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True
+        String(50), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     updated_by_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
