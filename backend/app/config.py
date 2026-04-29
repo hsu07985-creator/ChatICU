@@ -120,12 +120,6 @@ class Settings(BaseSettings):
         "env_file": str(Path(__file__).resolve().parents[1] / ".env"),
         "env_file_encoding": "utf-8",
         "case_sensitive": True,
-        # Tolerate stale RAG-era env vars (RAG_*, SOURCE_A_URL, COHERE_*,
-        # etc.) lingering in local .env files and on Railway. They have no
-        # consumer after Phase 1 D5 — Pydantic's default would reject them
-        # at startup. Once the cleanup task to delete them from Railway is
-        # done, this can flip back to the stricter default.
-        "extra": "ignore",
     }
 
 
