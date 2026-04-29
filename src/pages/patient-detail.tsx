@@ -40,7 +40,7 @@ import {
   type Citation as AiCitation,
   type DataFreshness,
 } from '../lib/api/ai';
-import { patientsApi, labDataApi, medicationsApi, messagesApi, vitalSignsApi, ventilatorApi, type Patient, type LabData, type Medication, type MedicationsResponse, type PatientMessage, type VitalSigns, type VentilatorSettings, type WeaningAssessment } from '../lib/api';
+import { patientsApi, medicationsApi, messagesApi, ventilatorApi, type Patient, type LabData, type Medication, type PatientMessage, type VitalSigns, type VentilatorSettings, type WeaningAssessment } from '../lib/api';
 import { copyToClipboard } from '../lib/clipboard-utils';
 import { maskPatientName } from '../lib/utils/patient-name';
 import { useAuth } from '../lib/auth-context';
@@ -191,12 +191,6 @@ const EMPTY_MEDICATION_GROUPS: MedicationGroups = {
   nmb: [],
   other: [],
   outpatient: [],
-};
-
-const EMPTY_MEDICATION_RESPONSE: MedicationsResponse = {
-  medications: [],
-  grouped: EMPTY_MEDICATION_GROUPS,
-  interactions: [],
 };
 
 const MED_CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
@@ -565,37 +559,7 @@ export function PatientDetailPage() {
       setVentilatorLoading(true);
       setLabDataLoading(true);
 
-      let bundle;
-      try {
-        bundle = await patientsApi.getPatientBootstrap(id);
-      } catch (err) {
-        const status = isAxiosError(err) ? err.response?.status : undefined;
-        const shouldFallback = status === undefined || status >= 500;
-        if (!shouldFallback) {
-          throw err;
-        }
-        console.warn('Patient bootstrap failed; falling back to individual first-screen APIs.', err);
-        const [
-          patientData,
-          labDataResult,
-          medicationsResult,
-          vitalSignsResult,
-          ventilatorResult,
-        ] = await Promise.all([
-          patientsApi.getPatient(id),
-          labDataApi.getLatestLabData(id).catch(() => null),
-          medicationsApi.getMedications(id, { status: 'all' }).catch(() => EMPTY_MEDICATION_RESPONSE),
-          vitalSignsApi.getLatestVitalSigns(id).catch(() => null),
-          ventilatorApi.getLatestVentilatorSettings(id).catch(() => null),
-        ]);
-        bundle = {
-          patient: patientData,
-          latestLab: labDataResult,
-          medications: medicationsResult,
-          latestVitals: vitalSignsResult,
-          latestVentilator: ventilatorResult,
-        };
-      }
+      const bundle = await patientsApi.getPatientBootstrap(id);
 
       setPatient(bundle.patient as PatientWithFrontendFields);
       setLabData(bundle.latestLab ?? defaultLabData);
