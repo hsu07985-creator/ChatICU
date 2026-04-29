@@ -133,6 +133,20 @@ export async function updateUser(
   return ensureData(response.data, 'API contract');
 }
 
+export interface DeleteUserResult {
+  id: string;
+  hardDeleted: boolean;
+  message?: string;
+}
+
+export async function deleteUser(userId: string): Promise<DeleteUserResult> {
+  const response = await apiClient.delete<ApiResponse<{ id: string; hardDeleted: boolean }>>(
+    `/admin/users/${userId}`
+  );
+  const data = ensureData(response.data, 'API contract');
+  return { ...data, message: response.data?.message };
+}
+
 // ========== 用藥標準化字典 ==========
 
 export interface MedicationNormalizationConfig {
@@ -169,6 +183,7 @@ export const adminApi = {
   getUserById,
   createUser,
   updateUser,
+  deleteUser,
   getMedicationNormalizationConfig,
   updateMedicationNormalizationConfig,
 };

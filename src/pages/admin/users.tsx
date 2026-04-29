@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
-import { getUsers, createUser, updateUser as updateUserApi, UsersResponse, User as ApiUser } from '../../lib/api/admin';
+import { getUsers, createUser, updateUser as updateUserApi, deleteUser as deleteUserApi, UsersResponse, User as ApiUser } from '../../lib/api/admin';
 import { useAuth } from '../../lib/auth-context';
 import { Button } from '../../components/ui/button';
 import { ButtonLoadingIndicator } from '../../components/ui/button-loading-indicator';
@@ -246,17 +246,24 @@ export function UsersPage() {
     const user = users.find(u => u.id === userId);
     if (!user) return;
 
-    const adminWarning = user.role === 'admin' ? '\n\n⚠️ 這是管理員帳號，停用後該管理員將無法登入。' : '';
-    if (!confirm(`確定要停用帳號「${user.name}（${user.username}）」嗎？${adminWarning}`)) return;
+    const adminWarning = user.role === 'admin' ? '\n\n⚠️ 這是管理員帳號。' : '';
+    if (!confirm(
+      `確定要刪除帳號「${user.name}（${user.username}）」嗎？\n\n` +
+      '系統會嘗試永久刪除；若帳號有歷史紀錄（稽核日誌、訊息、藥事建議等），' +
+      '會自動改為停用以保留稽核軌跡。' + adminWarning
+    )) return;
 
     setDeletingUserId(userId);
     try {
-      // 使用 active=false 來「刪除」帳號（軟刪除）
-      await updateUserApi(userId, { active: false });
-      toast.success(`已停用帳號 ${user.username}`);
+      const result = await deleteUserApi(userId);
+      if (result.hardDeleted) {
+        toast.success(`已刪除帳號 ${user.username}`);
+      } else {
+        toast.success(result.message || `${user.username} 有歷史紀錄，已改為停用`);
+      }
       await loadData();
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, '停用帳號失敗'));
+      toast.error(getApiErrorMessage(error, '刪除帳號失敗'));
     } finally {
       setDeletingUserId(null);
     }
@@ -420,7 +427,7 @@ export function UsersPage() {
                           size="sm"
                           onClick={() => void handleDeleteUser(user.id)}
                           disabled={user.id === currentUserId || deletingUserId === user.id}
-                          title={user.id === currentUserId ? '無法刪除自己的帳號' : '停用此帳號'}
+                          title={user.id === currentUserId ? '無法刪除自己的帳號' : '刪除此帳號（無歷史紀錄則永久刪除，否則自動改為停用）'}
                           className="text-red-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
                         >
                           <Trash2 className="h-4 w-4" />

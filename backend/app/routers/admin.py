@@ -8,6 +8,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi import Request as StarletteRequest
@@ -315,6 +316,9 @@ async def update_user(
         raise HTTPException(status_code=404, detail="User not found")
 
     update_data = body.model_dump(exclude_unset=True)
+    # Prevent admin from disabling their own account (would lock themselves out)
+    if update_data.get("active") is False and target_user.id == user.id:
+        raise HTTPException(status_code=400, detail="無法停用自己的帳號")
     if "password" in update_data:
         new_password = update_data.pop("password")
         # Record old hash in password history
@@ -349,6 +353,60 @@ async def update_user(
         "lastLogin": target_user.last_login.isoformat() if target_user.last_login else None,
         "createdAt": target_user.created_at.isoformat() if target_user.created_at else None,
     }, message="使用者已更新")
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: str,
+    request: StarletteRequest,
+    user: User = Depends(require_roles("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Try to hard-delete the user. If FK references exist (audit logs, chat
+    messages, etc.) the DB will reject the DELETE — fall back to soft-delete
+    (active=false) in the same transaction so audit trail is preserved.
+    """
+    if user_id == user.id:
+        raise HTTPException(status_code=400, detail="無法刪除自己的帳號")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    target_user = result.scalar_one_or_none()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    target_username = target_user.username
+    target_user_id = target_user.id
+
+    deleted = False
+    try:
+        async with db.begin_nested():
+            await db.delete(target_user)
+            await db.flush()
+        deleted = True
+    except IntegrityError:
+        # Savepoint rolled back; reload the row and soft-delete instead
+        result = await db.execute(select(User).where(User.id == user_id))
+        target_user = result.scalar_one_or_none()
+        if target_user:
+            target_user.active = False
+
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="刪除使用者" if deleted else "停用使用者(刪除失敗)",
+        target=target_username, status="success",
+        ip=request.client.host if request.client else None,
+        details={"target_user_id": target_user_id, "hardDeleted": deleted},
+    )
+
+    message = (
+        "使用者已刪除"
+        if deleted
+        else "此帳號有歷史紀錄無法刪除，已改為停用"
+    )
+    return success_response(
+        data={"id": target_user_id, "hardDeleted": deleted},
+        message=message,
+    )
 
 
 # Vector DB endpoints removed in Phase 1 D2a (RAG layer dropped).
