@@ -644,6 +644,18 @@ async def build_clinical_snapshot(patient_id: str, db: AsyncSession) -> str:
     Query all relevant patient data in parallel and return a Clinical Snapshot string.
     This is used as the first-turn system prompt context (~700 tokens).
     """
+    # AsyncSession lazily acquires its underlying connection on the first
+    # query. Without warm-up the asyncio.gather below races on connection
+    # provisioning and crashes with "This session is provisioning a new
+    # connection; concurrent operations are not permitted". Production has
+    # been working only because the /ai/chat/stream router happens to call
+    # _get_or_create_session() before this function — that prior SELECT
+    # acquires the connection implicitly. Don't rely on caller order; warm
+    # up explicitly. See docs/b15-snapshot-latency-plan-2026-04-30.md §1
+    # and the audit in scripts/b15_snapshot_audit.py for the fragile-contract
+    # discovery.
+    await db.connection()
+
     patient, latest_lab, meds, vitals, vent, reports, scores = await asyncio.gather(
         _get_patient(db, patient_id),
         _get_latest_lab(db, patient_id),
