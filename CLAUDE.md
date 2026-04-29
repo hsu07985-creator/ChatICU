@@ -86,3 +86,66 @@ curl -s "https://chat-icu.vercel.app/$(curl -s https://chat-icu.vercel.app/ | gr
 - **Cookie 轉發**：Vercel proxy 會轉發 cookies，auth 正常運作。直連 Railway 則 cookies 不會送出
 - **Vercel 共用路徑**：`/patients`、`/dashboard`、`/admin`、`/pharmacy` 需要 `x-request-id` header 才會���發到 Railway，否則返回 SPA HTML
 - **SQLAlchemy async flush**：UPDATE 後若有 `onupdate=func.now()` 欄位，必須 `await db.refresh(obj)` 才能安全存取
+
+## 手動更新 HIS 患者資料到 Supabase
+
+新資料路徑：`patient/{MRN}/{YYYYMMDD_HHMMSS}/`。**放完新 snapshot 必須更新 `patient/{MRN}/latest.txt` 指到新目錄名**，否則 sync 會用舊 snapshot。
+
+### 必用 serial 版（**禁用** `sync_his_snapshots.py`）
+```bash
+cd backend
+python3 scripts/sync_his_snapshots_serial.py --force            # 全量強制重跑
+python3 scripts/sync_his_snapshots_serial.py -p 50480738        # 單一 MRN
+python3 scripts/sync_his_snapshots_serial.py                     # 增量（依 hash 跳過 unchanged）
+```
+
+### 為何禁用舊版 `sync_his_snapshots.py`（2026-04-27 發現）
+舊版用 `asyncio.create_task` + `Semaphore` + `as_completed` + `engine.dispose()` 與 Supabase pooler (port 6543, transaction mode) 互動會 **silent fail**：
+- ✅ console 報告 `synced=14, errors=0`
+- ✅ `backend/.state/his_snapshot_sync_state.json` 標記成功
+- ✅ `backend/.logs/his_sync/coverage_*.json` 寫入
+- ❌ **但 DB 完全沒寫進去**（`patients` / `medications` 等表 `updated_at` 都停在更早的時間）
+
+可疑信號：sync 在 < 1 秒完成（114 個 INSERT × pooler RTT ~450ms 不可能 0.7s 完成）。
+Serial 版改用順序 `async with session_factory()` + `await session.commit()`，每位 4–5 分鐘但每筆都 persist。
+
+### 寫入後的 DB 端驗證（不靠 sync 自報的 errors=0）
+
+> **時區**：DB 存的 `updated_at` 是 UTC（`+00:00`）。下面 SQL 用 `AT TIME ZONE 'Asia/Taipei'` 轉成台北時間（UTC+8）方便比對你的本機時間。例：DB 的 `15:39 UTC` = 台北 `23:39`。
+
+```bash
+cd backend && python3 - <<'PY'
+import asyncio
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+url = next(l.split('=',1)[1].strip().strip('"') for l in open('.env.his-sync') if l.startswith('DATABASE_URL='))
+async def m():
+    e = create_async_engine(url, connect_args={'prepared_statement_cache_size':0,'statement_cache_size':0})
+    async with e.connect() as c:
+        r = await c.execute(text("""
+            SELECT id, name, bed_number,
+                   (updated_at AT TIME ZONE 'Asia/Taipei') AS updated_taipei
+            FROM patients
+            WHERE updated_at >= now() - interval '2 hours'
+            ORDER BY updated_at DESC
+        """))
+        for row in r:
+            print(f'  {row.id} | {row.name} | bed={row.bed_number!r} | 台北時間 {row.updated_taipei}')
+    await e.dispose()
+asyncio.run(m())
+PY
+```
+出現該位 patient row 的「台北時間」是剛剛 sync 的時刻 → 真寫進去。
+
+### 速度與時程
+- 每位病人 ~4–5 分鐘（Sydney pooler 每 INSERT RTT ~450ms × 300+ row）
+- 14 位病人 ≈ 60 分鐘（背景跑、可邊做別的）
+- 想加速 → 改 `backend/.env.his-sync` 用 Supabase **direct connection (port 5432)** 取代 pooler 6543（需 Supabase Pro plan 的 IPv4 add-on），單筆 RTT 可降到 50–100ms
+
+### 前端 cache 的暗礁
+HIS sync 直寫 DB，前端 `src/lib/patients-cache.ts` 完全不知情（5 分鐘 TTL）。sync 完要看到資料：
+- 列表頁 (`/patients`) → `Cmd+Shift+R` 硬重整
+- 詳情頁 (`/patient/:id`) → 無 cache，直接看到（前提：DB 真有寫進去）
+
+### 完整流程文件
+詳細步驟、`latest.txt` 格式、coverage report、launchd 排程等見：[`docs/資料更新_0424.md`](docs/資料更新_0424.md)

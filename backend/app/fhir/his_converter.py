@@ -686,7 +686,7 @@ class HISConverter:
                 if icd:
                     icd_codes.append(icd)
             if icd_codes:
-                return "; ".join(icd_codes[:3])
+                return "; ".join(icd_codes)
 
         # Fallback: getOpd.json with OPD_SW=1 (inpatient visit records)
         opd_rows = self._load("getOpd.json")
@@ -702,7 +702,7 @@ class HISConverter:
             icd = chosen.get(f"ICD_CODE{i}")
             if icd:
                 icd_codes.append(icd)
-        return "; ".join(icd_codes[:3]) if icd_codes else None
+        return "; ".join(icd_codes) if icd_codes else None
 
     # ICU internal medicine attendings — loaded from his_site_config.json.
     # To add/remove doctors, edit that file and re-run import_his_patients.py.
