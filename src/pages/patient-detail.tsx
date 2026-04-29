@@ -1,11 +1,29 @@
 // Patient detail page
-import { MedicalRecords } from '../components/medical-records';
 import { VitalSignCard } from '../components/vital-signs-card';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 // Lazy-load recharts-backed trend chart (H4: keep 411 KB charts-*.js off the critical path)
 const LabTrendChart = lazy(() =>
   import('../components/lab-trend-chart').then((m) => ({ default: m.LabTrendChart }))
+);
+
+// Phase 3.4: Lazy-load non-default patient detail tabs to shrink first-paint payload.
+// Chat tab stays statically imported because it is the default-visible tab; lazy-loading
+// it would add a fetch round-trip to first paint.
+const PatientMessagesTab = lazy(() =>
+  import('../components/patient/patient-messages-tab').then((m) => ({ default: m.PatientMessagesTab }))
+);
+const MedicalRecords = lazy(() =>
+  import('../components/medical-records').then((m) => ({ default: m.MedicalRecords }))
+);
+const PatientLabsTab = lazy(() =>
+  import('../components/patient/patient-labs-tab').then((m) => ({ default: m.PatientLabsTab }))
+);
+const PatientMedicationsTab = lazy(() =>
+  import('../components/patient/patient-medications-tab').then((m) => ({ default: m.PatientMedicationsTab }))
+);
+const PatientSummaryTab = lazy(() =>
+  import('../components/patient/patient-summary-tab').then((m) => ({ default: m.PatientSummaryTab }))
 );
 import { useParams, useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
@@ -42,11 +60,7 @@ import { toast } from 'sonner';
 import { LoadingSpinner, ErrorDisplay, EmptyState } from '../components/ui/state-display';
 import { AiMarkdown, SafetyWarnings } from '../components/ui/ai-markdown';
 import { LabDataSkeleton, MedicationsSkeleton, MessageListSkeleton } from '../components/ui/skeletons';
-import { PatientSummaryTab } from '../components/patient/patient-summary-tab';
 import { PatientEditDialog } from '../components/patient/dialogs/patient-edit-dialog';
-import { PatientLabsTab } from '../components/patient/patient-labs-tab';
-import { PatientMedicationsTab } from '../components/patient/patient-medications-tab';
-import { PatientMessagesTab } from '../components/patient/patient-messages-tab';
 import { PatientChatTab } from '../components/patient/patient-chat-tab';
 import { respondToAdvice } from '../lib/api/pharmacy';
 import {
@@ -1607,112 +1621,128 @@ export function PatientDetailPage() {
           chatBotAvatar={chatBotAvatar}
         />
 
-        {/* 留言板 */}
-        <PatientMessagesTab
-          patientId={id}
-          userId={user?.id}
-          userRole={user?.role}
-          messages={messages}
-          messagesLoading={messagesLoading}
-          messageInput={messageInput}
-          onMessageInputChange={setMessageInput}
-          onSendGeneralMessage={handleSendBoardMessage}
-          onSendMedicationAdvice={handleSendMedicationAdvice}
-          onMarkAllRead={handleMarkAllRead}
-          onMarkMessageRead={handleMarkMessageRead}
-          formatTimestamp={formatTimestamp}
-          presetTags={presetTags}
-          pharmacyTagCategories={pharmacyTagCategories}
-          customTags={customTags}
-          onCreateCustomTag={handleCreateCustomTag}
-          onDeleteCustomTag={handleDeleteCustomTag}
-          onUpdateTags={handleUpdateMessageTags}
-          onRespondToAdvice={handleRespondToAdvice}
-          onDeleteMessage={handleDeleteMessage}
-        />
+        {/* 留言板 — Phase 3.4: lazy-loaded, only mount when active to avoid Suspense flash. */}
+        {activeTab === 'messages' && (
+          <Suspense fallback={<TabsContent value="messages" className="py-12"><LoadingSpinner size="lg" text="載入中..." /></TabsContent>}>
+            <PatientMessagesTab
+              patientId={id}
+              userId={user?.id}
+              userRole={user?.role}
+              messages={messages}
+              messagesLoading={messagesLoading}
+              messageInput={messageInput}
+              onMessageInputChange={setMessageInput}
+              onSendGeneralMessage={handleSendBoardMessage}
+              onSendMedicationAdvice={handleSendMedicationAdvice}
+              onMarkAllRead={handleMarkAllRead}
+              onMarkMessageRead={handleMarkMessageRead}
+              formatTimestamp={formatTimestamp}
+              presetTags={presetTags}
+              pharmacyTagCategories={pharmacyTagCategories}
+              customTags={customTags}
+              onCreateCustomTag={handleCreateCustomTag}
+              onDeleteCustomTag={handleDeleteCustomTag}
+              onUpdateTags={handleUpdateMessageTags}
+              onRespondToAdvice={handleRespondToAdvice}
+              onDeleteMessage={handleDeleteMessage}
+            />
+          </Suspense>
+        )}
 
-        {/* 病歷記錄 */}
+        {/* 病歷記錄 — Phase 3.4: lazy-loaded; Suspense sits inside TabsContent so fallback only fires on activation. */}
         <TabsContent value="records" className="space-y-4">
-          <MedicalRecords
-            patientId={patient.id}
-            patientName={maskPatientName(patient.name)}
-            labData={labData}
-            medications={allMedications}
-          />
+          <Suspense fallback={<LoadingSpinner size="lg" text="載入中..." className="py-12" />}>
+            <MedicalRecords
+              patientId={patient.id}
+              patientName={maskPatientName(patient.name)}
+              labData={labData}
+              medications={allMedications}
+            />
+          </Suspense>
         </TabsContent>
 
         {/* 檢驗數據 */}
-        {/* 檢驗 + 微生物 */}
-        <PatientLabsTab
-          patientId={patient.id}
-          patientIntubated={!!patient.intubated}
-          labData={labData}
-          vitalSignsLoading={vitalSignsLoading}
-          vitalSignsTimestamp={vitalSigns?.timestamp}
-          respiratoryRate={respiratoryRate}
-          temperature={temperature}
-          systolicBP={systolicBP}
-          diastolicBP={diastolicBP}
-          heartRate={heartRate}
-          spo2={spo2}
-          cvp={cvp}
-          icp={icp}
-          bodyWeight={bodyWeight}
-          bodyHeight={patient?.height}
-          ventilatorLoading={ventilatorLoading}
-          ventTimestamp={ventTimestamp}
-          ventMode={ventMode}
-          ventFiO2={ventFiO2}
-          ventPeep={ventPeep}
-          ventTidalVolume={ventTidalVolume}
-          ventRespRate={ventRespRate}
-          ventPip={ventPip}
-          ventPlateau={ventPlateau}
-          ventCompliance={ventCompliance}
-          weaningAssessment={weaningAssessment}
-          formatDisplayTimestamp={formatDisplayTimestamp}
-          formatDisplayValue={formatDisplayValue}
-          onVitalSignClick={handleVitalSignClick}
-          isAdmin={user?.role === 'admin'}
-          onVitalSignsUpdate={(vs) => setVitalSigns(vs)}
-          onVentilatorUpdate={(v) => setVentilator(v)}
-        />
+        {/* 檢驗 + 微生物 — Phase 3.4: lazy-loaded, only mount when active. */}
+        {activeTab === 'labs' && (
+          <Suspense fallback={<TabsContent value="labs" className="py-12"><LoadingSpinner size="lg" text="載入中..." /></TabsContent>}>
+            <PatientLabsTab
+              patientId={patient.id}
+              patientIntubated={!!patient.intubated}
+              labData={labData}
+              vitalSignsLoading={vitalSignsLoading}
+              vitalSignsTimestamp={vitalSigns?.timestamp}
+              respiratoryRate={respiratoryRate}
+              temperature={temperature}
+              systolicBP={systolicBP}
+              diastolicBP={diastolicBP}
+              heartRate={heartRate}
+              spo2={spo2}
+              cvp={cvp}
+              icp={icp}
+              bodyWeight={bodyWeight}
+              bodyHeight={patient?.height}
+              ventilatorLoading={ventilatorLoading}
+              ventTimestamp={ventTimestamp}
+              ventMode={ventMode}
+              ventFiO2={ventFiO2}
+              ventPeep={ventPeep}
+              ventTidalVolume={ventTidalVolume}
+              ventRespRate={ventRespRate}
+              ventPip={ventPip}
+              ventPlateau={ventPlateau}
+              ventCompliance={ventCompliance}
+              weaningAssessment={weaningAssessment}
+              formatDisplayTimestamp={formatDisplayTimestamp}
+              formatDisplayValue={formatDisplayValue}
+              onVitalSignClick={handleVitalSignClick}
+              isAdmin={user?.role === 'admin'}
+              onVitalSignsUpdate={(vs) => setVitalSigns(vs)}
+              onVentilatorUpdate={(v) => setVentilator(v)}
+            />
+          </Suspense>
+        )}
 
-        {/* 用藥 */}
-        <PatientMedicationsTab
-          patientId={id}
-          userRole={user?.role}
-          medicationsLoading={medicationsLoading}
-          nmbIndication={nmbIndication}
-          painMedications={painMedications}
-          sedationMedications={sedationMedications}
-          nmbMedications={nmbMedications}
-          otherMedications={otherMedications}
-          outpatientMedications={outpatientMedications}
-          formatDisplayValue={formatDisplayValue}
-          formatMedicationRegimen={formatMedicationRegimen}
-          painScoreValue={scores.painScoreValue}
-          rassScoreValue={scores.rassScoreValue}
-          painScoreTimestamp={scores.painScoreTimestamp}
-          rassScoreTimestamp={scores.rassScoreTimestamp}
-          onRecordScore={scores.handleRecordScore}
-          onOpenScoreTrend={scores.handleOpenScoreTrend}
-          scoreTrendOpen={scores.scoreTrendOpen}
-          scoreTrendType={scores.scoreTrendType}
-          scoreTrendData={scores.scoreTrendData}
-          scoreEntries={scores.scoreEntries}
-          onDeleteScoreEntry={scores.handleDeleteScoreEntry}
-          onCloseScoreTrend={scores.closeScoreTrend}
-          onRefreshMedications={handleRefreshMedications}
-        />
+        {/* 用藥 — Phase 3.4: lazy-loaded, only mount when active. */}
+        {activeTab === 'meds' && (
+          <Suspense fallback={<TabsContent value="meds" className="py-12"><LoadingSpinner size="lg" text="載入中..." /></TabsContent>}>
+            <PatientMedicationsTab
+              patientId={id}
+              userRole={user?.role}
+              medicationsLoading={medicationsLoading}
+              nmbIndication={nmbIndication}
+              painMedications={painMedications}
+              sedationMedications={sedationMedications}
+              nmbMedications={nmbMedications}
+              otherMedications={otherMedications}
+              outpatientMedications={outpatientMedications}
+              formatDisplayValue={formatDisplayValue}
+              formatMedicationRegimen={formatMedicationRegimen}
+              painScoreValue={scores.painScoreValue}
+              rassScoreValue={scores.rassScoreValue}
+              painScoreTimestamp={scores.painScoreTimestamp}
+              rassScoreTimestamp={scores.rassScoreTimestamp}
+              onRecordScore={scores.handleRecordScore}
+              onOpenScoreTrend={scores.handleOpenScoreTrend}
+              scoreTrendOpen={scores.scoreTrendOpen}
+              scoreTrendType={scores.scoreTrendType}
+              scoreTrendData={scores.scoreTrendData}
+              scoreEntries={scores.scoreEntries}
+              onDeleteScoreEntry={scores.handleDeleteScoreEntry}
+              onCloseScoreTrend={scores.closeScoreTrend}
+              onRefreshMedications={handleRefreshMedications}
+            />
+          </Suspense>
+        )}
 
-        {/* 病歷摘要 */}
+        {/* 病歷摘要 — Phase 3.4: lazy-loaded; Suspense sits inside TabsContent so fallback only fires on activation. */}
         <TabsContent value="summary" className="space-y-4">
-          <PatientSummaryTab
-            patient={patient}
-            userRole={user?.role}
-            onNavigateToMeds={() => setActiveTab('meds')}
-          />
+          <Suspense fallback={<LoadingSpinner size="lg" text="載入中..." className="py-12" />}>
+            <PatientSummaryTab
+              patient={patient}
+              userRole={user?.role}
+              onNavigateToMeds={() => setActiveTab('meds')}
+            />
+          </Suspense>
         </TabsContent>
       </Tabs>
 
