@@ -615,9 +615,9 @@ def _fmt_duplicate_section(warnings: List[Dict[str, Any]]) -> str:
     """Wrap format_duplicate_text output so it slots into the snapshot cleanly.
 
     ``format_duplicate_text`` already returns an empty string when there are
-    no warnings (matching ``ddi_check.format_ddi_metadata``); this helper just
-    strips the leading newline that the prompt block carries and prefixes a
-    Chinese section header consistent with the rest of the snapshot.
+    no warnings; this helper just strips the leading newline that the prompt
+    block carries and prefixes a Chinese section header consistent with the
+    rest of the snapshot.
     """
     block = format_duplicate_text(warnings)
     if not block:

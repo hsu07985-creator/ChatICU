@@ -1,9 +1,5 @@
 """Duplicate-medication adapter for AI snapshot / clinical prompt building.
 
-Mirrors the contract of ``app/utils/ddi_check.py`` so snapshot builders can
-register both warnings with near-identical shapes:
-
-    from app.utils.ddi_check import format_ddi_metadata
     from app.utils.duplicate_check import (
         format_duplicate_metadata,
         format_duplicate_text,
@@ -15,7 +11,7 @@ levels most relevant to LLM decisions (critical / high) to keep prompts
 compact.
 
 ``format_duplicate_text`` formats those filtered warnings into a system-prompt
-text block, matching the style of ``ddi_check.format_ddi_metadata``.
+text block.
 """
 from __future__ import annotations
 
@@ -89,7 +85,7 @@ async def format_duplicate_metadata(
 def format_duplicate_text(warnings: List[Dict[str, Any]]) -> str:
     """Format duplicate warnings as a system-prompt metadata block.
 
-    Style-matched to ``ddi_check.format_ddi_metadata``:
+    Contract:
       * Empty input → empty string (caller concatenates safely).
       * Header with total count.
       * One bullet per warning, truncated recommendation.
