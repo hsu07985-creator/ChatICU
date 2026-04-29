@@ -65,3 +65,17 @@ _archive_candidates/
 .logs/
 backend/.logs/
 backend/.state/
+
+# Root-level test/session artifacts that don't match the named-prefix
+# patterns above (Playwright YAML accessibility snapshots from
+# .playwright-mcp/, ad-hoc screenshots saved while testing). Scope
+# limited to the root with `/` so subdir configs (.github/*.yml,
+# backend/docker-compose*.yml) remain trackable.
+/*.yml
+/*.png
+
+# Local frontend env override (Vite convention) — never committed.
+.env.local
+
+# Playwright CLI workspace (separate from .playwright-mcp/).
+.playwright-cli/
