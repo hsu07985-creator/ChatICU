@@ -118,19 +118,46 @@ def _build_system_prompt(snapshot: str) -> str:
     return f"{base}\n\n[病患臨床快照]\n{snapshot}"
 
 
-def _merged_snapshot(meta: dict) -> str:
-    """B15-A1: combine critical snapshot text with deferred follow-up if ready.
+def _maybe_inject_deferred_into_user_message(
+    user_message: str, snapshot_metadata: Optional[dict]
+) -> str:
+    """B15-A1.1: prepend deferred snapshot context to the LLM-facing user
+    message when the background fill has completed, so the deferred bytes
+    are NEVER part of system_prompt or persisted history.
 
-    Falls back to critical-only when the background fill hasn't completed.
+    Why this matters for OpenAI prompt cache:
+      The cache key is the message-array prefix that is byte-identical
+      across requests. system_prompt + persisted history forms the
+      stable prefix; mutating system_prompt mid-session (which the prior
+      _merged_snapshot helper did) busts cache for every subsequent turn
+      in that session — measured in canary at hit_ratio_p50 dropping
+      from 70% to 0%.
+
+      A1.1 keeps system_prompt = TASK_PROMPTS + critical-snapshot-only,
+      byte-stable per session. Deferred context is folded into the
+      ephemeral user_message — it goes to the LLM but is NOT persisted
+      via _event_stream (original_message stays clean for DB history).
+
+    Returns user_message unchanged when:
+      - SNAPSHOT_DEFERRED_ENABLED is false (legacy path)
+      - snapshot_metadata is None (no session context yet)
+      - deferred_status is not "ready" (background fill still pending or failed)
+      - deferred text is empty (e.g. patient has no reports/scores/vent)
     """
-    critical = meta.get("clinical_snapshot") or ""
-    deferred = meta.get("clinical_snapshot_deferred") or ""
+    if not settings.SNAPSHOT_DEFERRED_ENABLED:
+        return user_message
+    if not snapshot_metadata:
+        return user_message
+    if snapshot_metadata.get("deferred_status") != "ready":
+        return user_message
+    deferred = (snapshot_metadata.get("clinical_snapshot_deferred") or "").strip()
     if not deferred:
-        return critical
-    # Append after the snapshot footer so the section ordering is stable
-    # for OpenAI prompt cache. Use a blank-line separator consistent with
-    # build_clinical_snapshot's section glue.
-    return f"{critical}\n\n{deferred}"
+        return user_message
+    return (
+        "[以下為背景補充資料，僅供回答本輪問題使用]\n"
+        f"{deferred}\n\n"
+        f"[使用者提問]\n{user_message}"
+    )
 
 
 async def _fill_deferred_snapshot_bg(
@@ -406,10 +433,15 @@ async def chat_stream(
 
     if session.snapshot_metadata and session.snapshot_metadata.get("clinical_snapshot"):
         # Always rebuild from current TASK_PROMPTS so prompt updates apply immediately.
-        # _merged_snapshot appends the deferred text when B15-A1 background fill
-        # has completed; falls back to critical-only otherwise (a no-op when
-        # SNAPSHOT_DEFERRED_ENABLED was off, since deferred_text is unset).
-        system_prompt = _build_system_prompt(_merged_snapshot(session.snapshot_metadata))
+        # B15-A1.1: read clinical_snapshot directly (critical-only when
+        # SNAPSHOT_DEFERRED_ENABLED is on, full when off). The deferred
+        # follow-up is NEVER merged into system_prompt — it would mutate
+        # the byte-stable prefix and bust OpenAI prompt cache (the prior
+        # _merged_snapshot path dropped cache_hit_ratio_p50 from 70% to 0%
+        # in canary, see docs/b15-snapshot-latency-plan-2026-04-30.md).
+        # Deferred is instead injected into the ephemeral user_message
+        # below via _maybe_inject_deferred_into_user_message.
+        system_prompt = _build_system_prompt(session.snapshot_metadata["clinical_snapshot"])
     elif session.snapshot_metadata and session.snapshot_metadata.get("system_prompt"):
         # Backward compat: old sessions that stored full system_prompt
         system_prompt = _build_system_prompt(
@@ -435,6 +467,13 @@ async def chat_stream(
         )
         if delta:
             user_message = f"{delta}\n（以下是使用者問題）\n{body.message}"
+
+    # B15-A1.1: inject deferred snapshot context into user_message when ready.
+    # original_message (= body.message) is what gets persisted, so this prefix
+    # is LLM-only and does not bloat ai_messages history rows.
+    user_message = _maybe_inject_deferred_into_user_message(
+        user_message, session.snapshot_metadata
+    )
 
     # ── Load recent history ────────────────────────────────────────────────
     messages = await _load_messages(db, session.id, window=_CONTEXT_WINDOW * 2)
