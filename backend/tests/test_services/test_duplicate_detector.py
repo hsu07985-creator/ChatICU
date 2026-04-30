@@ -62,6 +62,12 @@ with open(FIXTURE_PATH, "r", encoding="utf-8") as _f:
 
 ALL_CASES: List[dict] = _FIXTURE["cases"]
 
+# Anchor for the detector's active-window filter (`_is_inactive`, 48h).
+# Tests that don't pass `reference_time` explicitly use this so the
+# default `_mk_med` timestamp `2026-04-22T08:00:00Z` stays inside the
+# window. Mirrors the inline literal in the fixture-driven test below.
+_FIXTURE_REF_TIME = datetime(2026, 4, 22, 23, 0, tzinfo=timezone.utc)
+
 # Cases belonging to layers / features that are Phase 2 per the
 # implementation plan. These are *skipped* (not xfailed) because the fixture
 # drives expected behaviour that requires DB-backed mechanism / endpoint
@@ -222,7 +228,7 @@ class TestL1Detection:
             _mk_med("m1", "Omeprazole", "A02BC01"),
             _mk_med("m2", "Omeprazole", "A02BC01"),
         ]
-        alerts = await detector.analyze(meds)
+        alerts = await detector.analyze(meds, reference_time=_FIXTURE_REF_TIME)
         assert len(alerts) == 1
         assert alerts[0].layer == "L1"
         assert alerts[0].level == "critical"
@@ -236,7 +242,7 @@ class TestL1Detection:
             _mk_med("m2", "Omeprazole", "A02BC01"),
             _mk_med("m3", "Omeprazole", "A02BC01"),
         ]
-        alerts = await detector.analyze(meds)
+        alerts = await detector.analyze(meds, reference_time=_FIXTURE_REF_TIME)
         assert len(alerts) == 1
         assert len(alerts[0].members) == 3
 
@@ -259,7 +265,7 @@ class TestL2Detection:
             _mk_med("m1", "Omeprazole", "A02BC01"),
             _mk_med("m2", "Esomeprazole", "A02BC05"),
         ]
-        alerts = await detector.analyze(meds)
+        alerts = await detector.analyze(meds, reference_time=_FIXTURE_REF_TIME)
         assert len(alerts) == 1
         assert alerts[0].layer in {"L2", "L3", "L4"}  # at least L2
         # Double-PPI is in the §3.1 upgrade list → Critical.
@@ -272,7 +278,7 @@ class TestL2Detection:
             _mk_med("m1", "Omeprazole", "A02BC01"),
             _mk_med("m2", "Omeprazole", "A02BC01"),
         ]
-        alerts = await detector.analyze(meds)
+        alerts = await detector.analyze(meds, reference_time=_FIXTURE_REF_TIME)
         assert len(alerts) == 1
         assert alerts[0].layer == "L1"
 
@@ -287,7 +293,7 @@ class TestDowngrades:
             _mk_med("m1", "Pantoprazole", "A02BC02", route="IV"),
             _mk_med("m2", "Pantoprazole", "A02BC02", route="PO"),
         ]
-        alerts = await detector.analyze(meds)
+        alerts = await detector.analyze(meds, reference_time=_FIXTURE_REF_TIME)
         assert len(alerts) == 1
         assert alerts[0].level == "moderate"
         assert alerts[0].auto_downgraded is True
@@ -298,7 +304,7 @@ class TestDowngrades:
             _mk_med("m1", "Esomeprazole magnesium", "A02BC05", route="PO"),
             _mk_med("m2", "Esomeprazole sodium", "A02BC05", route="PO"),
         ]
-        alerts = await detector.analyze(meds)
+        alerts = await detector.analyze(meds, reference_time=_FIXTURE_REF_TIME)
         assert len(alerts) == 1
         assert alerts[0].level == "high"
         assert alerts[0].auto_downgraded is True
@@ -388,7 +394,7 @@ class TestOverrides:
             _mk_med("m2", "Esomeprazole", "A02BC05"),
             _mk_med("m3", "Pantoprazole", "A02BC02"),
         ]
-        alerts = await detector.analyze(meds)
+        alerts = await detector.analyze(meds, reference_time=_FIXTURE_REF_TIME)
         # All three belong to A02BC → should be a single group (not three pairs)
         assert len(alerts) == 1
         assert len(alerts[0].members) == 3
@@ -406,8 +412,8 @@ class TestFingerprint:
             _mk_med("m2", "Esomeprazole", "A02BC05"),
             _mk_med("m1", "Omeprazole", "A02BC01"),
         ]
-        a = await detector.analyze(meds_a)
-        b = await detector.analyze(meds_b)
+        a = await detector.analyze(meds_a, reference_time=_FIXTURE_REF_TIME)
+        b = await detector.analyze(meds_b, reference_time=_FIXTURE_REF_TIME)
         assert len(a) == 1 and len(b) == 1
         assert a[0].fingerprint == b[0].fingerprint
 
@@ -421,8 +427,8 @@ class TestFingerprint:
             _mk_med("m3", "Sertraline", "N06AB06"),
             _mk_med("m4", "Escitalopram", "N06AB10"),
         ]
-        a = await detector.analyze(a_meds)
-        b = await detector.analyze(b_meds)
+        a = await detector.analyze(a_meds, reference_time=_FIXTURE_REF_TIME)
+        b = await detector.analyze(b_meds, reference_time=_FIXTURE_REF_TIME)
         assert len(a) == 1 and len(b) == 1
         assert a[0].fingerprint != b[0].fingerprint
 
