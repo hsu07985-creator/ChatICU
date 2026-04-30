@@ -744,27 +744,53 @@ async def build_critical_snapshot(
     Returns:
       (snapshot_text, key_values_for_delta, deferred_meta_dict)
     """
-    # Same warm-up as build_clinical_snapshot (B15-D); makes the contract
-    # explicit so the gather below never races on connection acquisition.
-    await db.connection()
+    # B15-B (multi-connection true parallel): each fetcher uses its own
+    # AsyncSession so asyncio.gather actually runs them concurrently. With
+    # the original shared-session approach the connection serialized 6
+    # SELECTs and we measured ~30-40% parallel efficiency (build_ms ~5s
+    # vs sum 17s). Spawning fresh sessions lets the Supabase pooler
+    # fan out to multiple backend connections, max parallel limited by
+    # the slowest fetcher (~vital ~2.4s) instead of the sum.
+    #
+    # The passed-in `db` parameter is now used only for the post-gather
+    # serial work (lab_before_24h needs latest_lab.timestamp). Background
+    # task `_fill_deferred_snapshot_bg` already uses its own session, so
+    # we mirror that pattern here.
+    #
+    # Pool-pressure note: each first-turn chat request now opens up to
+    # 6 simultaneous connections (vs 1 before). With Supabase pool size 5
+    # + max_overflow 5 = 10 max per Railway replica, ~2 concurrent
+    # first-turn chats can still co-exist without contention. Watch
+    # Railway logs for QueuePool timeouts after this change.
+    from app.database import async_session as _async_session
+
+    async def _fresh(fn, *args):
+        async with _async_session() as s:
+            return await fn(s, *args)
 
     patient, latest_lab, meds, vitals = await asyncio.gather(
-        _get_patient(db, patient_id),
-        _get_latest_lab(db, patient_id),
-        _get_active_medications(db, patient_id),
-        _get_latest_vital(db, patient_id),
+        _fresh(_get_patient, patient_id),
+        _fresh(_get_latest_lab, patient_id),
+        _fresh(_get_active_medications, patient_id),
+        _fresh(_get_latest_vital, patient_id),
     )
 
     if not patient:
         return f"[無法取得患者資料 patient_id={patient_id}]", {}, {}
 
-    prev_lab = None
+    # Post-gather: lab_before_24h depends on latest_lab.timestamp. Run it
+    # concurrently with duplicate-warnings detection so neither blocks the
+    # other on the second wave.
     if latest_lab and latest_lab.timestamp:
-        prev_lab = await _get_lab_before_24h(db, patient_id, latest_lab.timestamp)
-
-    duplicate_warnings = await _safe_duplicate_warnings(
-        db, meds, context=_infer_duplicate_context(patient)
-    )
+        prev_lab, duplicate_warnings = await asyncio.gather(
+            _fresh(_get_lab_before_24h, patient_id, latest_lab.timestamp),
+            _fresh(_safe_duplicate_warnings, meds, _infer_duplicate_context(patient)),
+        )
+    else:
+        prev_lab = None
+        duplicate_warnings = await _fresh(
+            _safe_duplicate_warnings, meds, _infer_duplicate_context(patient)
+        )
 
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
 
