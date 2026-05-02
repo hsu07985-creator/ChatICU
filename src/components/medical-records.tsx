@@ -43,9 +43,6 @@ import {
   Trash2,
   X,
   ArrowRight,
-  ChevronDown,
-  ChevronUp,
-  Wand2,
   Save,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -371,7 +368,6 @@ export function MedicalRecords({
       selectedTemplateSnapshot: null,
     });
     setRefinementInstruction('');
-    setRefinementOpen(false);
   };
 
   // Templates (server-backed)
@@ -387,7 +383,6 @@ export function MedicalRecords({
   const [isRefining, setIsRefining] = useState(false);
 
   // Refinement panel (per-type UI state — not persisted)
-  const [refinementOpen, setRefinementOpen] = useState(false);
   const [refinementInstruction, setRefinementInstruction] = useState('');
   const [deletingTemplateName, setDeletingTemplateName] = useState<string | null>(null);
   const [updatingTemplateName, setUpdatingTemplateName] = useState<string | null>(null);
@@ -843,7 +838,6 @@ export function MedicalRecords({
               }
               onClick={() => {
                 setRecordType(type);
-                setRefinementOpen(false);
                 setRefinementInstruction('');
               }}
             >
@@ -1215,77 +1209,59 @@ export function MedicalRecords({
               </p>
             )}
 
-            {polishedContent && !isPolishedStale && (
-              <div className="rounded-md border border-slate-200 dark:border-slate-700">
-                <button
-                  type="button"
-                  onClick={() => setRefinementOpen((v) => !v)}
-                  className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
-                >
-                  <span className="inline-flex items-center gap-1.5">
-                    {showDecorativeIcons && <Wand2 className="h-3.5 w-3.5" />}
-                    想再調整嗎？
+            {polishedContent && (
+              // Always-visible refine box (no disclosure). Even when the source
+              // draft has changed (isPolishedStale) we keep this open — the
+              // user may want to refine the polished result they're currently
+              // looking at without having to re-polish from scratch.
+              <div className="space-y-2 rounded-md border-2 border-slate-300 bg-slate-50/60 p-3 dark:border-slate-600 dark:bg-slate-800/30">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                    再修一次
+                  </h4>
+                  <p className="text-[11px] text-slate-400">⌘/Ctrl + Enter 送出</p>
+                </div>
+                {/* W3-T1: explicit preview of what 再修一次 will refine. */}
+                <div className="rounded bg-white px-2 py-1 text-[11px] text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
+                  依右側目前內容再修：
+                  <span className="ml-1 font-mono">
+                    {polishedContent.replace(/\s+/g, ' ').slice(0, 50)}
+                    {polishedContent.length > 50 ? '…' : ''}
                   </span>
-                  {refinementOpen ? (
-                    <ChevronUp className="h-3.5 w-3.5" />
-                  ) : (
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  )}
-                </button>
-                {refinementOpen && (
-                  <div className="space-y-2 border-t border-slate-200 p-3 dark:border-slate-700">
-                    {/* W3-T1: tell the user explicitly that "再修一次" refines
-                        the right-pane content they currently see (which
-                        includes their hand edits). The backend gets the
-                        polished value as `previous_polished` and the source
-                        draft as `content`. */}
-                    <div className="rounded bg-slate-50 px-2 py-1 text-[11px] text-slate-500 dark:bg-slate-800/40 dark:text-slate-400">
-                      將依右側目前內容再修：
-                      <span className="ml-1 font-mono">
-                        {polishedContent.replace(/\s+/g, ' ').slice(0, 50)}
-                        {polishedContent.length > 50 ? '…' : ''}
-                      </span>
-                    </div>
-                    <Textarea
-                      value={refinementInstruction}
-                      onChange={(e) => setRefinementInstruction(e.target.value)}
-                      placeholder="例如：再簡短一點 / 把劑量細節拿掉 / 用條列式 / 加上腎功能調整的理由"
-                      className="min-h-[60px] resize-none border-slate-300 text-sm dark:border-slate-600"
-                      disabled={isRefining}
-                      onKeyDown={(e) => {
-                        if (isCmdEnter(e) && !isRefining) {
-                          e.preventDefault();
-                          void handleRefine();
-                        }
-                      }}
-                    />
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-[11px] text-slate-400">
-                        修改後會覆蓋上方結果 · ⌘/Ctrl + Enter 送出
-                      </p>
-                      {isRefining ? (
-                        <Button
-                          onClick={() => refineAbortRef.current?.abort()}
-                          size="sm"
-                          variant="outline"
-                          className="border-amber-500 text-amber-700 hover:bg-amber-50 dark:text-amber-300"
-                        >
-                          <X className="mr-1.5 h-3.5 w-3.5" />
-                          停止
-                        </Button>
-                      ) : (
-                        <Button
-                          onClick={handleRefine}
-                          disabled={!refinementInstruction.trim()}
-                          size="sm"
-                          variant="outline"
-                        >
-                          {showDecorativeIcons && <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
-                          再修一次
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+                </div>
+                <Textarea
+                  value={refinementInstruction}
+                  onChange={(e) => setRefinementInstruction(e.target.value)}
+                  placeholder="想怎麼調整？例：再簡短一點 / 把劑量細節拿掉 / 用條列式 / 加上腎功能調整的理由"
+                  className="min-h-[60px] resize-none border-slate-300 text-sm dark:border-slate-600"
+                  disabled={isRefining}
+                  onKeyDown={(e) => {
+                    if (isCmdEnter(e) && !isRefining) {
+                      e.preventDefault();
+                      void handleRefine();
+                    }
+                  }}
+                />
+                {isRefining ? (
+                  <Button
+                    onClick={() => refineAbortRef.current?.abort()}
+                    size="sm"
+                    variant="outline"
+                    className="w-full border-amber-500 text-amber-700 hover:bg-amber-50 dark:text-amber-300"
+                  >
+                    <X className="mr-1.5 h-3.5 w-3.5" />
+                    停止
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleRefine}
+                    disabled={!refinementInstruction.trim()}
+                    size="sm"
+                    style={{ backgroundColor: '#1e293b' }}
+                    className="w-full"
+                  >
+                    再修一次
+                  </Button>
                 )}
               </div>
             )}

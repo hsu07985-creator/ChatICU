@@ -59,14 +59,12 @@ export interface PharmacistSoapEditorProps {
 type PerSectionState = {
   polishing: boolean;
   refining: boolean;
-  refinementOpen: boolean;
   refinementInstruction: string;
 };
 
 const INITIAL_STATE: PerSectionState = {
   polishing: false,
   refining: false,
-  refinementOpen: false,
   refinementInstruction: '',
 };
 
@@ -498,21 +496,10 @@ export function PharmacistSoapEditor({
 
                 {meta.aiEditable && hasPolished && (
                   <div className="space-y-2 rounded-md border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-800 dark:bg-sky-950/20">
-                    <div className="flex items-center justify-between">
-                      <div className="text-xs font-medium text-sky-700 dark:text-sky-300">
-                        {st.polishing || st.refining
-                          ? 'AI 寫入中…完成後即可編輯'
-                          : 'AI 修飾結果（可直接修改）'}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          patchSectionState(key, { refinementOpen: !st.refinementOpen })
-                        }
-                        className="text-[11px] text-sky-700 hover:underline dark:text-sky-300"
-                      >
-                        {st.refinementOpen ? '收起' : '再修一次'}
-                      </button>
+                    <div className="text-xs font-medium text-sky-700 dark:text-sky-300">
+                      {st.polishing || st.refining
+                        ? 'AI 寫入中…完成後即可編輯'
+                        : 'AI 修飾結果（可直接修改）'}
                     </div>
                     <Textarea
                       value={polished}
@@ -524,59 +511,61 @@ export function PharmacistSoapEditor({
                       }
                       data-testid={`pharmacist-soap-polished-${key}`}
                     />
-                    {st.refinementOpen && (
-                      <div className="space-y-2 border-t border-sky-200 pt-2 dark:border-sky-800">
-                        <Textarea
-                          value={st.refinementInstruction}
-                          onChange={(e) =>
-                            patchSectionState(key, { refinementInstruction: e.target.value })
-                          }
-                          placeholder={
-                            key === 'p'
-                              ? '例：再簡短一點 / 把劑量細節拿掉 / 用條列式'
-                              : '例：語氣再中性一點 / 翻譯成英文'
-                          }
-                          className="min-h-[60px] resize-none border-sky-300 text-sm dark:border-sky-700"
-                          disabled={st.refining}
-                          onKeyDown={(e) => {
-                            if (
-                              isCmdEnter(e)
-                              && !st.refining
-                              && st.refinementInstruction.trim()
-                            ) {
-                              e.preventDefault();
-                              void runPolish(
-                                key,
-                                'refinement',
-                                st.refinementInstruction.trim(),
-                                polished,
-                              );
-                            }
-                          }}
-                        />
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-[11px] text-slate-400">
-                            會套回同段，格式規則仍保留 · ⌘/Ctrl + Enter 送出
-                          </p>
-                          <Button
-                            onClick={() =>
-                              void runPolish(
-                                key,
-                                'refinement',
-                                st.refinementInstruction.trim(),
-                                polished,
-                              )
-                            }
-                            disabled={st.refining || !st.refinementInstruction.trim()}
-                            size="sm"
-                            variant="outline"
-                          >
-                            {st.refining ? '修改中...' : '再修一次'}
-                            {st.refining ? <ButtonLoadingIndicator /> : null}
-                          </Button>
-                        </div>
+                    {/* Always-visible refine box (no disclosure) — pharmacists
+                        used to miss the "再修一次" link in the corner. */}
+                    <div className="space-y-2 rounded border-2 border-sky-300 bg-white p-2 dark:border-sky-700 dark:bg-slate-900/40">
+                      <div className="flex items-center justify-between">
+                        <h5 className="text-xs font-semibold text-sky-800 dark:text-sky-200">
+                          再修一次
+                        </h5>
+                        <p className="text-[11px] text-slate-400">⌘/Ctrl + Enter 送出</p>
                       </div>
-                    )}
+                      <Textarea
+                        value={st.refinementInstruction}
+                        onChange={(e) =>
+                          patchSectionState(key, { refinementInstruction: e.target.value })
+                        }
+                        placeholder={
+                          key === 'p'
+                            ? '想怎麼調整？例：再簡短一點 / 把劑量細節拿掉 / 用條列式'
+                            : '想怎麼調整？例：語氣再中性一點 / 翻譯成英文'
+                        }
+                        className="min-h-[60px] resize-none border-sky-300 text-sm dark:border-sky-700"
+                        disabled={st.refining}
+                        onKeyDown={(e) => {
+                          if (
+                            isCmdEnter(e)
+                            && !st.refining
+                            && st.refinementInstruction.trim()
+                          ) {
+                            e.preventDefault();
+                            void runPolish(
+                              key,
+                              'refinement',
+                              st.refinementInstruction.trim(),
+                              polished,
+                            );
+                          }
+                        }}
+                      />
+                      <Button
+                        onClick={() =>
+                          void runPolish(
+                            key,
+                            'refinement',
+                            st.refinementInstruction.trim(),
+                            polished,
+                          )
+                        }
+                        disabled={st.refining || !st.refinementInstruction.trim()}
+                        size="sm"
+                        style={{ backgroundColor: '#1e293b' }}
+                        className="w-full"
+                      >
+                        {st.refining ? '修改中...' : '再修一次'}
+                        {st.refining ? <ButtonLoadingIndicator /> : null}
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
