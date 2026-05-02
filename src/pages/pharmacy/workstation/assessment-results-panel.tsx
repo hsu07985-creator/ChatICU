@@ -11,7 +11,6 @@ import {
   Calculator,
   Copy,
   RotateCw,
-  Sparkles,
   User,
   ShieldAlert,
 } from 'lucide-react';
@@ -233,7 +232,6 @@ export function AssessmentResultsPanel({
                 className="h-14 px-10 text-lg font-semibold bg-brand hover:bg-brand-hover shadow-lg"
                 size="lg"
               >
-                {isAssessing ? null : <Sparkles className="h-5 w-5" />}
                 <span>{isAssessing ? '處理中' : '執行全面評估'}</span>
                 {isAssessing ? <ButtonLoadingIndicator /> : null}
               </Button>
