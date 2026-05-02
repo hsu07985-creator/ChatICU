@@ -407,17 +407,25 @@ export function MedicalRecords({
     fetchTemplates(recordType as RecordTemplateType);
   }, [recordType, fetchTemplates]);
 
-  const allTemplates = useMemo(() => {
-    const merged: Record<string, TemplateContent> = { ...BUILTIN_TEMPLATES[recordType] };
+  // Visible built-in templates after role-based gating. Used both by the
+  // popover render AND by allTemplates lookup so handleApplyTemplate can't
+  // resolve a hidden template via direct map access.
+  const visibleBuiltins = useMemo(() => {
+    const map: Record<string, TemplateContent> = { ...BUILTIN_TEMPLATES[recordType] };
     // PHARMACIST_SOAP_TEMPLATE_NAME is a SOAP-shaped template that only makes
     // sense in pharmacist mode (non-pharmacist users would see an empty S/O/A
     // and only the P plan-stub flatten, which is confusing). Hide for others.
     if (recordType === 'medication-advice' && user?.role !== 'pharmacist') {
-      delete merged[PHARMACIST_SOAP_TEMPLATE_NAME];
+      delete map[PHARMACIST_SOAP_TEMPLATE_NAME];
     }
+    return map;
+  }, [recordType, user?.role]);
+
+  const allTemplates = useMemo(() => {
+    const merged: Record<string, TemplateContent> = { ...visibleBuiltins };
     for (const t of serverTemplates) merged[t.name] = t.content;
     return merged;
-  }, [recordType, serverTemplates, user?.role]);
+  }, [visibleBuiltins, serverTemplates]);
 
   /* -------- actions -------- */
 
@@ -844,7 +852,7 @@ export function MedicalRecords({
 
                 <div className="max-h-60 space-y-1 overflow-auto pr-1">
                   <div className="px-1 text-[11px] uppercase tracking-wide text-slate-400">內建</div>
-                  {Object.keys(BUILTIN_TEMPLATES[recordType]).map((name) => (
+                  {Object.keys(visibleBuiltins).map((name) => (
                     <Button
                       key={`b-${name}`}
                       type="button"

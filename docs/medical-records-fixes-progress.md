@@ -108,3 +108,5 @@ done
 - 2026-05-02：W3-T2 ✅ — `handleApplyTemplate` 重構為短稿（< 80 字、empty draft、re-apply 同模板）直接套；長稿跳 Dialog（覆蓋 / 附加到後面 / 取消）。`stashedDraftRef` 在套用時 snapshot 前一版，渲染期間若 `inputContent === selectedTemplateSnapshot && stashedDraftRef.current` 顯示「已套用 XXX [還原上一版]」chip；使用者開始打字後 chip 自然消失。
 - 2026-05-02：W3-T1 ✅ — Refine panel 上方加 chip「將依右側目前內容再修：{polished 前 50 字}…」，把後端 2-input contract（`content` = 原稿、`previousPolished` = 看到的潤飾結果）翻譯成使用者看得懂的心智模型。
 - **W3 全部完成。** 4 個 PR 中的第 3 個準備好可以 commit + push。
+- 2026-05-02：W3 已 commit (129d2f695) 並 push 到 railway（純前端，不推 personal）。Vercel build 完成。Playwright 用 nurse 帳號 B4372 驗 W3-T6 → **發現 bug**：popover 直接讀 `BUILTIN_TEMPLATES`，我只 gate 了 `allTemplates`（apply lookup 用），nurse 還是看得到「藥師 SOAP」。
+- 2026-05-02：W3-T6 hotfix — 新增 `visibleBuiltins` useMemo（gate `PHARMACIST_SOAP_TEMPLATE_NAME`），popover render + `allTemplates` 都改讀 `visibleBuiltins`。tsc + build clean。
