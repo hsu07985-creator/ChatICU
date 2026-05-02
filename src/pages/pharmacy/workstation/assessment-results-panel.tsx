@@ -9,10 +9,12 @@ import {
   ChevronRight,
   Droplets,
   Calculator,
+  Copy,
   User,
   ShieldAlert,
 } from 'lucide-react';
 import type { AssessmentResults, ExpandedSections, ExtendedPatientData, DrugInteraction, IVCompatibility } from './types';
+import type { DuplicateAlert } from '../../../lib/api/medications';
 import { DosageRecommendationCard } from './dosage-recommendation-card';
 
 interface PatientLite {
@@ -123,6 +125,38 @@ function InteractionRow({ int }: { int: DrugInteraction }) {
   );
 }
 
+const DUP_LEVEL_BADGE: Record<DuplicateAlert['level'], { className: string; label: string }> = {
+  critical: { className: 'bg-red-700 text-white', label: '嚴重' },
+  high:     { className: 'bg-[#f59e0b] text-white', label: '高' },
+  moderate: { className: 'bg-amber-200 text-amber-900', label: '中' },
+  low:      { className: 'bg-blue-100 text-blue-700', label: '低' },
+  info:     { className: 'bg-slate-200 text-slate-700', label: '提示' },
+};
+
+function DuplicateRow({ d }: { d: DuplicateAlert }) {
+  const cfg = DUP_LEVEL_BADGE[d.level];
+  const drugNames = d.members.map(m => m.genericName).join(' + ');
+  return (
+    <div className="border rounded-lg p-3 space-y-1.5">
+      <div className="flex items-center flex-wrap gap-2">
+        <Badge className={`${cfg.className} text-xs px-2 py-0.5`}>{cfg.label}</Badge>
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0">{d.layer}</Badge>
+        <span className="font-semibold text-sm">{drugNames}</span>
+      </div>
+      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{d.mechanism}</p>
+      {d.recommendation && (
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          <span className="font-medium text-slate-700 dark:text-slate-300">建議：</span>
+          {d.recommendation}
+        </p>
+      )}
+      {d.autoDowngraded && d.downgradeReason && (
+        <p className="text-[11px] text-amber-600 leading-relaxed">已自動降階：{d.downgradeReason}</p>
+      )}
+    </div>
+  );
+}
+
 /** Single compatibility row */
 function CompatibilityRow({ c }: { c: IVCompatibility }) {
   return (
@@ -186,7 +220,7 @@ export function AssessmentResultsPanel({
     );
   }
 
-  const { interactions, compatibility, dosage, compatibilitySummary } = assessmentResults;
+  const { interactions, compatibility, dosage, duplicates, duplicateSummary, compatibilitySummary } = assessmentResults;
 
   // Interaction stats — use effective risk (fallback severity→risk mapping)
   const getEffectiveRisk = (i: DrugInteraction) => i.riskRating || SEVERITY_TO_RISK[i.severity] || 'C';
@@ -234,7 +268,30 @@ export function AssessmentResultsPanel({
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-4 pb-4">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* 重複用藥 */}
+            <div className="rounded-lg border p-3 text-center">
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <Copy className={`h-4 w-4 ${(duplicateSummary.critical + duplicateSummary.high) > 0 ? 'text-red-600' : duplicateSummary.total > 0 ? 'text-[#f59e0b]' : 'text-green-600'}`} />
+                <span className="text-xs font-semibold">重複用藥</span>
+              </div>
+              {duplicateSummary.queryFailed ? (
+                <p className="text-sm font-bold text-amber-600">查詢失敗</p>
+              ) : duplicateSummary.total === 0 ? (
+                <p className="text-xl font-bold text-green-600">無</p>
+              ) : (
+                <>
+                  <p className="text-xl font-bold">{duplicateSummary.total} <span className="text-xs font-normal">項</span></p>
+                  <div className="flex justify-center gap-1 mt-1 flex-wrap">
+                    {duplicateSummary.critical > 0 && <Badge className="bg-red-700 text-white text-[10px] px-1.5 py-0">嚴重×{duplicateSummary.critical}</Badge>}
+                    {duplicateSummary.high > 0 && <Badge className="bg-[#f59e0b] text-white text-[10px] px-1.5 py-0">高×{duplicateSummary.high}</Badge>}
+                    {duplicateSummary.moderate > 0 && <Badge className="bg-amber-200 text-amber-900 text-[10px] px-1.5 py-0">中×{duplicateSummary.moderate}</Badge>}
+                    {duplicateSummary.low > 0 && <Badge className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0">低×{duplicateSummary.low}</Badge>}
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* 交互作用 */}
             <div className="rounded-lg border p-3 text-center">
               <div className="flex items-center justify-center gap-1.5 mb-1">
@@ -312,6 +369,41 @@ export function AssessmentResultsPanel({
           </div>
         </CardContent>
       </Card>
+
+      {/* ── 重複用藥（獨立可展開） ── */}
+      <Section
+        title="重複用藥"
+        icon={<Copy className={`h-4 w-4 ${(duplicateSummary.critical + duplicateSummary.high) > 0 ? 'text-red-600' : duplicateSummary.total > 0 ? 'text-[#f59e0b]' : 'text-green-600'}`} />}
+        count={duplicateSummary.queryFailed ? '查詢失敗' : duplicateSummary.total > 0 ? `${duplicateSummary.total} 項` : '無'}
+        countColor={
+          duplicateSummary.queryFailed
+            ? 'border-amber-300 text-amber-700'
+            : (duplicateSummary.critical + duplicateSummary.high) > 0
+              ? 'border-red-300 text-red-700'
+              : duplicateSummary.total > 0
+                ? 'border-amber-300 text-amber-700'
+                : 'border-green-300 text-green-700'
+        }
+        defaultOpen={(duplicateSummary.critical + duplicateSummary.high) > 0}
+      >
+        {duplicateSummary.queryFailed ? (
+          <div className="flex items-center gap-2 text-amber-700 py-2">
+            <AlertTriangle className="h-4 w-4" />
+            <span className="text-sm">重複用藥偵測查詢失敗，建議至「重複用藥」頁手動查詢</span>
+          </div>
+        ) : duplicates.length === 0 ? (
+          <div className="flex items-center gap-2 text-green-700 py-2">
+            <CheckCircle2 className="h-4 w-4" />
+            <span className="text-sm">未發現重複用藥</span>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {duplicates.map((d) => (
+              <DuplicateRow key={d.fingerprint} d={d} />
+            ))}
+          </div>
+        )}
+      </Section>
 
       {/* ── 交互作用（獨立可展開） ── */}
       <Section

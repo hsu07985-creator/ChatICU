@@ -18,6 +18,8 @@ import { createAdviceRecord, getDrugInteractions, getIVCompatibilityBatch, padCa
 import {
   getMedications,
   fetchPharmacyDuplicateSummary,
+  checkDuplicateMedications,
+  type DuplicateAlert,
   type DuplicateSeverityCounts,
 } from '../../lib/api/medications';
 import { useApiQuery } from '../../hooks/use-api-query';
@@ -39,6 +41,7 @@ import {
   type CompatibilitySummary,
   type DosageResult,
   type DrugInteraction,
+  type DuplicateSummary,
   type ExpandedSections,
   type ExtendedPatientData,
   type IVCompatibility,
@@ -299,8 +302,8 @@ export function PharmacyWorkstationPage() {
         return undefined;
       };
 
-      // ── Run all 3 tasks in parallel ──
-      const [interactions, { compatibility, compatibilitySummary, limitedPairsCount }, dosage] = await Promise.all([
+      // ── Run all 4 tasks in parallel ──
+      const [interactions, { compatibility, compatibilitySummary, limitedPairsCount }, dosage, duplicateResult] = await Promise.all([
         // Task 1: Interactions
         (async (): Promise<DrugInteraction[]> => {
           try {
@@ -592,10 +595,48 @@ export function PharmacyWorkstationPage() {
             })
           );
         })(),
+
+        // Task 4: Duplicate medication detection
+        (async (): Promise<{ alerts: DuplicateAlert[]; queryFailed: boolean }> => {
+          try {
+            const drugsPayload = uniqueDrugs.map((name) => {
+              const atc = drugAtcByName[name.trim().toLowerCase()];
+              return atc ? { name, atcCode: atc } : { name };
+            });
+            const res = await checkDuplicateMedications(drugsPayload, 'icu');
+            return { alerts: res.alerts || [], queryFailed: false };
+          } catch (err) {
+            console.warn('重複用藥偵測失敗:', err);
+            return { alerts: [], queryFailed: true };
+          }
+        })(),
       ]);
 
-      // 4) Recommendations (rule-based hints; not LLM-generated)
+      // Aggregate duplicate severity counts
+      const duplicateSummary: DuplicateSummary = {
+        total: duplicateResult.alerts.length,
+        critical: duplicateResult.alerts.filter(a => a.level === 'critical').length,
+        high: duplicateResult.alerts.filter(a => a.level === 'high').length,
+        moderate: duplicateResult.alerts.filter(a => a.level === 'moderate').length,
+        low: duplicateResult.alerts.filter(a => a.level === 'low').length,
+        info: duplicateResult.alerts.filter(a => a.level === 'info').length,
+        queryFailed: duplicateResult.queryFailed,
+      };
+
+      // 5) Recommendations (rule-based hints; not LLM-generated)
       const adviceRecommendations: string[] = [];
+      if (duplicateSummary.critical + duplicateSummary.high > 0) {
+        adviceRecommendations.push(
+          `發現 ${duplicateSummary.critical + duplicateSummary.high} 項高風險重複用藥，建議優先複核並減量／停藥。`
+        );
+      } else if (duplicateSummary.total > 0) {
+        adviceRecommendations.push(
+          `發現 ${duplicateSummary.total} 項重複用藥提示，建議檢視是否需要簡化處方。`
+        );
+      }
+      if (duplicateSummary.queryFailed) {
+        adviceRecommendations.push('重複用藥偵測查詢失敗，結果可能不完整。');
+      }
       if (interactions.length > 0) {
         const high = interactions.filter(i => i.severity === 'high').length;
         adviceRecommendations.push(
@@ -632,6 +673,8 @@ export function PharmacyWorkstationPage() {
         interactions,
         compatibility,
         dosage,
+        duplicates: duplicateResult.alerts,
+        duplicateSummary,
         adviceRecommendations,
         compatibilitySummary,
         compatibilityPairsChecked: limitedPairsCount,
@@ -656,7 +699,25 @@ export function PharmacyWorkstationPage() {
     report += `藥師：${user?.name}\n\n`;
     
     report += `【評估藥品】\n${drugList.join('、')}\n\n`;
-    
+
+    if (assessmentResults.duplicates.length > 0) {
+      const levelLabel: Record<string, string> = {
+        critical: '嚴重',
+        high: '高',
+        moderate: '中',
+        low: '低',
+        info: '提示',
+      };
+      report += `【重複用藥】\n`;
+      assessmentResults.duplicates.forEach((dup, idx) => {
+        const drugs = dup.members.map(m => m.genericName).join(' + ');
+        report += `${idx + 1}. [${levelLabel[dup.level] ?? dup.level}/${dup.layer}] ${drugs}\n`;
+        report += `   機轉：${dup.mechanism}\n`;
+        if (dup.recommendation) report += `   建議：${dup.recommendation}\n`;
+        report += '\n';
+      });
+    }
+
     if (assessmentResults.interactions.length > 0) {
       report += `【藥物交互作用】\n`;
       assessmentResults.interactions.forEach((int, idx) => {
@@ -767,14 +828,37 @@ export function PharmacyWorkstationPage() {
     navigate('/pharmacy/advice-statistics');
   };
 
+  const assessReady = !!selectedPatient && drugList.length > 0 && !isAssessing;
+  const assessHint = !selectedPatient
+    ? '請先選擇病患'
+    : drugList.length === 0
+      ? '請先加入至少一項藥品'
+      : '一鍵檢查 劑量計算、用藥交互、重複用藥、用藥相容性與用藥建議';
+
   return (
     <div className="p-6 space-y-4">
-      {/* 標題 */}
-      <div>
-        <h1 className="text-2xl font-bold">藥師工作站</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          選擇病患、管理用藥、執行全面評估並產生用藥建議
-        </p>
+      {/* 標題 + 主要動作（hero） */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">藥師工作站</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            選擇病患、管理用藥、執行全面評估並產生用藥建議
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <Button
+            onClick={handleComprehensiveAssessment}
+            disabled={!assessReady}
+            className="h-12 px-6 text-base font-semibold bg-brand hover:bg-brand-hover shadow-md"
+            size="lg"
+          >
+            <span>{isAssessing ? '處理中' : '執行全面評估'}</span>
+            {isAssessing ? <ButtonLoadingIndicator /> : null}
+          </Button>
+          <p className="text-xs text-muted-foreground text-right max-w-[420px]">
+            {assessHint}
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
@@ -914,22 +998,6 @@ export function PharmacyWorkstationPage() {
                   </Alert>
                 )}
 
-                <Separator />
-
-                {/* 全面評估按鈕 */}
-                <Button 
-                  onClick={handleComprehensiveAssessment}
-                  disabled={drugList.length === 0 || isAssessing}
-                  className="w-full h-12 bg-brand hover:bg-brand-hover"
-                  size="lg"
-                >
-                  <span>{isAssessing ? '處理中' : '執行全面評估'}</span>
-                  {isAssessing ? <ButtonLoadingIndicator /> : null}
-                </Button>
-
-                <p className="text-xs text-muted-foreground text-center">
-                  一鍵檢查交互作用、相容性、劑量建議與用藥建議
-                </p>
               </CardContent>
             </Card>
           )}
@@ -960,7 +1028,7 @@ export function PharmacyWorkstationPage() {
             selectedPatient={selectedPatient}
             assessmentResults={assessmentResults}
             drugList={drugList}
-            expandedSections={{ interactions: true, compatibility: true, dosage: true, advice: true }}
+            expandedSections={{ interactions: true, compatibility: true, dosage: true, duplicates: true, advice: true }}
             toggleSection={() => {}}
             extendedData={extendedData}
             adviceContent={adviceContent}

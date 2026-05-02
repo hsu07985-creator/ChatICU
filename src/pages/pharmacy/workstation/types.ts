@@ -1,4 +1,5 @@
 import { PHARMACY_ADVICE_CATEGORIES } from '../../../lib/pharmacy-master-data';
+import type { DuplicateAlert } from '../../../lib/api/medications';
 
 export interface DrugInteraction {
   id: string;
@@ -90,10 +91,22 @@ export interface CompatibilitySummary {
   pairsChecked: number;
 }
 
+export interface DuplicateSummary {
+  total: number;
+  critical: number;
+  high: number;
+  moderate: number;
+  low: number;
+  info: number;
+  queryFailed: boolean;
+}
+
 export interface AssessmentResults {
   interactions: DrugInteraction[];
   compatibility: IVCompatibility[];
   dosage: DosageResult[];
+  duplicates: DuplicateAlert[];
+  duplicateSummary: DuplicateSummary;
   adviceRecommendations: string[];
   compatibilitySummary?: CompatibilitySummary;
   compatibilityPairsChecked: number;
@@ -103,6 +116,7 @@ export type ExpandedSections = {
   interactions: boolean;
   compatibility: boolean;
   dosage: boolean;
+  duplicates: boolean;
   advice: boolean;
 };
 
