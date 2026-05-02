@@ -19,6 +19,7 @@ import { ButtonLoadingIndicator } from '../../../components/ui/button-loading-in
 import type { AssessmentResults, ExpandedSections, ExtendedPatientData, DrugInteraction, IVCompatibility } from './types';
 import type { DuplicateAlert } from '../../../lib/api/medications';
 import { DosageRecommendationCard } from './dosage-recommendation-card';
+import { CompatibilityMatrix, CompatibilityMatrixLegend, type CompatibilityCell } from '../../../components/pharmacy/compatibility-matrix';
 
 interface PatientLite {
   name: string;
@@ -279,6 +280,29 @@ export function AssessmentResultsPanel({
   const incompatibleCount = deduplicatedCompat.filter(c => !c.compatible).length;
   const compatibleCount = deduplicatedCompat.filter(c => c.compatible).length;
 
+  // IV-eligible drugs: derive from drugs that returned actual Y-Site data.
+  // Anything not appearing in compatibility[] is either not an IV drug or not in
+  // the Y-Site source — either way, irrelevant to a Y-Site compatibility view.
+  const ivEligibleDrugs = (() => {
+    const set = new Set<string>();
+    for (const c of compatibility) {
+      if (c.drugA) set.add(c.drugA);
+      if (c.drugB) set.add(c.drugB);
+    }
+    return [...set].sort();
+  })();
+
+  const lookupCompatCell = (a: string, b: string): CompatibilityCell => {
+    const cell = deduplicatedCompat.find(
+      c => (c.drugA === a && c.drugB === b) || (c.drugA === b && c.drugB === a)
+    );
+    if (!cell) return { status: '-' };
+    return {
+      status: cell.compatible ? 'C' : 'I',
+      notes: cell.notes,
+    };
+  };
+
   // Dosage stats
   const calculatedCount = dosage.filter(d => d.status === 'calculated').length;
 
@@ -357,38 +381,33 @@ export function AssessmentResultsPanel({
             {/* 相容性 */}
             <div className="rounded-lg border p-3 text-center">
               <div className="flex items-center justify-center gap-1.5 mb-1">
-                <Droplets className={`h-4 w-4 ${incompatibleCount > 0 ? 'text-[#f59e0b]' : 'text-green-600'}`} />
-                <span className="text-xs font-semibold">相容性</span>
+                <Droplets className={`h-4 w-4 ${incompatibleCount > 0 ? 'text-red-600' : ivEligibleDrugs.length > 0 ? 'text-green-600' : 'text-muted-foreground'}`} />
+                <span className="text-xs font-semibold">IV 相容性</span>
               </div>
-              {compatibilitySummary ? (
+              {ivEligibleDrugs.length === 0 ? (
                 <>
-                  <p className="text-xl font-bold">
-                    {compatibilitySummary.incompatible > 0 ? (
-                      <span className="text-red-600">{compatibilitySummary.incompatible} <span className="text-xs font-normal">組不相容</span></span>
-                    ) : (
-                      <span className="text-green-600">全部相容</span>
-                    )}
+                  <p className="text-sm font-bold text-muted-foreground">無 IV 配對</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 leading-snug">此病患無可進行 Y-Site 檢查的 IV 藥</p>
+                </>
+              ) : incompatibleCount > 0 ? (
+                <>
+                  <p className="text-xl font-bold text-red-600">
+                    {incompatibleCount} <span className="text-xs font-normal">對不相容</span>
                   </p>
-                  <div className="flex justify-center gap-3 mt-1.5 text-[11px]">
-                    <span className="text-green-600">相容 {compatibilitySummary.compatible}</span>
-                    <span className="text-slate-300 dark:text-slate-600">|</span>
-                    <span className="text-red-600 dark:text-red-400">不相容 {compatibilitySummary.incompatible}</span>
-                    {compatibilitySummary.noData > 0 && (
-                      <>
-                        <span className="text-slate-300 dark:text-slate-600">|</span>
-                        <span className="text-gray-400 dark:text-gray-500">無資料 {compatibilitySummary.noData}</span>
-                      </>
-                    )}
-                  </div>
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    共 {compatibilitySummary.pairsChecked} 組檢查
-                    {compatibilitySummary.queryFailed > 0 && (
-                      <span className="text-amber-500 ml-1">（{compatibilitySummary.queryFailed} 組查詢失敗）</span>
-                    )}
+                    {ivEligibleDrugs.length} 項 IV 藥 / {compatibleCount + incompatibleCount} 對配對
                   </p>
                 </>
               ) : (
-                <p className="text-xl font-bold text-muted-foreground">—</p>
+                <>
+                  <p className="text-xl font-bold text-green-600">全部相容</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {ivEligibleDrugs.length} 項 IV 藥 / {compatibleCount} 對配對
+                  </p>
+                </>
+              )}
+              {compatibilitySummary && compatibilitySummary.queryFailed > 0 && (
+                <p className="text-[10px] text-amber-500 mt-1">{compatibilitySummary.queryFailed} 組查詢失敗</p>
               )}
             </div>
 
@@ -465,27 +484,50 @@ export function AssessmentResultsPanel({
         )}
       </Section>
 
-      {/* ── 相容性（獨立可展開） ── */}
+      {/* ── IV 相容性（矩陣，預設摺疊；有不相容自動展開） ── */}
       <Section
         title="IV 相容性"
-        icon={<Droplets className={`h-4 w-4 ${incompatibleCount > 0 ? 'text-red-600' : 'text-green-600'}`} />}
-        count={deduplicatedCompat.length > 0 ? `${compatibleCount}✓ ${incompatibleCount}✗` : '無資料'}
-        countColor={incompatibleCount > 0 ? 'border-red-300 text-red-700' : 'border-green-300 text-green-700'}
+        icon={<Droplets className={`h-4 w-4 ${incompatibleCount > 0 ? 'text-red-600' : ivEligibleDrugs.length > 0 ? 'text-green-600' : 'text-muted-foreground'}`} />}
+        count={
+          ivEligibleDrugs.length === 0
+            ? '無 IV 配對'
+            : incompatibleCount > 0
+              ? `${ivEligibleDrugs.length} 項 IV / ${incompatibleCount} 對不相容`
+              : `${ivEligibleDrugs.length} 項 IV 藥`
+        }
+        countColor={
+          ivEligibleDrugs.length === 0
+            ? 'border-slate-300 text-muted-foreground'
+            : incompatibleCount > 0
+              ? 'border-red-300 text-red-700'
+              : 'border-green-300 text-green-700'
+        }
         defaultOpen={incompatibleCount > 0}
       >
-        {deduplicatedCompat.length === 0 ? (
-          <div className="flex items-center gap-2 text-muted-foreground py-2">
-            <span className="text-sm">無相容性資料</span>
+        {ivEligibleDrugs.length === 0 ? (
+          <div className="flex items-start gap-2 text-muted-foreground py-2">
+            <Droplets className="h-4 w-4 mt-0.5 shrink-0" />
+            <div className="text-sm leading-relaxed">
+              此病患的用藥清單未偵測到可進行 Y-Site 配對檢查的 IV 藥品。
+              <span className="block text-xs mt-0.5">
+                若需手動比對特定 IV 藥，可至左側欄「藥事工具 → 用藥相容」查詢。
+              </span>
+            </div>
           </div>
         ) : (
-          <div className="space-y-1.5">
-            {/* Incompatible first */}
-            {deduplicatedCompat.filter(c => !c.compatible).map((c, idx) => (
-              <CompatibilityRow key={`incompat-${idx}`} c={c} />
-            ))}
-            {deduplicatedCompat.filter(c => c.compatible).map((c, idx) => (
-              <CompatibilityRow key={`compat-${idx}`} c={c} />
-            ))}
+          <div className="space-y-3">
+            <CompatibilityMatrixLegend />
+            <CompatibilityMatrix drugs={ivEligibleDrugs} lookupCell={lookupCompatCell} />
+
+            {/* 不相容詳情卡片 */}
+            {incompatibleCount > 0 && (
+              <div className="space-y-1.5 pt-1">
+                <p className="text-xs font-semibold text-red-700 dark:text-red-400">不相容組合</p>
+                {deduplicatedCompat.filter(c => !c.compatible).map((c, idx) => (
+                  <CompatibilityRow key={`incompat-${idx}`} c={c} />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </Section>

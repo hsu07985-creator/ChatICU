@@ -13,6 +13,7 @@ import { type Patient } from '../../lib/api/patients';
 import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from '../../lib/patients-cache';
 import { getMedications, type Medication } from '../../lib/api/medications';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
+import { CompatibilityMatrix, CompatibilityMatrixLegend, type CompatStatus as SharedCompatStatus, type CompatibilityCell } from '../../components/pharmacy/compatibility-matrix';
 
 /**
  * Y-Site 相容性藥品清單
@@ -172,7 +173,7 @@ function matchIVDrug(medName: string): string | null {
   return null;
 }
 
-type CompatStatus = 'C' | 'I' | '-' | '?';
+type CompatStatus = SharedCompatStatus;
 
 interface MatrixCell {
   drugA: string;
@@ -180,13 +181,6 @@ interface MatrixCell {
   status: CompatStatus;
   notes?: string;
 }
-
-const STATUS_CONFIG: Record<CompatStatus, { label: string; short: string; color: string; bg: string }> = {
-  C: { label: '相容 (Compatible)', short: 'C', color: 'text-green-700 dark:text-green-300', bg: 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700' },
-  I: { label: '不相容 (Incompatible)', short: 'I', color: 'text-red-700 dark:text-red-300', bg: 'bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700' },
-  '-': { label: '無資料', short: '-', color: 'text-gray-500 dark:text-gray-400', bg: 'bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700' },
-  '?': { label: '查詢中', short: '?', color: 'text-gray-400 dark:text-gray-500', bg: 'bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700' },
-};
 
 const MIN_DRUGS = 2;
 
@@ -331,20 +325,6 @@ export function CompatibilityPage() {
     [...new Set(drugs.map(d => d.trim()).filter(Boolean))],
     [drugs]
   );
-
-  const getCell = useCallback((a: string, b: string): CompatStatus => {
-    const cell = matrixResults.find(
-      r => (r.drugA === a && r.drugB === b) || (r.drugA === b && r.drugB === a)
-    );
-    return cell?.status || '?';
-  }, [matrixResults]);
-
-  const getCellNotes = useCallback((a: string, b: string): string | undefined => {
-    const cell = matrixResults.find(
-      r => (r.drugA === a && r.drugB === b) || (r.drugA === b && r.drugB === a)
-    );
-    return cell?.notes;
-  }, [matrixResults]);
 
   return (
     <div className="p-6 space-y-6">
@@ -557,59 +537,23 @@ export function CompatibilityPage() {
                   <CardHeader>
                     <CardTitle>相容性矩陣</CardTitle>
                     <CardDescription>
-                      <span className="inline-flex items-center gap-1 mr-3"><span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-700">C</span> 相容</span>
-                      <span className="inline-flex items-center gap-1 mr-3"><span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700">I</span> 不相容</span>
-                      <span className="inline-flex items-center gap-1 mr-3"><span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-slate-700">-</span> 無配對資料</span>
-                      <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 text-[11px]">「無 Y-Site」= 此藥不在 Y-Site 來源，所有配對均無資料</span>
+                      <CompatibilityMatrixLegend />
+                      <span className="block mt-1 text-amber-600 dark:text-amber-400 text-[11px]">
+                        「無 Y-Site」= 此藥不在 Y-Site 來源，所有配對均無資料
+                      </span>
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="overflow-x-auto">
-                    <table className="text-sm border-collapse">
-                      <thead>
-                        <tr>
-                          <th className="px-2 py-1.5 text-left font-medium text-muted-foreground sticky left-0 bg-background z-10" />
-                          {validDrugs.map(d => (
-                            <th key={d} className="px-2 py-1.5 text-center font-medium text-xs whitespace-nowrap max-w-[110px]"
-                                title={IV_EXTENDED_SET.has(d) ? `${d}（非 Y-Site 來源，無配對資料）` : d}>
-                              <span className="truncate block">{d.length > 12 ? d.slice(0, 10) + '…' : d}</span>
-                              {IV_EXTENDED_SET.has(d) && (
-                                <span className="block text-[10px] text-amber-500 dark:text-amber-400 font-normal leading-tight">無 Y-Site</span>
-                              )}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {validDrugs.map((rowDrug, ri) => (
-                          <tr key={rowDrug}>
-                            <td className="px-2 py-1.5 font-medium text-xs whitespace-nowrap sticky left-0 bg-background z-10 border-r max-w-[110px]"
-                                title={IV_EXTENDED_SET.has(rowDrug) ? `${rowDrug}（非 Y-Site 來源）` : rowDrug}>
-                              <span className="truncate block">{rowDrug.length > 12 ? rowDrug.slice(0, 10) + '...' : rowDrug}</span>
-                              {IV_EXTENDED_SET.has(rowDrug) && (
-                                <span className="block text-[10px] text-amber-500 dark:text-amber-400 font-normal leading-tight">無 Y-Site</span>
-                              )}
-                            </td>
-                            {validDrugs.map((colDrug, ci) => {
-                              if (ri === ci) {
-                                return <td key={colDrug} className="px-2 py-1.5 text-center bg-gray-50 dark:bg-slate-800">—</td>;
-                              }
-                              const status = ri < ci ? getCell(rowDrug, colDrug) : getCell(colDrug, rowDrug);
-                              const notes = ri < ci ? getCellNotes(rowDrug, colDrug) : getCellNotes(colDrug, rowDrug);
-                              const cfg = STATUS_CONFIG[status];
-                              return (
-                                <td
-                                  key={colDrug}
-                                  className={`px-2 py-1.5 text-center border ${cfg.bg} cursor-default`}
-                                  title={`${rowDrug} + ${colDrug}: ${cfg.label}${notes ? ` (${notes})` : ''}`}
-                                >
-                                  <span className={`font-bold text-xs ${cfg.color}`}>{cfg.short}</span>
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <CardContent>
+                    <CompatibilityMatrix
+                      drugs={validDrugs}
+                      extendedSet={IV_EXTENDED_SET}
+                      lookupCell={(a, b): CompatibilityCell => {
+                        const cell = matrixResults.find(
+                          r => (r.drugA === a && r.drugB === b) || (r.drugA === b && r.drugB === a)
+                        );
+                        return { status: cell?.status ?? '?', notes: cell?.notes };
+                      }}
+                    />
                   </CardContent>
                 </Card>
               )}
