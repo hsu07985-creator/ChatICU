@@ -51,6 +51,7 @@ import {
   X,
   Info,
   Pill,
+  Sparkles,
   User,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -849,9 +850,10 @@ export function PharmacyWorkstationPage() {
           <Button
             onClick={handleComprehensiveAssessment}
             disabled={!assessReady}
-            className="h-12 px-6 text-base font-semibold bg-brand hover:bg-brand-hover shadow-md"
+            className="h-14 px-8 text-lg font-semibold bg-brand hover:bg-brand-hover shadow-lg"
             size="lg"
           >
+            {isAssessing ? null : <Sparkles className="h-5 w-5" />}
             <span>{isAssessing ? '處理中' : '執行全面評估'}</span>
             {isAssessing ? <ButtonLoadingIndicator /> : null}
           </Button>
