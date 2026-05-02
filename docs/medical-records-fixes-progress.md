@@ -35,10 +35,10 @@ done
 
 | Task | 內容 | 觸碰檔案 | 驗證 | 狀態 |
 |------|------|---------|------|------|
-| W2-T1 | 串流加 timeout（90s）+ 半截清理 | `src/lib/api/ai.ts:638-720`、各 catch 點 | 手動：拔網線後 polish content 自動清空 | ☐ |
-| W2-T2 | 藥師 SOAP 串流改用 `section_delta` SSE event | `backend/app/services/clinical_polish.py`（或對應檔）、`src/lib/api/ai.ts`、`src/components/pharmacist-soap-editor.tsx:74-97` | 手動：A/P 串流預覽完整無截斷；單元測試覆蓋特殊字元 | ☐ |
-| W2-T3 | 藥師 polished pane 串流期間 readonly + 提示 | `src/components/pharmacist-soap-editor.tsx:431-436` | 手動：串流中 polished textarea 灰底唯讀 | ☐ |
-| W2-T4 | IME composition guard utility + 套用 | `src/lib/dom/key.ts`(新)、`medical-records.tsx:891`、`pharmacist-soap-editor.tsx:452` | 手動：中文輸入法 composing 中按 Enter 不誤觸 | ☐ |
+| W2-T1 | 串流加 timeout（90s）+ 半截清理 | `src/lib/api/ai.ts:638-720`、各 catch 點 | 手動：拔網線後 polish content 自動清空 | ✅ |
+| W2-T2 | 藥師 SOAP 串流改用 `section_delta` SSE event | `backend/app/routers/clinical.py`、`src/lib/api/ai.ts`、`src/components/pharmacist-soap-editor.tsx:74-97` | 手動：A/P 串流預覽完整無截斷；單元測試覆蓋特殊字元 | ✅ |
+| W2-T3 | 藥師 polished pane 串流期間 readonly + 提示 | `src/components/pharmacist-soap-editor.tsx:431-436` | 手動：串流中 polished textarea 灰底唯讀 | ✅ |
+| W2-T4 | IME composition guard utility + 套用 | `src/lib/dom/key.ts`(新)、`medical-records.tsx:891`、`pharmacist-soap-editor.tsx:452` | 手動：中文輸入法 composing 中按 Enter 不誤觸 | ✅ |
 
 ---
 
@@ -92,3 +92,9 @@ done
 - 2026-05-02：W1-T4 ✅ — Polish/refine 都加 AbortController，按鈕在串流中變「停止」（黃色 outline）；藥師 SOAP 每段獨立 abort。`streamPolishClinicalText` 第三參數 signal 開始有人傳了。tsc 無錯。
 - 2026-05-02：W1-T5 ✅ — `setHydratedPatient` 改 `useEffect`，並在 patientId 變動時 abort 任何 in-flight polish/refine（修 P0-7 跨病人污染）；`getDefaultRecordType` 改用 `useEffect` + `userRoleInitializedRef`，等 `user.role` hydrate 後才設定預設 tab，且只設定一次（不會覆蓋使用者手動切換）。tsc + npm build 全綠。
 - **W1 全部完成。** 4 個 PR 中的第 1 個準備好可以 commit + push。
+- 2026-05-02：W1 已 commit 並 push 到 personal+railway，merge 進 main（commit 20403b559）；Railway healthy、Vercel build 161s 完成。Playwright 用 nurse 帳號 B4372 登入 prod 驗證：(1) 自動 land 在 護理記錄 tab → Auth race fix 生效 ✅；(2) 模板 popover 顯示「內建 4 + 自訂 4」(原本 500 時自訂為 0) → schema fix 生效 ✅。**W1 真實 prod 穩定。**
+- 2026-05-02：W2-T1 ✅ — `ai.ts` 新增 `PolishStreamError` typed error + 90s timeout；`streamPolishClinicalText` 永遠丟 `PolishStreamError`，failure reason 分 `aborted/timeout/network/protocol`。`medical-records.tsx` 與 `pharmacist-soap-editor.tsx` 的 catch 改成依 reason 處理：非 abort 一律清空半截 polish 內容（防止複製到截斷句子進 HIS）。tsc 無錯。
+- 2026-05-02：W2-T4 ✅ — 新檔 `src/lib/dom/key.ts` 提供 `isCmdEnter()` helper（檢查 `nativeEvent.isComposing` + `keyCode === 229`）；medical-records 主草稿 + refine textarea、pharmacist-soap-editor refine textarea 全部換掉手刻判斷。順手把 P2-6（主草稿 Cmd+Enter 觸發 polish）一起做了。
+- 2026-05-02：W2-T3 ✅ — 藥師 SOAP polished pane 在 `polishing||refining` 期間 `readOnly` + 灰底，title 改顯示「AI 寫入中…完成後即可編輯」，避免 cursor jump 與手動編輯被串流覆寫。
+- 2026-05-02：W2-T2 ✅ — 後端 `routers/clinical.py` 新增 `_extract_json_string_value`（含 `\uXXXX` 與部分回退；9/9 單元 case 通過）；polish/stream route 對 pharmacist target_section 額外 emit `section_delta` event（非藥師流程不變）。前端 `ai.ts` 加 `onSectionDelta` 第四參數；`pharmacist-soap-editor.tsx` 移除 hand-rolled `extractStreamedSoapValue`，改聽 `section_delta` 並 append 已解碼 chunks。後端 305/305 pytest + 前端 build clean。
+- **W2 全部完成。** 4 個 PR 中的第 2 個準備好可以 commit + push。

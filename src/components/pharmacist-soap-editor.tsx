@@ -13,6 +13,7 @@
 import { useCallback, useRef, useState } from 'react';
 import {
   streamPolishClinicalText,
+  PolishStreamError,
   type PolishMode,
   type SoapSection,
   type SoapSections,
@@ -25,6 +26,7 @@ import {
   type LabWindow,
 } from '../lib/clinical/format-for-paste';
 import { copyToClipboard } from '../lib/clipboard-utils';
+import { isCmdEnter } from '../lib/dom/key';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { ButtonLoadingIndicator } from './ui/button-loading-indicator';
@@ -64,37 +66,10 @@ const INITIAL_STATE: PerSectionState = {
   refinementInstruction: '',
 };
 
-/**
- * Best-effort incremental extractor for the target section value out of the
- * pharmacist_polish JSON stream. The LLM emits `{"s":"...","o":"...","a":"...","p":"..."}`.
- * We scan for `"<key>":"` and read characters (with minimal escape handling)
- * until the closing `"` that terminates the string. Partial / truncated
- * buffers return whatever has been accumulated so far.
- */
-function extractStreamedSoapValue(buffer: string, key: SoapSection): string {
-  const marker = `"${key}":"`;
-  const idx = buffer.indexOf(marker);
-  if (idx < 0) return '';
-  let i = idx + marker.length;
-  let out = '';
-  while (i < buffer.length) {
-    const ch = buffer[i];
-    if (ch === '\\') {
-      if (i + 1 >= buffer.length) break;
-      const next = buffer[i + 1];
-      if (next === 'n') out += '\n';
-      else if (next === 't') out += '\t';
-      else if (next === 'r') out += '\r';
-      else out += next;
-      i += 2;
-      continue;
-    }
-    if (ch === '"') return out;
-    out += ch;
-    i += 1;
-  }
-  return out;
-}
+// Legacy hand-rolled JSON scanner removed (W2-T2). The server now emits
+// `section_delta` events with already-decoded chunks for the target section,
+// so the frontend no longer parses the JSON stream. The fallback is the
+// authoritative `polished_sections` payload on the `done` event.
 
 const SECTION_META: Record<SoapSection, { label: string; subtitle: string; hint: string; aiEditable: boolean; defaultMode: PolishMode }> = {
   s: { label: 'S — Subjective', subtitle: '從 HIS 貼上', hint: 'AI 不會動這段', aiEditable: false, defaultMode: 'full' },
@@ -208,8 +183,10 @@ export function PharmacistSoapEditor({
       const controller = new AbortController();
       abortRefs.current[key] = controller;
       patchSectionState(key, isRefinement ? { refining: true } : { polishing: true });
-      let streamBuffer = '';
-      let lastPreview = '';
+      // Reset section preview at start of each polish so previous artifacts
+      // don't bleed in (e.g. retry after error).
+      let sectionAccum = '';
+      setPolishedValue(key, '');
       try {
         const result = await streamPolishClinicalText(
           {
@@ -224,19 +201,15 @@ export function PharmacistSoapEditor({
             instruction: isRefinement ? instruction : undefined,
             previousPolished: isRefinement ? previousPolished : undefined,
           },
-          (chunk) => {
-            streamBuffer += chunk;
-            // Extract the target section's value incrementally from the JSON
-            // stream so the pharmacist sees characters appear while the model
-            // is still writing. The authoritative value comes from the final
-            // parsed payload on `done`.
-            const preview = extractStreamedSoapValue(streamBuffer, key);
-            if (preview && preview !== lastPreview) {
-              lastPreview = preview;
-              setPolishedValue(key, preview);
-            }
-          },
+          // `delta` (raw JSON chunks) is unused now — section_delta gives us
+          // already-decoded text for the target section.
+          () => {},
           controller.signal,
+          (sectionKey, chunk) => {
+            if (sectionKey !== key) return;
+            sectionAccum += chunk;
+            setPolishedValue(key, sectionAccum);
+          },
         );
         const returned = result.polished_sections?.[key];
         const fallback = result.polished;
@@ -248,13 +221,19 @@ export function PharmacistSoapEditor({
         } else {
           patchSectionState(key, { polishing: false });
         }
-      } catch {
+      } catch (err) {
         patchSectionState(key, isRefinement ? { refining: false } : { polishing: false });
-        if (controller.signal.aborted) {
-          toast.message('已停止 AI 修飾');
-        } else {
-          toast.error('AI 修飾失敗，請稍後再試');
+        // Per-section partial polish text is now garbage if not refinement —
+        // clear it so pharmacist doesn't paste a half-sentence into HIS.
+        // Refinement keeps the previous good polished value (the prior version
+        // is what `polishedSoap[key]` holds before this run started).
+        if (!isRefinement) {
+          setPolishedValue(key, '');
         }
+        const reason = err instanceof PolishStreamError ? err.reason : 'network';
+        const message = err instanceof PolishStreamError ? err.message : 'AI 修飾失敗，請稍後再試';
+        if (reason === 'aborted') toast.message(message);
+        else toast.error(message);
       } finally {
         if (abortRefs.current[key] === controller) abortRefs.current[key] = null;
       }
@@ -444,7 +423,9 @@ export function PharmacistSoapEditor({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-xs font-medium text-sky-700 dark:text-sky-300">
                         <Sparkles className="h-3.5 w-3.5" />
-                        AI 修飾結果（可直接修改）
+                        {st.polishing || st.refining
+                          ? 'AI 寫入中…完成後即可編輯'
+                          : 'AI 修飾結果（可直接修改）'}
                       </div>
                       <button
                         type="button"
@@ -460,7 +441,11 @@ export function PharmacistSoapEditor({
                     <Textarea
                       value={polished}
                       onChange={(e) => setPolishedValue(key, e.target.value)}
-                      className="min-h-[90px] resize-y border-sky-300 font-mono text-sm dark:border-sky-700"
+                      readOnly={st.polishing || st.refining}
+                      className={
+                        'min-h-[90px] resize-y border-sky-300 font-mono text-sm dark:border-sky-700'
+                        + (st.polishing || st.refining ? ' bg-slate-50 dark:bg-slate-900/40' : '')
+                      }
                       data-testid={`pharmacist-soap-polished-${key}`}
                     />
                     {st.refinementOpen && (
@@ -479,8 +464,7 @@ export function PharmacistSoapEditor({
                           disabled={st.refining}
                           onKeyDown={(e) => {
                             if (
-                              e.key === 'Enter'
-                              && (e.metaKey || e.ctrlKey)
+                              isCmdEnter(e)
                               && !st.refining
                               && st.refinementInstruction.trim()
                             ) {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { streamPolishClinicalText } from '../lib/api/ai';
+import { streamPolishClinicalText, PolishStreamError } from '../lib/api/ai';
 import {
   listRecordTemplates,
   createRecordTemplate,
@@ -11,6 +11,7 @@ import {
 import type { LabData } from '../lib/api/lab-data';
 import type { Medication } from '../lib/api/medications';
 import { copyToClipboard } from '../lib/clipboard-utils';
+import { isCmdEnter } from '../lib/dom/key';
 import { useAuth } from '../lib/auth-context';
 import {
   PharmacistSoapEditor,
@@ -410,11 +411,14 @@ export function MedicalRecords({
       );
       updateDraft(recordType, { polished: result.polished, polishedFrom: inputContent });
     } catch (err) {
-      if (controller.signal.aborted) {
-        toast.message('已停止 AI 修飾');
-      } else {
-        toast.error('AI 修飾失敗，請稍後再試');
-      }
+      // On any non-success path the partial polished text in the draft is
+      // either incomplete (timeout/network) or stale (aborted). Clear it so
+      // the user can't accidentally copy a half-sentence into HIS.
+      const reason = err instanceof PolishStreamError ? err.reason : 'network';
+      const message = err instanceof PolishStreamError ? err.message : 'AI 修飾失敗，請稍後再試';
+      updateDraft(recordType, { polished: '', polishedFrom: '' });
+      if (reason === 'aborted') toast.message(message);
+      else toast.error(message);
     } finally {
       if (polishAbortRef.current === controller) polishAbortRef.current = null;
       setIsPolishing(false);
@@ -461,11 +465,13 @@ export function MedicalRecords({
       setRefinementInstruction('');
       toast.success('已依指示重新修飾');
     } catch (err) {
-      if (controller.signal.aborted) {
-        toast.message('已停止再修');
-      } else {
-        toast.error('再修一次失敗，請稍後再試');
-      }
+      // Refinement failure: revert to the last good polished text so the
+      // user keeps what they had, but surface the reason so they can retry.
+      const reason = err instanceof PolishStreamError ? err.reason : 'network';
+      const message = err instanceof PolishStreamError ? err.message : '再修一次失敗，請稍後再試';
+      updateDraft(recordType, { polished: polishedContent, polishedFrom: inputContent });
+      if (reason === 'aborted') toast.message(message);
+      else toast.error(message);
     } finally {
       if (refineAbortRef.current === controller) refineAbortRef.current = null;
       setIsRefining(false);
@@ -813,6 +819,12 @@ export function MedicalRecords({
               onChange={(e) => setInputContent(e.target.value)}
               placeholder={config.placeholder}
               className="min-h-[280px] flex-1 resize-none border-slate-300 dark:border-slate-600"
+              onKeyDown={(e) => {
+                if (isCmdEnter(e) && !isPolishing && inputContent.trim() && canPolish) {
+                  e.preventDefault();
+                  void handlePolishContent();
+                }
+              }}
             />
             <div className="flex items-center gap-2">
               {isPolishing ? (
@@ -949,7 +961,7 @@ export function MedicalRecords({
                       className="min-h-[60px] resize-none border-slate-300 text-sm dark:border-slate-600"
                       disabled={isRefining}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !isRefining) {
+                        if (isCmdEnter(e) && !isRefining) {
                           e.preventDefault();
                           void handleRefine();
                         }

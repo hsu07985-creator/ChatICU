@@ -333,6 +333,75 @@ def _trim_patient_for_pharmacist(patient_data: Dict[str, Any], target_section: O
     return trimmed
 
 
+def _extract_json_string_value(buf: str, key: str) -> Optional[str]:
+    """Best-effort streaming extractor for a top-level string value in a JSON
+    buffer that's still being assembled. Returns the decoded chars seen so
+    far for ``key`` (may be partial — caller should keep calling as buf grows),
+    or ``None`` if the key marker has not arrived yet.
+
+    Handles standard JSON escapes including ``\\uXXXX``. If the buffer ends
+    mid-escape, returns whatever is decoded so far (the missing chars will
+    arrive in the next chunk). Non-BMP code points (surrogate pairs) are
+    decoded by the second-half emit on the next call — acceptable here since
+    the authoritative final value comes from the ``done`` event.
+    """
+    marker = f'"{key}":"'
+    idx = buf.find(marker)
+    if idx < 0:
+        return None
+    out: List[str] = []
+    i = idx + len(marker)
+    n = len(buf)
+    while i < n:
+        ch = buf[i]
+        if ch == '\\':
+            if i + 1 >= n:
+                break
+            nxt = buf[i + 1]
+            if nxt == 'n':
+                out.append('\n')
+                i += 2
+            elif nxt == 't':
+                out.append('\t')
+                i += 2
+            elif nxt == 'r':
+                out.append('\r')
+                i += 2
+            elif nxt == 'b':
+                out.append('\b')
+                i += 2
+            elif nxt == 'f':
+                out.append('\f')
+                i += 2
+            elif nxt == '/':
+                out.append('/')
+                i += 2
+            elif nxt == '\\':
+                out.append('\\')
+                i += 2
+            elif nxt == '"':
+                out.append('"')
+                i += 2
+            elif nxt == 'u':
+                if i + 6 > n:  # need 4 hex chars
+                    break
+                try:
+                    out.append(chr(int(buf[i + 2 : i + 6], 16)))
+                    i += 6
+                except ValueError:
+                    out.append(nxt)
+                    i += 2
+            else:
+                out.append(nxt)
+                i += 2
+            continue
+        if ch == '"':
+            return ''.join(out)
+        out.append(ch)
+        i += 1
+    return ''.join(out)
+
+
 def _build_polish_context(req: PolishRequest, patient_data: Dict[str, Any], user: User):
     """Shared input-construction for both sync and streaming polish endpoints."""
     task_name = req.task or "clinical_polish"
@@ -533,7 +602,19 @@ async def polish_clinical_text_stream(
         {"role": "user", "content": json.dumps(input_data, ensure_ascii=False, default=str)}
     ]
 
+    # Pharmacist polish responses are JSON shaped {s,o,a,p}; the legacy
+    # frontend extracted the target section from the raw `delta` chunks with
+    # a hand-rolled scanner that broke on `\u00XX` escapes and chunk-boundary
+    # `\\"`. We now extract on the server (where we hold the full accumulated
+    # buffer) and emit `section_delta` events with already-decoded chars.
+    pharmacist_target = (
+        req.target_section if (is_pharmacist and req.target_section in ("s", "o", "a", "p"))
+        else None
+    )
+    section_emitted_len = 0
+
     async def event_stream():
+        nonlocal section_emitted_len
         full_content = ""
         usage_meta: Dict[str, Any] = {}
         stream_failed = False
@@ -560,6 +641,18 @@ async def polish_clinical_text_stream(
                     return
                 full_content += chunk
                 yield f"event: delta\ndata: {json.dumps({'chunk': chunk}, ensure_ascii=False)}\n\n"
+
+                # For pharmacist target-section polish, also emit a clean
+                # decoded delta so the frontend doesn't have to scan JSON.
+                if pharmacist_target is not None:
+                    section_text = _extract_json_string_value(full_content, pharmacist_target)
+                    if section_text is not None and len(section_text) > section_emitted_len:
+                        new_chars = section_text[section_emitted_len:]
+                        section_emitted_len = len(section_text)
+                        yield (
+                            f"event: section_delta\n"
+                            f"data: {json.dumps({'key': pharmacist_target, 'chunk': new_chars}, ensure_ascii=False)}\n\n"
+                        )
         except Exception as e:
             logger.error("[INTG][AI][API] polish stream exception: %s", str(e)[:500])
             yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"

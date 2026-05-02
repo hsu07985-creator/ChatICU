@@ -628,36 +628,107 @@ export async function polishClinicalText(data: PolishRequestOptions): Promise<Po
   return ensureData(response.data, 'API contract');
 }
 
+/** 90s ceiling per polish call. Beyond this we treat the stream as hung. */
+export const POLISH_STREAM_TIMEOUT_MS = 90_000;
+
+/** Reason that a polish stream ended without delivering `done`. */
+export type PolishStreamFailureReason =
+  | 'aborted'   // user clicked 停止
+  | 'timeout'   // exceeded POLISH_STREAM_TIMEOUT_MS
+  | 'network'   // connection reset / fetch error / server error
+  | 'protocol'; // server sent error event or no done event
+
+/** Typed error so callers can decide whether to clear partial UI state. */
+export class PolishStreamError extends Error {
+  reason: PolishStreamFailureReason;
+  cause?: unknown;
+  constructor(reason: PolishStreamFailureReason, message: string, cause?: unknown) {
+    super(message);
+    this.name = 'PolishStreamError';
+    this.reason = reason;
+    this.cause = cause;
+  }
+}
+
 /**
  * Streaming variant of polishClinicalText. Consumes an SSE body from
  * /api/v1/clinical/polish/stream and invokes `onDelta` for each token chunk
  * so the UI can surface progress immediately (TTFB ~1s instead of 15–23s).
  * Resolves with the final parsed PolishResponse (same shape as
  * polishClinicalText) delivered via the `done` event.
+ *
+ * For pharmacist target-section polish, the server also emits `section_delta`
+ * events with already-decoded chunks for the requested SOAP section. Callers
+ * can pass `onSectionDelta` to subscribe and stop relying on the legacy
+ * client-side JSON scanner that broke on `\u00XX` and chunk-boundary `\\"`.
+ *
+ * Always rejects with PolishStreamError on failure (including user abort and
+ * 90s timeout) so callers can decide whether to clear partial polished state.
  */
+export type SectionDeltaHandler = (key: SoapSection, chunk: string) => void;
+
 export async function streamPolishClinicalText(
   data: PolishRequestOptions,
   onDelta: (chunk: string) => void,
   signal?: AbortSignal,
+  onSectionDelta?: SectionDeltaHandler,
 ): Promise<PolishResponse> {
   const requestId = createStreamRequestId();
-  const response = await fetch(`${API_BASE_URL}/api/v1/clinical/polish/stream`, {
-    method: 'POST',
-    credentials: 'include',
-    signal,
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'text/event-stream',
-      'X-Request-ID': requestId,
-      'X-Trace-ID': requestId,
-    },
-    body: JSON.stringify(buildPolishBody(data)),
-  });
+  // Combine the caller's signal with our internal timeout so either source can
+  // abort the in-flight fetch; downstream catch can still distinguish reasons
+  // via PolishStreamError.reason.
+  const internal = new AbortController();
+  const onExternalAbort = () => internal.abort();
+  if (signal) {
+    if (signal.aborted) internal.abort();
+    else signal.addEventListener('abort', onExternalAbort, { once: true });
+  }
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    internal.abort();
+  }, POLISH_STREAM_TIMEOUT_MS);
+
+  const cleanup = () => {
+    clearTimeout(timeoutId);
+    if (signal) signal.removeEventListener('abort', onExternalAbort);
+  };
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/clinical/polish/stream`, {
+      method: 'POST',
+      credentials: 'include',
+      signal: internal.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+        'X-Request-ID': requestId,
+        'X-Trace-ID': requestId,
+      },
+      body: JSON.stringify(buildPolishBody(data)),
+    });
+  } catch (err) {
+    cleanup();
+    if (timedOut) {
+      throw new PolishStreamError('timeout', 'AI 修飾逾時（>90 秒），請重試或縮短草稿。', err);
+    }
+    if (signal?.aborted) {
+      throw new PolishStreamError('aborted', '已停止 AI 修飾。', err);
+    }
+    throw new PolishStreamError('network', '無法連線到 AI 修飾服務，請檢查網路。', err);
+  }
+
   if (!response.ok) {
-    throw new Error(`AI 修飾請求失敗（HTTP ${response.status}）`);
+    cleanup();
+    throw new PolishStreamError(
+      'protocol',
+      `AI 修飾請求失敗（HTTP ${response.status}）`,
+    );
   }
   if (!response.body) {
-    throw new Error('AI 修飾串流連線失敗：無可讀取內容。');
+    cleanup();
+    throw new PolishStreamError('protocol', 'AI 修飾串流連線失敗：無可讀取內容。');
   }
 
   const reader = response.body.getReader();
@@ -665,56 +736,82 @@ export async function streamPolishClinicalText(
   let buffer = '';
   let final: PolishResponse | null = null;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (value) {
-      buffer += decoder.decode(value, { stream: !done });
-    }
-    buffer = buffer.replace(/\r\n/g, '\n');
-    if (done && buffer.trim()) {
-      buffer += '\n\n';
-    }
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (value) {
+        buffer += decoder.decode(value, { stream: !done });
+      }
+      buffer = buffer.replace(/\r\n/g, '\n');
+      if (done && buffer.trim()) {
+        buffer += '\n\n';
+      }
 
-    let boundaryIndex = buffer.indexOf('\n\n');
-    while (boundaryIndex !== -1) {
-      const frame = buffer.slice(0, boundaryIndex);
-      buffer = buffer.slice(boundaryIndex + 2);
-      boundaryIndex = buffer.indexOf('\n\n');
+      let boundaryIndex = buffer.indexOf('\n\n');
+      while (boundaryIndex !== -1) {
+        const frame = buffer.slice(0, boundaryIndex);
+        buffer = buffer.slice(boundaryIndex + 2);
+        boundaryIndex = buffer.indexOf('\n\n');
 
-      const parsed = parseSseFrame(frame);
-      if (!parsed) continue;
+        const parsed = parseSseFrame(frame);
+        if (!parsed) continue;
 
-      let payload: any = {};
-      if (parsed.data) {
-        try {
-          payload = JSON.parse(parsed.data);
-        } catch {
-          payload = {};
+        let payload: any = {};
+        if (parsed.data) {
+          try {
+            payload = JSON.parse(parsed.data);
+          } catch {
+            payload = {};
+          }
+        }
+
+        if (parsed.event === 'delta' && typeof payload.chunk === 'string') {
+          onDelta(payload.chunk);
+          continue;
+        }
+        if (
+          parsed.event === 'section_delta'
+          && typeof payload.key === 'string'
+          && typeof payload.chunk === 'string'
+          && onSectionDelta
+        ) {
+          onSectionDelta(payload.key as SoapSection, payload.chunk);
+          continue;
+        }
+        if (parsed.event === 'done' && payload?.data) {
+          final = payload.data as PolishResponse;
+          continue;
+        }
+        if (parsed.event === 'error') {
+          throw new PolishStreamError(
+            'protocol',
+            typeof payload?.message === 'string' && payload.message
+              ? payload.message
+              : 'AI 修飾串流服務發生錯誤。',
+          );
         }
       }
 
-      if (parsed.event === 'delta' && typeof payload.chunk === 'string') {
-        onDelta(payload.chunk);
-        continue;
-      }
-      if (parsed.event === 'done' && payload?.data) {
-        final = payload.data as PolishResponse;
-        continue;
-      }
-      if (parsed.event === 'error') {
-        throw new Error(
-          typeof payload?.message === 'string' && payload.message
-            ? payload.message
-            : 'AI 修飾串流服務發生錯誤。'
-        );
-      }
+      if (done) break;
     }
-
-    if (done) break;
+  } catch (err) {
+    cleanup();
+    if (err instanceof PolishStreamError) throw err;
+    if (timedOut) {
+      throw new PolishStreamError('timeout', 'AI 修飾逾時（>90 秒），請重試或縮短草稿。', err);
+    }
+    if (signal?.aborted) {
+      throw new PolishStreamError('aborted', '已停止 AI 修飾。', err);
+    }
+    throw new PolishStreamError('network', 'AI 修飾串流中斷，請檢查網路後重試。', err);
   }
 
+  cleanup();
   if (!final) {
-    throw new Error('AI 修飾串流中斷，請重試。');
+    throw new PolishStreamError(
+      'protocol',
+      'AI 修飾串流結束但未收到完整結果，請重試。',
+    );
   }
   return final;
 }
