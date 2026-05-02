@@ -51,7 +51,6 @@ import {
   X,
   Info,
   Pill,
-  Sparkles,
   User,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -837,29 +836,12 @@ export function PharmacyWorkstationPage() {
 
   return (
     <div className="p-6 space-y-4">
-      {/* 標題 + 主要動作（hero） */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">藥師工作站</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            選擇病患、管理用藥、執行全面評估並產生用藥建議
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-1 shrink-0">
-          <Button
-            onClick={handleComprehensiveAssessment}
-            disabled={!assessReady}
-            className="h-14 px-8 text-lg font-semibold bg-brand hover:bg-brand-hover shadow-lg"
-            size="lg"
-          >
-            {isAssessing ? null : <Sparkles className="h-5 w-5" />}
-            <span>{isAssessing ? '處理中' : '執行全面評估'}</span>
-            {isAssessing ? <ButtonLoadingIndicator /> : null}
-          </Button>
-          <p className="text-xs text-muted-foreground text-right max-w-[420px]">
-            {assessHint}
-          </p>
-        </div>
+      {/* 標題 */}
+      <div>
+        <h1 className="text-2xl font-bold">藥師工作站</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          選擇病患、管理用藥、執行全面評估並產生用藥建議
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
@@ -1037,6 +1019,10 @@ export function PharmacyWorkstationPage() {
             onGoToStatistics={handleGoToStatistics}
             onGenerateAdvice={handleGenerateAdvice}
             onSaveAdvice={handleSaveAdvice}
+            onRunAssessment={handleComprehensiveAssessment}
+            assessReady={assessReady}
+            assessHint={assessHint}
+            isAssessing={isAssessing}
           />
         )}
 

@@ -10,9 +10,13 @@ import {
   Droplets,
   Calculator,
   Copy,
+  RotateCw,
+  Sparkles,
   User,
   ShieldAlert,
 } from 'lucide-react';
+import { Button } from '../../../components/ui/button';
+import { ButtonLoadingIndicator } from '../../../components/ui/button-loading-indicator';
 import type { AssessmentResults, ExpandedSections, ExtendedPatientData, DrugInteraction, IVCompatibility } from './types';
 import type { DuplicateAlert } from '../../../lib/api/medications';
 import { DosageRecommendationCard } from './dosage-recommendation-card';
@@ -34,6 +38,10 @@ interface AssessmentResultsPanelProps {
   onGoToStatistics: () => void;
   onGenerateAdvice: () => void;
   onSaveAdvice: () => void;
+  onRunAssessment: () => void;
+  assessReady: boolean;
+  assessHint: string;
+  isAssessing: boolean;
 }
 
 const RISK_BADGE: Record<string, { className: string; label: string; short: string }> = {
@@ -185,6 +193,10 @@ export function AssessmentResultsPanel({
   assessmentResults,
   drugList,
   extendedData,
+  onRunAssessment,
+  assessReady,
+  assessHint,
+  isAssessing,
 }: AssessmentResultsPanelProps) {
 
   if (!selectedPatient) {
@@ -206,12 +218,27 @@ export function AssessmentResultsPanel({
   if (!assessmentResults) {
     return (
       <div className="lg:col-span-3">
-        <Card>
-          <CardContent className="py-16">
-            <div className="text-center space-y-3">
-              <h3 className="font-semibold text-lg">準備執行評估</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                目前已載入 {drugList.length} 項藥品，點擊「執行全面評估」開始分析
+        <Card className="border-brand/40">
+          <CardContent className="py-12">
+            <div className="text-center space-y-5">
+              <div className="space-y-2">
+                <h3 className="font-semibold text-lg">準備執行評估</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  目前已載入 {drugList.length} 項藥品
+                </p>
+              </div>
+              <Button
+                onClick={onRunAssessment}
+                disabled={!assessReady}
+                className="h-14 px-10 text-lg font-semibold bg-brand hover:bg-brand-hover shadow-lg"
+                size="lg"
+              >
+                {isAssessing ? null : <Sparkles className="h-5 w-5" />}
+                <span>{isAssessing ? '處理中' : '執行全面評估'}</span>
+                {isAssessing ? <ButtonLoadingIndicator /> : null}
+              </Button>
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-md mx-auto">
+                {assessHint}
               </p>
             </div>
           </CardContent>
@@ -262,10 +289,23 @@ export function AssessmentResultsPanel({
       {/* ── 評估摘要（精簡） ── */}
       <Card className="border-brand border-2">
         <CardHeader className="bg-brand text-white py-3">
-          <CardTitle className="text-white text-base flex items-center gap-2">
-            <ShieldAlert className="h-5 w-5" />
-            評估摘要
-          </CardTitle>
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-white text-base flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5" />
+              評估摘要
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onRunAssessment}
+              disabled={!assessReady}
+              className="h-8 px-2 text-white hover:bg-white/15 hover:text-white"
+              aria-label="重新評估"
+            >
+              {isAssessing ? <ButtonLoadingIndicator /> : <RotateCw className="h-4 w-4" />}
+              <span className="text-xs ml-1">{isAssessing ? '處理中' : '重新評估'}</span>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="pt-4 pb-4">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
