@@ -511,8 +511,11 @@ export function PharmacistSoapEditor({
                       }
                       data-testid={`pharmacist-soap-polished-${key}`}
                     />
-                    {/* Always-visible refine box (no disclosure) — pharmacists
-                        used to miss the "再修一次" link in the corner. */}
+                    {/* Always-visible refine box, compact by default
+                        (1-line input that expands on focus). Pharmacists no
+                        longer need to find a corner link, but A + P × 4
+                        sections × full-height refine boxes would dominate
+                        the page. Chat-input pattern keeps both. */}
                     <div className="space-y-2 rounded border-2 border-sky-300 bg-white p-2 dark:border-sky-700 dark:bg-slate-900/40">
                       <div className="flex items-center justify-between">
                         <h5 className="text-xs font-semibold text-sky-800 dark:text-sky-200">
@@ -530,7 +533,7 @@ export function PharmacistSoapEditor({
                             ? '想怎麼調整？例：再簡短一點 / 把劑量細節拿掉 / 用條列式'
                             : '想怎麼調整？例：語氣再中性一點 / 翻譯成英文'
                         }
-                        className="min-h-[60px] resize-none border-sky-300 text-sm dark:border-sky-700"
+                        className="min-h-[36px] resize-none border-sky-300 text-sm transition-[min-height] duration-150 focus:min-h-[72px] dark:border-sky-700"
                         disabled={st.refining}
                         onKeyDown={(e) => {
                           if (

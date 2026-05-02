@@ -1210,30 +1210,31 @@ export function MedicalRecords({
             )}
 
             {polishedContent && (
-              // Always-visible refine box (no disclosure). Even when the source
-              // draft has changed (isPolishedStale) we keep this open — the
-              // user may want to refine the polished result they're currently
-              // looking at without having to re-polish from scratch.
-              <div className="space-y-2 rounded-md border-2 border-slate-300 bg-slate-50/60 p-3 dark:border-slate-600 dark:bg-slate-800/30">
+              // Always-visible refine box. Compact by default — single-line
+              // input + truncated preview chip — expands on focus (chat-input
+              // pattern). Saves ~70px of vertical space when not in use,
+              // restores full editor when the user actually needs it.
+              <div className="group/refine space-y-2 rounded-md border-2 border-slate-300 bg-slate-50/60 p-3 dark:border-slate-600 dark:bg-slate-800/30">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                     再修一次
                   </h4>
                   <p className="text-[11px] text-slate-400">⌘/Ctrl + Enter 送出</p>
                 </div>
-                {/* W3-T1: explicit preview of what 再修一次 will refine. */}
-                <div className="rounded bg-white px-2 py-1 text-[11px] text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
+                {/* Single-line preview chip; full text shown on the polished
+                    pane right above so truncation here is fine. */}
+                <div className="truncate rounded bg-white px-2 py-1 text-[11px] text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
                   依右側目前內容再修：
                   <span className="ml-1 font-mono">
-                    {polishedContent.replace(/\s+/g, ' ').slice(0, 50)}
-                    {polishedContent.length > 50 ? '…' : ''}
+                    {polishedContent.replace(/\s+/g, ' ').slice(0, 60)}
+                    {polishedContent.length > 60 ? '…' : ''}
                   </span>
                 </div>
                 <Textarea
                   value={refinementInstruction}
                   onChange={(e) => setRefinementInstruction(e.target.value)}
-                  placeholder="想怎麼調整？例：再簡短一點 / 把劑量細節拿掉 / 用條列式 / 加上腎功能調整的理由"
-                  className="min-h-[60px] resize-none border-slate-300 text-sm dark:border-slate-600"
+                  placeholder="想怎麼調整？例：再簡短一點 / 把劑量細節拿掉 / 用條列式"
+                  className="min-h-[36px] resize-none border-slate-300 text-sm transition-[min-height] duration-150 focus:min-h-[80px] dark:border-slate-600"
                   disabled={isRefining}
                   onKeyDown={(e) => {
                     if (isCmdEnter(e) && !isRefining) {
