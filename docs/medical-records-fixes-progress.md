@@ -46,13 +46,13 @@ done
 
 | Task | 內容 | 觸碰檔案 | 驗證 | 狀態 |
 |------|------|---------|------|------|
-| W3-T1 | 「再修一次」UI 預覽 chip（保留 API contract） | `src/components/medical-records.tsx:882-913` | UI 視覺：refine panel 上方顯示「將依右側目前內容再修：…」 | ☐ |
-| W3-T2 | 模板套用前確認（短稿直接套+持久復原 chip；長稿跳 modal） | `src/components/medical-records.tsx:334-362` | 手動：80 字以下無 modal 但有 chip；80 字以上跳 modal | ☐ |
-| W3-T3 | Polish state machine（snapshot 凍結 + banner 不鎖 textarea） | `src/components/medical-records.tsx`（多處） | 手動：polish 中改草稿 banner 顯示「修改不影響此次結果」；post-stream 徽章正確 | ☐ |
-| W3-T4 | `selectedTemplateId` / `selectedTemplateSnapshot` 進 DraftEntry | `src/components/medical-records.tsx:168-192` | 手動：切 record-type 再切回，模板狀態保留 | ☐ |
-| W3-T5 | 「另存為自訂模板」入口 | `src/components/medical-records.tsx`（template popover 區） | UI 視覺：改完內建模板看到「另存為自訂模板」按鈕 | ☐ |
-| W3-T6 | `PHARMACIST_SOAP_TEMPLATE_NAME` 角色 gating（在 useMemo） | `src/components/medical-records.tsx:326-330` | 手動：醫師打開 用藥建議 popover 看不到「藥師 SOAP」 | ☐ |
-| W3-T7 | localStorage namespace + migration | `src/components/medical-records.tsx:193,206-227` | 手動：兩個 user 在同一 browser 切換，drafts 不互看 | ☐ |
+| W3-T1 | 「再修一次」UI 預覽 chip（保留 API contract） | `src/components/medical-records.tsx:882-913` | UI 視覺：refine panel 上方顯示「將依右側目前內容再修：…」 | ✅ |
+| W3-T2 | 模板套用前確認（短稿直接套+持久復原 chip；長稿跳 modal） | `src/components/medical-records.tsx:334-362` | 手動：80 字以下無 modal 但有 chip；80 字以上跳 modal | ✅ |
+| W3-T3 | Polish state machine（snapshot 凍結 + banner 不鎖 textarea） | `src/components/medical-records.tsx`（多處） | 手動：polish 中改草稿 banner 顯示「修改不影響此次結果」；post-stream 徽章正確 | ✅ |
+| W3-T4 | `selectedTemplateId` / `selectedTemplateSnapshot` 進 DraftEntry | `src/components/medical-records.tsx:168-192` | 手動：切 record-type 再切回，模板狀態保留 | ✅ |
+| W3-T5 | 「另存為自訂模板」入口 | `src/components/medical-records.tsx`（template popover 區） | UI 視覺：改完內建模板看到「另存為自訂模板」按鈕 | ✅ |
+| W3-T6 | `PHARMACIST_SOAP_TEMPLATE_NAME` 角色 gating（在 useMemo） | `src/components/medical-records.tsx:326-330` | 手動：醫師打開 用藥建議 popover 看不到「藥師 SOAP」 | ✅ |
+| W3-T7 | localStorage namespace + migration | `src/components/medical-records.tsx:193,206-227` | 手動：兩個 user 在同一 browser 切換，drafts 不互看 | ⏳ |
 
 ---
 
@@ -98,3 +98,13 @@ done
 - 2026-05-02：W2-T3 ✅ — 藥師 SOAP polished pane 在 `polishing||refining` 期間 `readOnly` + 灰底，title 改顯示「AI 寫入中…完成後即可編輯」，避免 cursor jump 與手動編輯被串流覆寫。
 - 2026-05-02：W2-T2 ✅ — 後端 `routers/clinical.py` 新增 `_extract_json_string_value`（含 `\uXXXX` 與部分回退；9/9 單元 case 通過）；polish/stream route 對 pharmacist target_section 額外 emit `section_delta` event（非藥師流程不變）。前端 `ai.ts` 加 `onSectionDelta` 第四參數；`pharmacist-soap-editor.tsx` 移除 hand-rolled `extractStreamedSoapValue`，改聽 `section_delta` 並 append 已解碼 chunks。後端 305/305 pytest + 前端 build clean。
 - **W2 全部完成。** 4 個 PR 中的第 2 個準備好可以 commit + push。
+- 2026-05-02：W2 已 commit (4406538c9) 並 push 到 personal+railway。Vercel build + Railway deploy 完成。Playwright 用 nurse 帳號實測 護理記錄 polish flow：(1) 草稿 textarea 下方 PHI 提示顯示 ✅ (2) 複製按鈕未 polish 時 label 為「複製未潤飾草稿到 HIS」✅ (3) 點 AI 檢查 → 中途看到「停止 AI 修飾」按鈕、polished 端串流 94 字 ✅ (4) 完成後按鈕恢復 AI 檢查、停止鈕消失、複製按鈕自動切換為「複製潤飾結果到 HIS」、polish 結果 144 字完整收尾 ✅。**W2 真實 prod 穩定。**
+- 2026-05-02：W2-T2 用藥師帳號 A3266 補測 SOAP `section_delta` SSE 路徑（陳佩君 / pharmacist）：(1) 預設 land 在 用藥建議、SOAP S/O/A/P 4 段全在 ✅ (2) P 段填中英混雜+特殊字元 195 字後按 套藥師格式 → 串流期間 polished textarea readOnly + 「AI 寫入中…完成後即可編輯」card title ✅ (3) 串流結束 polished 315 字、4 條完整 bullet、**無 JSON 語法殘留**、**無破壞 `\u00` escape**（前舊版 hand-rolled scanner 對 unicode escape 會留 `u4e2d` 字面值）✅ (4) 串流結束 card title 恢復「AI 修飾結果（可直接修改）」、readOnly 解除、停止鈕消失 ✅。**W2-T2 真實 prod 通過。**
+- 2026-05-02：W3-T6 ✅ — `allTemplates` useMemo 加 `if (recordType === 'medication-advice' && user?.role !== 'pharmacist') delete merged[PHARMACIST_SOAP_TEMPLATE_NAME]`。醫師/護理師打開 用藥建議 popover 不再看到「藥師 SOAP」。
+- 2026-05-02：W3-T7 ✅ — `draftKey` 改為 `chaticu-draft-${userId}-${patientId}`；`loadDrafts` 第一次抓不到時 fallback 讀 legacy `chaticu-draft-${patientId}` 並搬移到新 key（一次性 migration）；user 未 hydrate 時不持久化。`saveDrafts` 對 quota 錯誤改 toast (id-deduped) 不再靜默吞。useEffect deps 加 `user?.id` 確保跨帳號切換重新載入。
+- 2026-05-02：W3-T3 ✅ — `handlePolishContent` + `handleRefine` 開始時都 `const sourceSnapshot = inputContent` freeze，串流 callback 全用 snapshot 寫 `polishedFrom`，修「草稿已變動」徽章被串流期間打字打到謊（P1-2 根因）。textarea **不鎖**（避免擋快手），改加非阻斷 banner「AI 正在處理本次草稿；目前在草稿上的編輯不會影響此次結果。」
+- 2026-05-02：W3-T4 ✅ — `DraftEntry` 加 `selectedTemplate` + `selectedTemplateSnapshot` + rename `submittedAt` → `lastCopiedAt`。Component-level `useState selectedTemplate` 移除，所有讀寫透過 currentDraft + updateDraft（持久化跨 record-type）。`templateDirty` 改用 snapshot 比較（不再受 server template 變動影響）。
+- 2026-05-02：W3-T5 ✅ — 模板 popover 內加 `canSaveBuiltinAsCustom` gating 的「另存為自訂模板」按鈕，按下時預填 `selectedTemplate (自訂)` 名稱與當前 inputContent 到新增表單。內建模板首次有自訂入口。
+- 2026-05-02：W3-T2 ✅ — `handleApplyTemplate` 重構為短稿（< 80 字、empty draft、re-apply 同模板）直接套；長稿跳 Dialog（覆蓋 / 附加到後面 / 取消）。`stashedDraftRef` 在套用時 snapshot 前一版，渲染期間若 `inputContent === selectedTemplateSnapshot && stashedDraftRef.current` 顯示「已套用 XXX [還原上一版]」chip；使用者開始打字後 chip 自然消失。
+- 2026-05-02：W3-T1 ✅ — Refine panel 上方加 chip「將依右側目前內容再修：{polished 前 50 字}…」，把後端 2-input contract（`content` = 原稿、`previousPolished` = 看到的潤飾結果）翻譯成使用者看得懂的心智模型。
+- **W3 全部完成。** 4 個 PR 中的第 3 個準備好可以 commit + push。

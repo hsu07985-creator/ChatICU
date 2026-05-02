@@ -25,6 +25,14 @@ import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
+import {
   FileText,
   Pill,
   ClipboardList,
@@ -172,7 +180,16 @@ type DraftEntry = {
   polishedFrom: string;
   soap: SoapDraft;
   polishedSoap: SoapDraft;
-  submittedAt?: number;
+  /** Name of the currently-applied template ('' = none). Persisted so that
+   *  switching record-type and back doesn't lose template context. */
+  selectedTemplate: string;
+  /** The template content as it was at apply-time. Used to compute
+   *  `templateDirty` against the user's *original* applied snapshot rather
+   *  than the live (possibly mutated) server template. */
+  selectedTemplateSnapshot: string | null;
+  /** Last time `handleCopy` succeeded for this draft (Asia/Taipei display);
+   *  surfaces "上次複製 N 分鐘前" hint. */
+  lastCopiedAt?: number;
 };
 type Drafts = Record<RecordType, DraftEntry>;
 
@@ -182,6 +199,8 @@ const makeEmptyDraft = (): DraftEntry => ({
   polishedFrom: '',
   soap: { ...EMPTY_SOAP },
   polishedSoap: { ...EMPTY_SOAP },
+  selectedTemplate: '',
+  selectedTemplateSnapshot: null,
 });
 
 const EMPTY_DRAFT: DraftEntry = makeEmptyDraft();
@@ -191,7 +210,9 @@ const EMPTY_DRAFTS: Drafts = {
   'nursing-record': makeEmptyDraft(),
 };
 
-const draftKey = (patientId: string) => `chaticu-draft-${patientId}`;
+const LEGACY_DRAFT_KEY = (patientId: string) => `chaticu-draft-${patientId}`;
+const draftKey = (userId: string | null | undefined, patientId: string): string | null =>
+  userId ? `chaticu-draft-${userId}-${patientId}` : null;
 
 function mergeDraft(parsed: Partial<DraftEntry> | undefined): DraftEntry {
   const base = makeEmptyDraft();
@@ -204,10 +225,9 @@ function mergeDraft(parsed: Partial<DraftEntry> | undefined): DraftEntry {
   };
 }
 
-function loadDrafts(patientId: string): Drafts {
+function parseDraftsBlob(raw: string | null): Drafts {
+  if (!raw) return { ...EMPTY_DRAFTS };
   try {
-    const raw = localStorage.getItem(draftKey(patientId));
-    if (!raw) return { ...EMPTY_DRAFTS };
     const parsed = JSON.parse(raw) as Partial<Drafts>;
     return {
       'progress-note': mergeDraft(parsed['progress-note']),
@@ -219,13 +239,50 @@ function loadDrafts(patientId: string): Drafts {
   }
 }
 
-function saveDrafts(patientId: string, drafts: Drafts) {
+function loadDrafts(userId: string | null | undefined, patientId: string): Drafts {
+  const key = draftKey(userId, patientId);
+  // Pre-auth render: serve empty drafts; the post-auth useEffect will reload.
+  if (!key) return { ...EMPTY_DRAFTS };
   try {
-    localStorage.setItem(draftKey(patientId), JSON.stringify(drafts));
+    let raw = localStorage.getItem(key);
+    // One-shot migration: drafts saved before user-namespacing existed under
+    // `chaticu-draft-${patientId}`. Move them into the namespaced key for the
+    // currently logged-in user (best guess) and remove the legacy entry so
+    // a different user on the same workstation can't see it.
+    if (!raw) {
+      const legacy = localStorage.getItem(LEGACY_DRAFT_KEY(patientId));
+      if (legacy) {
+        localStorage.setItem(key, legacy);
+        try {
+          localStorage.removeItem(LEGACY_DRAFT_KEY(patientId));
+        } catch { /* ignore */ }
+        raw = legacy;
+      }
+    }
+    return parseDraftsBlob(raw);
   } catch {
-    /* ignore quota errors */
+    return { ...EMPTY_DRAFTS };
   }
 }
+
+function saveDrafts(userId: string | null | undefined, patientId: string, drafts: Drafts) {
+  const key = draftKey(userId, patientId);
+  if (!key) return; // can't persist without a user — caller will retry post-hydrate
+  try {
+    localStorage.setItem(key, JSON.stringify(drafts));
+  } catch {
+    // localStorage quota likely. Surface once per session so user knows
+    // their drafts may not survive reload, instead of failing silently.
+    if (!quotaToastShown) {
+      quotaToastShown = true;
+      toast.error('儲存空間不足，目前的草稿可能無法保存到下一次開啟', {
+        id: 'draft-quota',
+      });
+    }
+  }
+}
+
+let quotaToastShown = false;
 
 /* ---------------- component ---------------- */
 
@@ -259,15 +316,16 @@ export function MedicalRecords({
   const isPharmacistSoapMode =
     user?.role === 'pharmacist' && recordType === 'medication-advice';
 
-  // Drafts (per-type, per-patient, persisted)
-  const [drafts, setDraftsState] = useState<Drafts>(() => loadDrafts(patientId));
-  // Reload drafts on patient switch + abort any in-flight polish so the chunk
-  // callback can't write into the new patient's localStorage. (P0-7)
+  // Drafts (per-type, per-patient, per-user, persisted)
+  const [drafts, setDraftsState] = useState<Drafts>(() => loadDrafts(user?.id, patientId));
+  // Reload drafts on (patient | user) switch + abort any in-flight polish so
+  // the chunk callback can't write into the new patient's localStorage (P0-7).
+  // user.id changes after auth hydrate → triggers reload from the namespaced key.
   useEffect(() => {
     polishAbortRef.current?.abort();
     refineAbortRef.current?.abort();
-    setDraftsState(loadDrafts(patientId));
-  }, [patientId]);
+    setDraftsState(loadDrafts(user?.id, patientId));
+  }, [patientId, user?.id]);
 
   const updateDraft = useCallback(
     (type: RecordType, patch: Partial<DraftEntry>) => {
@@ -276,11 +334,11 @@ export function MedicalRecords({
           ...prev,
           [type]: { ...prev[type], ...patch },
         };
-        saveDrafts(patientId, next);
+        saveDrafts(user?.id, patientId, next);
         return next;
       });
     },
-    [patientId],
+    [patientId, user?.id],
   );
 
   const currentDraft = drafts[recordType];
@@ -288,6 +346,16 @@ export function MedicalRecords({
   const polishedContent = currentDraft.polished;
   const polishedFrom = currentDraft.polishedFrom;
   const isPolishedStale = polishedContent.length > 0 && polishedFrom !== inputContent;
+  // selectedTemplate is now persisted per-recordType in the draft so switching
+  // tabs and back keeps the user oriented (which template was applied).
+  const selectedTemplate = currentDraft.selectedTemplate;
+  const setSelectedTemplate = (value: string) =>
+    updateDraft(recordType, {
+      selectedTemplate: value,
+      // Clearing selection drops the snapshot too — there's no "applied"
+      // template to compare against.
+      ...(value ? {} : { selectedTemplateSnapshot: null }),
+    });
 
   const setInputContent = (value: string) => updateDraft(recordType, { input: value });
   const setPolishedContent = (value: string) => updateDraft(recordType, { polished: value });
@@ -299,13 +367,15 @@ export function MedicalRecords({
       polishedFrom: '',
       soap: { ...EMPTY_SOAP },
       polishedSoap: { ...EMPTY_SOAP },
+      selectedTemplate: '',
+      selectedTemplateSnapshot: null,
     });
-    setSelectedTemplate('');
+    setRefinementInstruction('');
+    setRefinementOpen(false);
   };
 
   // Templates (server-backed)
   const [serverTemplates, setServerTemplates] = useState<RecordTemplate[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [templatePopoverOpen, setTemplatePopoverOpen] = useState(false);
   const [showNewTemplate, setShowNewTemplate] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
@@ -339,26 +409,70 @@ export function MedicalRecords({
 
   const allTemplates = useMemo(() => {
     const merged: Record<string, TemplateContent> = { ...BUILTIN_TEMPLATES[recordType] };
+    // PHARMACIST_SOAP_TEMPLATE_NAME is a SOAP-shaped template that only makes
+    // sense in pharmacist mode (non-pharmacist users would see an empty S/O/A
+    // and only the P plan-stub flatten, which is confusing). Hide for others.
+    if (recordType === 'medication-advice' && user?.role !== 'pharmacist') {
+      delete merged[PHARMACIST_SOAP_TEMPLATE_NAME];
+    }
     for (const t of serverTemplates) merged[t.name] = t.content;
     return merged;
-  }, [recordType, serverTemplates]);
+  }, [recordType, serverTemplates, user?.role]);
 
   /* -------- actions -------- */
 
-  const handleApplyTemplate = (name: string) => {
+  // Stash for "還原上一版" — captured at apply time, cleared once user types
+  // past the template snapshot (we infer from input !== snapshot in render).
+  const stashedDraftRef = useRef<{
+    input: string;
+    soap: SoapDraft;
+    selectedTemplate: string;
+    selectedTemplateSnapshot: string | null;
+  } | null>(null);
+
+  // Pending confirmation modal for long-draft template apply.
+  const [pendingTemplate, setPendingTemplate] = useState<{ name: string } | null>(null);
+
+  const APPLY_CONFIRM_THRESHOLD = 80;
+
+  const performApplyTemplate = (name: string, mode: 'replace' | 'append') => {
     const tpl = allTemplates[name];
     if (tpl === undefined) return;
-    setSelectedTemplate(name);
-    setTemplatePopoverOpen(false);
+
+    // Capture the snapshot string for templateDirty comparisons. SOAP templates
+    // get flattened — that's also what we want to compare against if the user
+    // is in non-pharmacist mode (the textarea sees flattened content). In
+    // pharmacist SOAP mode the snapshot is less meaningful for textareas
+    // because each section has its own editor, so we store the flattened
+    // form as a coarse signal for "applied but unchanged".
+    const snapshot = isSoapTemplate(tpl) ? flattenSoapTemplate(tpl) : tpl;
+
+    // Stash current draft before mutating so the "還原上一版" chip can offer
+    // a one-click revert until the user keeps typing.
+    stashedDraftRef.current = {
+      input: currentDraft.input,
+      soap: { ...currentDraft.soap },
+      selectedTemplate: currentDraft.selectedTemplate,
+      selectedTemplateSnapshot: currentDraft.selectedTemplateSnapshot,
+    };
 
     if (isSoapTemplate(tpl)) {
       if (isPharmacistSoapMode) {
         updateDraft(recordType, {
           soap: { ...EMPTY_SOAP, ...tpl.soap },
           polishedSoap: { ...EMPTY_SOAP },
+          selectedTemplate: name,
+          selectedTemplateSnapshot: snapshot,
         });
       } else {
-        setInputContent(flattenSoapTemplate(tpl));
+        const flattened = flattenSoapTemplate(tpl);
+        updateDraft(recordType, {
+          input: mode === 'append' && currentDraft.input
+            ? `${currentDraft.input}\n\n${flattened}`
+            : flattened,
+          selectedTemplate: name,
+          selectedTemplateSnapshot: snapshot,
+        });
       }
       return;
     }
@@ -366,13 +480,65 @@ export function MedicalRecords({
     if (isPharmacistSoapMode) {
       // String template applied inside pharmacist 4-section mode — drop it into
       // P (plan) section so the template content isn't lost.
+      const currentP = currentDraft.soap.p || '';
+      const nextP = mode === 'append' && currentP
+        ? `${currentP}\n\n${tpl}`
+        : tpl;
       updateDraft(recordType, {
-        soap: { ...currentDraft.soap, p: tpl },
+        soap: { ...currentDraft.soap, p: nextP },
+        selectedTemplate: name,
+        selectedTemplateSnapshot: snapshot,
       });
       return;
     }
 
-    setInputContent(tpl);
+    updateDraft(recordType, {
+      input: mode === 'append' && currentDraft.input
+        ? `${currentDraft.input}\n\n${tpl}`
+        : tpl,
+      selectedTemplate: name,
+      selectedTemplateSnapshot: snapshot,
+    });
+  };
+
+  const handleApplyTemplate = (name: string) => {
+    setTemplatePopoverOpen(false);
+
+    // Length signal — pharmacist SOAP also counted by joining all sections.
+    const existingLen = isPharmacistSoapMode
+      ? (currentDraft.soap.s + currentDraft.soap.o + currentDraft.soap.a + currentDraft.soap.p).trim().length
+      : currentDraft.input.trim().length;
+
+    // Empty draft, OR re-applying the same already-applied template → just go.
+    if (
+      existingLen === 0
+      || currentDraft.selectedTemplate === name
+    ) {
+      performApplyTemplate(name, 'replace');
+      return;
+    }
+
+    // Short draft (< 80 chars) → treat as scratch; replace with the chip
+    // showing for one-click undo. Avoids interrupting the common flow.
+    if (existingLen < APPLY_CONFIRM_THRESHOLD) {
+      performApplyTemplate(name, 'replace');
+      return;
+    }
+
+    // Long draft → confirm modal with replace / append / cancel.
+    setPendingTemplate({ name });
+  };
+
+  const handleUndoApply = () => {
+    const stashed = stashedDraftRef.current;
+    if (!stashed) return;
+    updateDraft(recordType, {
+      input: stashed.input,
+      soap: stashed.soap,
+      selectedTemplate: stashed.selectedTemplate,
+      selectedTemplateSnapshot: stashed.selectedTemplateSnapshot,
+    });
+    stashedDraftRef.current = null;
   };
 
   const handlePolishContent = async () => {
@@ -384,6 +550,13 @@ export function MedicalRecords({
     polishAbortRef.current?.abort();
     const controller = new AbortController();
     polishAbortRef.current = controller;
+    // Snapshot the draft as the user saw it at click time. The streaming
+    // callback used to capture the latest `inputContent` from the closure,
+    // which made the "草稿已變動" badge silent whenever the user kept typing
+    // mid-stream (polishedFrom kept catching up to the new value). Freezing
+    // here means polishedFrom always reflects the source-of-truth for the
+    // run, so staleness is reliable even if the user edits during streaming.
+    const sourceSnapshot = inputContent;
     setIsPolishing(true);
     try {
       const polishTypeMap: Record<RecordType, 'progress_note' | 'medication_advice' | 'nursing_record'> = {
@@ -399,17 +572,17 @@ export function MedicalRecords({
       const result = await streamPolishClinicalText(
         {
           patientId,
-          content: inputContent,
+          content: sourceSnapshot,
           polishType: polishTypeMap[recordType],
           templateContent,
         },
         (chunk) => {
           streamed += chunk;
-          updateDraft(recordType, { polished: streamed, polishedFrom: inputContent });
+          updateDraft(recordType, { polished: streamed, polishedFrom: sourceSnapshot });
         },
         controller.signal,
       );
-      updateDraft(recordType, { polished: result.polished, polishedFrom: inputContent });
+      updateDraft(recordType, { polished: result.polished, polishedFrom: sourceSnapshot });
     } catch (err) {
       // On any non-success path the partial polished text in the draft is
       // either incomplete (timeout/network) or stale (aborted). Clear it so
@@ -439,6 +612,9 @@ export function MedicalRecords({
     refineAbortRef.current?.abort();
     const controller = new AbortController();
     refineAbortRef.current = controller;
+    // Snapshot the source draft so polishedFrom doesn't move under us if the
+    // user keeps typing while refinement streams (same fix as polish above).
+    const sourceSnapshot = inputContent;
     setIsRefining(true);
     try {
       const polishTypeMap: Record<RecordType, 'progress_note' | 'medication_advice' | 'nursing_record'> = {
@@ -450,18 +626,18 @@ export function MedicalRecords({
       const result = await streamPolishClinicalText(
         {
           patientId,
-          content: inputContent,
+          content: sourceSnapshot,
           polishType: polishTypeMap[recordType],
           instruction,
           previousPolished: polishedContent,
         },
         (chunk) => {
           streamed += chunk;
-          updateDraft(recordType, { polished: streamed, polishedFrom: inputContent });
+          updateDraft(recordType, { polished: streamed, polishedFrom: sourceSnapshot });
         },
         controller.signal,
       );
-      updateDraft(recordType, { polished: result.polished, polishedFrom: inputContent });
+      updateDraft(recordType, { polished: result.polished, polishedFrom: sourceSnapshot });
       setRefinementInstruction('');
       toast.success('已依指示重新修飾');
     } catch (err) {
@@ -579,11 +755,21 @@ export function MedicalRecords({
   const editableSelectedTemplate = serverTemplates.find(
     (t) => t.name === selectedTemplate && t.canEdit,
   );
+  const selectedTemplateIsBuiltin =
+    !!selectedTemplate
+    && !editableSelectedTemplate
+    && Object.prototype.hasOwnProperty.call(BUILTIN_TEMPLATES[recordType], selectedTemplate);
+  // Compare against the *snapshot at apply-time* so the dirty signal doesn't
+  // lie if a teammate edits the server template after the user applied it.
   const templateDirty =
-    !!selectedTemplate &&
-    !!editableSelectedTemplate &&
-    inputContent.trim() !== '' &&
-    inputContent !== allTemplates[selectedTemplate];
+    !!selectedTemplate
+    && currentDraft.selectedTemplateSnapshot !== null
+    && inputContent.trim() !== ''
+    && inputContent !== currentDraft.selectedTemplateSnapshot;
+  // Server-template overwrite available only when the user owns it.
+  const canOverwriteServerTemplate = templateDirty && !!editableSelectedTemplate;
+  // Built-in template + user has edited the content → offer "save as custom".
+  const canSaveBuiltinAsCustom = templateDirty && selectedTemplateIsBuiltin;
 
   /* -------- render -------- */
 
@@ -718,7 +904,7 @@ export function MedicalRecords({
                   )}
                 </div>
 
-                {templateDirty && (
+                {canOverwriteServerTemplate && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -731,6 +917,23 @@ export function MedicalRecords({
                     {updatingTemplateName === selectedTemplate ? (
                       <ButtonLoadingIndicator />
                     ) : null}
+                  </Button>
+                )}
+
+                {canSaveBuiltinAsCustom && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                    onClick={() => {
+                      // Pre-fill new-template form with current draft + suggested name.
+                      setShowNewTemplate(true);
+                      setNewTemplateName(`${selectedTemplate} (自訂)`);
+                      setNewTemplateContent(inputContent);
+                    }}
+                  >
+                    <Save className="mr-1.5 h-3.5 w-3.5" />
+                    另存為自訂模板（基於「{selectedTemplate}」）
                   </Button>
                 )}
 
@@ -797,7 +1000,7 @@ export function MedicalRecords({
           onPolishedSoapChange={(next) =>
             updateDraft(recordType, { polishedSoap: next })
           }
-          onSubmitted={() => updateDraft(recordType, { submittedAt: Date.now() })}
+          onSubmitted={() => updateDraft(recordType, { lastCopiedAt: Date.now() })}
           labData={labData}
           medications={medications}
         />
@@ -863,6 +1066,28 @@ export function MedicalRecords({
             <p className="text-[11px] text-slate-400 dark:text-slate-500">
               AI 會帶入此病人的用藥列表與檢驗摘要作為背景；請檢查潤飾結果再複製。
             </p>
+            {(isPolishing || isRefining) && (
+              <div className="rounded bg-slate-50 px-2 py-1 text-[11px] text-slate-500 dark:bg-slate-800/40 dark:text-slate-400">
+                AI 正在處理本次草稿；目前在草稿上的編輯不會影響此次結果。
+              </div>
+            )}
+            {/* "Just-applied" undo chip — visible while input still equals the
+                snapshot (i.e. user hasn't started editing the template). */}
+            {selectedTemplate
+              && currentDraft.selectedTemplateSnapshot !== null
+              && inputContent === currentDraft.selectedTemplateSnapshot
+              && stashedDraftRef.current && (
+              <div className="flex items-center justify-between rounded bg-blue-50 px-2 py-1 text-xs text-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
+                <span>已套用「{selectedTemplate}」</span>
+                <button
+                  type="button"
+                  className="font-medium underline"
+                  onClick={handleUndoApply}
+                >
+                  還原上一版
+                </button>
+              </div>
+            )}
             {selectedTemplate && (
               <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                 <span>
@@ -954,6 +1179,18 @@ export function MedicalRecords({
                 </button>
                 {refinementOpen && (
                   <div className="space-y-2 border-t border-slate-200 p-3 dark:border-slate-700">
+                    {/* W3-T1: tell the user explicitly that "再修一次" refines
+                        the right-pane content they currently see (which
+                        includes their hand edits). The backend gets the
+                        polished value as `previous_polished` and the source
+                        draft as `content`. */}
+                    <div className="rounded bg-slate-50 px-2 py-1 text-[11px] text-slate-500 dark:bg-slate-800/40 dark:text-slate-400">
+                      將依右側目前內容再修：
+                      <span className="ml-1 font-mono">
+                        {polishedContent.replace(/\s+/g, ' ').slice(0, 50)}
+                        {polishedContent.length > 50 ? '…' : ''}
+                      </span>
+                    </div>
                     <Textarea
                       value={refinementInstruction}
                       onChange={(e) => setRefinementInstruction(e.target.value)}
@@ -1001,6 +1238,50 @@ export function MedicalRecords({
         </Card>
       </div>
       )}
+
+      {/* Long-draft template-apply confirm: replace / append / cancel.
+          Short drafts (< 80 chars) skip this and apply directly with an
+          inline "還原上一版" chip. */}
+      <Dialog open={!!pendingTemplate} onOpenChange={(open) => !open && setPendingTemplate(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>套用模板「{pendingTemplate?.name}」？</DialogTitle>
+            <DialogDescription>
+              你目前的草稿超過 {APPLY_CONFIRM_THRESHOLD} 字。請選擇要如何處理：
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setPendingTemplate(null)}
+            >
+              取消
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (pendingTemplate) {
+                  performApplyTemplate(pendingTemplate.name, 'append');
+                  setPendingTemplate(null);
+                }
+              }}
+            >
+              附加到草稿後面
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (pendingTemplate) {
+                  performApplyTemplate(pendingTemplate.name, 'replace');
+                  setPendingTemplate(null);
+                }
+              }}
+            >
+              覆蓋目前草稿
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
