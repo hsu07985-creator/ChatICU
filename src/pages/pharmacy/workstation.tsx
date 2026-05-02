@@ -18,7 +18,7 @@ import { createAdviceRecord, getDrugInteractions, getIVCompatibilityBatch, padCa
 import {
   getMedications,
   fetchPharmacyDuplicateSummary,
-  checkDuplicateMedications,
+  getMedicationDuplicates,
   type DuplicateAlert,
   type DuplicateSeverityCounts,
 } from '../../lib/api/medications';
@@ -597,14 +597,13 @@ export function PharmacyWorkstationPage() {
           );
         })(),
 
-        // Task 4: Duplicate medication detection
+        // Task 4: Duplicate medication detection.
+        // Use getMedicationDuplicates(patientId) so the result aligns 1:1 with the
+        // patient-list duplicate dots — same backend, same data fidelity (full
+        // DB metadata: ATC, route, isPrn, lastAdminAt), same default context.
         (async (): Promise<{ alerts: DuplicateAlert[]; queryFailed: boolean }> => {
           try {
-            const drugsPayload = uniqueDrugs.map((name) => {
-              const atc = drugAtcByName[name.trim().toLowerCase()];
-              return atc ? { name, atcCode: atc } : { name };
-            });
-            const res = await checkDuplicateMedications(drugsPayload, 'icu');
+            const res = await getMedicationDuplicates(selectedPatient.id);
             return { alerts: res.alerts || [], queryFailed: false };
           } catch (err) {
             console.warn('重複用藥偵測失敗:', err);
