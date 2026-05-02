@@ -60,14 +60,14 @@ done
 
 | Task | 內容 | 觸碰檔案 | 驗證 | 狀態 |
 |------|------|---------|------|------|
-| W4-T1 | A / P polish 介面統一視覺層級 | `pharmacist-soap-editor.tsx:387-411` | UI 視覺：A 主按鈕「只修文法」；P 主按鈕「套藥師格式」 | ☐ |
-| W4-T2 | Sticky bottom bar（複製按鈕永遠可見） | `pharmacist-soap-editor.tsx:500-528` | 手動 13"+iPad portrait：無 scroll 即可看到複製 | ☐ |
-| W4-T3 | 「Polish A + P（並行）」一鍵 | `pharmacist-soap-editor.tsx` | 手動：兩段並行跑 ≈ 單段時間 | ☐ |
-| W4-T4 | Composed output stale 警告 badge | `pharmacist-soap-editor.tsx:253-261` | 手動：潤飾完 P → 改 P 源 → composed 上方出現警告 badge | ☐ |
-| W4-T5 | Insert Labs/Meds 升級（floating + dedup + chip） | `pharmacist-soap-editor.tsx:141-185, 321-366` | 手動：A/P 段也能塞 Labs；雙擊跳替換 prompt | ☐ |
-| W4-T6 | Tab 紅點正確邏輯 | `medical-records.tsx:554,575` | 手動：input=0 + polished 已複製 → 紅點不亮 | ☐ |
-| W4-T7 | 藥事工具去裝飾 icon | `pharmacist-soap-editor.tsx:33`、`medical-records.tsx`（用藥建議分支） | 視覺：藥事工具頁 0 裝飾 icon；保留 FlaskConical/Syringe/Copy | ☐ |
-| W4-T8 | 小修零碎（P2-1/2/6/8/10/11/12） | 多處 | 各自手動驗證 | ☐ |
+| W4-T1 | A / P polish 介面統一視覺層級 | `pharmacist-soap-editor.tsx:387-411` | UI 視覺：A 主按鈕「只修文法」；P 主按鈕「套藥師格式」 | ✅（W2 移除 emoji 後現狀已是 filled-vs-ghost；無需再改） |
+| W4-T2 | Sticky bottom bar（複製按鈕永遠可見） | `pharmacist-soap-editor.tsx:500-528` | 手動 13"+iPad portrait：無 scroll 即可看到複製 | ✅ |
+| W4-T3 | 「Polish A + P（並行）」一鍵 | `pharmacist-soap-editor.tsx` | 手動：兩段並行跑 ≈ 單段時間 | ✅ |
+| W4-T4 | Composed output stale 警告 badge | `pharmacist-soap-editor.tsx:253-261` | 手動：潤飾完 P → 改 P 源 → composed 上方出現警告 badge | ✅ |
+| W4-T5 | Insert Labs/Meds 升級（floating + dedup + chip） | `pharmacist-soap-editor.tsx:141-185, 321-366` | 手動：A/P 段也能塞 Labs；雙擊跳替換 prompt | ✅ |
+| W4-T6 | Tab 紅點正確邏輯 | `medical-records.tsx:554,575` | 手動：input=0 + polished 已複製 → 紅點不亮 | ✅ |
+| W4-T7 | 藥事工具去裝飾 icon | `pharmacist-soap-editor.tsx:33`、`medical-records.tsx`（用藥建議分支） | 視覺：藥事工具頁 0 裝飾 icon；保留 FlaskConical/Syringe/Copy | ✅ |
+| W4-T8 | 小修零碎（P2-1/2/6/8/10/11/12） | 多處 | 各自手動驗證 | ✅ |
 
 ---
 
@@ -109,4 +109,20 @@ done
 - 2026-05-02：W3-T1 ✅ — Refine panel 上方加 chip「將依右側目前內容再修：{polished 前 50 字}…」，把後端 2-input contract（`content` = 原稿、`previousPolished` = 看到的潤飾結果）翻譯成使用者看得懂的心智模型。
 - **W3 全部完成。** 4 個 PR 中的第 3 個準備好可以 commit + push。
 - 2026-05-02：W3 已 commit (129d2f695) 並 push 到 railway（純前端，不推 personal）。Vercel build 完成。Playwright 用 nurse 帳號 B4372 驗 W3-T6 → **發現 bug**：popover 直接讀 `BUILTIN_TEMPLATES`，我只 gate 了 `allTemplates`（apply lookup 用），nurse 還是看得到「藥師 SOAP」。
-- 2026-05-02：W3-T6 hotfix — 新增 `visibleBuiltins` useMemo（gate `PHARMACIST_SOAP_TEMPLATE_NAME`），popover render + `allTemplates` 都改讀 `visibleBuiltins`。tsc + build clean。
+- 2026-05-02：W3-T6 hotfix — 新增 `visibleBuiltins` useMemo（gate `PHARMACIST_SOAP_TEMPLATE_NAME`），popover render + `allTemplates` 都改讀 `visibleBuiltins`。tsc + build clean。Hotfix commit b466cd9a2 已 push railway。
+- 2026-05-02：W4 全部完成。
+  - **W4-T6** Tab 紅點邏輯：新 `draftDirty` 含 `inputLike`（藥師 medication-advice 改算 SOAP 4 段）+ `polishedHasUnfinishedWork` 條件，只在 input 有東西或 polished 與 polishedFrom 不一致時亮（不會永遠亮）。
+  - **W4-T7 + P2-1** 藥事工具去裝飾：`pharmacist-soap-editor.tsx` 移除 Brain/Sparkles/Wand2/Pill 4 個裝飾 icon import；`medical-records.tsx` 加 `showDecorativeIcons = recordType !== 'medication-advice'` 條件 gating Brain/Sparkles/Wand2/ArrowRight；模板按鈕 trigger 改顯示「模板：選中名稱」（替代原來只在小 Badge 顯示）。
+  - **W4-T8 + P2-2/8/11/12** 小修：右邊 CardDescription 改用 `config.polishLabel` 與「複製潤飾結果到 HIS」一致；`handleCopy` 加 markdown strip（`**bold**` / `__bold__`）；複製成功時設 `lastCopiedAt`，下方顯示「N 分鐘前複製」（Asia/Taipei）；polished 區包 `role="status" aria-live="polite"` for screen reader。
+  - **W4-T4** 藥師 SOAP composed pane 上方依 `polishedFromSoap[k] !== soap[k]` 顯示「X 段已編輯，潤飾結果可能過時」橘色 badge（A 與 P 各自獨立）。
+  - **W4-T2** 藥師 SOAP 加 sticky bottom bar（`-mx-4` 全寬 + `bottom-0` + backdrop blur），永遠看得到字數、A/P polish 狀態、「潤飾 A + P」、「複製貼到 HIS」。
+  - **W4-T3** 加 `polishAandPParallel` 用 `Promise.allSettled`，A 與 P 同時跑（每段已有獨立 abort controller，不衝突）；只在兩段都空時 toast 拒絕。
+  - **W4-T5** Insert toolbar 改 floating（grid 之前），加 `lastFocusedSection` state + 每段 textarea `onFocus` handler；toolbar label 顯示「一鍵帶入到 X 段：」。`insertWithDedup` 用 `=== Labs (HH:MM) ===` 純文字 sentinel 包覆插入內容，再次插入時 `window.confirm` 詢問替換或追加。
+  - tsc + npm build 全綠。**W4 全部完成。** 4 個 PR 中的第 4 個（最後一個）準備好可以 commit + push。
+
+- 2026-05-02：W3 hotfix + W3 整體 prod 驗證（用 nurse 帳號 B4372，bundle hash `DqSLPQdt`）：
+  - **W3-T6** 用藥建議 popover 顯示「劑量調整建議、新增藥品建議」**無「藥師 SOAP」** ✅
+  - **W3-T2** 在 Progress Note 草稿打 154 字 → 點 SOAP 格式 → Dialog 跳出（取消 / 附加到草稿後面 / 覆蓋目前草稿）✅；點「附加」結果 229 字（154 原 + `\n\n` + 75 SOAP scaffold）✅；換成 簡要紀錄 + 點「覆蓋」→ input 變成「主訴: / 目前狀況: / 處置計畫:」 ✅
+  - **W3-T2 復原 chip** 「已套用「簡要紀錄」 還原上一版」chip 出現 ✅，按下 chip 後 input 還原為 101 字原稿 ✅
+  - W3-T1/T3/T4/T5 由 tsc + 行為間接驗證（refine chip、polish snapshot freeze、selectedTemplate 持久化、另存為自訂模板入口都已部署）
+  - **W3 真實 prod 穩定。**

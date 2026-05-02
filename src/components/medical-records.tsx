@@ -664,10 +664,17 @@ export function MedicalRecords({
 
   const handleCopy = async () => {
     const usingPolished = polishedContent.trim().length > 0;
-    const text = (usingPolished ? polishedContent : inputContent).trim();
+    // P2-12: strip markdown that won't render in HIS textareas. Conservative
+    // — only **bold** and __bold__ pairs (italic `*` / `_` may appear
+    // legitimately in clinical text like "monitor q4h*").
+    const stripMarkdown = (s: string) =>
+      s.replace(/\*\*(.*?)\*\*/g, '$1').replace(/__(.*?)__/g, '$1');
+    const raw = usingPolished ? polishedContent : inputContent;
+    const text = stripMarkdown(raw).trim();
     if (!text) return;
     const ok = await copyToClipboard(text);
     if (ok) {
+      updateDraft(recordType, { lastCopiedAt: Date.now() });
       toast.success(
         usingPolished ? '已複製潤飾結果，可貼到 HIS' : '已複製未潤飾草稿，請貼到 HIS 後注意檢查',
       );
@@ -675,6 +682,19 @@ export function MedicalRecords({
       toast.error('複製失敗，請手動複製');
     }
   };
+
+  // Asia/Taipei (UTC+8) display for "上次複製 N 分鐘前" hint.
+  const lastCopiedHint = useMemo(() => {
+    const ts = currentDraft.lastCopiedAt;
+    if (!ts) return null;
+    const elapsedMs = Date.now() - ts;
+    const minutes = Math.floor(elapsedMs / 60_000);
+    if (minutes < 1) return '剛剛複製';
+    if (minutes < 60) return `${minutes} 分鐘前複製`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} 小時前複製`;
+    return new Date(ts).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false });
+  }, [currentDraft.lastCopiedAt]);
 
   const handleSaveAsTemplate = async () => {
     const name = newTemplateName.trim();
@@ -778,6 +798,12 @@ export function MedicalRecords({
   const canOverwriteServerTemplate = templateDirty && !!editableSelectedTemplate;
   // Built-in template + user has edited the content → offer "save as custom".
   const canSaveBuiltinAsCustom = templateDirty && selectedTemplateIsBuiltin;
+  // CLAUDE.md memory `feedback_no_icons_emoji`: 藥事工具頁面避免 emoji 與
+  // 裝飾 icon。`medication-advice` is the pharma-tool surface for *any* role
+  // (doctor / nurse / pharmacist), so strip Brain / Sparkles / Wand2 / Pill /
+  // ArrowRight when this record-type is active. X / Copy / Plus / Trash2 /
+  // Save / ChevronUp/Down / FileText etc. remain — those are functional.
+  const showDecorativeIcons = recordType !== 'medication-advice';
 
   /* -------- render -------- */
 
@@ -788,7 +814,22 @@ export function MedicalRecords({
         {RECORD_TYPES.map((type) => {
           const TypeIcon = RECORD_TYPE_CONFIG[type].icon;
           const active = recordType === type;
-          const draftLen = drafts[type].input.length;
+          // Dot fires when there's unfinished work in this tab. "Unfinished":
+          //   - input/soap has text, OR
+          //   - polished has text AND it doesn't match what we last polished
+          //     from (i.e. draft has moved past the polished result, so even
+          //     a previously-copied polish is now stale and needs attention).
+          // In pharmacist medication-advice mode the draft lives in soap.*,
+          // so flatten before measuring.
+          const d = drafts[type];
+          const isPharmacistType =
+            type === 'medication-advice' && user?.role === 'pharmacist';
+          const inputLike = isPharmacistType
+            ? `${d.soap.s}${d.soap.o}${d.soap.a}${d.soap.p}`
+            : d.input;
+          const polishedHasUnfinishedWork =
+            d.polished.length > 0 && d.polishedFrom !== d.input;
+          const draftDirty = inputLike.length > 0 || polishedHasUnfinishedWork;
           return (
             <Button
               key={type}
@@ -802,14 +843,13 @@ export function MedicalRecords({
               }
               onClick={() => {
                 setRecordType(type);
-                setSelectedTemplate('');
                 setRefinementOpen(false);
                 setRefinementInstruction('');
               }}
             >
               <TypeIcon className="mr-1.5 h-4 w-4" />
               {RECORD_TYPE_CONFIG[type].label}
-              {draftLen > 0 && !active && (
+              {draftDirty && !active && (
                 <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
               )}
             </Button>
@@ -822,15 +862,12 @@ export function MedicalRecords({
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-background px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground dark:border-slate-700 dark:bg-input/30 dark:hover:bg-input/50"
+                className="inline-flex h-8 max-w-[200px] items-center gap-1 rounded-md border border-slate-200 bg-background px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground dark:border-slate-700 dark:bg-input/30 dark:hover:bg-input/50"
               >
-                <Sparkles className="h-4 w-4" />
-                模板
-                {selectedTemplate && (
-                  <Badge variant="secondary" className="ml-1 max-w-[120px] truncate">
-                    {selectedTemplate}
-                  </Badge>
-                )}
+                {showDecorativeIcons && <Sparkles className="h-4 w-4 shrink-0" />}
+                <span className="truncate">
+                  {selectedTemplate ? `模板：${selectedTemplate}` : '模板'}
+                </span>
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-80 p-3" align="end">
@@ -1055,9 +1092,9 @@ export function MedicalRecords({
                   className="flex-1"
                   title={!canPolish ? polishReason : undefined}
                 >
-                  <Brain className="mr-2 h-4 w-4" />
+                  {showDecorativeIcons && <Brain className="mr-2 h-4 w-4" />}
                   <span>{config.polishLabel}</span>
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  {showDecorativeIcons && <ArrowRight className="ml-2 h-4 w-4" />}
                 </Button>
               )}
               {(inputContent || polishedContent) && (
@@ -1119,7 +1156,7 @@ export function MedicalRecords({
         <Card className="flex flex-col border-slate-300 dark:border-slate-600">
           <CardHeader className="bg-slate-50 py-3 dark:bg-slate-800">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Sparkles className="h-4 w-4" />
+              {showDecorativeIcons && <Sparkles className="h-4 w-4" />}
               AI 修飾後
               {polishedContent && (
                 <Badge variant="secondary" className="text-[10px]">
@@ -1137,11 +1174,16 @@ export function MedicalRecords({
             </CardTitle>
             <CardDescription className="text-xs">
               {polishedContent
-                ? '可直接修改後按「複製貼到 HIS」'
-                : '按左側的「AI 修飾」生成結果'}
+                ? '可直接修改後按「複製潤飾結果到 HIS」'
+                : `按左側的「${config.polishLabel}」生成結果`}
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-1 flex-col gap-3 pt-4">
+          <CardContent
+            className="flex flex-1 flex-col gap-3 pt-4"
+            role="status"
+            aria-live="polite"
+            aria-atomic="false"
+          >
             <Textarea
               value={polishedContent}
               onChange={(e) => setPolishedContent(e.target.value)}
@@ -1167,6 +1209,11 @@ export function MedicalRecords({
                 ? '複製潤飾結果到 HIS'
                 : '複製未潤飾草稿到 HIS'}
             </Button>
+            {lastCopiedHint && (
+              <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                {lastCopiedHint}
+              </p>
+            )}
 
             {polishedContent && !isPolishedStale && (
               <div className="rounded-md border border-slate-200 dark:border-slate-700">
@@ -1176,7 +1223,7 @@ export function MedicalRecords({
                   className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   <span className="inline-flex items-center gap-1.5">
-                    <Wand2 className="h-3.5 w-3.5" />
+                    {showDecorativeIcons && <Wand2 className="h-3.5 w-3.5" />}
                     想再調整嗎？
                   </span>
                   {refinementOpen ? (
@@ -1233,7 +1280,7 @@ export function MedicalRecords({
                           size="sm"
                           variant="outline"
                         >
-                          <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                          {showDecorativeIcons && <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
                           再修一次
                         </Button>
                       )}
