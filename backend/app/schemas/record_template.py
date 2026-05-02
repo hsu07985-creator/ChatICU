@@ -38,8 +38,8 @@ class RecordTemplateResponse(BaseModel):
     isSystem: bool
     isActive: bool
     sortOrder: int
-    createdById: str
-    createdByName: str
+    createdById: Optional[str] = None
+    createdByName: Optional[str] = None
     updatedById: Optional[str] = None
     updatedByName: Optional[str] = None
     createdAt: datetime

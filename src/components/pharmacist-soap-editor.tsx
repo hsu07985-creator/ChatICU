@@ -30,7 +30,7 @@ import { Button } from './ui/button';
 import { ButtonLoadingIndicator } from './ui/button-loading-indicator';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
-import { Brain, Copy, Sparkles, Wand2, Pill, FlaskConical, Syringe } from 'lucide-react';
+import { Brain, Copy, Sparkles, Wand2, Pill, FlaskConical, Syringe, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 export type SoapDraft = SoapSections;
@@ -123,6 +123,8 @@ export function PharmacistSoapEditor({
   });
   const [labWindow, setLabWindow] = useState<LabWindow>('24h');
   const textareaRefs = useRef<Partial<Record<SoapSection, HTMLTextAreaElement | null>>>({});
+  // Per-section abort controllers — pharmacist polish averages 15s; let them cancel.
+  const abortRefs = useRef<Partial<Record<SoapSection, AbortController | null>>>({});
 
   const patchSectionState = useCallback(
     (key: SoapSection, patch: Partial<PerSectionState>) => {
@@ -202,6 +204,9 @@ export function PharmacistSoapEditor({
         return;
       }
       const isRefinement = mode === 'refinement';
+      abortRefs.current[key]?.abort();
+      const controller = new AbortController();
+      abortRefs.current[key] = controller;
       patchSectionState(key, isRefinement ? { refining: true } : { polishing: true });
       let streamBuffer = '';
       let lastPreview = '';
@@ -231,6 +236,7 @@ export function PharmacistSoapEditor({
               setPolishedValue(key, preview);
             }
           },
+          controller.signal,
         );
         const returned = result.polished_sections?.[key];
         const fallback = result.polished;
@@ -244,11 +250,21 @@ export function PharmacistSoapEditor({
         }
       } catch {
         patchSectionState(key, isRefinement ? { refining: false } : { polishing: false });
-        toast.error('AI 修飾失敗，請稍後再試');
+        if (controller.signal.aborted) {
+          toast.message('已停止 AI 修飾');
+        } else {
+          toast.error('AI 修飾失敗，請稍後再試');
+        }
+      } finally {
+        if (abortRefs.current[key] === controller) abortRefs.current[key] = null;
       }
     },
     [canPolish, patchSectionState, patientId, polishReason, setPolishedValue, soap],
   );
+
+  const abortSection = useCallback((key: SoapSection) => {
+    abortRefs.current[key]?.abort();
+  }, []);
 
   const composed = [
     polishedSoap.s || soap.s,
@@ -386,26 +402,39 @@ export function PharmacistSoapEditor({
 
                 {meta.aiEditable && (
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      onClick={() => void runPolish(key, meta.defaultMode)}
-                      disabled={st.polishing || !soap[key].trim() || !canPolish}
-                      size="sm"
-                      style={{ backgroundColor: '#1e293b' }}
-                    >
-                      <Brain className="mr-1.5 h-4 w-4" />
-                      {st.polishing ? 'AI 修飾中...' : meta.defaultMode === 'grammar_only' ? '只修文法' : '套藥師格式'}
-                      {st.polishing ? <ButtonLoadingIndicator /> : null}
-                    </Button>
-                    {key === 'p' && (
+                    {st.polishing ? (
                       <Button
-                        onClick={() => void runPolish(key, 'grammar_only')}
-                        disabled={st.polishing || !soap[key].trim() || !canPolish}
+                        onClick={() => abortSection(key)}
                         size="sm"
                         variant="outline"
+                        className="border-amber-500 text-amber-700 hover:bg-amber-50 dark:text-amber-300"
                       >
-                        <Pill className="mr-1.5 h-4 w-4" />
-                        只修文法
+                        <X className="mr-1.5 h-4 w-4" />
+                        停止
                       </Button>
+                    ) : (
+                      <>
+                        <Button
+                          onClick={() => void runPolish(key, meta.defaultMode)}
+                          disabled={!soap[key].trim() || !canPolish}
+                          size="sm"
+                          style={{ backgroundColor: '#1e293b' }}
+                        >
+                          <Brain className="mr-1.5 h-4 w-4" />
+                          {meta.defaultMode === 'grammar_only' ? '只修文法' : '套藥師格式'}
+                        </Button>
+                        {key === 'p' && (
+                          <Button
+                            onClick={() => void runPolish(key, 'grammar_only')}
+                            disabled={!soap[key].trim() || !canPolish}
+                            size="sm"
+                            variant="outline"
+                          >
+                            <Pill className="mr-1.5 h-4 w-4" />
+                            只修文法
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
                 )}

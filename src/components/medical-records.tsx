@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { streamPolishClinicalText } from '../lib/api/ai';
 import {
   listRecordTemplates,
@@ -238,24 +238,35 @@ export function MedicalRecords({
   const canPolish = true;
   const polishReason = '';
 
-  const getDefaultRecordType = (): RecordType => {
-    if (user?.role === 'pharmacist') return 'medication-advice';
-    if (user?.role === 'nurse') return 'nursing-record';
-    return 'progress-note';
-  };
+  // Abort controllers (declared early so patient-switch effect can clear them).
+  // Polish takes 10–20s; let the user cancel and prevent cross-patient pollution.
+  const polishAbortRef = useRef<AbortController | null>(null);
+  const refineAbortRef = useRef<AbortController | null>(null);
 
-  const [recordType, setRecordType] = useState<RecordType>(getDefaultRecordType());
+  const [recordType, setRecordType] = useState<RecordType>('progress-note');
+  // Re-derive default once after auth hydrates. `userRoleInitialized` prevents
+  // overriding user's manual record-type choice on subsequent role re-renders.
+  const userRoleInitializedRef = useRef(false);
+  useEffect(() => {
+    if (userRoleInitializedRef.current) return;
+    if (!user?.role) return;
+    userRoleInitializedRef.current = true;
+    if (user.role === 'pharmacist') setRecordType('medication-advice');
+    else if (user.role === 'nurse') setRecordType('nursing-record');
+  }, [user?.role]);
+
   const isPharmacistSoapMode =
     user?.role === 'pharmacist' && recordType === 'medication-advice';
 
   // Drafts (per-type, per-patient, persisted)
   const [drafts, setDraftsState] = useState<Drafts>(() => loadDrafts(patientId));
-  const [hydratedPatient, setHydratedPatient] = useState<string>(patientId);
-  if (hydratedPatient !== patientId) {
-    // Reload drafts when patient switches (render-phase derived state, supported pattern)
-    setHydratedPatient(patientId);
+  // Reload drafts on patient switch + abort any in-flight polish so the chunk
+  // callback can't write into the new patient's localStorage. (P0-7)
+  useEffect(() => {
+    polishAbortRef.current?.abort();
+    refineAbortRef.current?.abort();
     setDraftsState(loadDrafts(patientId));
-  }
+  }, [patientId]);
 
   const updateDraft = useCallback(
     (type: RecordType, patch: Partial<DraftEntry>) => {
@@ -314,8 +325,10 @@ export function MedicalRecords({
     try {
       const templates = await listRecordTemplates(type);
       setServerTemplates(templates);
-    } catch {
+    } catch (err) {
       setServerTemplates([]);
+      toast.error('無法載入自訂模板', { id: 'record-templates-fetch' });
+      console.error('listRecordTemplates failed', err);
     }
   }, []);
 
@@ -367,6 +380,9 @@ export function MedicalRecords({
       toast.error(polishReason);
       return;
     }
+    polishAbortRef.current?.abort();
+    const controller = new AbortController();
+    polishAbortRef.current = controller;
     setIsPolishing(true);
     try {
       const polishTypeMap: Record<RecordType, 'progress_note' | 'medication_advice' | 'nursing_record'> = {
@@ -390,11 +406,17 @@ export function MedicalRecords({
           streamed += chunk;
           updateDraft(recordType, { polished: streamed, polishedFrom: inputContent });
         },
+        controller.signal,
       );
       updateDraft(recordType, { polished: result.polished, polishedFrom: inputContent });
-    } catch {
-      toast.error('AI 修飾失敗，請稍後再試');
+    } catch (err) {
+      if (controller.signal.aborted) {
+        toast.message('已停止 AI 修飾');
+      } else {
+        toast.error('AI 修飾失敗，請稍後再試');
+      }
     } finally {
+      if (polishAbortRef.current === controller) polishAbortRef.current = null;
       setIsPolishing(false);
     }
   };
@@ -410,6 +432,9 @@ export function MedicalRecords({
       toast.error(polishReason);
       return;
     }
+    refineAbortRef.current?.abort();
+    const controller = new AbortController();
+    refineAbortRef.current = controller;
     setIsRefining(true);
     try {
       const polishTypeMap: Record<RecordType, 'progress_note' | 'medication_advice' | 'nursing_record'> = {
@@ -430,23 +455,35 @@ export function MedicalRecords({
           streamed += chunk;
           updateDraft(recordType, { polished: streamed, polishedFrom: inputContent });
         },
+        controller.signal,
       );
       updateDraft(recordType, { polished: result.polished, polishedFrom: inputContent });
       setRefinementInstruction('');
       toast.success('已依指示重新修飾');
-    } catch {
-      toast.error('再修一次失敗，請稍後再試');
+    } catch (err) {
+      if (controller.signal.aborted) {
+        toast.message('已停止再修');
+      } else {
+        toast.error('再修一次失敗，請稍後再試');
+      }
     } finally {
+      if (refineAbortRef.current === controller) refineAbortRef.current = null;
       setIsRefining(false);
     }
   };
 
   const handleCopy = async () => {
-    const text = (polishedContent || inputContent).trim();
+    const usingPolished = polishedContent.trim().length > 0;
+    const text = (usingPolished ? polishedContent : inputContent).trim();
     if (!text) return;
     const ok = await copyToClipboard(text);
-    if (ok) toast.success('已複製，可貼到 HIS');
-    else toast.error('複製失敗，請手動複製');
+    if (ok) {
+      toast.success(
+        usingPolished ? '已複製潤飾結果，可貼到 HIS' : '已複製未潤飾草稿，請貼到 HIS 後注意檢查',
+      );
+    } else {
+      toast.error('複製失敗，請手動複製');
+    }
   };
 
   const handleSaveAsTemplate = async () => {
@@ -778,18 +815,28 @@ export function MedicalRecords({
               className="min-h-[280px] flex-1 resize-none border-slate-300 dark:border-slate-600"
             />
             <div className="flex items-center gap-2">
-              <Button
-                onClick={handlePolishContent}
-                disabled={isPolishing || !inputContent.trim() || !canPolish}
-                style={{ backgroundColor: '#1e293b' }}
-                className="flex-1"
-                title={!canPolish ? polishReason : undefined}
-              >
-                <Brain className="mr-2 h-4 w-4" />
-                <span>{isPolishing ? 'AI 修飾中...' : config.polishLabel}</span>
-                <ArrowRight className="ml-2 h-4 w-4" />
-                {isPolishing ? <ButtonLoadingIndicator /> : null}
-              </Button>
+              {isPolishing ? (
+                <Button
+                  onClick={() => polishAbortRef.current?.abort()}
+                  variant="outline"
+                  className="flex-1 border-amber-500 text-amber-700 hover:bg-amber-50 dark:text-amber-300"
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  <span>停止 AI 修飾</span>
+                </Button>
+              ) : (
+                <Button
+                  onClick={handlePolishContent}
+                  disabled={!inputContent.trim() || !canPolish}
+                  style={{ backgroundColor: '#1e293b' }}
+                  className="flex-1"
+                  title={!canPolish ? polishReason : undefined}
+                >
+                  <Brain className="mr-2 h-4 w-4" />
+                  <span>{config.polishLabel}</span>
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              )}
               {(inputContent || polishedContent) && (
                 <Button
                   variant="outline"
@@ -801,6 +848,9 @@ export function MedicalRecords({
                 </Button>
               )}
             </div>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">
+              AI 會帶入此病人的用藥列表與檢驗摘要作為背景；請檢查潤飾結果再複製。
+            </p>
             {selectedTemplate && (
               <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                 <span>
@@ -856,10 +906,21 @@ export function MedicalRecords({
             <Button
               onClick={handleCopy}
               disabled={!canCopy}
-              className="w-full bg-brand hover:bg-brand-hover"
+              className={
+                polishedContent.trim().length > 0
+                  ? 'w-full bg-brand hover:bg-brand-hover'
+                  : 'w-full border border-amber-500 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/30 dark:text-amber-300'
+              }
+              title={
+                polishedContent.trim().length > 0
+                  ? undefined
+                  : '尚未潤飾，將複製原始草稿；建議先按 AI 修飾'
+              }
             >
               <Copy className="mr-2 h-4 w-4" />
-              複製貼到 HIS
+              {polishedContent.trim().length > 0
+                ? '複製潤飾結果到 HIS'
+                : '複製未潤飾草稿到 HIS'}
             </Button>
 
             {polishedContent && !isPolishedStale && (
@@ -898,16 +959,27 @@ export function MedicalRecords({
                       <p className="text-[11px] text-slate-400">
                         修改後會覆蓋上方結果 · ⌘/Ctrl + Enter 送出
                       </p>
-                      <Button
-                        onClick={handleRefine}
-                        disabled={isRefining || !refinementInstruction.trim()}
-                        size="sm"
-                        variant="outline"
-                      >
-                        <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                        {isRefining ? '修改中...' : '再修一次'}
-                        {isRefining ? <ButtonLoadingIndicator /> : null}
-                      </Button>
+                      {isRefining ? (
+                        <Button
+                          onClick={() => refineAbortRef.current?.abort()}
+                          size="sm"
+                          variant="outline"
+                          className="border-amber-500 text-amber-700 hover:bg-amber-50 dark:text-amber-300"
+                        >
+                          <X className="mr-1.5 h-3.5 w-3.5" />
+                          停止
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={handleRefine}
+                          disabled={!refinementInstruction.trim()}
+                          size="sm"
+                          variant="outline"
+                        >
+                          <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                          再修一次
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )}
