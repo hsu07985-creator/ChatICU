@@ -206,7 +206,15 @@
 - **Description:** Extract `MENTION_LOOKBACK_HOURS = 168` constant shared with `notifications.py:25`. Today the bell uses 168h cutoff but `mentions/count` scans the whole table → users see "5 mentions" in bell but "28 mentions" in chat sidebar.
 - **References:** F-17
 
-### TC-B05 [TODO] Validate `mentionedUserIds` are real users on POST
+### TC-B05 [DONE] Validate `mentionedUserIds` are real users on POST
+- **Completed:** 2026-05-03 (branch `fix/tc-b05-validate-mentioned-user-ids`)
+- **Files modified:**
+  - `backend/app/routers/team_chat.py:send_team_chat` — after the pinned-admin gate, query `User.id IN (...) AND active = TRUE`; raise 422 with `{message, unknown: [...]}` if any input ID isn't a real active user.
+  - `backend/tests/test_api/test_team_chat.py` — added `test_post_rejects_unknown_mentioned_user_id` (422 path) and `test_post_accepts_known_mentioned_user_id` (200 path).
+- **Verification:** `cd backend && python3 -m pytest tests/test_api/test_team_chat.py -q` → 27/27 passed (was 25, +2 new).
+- **References:** F-18. Original task body retained below.
+
+### TC-B05-original [original] Validate `mentionedUserIds` are real users on POST
 - **Added by:** team-chat audit 2026-05-03 (F-18)
 - **Date:** 2026-05-03
 - **Priority:** P2

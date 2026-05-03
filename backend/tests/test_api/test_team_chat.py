@@ -435,6 +435,46 @@ async def test_author_can_mark_own_read(client):
 
 
 @pytest.mark.asyncio
+async def test_post_rejects_unknown_mentioned_user_id(client):
+    """TC-B05: POST /team/chat must reject mentionedUserIds that don't
+    correspond to real, active users. Without this, typos / stale IDs
+    silently persist and never trigger any badge."""
+    resp = await client.post("/team/chat", json={
+        "content": "hello @ghost",
+        "pinned": False,
+        "mentionedUserIds": ["usr_does_not_exist"],
+    })
+    assert resp.status_code == 422
+    body = resp.json()
+    # Detail can be either FastAPI's default shape or our dict — assert
+    # it surfaces the unknown ID either way.
+    assert "usr_does_not_exist" in str(body)
+
+
+@pytest.mark.asyncio
+async def test_post_accepts_known_mentioned_user_id(client, seeded_db):
+    """Sanity: known + active user passes validation."""
+    from app.models.user import User
+    seeded_db.add(User(
+        id="usr_known",
+        name="Known User",
+        username="known",
+        password_hash="",
+        email="known@hospital.com",
+        role="doctor",
+        unit="ICU",
+        active=True,
+    ))
+    await seeded_db.commit()
+    resp = await client.post("/team/chat", json={
+        "content": "hi @known",
+        "pinned": False,
+        "mentionedUserIds": ["usr_known"],
+    })
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
 async def test_mentions_count_excludes_old_mentions(client, seeded_db):
     """TC-B04: mentions/count should only consider messages within the
     168h look-back window, matching /notifications/summary.

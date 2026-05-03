@@ -10,7 +10,7 @@
 > - `TC-F{NN}` — frontend 工作單（在 `docs/coordination/frontend-tasks.md`）
 > - `F-XX` — audit 文件中的發現編號
 
-**最後更新**：2026-05-03（Wave 1 全部完成 + Wave 2 T1/T2/T3/T4 完成）
+**最後更新**：2026-05-03（**Wave 1 + Wave 2 全部完成**）
 
 ---
 
@@ -19,7 +19,7 @@
 | Wave | 主題 | 任務數 | 完成 / 總計 | 狀態 |
 |------|------|--------|------------|------|
 | Wave 1 | 立即修補（純前端，零依賴） | 8 | 8 / 8 | ✅ |
-| Wave 2 | 後端權限收緊 + mention SQL | 5 | 4 / 5 | ⏳ |
+| Wave 2 | 後端權限收緊 + mention SQL | 5 | 5 / 5 | ✅ |
 | Wave 3 | 架構決策（需 PM 對齊） | 4 | 0 / 4 | ⏸ |
 | Wave 4 | 安全與資料層強化 | 6 | 0 / 6 | ☐ |
 | Backlog | 低優先 / 觀察 | 18 | — | — |
@@ -84,7 +84,7 @@ npm run lint
 | TC-W2-T2 | Mention SQL 改 `@>` + 加 GIN index | F-13 | `backend/app/utils/jsonb_compat.py`（新）、`backend/app/routers/team_chat.py`、`backend/app/routers/notifications.py`、`backend/alembic/versions/076_team_chat_mention_gin.py`（新） | pytest：seed `["all_admins"]` + role=`admin` query 不誤命中；EXPLAIN 顯示 GIN index scan | ✅ |
 | TC-W2-T3 | 訊息發送 / pin / mark_read 加 rate limit | F-15 | `backend/app/routers/team_chat.py` | pytest：超頻發訊回 429；prod：手動連按 30 次發訊 | ✅ |
 | TC-W2-T4 | `mentions/count` 加 168h 時間窗（與 notifications 對齊） | F-17 | `backend/app/routers/notifications.py`、`backend/app/routers/team_chat.py` | 手動：seed 一筆 200h 前的 mention，`mentions/count` 不應計入 | ✅ |
-| TC-W2-T5 | `POST /team/chat` 驗證 `mentionedUserIds` 都是真實 user | F-18 | `backend/app/routers/team_chat.py:208-221`（router 層 validate） | pytest：送不存在 ID 應 422 而非 200 | ☐ |
+| TC-W2-T5 | `POST /team/chat` 驗證 `mentionedUserIds` 都是真實 user | F-18 | `backend/app/routers/team_chat.py` | pytest：送不存在 ID 應 422 而非 200 | ✅ |
 
 **Wave 2 整體驗收**：
 ```bash
@@ -97,6 +97,30 @@ cd backend && alembic upgrade head && alembic downgrade -1 && alembic upgrade he
 ```
 
 > 推送：後端 → `git push personal main`（Railway 自動 alembic upgrade）。
+
+### Wave 2 結案總結（2026-05-03）
+
+**Commits（依時序，全部 fast-forward 進 main）：**
+
+| Commit | Task | F-XX | 主要改動 |
+|--------|------|------|---------|
+| `d32f490e6` | TC-W2-T1 / TC-B01 + TC-F02 UI 半 | F-01 | pin/post-pinned/mark_read admin gate；mark_read 加 audit log；前端 pin 按鈕 admin gate |
+| `73d5451a9` | TC-W2-T2 / TC-B02 | F-13 | mention SQL 改 `@>` + GIN index；新 `jsonb_compat.py` dialect-aware helper；migration 076 |
+| `72a697a74` | TC-W2-T3 / TC-B03 | F-15 | send/pin/mark_read 加 slowapi rate limit (20/10/60 per minute) |
+| `b60cc8c34` | TC-W2-T4 / TC-B04 | F-17 | `mentions/count` 加 168h 時間窗，與 `notifications/summary` 統一 |
+| `(this)`    | TC-W2-T5 / TC-B05 | F-18 | POST `mentionedUserIds` 驗證使用者存在且 active，未知 ID 422 |
+
+**驗證**：每 commit 後跑 `pytest tests/test_api/test_team_chat.py tests/test_api/test_notifications.py` → 全綠（17 → 27 cases，+10 regression 測試覆蓋多人交互、權限、SQL 行為、時間窗、ID 驗證）。pre-commit hook 全綠。Migration 076 idempotent (`CREATE INDEX IF NOT EXISTS`)。
+
+**未做**（intentional scope 限制）：
+- TC-B06 ~ TC-B07（Wave 3）— `is_read` 全域旗標統一、`list_team_chat` DESC + cursor — 需先 PM 決策
+- 前端 mention 失敗 toast 文案（搭配 TC-B05 的 422）— 留 polish
+
+**部署注意**：
+- 後端推 Railway 時 Procfile 會自動跑 `alembic upgrade head` → migration 076 自動建 GIN index
+- 前端 TC-B01/02/03/04/05 不需 build artifact 變更（除 TC-B01 的 pin 按鈕 admin gate，已在 Wave 1+2 同 commit）
+
+**下一步**：Wave 3 三大架構決策（未讀模型、Pin 權限策略、list 排序）。動工前需與 PM 對齊。Wave 4（PII / soft delete / read_by dedup / schema cleanup）可獨立進行不卡決策。
 
 ---
 

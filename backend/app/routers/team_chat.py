@@ -214,6 +214,28 @@ async def send_team_chat(
             detail="Only admins can post pinned messages",
         )
 
+    # TC-B05: validate mentionedUserIds reference real, active users.
+    # Pydantic only checks length; without this, typos / fabricated IDs
+    # silently land in the JSONB column and never trigger any badge,
+    # leaving the sender to wonder why "@王小明" went unanswered.
+    if body.mentionedUserIds:
+        existing_rows = await db.execute(
+            select(User.id).where(
+                User.id.in_(body.mentionedUserIds),
+                User.active == True,  # noqa: E712
+            )
+        )
+        existing_ids = {row[0] for row in existing_rows.all()}
+        unknown = [uid for uid in body.mentionedUserIds if uid not in existing_ids]
+        if unknown:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "message": "Unknown or inactive user(s) in mentionedUserIds",
+                    "unknown": unknown,
+                },
+            )
+
     reply_to_id = body.replyToId
 
     # Validate and flatten reply chain
