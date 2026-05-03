@@ -12,7 +12,7 @@ import { maskPatientName } from '../lib/utils/patient-name';
 import { getTeamChatMessages, sendTeamChatMessage, postAnnouncement, togglePinMessage, deleteTeamChatMessage, getTeamUsers, markChatVisited, TeamChatMessage, TeamUser } from '../lib/api/team-chat';
 import { chatCache, MSGS_STALE_MS, MENTIONS_STALE_MS } from '../lib/api/team-chat-cache';
 import { roleLabel } from '../lib/utils/user-role';
-import { mentionRegex } from '../lib/utils/mention-parser';
+import { MENTION_ALL_NAME, mentionRegex } from '../lib/utils/mention-parser';
 import { getMyMentions, type MentionGroup } from '../lib/api/messages';
 import { LoadingSpinner } from '../components/ui/state-display';
 import { toast } from 'sonner';
@@ -318,32 +318,33 @@ export function ChatPage() {
     }
   };
 
-  // Render message content, highlighting @姓名 tokens that match real users.
-  // mentionClass lets the caller pick a highlight that contrasts with the
-  // surrounding bubble color (green self-bubbles need a different shade than
-  // gray others-bubbles).
+  // Render message content, highlighting @姓名 tokens that match real users
+  // and the @所有人 broadcast sentinel. mentionClass lets the caller pick a
+  // highlight that contrasts with the surrounding bubble color; @所有人 has
+  // its own (red) class so a broadcast pops vs a personal mention.
   const renderContent = useCallback((content: string, mentionClass?: string) => {
     if (!userByName.size) return content;
     const cls = mentionClass ?? 'inline-flex items-center rounded px-1 bg-brand/10 text-brand font-medium';
-    const parts: Array<string | { name: string; matched: boolean }> = [];
+    const allCls = 'inline-flex items-center rounded px-1 bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 font-semibold';
+    type MentionPart = { name: string; kind: 'user' | 'all' | 'plain' };
+    const parts: Array<string | MentionPart> = [];
     const re = mentionRegex();
     let last = 0;
     let m: RegExpExecArray | null;
     while ((m = re.exec(content)) !== null) {
       if (m.index > last) parts.push(content.slice(last, m.index));
-      parts.push({ name: m[1], matched: userByName.has(m[1]) });
+      const name = m[1];
+      const kind: MentionPart['kind'] =
+        name === MENTION_ALL_NAME ? 'all' : userByName.has(name) ? 'user' : 'plain';
+      parts.push({ name, kind });
       last = m.index + m[0].length;
     }
     if (last < content.length) parts.push(content.slice(last));
     return parts.map((p, i) => {
       if (typeof p === 'string') return <span key={i}>{p}</span>;
-      return p.matched ? (
-        <span key={i} className={cls}>
-          @{p.name}
-        </span>
-      ) : (
-        <span key={i}>@{p.name}</span>
-      );
+      if (p.kind === 'all') return <span key={i} className={allCls}>@{p.name}</span>;
+      if (p.kind === 'user') return <span key={i} className={cls}>@{p.name}</span>;
+      return <span key={i}>@{p.name}</span>;
     });
   }, [userByName]);
 
@@ -414,14 +415,6 @@ export function ChatPage() {
   // INSIDE the bubble pointing back to the parent.
   const renderMessage = (msg: TeamChatMessage) => {
     const isSelf = !!user && msg.userId === user.id;
-    const mentionsAllFlag = !!msg.mentionsAll;
-    // @所有人 broadcasts to everyone except the author. Combined with
-    // explicit @user mentions so a single message hitting both paths
-    // still lights up the "提到你" badge.
-    const mentionsMe =
-      !!user &&
-      ((msg.mentionedUserIds?.includes(user.id) ?? false) ||
-        (mentionsAllFlag && !isSelf));
     const repliedTo = msg.replyToId ? messageById.get(msg.replyToId) : null;
 
     // Self → soft WhatsApp/LINE-style mint, others → light gray.
@@ -452,8 +445,8 @@ export function ChatPage() {
         )}
 
         <div className={`flex flex-col max-w-[78%] ${isSelf ? 'items-end' : 'items-start'}`}>
-          {/* Header row above bubble — name+role for others, badges for both */}
-          {(!isSelf || msg.pinned || mentionsAllFlag || (mentionsMe && !isSelf)) && (
+          {/* Header row above bubble — name+role for others, pin badge for any */}
+          {(!isSelf || msg.pinned) && (
             <div className={`flex items-center gap-1.5 mb-1 px-1 ${isSelf ? 'flex-row-reverse' : ''}`}>
               {!isSelf && (
                 <>
@@ -467,18 +460,6 @@ export function ChatPage() {
                 <Badge className="bg-[#f59e0b] text-white text-[10px] px-1 py-0 h-4">
                   <Pin className="h-2.5 w-2.5 mr-0.5" />
                   已釘選
-                </Badge>
-              )}
-              {mentionsAllFlag && (
-                <Badge className="bg-rose-600 text-white text-[10px] px-1 py-0 h-4 shadow-sm">
-                  <AtSign className="h-2.5 w-2.5 mr-0.5" />
-                  @所有人
-                </Badge>
-              )}
-              {mentionsMe && !isSelf && !mentionsAllFlag && (
-                <Badge className="bg-brand text-white text-[10px] px-1 py-0 h-4">
-                  <AtSign className="h-2.5 w-2.5 mr-0.5" />
-                  提到你
                 </Badge>
               )}
             </div>
@@ -579,7 +560,7 @@ export function ChatPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between pr-14">
         <div>
-          <h1 className="text-2xl font-bold">團隊聊天室</h1>
+          <h1 className="text-2xl font-bold">團隊訊息</h1>
           <p className="text-muted-foreground text-sm mt-1">團隊溝通與工作協調</p>
         </div>
         <div className="flex gap-2">
