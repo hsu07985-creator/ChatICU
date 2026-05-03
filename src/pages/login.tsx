@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../lib/auth-context';
 import { getCachedPatients } from '../lib/patients-cache';
@@ -46,6 +47,7 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation('auth');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +61,7 @@ export function LoginPage() {
       getCachedPatients().catch(() => {});
       navigate(result.passwordExpired ? '/change-password' : '/dashboard');
     } else {
-      setError(result.message || '帳號或密碼錯誤');
+      setError(result.message || t('login.invalidCredentials'));
     }
 
     setLoading(false);
@@ -109,10 +111,10 @@ export function LoginPage() {
             {/* Header */}
             <div>
               <h1 className="text-3xl font-bold text-foreground mb-2">
-                Login to your Account
+                {t('login.title')}
               </h1>
               <p className="text-sm text-muted-foreground">
-                智慧型加護病房照護系統
+                {t('login.tagline')}
               </p>
             </div>
 
@@ -121,14 +123,14 @@ export function LoginPage() {
               {/* Username Field */}
               <div className="space-y-2">
                 <Label htmlFor="username" className="text-sm font-semibold text-muted-foreground">
-                  帳號
+                  {t('login.usernameLabel')}
                 </Label>
                 <Input
                   id="username"
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="請輸入帳號"
+                  placeholder={t('login.usernamePlaceholder')}
                   className="h-12 border-border bg-white dark:bg-slate-900"
                   required
                   minLength={1}
@@ -139,7 +141,7 @@ export function LoginPage() {
               {/* Password Field */}
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-semibold text-muted-foreground">
-                  密碼
+                  {t('login.passwordLabel')}
                 </Label>
                 <div className="relative">
                   <Input
@@ -147,7 +149,7 @@ export function LoginPage() {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="請輸入密碼"
+                    placeholder={t('login.passwordPlaceholder')}
                     className="h-12 border-border bg-white dark:bg-slate-900 pr-12"
                     required
                     minLength={1}
@@ -157,7 +159,7 @@ export function LoginPage() {
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
                     tabIndex={-1}
-                    aria-label={showPassword ? '隱藏密碼' : '顯示密碼'}
+                    aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
                     aria-pressed={showPassword}
                     className="absolute inset-y-0 right-0 flex items-center justify-center w-12 text-muted-foreground hover:text-foreground focus:outline-none focus:text-foreground"
                   >
@@ -182,7 +184,7 @@ export function LoginPage() {
                 className="w-full h-12 bg-brand hover:bg-brand-hover text-white text-lg font-extrabold"
                 disabled={loading}
               >
-                {loading ? '登入中...' : '登入'}
+                {loading ? t('login.submitting') : t('login.submit')}
               </Button>
             </form>
           </div>

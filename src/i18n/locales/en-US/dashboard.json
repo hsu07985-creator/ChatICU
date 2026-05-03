@@ -1,0 +1,91 @@
+{
+  "header": {
+    "title": "ICU Overview",
+    "subtitle": "Real-time bed and patient status monitoring",
+    "demoDataBadge": "Demo Data"
+  },
+  "hisSync": {
+    "detect": {
+      "label": "Detect Updates",
+      "tooltip": "Sync only new or changed patients (skip unchanged hash)",
+      "loading": "Detecting HIS updates...",
+      "success": "Detection complete: synced {{synced}}, skipped {{skipped}}"
+    },
+    "force": {
+      "label": "Force Resync",
+      "tooltip": "Ignore hash and resync all patients (slower, takes several minutes)",
+      "loading": "Force resyncing all patients...",
+      "success": "Force resync complete: {{synced}} patients updated"
+    },
+    "errors": "Sync completed with {{errors}} errors (return_code={{returnCode}})",
+    "syncFailed": "HIS sync failed: {{message}}",
+    "unknownError": "Unknown error",
+    "modeForce": "force resync",
+    "modeDetect": "detection",
+    "lastSync": "Last {{mode}}: synced {{synced}}, skipped {{skipped}}",
+    "lastSyncWithErrors": "Last {{mode}}: synced {{synced}}, skipped {{skipped}}, errors {{errors}}"
+  },
+  "metrics": {
+    "totalPatients": "Total Patients",
+    "intubated": "Intubated",
+    "sedation": "Sedation",
+    "analgesia": "Analgesia",
+    "nmb": "NMB"
+  },
+  "list": {
+    "title": "Patient Cards",
+    "searchPlaceholder": "Search name or bed...",
+    "filterPlaceholder": "Filter",
+    "filters": {
+      "all": "All Patients",
+      "intubated": "Intubated",
+      "san": "On S/A/N",
+      "alerts": "Has Alerts"
+    },
+    "sortPlaceholder": "Sort by",
+    "sorts": {
+      "bed": "By Bed",
+      "admission": "By Admission Date"
+    },
+    "zoomIn": "Zoom in card",
+    "zoomOut": "Zoom out card",
+    "columns_one": "{{count}} column",
+    "columns_other": "{{count}} columns",
+    "loadFailed": "Cannot connect to server. Please verify the backend service is running.",
+    "loadErrorLog": "Failed to load patient list",
+    "empty": "No patients match the criteria"
+  },
+  "card": {
+    "ageYears": "{{age}} y/o",
+    "stayDays_one": "Day {{days}} of stay",
+    "stayDays_other": "Day {{days}} of stay",
+    "stayShort": "Stay",
+    "diagnosisLabel": "Admission Diagnosis",
+    "moreItems": "+{{count}} more",
+    "lastUpdatePrefix": "Last update: ",
+    "editButtonTitle": "Edit patient info"
+  },
+  "edit": {
+    "title": "Edit Patient Info",
+    "description": "Update the patient's basic information. Click Save when done.",
+    "labels": {
+      "name": "Name",
+      "bed": "Bed",
+      "diagnosis": "Diagnosis",
+      "age": "Age",
+      "physician": "Attending Physician",
+      "airway": "Airway Support"
+    },
+    "airway": {
+      "invasive": "Invasive airway support",
+      "tracheostomy": "Tracheostomy"
+    },
+    "saveSuccess": "Patient info updated",
+    "saveFailed": "Update failed. Please try again.",
+    "saveErrorLog": "Update failed"
+  },
+  "duplicateBadge": {
+    "ariaLabel": "Duplicate medication alert",
+    "tooltip": "Duplicate medication alert (Red Critical / Orange High / Yellow Moderate / Blue Low)"
+  }
+}

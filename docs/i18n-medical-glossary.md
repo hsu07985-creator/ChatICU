@@ -49,11 +49,45 @@
 | 稽核紀錄 | Audit Log | — | ⬜ | |
 | 帳號權限 | Users & Roles | — | ⬜ | User Management |
 
-## Wave 2+ 後續
+## Wave 2 — 入口頁（auth + dashboard）
+
+### Auth（auth.json）
+| zh-TW | Claude 初譯（en-US） | 最終版 | 狀態 | 備註 |
+|-------|---------------------|--------|------|------|
+| 智慧型加護病房照護系統 | Intelligent ICU Care System | — | ⬜ | tagline，可考慮 Smart ICU Care Platform |
+| 帳號 | Username | — | ⬜ | Account / User ID 可選 |
+| 密碼 | Password | — | ⬜ | |
+| 變更密碼 | Change Password | — | ⬜ | |
+| 您的密碼已過期或需要更新，請設定新密碼 | Your password has expired or requires an update. Please set a new password. | — | ⬜ | |
+| 至少 12 字元，含大小寫字母、數字及特殊字元 | At least 12 characters, including upper/lowercase letters, numbers, and special characters | — | ⬜ | |
+| 密碼已變更，請重新登入 | Password changed. Please log in again. | — | ⬜ | |
+
+### Dashboard（dashboard.json）
+| zh-TW | Claude 初譯（en-US） | 最終版 | 狀態 | 備註 |
+|-------|---------------------|--------|------|------|
+| 加護病房總覽 | ICU Overview | — | ⬜ | ICU Dashboard 也可 |
+| 即時病床與病患狀態監控 | Real-time bed and patient status monitoring | — | ⬜ | |
+| 模擬資料 | Demo Data | — | ⬜ | Mock Data / Sample Data |
+| 病患總數 | Total Patients | — | ⬜ | Census 也常用 |
+| 插管人數 | Intubated | — | ⬜ | Intubated Count |
+| S 鎮靜 | Sedation | — | ⬜ | 是否保留 S 縮寫？S/A/N 是 ICU 約定俗成 |
+| A 止痛 | Analgesia | — | ⬜ | |
+| N 阻斷 | NMB | — | ⬜ | Neuromuscular Blockade |
+| 偵測新更新 | Detect Updates | — | ⬜ | Check for Updates |
+| 全部重抓 | Force Resync | — | ⬜ | Full Resync |
+| 病患卡片清單 | Patient Cards | — | ⬜ | Patient List |
+| 全部病患 / 插管中 / 使用 S/A/N / 有警示 | All / Intubated / On S/A/N / Has Alerts | — | ⬜ | |
+| 依床號 / 依入住時間 | By Bed / By Admission Date | — | ⬜ | |
+| 入院診斷 | Admission Diagnosis | — | ⬜ | Chief Complaint? Primary Dx? |
+| 主治醫師 | Attending Physician | — | ⬜ | Attending |
+| 呼吸道支持 / 侵入性呼吸道支持 / 已氣切 | Airway Support / Invasive airway support / Tracheostomy | — | ⬜ | Trach 縮寫常見 |
+| 重複用藥警示 | Duplicate medication alert | — | ⬜ | Therapeutic Duplication Alert |
+
+## Wave 3+ 後續
 
 各 Wave 啟動時補進此表。建議優先校稿項目：
 - 藥品劑型用語（tab/cap/inj/syr）
-- ICU 專屬術語（vasopressor、sedation、weaning protocol 等）
+- ICU 專屬術語（vasopressor、weaning protocol 等）
 - SOAP 段落名稱（Subjective / Objective / Assessment / Plan）
 - 病人狀態（critical / stable / improving / deteriorating）
 

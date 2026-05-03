@@ -13,7 +13,8 @@ repos:
           (?x)^(
             .*\.lock$|
             .*package-lock\.json$|
-            datamock/.*
+            datamock/.*|
+            src/i18n/locales/.*
           )$
 
   # ── Gitleaks (alternative secret scanner for broader pattern coverage) ──

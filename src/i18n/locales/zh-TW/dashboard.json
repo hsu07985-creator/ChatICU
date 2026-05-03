@@ -1,0 +1,89 @@
+{
+  "header": {
+    "title": "加護病房總覽",
+    "subtitle": "即時病床與病患狀態監控",
+    "demoDataBadge": "模擬資料"
+  },
+  "hisSync": {
+    "detect": {
+      "label": "偵測新更新",
+      "tooltip": "只同步新的或內容變動過的病人（跳過 hash 未變的）",
+      "loading": "偵測 HIS 更新中…",
+      "success": "偵測完成：同步 {{synced}} 位，跳過 {{skipped}} 位"
+    },
+    "force": {
+      "label": "全部重抓",
+      "tooltip": "忽略 hash，重抓全部病人（比較慢，約數分鐘）",
+      "loading": "強制重抓全部病人中…",
+      "success": "全部重抓完成：{{synced}} 位病人已更新"
+    },
+    "errors": "同步完成但有 {{errors}} 個錯誤（return_code={{returnCode}}）",
+    "syncFailed": "HIS 同步失敗：{{message}}",
+    "unknownError": "未知錯誤",
+    "modeForce": "強制重抓",
+    "modeDetect": "偵測",
+    "lastSync": "上次{{mode}}：同步 {{synced}}，跳過 {{skipped}}",
+    "lastSyncWithErrors": "上次{{mode}}：同步 {{synced}}，跳過 {{skipped}}，錯誤 {{errors}}"
+  },
+  "metrics": {
+    "totalPatients": "病患總數",
+    "intubated": "插管人數",
+    "sedation": "S 鎮靜",
+    "analgesia": "A 止痛",
+    "nmb": "N 阻斷"
+  },
+  "list": {
+    "title": "病患卡片清單",
+    "searchPlaceholder": "搜尋姓名或床號...",
+    "filterPlaceholder": "篩選條件",
+    "filters": {
+      "all": "全部病患",
+      "intubated": "插管中",
+      "san": "使用 S/A/N",
+      "alerts": "有警示"
+    },
+    "sortPlaceholder": "排序方式",
+    "sorts": {
+      "bed": "依床號",
+      "admission": "依入住時間"
+    },
+    "zoomIn": "放大卡片",
+    "zoomOut": "縮小卡片",
+    "columns": "{{count}}欄",
+    "loadFailed": "無法連線至伺服器，請確認後端服務是否正常運行",
+    "loadErrorLog": "載入病患列表失敗",
+    "empty": "沒有符合條件的病患"
+  },
+  "card": {
+    "ageYears": "{{age}} 歲",
+    "stayDays": "住院 {{days}} 天",
+    "stayShort": "住",
+    "diagnosisLabel": "入院診斷",
+    "moreItems": "+{{count}} 更多",
+    "lastUpdatePrefix": "最後更新：",
+    "editButtonTitle": "編輯病患資料"
+  },
+  "edit": {
+    "title": "編輯病患資料",
+    "description": "修改病患的基本資料，完成後點擊儲存。",
+    "labels": {
+      "name": "姓名",
+      "bed": "床號",
+      "diagnosis": "診斷",
+      "age": "年齡",
+      "physician": "主治醫師",
+      "airway": "呼吸道支持"
+    },
+    "airway": {
+      "invasive": "侵入性呼吸道支持",
+      "tracheostomy": "已氣切"
+    },
+    "saveSuccess": "病患資料已更新",
+    "saveFailed": "更新失敗，請稍後再試",
+    "saveErrorLog": "更新失敗"
+  },
+  "duplicateBadge": {
+    "ariaLabel": "重複用藥警示",
+    "tooltip": "重複用藥警示（紅 Critical / 橘 High / 黃 Moderate / 藍 Low）"
+  }
+}

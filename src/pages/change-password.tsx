@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { changePassword } from '../lib/api/auth';
 import { useAuth } from '../lib/auth-context';
 import { Button } from '../components/ui/button';
@@ -9,6 +10,7 @@ import { toast } from 'sonner';
 export function ChangePasswordPage() {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { t } = useTranslation('auth');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -20,30 +22,31 @@ export function ChangePasswordPage() {
     setError('');
 
     if (newPassword.length < 12) {
-      setError('新密碼至少需要 12 個字元');
+      setError(t('changePassword.errors.tooShort'));
       return;
     }
     if (!/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/\d/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
-      setError('新密碼需包含大小寫字母、數字及特殊字元');
+      setError(t('changePassword.errors.weakComposition'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('確認密碼不一致');
+      setError(t('changePassword.errors.confirmMismatch'));
       return;
     }
     if (newPassword === currentPassword) {
-      setError('新密碼不可與目前密碼相同');
+      setError(t('changePassword.errors.sameAsCurrent'));
       return;
     }
 
     setSubmitting(true);
     try {
       await changePassword(currentPassword, newPassword);
-      toast.success('密碼已變更，請重新登入');
+      toast.success(t('changePassword.successToast'));
       await logout();
       navigate('/login');
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || '密碼變更失敗';
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || t('changePassword.errors.fallback');
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -54,13 +57,15 @@ export function ChangePasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>變更密碼</CardTitle>
-          <CardDescription>您的密碼已過期或需要更新，請設定新密碼。</CardDescription>
+          <CardTitle>{t('changePassword.title')}</CardTitle>
+          <CardDescription>{t('changePassword.description')}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">目前密碼</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                {t('changePassword.currentPasswordLabel')}
+              </label>
               <input
                 type="password"
                 value={currentPassword}
@@ -70,7 +75,9 @@ export function ChangePasswordPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">新密碼</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                {t('changePassword.newPasswordLabel')}
+              </label>
               <input
                 type="password"
                 value={newPassword}
@@ -79,10 +86,12 @@ export function ChangePasswordPage() {
                 minLength={12}
                 className="w-full rounded-md border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm dark:bg-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand"
               />
-              <p className="text-xs text-muted-foreground mt-1">至少 12 字元，含大小寫字母、數字及特殊字元</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('changePassword.newPasswordHint')}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">確認新密碼</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                {t('changePassword.confirmPasswordLabel')}
+              </label>
               <input
                 type="password"
                 value={confirmPassword}
@@ -95,7 +104,7 @@ export function ChangePasswordPage() {
               <p className="text-sm text-red-600">{error}</p>
             )}
             <Button type="submit" disabled={submitting} className="w-full">
-              {submitting ? '處理中...' : '變更密碼'}
+              {submitting ? t('changePassword.submitting') : t('changePassword.submit')}
             </Button>
           </form>
         </CardContent>

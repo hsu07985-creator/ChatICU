@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { DuplicateSeverityCounts } from '../../lib/api/medications';
 
 // Wave 6c: compact per-patient duplicate-medication severity badge for the
@@ -14,6 +15,7 @@ export interface PatientDuplicateBadgeProps {
 }
 
 export function PatientDuplicateBadge({ counts, size = 'sm' }: PatientDuplicateBadgeProps) {
+  const { t } = useTranslation('dashboard');
   if (!counts) return null;
   const { critical, high, moderate, low } = counts;
   if (!critical && !high && !moderate && !low) return null;
@@ -26,8 +28,8 @@ export function PatientDuplicateBadge({ counts, size = 'sm' }: PatientDuplicateB
   return (
     <span
       className="inline-flex items-center gap-1"
-      aria-label="重複用藥警示"
-      title="重複用藥警示（紅 Critical / 橘 High / 黃 Moderate / 藍 Low）"
+      aria-label={t('duplicateBadge.ariaLabel')}
+      title={t('duplicateBadge.tooltip')}
     >
       {critical > 0 && (
         <span className={`${pillBase} bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200`}>

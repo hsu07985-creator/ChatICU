@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -50,6 +51,7 @@ interface EditFormData {
 export function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t, i18n } = useTranslation('dashboard');
   const canEditPatients = canEditPatientProfile(user?.role);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -101,8 +103,8 @@ export function DashboardPage() {
       const data = await invalidatePatients();
       setPatients(data);
     } catch (err) {
-      console.error('載入病患列表失敗:', err);
-      setError('無法連線至伺服器，請確認後端服務是否正常運行');
+      console.error(`${t('list.loadErrorLog')}:`, err);
+      setError(t('list.loadFailed'));
       setPatients([]);
     } finally {
       setLoading(false);
@@ -181,10 +183,10 @@ export function DashboardPage() {
         );
       }
       setEditDialogOpen(false);
-      toast.success('病患資料已更新');
+      toast.success(t('edit.saveSuccess'));
     } catch (err) {
-      console.error('更新失敗:', err);
-      toast.error('更新失敗，請稍後再試');
+      console.error(`${t('edit.saveErrorLog')}:`, err);
+      toast.error(t('edit.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -196,7 +198,7 @@ export function DashboardPage() {
       if (hisSyncRunning) return;
       setHisSyncRunning(mode);
       const loadingToastId = toast.loading(
-        mode === 'detect' ? '偵測 HIS 更新中…' : '強制重抓全部病人中…',
+        mode === 'detect' ? t('hisSync.detect.loading') : t('hisSync.force.loading'),
       );
       try {
         const result = await triggerHisSync(mode);
@@ -207,15 +209,16 @@ export function DashboardPage() {
 
         const { counts } = result;
         if (result.success) {
+          const skipped = counts.unchanged + counts.timestamp_only;
           toast.success(
             mode === 'detect'
-              ? `偵測完成：同步 ${counts.synced} 位，跳過 ${counts.unchanged + counts.timestamp_only} 位`
-              : `全部重抓完成：${counts.synced} 位病人已更新`,
+              ? t('hisSync.detect.success', { synced: counts.synced, skipped })
+              : t('hisSync.force.success', { synced: counts.synced }),
             { id: loadingToastId, duration: 5000 },
           );
         } else {
           toast.error(
-            `同步完成但有 ${counts.errors} 個錯誤（return_code=${result.return_code}）`,
+            t('hisSync.errors', { errors: counts.errors, returnCode: result.return_code }),
             { id: loadingToastId, duration: 8000 },
           );
         }
@@ -223,13 +226,13 @@ export function DashboardPage() {
         const msg =
           err && typeof err === 'object' && 'message' in err
             ? String((err as { message: unknown }).message)
-            : '未知錯誤';
-        toast.error(`HIS 同步失敗：${msg}`, { id: loadingToastId, duration: 8000 });
+            : t('hisSync.unknownError');
+        toast.error(t('hisSync.syncFailed', { message: msg }), { id: loadingToastId, duration: 8000 });
       } finally {
         setHisSyncRunning(null);
       }
     },
-    [hisSyncRunning],
+    [hisSyncRunning, t],
   );
 
   // 篩選與排序
@@ -271,13 +274,13 @@ export function DashboardPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold">加護病房總覽</h1>
+            <h1 className="text-2xl font-bold">{t('header.title')}</h1>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
               <FlaskConical className="h-3.5 w-3.5" />
-              模擬資料
+              {t('header.demoDataBadge')}
             </div>
           </div>
-          <p className="text-muted-foreground text-sm mt-1">即時病床與病患狀態監控</p>
+          <p className="text-muted-foreground text-sm mt-1">{t('header.subtitle')}</p>
         </div>
 
         {hisSyncEnabled && (
@@ -288,36 +291,43 @@ export function DashboardPage() {
                 size="sm"
                 disabled={hisSyncRunning !== null}
                 onClick={() => handleHisSync('detect')}
-                title="只同步新的或內容變動過的病人（跳過 hash 未變的）"
+                title={t('hisSync.detect.tooltip')}
               >
                 {hisSyncRunning === 'detect' ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <RefreshCw className="mr-2 h-4 w-4" />
                 )}
-                偵測新更新
+                {t('hisSync.detect.label')}
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 disabled={hisSyncRunning !== null}
                 onClick={() => handleHisSync('force')}
-                title="忽略 hash，重抓全部病人（比較慢，約數分鐘）"
+                title={t('hisSync.force.tooltip')}
               >
                 {hisSyncRunning === 'force' ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <DownloadCloud className="mr-2 h-4 w-4" />
                 )}
-                全部重抓
+                {t('hisSync.force.label')}
               </Button>
             </div>
             {lastHisSync && (
               <p className="text-xs text-muted-foreground">
-                上次 {lastHisSync.mode === 'force' ? '強制重抓' : '偵測'}：
-                同步 {lastHisSync.counts.synced}，
-                跳過 {lastHisSync.counts.unchanged + lastHisSync.counts.timestamp_only}
-                {lastHisSync.counts.errors > 0 && `，錯誤 ${lastHisSync.counts.errors}`}
+                {(() => {
+                  const mode = lastHisSync.mode === 'force'
+                    ? t('hisSync.modeForce')
+                    : t('hisSync.modeDetect');
+                  const synced = lastHisSync.counts.synced;
+                  const skipped = lastHisSync.counts.unchanged + lastHisSync.counts.timestamp_only;
+                  const errors = lastHisSync.counts.errors;
+                  return errors > 0
+                    ? t('hisSync.lastSyncWithErrors', { mode, synced, skipped, errors })
+                    : t('hisSync.lastSync', { mode, synced, skipped });
+                })()}
               </p>
             )}
           </div>
@@ -333,27 +343,27 @@ export function DashboardPage() {
               style={{ minWidth: '760px', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}
             >
               <div className="px-4 py-4">
-                <p className="text-xs font-medium text-muted-foreground">病患總數</p>
+                <p className="text-xs font-medium text-muted-foreground">{t('metrics.totalPatients')}</p>
                 <p className="mt-1 text-3xl font-bold leading-none text-foreground">{effectiveStats?.patients?.total ?? 0}</p>
               </div>
               <div className="border-l border-border px-4 py-4">
-                <p className="text-xs font-medium text-muted-foreground">插管人數</p>
+                <p className="text-xs font-medium text-muted-foreground">{t('metrics.intubated')}</p>
                 <p className="mt-1 text-3xl font-bold leading-none text-foreground">{effectiveStats?.patients?.intubated ?? 0}</p>
               </div>
               <div className="border-l border-border px-4 py-4">
-                <p className="text-xs font-medium text-muted-foreground">S 鎮靜</p>
+                <p className="text-xs font-medium text-muted-foreground">{t('metrics.sedation')}</p>
                 <p className="mt-1 text-3xl font-bold leading-none text-foreground">
                   {effectiveStats?.patients?.sanByCategory?.sedation ?? 0}
                 </p>
               </div>
               <div className="border-l border-border px-4 py-4">
-                <p className="text-xs font-medium text-muted-foreground">A 止痛</p>
+                <p className="text-xs font-medium text-muted-foreground">{t('metrics.analgesia')}</p>
                 <p className="mt-1 text-3xl font-bold leading-none text-foreground">
                   {effectiveStats?.patients?.sanByCategory?.analgesia ?? 0}
                 </p>
               </div>
               <div className="border-l border-border px-4 py-4">
-                <p className="text-xs font-medium text-muted-foreground">N 阻斷</p>
+                <p className="text-xs font-medium text-muted-foreground">{t('metrics.nmb')}</p>
                 <p className="mt-1 text-3xl font-bold leading-none text-foreground">
                   {effectiveStats?.patients?.sanByCategory?.nmb ?? 0}
                 </p>
@@ -366,14 +376,14 @@ export function DashboardPage() {
       {/* 搜尋與篩選 */}
       <Card>
         <CardHeader>
-          <CardTitle>病患卡片清單</CardTitle>
+          <CardTitle>{t('list.title')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="搜尋姓名或床號..."
+                placeholder={t('list.searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -381,22 +391,22 @@ export function DashboardPage() {
             </div>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="篩選條件" />
+                <SelectValue placeholder={t('list.filterPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">全部病患</SelectItem>
-                <SelectItem value="intubated">插管中</SelectItem>
-                <SelectItem value="san">使用 S/A/N</SelectItem>
-                <SelectItem value="alerts">有警示</SelectItem>
+                <SelectItem value="all">{t('list.filters.all')}</SelectItem>
+                <SelectItem value="intubated">{t('list.filters.intubated')}</SelectItem>
+                <SelectItem value="san">{t('list.filters.san')}</SelectItem>
+                <SelectItem value="alerts">{t('list.filters.alerts')}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={sortBy} onValueChange={setSortBy}>
               <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="排序方式" />
+                <SelectValue placeholder={t('list.sortPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="bed">依床號</SelectItem>
-                <SelectItem value="admission">依入住時間</SelectItem>
+                <SelectItem value="bed">{t('list.sorts.bed')}</SelectItem>
+                <SelectItem value="admission">{t('list.sorts.admission')}</SelectItem>
               </SelectContent>
             </Select>
             {/* 卡片縮放 */}
@@ -409,11 +419,11 @@ export function DashboardPage() {
                   const idx = GRID_OPTIONS.indexOf(gridCols as typeof GRID_OPTIONS[number]);
                   if (idx < GRID_OPTIONS.length - 1) changeGridCols(GRID_OPTIONS[idx + 1]);
                 }}
-                title="縮小卡片"
+                title={t('list.zoomOut')}
               >
                 <ZoomOut className="h-3.5 w-3.5" />
               </Button>
-              <span className="text-xs text-muted-foreground w-8 text-center">{gridCols}欄</span>
+              <span className="text-xs text-muted-foreground w-8 text-center">{t('list.columns', { count: gridCols })}</span>
               <Button
                 variant="ghost" size="icon"
                 className="h-6 w-6 p-0"
@@ -422,7 +432,7 @@ export function DashboardPage() {
                   const idx = GRID_OPTIONS.indexOf(gridCols as typeof GRID_OPTIONS[number]);
                   if (idx > 0) changeGridCols(GRID_OPTIONS[idx - 1]);
                 }}
-                title="放大卡片"
+                title={t('list.zoomIn')}
               >
                 <ZoomIn className="h-3.5 w-3.5" />
               </Button>
@@ -452,7 +462,7 @@ export function DashboardPage() {
                       size="icon"
                       className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-muted-foreground hover:text-brand hover:bg-brand/10 z-10"
                       onClick={(e) => handleEditClick(e, patient)}
-                      title="編輯病患資料"
+                      title={t('card.editButtonTitle')}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -474,7 +484,7 @@ export function DashboardPage() {
                         </div>
                         {/* 2. 基本資料行（強制單行） */}
                         <p className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
-                          {patient.age}&nbsp;歲&nbsp;·&nbsp;{stayDays !== null ? `住院 ${stayDays} 天` : '住'}
+                          {t('card.ageYears', { age: patient.age })}&nbsp;·&nbsp;{stayDays !== null ? t('card.stayDays', { days: stayDays, count: stayDays }) : t('card.stayShort')}
                         </p>
                       </div>
                       <div className="h-12 w-12 rounded-full bg-brand text-white flex items-center justify-center font-bold text-lg shadow-lg shrink-0">
@@ -486,7 +496,7 @@ export function DashboardPage() {
                   <CardContent className="flex flex-col flex-1 space-y-3">
                     {/* 3. 入院診斷（固定 3 行） */}
                     <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-border">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">入院診斷</p>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">{t('card.diagnosisLabel')}</p>
                       <p
                         className="text-sm font-medium text-foreground line-clamp-3 min-h-[3.75rem] leading-5"
                         title={patient.diagnosis || ''}
@@ -512,7 +522,7 @@ export function DashboardPage() {
                                 ))}
                                 {row.items.length > SAN_MAX_CHIPS && (
                                   <span className="text-xs bg-muted px-2 py-0.5 rounded whitespace-nowrap shrink-0">
-                                    +{row.items.length - SAN_MAX_CHIPS} 更多
+                                    {t('card.moreItems', { count: row.items.length - SAN_MAX_CHIPS })}
                                   </span>
                                 )}
                               </div>
@@ -534,7 +544,7 @@ export function DashboardPage() {
 
                     {/* 6. 最後更新（釘底） */}
                     <div className="mt-auto text-xs text-muted-foreground pt-2 border-t">
-                      <span>最後更新：{patient.lastUpdate ? new Date(patient.lastUpdate).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}</span>
+                      <span>{t('card.lastUpdatePrefix')}{patient.lastUpdate ? new Date(patient.lastUpdate).toLocaleString(i18n.language, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -544,7 +554,7 @@ export function DashboardPage() {
 
           {loading && (
             <div className="text-center py-12 text-muted-foreground">
-              <p>載入中...</p>
+              <p>{t('common:status.loading')}</p>
             </div>
           )}
 
@@ -553,14 +563,14 @@ export function DashboardPage() {
               <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-400 dark:text-red-500" />
               <p className="text-red-600 dark:text-red-400 font-medium">{error}</p>
               <Button variant="outline" className="mt-4" onClick={fetchPatients}>
-                重新載入
+                {t('common:actions.refresh')}
               </Button>
             </div>
           )}
 
           {!loading && !error && filteredPatients.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
-              <p>沒有符合條件的病患</p>
+              <p>{t('list.empty')}</p>
             </div>
           )}
         </CardContent>
@@ -572,16 +582,16 @@ export function DashboardPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Pencil className="h-5 w-5 text-brand" />
-              編輯病患資料
+              {t('edit.title')}
             </DialogTitle>
             <DialogDescription>
-              修改病患的基本資料，完成後點擊儲存。
+              {t('edit.description')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-name" className="text-right">
-                姓名
+                {t('edit.labels.name')}
               </Label>
               <Input
                 id="edit-name"
@@ -592,7 +602,7 @@ export function DashboardPage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-bed" className="text-right">
-                床號
+                {t('edit.labels.bed')}
               </Label>
               <Input
                 id="edit-bed"
@@ -603,7 +613,7 @@ export function DashboardPage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-diagnosis" className="text-right">
-                診斷
+                {t('edit.labels.diagnosis')}
               </Label>
               <Input
                 id="edit-diagnosis"
@@ -614,7 +624,7 @@ export function DashboardPage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-age" className="text-right">
-                年齡
+                {t('edit.labels.age')}
               </Label>
               <Input
                 id="edit-age"
@@ -626,7 +636,7 @@ export function DashboardPage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-physician" className="text-right">
-                主治醫師
+                {t('edit.labels.physician')}
               </Label>
               <Input
                 id="edit-physician"
@@ -637,7 +647,7 @@ export function DashboardPage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-intubated" className="text-right">
-                呼吸道支持
+                {t('edit.labels.airway')}
               </Label>
               <div className="col-span-3 space-y-3 rounded-lg border border-border/70 bg-muted/30 p-3">
                 <div className="flex flex-wrap items-center gap-4">
@@ -654,7 +664,7 @@ export function DashboardPage() {
                       }
                     />
                     <span className="text-sm text-muted-foreground">
-                      侵入性呼吸道支持
+                      {t('edit.airway.invasive')}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -668,7 +678,7 @@ export function DashboardPage() {
                         )
                       }
                     />
-                    <span className="text-sm text-muted-foreground">已氣切</span>
+                    <span className="text-sm text-muted-foreground">{t('edit.airway.tracheostomy')}</span>
                   </div>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -695,14 +705,14 @@ export function DashboardPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              取消
+              {t('common:actions.cancel')}
             </Button>
             <Button
               onClick={handleSaveEdit}
               disabled={saving}
               className="bg-brand hover:bg-brand/90"
             >
-              {saving ? '儲存中...' : '儲存'}
+              {saving ? t('common:status.saving') : t('common:actions.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
