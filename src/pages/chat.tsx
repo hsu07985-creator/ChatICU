@@ -12,6 +12,7 @@ import { maskPatientName } from '../lib/utils/patient-name';
 import { getTeamChatMessages, sendTeamChatMessage, postAnnouncement, togglePinMessage, deleteTeamChatMessage, getTeamUsers, markChatVisited, TeamChatMessage, TeamUser } from '../lib/api/team-chat';
 import { chatCache, MSGS_STALE_MS, MENTIONS_STALE_MS } from '../lib/api/team-chat-cache';
 import { roleLabel } from '../lib/utils/user-role';
+import { useTranslation } from 'react-i18next';
 import { MENTION_ALL_NAME, mentionRegex } from '../lib/utils/mention-parser';
 import { getMyMentions, type MentionGroup } from '../lib/api/messages';
 import { LoadingSpinner } from '../components/ui/state-display';
@@ -40,6 +41,7 @@ function formatTimestamp(timestamp: string): string {
 }
 
 export function ChatPage() {
+  const { t } = useTranslation('chat');
   const { user } = useAuth();
   const [message, setMessage] = useState('');
   const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
@@ -126,8 +128,8 @@ export function ChatPage() {
       // need to wait for the server ack.
       void markChatVisited().catch(() => {});
     } catch (err) {
-      console.error('載入團隊聊天訊息失敗:', err);
-      setError('無法載入聊天訊息');
+      console.error(`${t('team.channel.loadErrorLog')}:`, err);
+      setError(t('team.channel.loadError'));
     } finally {
       setLoading(false);
     }
@@ -164,7 +166,7 @@ export function ChatPage() {
         }
       });
     } catch (err) {
-      console.error('載入歷史訊息失敗:', err);
+      console.error(`${t('team.channel.loadOlderLog')}:`, err);
     } finally {
       setLoadingOlder(false);
     }
@@ -188,7 +190,7 @@ export function ChatPage() {
       setMentionGroups(result.groups);
       setMentionsTotalCount(result.totalMentions);
     } catch (err) {
-      console.error('載入 @提及 失敗:', err);
+      console.error(`${t('team.sidebar.loadMentionsErrorLog')}:`, err);
     } finally {
       setMentionsLoading(false);
     }
@@ -309,10 +311,10 @@ export function ChatPage() {
       setMentionedUserIds([]);
       setMentionsAll(false);
       setReplyingTo(null);
-      toast.success(rootId ? '回覆已發送' : '訊息已發送');
+      toast.success(rootId ? t('team.send.replySuccess') : t('team.send.messageSuccess'));
     } catch (err) {
-      console.error('發送訊息失敗:', err);
-      toast.error('發送訊息失敗，請稍後再試');
+      console.error(`${t('team.send.errorLog')}:`, err);
+      toast.error(t('team.send.error'));
     } finally {
       setSending(false);
     }
@@ -384,10 +386,10 @@ export function ChatPage() {
       chatCache.msgsTimestamp = Date.now();
       setAnnouncementContent('');
       setAnnouncementDialogOpen(false);
-      toast.success('公告已發布');
+      toast.success(t('team.announcement.success'));
     } catch (err) {
-      console.error('發布公告失敗:', err);
-      toast.error('發布公告失敗，請稍後再試');
+      console.error(`${t('team.announcement.errorLog')}:`, err);
+      toast.error(t('team.announcement.error'));
     } finally {
       setPostingAnnouncement(false);
     }
@@ -402,10 +404,10 @@ export function ChatPage() {
       setMessages(prev => prev.map(msg =>
         msg.id === messageId ? { ...msg, pinned: result.pinned } : msg
       ));
-      toast.success(result.pinned ? '訊息已釘選' : '已取消釘選');
+      toast.success(result.pinned ? t('team.message.pinSuccess') : t('team.message.unpinSuccess'));
     } catch (err) {
-      console.error('切換釘選狀態失敗:', err);
-      toast.error('操作失敗，請稍後再試');
+      console.error(`${t('team.message.pinErrorLog')}:`, err);
+      toast.error(t('team.message.pinError'));
     } finally {
       setPinningMessageId(null);
     }
@@ -456,7 +458,7 @@ export function ChatPage() {
               {msg.pinned && (
                 <Badge className="bg-[#f59e0b] text-white text-[10px] px-1 py-0 h-4">
                   <Pin className="h-2.5 w-2.5 mr-0.5" />
-                  已釘選
+                  {t('team.message.pinnedBadge')}
                 </Badge>
               )}
             </div>
@@ -471,11 +473,11 @@ export function ChatPage() {
                   type="button"
                   onClick={() => scrollToMessage(repliedTo.id)}
                   className={`mb-1.5 pl-2 border-l-2 text-left w-full block rounded transition-colors hover:bg-black/5 ${isSelf ? 'border-slate-700/40' : 'border-slate-500/40 dark:border-slate-300/40'} opacity-90 hover:opacity-100`}
-                  title="跳到原訊息"
+                  title={t('team.message.jumpToOriginal')}
                 >
                   <div className="text-[11px] font-medium flex items-center gap-1">
                     <CornerUpLeft className="h-2.5 w-2.5" />
-                    回覆 {repliedTo.userName}
+                    {t('team.input.replyPrefix')} {repliedTo.userName}
                   </div>
                   <div className="text-xs truncate max-w-[260px] sm:max-w-[320px]">
                     {repliedTo.content}
@@ -494,7 +496,7 @@ export function ChatPage() {
                 size="sm"
                 className="h-7 w-7 p-0 text-muted-foreground hover:text-brand"
                 onClick={() => setReplyingTo(msg)}
-                title="回覆此訊息"
+                title={t('team.message.replyTitle')}
               >
                 <CornerUpLeft className="h-3.5 w-3.5" />
               </Button>
@@ -506,7 +508,7 @@ export function ChatPage() {
                     className={`h-7 w-7 p-0 ${msg.pinned ? 'text-[#f59e0b]' : 'text-muted-foreground hover:text-[#f59e0b]'}`}
                     onClick={() => void handleTogglePin(msg.id)}
                     disabled={pinningMessageId === msg.id}
-                    title={msg.pinned ? '取消釘選' : '釘選此訊息'}
+                    title={msg.pinned ? t('team.message.togglePinFrom') : t('team.message.togglePinTo')}
                   >
                     <Pin className="h-3.5 w-3.5" />
                   </Button>
@@ -521,7 +523,7 @@ export function ChatPage() {
                     className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
                     onClick={() => void handleDeleteMessage(msg.id)}
                     disabled={deletingMessageId === msg.id}
-                    title="刪除訊息"
+                    title={t('team.message.deleteTitle')}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -545,9 +547,9 @@ export function ChatPage() {
     try {
       await deleteTeamChatMessage(messageId);
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
-      toast.success('訊息已刪除');
+      toast.success(t('team.message.deleteSuccess'));
     } catch {
-      toast.error('刪除失敗，請稍後再試');
+      toast.error(t('team.message.deleteError'));
     } finally {
       setDeletingMessageId(null);
     }
@@ -557,8 +559,8 @@ export function ChatPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between pr-14">
         <div>
-          <h1 className="text-2xl font-bold">團隊訊息</h1>
-          <p className="text-muted-foreground text-sm mt-1">團隊溝通與工作協調</p>
+          <h1 className="text-2xl font-bold">{t('team.header.title')}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t('team.header.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           {user?.role === 'admin' && (
@@ -567,7 +569,7 @@ export function ChatPage() {
               onClick={() => setAnnouncementDialogOpen(true)}
             >
               <Pin className="mr-2 h-4 w-4" />
-              發布公告
+              {t('team.header.postAnnouncement')}
             </Button>
           )}
         </div>
@@ -579,7 +581,7 @@ export function ChatPage() {
           <CardHeader className="bg-slate-50 dark:bg-slate-800 border-b flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <MessageSquare className="h-6 w-6 text-brand" />
-              全體頻道
+              {t('team.channel.title')}
             </CardTitle>
             <Button
               variant="ghost"
@@ -602,12 +604,12 @@ export function ChatPage() {
                   <p className="text-red-500 mb-2">{error}</p>
                   <Button variant="outline" onClick={() => loadMessages(true)}>
                     <RefreshCw className="mr-2 h-4 w-4" />
-                    重新載入
+                    {t('team.channel.retry')}
                   </Button>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-muted-foreground">
-                  目前沒有訊息，開始與團隊對話吧！
+                  {t('team.channel.empty')}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -627,10 +629,10 @@ export function ChatPage() {
                         {loadingOlder ? (
                           <>
                             <LoadingSpinner size="sm" />
-                            <span className="ml-2">載入中…</span>
+                            <span className="ml-2">{t('team.channel.loadingOlder')}</span>
                           </>
                         ) : (
-                          '↑ 載入更舊訊息'
+                          t('team.channel.loadOlder')
                         )}
                       </Button>
                     </div>
@@ -647,7 +649,7 @@ export function ChatPage() {
               <div className="flex items-center gap-2">
                 <Send className="h-5 w-5 text-brand" />
                 <label className="font-semibold text-foreground">
-                  {replyingTo ? '回覆訊息' : '發送訊息給團隊'}
+                  {replyingTo ? t('team.input.replyHeader') : t('team.input.newHeader')}
                 </label>
               </div>
               {replyingTo && (
@@ -655,7 +657,7 @@ export function ChatPage() {
                   <CornerUpLeft className="h-4 w-4 mt-0.5 text-brand shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="text-xs text-muted-foreground">
-                      回覆 <span className="font-medium text-foreground">{replyingTo.userName}</span>
+                      {t('team.input.replyPrefix')} <span className="font-medium text-foreground">{replyingTo.userName}</span>
                     </div>
                     <div className="text-sm text-foreground truncate">{replyingTo.content}</div>
                   </div>
@@ -664,7 +666,7 @@ export function ChatPage() {
                     size="sm"
                     className="h-6 w-6 p-0 shrink-0"
                     onClick={() => setReplyingTo(null)}
-                    title="取消回覆"
+                    title={t('team.input.cancelReply')}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -700,7 +702,7 @@ export function ChatPage() {
                   )}
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground">按 Enter 發送，Shift + Enter 換行；輸入 @ 可標記成員</p>
+              <p className="text-sm text-muted-foreground">{t('team.input.shortcutHint')}</p>
             </div>
           </CardContent>
         </Card>
@@ -723,7 +725,7 @@ export function ChatPage() {
                   onClick={() => setSidebarTab('mentions')}
                 >
                   <AtSign className="h-4 w-4" />
-                  病人留言提到我
+                  {t('team.sidebar.tabMentions')}
                   {mentionsTotalCount > 0 && (
                     <Badge className="bg-brand text-white text-xs ml-1">{mentionsTotalCount}</Badge>
                   )}
@@ -737,7 +739,7 @@ export function ChatPage() {
                   onClick={() => setSidebarTab('pinned')}
                 >
                   <Pin className="h-4 w-4" />
-                  釘選訊息
+                  {t('team.sidebar.tabPinned')}
                   {messages.filter(m => m.pinned).length > 0 && (
                     <Badge className="bg-[#f59e0b] text-white text-xs ml-1">{messages.filter(m => m.pinned).length}</Badge>
                   )}
@@ -753,7 +755,7 @@ export function ChatPage() {
                       className={`text-xs px-2 py-1 rounded ${mentionsUnreadOnly ? 'bg-brand text-white' : 'bg-slate-50 dark:bg-slate-800 text-muted-foreground'}`}
                       onClick={() => setMentionsUnreadOnly(!mentionsUnreadOnly)}
                     >
-                      {mentionsUnreadOnly ? '僅未讀' : '全部'}
+                      {mentionsUnreadOnly ? t('team.sidebar.filterUnreadOnly') : t('team.sidebar.filterAll')}
                     </button>
                     <Button variant="ghost" size="sm" onClick={() => loadMentions()} disabled={mentionsLoading}>
                       <RefreshCw className={`h-3.5 w-3.5 ${mentionsLoading ? 'animate-spin' : ''}`} />
@@ -765,7 +767,7 @@ export function ChatPage() {
                     ) : mentionGroups.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground text-sm">
                         <AtSign className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                        <p>目前沒有病人留言 @ 到我</p>
+                        <p>{t('team.sidebar.noMentions')}</p>
                       </div>
                     ) : (
                       <div className="space-y-2">
@@ -788,9 +790,9 @@ export function ChatPage() {
                                 <span className="font-medium text-sm text-foreground truncate">{maskPatientName(group.patientName)}</span>
                                 <span className="ml-auto flex items-center gap-1.5 shrink-0">
                                   {group.unreadCount > 0 && (
-                                    <Badge className="bg-red-500 text-white text-xs">{group.unreadCount} 未讀</Badge>
+                                    <Badge className="bg-red-500 text-white text-xs">{t('team.sidebar.unreadCount', { count: group.unreadCount })}</Badge>
                                   )}
-                                  <span className="text-xs text-muted-foreground">{group.totalCount} 則</span>
+                                  <span className="text-xs text-muted-foreground">{t('team.sidebar.totalCount', { count: group.totalCount })}</span>
                                 </span>
                               </button>
                               {/* Expanded messages */}
@@ -814,7 +816,7 @@ export function ChatPage() {
                                     onClick={() => navigate(`/patient/${group.patientId}?tab=messages`)}
                                   >
                                     <ExternalLink className="h-3 w-3" />
-                                    前往留言板
+                                    {t('team.sidebar.goToBoard')}
                                   </button>
                                 </div>
                               )}
@@ -842,7 +844,7 @@ export function ChatPage() {
                                 className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity text-[#f59e0b] h-6 w-6 p-0"
                                 onClick={() => void handleTogglePin(msg.id)}
                                 disabled={pinningMessageId === msg.id}
-                                title="取消釘選"
+                                title={t('team.message.togglePinFrom')}
                               >
                                 <Pin className="h-3 w-3" />
                               </Button>
@@ -859,7 +861,7 @@ export function ChatPage() {
                 ) : (
                   <div className="text-center py-8 text-muted-foreground text-sm">
                     <Pin className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                    <p>目前沒有釘選訊息</p>
+                    <p>{t('team.sidebar.noPinned')}</p>
                   </div>
                 )
               )}
@@ -874,10 +876,10 @@ export function ChatPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Pin className="h-5 w-5 text-[#f59e0b]" />
-              發布公告
+              {t('team.announcement.title')}
             </DialogTitle>
             <DialogDescription>
-              公告將會顯示在聊天室頂部，並以特殊樣式標示，方便團隊成員查看重要訊息。
+              {t('team.announcement.description')}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -897,7 +899,7 @@ export function ChatPage() {
               }}
               disabled={postingAnnouncement}
             >
-              取消
+              {t('team.announcement.cancel')}
             </Button>
             <Button
               className="bg-[#f59e0b] hover:bg-[#d97706]"
@@ -907,12 +909,12 @@ export function ChatPage() {
               {postingAnnouncement ? (
                 <>
                   <LoadingSpinner size="sm" className="mr-2" />
-                  發布中...
+                  {t('team.announcement.submitting')}
                 </>
               ) : (
                 <>
                   <Pin className="mr-2 h-4 w-4" />
-                  發布公告
+                  {t('team.announcement.submit')}
                 </>
               )}
             </Button>

@@ -1,0 +1,132 @@
+{
+  "team": {
+    "header": {
+      "title": "Team Messages",
+      "subtitle": "Team communication and coordination",
+      "postAnnouncement": "Post Announcement"
+    },
+    "channel": {
+      "title": "All Channel",
+      "loadErrorLog": "Failed to load team chat messages",
+      "loadError": "Failed to load chat messages",
+      "retry": "Reload",
+      "empty": "No messages yet — start a conversation with your team!",
+      "loadOlderLog": "Failed to load message history",
+      "loadingOlder": "Loading…",
+      "loadOlder": "↑ Load older messages"
+    },
+    "input": {
+      "replyHeader": "Reply",
+      "newHeader": "Send a message to the team",
+      "replyPrefix": "Reply to",
+      "cancelReply": "Cancel reply",
+      "shortcutHint": "Enter to send, Shift+Enter for newline; type @ to mention members"
+    },
+    "send": {
+      "replySuccess": "Reply sent",
+      "messageSuccess": "Message sent",
+      "errorLog": "Failed to send message",
+      "error": "Failed to send message. Please try again later."
+    },
+    "message": {
+      "pinnedBadge": "Pinned",
+      "jumpToOriginal": "Jump to original",
+      "replyTitle": "Reply to this message",
+      "togglePinTo": "Pin this message",
+      "togglePinFrom": "Unpin",
+      "deleteTitle": "Delete message",
+      "pinSuccess": "Message pinned",
+      "unpinSuccess": "Pin removed",
+      "pinErrorLog": "Failed to toggle pin state",
+      "pinError": "Action failed. Please try again later.",
+      "deleteSuccess": "Message deleted",
+      "deleteError": "Delete failed. Please try again later."
+    },
+    "announcement": {
+      "title": "Post Announcement",
+      "description": "Announcements pin to the top of the chat with special styling so team members can spot important messages.",
+      "cancel": "Cancel",
+      "submit": "Post",
+      "submitting": "Posting...",
+      "success": "Announcement posted",
+      "errorLog": "Failed to post announcement",
+      "error": "Failed to post announcement. Please try again later."
+    },
+    "sidebar": {
+      "tabMentions": "Mentions in patient board",
+      "tabPinned": "Pinned messages",
+      "filterUnreadOnly": "Unread only",
+      "filterAll": "All",
+      "loadMentionsErrorLog": "Failed to load mentions",
+      "noMentions": "No patient-board mentions for you yet",
+      "unreadCount": "{{count}} unread",
+      "totalCount": "{{count}} total",
+      "goToBoard": "Open message board",
+      "noPinned": "No pinned messages yet"
+    }
+  },
+  "ai": {
+    "header": {
+      "title": "AI Assistant",
+      "patientLoadedBadge": "Patient context loaded",
+      "loadingPatient": "Loading patient data...",
+      "removePatientContext": "Remove patient context (switch to general Q&A)",
+      "collapseHint": "Collapse hint"
+    },
+    "session": {
+      "collapseList": "Collapse history list",
+      "showList": "Show history list",
+      "newSession": "New chat",
+      "noSessions": "No chat history yet",
+      "newSessionHintTop": "Click \"New chat\" to start",
+      "newSessionHintBottom": "asking AI about general medical questions",
+      "deleteTitle": "Delete chat"
+    },
+    "mode": {
+      "patient": "Patient mode · snapshot loaded",
+      "noContext": "No patient context · do not enter PHI",
+      "general": "General Q&A mode"
+    },
+    "input": {
+      "placeholder": "e.g. SGLT2 inhibitor recommendations in heart failure?",
+      "stopGeneration": "Stop generation",
+      "shortcutHint": "Enter to send · Shift+Enter for newline · Press Stop while generating"
+    },
+    "deleteDialog": {
+      "title": "Delete chat session",
+      "description": "This cannot be undone. Are you sure you want to delete?",
+      "cancel": "Cancel",
+      "submit": "Confirm delete",
+      "submitting": "Processing"
+    },
+    "toasts": {
+      "feedbackError": "Failed to save feedback; reverted",
+      "stopBeforeSwitch": "Press Stop before switching sessions",
+      "stopBeforeNew": "Press Stop before starting a new chat",
+      "stopBeforeRefresh": "Press Stop before refreshing the snapshot",
+      "snapshotRefreshSuccess": "Patient snapshot refreshed",
+      "snapshotRefreshError": "Snapshot refresh failed",
+      "stopBeforeDelete": "Press Stop before deleting the session",
+      "deleteSuccess": "Chat session deleted",
+      "deleteError": "Failed to delete chat session",
+      "thinking": "Preparing reply…"
+    },
+    "citation": {
+      "pages": "Pages {{pages}}",
+      "page": "Page {{page}}",
+      "pageMissing": "Page TBD"
+    }
+  },
+  "snapshot": {
+    "justNow": "Just now",
+    "minutesAgo": "{{count}} min ago",
+    "label": "Snapshot {{age}}",
+    "tooltipStale": "Snapshot is older than 30 minutes; refresh so the LLM doesn't reason on stale data",
+    "tooltipFresh": "Refresh patient snapshot"
+  },
+  "adviceRefs": {
+    "header": "Pharmacist advice found this turn:",
+    "bedFallback": "Bed unspecified",
+    "overflow": "+{{count}} more"
+  }
+}

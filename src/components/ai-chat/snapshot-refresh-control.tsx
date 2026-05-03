@@ -1,4 +1,5 @@
 import { Loader2, RotateCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * F2: snapshot freshness pill + manual refresh button. Originally lived
@@ -30,12 +31,13 @@ export function SnapshotRefreshControl({
   refreshing,
   onRefresh,
 }: SnapshotRefreshControlProps) {
+  const { t } = useTranslation('chat');
   if (!visible || !takenAt) return null;
 
   const age = Date.now() - new Date(takenAt).getTime();
   const ageMinutes = Math.max(0, Math.floor(age / 60000));
   const isStale = ageMinutes >= 30;
-  const ageLabel = ageMinutes === 0 ? '剛剛' : `${ageMinutes} 分鐘前`;
+  const ageLabel = ageMinutes === 0 ? t('snapshot.justNow') : t('snapshot.minutesAgo', { count: ageMinutes });
 
   return (
     <button
@@ -46,18 +48,14 @@ export function SnapshotRefreshControl({
           ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
           : 'border-border text-muted-foreground hover:bg-slate-100 dark:hover:bg-slate-800'
       } disabled:cursor-not-allowed disabled:opacity-60`}
-      title={
-        isStale
-          ? '快照已過 30 分鐘，建議重新整理以避免 LLM 用過期資料推論'
-          : '重新整理病患快照'
-      }
+      title={isStale ? t('snapshot.tooltipStale') : t('snapshot.tooltipFresh')}
     >
       {refreshing ? (
         <Loader2 className="h-3 w-3 animate-spin" />
       ) : (
         <RotateCw className="h-3 w-3" />
       )}
-      <span>快照{ageLabel}</span>
+      <span>{t('snapshot.label', { age: ageLabel })}</span>
     </button>
   );
 }

@@ -57,6 +57,8 @@ import { ButtonLoadingIndicator } from '../components/ui/button-loading-indicato
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { Textarea } from '../components/ui/textarea';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n/config';
 
 interface SessionItem {
   id: string;
@@ -86,16 +88,17 @@ function mapApiSession(item: ApiChatSession): SessionItem {
 }
 
 function formatCitationPageText(citation: AiCitation): string {
+  const tr = (k: string, opts?: Record<string, unknown>) => i18n.t(k, { ns: 'chat', ...(opts ?? {}) }) as string;
   const pages = Array.isArray(citation.pages)
     ? citation.pages.filter((p): p is number => Number.isFinite(Number(p))).map((p) => Number(p))
     : [];
   if (pages.length > 1) {
     const uniq = Array.from(new Set(pages)).sort((a, b) => a - b);
-    return `第 ${uniq.join('、')} 頁`;
+    return tr('ai.citation.pages', { pages: uniq.join('、') });
   }
-  if (typeof citation.page === 'number') return `第 ${citation.page} 頁`;
-  if (pages.length === 1) return `第 ${pages[0]} 頁`;
-  return '頁碼待補';
+  if (typeof citation.page === 'number') return tr('ai.citation.page', { page: citation.page });
+  if (pages.length === 1) return tr('ai.citation.page', { page: pages[0] });
+  return tr('ai.citation.pageMissing');
 }
 
 function compactSnippet(snippet?: string): string {
@@ -156,6 +159,7 @@ function mapApiMessage(item: {
 }
 
 export function AiChatPage() {
+  const { t } = useTranslation('chat');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -334,7 +338,7 @@ export function AiChatPage() {
       try {
         await updateMessageFeedback(target.messageId, next);
       } catch {
-        toast.error('儲存評價失敗，已還原');
+        toast.error(t('ai.toasts.feedbackError'));
         setChatMessages((prev) => {
           const arr = [...prev];
           const m = arr[msgIndex];
@@ -353,7 +357,7 @@ export function AiChatPage() {
     // W2-T2: don't switch session while a stream is in flight — its onMessage
     // / onComplete callbacks would write into the freshly-loaded session.
     if (isSending) {
-      toast.error('請先按停止才能切換對話');
+      toast.error(t('ai.toasts.stopBeforeSwitch'));
       return;
     }
     setSelectedSessionId(session.id);
@@ -369,7 +373,7 @@ export function AiChatPage() {
 
   const startNewSession = useCallback(() => {
     if (isSending) {
-      toast.error('請先按停止才能開新對話');
+      toast.error(t('ai.toasts.stopBeforeNew'));
       return;
     }
     setSelectedSessionId(undefined);
@@ -382,16 +386,16 @@ export function AiChatPage() {
   const refreshSnapshot = useCallback(async () => {
     if (!selectedSessionId) return;
     if (isSending) {
-      toast.error('請先按停止才能重新整理快照');
+      toast.error(t('ai.toasts.stopBeforeRefresh'));
       return;
     }
     setRefreshingSnapshot(true);
     try {
       const result = await refreshChatSessionSnapshot(selectedSessionId);
       setSnapshotTakenAt(result.snapshotTakenAt);
-      toast.success('已重新整理病患快照');
+      toast.success(t('ai.toasts.snapshotRefreshSuccess'));
     } catch (error) {
-      const msg = error instanceof Error ? error.message : '重新整理快照失敗';
+      const msg = error instanceof Error ? error.message : t('ai.toasts.snapshotRefreshError');
       toast.error(msg);
     } finally {
       setRefreshingSnapshot(false);
@@ -401,7 +405,7 @@ export function AiChatPage() {
   const confirmDelete = useCallback(async () => {
     if (!deleteTargetId) return;
     if (isSending) {
-      toast.error('請先按停止才能刪除對話');
+      toast.error(t('ai.toasts.stopBeforeDelete'));
       return;
     }
     setDeleting(true);
@@ -412,9 +416,9 @@ export function AiChatPage() {
         setChatMessages([]);
       }
       await refreshSessions();
-      toast.success('對話記錄已刪除');
+      toast.success(t('ai.toasts.deleteSuccess'));
     } catch {
-      toast.error('刪除對話記錄失敗');
+      toast.error(t('ai.toasts.deleteError'));
     } finally {
       setDeleting(false);
       setDeleteTargetId(null);
@@ -440,7 +444,7 @@ export function AiChatPage() {
 
     try {
       setChatMessages([...messagesWithUser, { role: 'assistant', content: '' }]);
-      setThinkingStatus('正在準備回覆…');
+      setThinkingStatus(t('ai.toasts.thinking'));
 
       const response = await new Promise<ChatResponse>((resolve, reject) => {
         let rawBuffer = '';
@@ -589,9 +593,9 @@ export function AiChatPage() {
     <div className="p-4 md:p-6 space-y-3">
       <div className="flex items-center gap-2">
         <Sparkles className="h-5 w-5 text-brand" />
-        <h1 className="text-xl font-semibold text-foreground">AI 問答</h1>
+        <h1 className="text-xl font-semibold text-foreground">{t('ai.header.title')}</h1>
         {effectivePatientId && (
-          <Badge variant="outline" className="ml-2 text-xs">已載入病人病歷背景</Badge>
+          <Badge variant="outline" className="ml-2 text-xs">{t('ai.header.patientLoadedBadge')}</Badge>
         )}
       </div>
 
@@ -601,7 +605,7 @@ export function AiChatPage() {
           <User className="h-4 w-4 shrink-0 mt-0.5 text-sky-600" />
           <div className="flex-1 flex flex-wrap items-center gap-x-3 gap-y-1">
             {contextLoading ? (
-              <span>載入病人資料中...</span>
+              <span>{t('ai.header.loadingPatient')}</span>
             ) : contextPatient ? (
               <>
                 <span className="font-medium">
@@ -626,7 +630,7 @@ export function AiChatPage() {
             type="button"
             onClick={clearPatientContext}
             className="shrink-0 text-sky-700 hover:text-sky-900 underline text-xs"
-            title="移除病人背景，改為通用問答"
+            title={t('ai.header.removePatientContext')}
           >
             移除
           </button>
@@ -653,7 +657,7 @@ export function AiChatPage() {
             type="button"
             onClick={() => setDisclaimerCollapsed(true)}
             className="shrink-0 text-amber-700 hover:text-amber-900"
-            title="收合提示"
+            title={t('ai.header.collapseHint')}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -676,7 +680,7 @@ export function AiChatPage() {
                       size="icon"
                       className="h-7 w-7 text-muted-foreground hover:text-[#374151] dark:hover:text-slate-200"
                       onClick={() => setShowSessionList(false)}
-                      title="收合對話記錄"
+                      title={t('ai.session.collapseList')}
                     >
                       <ChevronLeft className="h-3.5 w-3.5" />
                     </Button>
@@ -686,7 +690,7 @@ export function AiChatPage() {
                       onClick={startNewSession}
                     >
                       <Plus className="mr-1 h-3 w-3" />
-                      <span>新對話</span>
+                      <span>{t('ai.session.newSession')}</span>
                     </Button>
                   </div>
                 </div>
@@ -696,8 +700,8 @@ export function AiChatPage() {
                   {sessions.length === 0 ? (
                     <div className="p-8 flex flex-col items-center gap-2 text-center text-muted-foreground">
                       <MessageSquare className="h-10 w-10 opacity-30 text-[#9ca3af]" />
-                      <p className="text-sm font-medium text-muted-foreground">尚無對話記錄</p>
-                      <p className="text-xs text-[#9ca3af] leading-relaxed">點擊「新對話」開始<br />向 AI 詢問通用醫療問題</p>
+                      <p className="text-sm font-medium text-muted-foreground">{t('ai.session.noSessions')}</p>
+                      <p className="text-xs text-[#9ca3af] leading-relaxed">{t('ai.session.newSessionHintTop')}<br />{t('ai.session.newSessionHintBottom')}</p>
                     </div>
                   ) : (
                     <div className="space-y-2 p-2.5">
@@ -734,7 +738,7 @@ export function AiChatPage() {
                                   setDeleteTargetId(session.id);
                                 }}
                                 className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-red-100 hover:text-red-600 group-hover:opacity-100"
-                                title="刪除對話"
+                                title={t('ai.session.deleteTitle')}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
@@ -760,7 +764,7 @@ export function AiChatPage() {
                     size="sm"
                     className="h-7 px-2 text-xs text-muted-foreground hover:text-[#374151] dark:hover:text-slate-200"
                     onClick={() => setShowSessionList(true)}
-                    title="顯示對話記錄"
+                    title={t('ai.session.showList')}
                   >
                     <ChevronRight className="mr-1 h-3.5 w-3.5" />
                     對話記錄
@@ -774,7 +778,7 @@ export function AiChatPage() {
                   // pharmacists. Switch the badge to a 病歷模式 indicator.
                   <div className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300">
                     <Info className="h-3.5 w-3.5" />
-                    <span>病歷模式 · 已載入此床快照</span>
+                    <span>{t('ai.mode.patient')}</span>
                   </div>
                 ) : disclaimerCollapsed ? (
                   <button
@@ -782,13 +786,13 @@ export function AiChatPage() {
                     className="flex items-center gap-1 text-xs text-[#9CA3AF] hover:text-[#6B7280] transition-colors"
                   >
                     <Info className="h-3.5 w-3.5" />
-                    <span>無病歷背景 · 勿輸入個資</span>
+                    <span>{t('ai.mode.noContext')}</span>
                     <ChevronDown className="h-2.5 w-2.5" />
                   </button>
                 ) : (
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <ChevronUp className="h-3 w-3 text-[#9CA3AF]" />
-                    <span>通用問答模式</span>
+                    <span>{t('ai.mode.general')}</span>
                   </div>
                 )}
                 <div className="flex-1" />
@@ -826,7 +830,7 @@ export function AiChatPage() {
                   <div className="flex gap-2 pt-1.5 items-end">
                     <Textarea
                       ref={chatInputRef}
-                      placeholder="例如：SGLT2 抑制劑在心衰竭患者的應用建議？"
+                      placeholder={t('ai.input.placeholder')}
                       value={chatInput}
                       onChange={(event) => setChatInput(event.target.value)}
                       onKeyDown={(event) => {
@@ -842,7 +846,7 @@ export function AiChatPage() {
                         onClick={stopStream}
                         size="icon"
                         className="h-[120px] w-[36px] shrink-0 transition-colors rounded-xl bg-red-600 hover:bg-red-700"
-                        title="停止生成"
+                        title={t('ai.input.stopGeneration')}
                       >
                         <Square className="h-4.5 w-4.5 fill-white text-white" />
                       </Button>
@@ -857,7 +861,7 @@ export function AiChatPage() {
                       </Button>
                     )}
                   </div>
-                  <p className="text-[9px] text-[#d0d0d0] mt-1">Enter 發送 · Shift+Enter 換行 · 生成中可按停止</p>
+                  <p className="text-[9px] text-[#d0d0d0] mt-1">{t('ai.input.shortcutHint')}</p>
                 </div>
               </div>
             </CardContent>
@@ -873,17 +877,17 @@ export function AiChatPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>刪除對話記錄</AlertDialogTitle>
-            <AlertDialogDescription>此操作無法復原，確定要刪除？</AlertDialogDescription>
+            <AlertDialogTitle>{t('ai.deleteDialog.title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('ai.deleteDialog.description')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{t('ai.deleteDialog.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
               disabled={deleting}
               onClick={() => void confirmDelete()}
             >
-              <span>{deleting ? '處理中' : '確認刪除'}</span>
+              <span>{deleting ? t('ai.deleteDialog.submitting') : t('ai.deleteDialog.submit')}</span>
               {deleting ? <ButtonLoadingIndicator /> : null}
             </AlertDialogAction>
           </AlertDialogFooter>

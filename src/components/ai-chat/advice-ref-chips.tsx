@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ExternalLink } from 'lucide-react';
 import type { AdviceRef } from '../../lib/api/ai';
+import { useTranslation } from 'react-i18next';
 
 /**
  * F3: deep-link chip group rendered below an assistant bubble whenever the
@@ -22,6 +23,7 @@ export interface AdviceRefChipsProps {
 const VISIBLE_LIMIT = 5;
 
 export function AdviceRefChips({ refs }: AdviceRefChipsProps) {
+  const { t, i18n } = useTranslation('chat');
   if (!refs || refs.length === 0) return null;
 
   // Cap visible chips to keep the bubble scannable; the rest fold under "+N"
@@ -31,15 +33,15 @@ export function AdviceRefChips({ refs }: AdviceRefChipsProps) {
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-dashed border-[#E5E7EB] dark:border-slate-700 pt-1.5">
-      <span className="text-[11px] text-[#9CA3AF]">本輪查到藥師建議：</span>
+      <span className="text-[11px] text-[#9CA3AF]">{t('adviceRefs.header')}</span>
       {visible.map((ref) => {
-        const bed = ref.bedNumber || '床號未列';
+        const bed = ref.bedNumber || t('adviceRefs.bedFallback');
         const dateLabel = formatAdviceChipDate(ref.timestamp);
         const codeLabel = ref.adviceCode || ref.adviceLabel || '';
         const tooltip = [
           ref.patientNameMasked,
           ref.adviceLabel,
-          ref.timestamp ? new Date(ref.timestamp).toLocaleString('zh-TW') : null,
+          ref.timestamp ? new Date(ref.timestamp).toLocaleString(i18n.language) : null,
         ]
           .filter(Boolean)
           .join(' · ');
@@ -66,7 +68,7 @@ export function AdviceRefChips({ refs }: AdviceRefChipsProps) {
         );
       })}
       {overflow > 0 && (
-        <span className="text-[11px] text-[#9CA3AF]">+{overflow} 筆</span>
+        <span className="text-[11px] text-[#9CA3AF]">{t('adviceRefs.overflow', { count: overflow })}</span>
       )}
     </div>
   );

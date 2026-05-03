@@ -1,0 +1,132 @@
+{
+  "team": {
+    "header": {
+      "title": "團隊訊息",
+      "subtitle": "團隊溝通與工作協調",
+      "postAnnouncement": "發布公告"
+    },
+    "channel": {
+      "title": "全體頻道",
+      "loadErrorLog": "載入團隊聊天訊息失敗",
+      "loadError": "無法載入聊天訊息",
+      "retry": "重新載入",
+      "empty": "目前沒有訊息，開始與團隊對話吧！",
+      "loadOlderLog": "載入歷史訊息失敗",
+      "loadingOlder": "載入中…",
+      "loadOlder": "↑ 載入更舊訊息"
+    },
+    "input": {
+      "replyHeader": "回覆訊息",
+      "newHeader": "發送訊息給團隊",
+      "replyPrefix": "回覆",
+      "cancelReply": "取消回覆",
+      "shortcutHint": "按 Enter 發送，Shift + Enter 換行；輸入 @ 可標記成員"
+    },
+    "send": {
+      "replySuccess": "回覆已發送",
+      "messageSuccess": "訊息已發送",
+      "errorLog": "發送訊息失敗",
+      "error": "發送訊息失敗，請稍後再試"
+    },
+    "message": {
+      "pinnedBadge": "已釘選",
+      "jumpToOriginal": "跳到原訊息",
+      "replyTitle": "回覆此訊息",
+      "togglePinTo": "釘選此訊息",
+      "togglePinFrom": "取消釘選",
+      "deleteTitle": "刪除訊息",
+      "pinSuccess": "訊息已釘選",
+      "unpinSuccess": "已取消釘選",
+      "pinErrorLog": "切換釘選狀態失敗",
+      "pinError": "操作失敗，請稍後再試",
+      "deleteSuccess": "訊息已刪除",
+      "deleteError": "刪除失敗，請稍後再試"
+    },
+    "announcement": {
+      "title": "發布公告",
+      "description": "公告將會顯示在聊天室頂部，並以特殊樣式標示，方便團隊成員查看重要訊息。",
+      "cancel": "取消",
+      "submit": "發布公告",
+      "submitting": "發布中...",
+      "success": "公告已發布",
+      "errorLog": "發布公告失敗",
+      "error": "發布公告失敗，請稍後再試"
+    },
+    "sidebar": {
+      "tabMentions": "病人留言提到我",
+      "tabPinned": "釘選訊息",
+      "filterUnreadOnly": "僅未讀",
+      "filterAll": "全部",
+      "loadMentionsErrorLog": "載入 @提及 失敗",
+      "noMentions": "目前沒有病人留言 @ 到我",
+      "unreadCount": "{{count}} 未讀",
+      "totalCount": "{{count}} 則",
+      "goToBoard": "前往留言板",
+      "noPinned": "目前沒有釘選訊息"
+    }
+  },
+  "ai": {
+    "header": {
+      "title": "AI 問答",
+      "patientLoadedBadge": "已載入病人病歷背景",
+      "loadingPatient": "載入病人資料中...",
+      "removePatientContext": "移除病人背景，改為通用問答",
+      "collapseHint": "收合提示"
+    },
+    "session": {
+      "collapseList": "收合對話記錄",
+      "showList": "顯示對話記錄",
+      "newSession": "新對話",
+      "noSessions": "尚無對話記錄",
+      "newSessionHintTop": "點擊「新對話」開始",
+      "newSessionHintBottom": "向 AI 詢問通用醫療問題",
+      "deleteTitle": "刪除對話"
+    },
+    "mode": {
+      "patient": "病歷模式 · 已載入此床快照",
+      "noContext": "無病歷背景 · 勿輸入個資",
+      "general": "通用問答模式"
+    },
+    "input": {
+      "placeholder": "例如：SGLT2 抑制劑在心衰竭患者的應用建議？",
+      "stopGeneration": "停止生成",
+      "shortcutHint": "Enter 發送 · Shift+Enter 換行 · 生成中可按停止"
+    },
+    "deleteDialog": {
+      "title": "刪除對話記錄",
+      "description": "此操作無法復原，確定要刪除？",
+      "cancel": "取消",
+      "submit": "確認刪除",
+      "submitting": "處理中"
+    },
+    "toasts": {
+      "feedbackError": "儲存評價失敗，已還原",
+      "stopBeforeSwitch": "請先按停止才能切換對話",
+      "stopBeforeNew": "請先按停止才能開新對話",
+      "stopBeforeRefresh": "請先按停止才能重新整理快照",
+      "snapshotRefreshSuccess": "已重新整理病患快照",
+      "snapshotRefreshError": "重新整理快照失敗",
+      "stopBeforeDelete": "請先按停止才能刪除對話",
+      "deleteSuccess": "對話記錄已刪除",
+      "deleteError": "刪除對話記錄失敗",
+      "thinking": "正在準備回覆…"
+    },
+    "citation": {
+      "pages": "第 {{pages}} 頁",
+      "page": "第 {{page}} 頁",
+      "pageMissing": "頁碼待補"
+    }
+  },
+  "snapshot": {
+    "justNow": "剛剛",
+    "minutesAgo": "{{count}} 分鐘前",
+    "label": "快照{{age}}",
+    "tooltipStale": "快照已過 30 分鐘，建議重新整理以避免 LLM 用過期資料推論",
+    "tooltipFresh": "重新整理病患快照"
+  },
+  "adviceRefs": {
+    "header": "本輪查到藥師建議：",
+    "bedFallback": "床號未列",
+    "overflow": "+{{count}} 筆"
+  }
+}
