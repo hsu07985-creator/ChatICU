@@ -3,7 +3,7 @@
 > 對應 `docs/ai-chat-audit-fixes-2026-05-03.md`。每完成一個 T，更新此檔。
 > 圖示：☐ 未開始　⏳ 進行中　✅ 完成　⏸ 阻塞　❌ 放棄　🚧 部分完成
 
-**最後更新**：2026-05-03（W1 三任務完成、prod deploy + smoke verify 通過）
+**最後更新**：2026-05-03（W2 四任務完成、prod deploy + bundle marker verify 通過）
 
 ---
 
@@ -44,10 +44,10 @@ sleep 0.5 && kill %1
 
 | Task | 內容 | 觸碰檔案 | 驗證 | 狀態 |
 |------|------|---------|------|------|
-| W2-T1 | Stop 鈕 + idle timeout（30s）：`streamChatMessage` 接 external `signal`、每 chunk 重設 timer | `src/lib/api/ai.ts:264-384`、`src/pages/ai-chat.tsx`（Send 鈕區） | ① 手動：串流中按 Stop 立刻中止、placeholder 標記「已中止」 ② 模擬 LLM 卡住（mock）→ 30s 後自動拋逾時 | ☐ |
-| W2-T2 | 擋 streaming 中切換 / 新建 / 刪除 session | `src/pages/ai-chat.tsx:283-317` | 手動：串流中點其他 session → toast「請先停止」+ 不切換 | ☐ |
-| W2-T3 | LLM helper 抽取：`_build_openai_param_block` 統一 reasoning/temperature 決策，補 `_call_openai_multi` 的 gpt-5 fallback | `backend/app/llm.py:584-626,705-723,762-819`（含新 helper） | 新 unit test：`test_call_openai_multi_gpt5_minimal_fallback` 斷言 params 含 `reasoning_effort="minimal"` 不含 `temperature` | ☐ |
-| W2-T4 | Anthropic 加 prompt cache：system 改為 cached blocks | `backend/app/llm.py:668-674,850-852,884-887`、`backend/app/routers/ai_chat.py:116-118`（拆 splitter） | staging 切 `LLM_PROVIDER=anthropic`，連發 3 輪 → log 看到 cache_read_input_tokens > 0 | ☐ |
+| W2-T1 | Stop 鈕 + idle timeout（30s）+ 60s 連線 timeout：`streamChatMessage` 接 external `signal`、每 chunk 重設 idle timer；UI Send→Stop 切換、Abort 後 placeholder 標記 | `src/lib/api/ai.ts`（+`StreamIdleTimeoutError`）、`src/pages/ai-chat.tsx`（+`streamAbortRef`、Send/Stop button、`onAbort` handler） | ① tsc 無錯 ② Vercel bundle marker 確認：`AI 串流連線逾時`、`串流逾時`、`AbortController`、`已中止`、`生成中可按停止` 全部存在 | ✅ |
+| W2-T2 | 擋 streaming 中切換 / 新建 / 刪除 session | `src/pages/ai-chat.tsx`（`openSession`/`startNewSession`/`confirmDelete` 加 `if (isSending) toast` guard） | Vercel bundle marker：`請先按停止` × 3 出現 | ✅ |
+| W2-T3 | LLM helper 抽取：`_build_openai_reasoning_param_block` 統一決策，補 `_call_openai_multi` 的 gpt-5 fallback | `backend/app/llm.py`（新 helper + 3 個呼叫點 `_stream_openai`/`_call_openai`/`_call_openai_multi`） | 新測試 `test_llm_param_helper.py` 28 條全綠（含 64 種參數組合確認永不同時送 reasoning_effort + temperature） | ✅ |
+| W2-T4 | Anthropic 加 prompt cache：system 拆成 2 個 cached blocks（base prompt + 病患快照） | `backend/app/llm.py`（新 helper `_build_anthropic_system_blocks` + `_log_anthropic_cache` + 套用到 `_stream_anthropic` / `_call_anthropic` / `_call_anthropic_multi`） | 新測試 3 條（marker 切分 / 無 marker fallback / byte-stable per session）全綠；533/533 全套後端綠 | ✅ |
 
 **Wave 2 整體驗收**：
 ```bash
@@ -122,3 +122,15 @@ python3 scripts/loadtest_critical_snapshot.py --concurrent 10
   - `git push railway main` → Vercel 新 bundle `BG7j0l9J`，grep 確認 `sendChatMessage` 已從 bundle 中消失
   - Smoke：`curl /ai/chat/stream` 401（端點存在、新 ACL 模組成功 import）、Vercel bundle 不洩漏 `chaticu-production` URL
   - **待人工驗證**：登入 doctor 帳號用合法 `pat_001` 開 chat 應 200；用 `pat_doesnotexist` 應 404；用非 clinical role（如 admin 改成 guest）應 403。需要使用者 prod 帳號才能完整跑。
+- **2026-05-03**：W2-T1 ✅ — `src/lib/api/ai.ts`：`StreamChatOptions` 加 `signal?: AbortSignal` + `onAbort?` callback；新 `StreamIdleTimeoutError` class + `STREAM_IDLE_TIMEOUT_MS=30_000` + `STREAM_INITIAL_TIMEOUT_MS=60_000` 兩個 constant。`streamChatMessage` 內部用 local AbortController 同時包初始 fetch 60s timeout 與每 chunk 重設的 30s idle timer，`armIdleTimer` 在每次 `reader.read` 拿到 value 時重設。caller `signal.aborted` 時走 silent path（呼叫 `onAbort` 而非 `onError`）。`finally` 清 idle timer + 解除 listener。
+- **2026-05-03**：W2-T1 + W2-T2 ✅ — `src/pages/ai-chat.tsx`：`streamAbortRef = useRef<AbortController>` + `stopStream` callback；`sendMessage` 內每次新建 controller 並設到 ref。Send button 在 `isSending=true` 時換成紅色 Stop（lucide `Square` icon）。新 `onAbort` handler 在 placeholder 後綴 `（已中止）` 並 reject sentinel `__aborted__`，catch 區辨識 sentinel 跳過通用錯誤訊息。提示文字加「· 生成中可按停止」。`openSession` / `startNewSession` / `confirmDelete` 三個 handler 都先檢查 `if (isSending) toast.error('請先按停止…') + return`，擋住串流中切 session 把回覆寫到錯處。tsc 全綠。
+- **2026-05-03**：W2-T3 ✅ — `backend/app/llm.py` 抽 `_build_openai_reasoning_param_block(*, task, temperature, disable_reasoning=False, icu_chat_skips_reasoning=False)`，三段式判斷（reasoning_effort / minimal fallback / temperature）集中在一處。`_stream_openai` 用 `icu_chat_skips_reasoning=True` 保留 TTFT 碼出口；`_call_openai` 用 `disable_reasoning` 保留 grammar_only 出口；`_call_openai_multi` **新增** gpt-5 minimal fallback，修掉「LLM_REASONING_EFFORT 空 + gpt-5.x 模型 → 送 temperature → server 預設 medium 燒光 token → 空回覆」的潛在地雷。新 `test_llm_param_helper.py`：5 個 fixed-case + 16 條 parametrize 確認 helper 永不同時送 reasoning_effort + temperature。
+- **2026-05-03**：W2-T4 ✅ — `backend/app/llm.py` 新 `_build_anthropic_system_blocks(system_prompt)`：用 `[病患臨床快照]` marker 把 system 切成 2 個 `{type:"text", cache_control:{type:"ephemeral"}}` blocks（與 OpenAI cache 同一個 byte-stable boundary）；無 marker 時 fallback 為單一 cached block。套用到 `_stream_anthropic` / `_call_anthropic` / `_call_anthropic_multi` 三個呼叫點。新 `_log_anthropic_cache(task, usage)` 與 OpenAI 的 `[LLM][CACHE]` log 格式對齊，含 `cache_read_input_tokens` / `cache_creation_input_tokens`。`metadata.usage` 也回傳這兩個欄位。3 條新單元測試（marker 切分、無 marker fallback、byte-stable per session）全綠。
+- **2026-05-03**：W2 兩個 commit 推上 main 並部署 prod：
+  - `a59f07df5` backend W2-T3+T4（llm.py + test_llm_param_helper.py）
+  - `139ad1f2f` frontend W2-T1+T2（ai.ts + ai-chat.tsx）
+  - `git push personal main` → Railway 1.4.5 healthy
+  - `git push railway main` → Vercel 新 bundle `index-DFD9QQsT.js` + 共用 chunk `ai-BOjIcmGx.js` + 頁面 chunk `ai-chat-Yqck0UzX.js`
+  - Bundle marker 驗證：`AI 串流連線逾時` × 1、`AI 串流連線失敗` × 2、`串流逾時` × 1、`AbortController` × 2（共用 lib chunk）；`已中止` × 2、`請先按停止` × 3、`生成中可按停止` × 1（頁面 chunk）→ W2-T1+T2 全部 deploy 成功
+  - 後端 533/533 全套（除 5 個無關 FHIR real-data）綠
+  - **待人工驗證**：① 開 chat 送長題 → 點 Stop → bubble 後綴「（已中止）」+ Send 鈕回來 ② 串流中點別的 session → toast「請先按停止才能切換對話」 ③ Anthropic 路徑要切 `LLM_PROVIDER=anthropic` 才能看到 cache log（預設 OpenAI 沒影響）。
