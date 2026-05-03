@@ -238,6 +238,57 @@ def _messages_to_api_format(messages: List[AIMessage]) -> List[dict]:
 
 # ── SSE event stream ──────────────────────────────────────────────────────────
 
+# O-2: SSE comment-frame heartbeat. Emitted during LLM stalls so Vercel /
+# Railway / nginx-style proxies don't kill an idle-looking connection.
+# The frontend's parseSseFrame in src/lib/api/ai.ts:244 treats lines without
+# `event:`/`data:` prefixes as no-ops, so heartbeat frames flow through
+# transparently without affecting the rendered conversation.
+_HEARTBEAT_INTERVAL_S = 15.0
+
+
+async def _with_heartbeat(stream, interval_s: float = _HEARTBEAT_INTERVAL_S):
+    """Wrap an async iterator so heartbeats fire during stalls.
+
+    Yields:
+      ('chunk', value)      for every item the underlying stream emits
+      ('heartbeat', None)   every ``interval_s`` seconds of inactivity
+
+    A producer coroutine drains the upstream into an internal queue so the
+    consumer can race between real chunks and the heartbeat timer. The
+    upstream task is always cancelled on exit (e.g. client disconnect) so
+    the LLM stream is not leaked.
+    """
+    import asyncio
+    queue: asyncio.Queue = asyncio.Queue()
+    _DONE = object()
+
+    async def producer() -> None:
+        try:
+            async for item in stream:
+                await queue.put(item)
+        finally:
+            await queue.put(_DONE)
+
+    task = asyncio.create_task(producer())
+    try:
+        while True:
+            try:
+                item = await asyncio.wait_for(queue.get(), timeout=interval_s)
+            except asyncio.TimeoutError:
+                yield ("heartbeat", None)
+                continue
+            if item is _DONE:
+                return
+            yield ("chunk", item)
+    finally:
+        if not task.done():
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):
+                pass
+
+
 async def _event_stream(
     user_message: str,
     system_prompt: str,
@@ -274,13 +325,19 @@ async def _event_stream(
     t_pre_llm = time.perf_counter()
 
     try:
-        async for chunk in call_llm_stream(
+        llm_stream = call_llm_stream(
             "icu_chat",
             messages,
             system_prompt_override=system_prompt,
             request_id=request_id,
             trace_id=trace_id,
-        ):
+        )
+        async for kind, chunk in _with_heartbeat(llm_stream):
+            if kind == "heartbeat":
+                # SSE comment frame — keeps proxy connections warm during
+                # LLM thinking pauses; frontend ignores it.
+                yield ": heartbeat\n\n"
+                continue
             if chunk.startswith("{") and "__done__" in chunk:
                 try:
                     meta = json.loads(chunk)
@@ -339,6 +396,20 @@ async def _event_stream(
             cache_ratio,
             token_count,
         )
+        # O-1: alert on regression. Skip first turn (cache always 0% on first
+        # request of a session — no prior identical prefix exists). On any
+        # subsequent turn we expect hit_ratio ≥50% under normal operation; a
+        # value below that with a non-trivial prompt usually means the
+        # byte-stable system_prompt boundary was broken (see the
+        # _merged_snapshot incident referenced above where canary dropped
+        # 70% → 0%). Threshold is conservative — adjust if it's noisy.
+        if prompt_tokens >= 500 and cached_tokens > 0 and cache_ratio < 50:
+            logger.warning(
+                "[CHAT][CACHE][LOW_HIT] hit_ratio=%.0f%% prompt_tokens=%d cached_tokens=%d "
+                "session=%s — possible byte-stable prefix regression, check recent llm.py / "
+                "ai_chat.py edits to system_prompt assembly",
+                cache_ratio, prompt_tokens, cached_tokens, session_id,
+            )
 
     # Persist assistant reply only (user message was already committed by
     # chat_stream before the generator started, see W1-T3).
