@@ -1,0 +1,99 @@
+{
+  "summary": {
+    "infoCard": {
+      "title": "Patient Info",
+      "rows": {
+        "bed": "Bed",
+        "name": "Name",
+        "age": "Age",
+        "gender": "Gender",
+        "height": "Height",
+        "weight": "Weight",
+        "bmi": "BMI",
+        "mrn": "MRN",
+        "physician": "Attending"
+      }
+    },
+    "flags": {
+      "intubated": "Intubated",
+      "tracheostomy": "Tracheostomy",
+      "dnr": "DNR",
+      "isolating": "Isolation"
+    },
+    "clinicalCard": {
+      "title": "Clinical Status",
+      "diagnosisLabel": "Admission Diagnosis",
+      "currentSymptomsLabel": "Current Symptoms",
+      "saveUpdate": "Save changes",
+      "noSymptoms": "No symptoms recorded",
+      "newSymptomPlaceholder": "Add a new symptom...",
+      "removeSymptomAria": "Remove {{symptom}}",
+      "newBadge": "NEW",
+      "dayPrefix": "D{{days}}",
+      "aiAnalyzing": "AI analyzing{{suffix}}",
+      "aiSuggest": "AI symptom suggestions",
+      "clickToAdd": "Click to add:",
+      "saveSuccess": "Symptom record saved",
+      "saveError": "Save failed. Please try again later.",
+      "aiNoNew": "AI did not find any new symptoms",
+      "aiError": "Failed to generate AI suggestions"
+    },
+    "history": {
+      "title": "Symptom timeline",
+      "loading": "Loading...",
+      "empty": "No history yet",
+      "initialPrefix": "Initial: ",
+      "initialJoiner": ", ",
+      "noChanges": "No changes",
+      "collapse": "Collapse",
+      "showMore": "Show more ({{count}} total)"
+    },
+    "ageSuffix": "{{age}} y/o",
+    "heightSuffix": "{{height}} cm",
+    "weightSuffix": "{{weight}} kg"
+  },
+  "labs": {
+    "monitor": {
+      "vitalSigns": "Vital Signs",
+      "ventilator": "Ventilator",
+      "filterAbnormal": "Abnormal only",
+      "filterHideMissing": "Hide missing",
+      "filterEfficiency": "High-efficiency filter",
+      "manualInput": "Manual entry",
+      "loadingVitals": "Loading vital signs...",
+      "loadingVent": "Loading ventilator settings...",
+      "noVitals": "No vital signs yet",
+      "noFiltered": "No items match the current filters"
+    },
+    "weaning": {
+      "title": "Weaning Assessment",
+      "evaluatedAt": "Evaluated at: {{timestamp}}",
+      "rsbi": "RSBI",
+      "nif": "NIF",
+      "readiness": "Readiness Score",
+      "recommendation": "Recommendation"
+    },
+    "sections": {
+      "labData": "Lab Data",
+      "microbiology": "Microbiology",
+      "reports": "Reports",
+      "inflammation": "Inflammation"
+    },
+    "vitalDialog": {
+      "title": "Manual entry — Vital Signs",
+      "saveSuccess": "Vital signs added",
+      "saveError": "Save failed. Please verify the values.",
+      "saving": "Saving...",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "ventDialog": {
+      "title": "Manual entry — Ventilator Settings",
+      "saveSuccess": "Ventilator settings added",
+      "saveError": "Save failed. Please verify the values.",
+      "saving": "Saving...",
+      "save": "Save",
+      "cancel": "Cancel"
+    }
+  }
+}

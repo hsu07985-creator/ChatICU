@@ -1,0 +1,99 @@
+{
+  "summary": {
+    "infoCard": {
+      "title": "病患資訊",
+      "rows": {
+        "bed": "床號",
+        "name": "姓名",
+        "age": "年齡",
+        "gender": "性別",
+        "height": "身高",
+        "weight": "體重",
+        "bmi": "BMI",
+        "mrn": "病歷號",
+        "physician": "主治醫師"
+      }
+    },
+    "flags": {
+      "intubated": "插管中",
+      "tracheostomy": "氣切",
+      "dnr": "DNR",
+      "isolating": "隔離中"
+    },
+    "clinicalCard": {
+      "title": "臨床狀態",
+      "diagnosisLabel": "入院診斷",
+      "currentSymptomsLabel": "目前症狀",
+      "saveUpdate": "儲存更新",
+      "noSymptoms": "尚無症狀記錄",
+      "newSymptomPlaceholder": "輸入新症狀...",
+      "removeSymptomAria": "移除 {{symptom}}",
+      "newBadge": "NEW",
+      "dayPrefix": "D{{days}}",
+      "aiAnalyzing": "AI 分析中{{suffix}}",
+      "aiSuggest": "AI 建議症狀",
+      "clickToAdd": "點擊加入：",
+      "saveSuccess": "症狀記錄已儲存",
+      "saveError": "儲存失敗，請稍後再試",
+      "aiNoNew": "AI 未發現新的建議症狀",
+      "aiError": "AI 建議生成失敗"
+    },
+    "history": {
+      "title": "症狀變化歷程",
+      "loading": "載入中...",
+      "empty": "尚無歷史記錄",
+      "initialPrefix": "初始記錄：",
+      "initialJoiner": "、",
+      "noChanges": "無變化",
+      "collapse": "收合",
+      "showMore": "顯示更多（共 {{count}} 筆）"
+    },
+    "ageSuffix": "{{age}} 歲",
+    "heightSuffix": "{{height}} cm",
+    "weightSuffix": "{{weight}} kg"
+  },
+  "labs": {
+    "monitor": {
+      "vitalSigns": "Vital Signs",
+      "ventilator": "Ventilator",
+      "filterAbnormal": "只看異常",
+      "filterHideMissing": "隱藏無資料",
+      "filterEfficiency": "高效率篩選",
+      "manualInput": "手動輸入",
+      "loadingVitals": "載入生命徵象...",
+      "loadingVent": "載入呼吸器設定...",
+      "noVitals": "尚無生命徵象資料",
+      "noFiltered": "目前篩選條件下沒有可顯示的項目"
+    },
+    "weaning": {
+      "title": "脫機評估 Weaning Assessment",
+      "evaluatedAt": "評估時間: {{timestamp}}",
+      "rsbi": "RSBI",
+      "nif": "NIF",
+      "readiness": "準備度分數",
+      "recommendation": "建議"
+    },
+    "sections": {
+      "labData": "Lab Data",
+      "microbiology": "Microbiology",
+      "reports": "Reports",
+      "inflammation": "Inflammation"
+    },
+    "vitalDialog": {
+      "title": "手動輸入生命徵象",
+      "saveSuccess": "生命徵象已新增",
+      "saveError": "新增失敗，請確認輸入值",
+      "saving": "儲存中...",
+      "save": "儲存",
+      "cancel": "取消"
+    },
+    "ventDialog": {
+      "title": "手動輸入呼吸器設定",
+      "saveSuccess": "呼吸器設定已新增",
+      "saveError": "新增失敗，請確認輸入值",
+      "saving": "儲存中...",
+      "save": "儲存",
+      "cancel": "取消"
+    }
+  }
+}

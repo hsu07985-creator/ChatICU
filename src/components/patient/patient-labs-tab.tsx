@@ -18,6 +18,7 @@ import { Label } from '../ui/label';
 import { LoadingSpinner } from '../ui/state-display';
 import { TabsContent } from '../ui/tabs';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 type TrendSource = 'vital' | 'ventilator';
 
@@ -109,6 +110,7 @@ export function PatientLabsTab({
   onVitalSignsUpdate,
   onVentilatorUpdate,
 }: PatientLabsTabProps) {
+  const { t, i18n } = useTranslation('patient-tabs');
   const [searchParams, setSearchParams] = useSearchParams();
   const rawSection = searchParams.get('section');
 
@@ -143,9 +145,9 @@ export function PatientLabsTab({
       onVitalSignsUpdate?.(result);
       setIsVitalDialogOpen(false);
       setVitalForm({});
-      toast.success('生命徵象已新增');
+      toast.success(t('labs.vitalDialog.saveSuccess'));
     } catch {
-      toast.error('新增失敗，請確認輸入值');
+      toast.error(t('labs.vitalDialog.saveError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -170,9 +172,9 @@ export function PatientLabsTab({
       onVentilatorUpdate?.(result);
       setIsVentDialogOpen(false);
       setVentForm({});
-      toast.success('呼吸器設定已新增');
+      toast.success(t('labs.ventDialog.saveSuccess'));
     } catch {
-      toast.error('新增失敗，請確認輸入值');
+      toast.error(t('labs.ventDialog.saveError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -263,7 +265,7 @@ export function PatientLabsTab({
             aria-pressed={activeMonitor === 'vital-signs'}
           >
             <Activity className="h-4 w-4" />
-            Vital Signs
+            {t('labs.monitor.vitalSigns')}
           </button>
           {patientIntubated && (
             <button
@@ -277,7 +279,7 @@ export function PatientLabsTab({
               aria-pressed={activeMonitor === 'ventilator'}
             >
               <Wind className="h-4 w-4" />
-              Ventilator
+              {t('labs.monitor.ventilator')}
             </button>
           )}
         </div>
@@ -296,7 +298,7 @@ export function PatientLabsTab({
             aria-pressed={monitorOnlyAbnormal}
             onClick={() => setMonitorOnlyAbnormal((prev) => !prev)}
           >
-            只看異常
+            {t('labs.monitor.filterAbnormal')}
           </button>
           <button
             type="button"
@@ -308,10 +310,10 @@ export function PatientLabsTab({
             aria-pressed={monitorHideMissing}
             onClick={() => setMonitorHideMissing((prev) => !prev)}
           >
-            隱藏無資料
+            {t('labs.monitor.filterHideMissing')}
           </button>
         </div>
-        <span className="text-xs text-slate-500 dark:text-slate-400">高效率篩選</span>
+        <span className="text-xs text-slate-500 dark:text-slate-400">{t('labs.monitor.filterEfficiency')}</span>
         {isAdmin && (
           <Button
             size="sm"
@@ -320,7 +322,7 @@ export function PatientLabsTab({
             onClick={() => activeMonitor === 'vital-signs' ? setIsVitalDialogOpen(true) : setIsVentDialogOpen(true)}
           >
             <Plus className="h-3 w-3" />
-            手動輸入
+            {t('labs.monitor.manualInput')}
           </Button>
         )}
       </div>
@@ -329,13 +331,13 @@ export function PatientLabsTab({
       {activeMonitor === 'vital-signs' ? (
         vitalSignsLoading ? (
           <div className="flex items-center justify-center py-4">
-            <LoadingSpinner size="md" text="載入生命徵象..." />
+            <LoadingSpinner size="md" text={t('labs.monitor.loadingVitals')} />
           </div>
         ) : !hasAnyVitalSign ? (
-          <p className="py-2 text-center text-sm text-slate-400 dark:text-slate-500">尚無生命徵象資料</p>
+          <p className="py-2 text-center text-sm text-slate-400 dark:text-slate-500">{t('labs.monitor.noVitals')}</p>
         ) : filterItems(vitalItems).length === 0 ? (
           <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
-            目前篩選條件下沒有可顯示的項目
+            {t('labs.monitor.noFiltered')}
           </div>
         ) : (
           <div className="grid" style={metricGridStyle}>
@@ -356,13 +358,13 @@ export function PatientLabsTab({
       ) : activeMonitor === 'ventilator' && patientIntubated ? (
         ventilatorLoading ? (
           <div className="flex items-center justify-center py-8">
-            <LoadingSpinner size="md" text="載入呼吸器設定..." />
+            <LoadingSpinner size="md" text={t('labs.monitor.loadingVent')} />
           </div>
         ) : (
           <div className="space-y-3">
             {filterItems(ventItems).length === 0 ? (
               <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
-                目前篩選條件下沒有可顯示的項目
+                {t('labs.monitor.noFiltered')}
               </div>
             ) : (
               <div className="grid" style={metricGridStyle}>
@@ -387,34 +389,34 @@ export function PatientLabsTab({
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Stethoscope className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                    脫機評估 Weaning Assessment
+                    {t('labs.weaning.title')}
                   </CardTitle>
                   <CardDescription>
-                    評估時間: {new Date(weaningAssessment.timestamp).toLocaleString('zh-TW')}
+                    {t('labs.weaning.evaluatedAt', { timestamp: new Date(weaningAssessment.timestamp).toLocaleString(i18n.language) })}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-4 md:grid-cols-4 mb-4">
                     <div className="text-center">
-                      <p className="text-sm text-muted-foreground">RSBI</p>
+                      <p className="text-sm text-muted-foreground">{t('labs.weaning.rsbi')}</p>
                       <p className={`text-2xl font-bold ${weaningAssessment.rsbi > 105 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                         {weaningAssessment.rsbi}
                       </p>
                     </div>
                     <div className="text-center">
-                      <p className="text-sm text-muted-foreground">NIF</p>
+                      <p className="text-sm text-muted-foreground">{t('labs.weaning.nif')}</p>
                       <p className={`text-2xl font-bold ${weaningAssessment.nif > -25 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                         {weaningAssessment.nif} cmH₂O
                       </p>
                     </div>
                     <div className="text-center">
-                      <p className="text-sm text-muted-foreground">準備度分數</p>
+                      <p className="text-sm text-muted-foreground">{t('labs.weaning.readiness')}</p>
                       <p className={`text-2xl font-bold ${weaningAssessment.readinessScore >= 70 ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}`}>
                         {weaningAssessment.readinessScore}%
                       </p>
                     </div>
                     <div className="text-center">
-                      <p className="text-sm text-muted-foreground">建議</p>
+                      <p className="text-sm text-muted-foreground">{t('labs.weaning.recommendation')}</p>
                       <Badge className={weaningAssessment.recommendation.includes('可以') ? 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300' : 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300'}>
                         {weaningAssessment.recommendation}
                       </Badge>
@@ -440,7 +442,7 @@ export function PatientLabsTab({
             aria-pressed={activeSection === 'lab-data'}
           >
             <TestTube className="h-4 w-4" />
-            Lab Data
+            {t('labs.sections.labData')}
           </button>
           <button
             type="button"
@@ -453,7 +455,7 @@ export function PatientLabsTab({
             aria-pressed={activeSection === 'microbiology'}
           >
             <Bug className="h-4 w-4" />
-            Microbiology
+            {t('labs.sections.microbiology')}
           </button>
           <button
             type="button"
@@ -466,7 +468,7 @@ export function PatientLabsTab({
             aria-pressed={activeSection === 'reports'}
           >
             <FileText className="h-4 w-4" />
-            Reports
+            {t('labs.sections.reports')}
           </button>
           <button
             type="button"
@@ -479,7 +481,7 @@ export function PatientLabsTab({
             aria-pressed={activeSection === 'inflammation'}
           >
             <Flame className="h-4 w-4" />
-            Inflammation
+            {t('labs.sections.inflammation')}
           </button>
         </div>
       </div>
@@ -498,7 +500,7 @@ export function PatientLabsTab({
       <Dialog open={isVitalDialogOpen} onOpenChange={setIsVitalDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>手動輸入生命徵象</DialogTitle>
+            <DialogTitle>{t('labs.vitalDialog.title')}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3 py-2">
             {[
@@ -526,9 +528,9 @@ export function PatientLabsTab({
             ))}
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setIsVitalDialogOpen(false)}>取消</Button>
+            <Button variant="outline" size="sm" onClick={() => setIsVitalDialogOpen(false)}>{t('labs.vitalDialog.cancel')}</Button>
             <Button size="sm" onClick={handleVitalSubmit} disabled={isSubmitting}>
-              {isSubmitting ? '儲存中...' : '儲存'}
+              {isSubmitting ? t('labs.vitalDialog.saving') : t('labs.vitalDialog.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -538,7 +540,7 @@ export function PatientLabsTab({
       <Dialog open={isVentDialogOpen} onOpenChange={setIsVentDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>手動輸入呼吸器設定</DialogTitle>
+            <DialogTitle>{t('labs.ventDialog.title')}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3 py-2">
             <div className="col-span-2 space-y-1">
@@ -582,9 +584,9 @@ export function PatientLabsTab({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setIsVentDialogOpen(false)}>取消</Button>
+            <Button variant="outline" size="sm" onClick={() => setIsVentDialogOpen(false)}>{t('labs.ventDialog.cancel')}</Button>
             <Button size="sm" onClick={handleVentSubmit} disabled={isSubmitting}>
-              {isSubmitting ? '儲存中...' : '儲存'}
+              {isSubmitting ? t('labs.ventDialog.saving') : t('labs.ventDialog.save')}
             </Button>
           </DialogFooter>
         </DialogContent>

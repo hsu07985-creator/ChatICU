@@ -21,6 +21,7 @@ import {
 } from '../../lib/api/symptom-records';
 import { maskPatientName } from '../../lib/utils/patient-name';
 import { MedicationRiskCard } from './medication-risk-card';
+import { useTranslation } from 'react-i18next';
 
 interface PatientSummaryTabPatient {
   id: string;
@@ -116,11 +117,12 @@ function buildTimeline(records: SymptomRecord[]): SymptomDiffEntry[] {
 }
 
 function SymptomTimeline({ records }: { records: SymptomRecord[] }) {
+  const { t } = useTranslation('patient-tabs');
   const [expanded, setExpanded] = useState(false);
   const timeline = buildTimeline(records);
 
   if (timeline.length === 0) {
-    return <p className="text-sm text-slate-400 dark:text-slate-500 py-2">尚無歷史記錄</p>;
+    return <p className="text-sm text-slate-400 dark:text-slate-500 py-2">{t('summary.history.empty')}</p>;
   }
 
   const visible = expanded ? timeline : timeline.slice(0, 3);
@@ -140,7 +142,7 @@ function SymptomTimeline({ records }: { records: SymptomRecord[] }) {
             </span>
             <div className="flex-1 min-w-0">
               {isFirst && !hasChanges ? (
-                <span className="text-xs text-slate-500 dark:text-slate-400">初始記錄：{entry.symptoms.join('、')}</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">{t('summary.history.initialPrefix')}{entry.symptoms.join(t('summary.history.initialJoiner'))}</span>
               ) : (
                 <div className="flex flex-wrap gap-1">
                   {entry.added.map((s, i) => (
@@ -161,7 +163,7 @@ function SymptomTimeline({ records }: { records: SymptomRecord[] }) {
                     </span>
                   ))}
                   {!hasChanges && (
-                    <span className="text-xs text-slate-400 dark:text-slate-500">無變化</span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500">{t('summary.history.noChanges')}</span>
                   )}
                 </div>
               )}
@@ -180,11 +182,11 @@ function SymptomTimeline({ records }: { records: SymptomRecord[] }) {
         >
           {expanded ? (
             <>
-              <ChevronDown className="h-3 w-3" /> 收合
+              <ChevronDown className="h-3 w-3" /> {t('summary.history.collapse')}
             </>
           ) : (
             <>
-              <ChevronRight className="h-3 w-3" /> 顯示更多（共 {timeline.length} 筆）
+              <ChevronRight className="h-3 w-3" /> {t('summary.history.showMore', { count: timeline.length })}
             </>
           )}
         </button>
@@ -196,6 +198,7 @@ function SymptomTimeline({ records }: { records: SymptomRecord[] }) {
 /* ── Main Component ─────────────────────────── */
 
 export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }: PatientSummaryTabProps) {
+  const { t } = useTranslation('patient-tabs');
   // Symptom editing state
   const initialSymptoms = Array.isArray(patient.symptoms) ? patient.symptoms : [];
   const [editingSymptoms, setEditingSymptoms] = useState<string[]>(initialSymptoms);
@@ -255,9 +258,9 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
       const record = await createSymptomRecord(patient.id, editingSymptoms);
       setSymptomRecords((prev) => [record, ...prev]);
       onPatientUpdate?.({ symptoms: editingSymptoms });
-      toast.success('症狀記錄已儲存');
+      toast.success(t('summary.clinicalCard.saveSuccess'));
     } catch {
-      toast.error('儲存失敗，請稍後再試');
+      toast.error(t('summary.clinicalCard.saveError'));
     } finally {
       setIsSaving(false);
     }
@@ -296,11 +299,11 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
       const existing = new Set(editingSymptoms.map((s) => s.toLowerCase()));
       suggestions = suggestions.filter((s) => !existing.has(s.toLowerCase()));
       if (suggestions.length === 0) {
-        toast.info('AI 未發現新的建議症狀');
+        toast.info(t('summary.clinicalCard.aiNoNew'));
       }
       setAiSuggestions(suggestions);
     } catch {
-      toast.error('AI 建議生成失敗');
+      toast.error(t('summary.clinicalCard.aiError'));
     } finally {
       clearInterval(ticker);
       setIsLoadingSuggestions(false);
@@ -329,15 +332,15 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
   }
 
   const infoRows: { label: string; value: string }[] = [
-    { label: '床號', value: patient.bedNumber || '-' },
-    { label: '姓名', value: maskPatientName(patient.name) || '-' },
-    { label: '年齡', value: `${patient.age} 歲` },
-    { label: '性別', value: patient.gender || '-' },
-    { label: '身高', value: patient.height ? `${patient.height} cm` : '-' },
-    { label: '體重', value: patient.weight ? `${patient.weight} kg` : '-' },
-    { label: 'BMI', value: patient.bmi ? `${patient.bmi}` : '-' },
-    { label: '病歷號', value: patient.medicalRecordNumber || patient.id },
-    { label: '主治醫師', value: patient.attendingPhysician || '-' },
+    { label: t('summary.infoCard.rows.bed'), value: patient.bedNumber || '-' },
+    { label: t('summary.infoCard.rows.name'), value: maskPatientName(patient.name) || '-' },
+    { label: t('summary.infoCard.rows.age'), value: t('summary.ageSuffix', { age: patient.age }) },
+    { label: t('summary.infoCard.rows.gender'), value: patient.gender || '-' },
+    { label: t('summary.infoCard.rows.height'), value: patient.height ? t('summary.heightSuffix', { height: patient.height }) : '-' },
+    { label: t('summary.infoCard.rows.weight'), value: patient.weight ? t('summary.weightSuffix', { weight: patient.weight }) : '-' },
+    { label: t('summary.infoCard.rows.bmi'), value: patient.bmi ? `${patient.bmi}` : '-' },
+    { label: t('summary.infoCard.rows.mrn'), value: patient.medicalRecordNumber || patient.id },
+    { label: t('summary.infoCard.rows.physician'), value: patient.attendingPhysician || '-' },
   ];
 
   return (
@@ -347,7 +350,7 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
       <div className="space-y-2">
         <Card className="overflow-hidden border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-slate-50 via-white to-slate-100/80 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800/80">
           <CardHeader className="border-b border-slate-200/80 dark:border-slate-700/80 bg-white/70 dark:bg-slate-900/70 pb-1.5">
-            <CardTitle className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">病患資訊</CardTitle>
+            <CardTitle className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">{t('summary.infoCard.title')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 pt-3">
             <div className="grid grid-cols-2 gap-x-6 gap-y-0 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2">
@@ -364,7 +367,7 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
               {patient.intubated && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 px-3 py-1 text-sm font-medium text-red-700 dark:text-red-400">
                   <span className="h-2 w-2 rounded-full bg-red-500" />
-                  {patient.tracheostomy ? '氣切' : '插管中'}
+                  {patient.tracheostomy ? t('summary.flags.tracheostomy') : t('summary.flags.intubated')}
                 </span>
               )}
               {patient.hasDNR && (
@@ -376,7 +379,7 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
               {patient.isIsolated && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-3 py-1 text-sm font-medium text-amber-700 dark:text-amber-400">
                   <span className="h-2 w-2 rounded-full bg-amber-500" />
-                  隔離中
+                  {t('summary.flags.isolating')}
                 </span>
               )}
             </div>
@@ -394,18 +397,18 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
       {/* ── 右欄：臨床狀態 + 症狀歷程 ── */}
       <Card className="overflow-hidden border border-slate-200 dark:border-slate-700 bg-gradient-to-br from-slate-50 via-white to-slate-100/80 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800/80">
         <CardHeader className="border-b border-slate-200/80 dark:border-slate-700/80 bg-white/70 dark:bg-slate-900/70 pb-1.5">
-          <CardTitle className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">臨床狀態</CardTitle>
+          <CardTitle className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100">{t('summary.clinicalCard.title')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 pt-3">
           <div className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3">
-            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">入院診斷</p>
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{t('summary.clinicalCard.diagnosisLabel')}</p>
             <p className="mt-1 text-base font-semibold text-slate-900 dark:text-slate-100">{patient.diagnosis || '-'}</p>
           </div>
 
           {/* ── 目前症狀（可編輯） ── */}
           <div className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">目前症狀</p>
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{t('summary.clinicalCard.currentSymptomsLabel')}</p>
               {hasChanges && (
                 <Button
                   size="sm"
@@ -415,7 +418,7 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
                   disabled={isSaving}
                 >
                   {isSaving ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Save className="mr-1 h-3 w-3" />}
-                  儲存更新
+                  {t('summary.clinicalCard.saveUpdate')}
                 </Button>
               )}
             </div>
@@ -437,14 +440,14 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
                     {symptom}
                     {days !== null && days !== undefined && (
                       <span className={`text-[10px] ml-0.5 ${isNew ? 'text-brand' : 'text-slate-400 dark:text-slate-500'}`}>
-                        {isNew ? 'NEW' : `D${days}`}
+                        {isNew ? t('summary.clinicalCard.newBadge') : t('summary.clinicalCard.dayPrefix', { days })}
                       </span>
                     )}
                     <button
                       type="button"
                       onClick={() => removeSymptom(idx)}
                       className="ml-0.5 rounded-full p-0.5 text-slate-400 dark:text-slate-500 transition-colors hover:bg-red-100 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400"
-                      aria-label={`移除 ${symptom}`}
+                      aria-label={t('summary.clinicalCard.removeSymptomAria', { symptom })}
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -452,7 +455,7 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
                 );
               })}
               {editingSymptoms.length === 0 && (
-                <p className="text-sm text-slate-400 dark:text-slate-500">尚無症狀記錄</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500">{t('summary.clinicalCard.noSymptoms')}</p>
               )}
             </div>
 
@@ -468,7 +471,7 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
                     addSymptom(newSymptom);
                   }
                 }}
-                placeholder="輸入新症狀..."
+                placeholder={t('summary.clinicalCard.newSymptomPlaceholder')}
                 className="h-8 flex-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 text-sm text-slate-700 dark:text-slate-300 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               />
               <Button
@@ -497,12 +500,12 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
                   <Wand2 className="mr-1.5 h-3.5 w-3.5" />
                 )}
                 {isLoadingSuggestions
-                  ? `AI 分析中${suggestElapsedSec > 0 ? ` · ${suggestElapsedSec}s` : '...'}`
-                  : 'AI 建議症狀'}
+                  ? t('summary.clinicalCard.aiAnalyzing', { suffix: suggestElapsedSec > 0 ? ` · ${suggestElapsedSec}s` : '...' })
+                  : t('summary.clinicalCard.aiSuggest')}
               </Button>
               {aiSuggestions.length > 0 && (
                 <div className="mt-2">
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mb-1.5">點擊加入：</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mb-1.5">{t('summary.clinicalCard.clickToAdd')}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {aiSuggestions.map((suggestion, idx) => (
                       <button
@@ -523,11 +526,11 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
 
           {/* ── 症狀變化歷程 ── */}
           <div className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3">
-            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2">症狀變化歷程</p>
+            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2">{t('summary.history.title')}</p>
             {historyLoading ? (
               <div className="flex items-center gap-2 py-2">
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400 dark:text-slate-500" />
-                <span className="text-xs text-slate-400 dark:text-slate-500">載入中...</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500">{t('summary.history.loading')}</span>
               </div>
             ) : (
               <SymptomTimeline records={symptomRecords} />
