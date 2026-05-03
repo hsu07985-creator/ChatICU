@@ -17,7 +17,7 @@ from app.models.chat_message import TeamChatMessage
 from app.models.message import PatientMessage
 from app.models.patient import Patient
 from app.models.user import User
-from app.utils.jsonb_compat import array_contains_value
+from app.utils.jsonb_compat import array_contains_user_receipt, array_contains_value, to_utc_aware
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -67,9 +67,21 @@ async def get_notification_summary(
       role OR by user_id (Path B)
     - alerts: unread patient-board messages whose `message_type` is 'alert'/'urgent'
     - total: mentions + alerts (not deduplicated)
+
+    Team-chat unread is per-user (TC-W3-T1): a message is unread for me
+    iff I am not in its ``read_by`` array AND its timestamp is after my
+    ``last_chat_visit_at``. The previous global ``is_read`` flag let any
+    reader silently zero everyone's mention badge.
     """
     cutoff = datetime.now(timezone.utc) - timedelta(hours=_WINDOW_HOURS)
     dialect_name = db.bind.dialect.name
+
+    db_user = await db.get(User, user.id)
+    last_visit = to_utc_aware(db_user.last_chat_visit_at if db_user is not None else None)
+    tc_baseline = max(cutoff, last_visit) if last_visit is not None else None
+    tc_already_read = array_contains_user_receipt(
+        TeamChatMessage.read_by, user.id, dialect_name,
+    )
 
     pb_mentions_stmt = (
         select(func.count(PatientMessage.id))
@@ -77,12 +89,17 @@ async def get_notification_summary(
         .where(PatientMessage.is_read == False)  # noqa: E712
         .where(_patient_board_mention_predicate(user, dialect_name))
     )
-    tc_mentions_stmt = (
-        select(func.count(TeamChatMessage.id))
-        .where(TeamChatMessage.timestamp >= cutoff)
-        .where(TeamChatMessage.is_read == False)  # noqa: E712
-        .where(_team_chat_mention_predicate(user, dialect_name))
-    )
+    if tc_baseline is None:
+        # New user with no last_chat_visit_at — show 0 team-chat mentions
+        # until their first chat visit (matches /team/chat/unread-count).
+        tc_mentions_stmt = select(func.count(TeamChatMessage.id)).where(False)
+    else:
+        tc_mentions_stmt = (
+            select(func.count(TeamChatMessage.id))
+            .where(TeamChatMessage.timestamp > tc_baseline)
+            .where(~tc_already_read)
+            .where(_team_chat_mention_predicate(user, dialect_name))
+        )
     alerts_stmt = (
         select(func.count(PatientMessage.id))
         .where(PatientMessage.timestamp >= cutoff)
@@ -119,6 +136,11 @@ async def get_recent_notifications(
     cutoff = datetime.now(timezone.utc) - timedelta(hours=_WINDOW_HOURS)
     dialect_name = db.bind.dialect.name
 
+    # Per-user team-chat read state (TC-W3-T1) — same model as /summary.
+    db_user = await db.get(User, user.id)
+    last_visit = to_utc_aware(db_user.last_chat_visit_at if db_user is not None else None)
+    tc_baseline = max(cutoff, last_visit) if last_visit is not None else None
+
     # ── Patient board mentions ─────────────────────────────────────────
     pb_stmt = (
         select(PatientMessage, Patient.bed_number, Patient.name)
@@ -149,14 +171,25 @@ async def get_recent_notifications(
     ]
 
     # ── Team chat mentions ─────────────────────────────────────────────
-    tc_stmt = (
-        select(TeamChatMessage)
-        .where(TeamChatMessage.timestamp >= cutoff)
-        .where(_team_chat_mention_predicate(user, dialect_name))
-        .order_by(TeamChatMessage.timestamp.desc())
-        .limit(limit)
-    )
-    tc_msgs = (await db.execute(tc_stmt)).scalars().all()
+    if tc_baseline is None:
+        tc_msgs = []
+    else:
+        tc_stmt = (
+            select(TeamChatMessage)
+            .where(TeamChatMessage.timestamp > tc_baseline)
+            .where(_team_chat_mention_predicate(user, dialect_name))
+            .order_by(TeamChatMessage.timestamp.desc())
+            .limit(limit)
+        )
+        tc_msgs = (await db.execute(tc_stmt)).scalars().all()
+
+    # Compute per-user read state inline since SQL predicate is dialect-aware
+    # and we already have the rows loaded.
+    def _tc_is_read_by_me(m: TeamChatMessage) -> bool:
+        for entry in (m.read_by or []):
+            if isinstance(entry, dict) and entry.get("userId") == user.id:
+                return True
+        return False
 
     tc_items = [
         {
@@ -170,7 +203,7 @@ async def get_recent_notifications(
             "authorRole": m.user_role,
             "preview": (m.content or "")[:140],
             "timestamp": m.timestamp.isoformat() if m.timestamp else None,
-            "isRead": bool(m.is_read),
+            "isRead": _tc_is_read_by_me(m),
             "deepLink": "/chat",
         }
         for m in tc_msgs
@@ -203,6 +236,13 @@ async def mark_all_notifications_read(
     receipt = {"userId": user.id, "userName": user.name, "readAt": now.isoformat()}
     dialect_name = db.bind.dialect.name
 
+    db_user = await db.get(User, user.id)
+    last_visit = to_utc_aware(db_user.last_chat_visit_at if db_user is not None else None)
+    tc_baseline = max(cutoff, last_visit) if last_visit is not None else None
+    tc_already_read = array_contains_user_receipt(
+        TeamChatMessage.read_by, user.id, dialect_name,
+    )
+
     pb_stmt = select(PatientMessage).where(
         PatientMessage.timestamp >= cutoff,
         PatientMessage.is_read == False,  # noqa: E712
@@ -213,23 +253,30 @@ async def mark_all_notifications_read(
     )
     pb_msgs = (await db.execute(pb_stmt)).scalars().all()
 
-    tc_stmt = select(TeamChatMessage).where(
-        TeamChatMessage.timestamp >= cutoff,
-        TeamChatMessage.is_read == False,  # noqa: E712
-        _team_chat_mention_predicate(user, dialect_name),
-    )
-    tc_msgs = (await db.execute(tc_stmt)).scalars().all()
+    if tc_baseline is None:
+        tc_msgs = []
+    else:
+        tc_stmt = select(TeamChatMessage).where(
+            TeamChatMessage.timestamp > tc_baseline,
+            ~tc_already_read,
+            _team_chat_mention_predicate(user, dialect_name),
+        )
+        tc_msgs = (await db.execute(tc_stmt)).scalars().all()
 
     for m in pb_msgs:
         m.is_read = True
         rb = list(m.read_by or [])
-        rb.append(receipt)
+        # Dedup: don't append a second receipt for the same user.
+        if not any(isinstance(e, dict) and e.get("userId") == user.id for e in rb):
+            rb.append(receipt)
         m.read_by = rb
 
     for m in tc_msgs:
+        # is_read kept for backward compat; per-user state is read_by.
         m.is_read = True
         rb = list(m.read_by or [])
-        rb.append(receipt)
+        if not any(isinstance(e, dict) and e.get("userId") == user.id for e in rb):
+            rb.append(receipt)
         m.read_by = rb
 
     await db.commit()

@@ -167,9 +167,24 @@ async def test_mentioned_roles_default_empty(client):
     assert msg["mentionedRoles"] == []
 
 
+async def _seed_visit_baseline_in_past(seeded_db, user_id="usr_test", hours_ago=1):
+    """Set the user's last_chat_visit_at to a fixed past time so the
+    per-user mention model (TC-W3-T1) has a baseline strictly older than
+    the test's freshly-sent messages.
+
+    Without this, the conftest's default user has last_chat_visit_at=NULL
+    and /mentions/count returns 0 (intended "first-visit" behavior)."""
+    from datetime import datetime, timedelta, timezone
+    from app.models.user import User
+    db_user = await seeded_db.get(User, user_id)
+    db_user.last_chat_visit_at = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+    await seeded_db.commit()
+
+
 @pytest.mark.asyncio
-async def test_mentions_count_endpoint(client):
+async def test_mentions_count_endpoint(client, seeded_db):
     """GET /team/chat/mentions/count returns unread mention count for current user role."""
+    await _seed_visit_baseline_in_past(seeded_db)
     # Current mock user is role=admin
     await _send(client, "msg for admin", mentioned_roles=["admin"])
     await _send(client, "msg for nurse", mentioned_roles=["nurse"])
@@ -183,8 +198,9 @@ async def test_mentions_count_endpoint(client):
 
 
 @pytest.mark.asyncio
-async def test_mentions_count_decreases_after_read(client):
+async def test_mentions_count_decreases_after_read(client, seeded_db):
     """Mention count decreases when a mentioned message is marked read."""
+    await _seed_visit_baseline_in_past(seeded_db)
     msg = await _send(client, "urgent for admin", mentioned_roles=["admin"])
 
     resp1 = await client.get("/team/chat/mentions/count")
@@ -484,6 +500,8 @@ async def test_mentions_count_excludes_old_mentions(client, seeded_db):
     from datetime import datetime, timedelta, timezone
     from app.models.chat_message import TeamChatMessage
 
+    await _seed_visit_baseline_in_past(seeded_db, hours_ago=1)
+
     seeded_db.add(TeamChatMessage(
         id="tchat_old_mention",
         user_id="usr_other",
@@ -519,6 +537,8 @@ async def test_mention_predicate_no_substring_collision(client, seeded_db):
     from datetime import datetime, timezone
     from app.models.chat_message import TeamChatMessage
 
+    await _seed_visit_baseline_in_past(seeded_db, hours_ago=1)
+
     seeded_db.add(TeamChatMessage(
         id="tchat_substr_check",
         user_id="usr_other",
@@ -544,6 +564,60 @@ async def test_mention_predicate_no_substring_collision(client, seeded_db):
     # — but each test runs against a fresh DB (function-scoped seeded_db),
     # so this row is the only one. Expect 0.
     assert count == 0, f"@> predicate must not match 'all_admins' for role=admin; got {count}"
+
+
+@pytest.mark.asyncio
+async def test_per_user_unread_isolation(client, seeded_db):
+    """TC-W3-T1: marking-read by user A must NOT clear user B's mention
+    badge. Pre-fix, the global ``is_read`` flag let any reader silently
+    zero everyone's count — F-02 in the audit."""
+    from app.main import app
+    from app.middleware.auth import get_current_user
+    from app.models.user import User
+    from datetime import datetime, timedelta, timezone
+
+    # Seed a second admin user so we can swap mid-test
+    other = User(
+        id="usr_admin_b",
+        name="Admin B",
+        username="adminb",
+        password_hash="",
+        email="adminb@hospital.com",
+        role="admin",
+        unit="ICU",
+        active=True,
+        last_chat_visit_at=datetime.now(timezone.utc) - timedelta(hours=1),
+    )
+    seeded_db.add(other)
+    # Also baseline for usr_test
+    await _seed_visit_baseline_in_past(seeded_db, user_id="usr_test", hours_ago=1)
+
+    # usr_test (admin A) sends a message mentioning the admin role —
+    # both admins should see the mention.
+    msg = await _send(client, "for both admins", mentioned_roles=["admin"])
+
+    # Admin A reads the message
+    resp_a = await client.patch(f"/team/chat/{msg['id']}/read")
+    assert resp_a.status_code == 200
+
+    # Admin A's count drops to 0 (read_by now contains usr_test)
+    resp_count_a = await client.get("/team/chat/mentions/count")
+    assert resp_count_a.json()["data"]["count"] == 0
+
+    # Switch to Admin B — their count must still be 1
+    app.dependency_overrides[get_current_user] = _user_override(
+        "usr_admin_b", "Admin B", role="admin",
+    )
+    try:
+        resp_count_b = await client.get("/team/chat/mentions/count")
+        assert resp_count_b.json()["data"]["count"] == 1, (
+            "Admin B's mention badge should NOT be cleared by Admin A's "
+            "mark-read action — that was the F-02 bug."
+        )
+    finally:
+        app.dependency_overrides[get_current_user] = _user_override(
+            "usr_test", "Test Doctor", role="admin",
+        )
 
 
 @pytest.mark.asyncio

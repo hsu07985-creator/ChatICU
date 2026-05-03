@@ -14,7 +14,7 @@ from app.models.chat_message import TeamChatMessage
 from app.models.user import User
 from app.routers.notifications import MENTION_LOOKBACK_HOURS
 from app.schemas.message import TeamChatCreate
-from app.utils.jsonb_compat import array_contains_value
+from app.utils.jsonb_compat import array_contains_user_receipt, array_contains_value, to_utc_aware
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/team/chat", tags=["team-chat"])
@@ -120,26 +120,41 @@ async def mentions_count(
 ):
     """Count unread messages that @ the current user (by role OR user_id).
 
-    Uses PostgreSQL JSONB containment (``@>``) in production — TC-B02
-    replaced the prior ``cast(JSONB as text) LIKE`` predicate, which
-    couldn't use any index and could collide once role names share a
-    prefix. The GIN indexes added in migration 076 make this an index
-    lookup. ``array_contains_value`` falls back to a quoted-substring
-    LIKE on SQLite (test only) since SQLite has no ``@>`` operator.
+    Per-user model (TC-W3-T1):
+    - "Unread for me" means I am not in the message's ``read_by`` array.
+      The previous ``is_read == False`` filter was a global flag that any
+      user could flip — so the first reader silently zeroed everyone
+      else's mention badge. Now each recipient has their own state.
+    - Visit baseline: messages older than my ``last_chat_visit_at`` are
+      treated as already acknowledged. Migration 071 backfilled
+      ``last_chat_visit_at = NOW()`` for every existing user, so the
+      switchover does not retroactively flood old mentions into the
+      badge ("舊資料視為已讀"). New users with NULL last_chat_visit_at
+      see 0 mentions until their first chat visit (consistent with
+      ``/unread-count`` behavior).
+    - 168h hard cap retained so a user who never visits chat doesn't
+      accumulate ancient mentions forever.
 
-    Capped at ``MENTION_LOOKBACK_HOURS`` (168h) — TC-B04 aligned this
-    with ``/notifications/summary`` so the bell number and the chat
-    sidebar number stop disagreeing on old mentions.
+    Predicate uses dialect-aware JSONB ``@>`` (PG, GIN-indexable) with a
+    SQLite test fallback via ``array_contains_user_receipt``.
     """
     dialect_name = db.bind.dialect.name
+    db_user = await db.get(User, user.id)
+    last_visit = to_utc_aware(db_user.last_chat_visit_at if db_user is not None else None)
+    if last_visit is None:
+        return success_response(data={"count": 0})
+
     cutoff = datetime.now(timezone.utc) - timedelta(hours=MENTION_LOOKBACK_HOURS)
+    baseline = max(cutoff, last_visit)
+
     role_match = array_contains_value(TeamChatMessage.mentioned_roles, user.role, dialect_name)
     user_match = array_contains_value(TeamChatMessage.mentioned_user_ids, user.id, dialect_name)
+    already_read_by_me = array_contains_user_receipt(TeamChatMessage.read_by, user.id, dialect_name)
     result = await db.execute(
         select(func.count(TeamChatMessage.id)).where(
             and_(
-                TeamChatMessage.timestamp >= cutoff,
-                TeamChatMessage.is_read == False,  # noqa: E712
+                TeamChatMessage.timestamp > baseline,
+                ~already_read_by_me,
                 or_(role_match, user_match),
             )
         )
