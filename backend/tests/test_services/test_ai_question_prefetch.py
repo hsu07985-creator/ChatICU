@@ -3,17 +3,24 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 
 import pytest
+from sqlalchemy import select
 
+from app.models.audit_log import AuditLog
 from app.models.culture_result import CultureResult
 from app.models.medication import Medication
+from app.models.pharmacy_advice import PharmacyAdvice
+from app.models.user import User
 from app.services.ai_question_prefetch import (
     build_question_prefetch_context,
     format_culture_context,
     format_medication_changes_context,
+    format_pharmacy_advice_context,
     get_recent_cultures,
     get_recent_medication_changes,
+    search_pharmacy_advice_history,
     should_prefetch_cultures,
     should_prefetch_medication_changes,
+    should_prefetch_pharmacy_advice,
 )
 
 
@@ -29,6 +36,26 @@ def test_should_prefetch_medication_changes_for_recent_change_questions():
     assert should_prefetch_medication_changes("剛停 vancomycin 嗎？")
     assert should_prefetch_medication_changes("Any med changes in 72h?")
     assert not should_prefetch_medication_changes("今天 K 和 Cr 多少？")
+
+
+def test_should_prefetch_pharmacy_advice_for_history_questions():
+    assert should_prefetch_pharmacy_advice("我之前給過 vancomycin 建議在哪一床？")
+    assert should_prefetch_pharmacy_advice("哪裡可以看我的藥師建議歷史紀錄？")
+    assert should_prefetch_pharmacy_advice("Any pharmacy advice history?")
+    assert not should_prefetch_pharmacy_advice("今天 K 和 Cr 多少？")
+
+
+def _user(role: str = "pharmacist", user_id: str = "usr_test") -> User:
+    return User(
+        id=user_id,
+        name="Test Pharmacist",
+        username=f"{user_id}_name",
+        password_hash="",
+        email=f"{user_id}@example.test",
+        role=role,
+        unit="Pharmacy",
+        active=True,
+    )
 
 
 def test_format_culture_context_includes_isolates_and_susceptibility():
@@ -107,6 +134,32 @@ def test_format_medication_changes_context_groups_recent_rows():
     assert "目前 schema 無歷史前值" in text
 
 
+def test_format_pharmacy_advice_context_masks_patient_and_links_back():
+    record = PharmacyAdvice(
+        id="adv_unit",
+        patient_id="pat_001",
+        patient_name="王小明",
+        bed_number="I-01",
+        pharmacist_id="usr_test",
+        pharmacist_name="Test Pharmacist",
+        advice_code="2-L",
+        advice_label="腎功能調整",
+        category="2. 用藥安全",
+        content="Vancomycin 建議依 CrCl 調整劑量",
+        linked_medications=["Vancomycin"],
+        accepted=None,
+        timestamp=datetime(2026, 5, 3, 4, 0, tzinfo=timezone.utc),
+    )
+
+    text = format_pharmacy_advice_context([record], days=30)
+
+    assert "【藥師建議歷史 最近30天】" in text
+    assert "I-01 王○明" in text
+    assert "2-L 腎功能調整" in text
+    assert "linked: Vancomycin" in text
+    assert "/pharmacy/advice-statistics" in text
+
+
 @pytest.mark.asyncio
 async def test_get_recent_cultures_filters_to_recent_records(seeded_db):
     recent = CultureResult(
@@ -168,6 +221,50 @@ async def test_get_recent_medication_changes_filters_to_recent_records(seeded_db
 
 
 @pytest.mark.asyncio
+async def test_search_pharmacy_advice_history_scopes_to_current_user(seeded_db):
+    seeded_db.add(_user("pharmacist", "usr_other"))
+    own = PharmacyAdvice(
+        id="adv_own",
+        patient_id="pat_001",
+        patient_name="許先生",
+        bed_number="I-1",
+        pharmacist_id="usr_test",
+        pharmacist_name="Test Doctor",
+        advice_code="2-L",
+        advice_label="腎功能調整",
+        category="2. 用藥安全",
+        content="Vancomycin dose adjustment needed",
+        linked_medications=["Vancomycin"],
+        timestamp=datetime.now(timezone.utc),
+    )
+    other = PharmacyAdvice(
+        id="adv_other",
+        patient_id="pat_001",
+        patient_name="許先生",
+        bed_number="I-1",
+        pharmacist_id="usr_other",
+        pharmacist_name="Other Pharmacist",
+        advice_code="2-L",
+        advice_label="腎功能調整",
+        category="2. 用藥安全",
+        content="Vancomycin dose adjustment needed",
+        linked_medications=["Vancomycin"],
+        timestamp=datetime.now(timezone.utc),
+    )
+    seeded_db.add_all([own, other])
+    await seeded_db.commit()
+
+    rows = await search_pharmacy_advice_history(
+        seeded_db,
+        _user("pharmacist", "usr_test"),
+        "我之前給過 vancomycin 建議在哪一床？",
+        patient_id=None,
+    )
+
+    assert [row.id for row in rows] == ["adv_own"]
+
+
+@pytest.mark.asyncio
 async def test_build_question_prefetch_context_returns_culture_no_data_when_triggered(
     seeded_db,
 ):
@@ -177,6 +274,66 @@ async def test_build_question_prefetch_context_returns_culture_no_data_when_trig
 
     assert "【微生物培養 最近14天】" in text
     assert "狀態: no_data" in text
+
+
+@pytest.mark.asyncio
+async def test_build_question_prefetch_context_returns_advice_history_and_audit(
+    seeded_db,
+):
+    seeded_db.add(
+        PharmacyAdvice(
+            id="adv_prefetch",
+            patient_id="pat_001",
+            patient_name="許先生",
+            bed_number="I-1",
+            pharmacist_id="usr_test",
+            pharmacist_name="Test Doctor",
+            advice_code="2-L",
+            advice_label="腎功能調整",
+            category="2. 用藥安全",
+            content="Vancomycin 建議依腎功能調整",
+            linked_medications=["Vancomycin"],
+            timestamp=datetime.now(timezone.utc),
+        )
+    )
+    await seeded_db.commit()
+
+    text = await build_question_prefetch_context(
+        seeded_db,
+        None,
+        "我之前給過 vancomycin 建議在哪一床？",
+        user=_user("pharmacist", "usr_test"),
+        ip="10.1.2.3",
+    )
+
+    assert "【藥師建議歷史 最近30天】" in text
+    assert "I-1 許○生" in text
+    assert "Vancomycin" in text
+    logs = (
+        await seeded_db.execute(
+            select(AuditLog).where(
+                AuditLog.action == "ai_chat_pharmacy_advice_history_search"
+            )
+        )
+    ).scalars().all()
+    assert len(logs) == 1
+    assert logs[0].ip == "10.1.2.3"
+    assert logs[0].details["result_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_build_question_prefetch_context_denies_advice_history_for_doctor(
+    seeded_db,
+):
+    text = await build_question_prefetch_context(
+        seeded_db,
+        "pat_001",
+        "我之前給過用藥建議在哪一床？",
+        user=_user("doctor", "usr_doc"),
+    )
+
+    assert "【藥師建議歷史 最近30天】" in text
+    assert "狀態: denied" in text
 
 
 @pytest.mark.asyncio

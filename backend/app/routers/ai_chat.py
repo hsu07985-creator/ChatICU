@@ -603,13 +603,16 @@ async def chat_stream(
     user_message = _maybe_inject_deferred_into_user_message(
         user_message, session.snapshot_metadata
     )
-    if patient_id:
-        prefetch_context = await build_question_prefetch_context(
-            db, patient_id, body.message
-        )
-        user_message = _maybe_inject_question_prefetch_into_user_message(
-            user_message, prefetch_context
-        )
+    prefetch_context = await build_question_prefetch_context(
+        db,
+        patient_id,
+        body.message,
+        user=current_user,
+        ip=request.client.host if request.client else None,
+    )
+    user_message = _maybe_inject_question_prefetch_into_user_message(
+        user_message, prefetch_context
+    )
 
     # ── Load recent history ────────────────────────────────────────────────
     messages = await _load_messages(db, session.id, window=_CONTEXT_WINDOW * 2)

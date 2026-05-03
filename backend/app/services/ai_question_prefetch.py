@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import logging
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, List
+from typing import Any, List, Optional
 
-from sqlalchemy import desc, or_, select
+from sqlalchemy import String, cast, desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 try:
@@ -20,8 +20,11 @@ try:
 except ImportError:  # pragma: no cover - Python <3.9 fallback
     from backports.zoneinfo import ZoneInfo  # type: ignore
 
+from app.middleware.audit import create_audit_log
 from app.models.culture_result import CultureResult
 from app.models.medication import Medication
+from app.models.pharmacy_advice import PharmacyAdvice
+from app.models.user import User
 
 logger = logging.getLogger("chaticu")
 
@@ -94,6 +97,40 @@ _MED_CHANGE_INTENT_KEYWORDS = (
     "三天",
 )
 
+_ADVICE_INTENT_KEYWORDS = (
+    "pharmacy advice",
+    "pharmacist advice",
+    "advice history",
+    "recommendation history",
+    "藥師建議",
+    "藥事建議",
+    "用藥建議",
+    "建議紀錄",
+    "歷史紀錄",
+    "之前建議",
+    "之前給",
+    "給過",
+    "寫過",
+    "寫在哪",
+    "哪一床",
+    "哪床",
+    "哪裡可以看",
+    "我今天寫",
+    "我之前",
+)
+
+_ADVICE_CROSS_PATIENT_KEYWORDS = (
+    "哪一床",
+    "哪床",
+    "哪個床",
+    "哪裡",
+    "寫在哪",
+    "我今天寫",
+    "我之前",
+    "給過",
+    "寫過",
+)
+
 
 def should_prefetch_cultures(message: str) -> bool:
     text = (message or "").lower()
@@ -103,6 +140,11 @@ def should_prefetch_cultures(message: str) -> bool:
 def should_prefetch_medication_changes(message: str) -> bool:
     text = (message or "").lower()
     return any(keyword in text for keyword in _MED_CHANGE_INTENT_KEYWORDS)
+
+
+def should_prefetch_pharmacy_advice(message: str) -> bool:
+    text = (message or "").lower()
+    return any(keyword in text for keyword in _ADVICE_INTENT_KEYWORDS)
 
 
 def _fmt_dt(value: Any) -> str:
@@ -233,14 +275,20 @@ def format_culture_context(cultures: List[CultureResult], *, days: int = 14) -> 
 
 async def build_question_prefetch_context(
     db: AsyncSession,
-    patient_id: str,
+    patient_id: Optional[str],
     message: str,
+    *,
+    user: Optional[User] = None,
+    ip: Optional[str] = None,
 ) -> str:
-    if not patient_id:
+    wants_cultures = should_prefetch_cultures(message)
+    wants_med_changes = should_prefetch_medication_changes(message)
+    wants_advice = should_prefetch_pharmacy_advice(message)
+    if not patient_id and not wants_advice:
         return ""
 
     blocks = []
-    if should_prefetch_cultures(message):
+    if patient_id and wants_cultures:
         try:
             cultures = await get_recent_cultures(db, patient_id)
             blocks.append(format_culture_context(cultures))
@@ -255,7 +303,7 @@ async def build_question_prefetch_context(
                 "狀態: error（讀取 culture_results 失敗）"
             )
 
-    if should_prefetch_medication_changes(message):
+    if patient_id and wants_med_changes:
         try:
             changes = await get_recent_medication_changes(db, patient_id)
             blocks.append(format_medication_changes_context(changes))
@@ -269,6 +317,46 @@ async def build_question_prefetch_context(
                 "【最近72小時用藥變更】\n"
                 "狀態: error（讀取 medications 變更失敗）"
             )
+
+    if wants_advice:
+        if user is None or user.role not in {"admin", "pharmacist"}:
+            blocks.append(format_pharmacy_advice_context([], denied=True))
+        else:
+            try:
+                records = await search_pharmacy_advice_history(
+                    db,
+                    user,
+                    message,
+                    patient_id=patient_id,
+                )
+                blocks.append(format_pharmacy_advice_context(records))
+                await create_audit_log(
+                    db,
+                    user_id=user.id,
+                    user_name=user.name,
+                    role=user.role,
+                    action="ai_chat_pharmacy_advice_history_search",
+                    target=patient_id,
+                    status="success",
+                    ip=ip,
+                    details={
+                        "result_count": len(records),
+                        "scoped_to_patient": _should_scope_advice_to_patient(
+                            message,
+                            patient_id,
+                        ),
+                    },
+                )
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning(
+                    "[CHAT][PREFETCH] pharmacy-advice search failed user=%s: %s",
+                    getattr(user, "id", None),
+                    exc,
+                )
+                blocks.append(
+                    "【藥師建議歷史 最近30天】\n"
+                    "狀態: error（讀取 PharmacyAdvice 失敗）"
+                )
 
     return "\n\n".join(blocks)
 
@@ -379,4 +467,127 @@ def format_medication_changes_context(
         lines.extend(f"- {_fmt_medication_line(row)}" for row in shown)
         if len(rows) > 5:
             lines.append(f"- 另有 {len(rows) - 5} 筆未列出")
+    return "\n".join(lines)
+
+
+def _mask_patient_name(name: Optional[str]) -> str:
+    value = (name or "").strip()
+    if not value:
+        return "姓名未列"
+    if len(value) <= 1:
+        return value
+    if len(value) == 2:
+        return value[0] + "○"
+    return value[0] + "○" + value[-1]
+
+
+def _accepted_label(value: Optional[bool]) -> str:
+    if value is True:
+        return "accepted"
+    if value is False:
+        return "rejected"
+    return "pending"
+
+
+def _compact_text(value: Any, limit: int = 160) -> str:
+    text = " ".join(str(value or "").split())
+    if len(text) <= limit:
+        return text
+    return text[:limit] + "..."
+
+
+def _advice_search_terms(message: str) -> List[str]:
+    import re as _re
+
+    text = message or ""
+    terms = []
+    for token in _re.findall(r"\d+-[A-Za-z0-9]+|[A-Za-z][A-Za-z0-9/+_.-]{2,}", text):
+        lowered = token.lower()
+        if lowered in {"advice", "history", "recommendation", "pharmacy", "pharmacist"}:
+            continue
+        if lowered not in {term.lower() for term in terms}:
+            terms.append(token[:80])
+    return terms[:5]
+
+
+def _should_scope_advice_to_patient(message: str, patient_id: Optional[str]) -> bool:
+    if not patient_id:
+        return False
+    text = (message or "").lower()
+    return not any(keyword in text for keyword in _ADVICE_CROSS_PATIENT_KEYWORDS)
+
+
+async def search_pharmacy_advice_history(
+    db: AsyncSession,
+    user: User,
+    message: str,
+    *,
+    patient_id: Optional[str] = None,
+    days: int = 30,
+    limit: int = 10,
+) -> List[PharmacyAdvice]:
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    query = select(PharmacyAdvice).where(
+        PharmacyAdvice.pharmacist_id == user.id,
+        PharmacyAdvice.timestamp >= cutoff,
+    )
+    if _should_scope_advice_to_patient(message, patient_id):
+        query = query.where(PharmacyAdvice.patient_id == patient_id)
+
+    term_conditions = []
+    for term in _advice_search_terms(message):
+        pattern = f"%{term}%"
+        term_conditions.append(
+            or_(
+                PharmacyAdvice.content.ilike(pattern),
+                PharmacyAdvice.bed_number.ilike(pattern),
+                PharmacyAdvice.patient_name.ilike(pattern),
+                PharmacyAdvice.advice_code.ilike(pattern),
+                PharmacyAdvice.advice_label.ilike(pattern),
+                PharmacyAdvice.category.ilike(pattern),
+                cast(PharmacyAdvice.linked_medications, String).ilike(pattern),
+            )
+        )
+    if term_conditions:
+        query = query.where(or_(*term_conditions))
+
+    result = await db.execute(
+        query.order_by(PharmacyAdvice.timestamp.desc()).limit(limit)
+    )
+    return list(result.scalars().all())
+
+
+def format_pharmacy_advice_context(
+    records: List[PharmacyAdvice],
+    *,
+    days: int = 30,
+    denied: bool = False,
+) -> str:
+    lines = [f"【藥師建議歷史 最近{days}天】"]
+    if denied:
+        lines.append("狀態: denied（僅 admin/pharmacist 可查詢藥師建議歷史）")
+        return "\n".join(lines)
+    if not records:
+        lines.append(f"狀態: no_data（未查到自己最近{days}天的 PharmacyAdvice）")
+        lines.append("可回看: /pharmacy/advice-statistics")
+        return "\n".join(lines)
+
+    lines.append(
+        f"狀態: ok（{len(records)} 筆；範圍為目前登入者自己建立的紀錄）"
+    )
+    lines.append("可回看: /pharmacy/advice-statistics")
+    for record in records[:10]:
+        timestamp = _fmt_dt(getattr(record, "timestamp", None))
+        bed = getattr(record, "bed_number", None) or "床號未列"
+        patient_name = _mask_patient_name(getattr(record, "patient_name", None))
+        code = getattr(record, "advice_code", None) or "code 未列"
+        label = getattr(record, "advice_label", None) or "label 未列"
+        linked = ", ".join(str(m) for m in (record.linked_medications or []) if m)
+        linked_text = f" | linked: {linked[:120]}" if linked else ""
+        accepted = _accepted_label(getattr(record, "accepted", None))
+        lines.append(
+            f"- {timestamp} | {bed} {patient_name} | {code} {label} | "
+            f"{accepted}{linked_text} | id {record.id}"
+        )
+        lines.append(f"  內容: {_compact_text(record.content)}")
     return "\n".join(lines)
