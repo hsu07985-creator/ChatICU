@@ -12,12 +12,12 @@ test.describe("T27 Extended Journeys", () => {
   test("@t27-extended login -> team chat -> logout", async ({ page }) => {
     console.log("[INTG][E2E] Starting extended journey: team chat logout");
     await loginAndWait(page, { username, password });
-    await page.getByRole("link", { name: "團隊聊天室" }).click();
+    await page.getByRole("link", { name: /團隊訊息|Team Messages/ }).click();
     await expect(page).toHaveURL(/\/chat$/);
-    await expect(page.getByRole("heading", { name: "團隊聊天室" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /團隊訊息|Team Messages/ })).toBeVisible();
 
     const toggle = page.getByRole("button", {
-      name: /展開側邊欄|收起側邊欄|Toggle Sidebar/,
+      name: /展開側邊欄|收起側邊欄|Expand sidebar|Collapse sidebar|Toggle Sidebar/,
     });
     if (await toggle.isVisible().catch(() => false)) {
       await toggle.click();
@@ -341,7 +341,7 @@ test.describe("T27 Extended Journeys", () => {
 
     await page.goto("/chat");
     await expect(page).toHaveURL(/\/chat$/);
-    await expect(page.getByRole("heading", { name: "團隊聊天室" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /團隊訊息|Team Messages/ })).toBeVisible();
 
     const marker = `E2E_TEAM_ORDER_${Date.now()}`;
     const firstMessage = `${marker}_A`;
@@ -359,7 +359,7 @@ test.describe("T27 Extended Journeys", () => {
     // Reload to verify ordering from backend list API (not only local append state).
     await page.reload();
     await expect(page).toHaveURL(/\/chat$/);
-    await expect(page.getByRole("heading", { name: "團隊聊天室" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /團隊訊息|Team Messages/ })).toBeVisible();
 
     const order = await page.getByTestId("team-chat-message").evaluateAll(
       (nodes, [first, second]) => {

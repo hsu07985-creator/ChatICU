@@ -1,7 +1,9 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ErrorDisplay } from './ui/state-display';
 import { Button } from './ui/button';
 import { RefreshCw, Home } from 'lucide-react';
+import i18n from '../i18n/config';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -13,10 +15,9 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-/**
- * ErrorBoundary 組件
- * 捕獲子組件中的 JavaScript 錯誤並顯示備用 UI
- */
+// Class-based ErrorBoundary cannot use hooks; render() reads i18n.t directly.
+// Translations refresh on next render (e.g. when language toggle re-renders
+// the parent tree).
 export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
@@ -28,7 +29,6 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // 可以在這裡記錄錯誤到錯誤報告服務
     console.error('[ErrorBoundary] Caught error:', error);
     console.error('[ErrorBoundary] Error info:', errorInfo);
   }
@@ -48,21 +48,23 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
         return this.props.fallback;
       }
 
+      const t = (key: string) => i18n.t(key, { ns: 'errors' });
+
       return (
         <div className="min-h-[400px] flex flex-col items-center justify-center p-8">
           <ErrorDisplay
             type="generic"
-            title="發生錯誤"
-            message={this.state.error?.message || '頁面發生未預期的錯誤'}
+            title={t('boundary.title')}
+            message={this.state.error?.message || t('boundary.fallbackMessage')}
           />
           <div className="flex gap-3 mt-6">
             <Button onClick={this.handleRetry} className="bg-brand hover:bg-brand-hover">
               <RefreshCw className="mr-2 h-4 w-4" />
-              重新載入
+              {t('boundary.reload')}
             </Button>
             <Button onClick={this.handleGoHome} variant="outline">
               <Home className="mr-2 h-4 w-4" />
-              返回首頁
+              {t('boundary.goHome')}
             </Button>
           </div>
         </div>
@@ -73,22 +75,21 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 }
 
-/**
- * 用於包裝單一區塊的 ErrorBoundary
- */
-export function SectionErrorBoundary({ 
-  children, 
-  sectionName = '區塊' 
-}: { 
-  children: React.ReactNode; 
+export function SectionErrorBoundary({
+  children,
+  sectionName,
+}: {
+  children: React.ReactNode;
   sectionName?: string;
 }) {
+  const { t } = useTranslation('errors');
+  const name = sectionName ?? t('boundary.sectionDefaultName');
   return (
     <ErrorBoundary
       fallback={
         <div className="p-4 border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 rounded-lg">
           <p className="text-red-600 dark:text-red-400 text-center">
-            {sectionName}載入失敗，請重新整理頁面
+            {t('boundary.sectionFailed', { section: name })}
           </p>
         </div>
       }
@@ -97,4 +98,3 @@ export function SectionErrorBoundary({
     </ErrorBoundary>
   );
 }
-
