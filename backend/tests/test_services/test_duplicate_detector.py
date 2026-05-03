@@ -386,6 +386,33 @@ class TestOverrides:
         alerts = await detector.analyze(meds, context="outpatient")
         assert alerts == []
 
+    def test_all_pairs_whitelisted_helper(self, detector):
+        """P0-2 regression: whitelist suppression must require ALL pairs to
+        match, not just any one. Single-pair match used to wipe whole alerts.
+        """
+        from collections import namedtuple
+        Rule = namedtuple("Rule", ["pattern_1", "pattern_2"])
+        rules = [Rule("C03CA*", "C03DA*")]  # Furosemide+Spironolactone
+
+        # Only one pair (Furo+Spiro) is whitelisted; ACEI is unrelated.
+        # Old _any_pair_matches would return True → whole 3-member alert
+        # dropped. _all_pairs_whitelisted must return False here.
+        atcs_three = ["C03CA01", "C03DA01", "C09AA02"]
+        assert detector._all_pairs_whitelisted(atcs_three, rules) is False
+        assert detector._any_pair_matches(atcs_three, rules) is True  # for contrast
+
+        # 2-member alert where the pair IS whitelisted → suppressible.
+        atcs_two = ["C03CA01", "C03DA01"]
+        assert detector._all_pairs_whitelisted(atcs_two, rules) is True
+
+        # 2-member alert where the pair is NOT whitelisted → keep.
+        atcs_unrelated = ["C09AA02", "C09CA01"]
+        assert detector._all_pairs_whitelisted(atcs_unrelated, rules) is False
+
+        # Edge: <2 members → never suppressible.
+        assert detector._all_pairs_whitelisted([], rules) is False
+        assert detector._all_pairs_whitelisted(["C03CA01"], rules) is False
+
     @pytest.mark.asyncio
     async def test_wildcard_pattern_matches_all_ppis(self, detector):
         """A02BC* must match both omeprazole-family and pantoprazole."""
@@ -458,6 +485,59 @@ class TestEdgeCases:
         assert isinstance(alerts, list)
         if alerts:
             assert alerts[0].level in {"critical", "high", "moderate", "low", "info"}
+
+    @pytest.mark.asyncio
+    async def test_chronic_orm_med_with_no_last_admin_still_alerts(
+        self, mock_session
+    ):
+        """P0-1 regression: ORM Medication has no last_admin_at column. The
+        previous implementation fell back to ``updated_at`` and silently
+        dropped chronic active meds whose row hadn't been HIS-synced in 48h
+        (chronic ACEI + ARB → 0 alerts on a real RAAS-blockade patient).
+
+        Now: when last_admin_at is None, _is_inactive returns False and the
+        med stays in the dedup pool. False positive alerts are far safer
+        than silent misses for clinical safety."""
+        from app.services.duplicate_detector import (
+            DuplicateDetector,
+            _is_inactive,
+            _normalize_med,
+        )
+
+        # Simulate ORM Medication that lacks last_admin_at and has stale
+        # updated_at (>48h old).
+        class _OrmMedStub:
+            id = "m_chronic"
+            generic_name = "Lisinopril"
+            atc_code = "C09AA03"
+            route = "PO"
+            prn = False
+            updated_at = datetime(2026, 4, 1, tzinfo=timezone.utc)  # 21 days ago
+
+        normalized = _normalize_med(_OrmMedStub())
+        assert normalized["last_admin_at"] is None, (
+            "ORM med with stale updated_at must NOT inherit it as last_admin_at"
+        )
+
+        ref = datetime(2026, 4, 22, tzinfo=timezone.utc)
+        assert _is_inactive(normalized, ref) is False, (
+            "Med with no last_admin_at must be treated as active (conservative)"
+        )
+
+        # End-to-end: two chronic RAAS-blockade meds (ORM-style) must produce
+        # at least one duplicate alert.
+        det = DuplicateDetector(session=mock_session)
+        med_a = dict(normalized, generic_name="Lisinopril", atc_code="C09AA03")
+        med_b = dict(_normalize_med(type("X", (), {
+            "id": "m_arb", "generic_name": "Losartan", "atc_code": "C09CA01",
+            "route": "PO", "prn": False,
+            "updated_at": datetime(2026, 4, 1, tzinfo=timezone.utc),
+        })()), generic_name="Losartan", atc_code="C09CA01")
+        alerts = await det.analyze([med_a, med_b], reference_time=ref)
+        assert any(a.layer in ("L3", "L4") or a.level in ("high", "critical")
+                   for a in alerts), (
+            f"chronic ACEI+ARB pair must surface a duplicate alert; got {alerts}"
+        )
 
     @pytest.mark.asyncio
     async def test_large_medication_list_completes_in_reasonable_time(

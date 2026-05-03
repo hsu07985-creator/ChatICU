@@ -899,8 +899,9 @@ class DuplicateDetector:
                 kept.append(alert)
                 continue
 
-            # Whitelist → drop
-            if self._any_pair_matches(atcs, self._whitelist_rules):
+            # Whitelist → drop only if EVERY pair in the alert is whitelisted
+            # (P0-2). Single-pair match is unsafe for multi-member L4 alerts.
+            if self._all_pairs_whitelisted(atcs, self._whitelist_rules):
                 logger.debug(
                     "duplicate_detector: whitelist suppresses alert %s",
                     alert.fingerprint,
@@ -1410,6 +1411,34 @@ class DuplicateDetector:
                         return True
         return False
 
+    def _all_pairs_whitelisted(
+        self, atcs: List[str], rules: List[Any]
+    ) -> bool:
+        """Return True only when EVERY unordered ATC pair in ``atcs`` is
+        whitelisted by some rule.
+
+        P0-2: previously ``_any_pair_matches`` was used for whitelist
+        suppression in ``_apply_overrides``; for a multi-member L4 alert,
+        a single whitelisted pair (e.g. an IV-solution self-pair, or
+        Furo+Spironolactone) would suppress the entire alert — including
+        unrelated bleeding-risk / RAAS-blockade members in the same group.
+        Critical safety risk: a CSV addition could silently kill a real
+        alert. The conservative rule "drop only if ALL pairs whitelisted"
+        is equivalent for 2-member alerts (the most common case) and
+        protects multi-member alerts.
+        """
+        if len(atcs) < 2:
+            return False
+        for i in range(len(atcs)):
+            for j in range(i + 1, len(atcs)):
+                a, b = atcs[i], atcs[j]
+                if not any(
+                    _pair_matches(a, b, rule.pattern_1, rule.pattern_2)
+                    for rule in rules
+                ):
+                    return False
+        return True
+
     def _find_upgrade(
         self, atcs: List[str]
     ) -> Optional[Tuple[str, str, Optional[str]]]:
@@ -1545,12 +1574,20 @@ def _normalize_med(m: Any) -> dict:
         atc = getattr(m, "atc_code", None)
         route = getattr(m, "route", None)
         is_prn = bool(getattr(m, "prn", False))
-        # ORM Medication has no explicit last_admin_at; use updated_at as
-        # coarse proxy when available (HIS feeds drive updated_at).
-        last_admin = (
-            getattr(m, "last_admin_at", None)
-            or getattr(m, "updated_at", None)
-        )
+        # P0-1 fix: ORM Medication has no last_admin_at column. The previous
+        # `or getattr(m, "updated_at", None)` fallback silently dropped chronic
+        # active meds whose row hadn't been HIS-synced in 48h (chronic ACEI +
+        # ARB became invisible to the duplicate detector → 0 alerts on a
+        # genuine RAAS-blockade patient).
+        #
+        # Conservative behaviour: leave last_admin_at None when no real
+        # admin-time field exists. _is_inactive() already returns False on
+        # None ("we cannot prove it is inactive, keep it"), so chronic meds
+        # stay in the dedup pool. Cost: a truly inactive med whose row
+        # somehow still has status='active' would not be filtered — but the
+        # status filter at the cache layer already gates that, and a false
+        # positive alert is far safer than a silent miss.
+        last_admin = getattr(m, "last_admin_at", None)
 
     return {
         "medication_id": str(med_id) if med_id is not None else "",
