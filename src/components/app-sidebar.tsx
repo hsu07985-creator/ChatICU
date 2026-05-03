@@ -98,7 +98,7 @@ export function AppSidebar() {
 
   // 4) 溝通（所有角色可見）
   const communicationItems: MenuItem[] = [
-    { title: 'AI 問答', url: '/ai-chat', icon: Sparkles },
+    { title: 'AI 臨床夥伴', url: '/ai-chat', icon: Sparkles },
     {
       title: '團隊聊天室',
       url: '/chat',

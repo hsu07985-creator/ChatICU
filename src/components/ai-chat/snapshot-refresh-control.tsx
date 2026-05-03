@@ -3,7 +3,7 @@ import { Loader2, RotateCw } from 'lucide-react';
 /**
  * F2: snapshot freshness pill + manual refresh button. Originally lived
  * inline in src/pages/ai-chat.tsx; extracted in F-PARITY (2026-05-03) so
- * the patient-detail page's 對話助手 tab can render the same control —
+ * the patient-detail page's AI 臨床夥伴 tab can render the same control —
  * pharmacists usually enter chat from there, not from the sidebar.
  *
  * Stays hidden when there is no patient context yet (no snapshot to show

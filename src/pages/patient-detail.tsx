@@ -1569,7 +1569,7 @@ export function PatientDetailPage() {
         <TabsList className="grid w-full grid-cols-6 h-[44px] bg-slate-50 dark:bg-slate-800 border border-border gap-0.5 p-0.5">
           <TabsTrigger value="chat" className="text-xs font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
             <MessageSquare className="mr-1.5 h-4 w-4" />
-            對話助手
+            AI 臨床夥伴
           </TabsTrigger>
           <TabsTrigger value="messages" className="text-xs font-medium data-[state=active]:bg-brand data-[state=active]:text-white relative rounded-md">
             <MessagesSquare className="mr-1.5 h-4 w-4" />
@@ -1598,7 +1598,7 @@ export function PatientDetailPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* 對話助手 — 已抽出至 PatientChatTab (Phase 3.2) */}
+        {/* AI 臨床夥伴 — 已抽出至 PatientChatTab (Phase 3.2) */}
         <PatientChatTab
           chatSessions={chatSessions}
           chatSessionsLoading={chatSessionsLoading}
