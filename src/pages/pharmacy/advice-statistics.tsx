@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -118,6 +119,16 @@ export function PharmacyAdviceStatisticsPage() {
 
   // ── 搜尋 ──
   const [searchTerm, setSearchTerm] = useState('');
+
+  // F3: deep-link target from /ai-chat advice chips. When the URL carries
+  // ?advice_id=adv_xxx we highlight + scroll to that record card the first
+  // time it shows up in the rendered list. Cleared after first scroll so
+  // the highlight doesn't keep re-firing on every records refresh.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const targetAdviceId = searchParams.get('advice_id');
+  const [highlightedAdviceId, setHighlightedAdviceId] = useState<string | null>(targetAdviceId);
+  const highlightHandledRef = useRef(false);
+  const adviceCardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // 第一次載入用：當月若無資料則 fallback 到「最新一筆所在月份」
   const initialFallbackTriedRef = useRef(false);
@@ -354,6 +365,58 @@ export function PharmacyAdviceStatisticsPage() {
   }, [records, searchTerm]);
 
   const isTruncated = records.length === 500 && recordsTotal > 500;
+
+  // F3 step 1/3: when arriving from an /ai-chat advice chip with ?month=YYYY-MM,
+  // swap the month selector once so the records query loads the right window.
+  // Guarded by initialFallbackTriedRef-style sentinel so user month picks
+  // afterwards aren't fought.
+  const monthFromUrlAppliedRef = useRef(false);
+  useEffect(() => {
+    if (monthFromUrlAppliedRef.current) return;
+    const monthParam = searchParams.get('month');
+    if (monthParam && /^\d{4}-\d{2}$/.test(monthParam) && monthParam !== selectedMonth) {
+      setSelectedMonth(monthParam);
+    }
+    monthFromUrlAppliedRef.current = true;
+  }, [searchParams, selectedMonth]);
+
+  // F3 step 2/3: once records arrive that contain the target advice, scroll to
+  // it and flash a highlight ring. Clear searchTerm in case the user typed
+  // something that filters the target out.
+  useEffect(() => {
+    if (!targetAdviceId || highlightHandledRef.current || recordsLoading) return;
+    const found = records.some((r) => r.id === targetAdviceId);
+    if (!found) {
+      // Records loaded but target not present in this month's window. Tell
+      // the user instead of silently doing nothing — the chip is supposed
+      // to be a deep link, not a no-op.
+      if (records.length > 0 || recordsTotal === 0) {
+        toast.error('找不到該筆藥師建議，請手動切換月份或檢查網址');
+        highlightHandledRef.current = true;
+        // Drop the params so a future refresh doesn't keep re-toasting.
+        const next = new URLSearchParams(searchParams);
+        next.delete('advice_id');
+        next.delete('month');
+        setSearchParams(next, { replace: true });
+      }
+      return;
+    }
+    if (searchTerm) setSearchTerm('');
+    // Defer to next frame so the card has its ref attached after re-render.
+    const raf = requestAnimationFrame(() => {
+      const node = adviceCardRefs.current.get(targetAdviceId);
+      node?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Drop the URL params so back/forward doesn't keep re-scrolling.
+      const next = new URLSearchParams(searchParams);
+      next.delete('advice_id');
+      next.delete('month');
+      setSearchParams(next, { replace: true });
+      // Fade highlight after 4s so the card returns to normal styling.
+      window.setTimeout(() => setHighlightedAdviceId(null), 4000);
+      highlightHandledRef.current = true;
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [targetAdviceId, records, recordsLoading, recordsTotal, searchTerm, searchParams, setSearchParams]);
 
   // ── 統計 ──
   const categoryStats: Record<string, number> = {};
@@ -863,10 +926,19 @@ export function PharmacyAdviceStatisticsPage() {
                     : isRejected
                       ? 'bg-red-50/60 dark:bg-red-900/20 border-red-200 dark:border-red-800'
                       : 'bg-white dark:bg-slate-900';
+                  const isHighlighted = highlightedAdviceId === record.id;
                   return (
                     <div
                       key={record.id}
-                      className={`border-l-4 rounded-lg p-3 hover:shadow-md transition-shadow ${cardBg}`}
+                      ref={(el) => {
+                        // F3: track DOM nodes so the deep-link effect can
+                        // scroll to the target without an O(N) querySelector.
+                        if (el) adviceCardRefs.current.set(record.id, el);
+                        else adviceCardRefs.current.delete(record.id);
+                      }}
+                      className={`border-l-4 rounded-lg p-3 hover:shadow-md transition-shadow ${cardBg}${
+                        isHighlighted ? ' ring-2 ring-amber-400 ring-offset-2 dark:ring-offset-slate-900' : ''
+                      }`}
                       style={{ borderLeftColor: PHARMACY_ADVICE_CATEGORY_COLORS[record.category] || '#999' }}
                     >
                       <div className="flex items-start justify-between mb-1.5 gap-2">

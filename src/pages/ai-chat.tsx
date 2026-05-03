@@ -560,6 +560,10 @@ export function AiChatPage() {
         graphMeta: response.message.graphMeta || null,
         feedback: null,
         timestamp: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
+        // F3: deep-link refs (currently pharmacy advice). Live-only — gone
+        // after page reload, but valuable in the moment for "回看那一床建議"
+        // workflows. ChatMessageThread renders chips beneath the bubble.
+        adviceRefs: response.prefetchRefs?.adviceRefs ?? [],
       };
 
       setChatMessages([...messagesWithUser, assistantMsg]);

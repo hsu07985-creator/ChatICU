@@ -1,4 +1,5 @@
 import type { RefObject } from 'react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowDown,
@@ -7,13 +8,14 @@ import {
   ChevronRight,
   Clock,
   Copy,
+  ExternalLink,
   MessageSquare,
   ThumbsDown,
   ThumbsUp,
 } from 'lucide-react';
 import { AiMarkdown, SafetyWarnings } from '../ui/ai-markdown';
 import { copyToClipboard } from '../../lib/clipboard-utils';
-import type { Citation as AiCitation, DataFreshness } from '../../lib/api/ai';
+import type { AdviceRef, Citation as AiCitation, DataFreshness } from '../../lib/api/ai';
 import type { SessionChatMessage } from '../../hooks/use-chat-sessions';
 import { DrugInteractionBadges } from './drug-interaction-badges';
 import { ExpertReviewWarning } from './expert-review-warning';
@@ -144,6 +146,9 @@ export function ChatMessageThread({
                           <AiMarkdown content={displayContent} className="text-sm leading-relaxed text-[#1F2937] dark:text-slate-200" />
                           {msg.requiresExpertReview && (
                             <ExpertReviewWarning show={msg.requiresExpertReview} />
+                          )}
+                          {!isStreamingThis && msg.role === 'assistant' && msg.adviceRefs && msg.adviceRefs.length > 0 && (
+                            <AdviceRefChips refs={msg.adviceRefs} />
                           )}
                         </>
                       )}
@@ -345,4 +350,77 @@ export function ChatMessageThread({
       )}
     </div>
   );
+}
+
+/**
+ * F3: deep-link chip group rendered below an assistant bubble whenever the
+ * backend's question-prefetch found pharmacy advice records relevant to
+ * this turn. Each chip jumps to /pharmacy/advice-statistics?advice_id=...
+ * which highlights and scrolls to the record card.
+ *
+ * Names are already masked server-side; the chip shows bed + date + label
+ * only so a pharmacist scanning the chat doesn't accidentally read a
+ * patient name from a cross-bed search result.
+ */
+function AdviceRefChips({ refs }: { refs: AdviceRef[] }) {
+  // Cap visible chips to keep the bubble scannable; the rest fold under "+N"
+  // (no expansion — the user can re-ask if they need them all).
+  const VISIBLE_LIMIT = 5;
+  const visible = refs.slice(0, VISIBLE_LIMIT);
+  const overflow = refs.length - visible.length;
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-dashed border-[#E5E7EB] dark:border-slate-700 pt-1.5">
+      <span className="text-[11px] text-[#9CA3AF]">本輪查到藥師建議：</span>
+      {visible.map((ref) => {
+        const bed = ref.bedNumber || '床號未列';
+        const dateLabel = formatAdviceChipDate(ref.timestamp);
+        const codeLabel = ref.adviceCode || ref.adviceLabel || '';
+        const tooltip = [
+          ref.patientNameMasked,
+          ref.adviceLabel,
+          ref.timestamp ? new Date(ref.timestamp).toLocaleString('zh-TW') : null,
+        ].filter(Boolean).join(' · ');
+        // Pass both advice_id and month so the target page can swap month
+        // before scrolling — without it, an advice from last month never
+        // appears in the current-month list and the highlight silently
+        // fails.
+        const monthQuery = monthFromIso(ref.timestamp);
+        const href = monthQuery
+          ? `/pharmacy/advice-statistics?advice_id=${encodeURIComponent(ref.id)}&month=${monthQuery}`
+          : `/pharmacy/advice-statistics?advice_id=${encodeURIComponent(ref.id)}`;
+        return (
+          <Link
+            key={ref.id}
+            to={href}
+            title={tooltip || ref.id}
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-white dark:bg-slate-800 px-2 py-0.5 text-[11px] text-[#374151] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+          >
+            <span className="font-medium">{bed}</span>
+            {dateLabel && <span className="text-[#9CA3AF]">{dateLabel}</span>}
+            {codeLabel && <span className="text-[#6B7280]">· {codeLabel}</span>}
+            <ExternalLink className="h-2.5 w-2.5 text-[#9CA3AF]" />
+          </Link>
+        );
+      })}
+      {overflow > 0 && (
+        <span className="text-[11px] text-[#9CA3AF]">+{overflow} 筆</span>
+      )}
+    </div>
+  );
+}
+
+function formatAdviceChipDate(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  // Compact "5/3 14:30" — short enough for a chip, still anchor-able.
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function monthFromIso(iso?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }

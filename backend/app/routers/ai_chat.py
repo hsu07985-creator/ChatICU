@@ -30,7 +30,7 @@ from app.llm import call_llm_stream, TASK_PROMPTS
 from app.middleware.auth import get_current_user
 from app.models.ai_session import AISession, AIMessage
 from app.models.user import User
-from app.services.ai_question_prefetch import build_question_prefetch_context
+from app.services.ai_question_prefetch import build_question_prefetch_with_metadata
 from app.services.patient_acl import assert_patient_chat_access
 from app.services.patient_context_builder import (
     build_clinical_snapshot,
@@ -324,6 +324,7 @@ async def _event_stream(
     db: AsyncSession,
     request: Request,
     timings: Optional[dict] = None,
+    prefetch_meta: Optional[dict] = None,
 ) -> AsyncGenerator[str, None]:
     """
     Generate SSE events from the LLM stream and persist the reply.
@@ -456,7 +457,12 @@ async def _event_stream(
             await db.rollback()
 
     # Send done event — frontend expects ChatResponse shape:
-    # { message: ChatMessage, sessionId: string }
+    # { message: ChatMessage, sessionId: string, prefetchRefs?: {...} }
+    # F3: prefetchRefs surfaces deep-link metadata (currently advice records)
+    # so the chat UI can render clickable chips below the assistant bubble.
+    # Live-only — not persisted to ai_messages, so the chips disappear on
+    # page reload. Persistence is a future enhancement (would need either
+    # a new JSONB column or co-opting suggested_actions).
     now_iso = datetime.now(timezone.utc).isoformat()
     done_payload = {
         "message": {
@@ -475,6 +481,7 @@ async def _event_stream(
             "graphMeta": None,
         },
         "sessionId": session_id,
+        "prefetchRefs": prefetch_meta or {},
     }
     yield f"event: done\ndata: {json.dumps(done_payload, ensure_ascii=False)}\n\n"
 
@@ -603,7 +610,7 @@ async def chat_stream(
     user_message = _maybe_inject_deferred_into_user_message(
         user_message, session.snapshot_metadata
     )
-    prefetch_context = await build_question_prefetch_context(
+    prefetch_context, prefetch_meta = await build_question_prefetch_with_metadata(
         db,
         patient_id,
         body.message,
@@ -652,6 +659,7 @@ async def chat_stream(
             db,
             request,
             timings=timings,
+            prefetch_meta=prefetch_meta,
         ),
         media_type="text/event-stream",
         headers={

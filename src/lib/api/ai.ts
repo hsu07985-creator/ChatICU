@@ -203,9 +203,33 @@ export interface ChatSessionsResponse {
   };
 }
 
+/** F3: deep-link reference to a single PharmacyAdvice record the backend
+ *  prefetched for this turn. Carries enough fields to render a chip
+ *  ("I-01 5/3 14:30 · 腎功能調整") that links to /pharmacy/advice-statistics. */
+export interface AdviceRef {
+  id: string;
+  patientId?: string | null;
+  bedNumber?: string | null;
+  /** Already masked server-side (e.g. "許○生"). Never contains the raw name. */
+  patientNameMasked?: string | null;
+  category?: string | null;
+  adviceCode?: string | null;
+  adviceLabel?: string | null;
+  /** ISO-8601 UTC timestamp; new Date(...) is safe. */
+  timestamp?: string | null;
+}
+
+/** F3: structured prefetch metadata returned with each chat reply. Live-only
+ *  (not persisted on the server), so chips disappear after page reload. */
+export interface PrefetchRefs {
+  adviceRefs?: AdviceRef[];
+}
+
 export interface ChatResponse {
   message: ChatMessage;
   sessionId: string;
+  /** F3: present on the SSE done event; empty {} when no prefetch fired. */
+  prefetchRefs?: PrefetchRefs;
 }
 
 export interface StreamChatOptions {
@@ -383,6 +407,7 @@ export async function streamChatMessage(options: StreamChatOptions): Promise<voi
           options.onComplete({
             message: payload.message,
             sessionId: payload.sessionId,
+            prefetchRefs: payload.prefetchRefs ?? undefined,
           });
           completed = true;
           continue;

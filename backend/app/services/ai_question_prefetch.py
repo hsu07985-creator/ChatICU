@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import String, cast, desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -307,6 +307,29 @@ def format_culture_context(cultures: List[CultureResult], *, days: int = 14) -> 
     return "\n".join(lines)
 
 
+def _advice_record_to_ref(record: PharmacyAdvice) -> Dict[str, Any]:
+    """F3: trim a PharmacyAdvice ORM row down to the fields the AI chat
+    deep-link chip needs. Patient name is masked here (not raw) so the
+    frontend never sees the full name from a cross-patient search.
+    """
+    timestamp = getattr(record, "timestamp", None)
+    timestamp_iso = (
+        timestamp.isoformat() if isinstance(timestamp, datetime) else None
+    )
+    return {
+        "id": str(record.id),
+        "patientId": getattr(record, "patient_id", None),
+        "bedNumber": getattr(record, "bed_number", None) or None,
+        "patientNameMasked": _mask_patient_name(
+            getattr(record, "patient_name", None)
+        ),
+        "category": getattr(record, "category", None) or None,
+        "adviceCode": getattr(record, "advice_code", None) or None,
+        "adviceLabel": getattr(record, "advice_label", None) or None,
+        "timestamp": timestamp_iso,
+    }
+
+
 async def build_question_prefetch_context(
     db: AsyncSession,
     patient_id: Optional[str],
@@ -315,12 +338,44 @@ async def build_question_prefetch_context(
     user: Optional[User] = None,
     ip: Optional[str] = None,
 ) -> str:
+    """Backwards-compatible wrapper that returns just the LLM-facing text.
+
+    Prefer :func:`build_question_prefetch_with_metadata` for new callers
+    that want to surface deep-link chips in the UI.
+    """
+    text, _ = await build_question_prefetch_with_metadata(
+        db, patient_id, message, user=user, ip=ip,
+    )
+    return text
+
+
+async def build_question_prefetch_with_metadata(
+    db: AsyncSession,
+    patient_id: Optional[str],
+    message: str,
+    *,
+    user: Optional[User] = None,
+    ip: Optional[str] = None,
+) -> Tuple[str, Dict[str, Any]]:
+    """F3: same as build_question_prefetch_context but also returns a
+    structured ``metadata`` dict carrying frontend-facing references.
+
+    Returns ``(llm_facing_text, metadata)`` where metadata currently
+    contains:
+      - ``adviceRefs``: list of trimmed PharmacyAdvice rows the prefetch
+        actually found, suitable for rendering deep-link chips. Each
+        entry has ``id``/``bedNumber``/``patientNameMasked``/``category``/
+        ``adviceCode``/``adviceLabel``/``timestamp`` (ISO-8601 UTC).
+        Empty when prefetch wasn't triggered, ACL denied, or no records
+        were found.
+    """
     wants_cultures = should_prefetch_cultures(message)
     wants_med_changes = should_prefetch_medication_changes(message)
     wants_advice = should_prefetch_pharmacy_advice(message)
     wants_reports = should_prefetch_diagnostic_reports(message)
+    metadata: Dict[str, Any] = {"adviceRefs": []}
     if not patient_id and not wants_advice:
-        return ""
+        return "", metadata
 
     blocks = []
     if patient_id and wants_cultures:
@@ -380,6 +435,9 @@ async def build_question_prefetch_context(
                     patient_id=patient_id,
                 )
                 blocks.append(format_pharmacy_advice_context(records))
+                metadata["adviceRefs"] = [
+                    _advice_record_to_ref(r) for r in records
+                ]
                 await create_audit_log(
                     db,
                     user_id=user.id,
@@ -408,7 +466,7 @@ async def build_question_prefetch_context(
                     "狀態: error（讀取 PharmacyAdvice 失敗）"
                 )
 
-    return "\n\n".join(blocks)
+    return "\n\n".join(blocks), metadata
 
 
 async def get_recent_medication_changes(

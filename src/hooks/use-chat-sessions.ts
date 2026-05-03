@@ -3,6 +3,7 @@ import {
   deleteChatSession,
   getChatSession as fetchChatSessionApi,
   getChatSessions as fetchChatSessionsApi,
+  type AdviceRef,
   type ChatMessage as ApiChatMessage,
   type ChatSession as ApiChatSession,
   type Citation as AiCitation,
@@ -25,6 +26,10 @@ export interface SessionChatMessage {
   dataFreshness?: DataFreshness | null;
   graphMeta?: GraphMeta | null;
   feedback?: 'up' | 'down' | null;
+  /** F3: live-only deep-link references prefetched for this turn (not
+   *  persisted server-side). Empty/undefined when reload reads from DB
+   *  or when the question didn't trigger an advice prefetch. */
+  adviceRefs?: AdviceRef[];
 }
 
 export interface SessionListItem {

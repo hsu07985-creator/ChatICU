@@ -13,6 +13,7 @@ from app.models.pharmacy_advice import PharmacyAdvice
 from app.models.user import User
 from app.services.ai_question_prefetch import (
     build_question_prefetch_context,
+    build_question_prefetch_with_metadata,
     format_culture_context,
     format_diagnostic_reports_context,
     format_medication_changes_context,
@@ -454,3 +455,111 @@ async def test_build_question_prefetch_context_skips_unrelated_question(seeded_d
     )
 
     assert text == ""
+
+
+# F3: build_question_prefetch_with_metadata returns deep-link references
+
+
+@pytest.mark.asyncio
+async def test_prefetch_metadata_carries_advice_refs_for_pharmacist(seeded_db):
+    seeded_db.add(
+        PharmacyAdvice(
+            id="adv_meta_a",
+            patient_id="pat_001",
+            patient_name="許先生",
+            bed_number="I-1",
+            pharmacist_id="usr_test",
+            pharmacist_name="Test Doctor",
+            advice_code="2-L",
+            advice_label="腎功能調整",
+            category="2. 用藥安全",
+            content="Vancomycin 建議依腎功能調整",
+            linked_medications=["Vancomycin"],
+            timestamp=datetime.now(timezone.utc),
+        )
+    )
+    await seeded_db.commit()
+
+    text, meta = await build_question_prefetch_with_metadata(
+        seeded_db,
+        None,
+        "我之前給過 vancomycin 建議在哪一床？",
+        user=_user("pharmacist", "usr_test"),
+    )
+
+    assert "【藥師建議歷史 最近30天】" in text
+    refs = meta["adviceRefs"]
+    assert len(refs) == 1
+    ref = refs[0]
+    assert ref["id"] == "adv_meta_a"
+    assert ref["bedNumber"] == "I-1"
+    # Mask matches the same _mask_patient_name the LLM-facing text uses,
+    # so the chip never exposes a name the LLM section already hid.
+    assert ref["patientNameMasked"] == "許○生"
+    assert ref["adviceCode"] == "2-L"
+    assert ref["adviceLabel"] == "腎功能調整"
+    # ISO-8601 timestamp — frontend can render via Date directly. SQLite
+    # in tests strips the TZ suffix that PostgreSQL preserves; assert the
+    # core ISO shape rather than the TZ marker so the test stays portable.
+    assert ref["timestamp"] is not None
+    datetime.fromisoformat(ref["timestamp"].replace("Z", "+00:00"))
+
+
+@pytest.mark.asyncio
+async def test_prefetch_metadata_advice_refs_empty_when_denied(seeded_db):
+    """A nurse asking for advice history must get denied AND no refs leaked."""
+    seeded_db.add(
+        PharmacyAdvice(
+            id="adv_meta_denied",
+            patient_id="pat_001",
+            patient_name="許先生",
+            bed_number="I-1",
+            pharmacist_id="usr_other",
+            pharmacist_name="Other Pharm",
+            advice_code="2-L",
+            advice_label="腎功能調整",
+            category="2. 用藥安全",
+            content="should not surface",
+            timestamp=datetime.now(timezone.utc),
+        )
+    )
+    await seeded_db.commit()
+
+    text, meta = await build_question_prefetch_with_metadata(
+        seeded_db,
+        "pat_001",
+        "我之前給過用藥建議在哪一床？",
+        user=_user("doctor", "usr_doc"),
+    )
+
+    assert "狀態: denied" in text
+    assert meta["adviceRefs"] == []
+
+
+@pytest.mark.asyncio
+async def test_prefetch_metadata_advice_refs_empty_when_not_triggered(seeded_db):
+    """Unrelated questions never populate adviceRefs even if records exist."""
+    seeded_db.add(
+        PharmacyAdvice(
+            id="adv_meta_skip",
+            patient_id="pat_001",
+            patient_name="許先生",
+            bed_number="I-1",
+            pharmacist_id="usr_test",
+            pharmacist_name="Test Pharmacist",
+            advice_code="2-L",
+            advice_label="腎功能調整",
+            category="2. 用藥安全",
+            content="...",
+            timestamp=datetime.now(timezone.utc),
+        )
+    )
+    await seeded_db.commit()
+
+    text, meta = await build_question_prefetch_with_metadata(
+        seeded_db, "pat_001", "今天血鉀多少？",
+        user=_user("pharmacist", "usr_test"),
+    )
+
+    assert text == ""
+    assert meta["adviceRefs"] == []
