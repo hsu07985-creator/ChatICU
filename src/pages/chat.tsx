@@ -200,6 +200,39 @@ export function ChatPage() {
     getTeamUsers().then(setTeamUsers).catch(() => {/* non-fatal — picker just won't populate */});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Realtime polling (TC-W3-T3): refresh the latest page every 30s while
+  // the tab is visible, plus on every visibility re-focus. Skipped while
+  // the user is reading history (not near bottom) so we don't yank
+  // loaded older pages out from under them. In-flight guard via the
+  // existing setLoading state would conflict with the spinner; use a
+  // local ref instead.
+  const pollInFlightRef = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    const tick = async () => {
+      if (cancelled || pollInFlightRef.current) return;
+      if (document.visibilityState !== 'visible') return;
+      // Don't disturb users who scrolled up to read history.
+      if (!isNearBottomRef.current) return;
+      pollInFlightRef.current = true;
+      try {
+        await loadMessages(true);
+      } finally {
+        pollInFlightRef.current = false;
+      }
+    };
+    const intervalId = window.setInterval(tick, 30_000);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void tick();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [loadMessages]);
+
   // unreadOnly 切換 → invalidate mentions cache + refetch
   useEffect(() => {
     chatCache.mentions = null;
