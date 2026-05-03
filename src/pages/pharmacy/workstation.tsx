@@ -334,10 +334,24 @@ export function PharmacyWorkstationPage() {
           } catch (err) {
             console.warn('Evidence 交互作用引擎不可用，改用本地資料庫查詢', err);
             try {
-              const drugSet = new Set(uniqueDrugs.map(d => d.toLowerCase()));
-              const respList = await Promise.all(
-                uniqueDrugs.map((d) => getDrugInteractions({ drugA: d }))
-              );
+              // P1-Ph4: previous fallback only called getDrugInteractions
+              // with drugA per-drug and filtered where both sides happened
+              // to be in the input set. The backend's _pair_on_different_sides
+              // filter requires a paired drugA+drugB so polypharmacy XD pairs
+              // where only one side is the canonical drug name (the other
+              // side comes back as a "stored as group" pair) were silently
+              // dropped. Now we walk every (i,j) and call drugA+drugB so
+              // the backend resolves cross-class XD correctly.
+              const pairCalls: Promise<Awaited<ReturnType<typeof getDrugInteractions>>>[] = [];
+              for (let i = 0; i < uniqueDrugs.length; i++) {
+                for (let j = i + 1; j < uniqueDrugs.length; j++) {
+                  pairCalls.push(getDrugInteractions({
+                    drugA: uniqueDrugs[i],
+                    drugB: uniqueDrugs[j],
+                  }));
+                }
+              }
+              const respList = await Promise.all(pairCalls);
               const all = respList.flatMap((resp) => resp.interactions || []);
               const byId = new Map<string, typeof all[number]>();
               for (const it of all) {
@@ -346,11 +360,6 @@ export function PharmacyWorkstationPage() {
                 if (!byId.has(id)) byId.set(id, it);
               }
               return Array.from(byId.values())
-                .filter((it) => {
-                  const a = String(it.drug1).toLowerCase();
-                  const b = String(it.drug2).toLowerCase();
-                  return drugSet.has(a) && drugSet.has(b);
-                })
                 .map((it) => ({
                   id: it.id,
                   drugA: it.drug1,
@@ -856,9 +865,13 @@ export function PharmacyWorkstationPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+      {/* P1-Ph5: md:grid-cols-5 picks up iPad portrait (768-1023px) so the
+          assessment panel stays beside the patient picker. Without this the
+          layout fell to grid-cols-1 below 1024px and pushed the "執行全面評估"
+          CTA below the fold on every common tablet. */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         {/* 左側：病患與用藥管理 (40%) */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="md:col-span-2 space-y-4">
           {/* 病患選擇 */}
           <Card className="border-brand">
             <CardHeader className="bg-slate-50 dark:bg-slate-800 py-3">

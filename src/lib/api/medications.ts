@@ -249,14 +249,22 @@ export interface DuplicateSummaryResponse {
   // patient ids whose cache missed — backend is warming them in background;
   // caller may refetch after a short delay to pick up populated counts.
   pending: string[];
+  // P1-D5: per-patient flag — true means cache miss, counts are placeholder
+  // zeros (NOT authoritative). UI MUST render a calculating state for these
+  // patients instead of "0 critical" badges.
+  computing: Record<string, boolean>;
 }
 
-// Backend actually wraps per-patient entries under { counts, cached } and
-// returns them under a `results` key (see backend/app/routers/
+// Backend wraps per-patient entries under { counts, cached, computing }
+// and returns them under a `results` key (see backend/app/routers/
 // medication_duplicates.py::duplicate_summary). We normalize here so the
 // callsite only has to reason about {patientId → {critical, high, ...}}.
 interface _RawDuplicateSummaryPayload {
-  results?: Record<string, { counts?: Partial<DuplicateSeverityCounts>; cached?: boolean }>;
+  results?: Record<string, {
+    counts?: Partial<DuplicateSeverityCounts> | null;
+    cached?: boolean;
+    computing?: boolean;
+  }>;
   // Tolerate the simpler shape described in the integration plan in case
   // the backend is upgraded later to flatten the response.
   counts?: Record<string, Partial<DuplicateSeverityCounts>>;
@@ -287,7 +295,7 @@ export async function fetchPharmacyDuplicateSummary(
   context: 'inpatient' | 'outpatient' | 'icu' | 'discharge' = 'inpatient',
 ): Promise<DuplicateSummaryResponse> {
   if (patientIds.length === 0) {
-    return { counts: {}, pending: [] };
+    return { counts: {}, pending: [], computing: {} };
   }
   const response = await apiClient.post<ApiResponse<_RawDuplicateSummaryPayload>>(
     `/pharmacy/duplicate-summary?context=${context}`,
@@ -295,14 +303,17 @@ export async function fetchPharmacyDuplicateSummary(
   );
   const raw = ensureData(response.data, 'API contract');
   const counts: DuplicateCountsByPatient = {};
+  const computing: Record<string, boolean> = {};
 
   if (raw.results) {
     for (const [pid, entry] of Object.entries(raw.results)) {
-      counts[pid] = _normalizeCounts(entry?.counts);
+      counts[pid] = _normalizeCounts(entry?.counts ?? undefined);
+      computing[pid] = Boolean(entry?.computing);
     }
   } else if (raw.counts) {
     for (const [pid, partial] of Object.entries(raw.counts)) {
       counts[pid] = _normalizeCounts(partial);
+      computing[pid] = false;
     }
   }
 
@@ -310,11 +321,13 @@ export async function fetchPharmacyDuplicateSummary(
   // `summary.counts[id]` safely without null checks.
   for (const pid of patientIds) {
     if (!counts[pid]) counts[pid] = { ..._EMPTY_COUNTS };
+    if (computing[pid] === undefined) computing[pid] = false;
   }
 
   return {
     counts,
     pending: raw.pending ?? [],
+    computing,
   };
 }
 
