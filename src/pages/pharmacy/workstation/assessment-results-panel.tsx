@@ -92,8 +92,12 @@ function Section({ title, icon, count, countColor, defaultOpen, children }: {
 }
 
 /** Single interaction row */
-/** Map severity to risk rating when riskRating is missing (local DB fallback data) */
-const SEVERITY_TO_RISK: Record<string, string> = { high: 'D', medium: 'C', low: 'B' };
+/** P0-4: Map severity to risk when riskRating is missing (local DB fallback).
+ *  Was {low: 'B'} which renders as "B 無需調整" — a real moderate item with
+ *  unknown risk became invisible monitoring guidance. Default low → C
+ *  (monitor required) so unrated rows never silently disappear from the
+ *  pharmacist's review. high → D (avoid), medium → C (monitor) unchanged. */
+const SEVERITY_TO_RISK: Record<string, string> = { high: 'D', medium: 'C', low: 'C' };
 
 function InteractionRow({ int }: { int: DrugInteraction }) {
   const [expanded, setExpanded] = useState(false);
@@ -408,6 +412,13 @@ export function AssessmentResultsPanel({
               )}
               {compatibilitySummary && compatibilitySummary.queryFailed > 0 && (
                 <p className="text-[10px] text-amber-500 mt-1">{compatibilitySummary.queryFailed} 組查詢失敗</p>
+              )}
+              {/* P0-3: surface batch truncation so pharmacist knows
+                  uncovered pairs exist; previously silently counted as noData. */}
+              {compatibilitySummary && (compatibilitySummary.truncatedPairs ?? 0) > 0 && (
+                <p className="text-[10px] text-red-600 mt-1 font-semibold">
+                  ⚠ 仍有 {compatibilitySummary.truncatedPairs} 對未檢查（共 {compatibilitySummary.totalPairs} 對，超過批次上限）
+                </p>
               )}
             </div>
 

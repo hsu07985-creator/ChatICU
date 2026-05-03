@@ -89,6 +89,10 @@ export interface CompatibilitySummary {
   noData: number;
   queryFailed: number;
   pairsChecked: number;
+  /** P0-3: pairs not checked because they exceeded the batch cap. */
+  truncatedPairs?: number;
+  /** P0-3: total unordered pairs (= pairsChecked + truncatedPairs). */
+  totalPairs?: number;
 }
 
 export interface DuplicateSummary {

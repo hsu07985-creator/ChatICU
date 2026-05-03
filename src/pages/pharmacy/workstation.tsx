@@ -384,7 +384,15 @@ export function PharmacyWorkstationPage() {
               pairs.push([uniqueDrugs[i], uniqueDrugs[j]]);
             }
           }
-          const limitedPairs = pairs.slice(0, 20);
+          // P0-3: backend accepts up to 30 pairs (interactions.py:_BatchRequest
+          // max_length=30); the previous 20-pair cap silently dropped pairs
+          // for ≥7 IV drugs and counted them as `noData` in the summary,
+          // hiding potentially incompatible pairs as "全相容". Raise to 30 to
+          // match the backend, surface a banner when truncation happens, and
+          // expose `truncatedPairsCount` so the panel can warn.
+          const IV_BATCH_LIMIT = 30;
+          const limitedPairs = pairs.slice(0, IV_BATCH_LIMIT);
+          const truncatedPairsCount = pairs.length - limitedPairs.length;
 
           let failedCount = 0;
           let pairResults: IVCompatibility[][] = [];
@@ -429,6 +437,10 @@ export function PharmacyWorkstationPage() {
             noData: limitedPairs.length - compatPairsWithData - failedCount,
             queryFailed: failedCount,
             pairsChecked: limitedPairs.length,
+            // P0-3: do NOT count truncated pairs as noData — they were never
+            // checked. Surface them separately so the UI can warn.
+            truncatedPairs: truncatedPairsCount,
+            totalPairs: pairs.length,
           };
 
           return { compatibility, compatibilitySummary, limitedPairsCount: limitedPairs.length };
