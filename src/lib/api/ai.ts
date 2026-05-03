@@ -221,19 +221,6 @@ interface ApiResponse<T> {
   data?: T;
 }
 
-// 發送聊天訊息
-export async function sendChatMessage(
-  message: string,
-  options: { sessionId?: string; patientId?: string } = {}
-): Promise<ChatResponse> {
-  const response = await apiClient.post<ApiResponse<ChatResponse>>('/ai/chat', {
-    message,
-    sessionId: options.sessionId,
-    patientId: options.patientId,
-  });
-  return ensureData(response.data, 'API contract');
-}
-
 function createStreamRequestId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `fe_stream_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
@@ -262,7 +249,6 @@ function parseSseFrame(frame: string): { event: string; data: string } | null {
 
 // 串流聊天訊息（AO-04）— SSE /ai/chat/stream
 export async function streamChatMessage(options: StreamChatOptions): Promise<void> {
-  let streamStarted = false;
   try {
     const requestId = createStreamRequestId();
     // AbortController with 60s timeout — prevents indefinite hang if backend/proxy stalls
@@ -296,7 +282,6 @@ export async function streamChatMessage(options: StreamChatOptions): Promise<voi
       throw new Error('AI 串流連線失敗：無可讀取內容。');
     }
 
-    streamStarted = true;
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
@@ -365,20 +350,9 @@ export async function streamChatMessage(options: StreamChatOptions): Promise<voi
       throw new Error('AI 串流中斷，請重試。');
     }
   } catch (err) {
-    if (!streamStarted) {
-      try {
-        const fallback = await sendChatMessage(options.message, {
-          sessionId: options.sessionId,
-          patientId: options.patientId,
-        });
-        options.onMessage(fallback.message.content);
-        options.onComplete(fallback);
-        return;
-      } catch (fallbackErr) {
-        options.onError(fallbackErr instanceof Error ? fallbackErr : new Error(String(fallbackErr)));
-        return;
-      }
-    }
+    // No fallback: backend has only /ai/chat/stream. Pre-stream failures
+    // (HTTP error, network, missing body) and mid-stream failures both
+    // surface directly so the UI can show a real message.
     options.onError(err instanceof Error ? err : new Error(String(err)));
   }
 }
