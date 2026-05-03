@@ -26,7 +26,7 @@ import {
   getChatSession,
   getChatSessions,
   streamChatMessage,
-  updateChatSessionTitle,
+  updateMessageFeedback,
   type ChatResponse,
   type ChatSession as ApiChatSession,
   type Citation as AiCitation,
@@ -76,26 +76,6 @@ function mapApiSession(item: ApiChatSession): SessionItem {
     lastUpdated: new Date(item.updatedAt).toLocaleString('zh-TW'),
     messageCount: item.messageCount,
   };
-}
-
-function formatAiDegradedReason(reason?: string | null, upstreamStatus?: string | null): string {
-  if (reason === 'insufficient_evidence') return '目前可用證據有限';
-  if (reason === 'llm_unavailable') return 'LLM 服務不可用';
-  return reason || upstreamStatus || 'unknown';
-}
-
-function getDisplayFreshnessHints(dataFreshness?: DataFreshness | null): string[] {
-  if (!dataFreshness) return [];
-  const hints: string[] = [];
-  const seen = new Set<string>();
-  for (const raw of dataFreshness.hints || []) {
-    const hint = String(raw || '').trim();
-    if (!hint || seen.has(hint)) continue;
-    if (hint.includes('JSON 離線模式') || hint.includes('資料快照時間')) continue;
-    seen.add(hint);
-    hints.push(hint);
-  }
-  return hints;
 }
 
 function formatCitationPageText(citation: AiCitation): string {
@@ -199,10 +179,6 @@ export function AiChatPage() {
     navigate({ pathname: '/ai-chat', search: next.toString() ? `?${next}` : '' }, { replace: true });
   }, [navigate, searchParams]);
 
-  // RAG layer removed — AI chat is pure LLM and always available.
-  const canSendAiChat = true;
-  const aiChatGateReason = '';
-
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | undefined>(undefined);
   const [chatMessages, setChatMessages] = useState<SessionChatMessage[]>([]);
@@ -214,8 +190,8 @@ export function AiChatPage() {
 
   const [expandedExplanations, setExpandedExplanations] = useState<Set<number>>(new Set());
   const [expandedReferences, setExpandedReferences] = useState<Set<number>>(new Set());
-  const [expandedDataQuality, setExpandedDataQuality] = useState<Set<number>>(new Set());
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [feedbackingMessageIndex, setFeedbackingMessageIndex] = useState<number | null>(null);
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -278,14 +254,40 @@ export function AiChatPage() {
     });
   }, []);
 
-  const toggleDataQuality = useCallback((index: number) => {
-    setExpandedDataQuality((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
-  }, []);
+  // W3-T6: feedback writes through updateMessageFeedback API with optimistic
+  // UI. Toggle clears when clicking the same direction (up→null, down→null).
+  const setMessageFeedback = useCallback(
+    async (msgIndex: number, feedback: 'up' | 'down' | null) => {
+      const target = chatMessages[msgIndex];
+      if (!target?.messageId || target.role !== 'assistant') return;
+      const next = target.feedback === feedback ? null : feedback;
+      const prevFeedback = target.feedback ?? null;
+      // Optimistic
+      setChatMessages((prev) => {
+        const arr = [...prev];
+        const m = arr[msgIndex];
+        if (!m) return prev;
+        arr[msgIndex] = { ...m, feedback: next };
+        return arr;
+      });
+      setFeedbackingMessageIndex(msgIndex);
+      try {
+        await updateMessageFeedback(target.messageId, next);
+      } catch {
+        toast.error('儲存評價失敗，已還原');
+        setChatMessages((prev) => {
+          const arr = [...prev];
+          const m = arr[msgIndex];
+          if (!m) return prev;
+          arr[msgIndex] = { ...m, feedback: prevFeedback };
+          return arr;
+        });
+      } finally {
+        setFeedbackingMessageIndex(null);
+      }
+    },
+    [chatMessages],
+  );
 
   const openSession = useCallback(async (session: SessionItem) => {
     // W2-T2: don't switch session while a stream is in flight — its onMessage
@@ -339,10 +341,6 @@ export function AiChatPage() {
 
   const sendMessage = useCallback(async () => {
     if (!chatInput.trim() || isSending) return;
-    if (!canSendAiChat) {
-      toast.error(aiChatGateReason);
-      return;
-    }
     const userMessage = chatInput.trim();
     const nowTime = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
     const messagesWithUser: SessionChatMessage[] = [
@@ -454,18 +452,12 @@ export function AiChatPage() {
 
       setChatMessages([...messagesWithUser, assistantMsg]);
 
+      // W3-T8: backend now sets the title on first turn from body.message[:50],
+      // so we just adopt the new sessionId and refresh the sidebar list.
       if (!selectedSessionId) {
-        const fallbackTitle = userMessage.slice(0, 50);
-        try {
-          await updateChatSessionTitle(response.sessionId, fallbackTitle);
-        } catch {
-          // Non-blocking
-        }
         setSelectedSessionId(response.sessionId);
-        await refreshSessions();
-      } else {
-        await refreshSessions();
       }
+      await refreshSessions();
     } catch (err) {
       // W2-T1: aborts are handled by onAbort which already updated the bubble
       // and set a sentinel error. Don't overwrite with a generic error message.
@@ -482,12 +474,10 @@ export function AiChatPage() {
       setIsSending(false);
       setThinkingStatus(null);
     }
-  }, [aiChatGateReason, canSendAiChat, chatInput, chatMessages, effectivePatientId, isSending, refreshSessions, selectedSessionId]);
+  }, [chatInput, chatMessages, effectivePatientId, isSending, refreshSessions, selectedSessionId]);
 
   const now = new Date();
   const todayDateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-  const noop = useMemo(() => () => {}, []);
 
   return (
     <div className="p-4 md:p-6 space-y-3">
@@ -690,16 +680,6 @@ export function AiChatPage() {
             </CardHeader>
             <CardContent className="p-0">
               <div className="flex flex-col" style={{ height: 'max(calc(100vh - 280px), 480px)' }}>
-                {!canSendAiChat && (
-                  <div className="flex-none mx-4 mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 flex items-start gap-2">
-                    <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium">AI 對話功能暫時無法使用</p>
-                      <p className="text-amber-700 mt-0.5">{aiChatGateReason || '請聯繫系統管理員或稍後重試。'}</p>
-                    </div>
-                  </div>
-                )}
-
                 <ChatMessageThread
                   chatMessages={chatMessages}
                   isSending={isSending}
@@ -711,24 +691,20 @@ export function AiChatPage() {
                   onJumpToLatest={jumpToLatest}
                   expandedExplanations={expandedExplanations}
                   expandedReferences={expandedReferences}
-                  expandedDataQuality={expandedDataQuality}
                   onToggleExplanation={toggleExplanation}
                   onToggleReferences={toggleReferences}
-                  onToggleDataQuality={toggleDataQuality}
-                  getDisplayFreshnessHints={getDisplayFreshnessHints}
-                  formatAiDegradedReason={formatAiDegradedReason}
                   formatCitationPageText={formatCitationPageText}
                   compactSnippet={compactSnippet}
                   avatarSrc=""
-                  onSetMessageFeedback={noop}
-                  onRegenerateMessage={noop}
+                  onSetMessageFeedback={setMessageFeedback}
+                  feedbackingMessageIndex={feedbackingMessageIndex}
                 />
 
                 <div className="flex-none px-4 pb-1.5 pt-0 border-t border-border bg-white dark:bg-slate-900">
                   <div className="flex gap-2 pt-1.5 items-end">
                     <Textarea
                       ref={chatInputRef}
-                      placeholder={canSendAiChat ? '例如：SGLT2 抑制劑在心衰竭患者的應用建議？' : 'AI 功能未就緒'}
+                      placeholder="例如：SGLT2 抑制劑在心衰竭患者的應用建議？"
                       value={chatInput}
                       onChange={(event) => setChatInput(event.target.value)}
                       onKeyDown={(event) => {
@@ -737,12 +713,7 @@ export function AiChatPage() {
                           void sendMessage();
                         }
                       }}
-                      className={`min-h-[120px] border text-sm transition-colors rounded-xl ${
-                        canSendAiChat
-                          ? 'border-border'
-                          : 'border-border bg-slate-50 dark:bg-slate-800 text-[#9ca3af] cursor-not-allowed'
-                      }`}
-                      disabled={!canSendAiChat}
+                      className="min-h-[120px] border border-border text-sm transition-colors rounded-xl"
                     />
                     {isSending ? (
                       <Button
@@ -757,10 +728,8 @@ export function AiChatPage() {
                       <Button
                         onClick={() => void sendMessage()}
                         size="icon"
-                        className={`h-[120px] w-[36px] shrink-0 transition-colors rounded-xl ${
-                          canSendAiChat ? 'bg-gray-700 hover:bg-gray-700' : 'bg-[#d1d5db] cursor-not-allowed'
-                        }`}
-                        disabled={!chatInput.trim() || !canSendAiChat}
+                        className="h-[120px] w-[36px] shrink-0 transition-colors rounded-xl bg-gray-700 hover:bg-gray-700"
+                        disabled={!chatInput.trim()}
                       >
                         <Send className="h-4.5 w-4.5" />
                       </Button>

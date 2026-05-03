@@ -8,7 +8,6 @@ import {
   Clock,
   Copy,
   MessageSquare,
-  RefreshCw,
   ThumbsDown,
   ThumbsUp,
 } from 'lucide-react';
@@ -31,19 +30,13 @@ interface ChatMessageThreadProps {
   onJumpToLatest: () => void;
   expandedExplanations: Set<number>;
   expandedReferences: Set<number>;
-  expandedDataQuality: Set<number>;
   onToggleExplanation: (index: number) => void;
   onToggleReferences: (index: number) => void;
-  onToggleDataQuality: (index: number) => void;
-  getDisplayFreshnessHints: (dataFreshness?: DataFreshness | null) => string[];
-  formatAiDegradedReason: (reason?: string | null, upstreamStatus?: string | null) => string;
   formatCitationPageText: (citation: AiCitation) => string;
   compactSnippet: (snippet?: string) => string;
   avatarSrc: string;
   onSetMessageFeedback: (msgIndex: number, feedback: 'up' | 'down' | null) => void;
-  onRegenerateMessage: (msgIndex: number) => void;
   feedbackingMessageIndex?: number | null;
-  regeneratingMessageIndex?: number | null;
 }
 
 export function ChatMessageThread({
@@ -57,19 +50,13 @@ export function ChatMessageThread({
   onJumpToLatest,
   expandedExplanations,
   expandedReferences,
-  expandedDataQuality,
   onToggleExplanation,
   onToggleReferences,
-  onToggleDataQuality,
-  getDisplayFreshnessHints,
-  formatAiDegradedReason,
   formatCitationPageText,
   compactSnippet,
   avatarSrc,
   onSetMessageFeedback,
-  onRegenerateMessage,
   feedbackingMessageIndex = null,
-  regeneratingMessageIndex = null,
 }: ChatMessageThreadProps) {
   return (
     <div
@@ -89,17 +76,11 @@ export function ChatMessageThread({
           const isWaiting = isStreamingThis && !msg.content;
           const displayContent = isStreamingThis && msg.content ? msg.content + '▌' : msg.content;
           const references = msg.role === 'assistant' ? msg.references || [] : [];
-          const freshnessHints =
-            msg.role === 'assistant' ? getDisplayFreshnessHints(msg.dataFreshness) : [];
-          const hasDataQuality =
-            msg.role === 'assistant' && (msg.degraded || freshnessHints.length > 0);
           const isDetailExpanded = expandedExplanations.has(idx);
           const isRefsExpanded = expandedReferences.has(idx);
-          const isQualityExpanded = expandedDataQuality.has(idx);
           const isFirstOfRound =
             idx > 0 && msg.role === 'user' && chatMessages[idx - 1].role === 'assistant';
           const isProcessingFeedback = feedbackingMessageIndex === idx;
-          const isRegenerating = regeneratingMessageIndex === idx;
 
           return (
             <div
@@ -313,14 +294,14 @@ export function ChatMessageThread({
                           </button>
                           <span className="inline-flex items-center gap-1">
                             <button
-                              onClick={() => onSetMessageFeedback(idx, 'up')}
+                              onClick={() => void onSetMessageFeedback(idx, 'up')}
                               className={`flex items-center gap-0.5 transition-colors ${
                                 msg.feedback === 'up'
                                   ? 'text-green-600'
                                   : 'hover:text-[#4B5563]'
                               }`}
                               aria-label="讚"
-                              disabled={isProcessingFeedback || isRegenerating}
+                              disabled={isProcessingFeedback}
                             >
                               <ThumbsUp className="h-3 w-3" />
                             </button>
@@ -328,29 +309,18 @@ export function ChatMessageThread({
                           </span>
                           <span className="inline-flex items-center gap-1">
                             <button
-                              onClick={() => onSetMessageFeedback(idx, 'down')}
+                              onClick={() => void onSetMessageFeedback(idx, 'down')}
                               className={`flex items-center gap-0.5 transition-colors ${
                                 msg.feedback === 'down'
                                   ? 'text-red-500'
                                   : 'hover:text-[#4B5563]'
                               }`}
                               aria-label="倒讚"
-                              disabled={isProcessingFeedback || isRegenerating}
+                              disabled={isProcessingFeedback}
                             >
                               <ThumbsDown className="h-3 w-3" />
                             </button>
                             {isProcessingFeedback ? <ButtonLoadingIndicator compact /> : null}
-                          </span>
-                          <span className="inline-flex items-center gap-1">
-                            <button
-                              onClick={() => onRegenerateMessage(idx)}
-                              className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
-                              aria-label="重新生成"
-                              disabled={isProcessingFeedback || isRegenerating || isSending}
-                            >
-                              <RefreshCw className="h-3 w-3" />
-                            </button>
-                            {isRegenerating ? <ButtonLoadingIndicator compact /> : null}
                           </span>
                         </div>
                       )}
