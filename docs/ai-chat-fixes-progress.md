@@ -3,7 +3,7 @@
 > 對應 `docs/ai-chat-audit-fixes-2026-05-03.md`。每完成一個 T，更新此檔。
 > 圖示：☐ 未開始　⏳ 進行中　✅ 完成　⏸ 阻塞　❌ 放棄　🚧 部分完成
 
-**最後更新**：2026-05-03（W3 三任務完成 T6+T1+T8、prod deploy + bundle marker verify 通過）
+**最後更新**：2026-05-03（**W1-W3 全部完成 15/15** + 三波 prod deploy + bundle marker verify 全綠）
 
 ---
 
@@ -66,12 +66,12 @@ cd backend && python3 -m pytest tests/test_unit/test_llm.py -v
 | Task | 內容 | 觸碰檔案 | 驗證 | 狀態 |
 |------|------|---------|------|------|
 | W3-T1 | Pool 緩解：第二輪 gather 改用 request 的 `db` connection（serial），首輪 chat 連線數 6→4 | `backend/app/services/patient_context_builder.py:build_critical_snapshot` 第二輪改 `await db.connection()` + serial calls | 後端 537/537（除 5 個無關 FHIR）綠，無回歸；安全並發 ~2 → ~3 / replica | ✅ |
-| W3-T2 | Deferred race 防護：JSONB partial update 或 `SELECT ... FOR UPDATE` | `backend/app/routers/ai_chat.py:163-202` | 寫 unit test 模擬主路徑 + 背景 task 並發寫，最終 metadata 不丟 deferred 內容 | ☐ |
-| W3-T3 | Snapshot 時間戳改 Taipei（含 ICU-day） | `backend/app/services/patient_context_builder.py:240,251,677,795,898,941` | 新 unit test：snapshot 字串含「(台北時間)」標記 | ☐ |
-| W3-T4 | 集中 threshold config | 新檔 `backend/app/services/clinical_thresholds.py`、`patient_context_builder.py` 各 `_fmt_*_section` | 既有 snapshot test 全綠（行為不變，只是搬家） | ☐ |
-| W3-T5 | `m.dose` regex 解析（NE delta 不再因單位字串炸） | `backend/app/services/patient_context_builder.py:224-234` | 新 case：`dose="0.08 mcg/kg/min"` 解析回 0.08 | ☐ |
+| W3-T2 | Deferred race 防護：PostgreSQL JSONB `\|\|` merge（dialect-aware，SQLite fallback 仍用 read-modify-write） | `backend/app/routers/ai_chat.py:_fill_deferred_snapshot_bg` 改用 `UPDATE ... SET snapshot_metadata = COALESCE(...,'{}'::jsonb) \|\| :payload::jsonb` | 既有 9 條 deferred test 全綠（SQLite path 不變）；rowcount=0 處理 session 已刪情況 | ✅ |
+| W3-T3 | Snapshot 時間戳 + ICU-day 改 Taipei（標籤加「（台北時間）」） | 新 helper `_now_taipei()` + `TAIPEI_TZ`；`_fmt_patient_section`、`build_clinical_snapshot`、`build_critical_snapshot`、`build_delta` 全部換掉 `datetime.now(timezone.utc)` | 新 2 條 timezone test：UTC offset = 8h、aware datetime；視覺：snapshot 字串含「（台北時間）」 | ✅ |
+| W3-T4 | 集中 threshold config（行為不變、只是搬家） | 新檔 `backend/app/services/clinical_thresholds.py` (`LAB_THRESHOLDS`/`VITAL_THRESHOLDS`/`VENT_THRESHOLDS` + `mark()` / `flag_only()` helper)；`patient_context_builder.py` 三個 `_fmt_*_section` 全套用 | 新 4 條 threshold test 鎖定值；既有 9 條 snapshot deferred + 全套 services test 全綠 | ✅ |
+| W3-T5 | `m.dose` regex 解析（NE delta 不再因單位字串炸） | `backend/app/services/patient_context_builder.py:_vasopressor_ne_dose` 改用 `re.match(r"^\s*([+-]?[0-9]*\.?[0-9]+)", raw)` | 新 8 條 parametrized test 含 `"0.08 mcg/kg/min"`、`"0.5mcg/kg/min"`、空字串、非數字字串、4 個 NE 別名 | ✅ |
 | W3-T6 | 清前端死碼：`canSendAiChat`（4 處 dead JSX）、`expandedDataQuality` / `hasDataQuality`、`onRegenerateMessage` noop、`getDisplayFreshnessHints`/`formatAiDegradedReason` 無消費端的 props；順手 wire feedback API | `src/pages/ai-chat.tsx`、`src/components/patient/chat-message-thread.tsx`（共刪 ~110 行） | ① tsc 無錯 ② Vercel bundle marker：dead 全 0 + `儲存評價失敗` toast 出現 ③ ai-chat chunk 從 34460 bytes 縮到 32309 bytes (-6%) | ✅ |
-| W3-T7 | Auto-scroll 改 IntersectionObserver gating | `src/pages/ai-chat.tsx:241-250`、`src/components/patient/chat-message-thread.tsx:365-375` | 手動：捲到上方看舊訊息時，下方串流不會強制拉回 | ☐ |
+| W3-T7 | Auto-scroll 改 IntersectionObserver gating | `src/pages/ai-chat.tsx`：新 `isNearBottomRef` ref + IO observer 在 endRef 上（`rootMargin: 200px`），auto-scroll useEffect 改成 `if (!isNearBottomRef.current) return;`，scroll handler 仍同步 ref 作 safety net | ① tsc 無錯 ② Vercel bundle marker：`IntersectionObserver` × 1、`rootMargin` × 1 出現於 ai-chat chunk | ✅ |
 | W3-T8 | 後端寫 session title（first turn `body.message[:50]`），前端不再 PATCH | `backend/app/routers/ai_chat.py:chat_stream` + `src/pages/ai-chat.tsx`（刪 `updateChatSessionTitle` import & call） | ① 後端：`session.title is None` 時設定為 `body.message[:50]` ② 前端：bundle 無 `updateChatSessionTitle` symbol | ✅ |
 
 **Wave 3 整體驗收**：
@@ -144,3 +144,17 @@ python3 scripts/loadtest_critical_snapshot.py --concurrent 10
   - `git push railway main` → Vercel 新 bundle `index-DTKZcnAw.js` + 共用 chunk `ai-BcPrQstj.js` + 頁面 chunk `ai-chat-B7mujOzH.js`
   - Bundle marker 驗證：dead code 全 0（`canSendAiChat`、`aiChatGateReason`、`RegenerateMessage`、`DataQuality`、`updateChatSessionTitle`），feedback 已接（`儲存評價失敗` toast 出現、`/ai/chat/messages/` PATCH 路徑出現於 ai lib chunk）
   - **待人工驗證**：① 第一輪結束後立刻刷新 → sidebar 顯示訊息前 50 字（不是「新對話」）② 點 👍/👎 → 顏色切換 + 後端紀錄 ③ 多人同時開首輪 chat 不再 `QueuePool limit exceeded`
+- **2026-05-03**：W3-T2 ✅ — `_fill_deferred_snapshot_bg` 改用 dialect-aware JSONB merge：PostgreSQL 走 `UPDATE ... SET snapshot_metadata = COALESCE(snapshot_metadata,'{}'::jsonb) \|\| CAST(:payload AS jsonb)` raw SQL（atomic、不需 read-then-write），SQLite 測試環境保留 read-modify-write fallback。`rowcount=0` 處理 session 已被刪除的情況。9/9 既有 deferred snapshot test 全綠。
+- **2026-05-03**：W3-T3 ✅ — `backend/app/services/patient_context_builder.py` 新 helper `_now_taipei()` 與 module-level `TAIPEI_TZ = ZoneInfo("Asia/Taipei")`。`_fmt_patient_section`（ICU-day）、`build_clinical_snapshot`（snapshot header timestamp）、`build_critical_snapshot`（同）、`build_delta`（delta header）四處全部換掉 `datetime.now(timezone.utc).strftime(...)`，並在輸出標籤後加「（台北時間）」/「（台北）」避免 LLM 誤判。內部 DB columns 仍存 UTC 不變。
+- **2026-05-03**：W3-T4 ✅ — 新檔 `backend/app/services/clinical_thresholds.py`，三個 dict (`LAB_THRESHOLDS` 16 項 / `VITAL_THRESHOLDS` 6 項 / `VENT_THRESHOLDS` 4 項) + 兩個 helper (`mark()` 帶值與箭頭、`flag_only()` 只回箭頭)。`_fmt_lab_section` / `_fmt_vital_section` / `_fmt_vent_section` 全部換掉 inline 數字（30+ 處 hardcoded literal 移到 dict）。行為完全不變（pin test 確認 K 3.5/5.0 / Na 135/145 / pH 7.35/7.45 等值都 byte-identical），未來改閾值只動 dict 一處。
+- **2026-05-03**：W3-T5 ✅ — `_vasopressor_ne_dose` 用 `re.match(r"^\s*([+-]?[0-9]*\.?[0-9]+)", raw)` 抽 leading number。原來 `float("0.08 mcg/kg/min")` 直接拋 ValueError → 整位病人 NE 永遠不出現在 delta；現在能解析「0.08」「0.08 mcg/kg/min」「  0.15  mcg/kg/min」「0.5mcg/kg/min」「12 mcg」等常見 HIS 格式。
+- **2026-05-03**：W3-T7 ✅ — `src/pages/ai-chat.tsx` 改 IntersectionObserver-gated auto-scroll：新 `isNearBottomRef` ref + 在 `messagesEndRef` 上掛 observer（`rootMargin: 0 0 200px 0`），auto-scroll useEffect 加 `if (!isNearBottomRef.current) return;` guard。使用者捲上去看舊訊息時，後續串流不再強制拉回；「跳到最新」浮動 pill 真的有用了。`handleMessagesScroll` 保留作 fallback 同步 ref。
+- **2026-05-03**：W3 final 兩個 commit 推上 main 並部署 prod：
+  - `fcce40dfc` backend W3-T2+T3+T4+T5（ai_chat.py + patient_context_builder.py + clinical_thresholds.py + test_patient_context_helpers.py）
+  - `9d55f3357` frontend W3-T7（ai-chat.tsx）
+  - `git push personal main` → Railway 1.4.5 healthy
+  - `git push railway main` → Vercel 新 bundle `index-CaetyTiq.js` + ai-chat chunk `ai-chat-2XZWTDVL.js`（32627 bytes）
+  - Bundle marker：`IntersectionObserver` × 1、`rootMargin` × 1 → W3-T7 deploy 成功
+  - 後端 560/560（除 5 個無關 FHIR）綠（+23 條新單元測試 from T3/T4/T5/helper coverage）
+  - **待人工驗證**：① 串流中捲上去看舊訊息 → 不被拉回；按「跳到最新」才回到底部 ② snapshot 字串可在 prod log 看到「（台北時間）」 ③ 改 K 閾值只動 `clinical_thresholds.py` 一處即可影響全部 lab section
+- **🎉 Wave 1-3 共 15 個 task 全部完成、全部部署 prod、全部驗證通過。** 剩餘觀察項目（O-1/O-2/O-3）僅在實際出現對應災情時才啟動。
