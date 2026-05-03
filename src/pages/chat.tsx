@@ -709,7 +709,11 @@ export function ChatPage() {
           </CardContent>
         </Card>
 
-        {/* 側邊欄 — Tabs: @我的留言 / 釘選訊息 */}
+        {/* 側邊欄 — Tabs: 病人留言中提到我 / 釘選訊息.
+            Note: this mentions tab queries getMyMentions (patient board
+            only). Team-chat mentions surface in the bell + inline in
+            the main chat. The label was previously a misleading "@我的
+            留言" — TC-W3-T4 / F-06 clarified it. */}
         <div className="space-y-4">
           <Card>
             <CardHeader className="bg-slate-50 dark:bg-slate-800 pb-0">
@@ -723,7 +727,7 @@ export function ChatPage() {
                   onClick={() => setSidebarTab('mentions')}
                 >
                   <AtSign className="h-4 w-4" />
-                  @我的留言
+                  病人留言提到我
                   {mentionsTotalCount > 0 && (
                     <Badge className="bg-brand text-white text-xs ml-1">{mentionsTotalCount}</Badge>
                   )}
@@ -745,7 +749,7 @@ export function ChatPage() {
               </div>
             </CardHeader>
             <CardContent className="pt-4">
-              {/* @我的留言 Panel */}
+              {/* 病人留言提到我 Panel (patient board mentions only) */}
               {sidebarTab === 'mentions' && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -765,7 +769,7 @@ export function ChatPage() {
                     ) : mentionGroups.length === 0 ? (
                       <div className="text-center py-8 text-muted-foreground text-sm">
                         <AtSign className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                        <p>目前沒有被 @到的留言</p>
+                        <p>目前沒有病人留言 @ 到我</p>
                       </div>
                     ) : (
                       <div className="space-y-2">
