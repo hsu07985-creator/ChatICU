@@ -1,7 +1,7 @@
 import re
 import uuid
 from datetime import datetime, timezone
-from typing import Tuple
+from typing import List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 import sqlalchemy as sa
@@ -15,8 +15,8 @@ from app.models.message import PatientMessage
 from app.models.patient import Patient
 from app.models.pharmacy_advice import PharmacyAdvice
 from app.models.user import User
-from app.routers.messages import CATEGORY_TAG_MAP, format_subcode_tag
-from app.schemas.admin import AdviceRecordCreate
+from app.routers.messages import CATEGORY_TAG_MAP, PHARMACIST_CATEGORY_TAGS, format_subcode_tag
+from app.schemas.admin import AdviceRecordCreate, AdviceRecordUpdate
 from app.utils.response import success_response
 
 router = APIRouter(tags=["pharmacy"])
@@ -58,6 +58,111 @@ def _parse_month_range(month: str) -> Tuple[datetime, datetime]:
     else:
         end = datetime(year_int, mon_int + 1, 1, tzinfo=timezone.utc)
     return start, end
+
+
+def _compact_linked_medications(meds) -> List[str]:
+    if not meds:
+        return []
+    cleaned = []
+    for med in meds:
+        value = str(med).strip()
+        if value and value not in cleaned:
+            cleaned.append(value[:200])
+    return cleaned
+
+
+def _linked_medication_text(meds) -> Optional[str]:
+    linked = _compact_linked_medications(meds)
+    joined = ", ".join(linked)
+    return joined[:200] if joined else None
+
+
+def _advice_message_content(advice: PharmacyAdvice) -> str:
+    return f"【藥事建議】{advice.advice_code} {advice.advice_label}\n\n{advice.content}"
+
+
+def _advice_auto_tags(advice: PharmacyAdvice) -> List[str]:
+    tags = []
+    category_tag = CATEGORY_TAG_MAP.get(advice.category)
+    if category_tag:
+        tags.append(category_tag)
+    if advice.advice_code:
+        tags.append(format_subcode_tag(advice.advice_code))
+    return tags
+
+
+async def _sync_widget_message(advice: PharmacyAdvice, db: AsyncSession) -> List[str]:
+    """Keep the auto-posted message created by POST /pharmacy/advice-records
+    aligned with edits to the source advice row."""
+    result = await db.execute(
+        select(PatientMessage).where(PatientMessage.advice_record_id == advice.id)
+    )
+    messages = result.scalars().all()
+    for msg in messages:
+        msg.content = _advice_message_content(advice)
+        msg.linked_medication = _linked_medication_text(advice.linked_medications)
+        msg.advice_code = advice.advice_code
+        msg.tags = _advice_auto_tags(advice)
+    return [m.id for m in messages]
+
+
+async def _rebuild_source_message_tags(message_id: str, db: AsyncSession) -> None:
+    """Rebuild only pharmacy-system tags for a bulletin-synced source message.
+
+    Free-form custom tags are preserved. VPN subcode tags and the four pharmacy
+    category tags are regenerated from remaining PharmacyAdvice rows so delete
+    and edit operations do not leave stale statistics-driving tags behind.
+    """
+    msg_result = await db.execute(
+        select(PatientMessage).where(PatientMessage.id == message_id)
+    )
+    msg = msg_result.scalar_one_or_none()
+    if not msg:
+        return
+
+    advice_result = await db.execute(
+        select(PharmacyAdvice)
+        .where(PharmacyAdvice.source_message_id == message_id)
+        .order_by(PharmacyAdvice.advice_code.asc())
+    )
+    advices = advice_result.scalars().all()
+
+    preserved = []
+    for tag in msg.tags or []:
+        if not isinstance(tag, str):
+            continue
+        if tag in PHARMACIST_CATEGORY_TAGS:
+            continue
+        if _VPN_TAG_PATTERN.match(tag):
+            continue
+        preserved.append(tag)
+
+    generated = []
+    seen = set(preserved)
+    for advice in advices:
+        for tag in _advice_auto_tags(advice):
+            if tag not in seen:
+                generated.append(tag)
+                seen.add(tag)
+
+    msg.tags = preserved + generated
+
+    # If the source message generated a single advice row, its user-visible
+    # content can safely track the edited record. When one message produced
+    # multiple advice rows, the message content is shared and should not be
+    # overwritten by a single row's edit.
+    if len(advices) == 1:
+        only = advices[0]
+        msg.content = only.content
+        msg.linked_medication = _linked_medication_text(only.linked_medications)
+        msg.advice_code = only.advice_code
+
+
+def _assert_can_manage_advice(advice: PharmacyAdvice, user: User) -> None:
+    # Mirrors list/stats scope: pharmacists and admins manage only their own
+    # authored rows. Use 404 to avoid revealing another user's record id.
+    if advice.pharmacist_id != user.id:
+        raise HTTPException(status_code=404, detail="Advice record not found")
 
 
 @router.get("/advice-records")
@@ -432,6 +537,113 @@ async def create_advice_record(
     )
 
     return success_response(data=advice_to_dict(advice), message="用藥建議已建立")
+
+
+@router.patch("/advice-records/{advice_id}")
+async def update_advice_record(
+    advice_id: str,
+    body: AdviceRecordUpdate,
+    request: Request,
+    user: User = Depends(require_roles("pharmacist", "admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(PharmacyAdvice).where(PharmacyAdvice.id == advice_id))
+    advice = result.scalar_one_or_none()
+    if not advice:
+        raise HTTPException(status_code=404, detail="Advice record not found")
+    _assert_can_manage_advice(advice, user)
+
+    fields = body.model_fields_set
+    if not fields:
+        raise HTTPException(status_code=422, detail="至少需要提供一個要更新的欄位")
+
+    if "adviceCode" in fields and body.adviceCode is not None:
+        advice.advice_code = body.adviceCode
+    if "adviceLabel" in fields and body.adviceLabel is not None:
+        advice.advice_label = body.adviceLabel
+    if "category" in fields and body.category is not None:
+        advice.category = body.category
+    if "content" in fields and body.content is not None:
+        advice.content = body.content
+    if "linkedMedications" in fields:
+        linked = _compact_linked_medications(body.linkedMedications)
+        advice.linked_medications = linked or None
+    if "accepted" in fields:
+        advice.accepted = body.accepted
+        if body.accepted is None:
+            advice.responded_by_id = None
+            advice.responded_by_name = None
+            advice.responded_at = None
+
+    await db.flush()
+
+    synced_widget_messages = await _sync_widget_message(advice, db)
+    if advice.source_message_id:
+        await _rebuild_source_message_tags(advice.source_message_id, db)
+
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="更新用藥建議", target=advice.id, status="success",
+        ip=request.client.host if request.client else None,
+        details={
+            "fields": sorted(fields),
+            "synced_widget_messages": synced_widget_messages,
+            "source_message_id": advice.source_message_id,
+        },
+    )
+
+    return success_response(data=advice_to_dict(advice), message="用藥建議已更新")
+
+
+@router.delete("/advice-records/{advice_id}")
+async def delete_advice_record(
+    advice_id: str,
+    request: Request,
+    user: User = Depends(require_roles("pharmacist", "admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(PharmacyAdvice).where(PharmacyAdvice.id == advice_id))
+    advice = result.scalar_one_or_none()
+    if not advice:
+        raise HTTPException(status_code=404, detail="Advice record not found")
+    _assert_can_manage_advice(advice, user)
+
+    source_message_id = advice.source_message_id
+
+    linked_result = await db.execute(
+        select(PatientMessage).where(PatientMessage.advice_record_id == advice.id)
+    )
+    linked_messages = linked_result.scalars().all()
+    deleted_message_ids = []
+    deleted_reply_ids = []
+    for msg in linked_messages:
+        reply_result = await db.execute(
+            select(PatientMessage).where(PatientMessage.reply_to_id == msg.id)
+        )
+        for reply in reply_result.scalars().all():
+            deleted_reply_ids.append(reply.id)
+            await db.delete(reply)
+        deleted_message_ids.append(msg.id)
+        await db.delete(msg)
+
+    await db.delete(advice)
+    await db.flush()
+
+    if source_message_id:
+        await _rebuild_source_message_tags(source_message_id, db)
+
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="刪除用藥建議", target=advice_id, status="success",
+        ip=request.client.host if request.client else None,
+        details={
+            "source_message_id": source_message_id,
+            "deleted_message_ids": deleted_message_ids,
+            "deleted_reply_ids": deleted_reply_ids,
+        },
+    )
+
+    return success_response(message="用藥建議已刪除")
 
 
 @router.patch("/advice-records/{advice_id}/response")

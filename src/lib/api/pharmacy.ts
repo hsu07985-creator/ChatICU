@@ -312,6 +312,30 @@ export async function createAdviceRecord(data: CreateAdviceRecordData): Promise<
   return ensureData(response.data, 'API contract');
 }
 
+export interface UpdateAdviceRecordData {
+  adviceCode?: string;
+  adviceLabel?: string;
+  category?: string;
+  content?: string;
+  linkedMedications?: string[];
+  accepted?: boolean | null;
+}
+
+export async function updateAdviceRecord(
+  adviceRecordId: string,
+  data: UpdateAdviceRecordData,
+): Promise<PharmacyAdviceRecord> {
+  const response = await apiClient.patch<ApiResponse<PharmacyAdviceRecord>>(
+    `/pharmacy/advice-records/${adviceRecordId}`,
+    data,
+  );
+  return ensureData(response.data, 'API contract');
+}
+
+export async function deleteAdviceRecord(adviceRecordId: string): Promise<void> {
+  await apiClient.delete(`/pharmacy/advice-records/${adviceRecordId}`);
+}
+
 // ========== 用藥建議記錄統計（聚合） ==========
 
 export interface AdviceRecordStats {
@@ -490,6 +514,8 @@ export const pharmacyApi = {
   getAdviceStatistics,
   getAdviceRecords,
   createAdviceRecord,
+  updateAdviceRecord,
+  deleteAdviceRecord,
   getAdviceRecordStats,
   respondToAdvice,
 };

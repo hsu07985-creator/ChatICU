@@ -7,13 +7,27 @@ import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { ScrollArea } from '../../components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../components/ui/alert-dialog';
 import { LoadingSpinner, EmptyState } from '../../components/ui/state-display';
-import { FileText, Loader2, User, Tag, Pill, Send, CheckCircle2, XCircle, CircleDot, ChevronLeft, ChevronRight, NotebookPen, Search, X } from 'lucide-react';
+import { FileText, Loader2, User, Tag, Pill, Send, CheckCircle2, XCircle, CircleDot, ChevronLeft, ChevronRight, NotebookPen, Search, X, Edit2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { maskPatientName } from '../../lib/utils/patient-name';
+import { useAuth } from '../../lib/auth-context';
 import {
   getAdviceRecords,
   createAdviceRecord,
+  updateAdviceRecord,
+  deleteAdviceRecord,
   getAdviceTagStats,
   getPharmacySoapRecords,
   type PharmacyAdviceRecord,
@@ -28,7 +42,23 @@ import {
 } from '../../lib/pharmacy-master-data';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Label } from 'recharts';
 
+type EditAcceptedValue = 'yes' | 'no' | 'pending';
+
+function getCategoryKeyByLabel(label: string): string {
+  return Object.entries(PHARMACY_ADVICE_CATEGORIES).find(([, cat]) => cat.label === label)?.[0] || '';
+}
+
+function splitLinkedMedications(value: string): string[] {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export function PharmacyAdviceStatisticsPage() {
+  const { user } = useAuth();
+  const canManageAdviceRecords = user?.role === 'pharmacist' || user?.role === 'admin';
+
   // ── 病患清單（共用快取） ──
   const [patients, setPatients] = useState<Patient[]>(getCachedPatientsSync() ?? []);
   const [patientsLoading, setPatientsLoading] = useState(!getCachedPatientsSync());
@@ -40,6 +70,18 @@ export function PharmacyAdviceStatisticsPage() {
   const [accepted, setAccepted] = useState<string>('');
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // ── 歷史紀錄編輯 / 刪除 ──
+  const [editingRecord, setEditingRecord] = useState<PharmacyAdviceRecord | null>(null);
+  const [editCategoryKey, setEditCategoryKey] = useState('');
+  const [editCode, setEditCode] = useState('');
+  const [editAccepted, setEditAccepted] = useState<EditAcceptedValue>('pending');
+  const [editContent, setEditContent] = useState('');
+  const [editLinkedMedications, setEditLinkedMedications] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingRecord, setDeletingRecord] = useState<PharmacyAdviceRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [tagStatsRefreshToken, setTagStatsRefreshToken] = useState(0);
 
   // ── 月份選擇 ──
   const todayMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
@@ -165,7 +207,7 @@ export function PharmacyAdviceStatisticsPage() {
       .catch(() => { if (!cancelled) setTagStats([]); })
       .finally(() => { if (!cancelled) setTagStatsLoading(false); });
     return () => { cancelled = true; };
-  }, [selectedMonth]);
+  }, [selectedMonth, tagStatsRefreshToken]);
 
   // 載入 SOAP 紀錄 (TC-FU-T2) — 切到 SOAP tab 或月份/搜尋變更時 fetch
   useEffect(() => {
@@ -190,6 +232,74 @@ export function PharmacyAdviceStatisticsPage() {
 
   // 取得選中的細項
   const selectedCodeItem = selectedCategory?.codes.find((c) => c.code === selectedCode);
+  const editSelectedCategory = editCategoryKey ? PHARMACY_ADVICE_CATEGORIES[editCategoryKey] : null;
+  const editSelectedCodeItem = editSelectedCategory?.codes.find((c) => c.code === editCode);
+
+  const openEditRecord = (record: PharmacyAdviceRecord) => {
+    const categoryKey = getCategoryKeyByLabel(record.category);
+    setEditingRecord(record);
+    setEditCategoryKey(categoryKey);
+    setEditCode(record.adviceCode);
+    setEditAccepted(record.accepted === true ? 'yes' : record.accepted === false ? 'no' : 'pending');
+    setEditContent(record.content || '');
+    setEditLinkedMedications((record.linkedMedications || []).join(', '));
+  };
+
+  const closeEditDialog = () => {
+    setEditingRecord(null);
+    setEditCategoryKey('');
+    setEditCode('');
+    setEditAccepted('pending');
+    setEditContent('');
+    setEditLinkedMedications('');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingRecord || !editSelectedCategory || !editSelectedCodeItem) {
+      toast.error('請選擇完整的分類與細項');
+      return;
+    }
+    if (!editContent.trim()) {
+      toast.error('請輸入紀錄內容');
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      await updateAdviceRecord(editingRecord.id, {
+        adviceCode: editSelectedCodeItem.code,
+        adviceLabel: editSelectedCodeItem.label,
+        category: editSelectedCategory.label,
+        content: editContent.trim(),
+        linkedMedications: splitLinkedMedications(editLinkedMedications),
+        accepted: editAccepted === 'yes' ? true : editAccepted === 'no' ? false : null,
+      });
+      toast.success('歷史紀錄已更新');
+      closeEditDialog();
+      await fetchRecords();
+      setTagStatsRefreshToken((v) => v + 1);
+    } catch {
+      toast.error('更新紀錄失敗');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingRecord) return;
+    setDeleting(true);
+    try {
+      await deleteAdviceRecord(deletingRecord.id);
+      toast.success('歷史紀錄已刪除');
+      setDeletingRecord(null);
+      await fetchRecords();
+      setTagStatsRefreshToken((v) => v + 1);
+    } catch {
+      toast.error('刪除紀錄失敗');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // 送出
   const handleSubmit = async () => {
@@ -699,12 +809,12 @@ export function PharmacyAdviceStatisticsPage() {
         </CardContent>
       </Card>
 
-      {/* ── 紀錄清單 ── */}
+      {/* ── 歷史紀錄 ── */}
       <Card>
         <CardHeader className="space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              紀錄清單
+              歷史紀錄
               <Badge variant="secondary">共 {recordsTotal} 筆</Badge>
               {searchTerm.trim() && (
                 <Badge variant="outline" className="font-normal">
@@ -759,7 +869,7 @@ export function PharmacyAdviceStatisticsPage() {
                       className={`border-l-4 rounded-lg p-3 hover:shadow-md transition-shadow ${cardBg}`}
                       style={{ borderLeftColor: PHARMACY_ADVICE_CATEGORY_COLORS[record.category] || '#999' }}
                     >
-                      <div className="flex items-start justify-between mb-1.5">
+                      <div className="flex items-start justify-between mb-1.5 gap-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           <Badge
                             className="text-white"
@@ -769,7 +879,7 @@ export function PharmacyAdviceStatisticsPage() {
                           </Badge>
                           <span className="font-medium text-sm">{record.adviceLabel}</span>
                         </div>
-                        <div className="flex items-center gap-2 ml-2">
+                        <div className="flex items-center gap-2 ml-2 flex-wrap justify-end">
                           {isAccepted && (
                             <Badge className="bg-green-600 hover:bg-green-700 text-white text-xs gap-1 px-2.5 py-0.5">
                               <CheckCircle2 className="h-3.5 w-3.5" /> 已接受
@@ -783,6 +893,32 @@ export function PharmacyAdviceStatisticsPage() {
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
                             {new Date(record.timestamp).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                           </span>
+                          {canManageAdviceRecords && (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => openEditRecord(record)}
+                                title="編輯歷史紀錄"
+                              >
+                                <Edit2 className="h-3.5 w-3.5 mr-1" />
+                                編輯
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
+                                onClick={() => setDeletingRecord(record)}
+                                title="刪除歷史紀錄"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                刪除
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -821,13 +957,13 @@ export function PharmacyAdviceStatisticsPage() {
               title="搜尋無結果"
               description={`沒有符合「${searchTerm}」的紀錄。試試清除搜尋或切換月份。`}
             />
-          ) : (
-            <EmptyState
-              icon={FileText}
-              title={`${monthLabel}尚無紀錄`}
-              description="使用上方表單新增藥師照護介入紀錄"
-            />
-          )}
+	          ) : (
+	            <EmptyState
+	              icon={FileText}
+	              title={`${monthLabel}尚無歷史紀錄`}
+	              description="使用上方表單新增藥師照護介入紀錄"
+	            />
+	          )}
         </CardContent>
       </Card>
         </TabsContent>
@@ -938,6 +1074,139 @@ export function PharmacyAdviceStatisticsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={editingRecord !== null} onOpenChange={(open) => { if (!open) closeEditDialog(); }}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit2 className="h-5 w-5 text-brand" />
+              編輯歷史紀錄
+            </DialogTitle>
+            <DialogDescription>
+              更新後會同步調整這筆介入紀錄；若它是由統計頁或工作站建立，也會同步更新留言板的對應用藥建議。
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">建議類別 *</label>
+                <Select
+                  value={editCategoryKey}
+                  onValueChange={(value) => {
+                    setEditCategoryKey(value);
+                    setEditCode('');
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="選擇類別" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(PHARMACY_ADVICE_CATEGORIES).map(([key, cat]) => (
+                      <SelectItem key={key} value={key}>
+                        {cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium">細項 *</label>
+                <Select value={editCode} onValueChange={setEditCode} disabled={!editSelectedCategory}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={editSelectedCategory ? '選擇細項' : '先選類別'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {editSelectedCategory?.codes.map((item) => (
+                      <SelectItem key={item.code} value={item.code}>
+                        {item.code} {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium">醫師是否接受</label>
+                <Select value={editAccepted} onValueChange={(value) => setEditAccepted(value as EditAcceptedValue)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="選擇狀態" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">未填</SelectItem>
+                    <SelectItem value="yes">接受</SelectItem>
+                    <SelectItem value="no">不接受</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium">紀錄內容 *</label>
+              <Textarea
+                value={editContent}
+                onChange={(event) => setEditContent(event.target.value)}
+                className="min-h-[140px]"
+                placeholder="輸入藥事介入內容"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium">連結藥物</label>
+              <Input
+                value={editLinkedMedications}
+                onChange={(event) => setEditLinkedMedications(event.target.value)}
+                placeholder="以逗號分隔，例如 Vancomycin, Gentamicin"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeEditDialog} disabled={savingEdit}>
+              取消
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={savingEdit || !editSelectedCategory || !editSelectedCodeItem || !editContent.trim()}
+            >
+              {savingEdit ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit2 className="mr-2 h-4 w-4" />}
+              儲存變更
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={deletingRecord !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeletingRecord(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>刪除歷史紀錄</AlertDialogTitle>
+            <AlertDialogDescription>
+              這會刪除「{deletingRecord?.adviceCode} {deletingRecord?.adviceLabel}」這筆紀錄。
+              若它是由統計頁或工作站建立，對應的留言板用藥建議也會一併移除。此操作無法復原。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={deleting}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleConfirmDelete();
+              }}
+            >
+              {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              刪除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

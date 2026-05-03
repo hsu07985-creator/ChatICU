@@ -182,3 +182,36 @@ async def test_empty_when_user_never_authored_any_advice(client, two_pharmacists
         app.dependency_overrides[get_current_user] = _user_override(
             "usr_test", "Test Doctor", role="admin",
         )
+
+
+@pytest.mark.asyncio
+async def test_other_pharmacist_cannot_update_or_delete_advice(client, two_pharmacists):
+    create = await client.post("/pharmacy/advice-records", json={
+        "patientId": "pat_001",
+        "adviceCode": "1-A",
+        "adviceLabel": "給藥問題",
+        "category": "1. 建議處方",
+        "content": "A-owned advice",
+    })
+    advice_id = create.json()["data"]["id"]
+
+    app.dependency_overrides[get_current_user] = _user_override(
+        "usr_pharm_b", "Pharmacist B", role="pharmacist",
+    )
+    try:
+        patch = await client.patch(
+            f"/pharmacy/advice-records/{advice_id}",
+            json={"content": "B should not edit this"},
+        )
+        assert patch.status_code == 404
+
+        delete = await client.delete(f"/pharmacy/advice-records/{advice_id}")
+        assert delete.status_code == 404
+    finally:
+        app.dependency_overrides[get_current_user] = _user_override(
+            "usr_test", "Test Doctor", role="admin",
+        )
+
+    records = (await client.get("/pharmacy/advice-records")).json()["data"]
+    assert records["total"] == 1
+    assert records["records"][0]["content"] == "A-owned advice"

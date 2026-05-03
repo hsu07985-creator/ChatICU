@@ -219,6 +219,40 @@ async def test_synced_advice_shows_up_in_admin_stats(client):
 
 
 @pytest.mark.asyncio
+async def test_edit_and_delete_synced_advice_rebuilds_source_message_tags(client, seeded_db):
+    post = await client.post("/patients/pat_001/messages", json={
+        "messageType": "general",
+        "content": "source message",
+        "tags": ["rounding", "建議處方", "1-A 給藥問題"],
+    })
+    msg_id = post.json()["data"]["id"]
+    advices = await _advices_for_message(seeded_db, msg_id)
+    assert len(advices) == 1
+    advice_id = advices[0].id
+
+    patch = await client.patch(f"/pharmacy/advice-records/{advice_id}", json={
+        "adviceCode": "2-O",
+        "adviceLabel": "建議用藥/建議增加用藥",
+        "category": "2. 主動建議",
+        "content": "updated source advice",
+    })
+    assert patch.status_code == 200, patch.text
+
+    messages = (await client.get("/patients/pat_001/messages")).json()["data"]["messages"]
+    source = next(m for m in messages if m["id"] == msg_id)
+    assert source["content"] == "updated source advice"
+    assert source["tags"] == ["rounding", "主動建議", "2-O 建議用藥/建議增加用藥"]
+
+    delete = await client.delete(f"/pharmacy/advice-records/{advice_id}")
+    assert delete.status_code == 200, delete.text
+
+    messages_after = (await client.get("/patients/pat_001/messages")).json()["data"]["messages"]
+    source_after = next(m for m in messages_after if m["id"] == msg_id)
+    assert source_after["tags"] == ["rounding"]
+    assert await _advices_for_message(seeded_db, msg_id) == []
+
+
+@pytest.mark.asyncio
 async def test_backfill_helper_is_idempotent(client, seeded_db):
     """Seed an orphan message (pre-migration-067 style), then call the
     sync helper by hand. First call creates advices; second call is a no-op."""

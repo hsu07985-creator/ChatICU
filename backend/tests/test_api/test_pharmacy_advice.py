@@ -89,6 +89,71 @@ async def test_create_then_list_advice_records(client):
 
 
 @pytest.mark.asyncio
+async def test_update_advice_record_syncs_auto_posted_message(client):
+    """PATCH /pharmacy/advice-records/{id} updates the stats row and its linked board message."""
+    create_resp = await client.post("/pharmacy/advice-records", json={
+        "patientId": "pat_001",
+        "adviceCode": "1-D",
+        "adviceLabel": "藥品併用問題",
+        "category": "1. 建議處方",
+        "content": "old content",
+        "linkedMedications": ["Vancomycin"],
+    })
+    advice_id = create_resp.json()["data"]["id"]
+
+    update_resp = await client.patch(f"/pharmacy/advice-records/{advice_id}", json={
+        "adviceCode": "3-R",
+        "adviceLabel": "建議藥品療效監測",
+        "category": "3. 建議監測",
+        "content": "new content",
+        "linkedMedications": ["Gentamicin"],
+        "accepted": False,
+    })
+    assert update_resp.status_code == 200, update_resp.text
+    updated = update_resp.json()["data"]
+    assert updated["adviceCode"] == "3-R"
+    assert updated["adviceLabel"] == "建議藥品療效監測"
+    assert updated["category"] == "3. 建議監測"
+    assert updated["content"] == "new content"
+    assert updated["linkedMedications"] == ["Gentamicin"]
+    assert updated["accepted"] is False
+
+    messages = (await client.get("/patients/pat_001/messages")).json()["data"]["messages"]
+    linked = next(m for m in messages if m.get("adviceRecordId") == advice_id)
+    assert "3-R 建議藥品療效監測" in linked["content"]
+    assert "new content" in linked["content"]
+    assert linked["linkedMedication"] == "Gentamicin"
+    assert linked["adviceCode"] == "3-R"
+    assert linked["tags"] == ["建議監測", "3-R 建議藥品療效監測"]
+
+
+@pytest.mark.asyncio
+async def test_delete_advice_record_removes_auto_posted_message(client):
+    """DELETE removes the history row and its one-to-one auto-posted board message."""
+    create_resp = await client.post("/pharmacy/advice-records", json={
+        "patientId": "pat_001",
+        "adviceCode": "1-D",
+        "adviceLabel": "藥品併用問題",
+        "category": "1. 建議處方",
+        "content": "delete me",
+    })
+    advice_id = create_resp.json()["data"]["id"]
+
+    before = (await client.get("/patients/pat_001/messages")).json()["data"]["messages"]
+    assert any(m.get("adviceRecordId") == advice_id for m in before)
+
+    del_resp = await client.delete(f"/pharmacy/advice-records/{advice_id}")
+    assert del_resp.status_code == 200, del_resp.text
+
+    records = (await client.get("/pharmacy/advice-records")).json()["data"]
+    assert records["total"] == 0
+    assert records["records"] == []
+
+    after = (await client.get("/patients/pat_001/messages")).json()["data"]["messages"]
+    assert all(m.get("adviceRecordId") != advice_id for m in after)
+
+
+@pytest.mark.asyncio
 async def test_list_advice_records_filter_category(client):
     """Filtering by category returns only matching records."""
     # Create two records in different categories

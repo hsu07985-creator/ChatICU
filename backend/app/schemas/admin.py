@@ -146,3 +146,26 @@ class AdviceRecordCreate(BaseModel):
         if v not in _ADVICE_CATEGORIES:
             raise ValueError(f"類別須為 {', '.join(sorted(_ADVICE_CATEGORIES))} 之一")
         return v
+
+
+class AdviceRecordUpdate(BaseModel):
+    adviceCode: Optional[str] = Field(None, min_length=1, max_length=10)
+    adviceLabel: Optional[str] = Field(None, min_length=1, max_length=200)
+    category: Optional[str] = Field(None, min_length=1, max_length=50)
+    content: Optional[str] = Field(None, min_length=1, max_length=5000)
+    linkedMedications: Optional[List[str]] = None
+    accepted: Optional[bool] = None
+
+    @field_validator("adviceCode")
+    @classmethod
+    def check_advice_code_format(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not _ADVICE_CODE_RE.match(v):
+            raise ValueError("建議代碼格式不正確，應為 X-Y（如 1-A、3-R）")
+        return v
+
+    @field_validator("category")
+    @classmethod
+    def check_category(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in _ADVICE_CATEGORIES:
+            raise ValueError(f"類別須為 {', '.join(sorted(_ADVICE_CATEGORIES))} 之一")
+        return v
