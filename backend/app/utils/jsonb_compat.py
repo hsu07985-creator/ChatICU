@@ -57,7 +57,21 @@ def array_contains_user_receipt(column, user_id: str, dialect_name: str):
     PostgreSQL form uses ``@>`` against a single-key probe object so it
     matches regardless of the other fields' values; the SQLite test
     fallback substring-matches the JSON encoding ``"userId": "<id>"``.
+
+    Returns a strict boolean expression (never NULL) so callers using
+    ``~array_contains_user_receipt(...)`` over rows whose ``read_by`` is
+    SQL NULL still match. Without the explicit boolean coercion, both
+    PG (``NULL @> [...]`` → NULL) and SQLite (``cast(NULL,text) LIKE
+    ...`` → NULL) leave NULL results that ``WHERE NULL`` and
+    ``case(~NULL,...)`` silently drop, so a brand-new message with no
+    receipts ever recorded counted as "read by everyone" — the opposite
+    of what we want.
     """
+    from sqlalchemy import case, false
     if dialect_name == "postgresql":
-        return column.contains([{"userId": user_id}])
-    return cast(column, String).contains(f'"userId": "{user_id}"')
+        expr = column.contains([{"userId": user_id}])
+    else:
+        expr = cast(column, String).contains(f'"userId": "{user_id}"')
+    # case(...) returns FALSE when the inner predicate is NULL (no rows
+    # in read_by) so ``~expr`` cleanly = TRUE for unread receipts.
+    return case((expr, True), else_=False)

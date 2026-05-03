@@ -12,7 +12,18 @@ from app.middleware.auth import get_current_user
 from app.models.message import PatientMessage
 from app.models.patient import Patient
 from app.models.user import User
+from app.utils.jsonb_compat import array_contains_user_receipt
 from app.utils.response import success_response
+
+
+def _is_read_by_me(msg: PatientMessage, user_id: str) -> bool:
+    """Per-user read-state probe used by aggregations that already
+    have rows loaded (post-TC-FU-T1).
+    """
+    for entry in (msg.read_by or []):
+        if isinstance(entry, dict) and entry.get("userId") == user_id:
+            return True
+    return False
 
 router = APIRouter(prefix="/patients/messages", tags=["message-activity"])
 
@@ -27,6 +38,14 @@ async def get_tagged_activity(
 ):
     """Return per-patient summary of tagged messages within the given time window."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_back)
+    dialect_name = db.bind.dialect.name
+    # Per-user unread (TC-FU-T1): a tagged message counts as unread for
+    # me iff I'm not in its ``read_by`` array. The legacy global
+    # ``is_read`` was shared across the whole team and gave the wrong
+    # number here too — F-02 in the audit.
+    already_read = array_contains_user_receipt(
+        PatientMessage.read_by, user.id, dialect_name,
+    )
 
     # Step 1: aggregate per patient_id
     agg_stmt = (
@@ -34,7 +53,7 @@ async def get_tagged_activity(
             PatientMessage.patient_id,
             func.count(PatientMessage.id).label("tagged_count"),
             func.sum(
-                case((PatientMessage.is_read == False, 1), else_=0)  # noqa: E712
+                case((~already_read, 1), else_=0)
             ).label("unread_count"),
             func.max(PatientMessage.timestamp).label("latest_timestamp"),
         )
@@ -134,6 +153,10 @@ async def get_my_mentions(
     """Return messages where the current user is mentioned (by role, "all", or user_id), grouped by patient."""
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_back)
     role = user.role
+    dialect_name = db.bind.dialect.name
+    already_read = array_contains_user_receipt(
+        PatientMessage.read_by, user.id, dialect_name,
+    )
 
     # Find messages that mention this user (by their role, by the "all" pseudo-role, or by user_id)
     base_stmt = (
@@ -148,7 +171,8 @@ async def get_my_mentions(
         )
     )
     if unread_only:
-        base_stmt = base_stmt.where(PatientMessage.is_read == False)  # noqa: E712
+        # Per-user unread (TC-FU-T1) — was global ``is_read==False``.
+        base_stmt = base_stmt.where(~already_read)
 
     base_stmt = base_stmt.order_by(PatientMessage.timestamp.desc()).limit(limit)
     result = await db.execute(base_stmt)
@@ -170,7 +194,9 @@ async def get_my_mentions(
     groups: List[dict] = []
     for pid, msgs in grouped.items():
         pat = pat_map.get(pid)
-        unread = sum(1 for m in msgs if not m.is_read)
+        # Per-user unread + isRead (TC-FU-T1) — using read_by membership
+        # rather than the legacy global is_read flag.
+        unread = sum(1 for m in msgs if not _is_read_by_me(m, user.id))
         groups.append({
             "patientId": pid,
             "patientName": pat.name if pat else pid,
@@ -184,7 +210,7 @@ async def get_my_mentions(
                     "authorName": m.author_name,
                     "authorRole": m.author_role,
                     "timestamp": m.timestamp.isoformat() if m.timestamp else None,
-                    "isRead": m.is_read,
+                    "isRead": _is_read_by_me(m, user.id),
                     "mentionedRoles": m.mentioned_roles or [],
                     "mentionedUserIds": m.mentioned_user_ids or [],
                     "tags": m.tags or [],

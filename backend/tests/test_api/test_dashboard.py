@@ -6,12 +6,22 @@ Postgres and json_array_length only accepts json. The fix casts jsonb→json
 before calling the function; the cast is a no-op on SQLite.
 """
 import pytest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.models.medication import Medication
 from app.models.patient import Patient
+from app.models.user import User
 from app.models.vital_sign import VitalSign
 from app.models.message import PatientMessage
+
+
+async def _seed_visit_baseline_in_past(seeded_db, user_id="usr_test", hours_ago=1):
+    """TC-FU-T1: dashboard.messages.unread now uses ``read_by`` per-user
+    and is gated by ``last_chat_visit_at`` so seed it strictly older
+    than the message we add below."""
+    db_user = await seeded_db.get(User, user_id)
+    db_user.last_chat_visit_at = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+    await seeded_db.commit()
 
 pytestmark = [pytest.mark.anyio]
 
@@ -65,6 +75,7 @@ async def test_dashboard_stats_medication_counts(client, seeded_db):
 
 async def test_dashboard_stats_message_counts(client, seeded_db):
     """Dashboard counts today's messages and unread."""
+    await _seed_visit_baseline_in_past(seeded_db)
     db = seeded_db
     msg = PatientMessage(
         id="pmsg_dash_001",
@@ -76,6 +87,7 @@ async def test_dashboard_stats_message_counts(client, seeded_db):
         content="Test message for dashboard",
         timestamp=datetime.now(timezone.utc),
         is_read=False,
+        read_by=[],  # per-user model: empty read_by → unread for usr_test
     )
     db.add(msg)
     await db.commit()

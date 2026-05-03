@@ -34,6 +34,13 @@ async def seeded_messages(seeded_db):
         content="Suggest dose reduction",
         timestamp=now,
         is_read=True,
+        # Per-user (TC-FU-T1): list-messages ?unread=true now consults
+        # read_by membership rather than the global is_read flag.
+        read_by=[{
+            "userId": "usr_test",
+            "userName": "Test Doctor",
+            "readAt": now.isoformat(),
+        }],
         advice_code="1-A",
         tags=["建議處方", "1-A 給藥問題"],
     )

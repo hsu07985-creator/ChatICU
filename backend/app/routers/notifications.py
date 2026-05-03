@@ -69,44 +69,60 @@ async def get_notification_summary(
     - alerts: unread patient-board messages whose `message_type` is 'alert'/'urgent'
     - total: mentions + alerts (not deduplicated)
 
-    Team-chat unread is per-user (TC-W3-T1): a message is unread for me
-    iff I am not in its ``read_by`` array AND its timestamp is after my
-    ``last_chat_visit_at``. The previous global ``is_read`` flag let any
-    reader silently zero everyone's mention badge.
+    Both team-chat and patient-board unread are per-user (TC-W3-T1 +
+    TC-FU-T1): a message is unread for me iff I am not in its
+    ``read_by`` array AND its timestamp is after my baseline. The old
+    global ``is_read`` flag let any reader silently zero everyone's
+    mention/alert badge — F-02 in the audit.
+
+    Baseline is unified across PB+TC via ``users.last_chat_visit_at``
+    (TC-FU-T1 option C): the same "first-visit" gate prevents a flood
+    of historical mentions/alerts when the model switch lands. The
+    168h window is also retained as a hard cap so a user who never
+    visits chat doesn't accumulate ancient items forever.
     """
     cutoff = datetime.now(timezone.utc) - timedelta(hours=_WINDOW_HOURS)
     dialect_name = db.bind.dialect.name
 
     db_user = await db.get(User, user.id)
     last_visit = to_utc_aware(db_user.last_chat_visit_at if db_user is not None else None)
-    tc_baseline = max(cutoff, last_visit) if last_visit is not None else None
+    # Unified baseline: chat visit gates both team-chat AND patient-board
+    # since the same user activity invalidates "舊資料視為已讀" for both.
+    baseline_at = max(cutoff, last_visit) if last_visit is not None else None
     tc_already_read = array_contains_user_receipt(
         TeamChatMessage.read_by, user.id, dialect_name,
     )
-
-    pb_mentions_stmt = (
-        select(func.count(PatientMessage.id))
-        .where(PatientMessage.timestamp >= cutoff)
-        .where(PatientMessage.is_read == False)  # noqa: E712
-        .where(_patient_board_mention_predicate(user, dialect_name))
+    pb_already_read = array_contains_user_receipt(
+        PatientMessage.read_by, user.id, dialect_name,
     )
-    if tc_baseline is None:
-        # New user with no last_chat_visit_at — show 0 team-chat mentions
-        # until their first chat visit (matches /team/chat/unread-count).
+
+    if baseline_at is None:
+        # New user with no last_chat_visit_at — show 0 PB mentions/alerts
+        # AND 0 team-chat mentions until their first chat visit. Matches
+        # /team/chat/unread-count's first-visit behavior; prevents the
+        # per-user model switch from retroactively flooding badges.
+        pb_mentions_stmt = select(func.count(PatientMessage.id)).where(False)
         tc_mentions_stmt = select(func.count(TeamChatMessage.id)).where(False)
+        alerts_stmt = select(func.count(PatientMessage.id)).where(False)
     else:
+        pb_mentions_stmt = (
+            select(func.count(PatientMessage.id))
+            .where(PatientMessage.timestamp >= baseline_at)
+            .where(~pb_already_read)
+            .where(_patient_board_mention_predicate(user, dialect_name))
+        )
         tc_mentions_stmt = (
             select(func.count(TeamChatMessage.id))
-            .where(TeamChatMessage.timestamp > tc_baseline)
+            .where(TeamChatMessage.timestamp > baseline_at)
             .where(~tc_already_read)
             .where(_team_chat_mention_predicate(user, dialect_name))
         )
-    alerts_stmt = (
-        select(func.count(PatientMessage.id))
-        .where(PatientMessage.timestamp >= cutoff)
-        .where(PatientMessage.is_read == False)  # noqa: E712
-        .where(PatientMessage.message_type.in_(_ALERT_TYPES))
-    )
+        alerts_stmt = (
+            select(func.count(PatientMessage.id))
+            .where(PatientMessage.timestamp >= baseline_at)
+            .where(~pb_already_read)
+            .where(PatientMessage.message_type.in_(_ALERT_TYPES))
+        )
 
     pb_mentions = (await db.execute(pb_mentions_stmt)).scalar_one() or 0
     tc_mentions = (await db.execute(tc_mentions_stmt)).scalar_one() or 0
@@ -137,12 +153,16 @@ async def get_recent_notifications(
     cutoff = datetime.now(timezone.utc) - timedelta(hours=_WINDOW_HOURS)
     dialect_name = db.bind.dialect.name
 
-    # Per-user team-chat read state (TC-W3-T1) — same model as /summary.
+    # Per-user read state (TC-W3-T1 + TC-FU-T1) — same model as /summary.
     db_user = await db.get(User, user.id)
     last_visit = to_utc_aware(db_user.last_chat_visit_at if db_user is not None else None)
-    tc_baseline = max(cutoff, last_visit) if last_visit is not None else None
+    baseline_at = max(cutoff, last_visit) if last_visit is not None else None
 
     # ── Patient board mentions ─────────────────────────────────────────
+    # Recent feed retains the 168h cutoff (not the per-user baseline) so
+    # a user who hasn't visited chat in a while can still scroll back
+    # and see what they missed. ``isRead`` is computed per-user inline
+    # rather than from the legacy global ``is_read`` flag.
     pb_stmt = (
         select(PatientMessage, Patient.bed_number, Patient.name)
         .join(Patient, Patient.id == PatientMessage.patient_id, isouter=True)
@@ -152,6 +172,14 @@ async def get_recent_notifications(
         .limit(limit)
     )
     pb_rows = (await db.execute(pb_stmt)).all()
+
+    # Compute per-user read state inline since SQL predicate is dialect-aware
+    # and we already have the rows loaded.
+    def _pb_is_read_by_me(m: PatientMessage) -> bool:
+        for entry in (m.read_by or []):
+            if isinstance(entry, dict) and entry.get("userId") == user.id:
+                return True
+        return False
 
     pb_items = [
         {
@@ -165,27 +193,25 @@ async def get_recent_notifications(
             "authorRole": m.author_role,
             "preview": (m.content or "")[:140],
             "timestamp": m.timestamp.isoformat() if m.timestamp else None,
-            "isRead": bool(m.is_read),
+            "isRead": _pb_is_read_by_me(m),
             "deepLink": f"/patient/{m.patient_id}?tab=messages",
         }
         for (m, bed, pname) in pb_rows
     ]
 
     # ── Team chat mentions ─────────────────────────────────────────────
-    if tc_baseline is None:
+    if baseline_at is None:
         tc_msgs = []
     else:
         tc_stmt = (
             select(TeamChatMessage)
-            .where(TeamChatMessage.timestamp > tc_baseline)
+            .where(TeamChatMessage.timestamp > baseline_at)
             .where(_team_chat_mention_predicate(user, dialect_name))
             .order_by(TeamChatMessage.timestamp.desc())
             .limit(limit)
         )
         tc_msgs = (await db.execute(tc_stmt)).scalars().all()
 
-    # Compute per-user read state inline since SQL predicate is dialect-aware
-    # and we already have the rows loaded.
     def _tc_is_read_by_me(m: TeamChatMessage) -> bool:
         for entry in (m.read_by or []):
             if isinstance(entry, dict) and entry.get("userId") == user.id:
@@ -229,8 +255,11 @@ async def mark_all_notifications_read(
     """Mark every unread message that contributes to this user's bell count as read.
 
     Covers patient-board mentions, patient-board alerts, and team-chat mentions
-    inside the look-back window. Sets `is_read=True` and appends a read receipt
-    to `read_by` (matching the per-message endpoint at messages.py:602).
+    inside the look-back window. Appends a per-user read receipt to
+    ``read_by`` so other users' badges are unaffected (TC-FU-T1 / TC-W3-T1).
+    The legacy ``is_read=True`` flag is kept in sync for backward compat with
+    other surfaces that still surface it (e.g. ``msg_to_dict``), but no
+    predicate consults it for unread calculation any more.
     """
     cutoff = datetime.now(timezone.utc) - timedelta(hours=_WINDOW_HOURS)
     now = datetime.now(timezone.utc)
@@ -238,37 +267,43 @@ async def mark_all_notifications_read(
 
     db_user = await db.get(User, user.id)
     last_visit = to_utc_aware(db_user.last_chat_visit_at if db_user is not None else None)
-    tc_baseline = max(cutoff, last_visit) if last_visit is not None else None
+    baseline_at = max(cutoff, last_visit) if last_visit is not None else None
     tc_already_read = array_contains_user_receipt(
         TeamChatMessage.read_by, user.id, dialect_name,
     )
-
-    pb_stmt = select(PatientMessage).where(
-        PatientMessage.timestamp >= cutoff,
-        PatientMessage.is_read == False,  # noqa: E712
-        or_(
-            _patient_board_mention_predicate(user, dialect_name),
-            PatientMessage.message_type.in_(_ALERT_TYPES),
-        ),
+    pb_already_read = array_contains_user_receipt(
+        PatientMessage.read_by, user.id, dialect_name,
     )
-    pb_msgs = (await db.execute(pb_stmt)).scalars().all()
 
-    if tc_baseline is None:
+    if baseline_at is None:
+        # Pre-first-visit users have empty badges to begin with —
+        # nothing to mark.
+        pb_msgs = []
         tc_msgs = []
     else:
+        pb_stmt = select(PatientMessage).where(
+            PatientMessage.timestamp >= baseline_at,
+            ~pb_already_read,
+            or_(
+                _patient_board_mention_predicate(user, dialect_name),
+                PatientMessage.message_type.in_(_ALERT_TYPES),
+            ),
+        )
+        pb_msgs = (await db.execute(pb_stmt)).scalars().all()
+
         tc_stmt = select(TeamChatMessage).where(
-            TeamChatMessage.timestamp > tc_baseline,
+            TeamChatMessage.timestamp > baseline_at,
             ~tc_already_read,
             _team_chat_mention_predicate(user, dialect_name),
         )
         tc_msgs = (await db.execute(tc_stmt)).scalars().all()
 
     for m in pb_msgs:
+        # is_read kept for backward compat; per-user state is read_by.
         m.is_read = True
         m.read_by = append_read_receipt(m.read_by, user.id, user.name, when=now)
 
     for m in tc_msgs:
-        # is_read kept for backward compat; per-user state is read_by.
         m.is_read = True
         m.read_by = append_read_receipt(m.read_by, user.id, user.name, when=now)
 
