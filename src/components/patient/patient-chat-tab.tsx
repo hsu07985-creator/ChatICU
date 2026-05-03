@@ -20,7 +20,9 @@ import {
   Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Citation as AiCitation, DataFreshness } from '../../lib/api/ai';
+import type { AdviceRef, Citation as AiCitation, DataFreshness } from '../../lib/api/ai';
+import { SnapshotRefreshControl } from '../ai-chat/snapshot-refresh-control';
+import { AdviceRefChips } from '../ai-chat/advice-ref-chips';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { ButtonLoadingIndicator } from '../ui/button-loading-indicator';
@@ -68,6 +70,10 @@ export interface PatientChatTabMessage {
   upstreamStatus?: string | null;
   dataFreshness?: DataFreshness | null;
   feedback?: 'up' | 'down' | null;
+  /** F-PARITY (2026-05-03): live-only deep-link refs from this turn's
+   *  prefetch (currently pharmacy advice). Empty when reload reads from DB
+   *  or when no advice prefetch fired. */
+  adviceRefs?: AdviceRef[];
 }
 
 interface PatientChatTabProps {
@@ -130,6 +136,13 @@ interface PatientChatTabProps {
   compactSnippet: (snippet?: string) => string;
 
   chatBotAvatar: string;
+
+  // F-PARITY (2026-05-03): F2 snapshot freshness pill — same backend
+  // endpoint as the sidebar /ai-chat version uses. Visible when a
+  // patient-bound session is selected and snapshotTakenAt is known.
+  snapshotTakenAt?: string | null;
+  refreshingSnapshot?: boolean;
+  onRefreshSnapshot?: () => void;
 }
 
 export function PatientChatTab({
@@ -178,6 +191,9 @@ export function PatientChatTab({
   getDisplayFreshnessHints,
   compactSnippet,
   chatBotAvatar,
+  snapshotTakenAt = null,
+  refreshingSnapshot = false,
+  onRefreshSnapshot,
 }: PatientChatTabProps) {
   return (
     <TabsContent value="chat" className="space-y-2">
@@ -335,6 +351,17 @@ export function PatientChatTab({
             <CardHeader className="bg-slate-50 dark:bg-slate-800 border-b py-1 px-3" style={{ paddingBottom: '4px' }}>
               <div className="flex items-center gap-1.5">
                 <div className="flex-1" />
+                {/* F-PARITY (2026-05-03): same F2 freshness pill the sidebar
+                    /ai-chat carries. Visible once a session with snapshot
+                    metadata is selected. */}
+                {onRefreshSnapshot && (
+                  <SnapshotRefreshControl
+                    visible={Boolean(selectedSession && snapshotTakenAt)}
+                    takenAt={snapshotTakenAt ?? null}
+                    refreshing={refreshingSnapshot}
+                    onRefresh={onRefreshSnapshot}
+                  />
+                )}
                 <div className="flex items-center gap-1">
                   <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-brand"
                     onClick={onToggleSessionList} title={showSessionList ? '隱藏記錄列表' : '顯示記錄列表'}>
@@ -401,6 +428,11 @@ export function PatientChatTab({
                                     <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1F2937]">{displayContent}</p>
                                   ) : (
                                     <AiMarkdown content={displayContent} className="text-sm text-[#1F2937]" />
+                                  )}
+
+                                  {/* F-PARITY (2026-05-03): F3 advice chip group below the bubble. */}
+                                  {!isStreamingThis && msg.role === 'assistant' && msg.adviceRefs && msg.adviceRefs.length > 0 && (
+                                    <AdviceRefChips refs={msg.adviceRefs} />
                                   )}
 
                                   {/* Expandable panels — shown after streaming */}

@@ -9,10 +9,8 @@ import {
   ChevronRight,
   ChevronUp,
   Info,
-  Loader2,
   MessageSquare,
   Plus,
-  RotateCw,
   Send,
   Sparkles,
   Square,
@@ -20,6 +18,7 @@ import {
   User,
   X,
 } from 'lucide-react';
+import { SnapshotRefreshControl } from '../components/ai-chat/snapshot-refresh-control';
 import { patientsApi, type Patient } from '../lib/api';
 import { maskPatientName } from '../lib/utils/patient-name';
 import {
@@ -134,55 +133,6 @@ function mapApiMessage(item: {
     dataFreshness: item.dataFreshness || null,
     graphMeta: item.graphMeta || null,
   };
-}
-
-/**
- * F2: snapshot freshness pill + refresh button shown in the chat header
- * when the active session has a patient context. Stays hidden for
- * general-chat sessions and for fresh sessions whose first turn hasn't
- * fired (no snapshot to display age for).
- *
- * The button highlights amber once the snapshot is older than 30 minutes
- * to nudge the user — the LLM's vent/lab/score view of the patient may
- * have drifted by then.
- */
-function SnapshotRefreshControl({
-  visible,
-  takenAt,
-  refreshing,
-  onRefresh,
-}: {
-  visible: boolean;
-  takenAt: string | null;
-  refreshing: boolean;
-  onRefresh: () => void;
-}) {
-  if (!visible || !takenAt) return null;
-
-  const age = Date.now() - new Date(takenAt).getTime();
-  const ageMinutes = Math.max(0, Math.floor(age / 60000));
-  const isStale = ageMinutes >= 30;
-  const ageLabel = ageMinutes === 0 ? '剛剛' : `${ageMinutes} 分鐘前`;
-
-  return (
-    <button
-      onClick={onRefresh}
-      disabled={refreshing}
-      className={`flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors ${
-        isStale
-          ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
-          : 'border-border text-muted-foreground hover:bg-slate-100 dark:hover:bg-slate-800'
-      } disabled:cursor-not-allowed disabled:opacity-60`}
-      title={isStale ? '快照已過 30 分鐘，建議重新整理以避免 LLM 用過期資料推論' : '重新整理病患快照'}
-    >
-      {refreshing ? (
-        <Loader2 className="h-3 w-3 animate-spin" />
-      ) : (
-        <RotateCw className="h-3 w-3" />
-      )}
-      <span>快照{ageLabel}</span>
-    </button>
-  );
 }
 
 export function AiChatPage() {
@@ -783,7 +733,17 @@ export function AiChatPage() {
                     對話記錄
                   </Button>
                 )}
-                {disclaimerCollapsed ? (
+                {effectivePatientId ? (
+                  // F-UI1 (2026-05-03 prod feedback): when a patient is bound
+                  // to this chat the panel header used to still say
+                  // "通用問答模式" / "無病歷背景 · 勿輸入個資", which contradicts
+                  // the patient-context badge above the panel and confuses
+                  // pharmacists. Switch the badge to a 病歷模式 indicator.
+                  <div className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300">
+                    <Info className="h-3.5 w-3.5" />
+                    <span>病歷模式 · 已載入此床快照</span>
+                  </div>
+                ) : disclaimerCollapsed ? (
                   <button
                     onClick={() => setDisclaimerCollapsed(false)}
                     className="flex items-center gap-1 text-xs text-[#9CA3AF] hover:text-[#6B7280] transition-colors"

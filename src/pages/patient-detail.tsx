@@ -33,9 +33,11 @@ import {
   splitMainAndDetail,
   getChatSessions as fetchChatSessionsApi,
   getChatSession as fetchChatSessionApi,
+  refreshChatSessionSnapshot,
   updateChatSessionTitle,
   updateMessageFeedback,
   deleteChatSession,
+  type AdviceRef,
   type ChatResponse,
   type Citation as AiCitation,
   type DataFreshness,
@@ -175,6 +177,10 @@ interface ChatMessage {
   upstreamStatus?: string | null;
   dataFreshness?: DataFreshness | null;
   feedback?: 'up' | 'down' | null;
+  /** F-PARITY (2026-05-03): live-only deep-link refs from this turn's
+   *  prefetch (currently pharmacy advice). Empty/undefined when reload
+   *  reads from DB or when no advice prefetch fired. */
+  adviceRefs?: AdviceRef[];
 }
 
 interface MedicationGroups {
@@ -440,6 +446,13 @@ export function PatientDetailPage() {
   const [isDeletingSessions, setIsDeletingSessions] = useState(false);
   const [feedbackingMessageIndex, setFeedbackingMessageIndex] = useState<number | null>(null);
   const [regeneratingMessageIndex, setRegeneratingMessageIndex] = useState<number | null>(null);
+
+  // F-PARITY (F2 in patient-detail): same snapshot freshness pill the
+  // sidebar /ai-chat page already has. Pharmacists almost always enter
+  // chat from this page, so without this here the F2 button effectively
+  // doesn't exist for them.
+  const [snapshotTakenAt, setSnapshotTakenAt] = useState<string | null>(null);
+  const [refreshingSnapshot, setRefreshingSnapshot] = useState(false);
 
   // RAG layer removed — AI features are always available, no readiness gating.
 
@@ -980,6 +993,7 @@ export function PatientDetailPage() {
       setSelectedSession(null);
       setChatMessages([]);
       setSessionTitle('');
+      setSnapshotTakenAt(null);
     } finally {
       setIsStartingSession(false);
     }
@@ -1018,6 +1032,7 @@ export function PatientDetailPage() {
   const handleOpenSession = async (session: ChatSession) => {
     setSelectedSession(session);
     setSessionTitle(session.title);
+    setSnapshotTakenAt(null);
     try {
       const detail = await fetchChatSessionApi(session.id);
       setChatMessages((detail.messages || []).map(m => {
@@ -1039,9 +1054,34 @@ export function PatientDetailPage() {
           dataFreshness: m.dataFreshness || null,
         };
       }));
+      // F-PARITY: pick up the same snapshotTakenAt the sidebar version uses
+      // so the freshness pill renders here too.
+      setSnapshotTakenAt(detail.session?.snapshotTakenAt ?? null);
     } catch {
       toast.error('載入對話內容失敗');
       setChatMessages([]);
+    }
+  };
+
+  // F-PARITY: same handler as ai-chat.tsx — calls the F2 backend endpoint
+  // to rebuild critical snapshot + queue deferred fill, then bumps the
+  // local timestamp so the pill reads "剛剛".
+  const handleRefreshSnapshot = async () => {
+    if (!selectedSession) return;
+    if (isSending) {
+      toast.error('請先按停止才能重新整理快照');
+      return;
+    }
+    setRefreshingSnapshot(true);
+    try {
+      const result = await refreshChatSessionSnapshot(selectedSession.id);
+      setSnapshotTakenAt(result.snapshotTakenAt);
+      toast.success('已重新整理病患快照');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : '重新整理快照失敗';
+      toast.error(msg);
+    } finally {
+      setRefreshingSnapshot(false);
     }
   };
 
@@ -1168,6 +1208,9 @@ export function PatientDetailPage() {
         dataFreshness: response.message.dataFreshness || null,
         feedback: null,
         timestamp: new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
+        // F-PARITY: F3 deep-link refs from this turn's prefetch (currently
+        // pharmacy advice). Live-only — same pattern as ai-chat.tsx.
+        adviceRefs: response.prefetchRefs?.adviceRefs ?? [],
       };
 
       const finalMessages = [
@@ -1175,6 +1218,13 @@ export function PatientDetailPage() {
         assistantMsg,
       ];
       setChatMessages(finalMessages);
+
+      // F-PARITY: first turn just built the snapshot — show the freshness
+      // pill immediately at "剛剛" so users see the baseline. Server-side
+      // timestamp differs by a few ms but doesn't matter for "N 分鐘前".
+      if (!snapshotTakenAt) {
+        setSnapshotTakenAt(new Date().toISOString());
+      }
 
       // If this is a new session, persist the user-provided title (optional)
       if (!selectedSession) {
@@ -1583,6 +1633,9 @@ export function PatientDetailPage() {
           getDisplayFreshnessHints={getDisplayFreshnessHints}
           compactSnippet={compactSnippet}
           chatBotAvatar={chatBotAvatar}
+          snapshotTakenAt={snapshotTakenAt}
+          refreshingSnapshot={refreshingSnapshot}
+          onRefreshSnapshot={handleRefreshSnapshot}
         />
 
         {/* 留言板 — Phase 3.4: lazy-loaded, only mount when active to avoid Suspense flash. */}

@@ -22,6 +22,19 @@ from app.routers.ai_chat import _reply_looks_hedged
         "Without more recent labs I can't recommend de-escalation.",
         "Insufficient information to confirm dosing change.",
         "Please provide the most recent CT report.",
+        # M3: prod-testing-derived patterns that the original list missed.
+        # Each phrase came from an actual DAY20-test LLM reply where prefetch
+        # had also missed; without these the MISS_LIKELY signal wouldn't fire.
+        "無法判定最近 72 小時用藥異動，因為目前系統無 MAR 資料。",
+        "目前系統無相關 MAR 給藥記錄。",
+        "需要的資料包括最近 24 小時的醫囑與護理紀錄。",
+        "若無法即時取得 MAR，請電話確認當班護理師。",
+        "目前資料無法判斷是否新增升壓劑。",
+        "暫時無法評估療效，請補登最新血液氣體。",
+        "查無最近 14 天的 culture 結果。",
+        "未見近期培養紀錄，建議追蹤。",
+        "Cannot determine renal trajectory without recent creatinine.",
+        "Unable to assess fluid balance — please provide intake/output.",
     ],
 )
 def test_hedged_phrases_detected(reply: str):

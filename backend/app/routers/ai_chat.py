@@ -268,19 +268,60 @@ def _messages_to_api_format(messages: List[AIMessage]) -> List[dict]:
 # switches per question. Conservative list; biased toward false negatives so
 # we don't drown the [MISS_LIKELY] signal in noise. Aggregated against the
 # per-turn [CHAT][PREFETCH] log to estimate "F4 would have helped" rate.
+#
+# M3 (2026-05-03): widened after prod testing showed real prefetch misses
+# whose hedging phrasing didn't intersect the original list. The DAY20
+# test case "最近 72 小時改了什麼藥" had reply "無法判定 ... 目前系統無 ...
+# 需要的資料包括 ..." — none of the original 12 patterns matched, so
+# MISS_LIKELY didn't fire on the strongest F4-trigger candidate. New
+# patterns target Chinese hedging idioms grouped into 4 buckets
+# (uncertainty, missing-data, ask-for-data, conditional) so future
+# additions stay legible.
 _HEDGING_PATTERNS: tuple[str, ...] = (
+    # Uncertainty / inability
     "缺少",
-    "若有更多",
-    "請提供",
-    "未提供",
     "資料不足",
-    "建議補充",
     "尚無提及",
-    "如果有",
+    "尚無",
+    "尚未提供",
+    "無法判定",
+    "無法判斷",
+    "無法確認",
+    "無法判讀",
+    "難以判斷",
+    "暫時無法",
     "I don't have",
     "without more",
     "insufficient information",
+    "cannot determine",
+    "unable to determine",
+    "unable to assess",
+    # Missing-data acknowledgements
+    "未提供",
+    "目前系統無",
+    "目前資料無",
+    "目前沒有相關",
+    "目前沒有看到",
+    "未見",
+    "查無",
+    "no data available",
+    # Ask-for-data
+    "請提供",
+    "請補充",
+    "請補上",
+    "請補登",
+    "建議補充",
+    "需要的資料",
+    "需更多資料",
+    "建議補上",
     "please provide",
+    # Conditional / hypothetical
+    "若有更多",
+    "如果有",
+    "若無",
+    "若無法",
+    "若臨床",
+    "若進一步",
 )
 
 

@@ -383,6 +383,114 @@ async def test_build_question_prefetch_context_returns_advice_history_and_audit(
 
 
 @pytest.mark.asyncio
+async def test_admin_can_see_other_pharmacists_advice_records(seeded_db):
+    """F-ACL1: admin role should bypass the pharmacist_id filter so
+    cross-pharmacist searches work; pharmacist still scoped to own."""
+    # Two records from two different pharmacists
+    seeded_db.add_all([
+        PharmacyAdvice(
+            id="adv_admin_a",
+            patient_id="pat_001",
+            patient_name="許先生",
+            bed_number="I-1",
+            pharmacist_id="usr_pharm_alice",
+            pharmacist_name="Alice",
+            advice_code="2-L",
+            advice_label="腎功能調整",
+            category="2. 用藥安全",
+            content="Vancomycin 建議依腎功能調整",
+            timestamp=datetime.now(timezone.utc),
+        ),
+        PharmacyAdvice(
+            id="adv_admin_b",
+            patient_id="pat_001",
+            patient_name="許先生",
+            bed_number="I-1",
+            pharmacist_id="usr_pharm_bob",
+            pharmacist_name="Bob",
+            advice_code="2-K",
+            advice_label="藥物交互",
+            category="2. 用藥安全",
+            content="meropenem + valproate 交互作用提醒",
+            timestamp=datetime.now(timezone.utc),
+        ),
+    ])
+    await seeded_db.commit()
+
+    # Admin sees BOTH
+    text_admin, meta_admin = await build_question_prefetch_with_metadata(
+        seeded_db,
+        None,
+        "查看最近的藥師建議紀錄",
+        user=_user("admin", "usr_admin"),
+        ip="10.1.2.3",
+    )
+    ids_admin = {r["id"] for r in meta_admin["adviceRefs"]}
+    assert "adv_admin_a" in ids_admin and "adv_admin_b" in ids_admin
+    assert "全部藥師建立的紀錄" in text_admin
+
+    # Audit log records the cross-pharmacist flag so we can later distinguish
+    # admin's broader search from a self-scoped one.
+    logs = (
+        await seeded_db.execute(
+            select(AuditLog).where(
+                AuditLog.action == "ai_chat_pharmacy_advice_history_search"
+            )
+        )
+    ).scalars().all()
+    assert any(
+        log.details.get("cross_pharmacist") is True
+        and log.user_id == "usr_admin"
+        for log in logs
+    )
+
+
+@pytest.mark.asyncio
+async def test_pharmacist_only_sees_own_records_not_other_pharmacists(seeded_db):
+    """F-ACL1 inverse: pharmacist must NOT pick up another pharmacist's
+    records via AI chat (privacy boundary)."""
+    seeded_db.add_all([
+        PharmacyAdvice(
+            id="adv_self",
+            patient_id="pat_001",
+            patient_name="許先生",
+            bed_number="I-1",
+            pharmacist_id="usr_pharm_alice",
+            pharmacist_name="Alice",
+            advice_code="2-L",
+            advice_label="腎功能調整",
+            category="2. 用藥安全",
+            content="自己寫的",
+            timestamp=datetime.now(timezone.utc),
+        ),
+        PharmacyAdvice(
+            id="adv_other",
+            patient_id="pat_001",
+            patient_name="許先生",
+            bed_number="I-1",
+            pharmacist_id="usr_pharm_bob",
+            pharmacist_name="Bob",
+            advice_code="2-K",
+            advice_label="藥物交互",
+            category="2. 用藥安全",
+            content="別人寫的",
+            timestamp=datetime.now(timezone.utc),
+        ),
+    ])
+    await seeded_db.commit()
+
+    text, meta = await build_question_prefetch_with_metadata(
+        seeded_db,
+        None,
+        "查看最近的藥師建議紀錄",
+        user=_user("pharmacist", "usr_pharm_alice"),
+    )
+    ids = {r["id"] for r in meta["adviceRefs"]}
+    assert ids == {"adv_self"}, f"pharmacist should only see own records, saw {ids}"
+    assert "目前登入者自己建立的紀錄" in text
+
+
+@pytest.mark.asyncio
 async def test_build_question_prefetch_context_returns_report_no_data_when_triggered(
     seeded_db,
 ):

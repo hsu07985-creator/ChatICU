@@ -78,6 +78,30 @@ _MED_CHANGE_INTENT_KEYWORDS = (
     "frequency change",
     "72h",
     "72 hours",
+    # M2: prod testing 2026-05-03 (DAY20) showed "最近 72 小時" / "改什麼藥" /
+    # "開始或停掉" all missed because the keyword list assumed compact phrases
+    # like "改藥" — actual user phrasing tokenizes around 改/開始/停 with the
+    # noun in between. Widen substring matches to cover spaced-out phrasings.
+    "72 小時",
+    "24 小時",
+    "48 小時",
+    "用藥變動",
+    "用藥異動",
+    "改什麼",
+    "改了什麼",
+    "改了哪",
+    "停了什麼",
+    "停了哪",
+    "開始用",
+    "開始給",
+    "新開",
+    "新加",
+    "停掉",
+    "停下",
+    "最近改",
+    "最近停",
+    "最近加",
+    "最近新增",
     "用藥變更",
     "用藥改變",
     "改藥",
@@ -443,6 +467,7 @@ async def build_question_prefetch_with_metadata(
         if user is None or user.role not in {"admin", "pharmacist"}:
             blocks.append(format_pharmacy_advice_context([], denied=True))
         else:
+            is_admin = user.role == "admin"
             try:
                 records = await search_pharmacy_advice_history(
                     db,
@@ -450,7 +475,9 @@ async def build_question_prefetch_with_metadata(
                     message,
                     patient_id=patient_id,
                 )
-                blocks.append(format_pharmacy_advice_context(records))
+                blocks.append(
+                    format_pharmacy_advice_context(records, is_admin=is_admin)
+                )
                 metadata["adviceRefs"] = [
                     _advice_record_to_ref(r) for r in records
                 ]
@@ -469,6 +496,10 @@ async def build_question_prefetch_with_metadata(
                             message,
                             patient_id,
                         ),
+                        # F-ACL1: surface in audit so we can later answer
+                        # "did this admin actually do a cross-pharmacist
+                        # search, or was it scoped to themselves?"
+                        "cross_pharmacist": is_admin,
                     },
                 )
             except Exception as exc:  # pragma: no cover - defensive
@@ -658,10 +689,14 @@ async def search_pharmacy_advice_history(
     limit: int = 10,
 ) -> List[PharmacyAdvice]:
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-    query = select(PharmacyAdvice).where(
-        PharmacyAdvice.pharmacist_id == user.id,
-        PharmacyAdvice.timestamp >= cutoff,
-    )
+    # F-ACL1 (2026-05-03 prod feedback): admin gets cross-pharmacist search
+    # per the design doc; pharmacist still scoped to their own records.
+    # The role gate one layer above (build_question_prefetch_with_metadata)
+    # already rejects nurse/doctor before we reach this function.
+    base_filters = [PharmacyAdvice.timestamp >= cutoff]
+    if user.role != "admin":
+        base_filters.append(PharmacyAdvice.pharmacist_id == user.id)
+    query = select(PharmacyAdvice).where(*base_filters)
     if _should_scope_advice_to_patient(message, patient_id):
         query = query.where(PharmacyAdvice.patient_id == patient_id)
 
@@ -693,18 +728,26 @@ def format_pharmacy_advice_context(
     *,
     days: int = 30,
     denied: bool = False,
+    is_admin: bool = False,
 ) -> str:
     lines = [f"【藥師建議歷史 最近{days}天】"]
     if denied:
         lines.append("狀態: denied（僅 admin/pharmacist 可查詢藥師建議歷史）")
         return "\n".join(lines)
     if not records:
-        lines.append(f"狀態: no_data（未查到自己最近{days}天的 PharmacyAdvice）")
+        scope_phrase = (
+            "全部藥師" if is_admin else "自己"
+        )
+        lines.append(
+            f"狀態: no_data（未查到{scope_phrase}最近{days}天的 PharmacyAdvice）"
+        )
         lines.append("可回看: /pharmacy/advice-statistics")
         return "\n".join(lines)
 
+    # F-ACL1: scope label reflects whether admin or own-records search.
+    scope = "全部藥師建立的紀錄" if is_admin else "目前登入者自己建立的紀錄"
     lines.append(
-        f"狀態: ok（{len(records)} 筆；範圍為目前登入者自己建立的紀錄）"
+        f"狀態: ok（{len(records)} 筆；範圍為{scope}）"
     )
     lines.append("可回看: /pharmacy/advice-statistics")
     for record in records[:10]:
