@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import * as authApi from './api/auth';
+import { resetTeamChatCaches } from './api/team-chat';
 
 export type UserRole = 'nurse' | 'doctor' | 'np' | 'admin' | 'pharmacist';
 
@@ -72,6 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (username: string, password: string): Promise<LoginResult> => {
     try {
       setLoading(true);
+      // Defensive: clear any caches left over from a prior session in the
+      // same tab (e.g., previous user logged out without our cleanup, or a
+      // session was force-replaced). Pairs with the logout reset below.
+      resetTeamChatCaches();
       const { user: loggedInUser, passwordExpired } = await authApi.login(username, password);
       setUser(loggedInUser);
       console.info('[INTG][API][AUTH] login success');
@@ -105,6 +110,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('登出 API 呼叫失敗:', error);
     } finally {
+      // Clear team-chat module-level caches (messages, mentions, users) so
+      // a different user logging in next on the same tab cannot see the
+      // previous session's data. See TC-W1-T1 / F-04.
+      resetTeamChatCaches();
       setUser(null);
       setLoading(false);
     }

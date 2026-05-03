@@ -10,20 +10,11 @@ import { Send, Pin, MessageSquare, RefreshCw, AtSign, ChevronDown, ChevronRight,
 import { useAuth } from '../lib/auth-context';
 import { maskPatientName } from '../lib/utils/patient-name';
 import { getTeamChatMessages, sendTeamChatMessage, postAnnouncement, togglePinMessage, deleteTeamChatMessage, getTeamUsers, markChatVisited, TeamChatMessage, TeamUser } from '../lib/api/team-chat';
+import { chatCache, MSGS_STALE_MS, MENTIONS_STALE_MS } from '../lib/api/team-chat-cache';
 import { getMyMentions, type MentionGroup } from '../lib/api/messages';
 import { LoadingSpinner } from '../components/ui/state-display';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-
-// ── Module-level cache for chat messages (30s) + mentions (2min) ──
-let _msgsCache: TeamChatMessage[] | null = null;
-let _msgsTimestamp = 0;
-const MSGS_STALE_MS = 30 * 1000; // 30 seconds — chat is semi-realtime
-
-interface MentionsCacheEntry { groups: MentionGroup[]; total: number; unreadOnly: boolean }
-let _mentionsCache: MentionsCacheEntry | null = null;
-let _mentionsTimestamp = 0;
-const MENTIONS_STALE_MS = 2 * 60 * 1000; // 2 minutes
 import {
   Dialog,
   DialogContent,
@@ -58,8 +49,8 @@ export function ChatPage() {
   const [message, setMessage] = useState('');
   const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
   const [teamUsers, setTeamUsers] = useState<TeamUser[]>([]);
-  const [messages, setMessages] = useState<TeamChatMessage[]>(_msgsCache ?? []);
-  const [loading, setLoading] = useState(!_msgsCache);
+  const [messages, setMessages] = useState<TeamChatMessage[]>(chatCache.msgs ?? []);
+  const [loading, setLoading] = useState(!chatCache.msgs);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -78,9 +69,9 @@ export function ChatPage() {
 
   // 右側面板：tab 切換
   const [sidebarTab, setSidebarTab] = useState<'pinned' | 'mentions'>('mentions');
-  const [mentionGroups, setMentionGroups] = useState<MentionGroup[]>(_mentionsCache?.groups ?? []);
-  const [mentionsLoading, setMentionsLoading] = useState(!_mentionsCache);
-  const [mentionsTotalCount, setMentionsTotalCount] = useState(_mentionsCache?.total ?? 0);
+  const [mentionGroups, setMentionGroups] = useState<MentionGroup[]>(chatCache.mentions?.groups ?? []);
+  const [mentionsLoading, setMentionsLoading] = useState(!chatCache.mentions);
+  const [mentionsTotalCount, setMentionsTotalCount] = useState(chatCache.mentions?.total ?? 0);
   const [expandedPatients, setExpandedPatients] = useState<Set<string>>(new Set());
   const [mentionsUnreadOnly, setMentionsUnreadOnly] = useState(false);
   const [pinningMessageId, setPinningMessageId] = useState<string | null>(null);
@@ -113,8 +104,8 @@ export function ChatPage() {
 
   // 載入訊息（帶快取）
   const loadMessages = useCallback(async (force = false) => {
-    if (!force && _msgsCache && Date.now() - _msgsTimestamp < MSGS_STALE_MS) {
-      setMessages(_msgsCache);
+    if (!force && chatCache.msgs && Date.now() - chatCache.msgsTimestamp < MSGS_STALE_MS) {
+      setMessages(chatCache.msgs);
       setLoading(false);
       // Even on a cache hit, bump the visit timestamp — entering the page
       // should always clear the badge.
@@ -124,8 +115,8 @@ export function ChatPage() {
     try {
       setError(null);
       const response = await getTeamChatMessages({ limit: 50 });
-      _msgsCache = response.messages;
-      _msgsTimestamp = Date.now();
+      chatCache.msgs = response.messages;
+      chatCache.msgsTimestamp = Date.now();
       setMessages(response.messages);
       // Bump the user's last-visit timestamp so the sidebar's unread badge
       // stays at 0 while the page is open. Fire-and-forget — UI doesn't
@@ -143,17 +134,17 @@ export function ChatPage() {
   const loadMentions = useCallback(async (forceUnreadOnly?: boolean) => {
     const unread = forceUnreadOnly ?? mentionsUnreadOnly;
     // Check cache (must match unreadOnly flag)
-    if (_mentionsCache && _mentionsCache.unreadOnly === unread && Date.now() - _mentionsTimestamp < MENTIONS_STALE_MS) {
-      setMentionGroups(_mentionsCache.groups);
-      setMentionsTotalCount(_mentionsCache.total);
+    if (chatCache.mentions && chatCache.mentions.unreadOnly === unread && Date.now() - chatCache.mentionsTimestamp < MENTIONS_STALE_MS) {
+      setMentionGroups(chatCache.mentions.groups);
+      setMentionsTotalCount(chatCache.mentions.total);
       setMentionsLoading(false);
       return;
     }
     setMentionsLoading(true);
     try {
       const result = await getMyMentions({ hoursBack: 168, unreadOnly: unread });
-      _mentionsCache = { groups: result.groups, total: result.totalMentions, unreadOnly: unread };
-      _mentionsTimestamp = Date.now();
+      chatCache.mentions = { groups: result.groups, total: result.totalMentions, unreadOnly: unread };
+      chatCache.mentionsTimestamp = Date.now();
       setMentionGroups(result.groups);
       setMentionsTotalCount(result.totalMentions);
     } catch (err) {
@@ -172,8 +163,8 @@ export function ChatPage() {
 
   // unreadOnly 切換 → invalidate mentions cache + refetch
   useEffect(() => {
-    _mentionsCache = null;
-    _mentionsTimestamp = 0;
+    chatCache.mentions = null;
+    chatCache.mentionsTimestamp = 0;
     loadMentions(mentionsUnreadOnly);
   }, [mentionsUnreadOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -214,7 +205,7 @@ export function ChatPage() {
       } else {
         updated = [...messages, newMessage];
       }
-      _msgsCache = updated; _msgsTimestamp = Date.now();
+      chatCache.msgs = updated; chatCache.msgsTimestamp = Date.now();
       setMessages(updated);
       setMessage('');
       setMentionedUserIds([]);
@@ -284,7 +275,7 @@ export function ChatPage() {
     try {
       const newAnnouncement = await postAnnouncement(announcementContent.trim());
       const updated = [...messages, newAnnouncement];
-      _msgsCache = updated; _msgsTimestamp = Date.now();
+      chatCache.msgs = updated; chatCache.msgsTimestamp = Date.now();
       setMessages(updated);
       setAnnouncementContent('');
       setAnnouncementDialogOpen(false);

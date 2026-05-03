@@ -539,6 +539,145 @@
 
 ---
 
+### Team Chat Audit (2026-05-03) — Wave 1 frontend tasks (no architecture dependency)
+
+> Source: `docs/team-chat-audit-fixes-2026-05-03.md`. Progress tracked in `docs/team-chat-fixes-progress.md`.
+> All Wave 1 tasks are pure frontend, push to `railway` remote (Vercel).
+
+### TC-F01 [DONE] Clear team-chat module-level caches on logout
+- **Added by:** team-chat audit (F-04)
+- **Date:** 2026-05-03
+- **Completed:** 2026-05-03 (branch `fix/tc-w1-t1-cache-on-logout`)
+- **Priority:** P0 (PII / session bleed — A logs out, B logs in, B sees A's messages for up to 5 min)
+- **Progress tracker:** TC-W1-T1
+- **Files modified:**
+  - `src/lib/api/team-chat-cache.ts` (NEW) — extracted `chatCache` holder + `resetChatCache()` so the cache state is in a tiny module that both `chat.tsx` (lazy chunk) and `auth-context.tsx` (main bundle) can share without the latter pulling the entire chat page into the main bundle.
+  - `src/lib/api/team-chat.ts` — added `resetTeamUsersCache()` and combined `resetTeamChatCaches()` (clears users + msgs + mentions).
+  - `src/pages/chat.tsx` — replaced 17 references to local `_msgsCache`/`_msgsTimestamp`/`_mentionsCache`/`_mentionsTimestamp` with `chatCache.{msgs,msgsTimestamp,mentions,mentionsTimestamp}`; deleted local module-level state and inline `MentionsCacheEntry` interface.
+  - `src/lib/auth-context.tsx` — call `resetTeamChatCaches()` in `logout()` finally and at top of `login()` (defensive).
+- **Verification:**
+  - `npx tsc --noEmit` exit 0
+  - `npm run build` clean; `chat-*.js` still its own 17.76 kB lazy chunk (code splitting preserved)
+  - `grep _msgsCache\|_mentionsCache src/` returns nothing (no stale refs)
+- **References:** F-04
+
+### TC-F02 [TODO] `handleSend` / `handlePostAnnouncement` use functional updater + add admin gate to pin button
+- **Added by:** team-chat audit (F-07, F-01 frontend half)
+- **Date:** 2026-05-03
+- **Priority:** P1
+- **Progress tracker:** TC-W1-T2 + TC-W2-T1 (UI half)
+- **Files:**
+  - `src/pages/chat.tsx:195-229` — `setMessages([...messages, newMessage])` → `setMessages(prev => [...prev, newMessage])`; same for `_msgsCache` write inside the updater
+  - `src/pages/chat.tsx:282-294` — same in `handlePostAnnouncement`
+  - `src/pages/chat.tsx:417-428` — wrap pin/unpin button with `{user?.role === 'admin' && (...)}` to match the trash button pattern at `:429` AND to align with backend TC-B01
+- **Coordination:** UI gate must land **after or together with** TC-B01 (otherwise admins still see the button but non-admins clicking it would 403). Since the button only currently mutates, and TC-B01 will reject it, the safe order is: TC-B01 backend → TC-F02 frontend. Land in same release.
+- **References:** F-07, F-01
+
+### TC-F03 [TODO] Share `ROLE_LABEL` constant; fix `np` display fallback
+- **Added by:** team-chat audit (F-08)
+- **Date:** 2026-05-03
+- **Priority:** P1 (NP users currently see raw `np` string in chat bubbles)
+- **Progress tracker:** TC-W1-T3
+- **Files:**
+  - `src/components/ui/mention-textarea.tsx:6-12` — export `ROLE_LABEL` (already complete with all 5 roles)
+  - `src/pages/chat.tsx:37-42` — delete local `roleDisplayName`, import `ROLE_LABEL`; type as `Record<UserRole, string>` so future role enum changes fail compile
+- **References:** F-08
+
+### TC-F04 [TODO] Auto scroll-to-bottom only when user is near bottom
+- **Added by:** team-chat audit (F-09)
+- **Date:** 2026-05-03
+- **Priority:** P1 (UX bug — reading history gets yanked to bottom on every new message)
+- **Progress tracker:** TC-W1-T4
+- **Files:** `src/pages/chat.tsx:181-188`
+- **Description:**
+  - Read scroll viewport `scrollTop + clientHeight >= scrollHeight - 100` to detect "near bottom"
+  - If near bottom: keep current auto-scroll behavior
+  - If not: don't auto-scroll; instead show a floating "↓ N 則新訊息" chip that scrolls to bottom on click
+- **References:** F-09
+
+### TC-F05 [TODO] Hover-only action buttons reveal on focus
+- **Added by:** team-chat audit (F-10)
+- **Date:** 2026-05-03
+- **Priority:** P1 (a11y — keyboard users cannot reach pin/reply/delete)
+- **Progress tracker:** TC-W1-T5
+- **Files:** `src/pages/chat.tsx:406`
+- **Change:** `opacity-0 group-hover:opacity-100` → `opacity-0 group-hover:opacity-100 group-focus-within:opacity-100`
+- **References:** F-10
+
+### TC-F06 [TODO] Suppress duplicate error toasts in team-chat API client
+- **Added by:** team-chat audit (F-11)
+- **Date:** 2026-05-03
+- **Priority:** P1
+- **Progress tracker:** TC-W1-T6
+- **Files:** `src/lib/api/team-chat.ts`
+- **Description:**
+  - Today: `apiClient` interceptor toasts on every non-2xx, AND `chat.tsx` catches and toasts a second time → users see two toasts per failure.
+  - Pick a side and stick to it. Recommended: pass `{ suppressErrorToast: true }` to all team-chat calls (so the page-level `catch` owns user messaging).
+  - Apply to: `getTeamChatMessages`, `sendTeamChatMessage`, `postAnnouncement`, `togglePinMessage`, `deleteTeamChatMessage`, `getTeamUsers`. (`markChatVisited` and `getChatUnreadCount` already do this — use them as templates.)
+- **References:** F-11
+
+### TC-F07 [TODO] Extract `MENTION_REGEX` into shared util
+- **Added by:** team-chat audit (F-19)
+- **Date:** 2026-05-03
+- **Priority:** P2 (drift risk — two copies of the same regex)
+- **Progress tracker:** TC-W1-T7
+- **Files:**
+  - new `src/lib/utils/mention-parser.ts` — export `MENTION_REGEX = /@([\p{L}\p{N}_-]+)/gu` and a small `parseMentions(text): string[]` helper
+  - `src/components/ui/mention-textarea.tsx:16` use shared
+  - `src/pages/chat.tsx:239` use shared
+- **Verification:** `grep -n '@(\\\[' src/` shows only the new file as the source.
+- **References:** F-19
+
+### TC-F08 [TODO] Force `Asia/Taipei` for chat message timestamps
+- **Added by:** team-chat audit (F-26)
+- **Date:** 2026-05-03
+- **Priority:** P2 (CLAUDE.md compliance — "顯示時間一律台北 (UTC+8)")
+- **Progress tracker:** TC-W1-T8
+- **Files:** `src/pages/chat.tsx:45-54`
+- **Change:** `toLocaleString('zh-TW', { ... })` → `toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', ... })`
+- **References:** F-26, project memory `feedback_taipei_timezone.md`
+
+### TC-F09 [BLOCKED] Show `[原訊息已刪除]` placeholder for orphaned reply quotes
+- **Added by:** team-chat audit (F-16 frontend half)
+- **Date:** 2026-05-03
+- **Priority:** P1
+- **Progress tracker:** TC-W4-T3 (frontend half)
+- **Blocked on:** TC-B11 (backend soft delete)
+- **Files (when unblocked):** `src/pages/chat.tsx:384-399` — when `messageById.get(repliedTo.id)` returns undefined, render placeholder block instead of nothing
+- **References:** F-16
+
+### TC-F10 [BLOCKED] Reverse + cursor-based message pagination
+- **Added by:** team-chat audit (F-03 frontend half)
+- **Date:** 2026-05-03
+- **Priority:** P0 (UX)
+- **Progress tracker:** TC-W3-T2 (frontend half)
+- **Blocked on:** TC-B07 backend cursor support + PM decision on list semantics
+- **Files (when unblocked):** `src/pages/chat.tsx:115-140` — switch to reverse infinite scroll (anchor at bottom, load older on scroll up)
+- **References:** F-03
+
+### TC-F11 [BLOCKED] Real-time chat updates (polling short term, WS long term)
+- **Added by:** team-chat audit (F-05)
+- **Date:** 2026-05-03
+- **Priority:** P0 (core UX — chat page never auto-refreshes today)
+- **Progress tracker:** TC-W3-T3
+- **Blocked on:** decide polling interval (suggested 30s) vs invest in WebSocket; verify Railway/Vercel proxy supports WS
+- **Files (when unblocked):**
+  - short-term: `src/pages/chat.tsx` — add interval effect mirroring `use-team-chat-unread.ts` pattern (visibility-aware, in-flight guard)
+  - long-term: new `src/hooks/use-team-chat-stream.ts` (WebSocket / SSE)
+- **References:** F-05
+
+### TC-F12 [BLOCKED] Unify three unread-count surfaces
+- **Added by:** team-chat audit (F-06)
+- **Date:** 2026-05-03
+- **Priority:** P0 (UX trust — sidebar / bell / chat tab give different numbers)
+- **Progress tracker:** TC-W3-T4
+- **Blocked on:** TC-B06 (per-user unread model decision)
+- **Description:** Today the chat page's "@我的留言" tab calls `getMyMentions` which queries patient-board only — users expect team-chat mentions there. Either rename the tab to "病人留言中 @ 我" (cheap, clear) or extend the query to merge team-chat mentions (correct, but requires backend support).
+- **Files (when unblocked):** `src/pages/chat.tsx:13` (`getMyMentions` import), `src/components/notification-bell.tsx`, `src/hooks/use-team-chat-unread.ts`, possibly new `useUnifiedUnread` hook
+- **References:** F-06
+
+---
+
 ## Completed Tasks
 
 ### F15 [DONE] Add `/sync/:path*` rewrite to `vercel.json`

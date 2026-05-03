@@ -1,4 +1,5 @@
 import apiClient, { ensureData } from '../api-client';
+import { resetChatCache } from './team-chat-cache';
 
 export type UserRole = 'doctor' | 'np' | 'nurse' | 'pharmacist' | 'admin';
 
@@ -123,6 +124,19 @@ export async function getTeamUsers(force = false): Promise<TeamUser[]> {
   _teamUsersCache = payload.users;
   _teamUsersFetchedAt = Date.now();
   return _teamUsersCache;
+}
+
+function resetTeamUsersCache(): void {
+  _teamUsersCache = null;
+  _teamUsersFetchedAt = 0;
+}
+
+// Auth boundary: clear all team-chat module-level caches (messages, mentions,
+// users) on logout/login so a session swap in the same tab cannot show
+// previous user's data.
+export function resetTeamChatCaches(): void {
+  resetTeamUsersCache();
+  resetChatCache();
 }
 
 export const teamChatApi = {

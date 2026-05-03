@@ -117,6 +117,165 @@
 
 ---
 
+### TC-B01 [TODO] Lock pin / mark_read / first-post-pinned to admin (or owner)
+- **Added by:** team-chat audit 2026-05-03 (F-01)
+- **Date:** 2026-05-03
+- **Priority:** P0 (security gap — any user can pin/unpin/silently zero everyone's mention badge)
+- **Progress tracker:** `docs/team-chat-fixes-progress.md` TC-W2-T1
+- **Files:**
+  - `backend/app/routers/team_chat.py:187` — reject `body.pinned=True` if `user.role != 'admin'`
+  - `backend/app/routers/team_chat.py:271-304` — `toggle_pin_message` add `Depends(require_roles("admin"))`
+  - `backend/app/routers/team_chat.py:239-268` — `mark_read` add owner/mentioned-recipient check + audit log entry (currently has no audit, so a single user can wipe team-wide mention badges with no trace)
+- **Description:**
+  - Audit confirmed `DELETE /team/chat/{id}` already requires admin, but pin and mark_read are wide open. Behavior is inconsistent and creates trivial griefing/integrity vectors.
+  - `mark_read` flips a global `is_read=True` flag that drives `mentions/count` and `notifications.summary`, so any logged-in user can clear the mention badge for every recipient. This must require: caller is in `mentioned_user_ids` OR `user.role` is in `mentioned_roles` OR caller is the message author.
+- **Tests to add (`backend/tests/test_api/test_team_chat.py`):**
+  - nurse PATCH `/team/chat/{id}/pin` → 403
+  - non-admin POST `/team/chat` with `pinned=True` → 403
+  - user not mentioned + not author PATCH `/team/chat/{id}/read` → 403
+  - audit log assertion on mark_read
+- **Frontend dependency:** TC-F02 hides the pin button for non-admin once this lands (else non-admin clicks 403 → toast spam).
+- **References:** `docs/team-chat-audit-fixes-2026-05-03.md` §F-01
+
+### TC-B02 [TODO] Replace JSONB→TEXT mention LIKE with `@>` + add GIN index
+- **Added by:** team-chat audit 2026-05-03 (F-13)
+- **Date:** 2026-05-03
+- **Priority:** P0 (correctness + performance — current code can collide on `"all_admins"` substring once enum loosens, and bypasses any index)
+- **Progress tracker:** `docs/team-chat-fixes-progress.md` TC-W2-T2
+- **Files:**
+  - `backend/app/routers/team_chat.py:118-137` — `cast(JSONB, String).contains(f'"{role}"')` → `mentioned_roles.contains([user.role])` / `mentioned_user_ids.contains([user.id])`
+  - `backend/app/routers/notifications.py:31-45` — same change in `_team_chat_mention_predicate`
+  - New alembic migration `backend/alembic/versions/0XX_team_chat_mention_gin.py`:
+    ```python
+    op.create_index("ix_team_chat_messages_mentioned_user_ids_gin",
+                    "team_chat_messages", ["mentioned_user_ids"], postgresql_using="gin")
+    op.create_index("ix_team_chat_messages_mentioned_roles_gin",
+                    "team_chat_messages", ["mentioned_roles"], postgresql_using="gin")
+    ```
+- **Tests:** seed messages with `mentioned_roles=["doctor"]` and `["all_admins"]`; query for `role=doctor` must NOT return the second.
+- **Verification:** `EXPLAIN ANALYZE` on `mentions/count` should show `Bitmap Index Scan on ix_team_chat_messages_mentioned_user_ids_gin`.
+- **References:** F-13
+
+### TC-B03 [TODO] Rate limit team chat send / pin / mark_read
+- **Added by:** team-chat audit 2026-05-03 (F-15)
+- **Date:** 2026-05-03
+- **Priority:** P1
+- **Progress tracker:** TC-W2-T3
+- **Files:** `backend/app/routers/team_chat.py:187, 239, 271`
+- **Description:**
+  - Pattern: `@limiter.limit("20/minute")` on POST, `5/minute` on PATCH /pin, `60/minute` on PATCH /read.
+  - Compare to `auth.py` and `clinical.py` which already use slowapi.
+- **Tests:** flood with 30 POSTs in 60s → expect 429 after 20.
+- **References:** F-15
+
+### TC-B04 [TODO] Add 168h lookback to `mentions/count` (align with notifications)
+- **Added by:** team-chat audit 2026-05-03 (F-17)
+- **Date:** 2026-05-03
+- **Priority:** P1
+- **Progress tracker:** TC-W2-T4
+- **Files:** `backend/app/routers/team_chat.py:113-137`
+- **Description:** Extract `MENTION_LOOKBACK_HOURS = 168` constant shared with `notifications.py:25`. Today the bell uses 168h cutoff but `mentions/count` scans the whole table → users see "5 mentions" in bell but "28 mentions" in chat sidebar.
+- **References:** F-17
+
+### TC-B05 [TODO] Validate `mentionedUserIds` are real users on POST
+- **Added by:** team-chat audit 2026-05-03 (F-18)
+- **Date:** 2026-05-03
+- **Priority:** P2
+- **Progress tracker:** TC-W2-T5
+- **Files:** `backend/app/routers/team_chat.py:208-221`, `backend/app/schemas/message.py:78-86`
+- **Description:** Currently any string ≤50 chars passes Pydantic and is silently stored. Should `SELECT id FROM users WHERE id IN (...)` and 422 on unknown IDs (or strip them with a warning).
+- **References:** F-18
+
+### TC-B06 [BLOCKED] Switch `is_read` global flag → per-user mention unread
+- **Added by:** team-chat audit 2026-05-03 (F-02)
+- **Date:** 2026-05-03
+- **Priority:** P0 (architectural — root cause of "one user reads, all badges clear" bug)
+- **Progress tracker:** TC-W3-T1
+- **Blocked on:** PM decision — Option A (keep `is_read`, derive unread from `read_by @>` subquery) vs Option B (drop `is_read` from mention path entirely, use `last_chat_visit_at` + per-mention timestamp)
+- **Files (when unblocked):** `backend/app/routers/team_chat.py:130, 263`, `backend/app/routers/notifications.py:31-45`, new migration
+- **Reference:** F-02 in audit; multi-user regression test in TC-B10 will exercise this
+
+### TC-B07 [BLOCKED] `list_team_chat` reverse + cursor pagination
+- **Added by:** team-chat audit 2026-05-03 (F-03)
+- **Date:** 2026-05-03
+- **Priority:** P0 (UX — over 50 messages users see oldest, never newest)
+- **Progress tracker:** TC-W3-T2
+- **Blocked on:** PM confirms `ORDER BY ASC LIMIT 50` is a bug, not deliberate onboarding behavior
+- **Files (when unblocked):** `backend/app/routers/team_chat.py:140-184`
+- **Description:** Change to `ORDER BY timestamp DESC LIMIT N`, reverse server-side, add `?before=<timestamp_or_id>` cursor for "load older". Frontend TC-F12 will rewire infinite scroll.
+- **References:** F-03
+
+### TC-B08 [TODO] `/team/users` filter by current user's unit/campus
+- **Added by:** team-chat audit 2026-05-03 (F-12 partial)
+- **Date:** 2026-05-03
+- **Priority:** P1 (PII — North Campus pharmacist can list every South Campus nurse)
+- **Progress tracker:** TC-W4-T1
+- **Files:** `backend/app/routers/team_chat.py:21-40`
+- **Open question:** does `users` table have unit/campus column populated for all users? Verify before implementing — may need `users.campus` backfill.
+- **Tests:** seed two users in different campuses; `/team/users` for caller in campus A returns only campus-A users.
+- **References:** F-12
+
+### TC-B09 [TODO] `read_by` append helper with dedup (shared by team_chat + notifications)
+- **Added by:** team-chat audit 2026-05-03 (F-14)
+- **Date:** 2026-05-03
+- **Priority:** P1 (data growth — `notifications.py:213-214` mark-all-read appends without dedup)
+- **Progress tracker:** TC-W4-T2
+- **Files:**
+  - New: `backend/app/utils/read_receipt.py` with `append_read_receipt(read_by, user) -> list`
+  - `backend/app/routers/team_chat.py:254-261` use helper
+  - `backend/app/routers/notifications.py:213-214` use helper
+- **Tests:** call mark-all-read 10× for the same user → `read_by` length stays 1.
+- **References:** F-14
+
+### TC-B10 [TODO] Multi-user regression tests
+- **Added by:** team-chat audit 2026-05-03 (F-29)
+- **Date:** 2026-05-03
+- **Priority:** P1
+- **Progress tracker:** TC-W4-T4
+- **Files:** new `backend/tests/test_api/test_team_chat_multiuser.py`
+- **Coverage requirement:**
+  - Two admins, A marks-read → B's mention count must NOT drop
+  - Non-admin pin → 403
+  - mention `@>` does not collide on substring
+  - `read_by` does not grow on repeated mark-read
+  - Reply to deleted parent shows orphan handling
+- **References:** F-29
+
+### TC-B11 [TODO] Soft delete + audit content snapshot for admin delete
+- **Added by:** team-chat audit 2026-05-03 (F-16)
+- **Date:** 2026-05-03
+- **Priority:** P1
+- **Progress tracker:** TC-W4-T3
+- **Files:**
+  - `backend/app/models/chat_message.py` — add `deleted_at`, `deleted_by_id`
+  - new migration with these columns + partial index `WHERE deleted_at IS NULL`
+  - `backend/app/routers/team_chat.py:307-328` — set `deleted_at` instead of `db.delete`; pass `details={"content": msg.content[:500], "author": msg.user_name, "ts": msg.timestamp.isoformat()}` to `create_audit_log`
+  - `backend/app/routers/team_chat.py:155-159` — list query filter `deleted_at.is_(None)`
+- **Frontend dependency:** TC-F09 — show `[原訊息已刪除]` placeholder when `messageById.get(replyToId)` not found
+- **References:** F-16
+
+### TC-B12 [TODO] Schema cleanup: dead `reply_count` column + ORM FK alignment
+- **Added by:** team-chat audit 2026-05-03 (F-30)
+- **Date:** 2026-05-03
+- **Priority:** P2
+- **Progress tracker:** TC-W4-T5
+- **Files:**
+  - `backend/app/models/chat_message.py:27` — add explicit `ForeignKey("team_chat_messages.id", ondelete="SET NULL")` to `reply_to_id`
+  - new migration: drop `reply_count` column (currently always 0, never read/written) — OR add to model and maintain on insert/delete; pick one
+- **References:** F-30
+
+### TC-B13 [TODO] Retention: archive job + drop `total` count from list
+- **Added by:** team-chat audit 2026-05-03 (F-31, F-32)
+- **Date:** 2026-05-03
+- **Priority:** P2
+- **Progress tracker:** TC-W4-T6
+- **Files:**
+  - new `backend/scripts/archive_team_chat.py` — move messages older than 90 days to `team_chat_messages_archive`
+  - `backend/app/routers/team_chat.py:147-152` — drop `total` query (frontend doesn't read it)
+- **References:** F-31, F-32
+
+---
+
 ## Completed Tasks
 
 ### B01 [DONE] Create `intent_classifier.py` — Rule-based Stage 1
