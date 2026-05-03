@@ -10,7 +10,7 @@
 > - `TC-F{NN}` — frontend 工作單（在 `docs/coordination/frontend-tasks.md`）
 > - `F-XX` — audit 文件中的發現編號
 
-**最後更新**：2026-05-03（Wave 1+2 全部完成；Wave 3 T1 完成）
+**最後更新**：2026-05-03（Wave 1+2 全部完成；Wave 3 T1+T2 完成）
 
 ---
 
@@ -20,7 +20,7 @@
 |------|------|--------|------------|------|
 | Wave 1 | 立即修補（純前端，零依賴） | 8 | 8 / 8 | ✅ |
 | Wave 2 | 後端權限收緊 + mention SQL | 5 | 5 / 5 | ✅ |
-| Wave 3 | 架構決策（PM 已決，動工中） | 4 | 1 / 4 | ⏳ |
+| Wave 3 | 架構決策（PM 已決，動工中） | 4 | 2 / 4 | ⏳ |
 | Wave 4 | 安全與資料層強化 | 6 | 0 / 6 | ☐ |
 | Backlog | 低優先 / 觀察 | 18 | — | — |
 
@@ -134,7 +134,7 @@ cd backend && alembic upgrade head && alembic downgrade -1 && alembic upgrade he
 | Task | 內容 | F-XX | 觸碰檔案 | 狀態 |
 |------|------|------|---------|------|
 | TC-W3-T1 | 拆解 `is_read` 全域旗標 → per-user 計算 | F-02 | `backend/app/utils/jsonb_compat.py`、`backend/app/routers/team_chat.py`、`backend/app/routers/notifications.py`、`backend/tests/test_api/test_team_chat.py`（新 isolation 測試） | ✅ |
-| TC-W3-T2 | `list_team_chat` 改 `DESC` + cursor 分頁 | F-03 | `backend/app/routers/team_chat.py`、`src/pages/chat.tsx` | ☐ |
+| TC-W3-T2 | `list_team_chat` 改 `DESC` + cursor 分頁 | F-03 | `backend/app/routers/team_chat.py`、`backend/tests/test_api/test_team_chat.py`、`src/lib/api/team-chat.ts`、`src/pages/chat.tsx` | ✅ |
 | TC-W3-T3 | ChatPage 即時更新（30s polling 短期 / WebSocket 長期） | F-05 | `src/pages/chat.tsx` | ☐ |
 | TC-W3-T4 | 三套 badge 統一語意（sidebar / bell / chat tab） | F-06 | （大部分由 T1 解決，剩 chat tab 標題清楚化） | ☐ |
 

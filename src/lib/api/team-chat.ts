@@ -31,6 +31,10 @@ export interface TeamChatMessage {
 export interface TeamChatResponse {
   messages: TeamChatMessage[];
   total: number;
+  /** True when more historical pages are available via the `before` cursor. */
+  hasMore?: boolean;
+  /** Oldest top-level message timestamp in this page; pass as `before` to fetch the next-older page. */
+  oldestTimestamp?: string | null;
 }
 
 export interface TeamUser {
@@ -50,9 +54,12 @@ interface ApiResponse<T> {
 // `error` state or per-action toasts, and double-toasting is noisy.
 const NO_TOAST = { suppressErrorToast: true } as const;
 
-export async function getTeamChatMessages(options: { limit?: number } = {}): Promise<TeamChatResponse> {
+export async function getTeamChatMessages(
+  options: { limit?: number; before?: string } = {},
+): Promise<TeamChatResponse> {
   const params = new URLSearchParams();
   if (options.limit) params.append('limit', String(options.limit));
+  if (options.before) params.append('before', options.before);
 
   const response = await apiClient.get<ApiResponse<TeamChatResponse>>(`/team/chat?${params}`, NO_TOAST);
   return ensureData(response.data, 'API contract');

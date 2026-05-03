@@ -167,25 +167,51 @@ async def mentions_count(
 @router.get("")
 async def list_team_chat(
     limit: int = Query(50, ge=1, le=200),
+    before: Optional[str] = Query(None, description="Cursor: ISO 8601 timestamp; return top-level messages strictly older than this."),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Only count top-level messages (no reply_to_id)
+    """Return up to ``limit`` most-recent top-level messages with their
+    replies, in chronological order (oldest first within the page).
+
+    TC-W3-T2 reversed the original ASC LIMIT 50 behavior (which showed
+    the oldest 50 messages and hid every newer one once the table grew
+    past 50). The page now anchors at the latest message and accepts a
+    ``before`` cursor for reverse infinite scroll: pass the oldest
+    timestamp from the previous page to load the next-older slice.
+
+    The response remains chronologically ascending so the frontend can
+    keep treating ``messages`` as "top to bottom in conversation order".
+    """
+    base_filter = TeamChatMessage.reply_to_id.is_(None)
+    where_clauses = [base_filter]
+
+    # Cursor — strictly older than ``before``. Tie-break by id desc so a
+    # repeated submit at the exact same timestamp still progresses.
+    if before:
+        try:
+            before_dt = datetime.fromisoformat(before.replace("Z", "+00:00"))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid 'before' cursor — must be ISO 8601 timestamp")
+        if before_dt.tzinfo is None:
+            before_dt = before_dt.replace(tzinfo=timezone.utc)
+        where_clauses.append(TeamChatMessage.timestamp < before_dt)
+
     total_result = await db.execute(
-        select(func.count(TeamChatMessage.id)).where(
-            TeamChatMessage.reply_to_id.is_(None)
-        )
+        select(func.count(TeamChatMessage.id)).where(base_filter)
     )
     total = total_result.scalar() or 0
 
-    # Fetch top-level messages
+    # Fetch the latest N top-level messages (DESC), then reverse in
+    # memory so the response keeps the historical ASC contract that
+    # ChatPage's flat-thread renderer expects.
     result = await db.execute(
         select(TeamChatMessage)
-        .where(TeamChatMessage.reply_to_id.is_(None))
-        .order_by(TeamChatMessage.timestamp.asc(), TeamChatMessage.id.asc())
+        .where(*where_clauses)
+        .order_by(TeamChatMessage.timestamp.desc(), TeamChatMessage.id.desc())
         .limit(limit)
     )
-    top_messages = result.scalars().all()
+    top_messages = list(reversed(result.scalars().all()))
     top_ids = [m.id for m in top_messages]
 
     # Fetch all replies for these parents
@@ -205,9 +231,21 @@ async def list_team_chat(
         for m in top_messages
     ]
 
+    # ``hasMore`` is true if the page is full — the frontend uses this
+    # to decide whether to keep offering "load older". ``oldestTimestamp``
+    # gives the next ``before`` cursor.
+    has_more = len(top_messages) >= limit and total > len(top_messages)
+    oldest_timestamp = (
+        top_messages[0].timestamp.isoformat()
+        if top_messages and top_messages[0].timestamp
+        else None
+    )
+
     return success_response(data={
         "messages": messages,
         "total": total,
+        "hasMore": has_more,
+        "oldestTimestamp": oldest_timestamp,
     })
 
 

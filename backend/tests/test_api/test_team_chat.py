@@ -567,6 +567,44 @@ async def test_mention_predicate_no_substring_collision(client, seeded_db):
 
 
 @pytest.mark.asyncio
+async def test_list_returns_latest_with_cursor(client, seeded_db):
+    """TC-W3-T2: with > limit messages, the default page returns the
+    LATEST N (not the earliest), and ``before`` cursor walks back."""
+    from datetime import datetime, timedelta, timezone
+    from app.models.chat_message import TeamChatMessage
+
+    base = datetime.now(timezone.utc) - timedelta(hours=10)
+    for i in range(7):
+        seeded_db.add(TeamChatMessage(
+            id=f"tchat_seq_{i}",
+            user_id="usr_other",
+            user_name="Other",
+            user_role="doctor",
+            content=f"msg #{i}",
+            timestamp=base + timedelta(minutes=i),
+            pinned=False,
+            is_read=False,
+            read_by=[],
+            mentioned_roles=[],
+            mentioned_user_ids=[],
+        ))
+    await seeded_db.commit()
+
+    # Page 1: limit=3 → expect msgs #4, #5, #6 (latest 3, ASC within page)
+    resp1 = await client.get("/team/chat?limit=3")
+    assert resp1.status_code == 200
+    page1 = resp1.json()["data"]
+    assert [m["content"] for m in page1["messages"]] == ["msg #4", "msg #5", "msg #6"]
+    assert page1["hasMore"] is True
+    assert page1["oldestTimestamp"] is not None
+
+    # Page 2: before=oldestTimestamp from page1 → msgs #1, #2, #3
+    resp2 = await client.get(f"/team/chat?limit=3&before={page1['oldestTimestamp']}")
+    page2 = resp2.json()["data"]
+    assert [m["content"] for m in page2["messages"]] == ["msg #1", "msg #2", "msg #3"]
+
+
+@pytest.mark.asyncio
 async def test_per_user_unread_isolation(client, seeded_db):
     """TC-W3-T1: marking-read by user A must NOT clear user B's mention
     badge. Pre-fix, the global ``is_read`` flag let any reader silently

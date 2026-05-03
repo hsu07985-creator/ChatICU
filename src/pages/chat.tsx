@@ -74,6 +74,12 @@ export function ChatPage() {
   const [replyingTo, setReplyingTo] = useState<TeamChatMessage | null>(null);
   const [flashedMessageId, setFlashedMessageId] = useState<string | null>(null);
   const flashTimerRef = useRef<number | null>(null);
+
+  // Reverse infinite scroll: anchor at latest message; load older pages
+  // when the user scrolls near the top. ``hasMore`` and ``oldestTimestamp``
+  // come from the backend's TC-W3-T2 cursor response.
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const navigate = useNavigate();
 
   // Scroll the chat ScrollArea to a specific message and briefly ring it.
@@ -113,6 +119,7 @@ export function ChatPage() {
       chatCache.msgs = response.messages;
       chatCache.msgsTimestamp = Date.now();
       setMessages(response.messages);
+      setHasMore(response.hasMore ?? false);
       // Bump the user's last-visit timestamp so the sidebar's unread badge
       // stays at 0 while the page is open. Fire-and-forget — UI doesn't
       // need to wait for the server ack.
@@ -124,6 +131,43 @@ export function ChatPage() {
       setLoading(false);
     }
   }, []);
+
+  // Load the next-older page; called when the user scrolls near the top
+  // or clicks the "載入更舊訊息" button. Preserves scroll anchor by
+  // restoring scrollTop relative to the height delta after the prepend,
+  // so the user stays on the message they were reading.
+  const loadOlder = useCallback(async () => {
+    if (loadingOlder || !hasMore) return;
+    const oldest = messages[0]?.timestamp;
+    if (!oldest) return;
+    const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement | null;
+    const prevScrollHeight = viewport?.scrollHeight ?? 0;
+    setLoadingOlder(true);
+    try {
+      const response = await getTeamChatMessages({ limit: 50, before: oldest });
+      setMessages((prev) => {
+        const seen = new Set(prev.map((m) => m.id));
+        const older = response.messages.filter((m) => !seen.has(m.id));
+        const next = [...older, ...prev];
+        chatCache.msgs = next;
+        chatCache.msgsTimestamp = Date.now();
+        return next;
+      });
+      setHasMore(response.hasMore ?? false);
+      // Restore scroll anchor on the next frame, after the prepended
+      // rows have been laid out.
+      requestAnimationFrame(() => {
+        if (viewport) {
+          const delta = viewport.scrollHeight - prevScrollHeight;
+          viewport.scrollTop = delta;
+        }
+      });
+    } catch (err) {
+      console.error('載入歷史訊息失敗:', err);
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [hasMore, loadingOlder, messages]);
 
   // 載入 @提及（帶快取，unreadOnly 切換時強制刷新）
   const loadMentions = useCallback(async (forceUnreadOnly?: boolean) => {
@@ -174,10 +218,16 @@ export function ChatPage() {
     const onScroll = () => {
       const distance = viewport.scrollHeight - (viewport.scrollTop + viewport.clientHeight);
       isNearBottomRef.current = distance < 100;
+      // Reverse infinite scroll: when within 200px of the top and there's
+      // more history, fetch the next-older page. loadOlder guards against
+      // re-entrance via its own loadingOlder ref-equivalent state.
+      if (viewport.scrollTop < 200 && hasMore && !loadingOlder) {
+        void loadOlder();
+      }
     };
     viewport.addEventListener('scroll', onScroll, { passive: true });
     return () => viewport.removeEventListener('scroll', onScroll);
-  }, []);
+  }, [hasMore, loadingOlder, loadOlder]);
 
   // 自動滾動到底部（僅當使用者已在底部附近時）
   useEffect(() => {
@@ -534,6 +584,30 @@ export function ChatPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
+                  {/* Reverse infinite scroll affordance — auto-fires when
+                      the user scrolls near the top, but a visible button
+                      gives keyboard users a path and confirms there's
+                      more history to load. */}
+                  {hasMore && (
+                    <div className="flex justify-center py-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => void loadOlder()}
+                        disabled={loadingOlder}
+                        className="text-xs text-muted-foreground"
+                      >
+                        {loadingOlder ? (
+                          <>
+                            <LoadingSpinner size="sm" />
+                            <span className="ml-2">載入中…</span>
+                          </>
+                        ) : (
+                          '↑ 載入更舊訊息'
+                        )}
+                      </Button>
+                    </div>
+                  )}
                   {flatMessages.map((msg) => (
                     <div key={msg.id}>{renderMessage(msg)}</div>
                   ))}
