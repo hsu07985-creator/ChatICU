@@ -4,7 +4,7 @@
 > **配對術語表**：[`docs/i18n-medical-glossary.md`](i18n-medical-glossary.md)
 > **負責人**：Chun + Claude
 > **啟動日**：2026-05-04
-> **總進度**：🟢 3.4 / 8 Waves（W0+W1+W2+W3a 完成、W3b 完成 2026-05-04；W3c+ 待開工）
+> **總進度**：🟢 3.5 / 8 Waves（W0+W1+W2+W3a+W3b 完成、W3c 完成 2026-05-04；W3d+ 待開工）
 
 ---
 
@@ -17,7 +17,7 @@
 | 2 | login + change-password + dashboard | 🟢 完成 | `feat/i18n-w2` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 3a | 病人列表 + 出院列表 + 編輯/封存對話框 | 🟢 完成 | `feat/i18n-w3a` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 3b | patient-detail.tsx 主頁 + 5 共用元件 | 🟢 完成 | `feat/i18n-w3b` | 2026-05-04 | 🚀 personal+railway 已推 |
-| 3c | medical-records + vital-signs + lab-data + trends | ⬜ 待開工 | — | — | — |
+| 3c | medical-records + lab-data + lab-trend + score-trend | 🟢 完成 | `feat/i18n-w3c` | 2026-05-04 | 待 push |
 | 3d-g | patient-detail 各 tab（summary / meds / labs / messages / chat） | ⬜ 待開工（5 個 sub-PR） | — | — | — |
 | 4 | team chat + ai chat | ⬜ 待開工 | — | — |
 | 5 | 藥事 7 頁（workstation + 6 工具） | ⬜ 待開工 | — | — |
@@ -167,9 +167,37 @@
 - [x] TypeScript build 過 (`npm run typecheck`)
 - [ ] 手動瀏覽器驗證
 
-#### Wave 3c｜病歷 + 生命徵象 + 檢驗
-- 範圍：`medical-records.tsx` / `vital-signs-card.tsx` / `lab-data-display.tsx` / `lab-trend-chart.tsx` / `score-trend-chart.tsx`
-- namespace：`medical-records.json` + `vital-signs.json` + `labs.json`
+#### Wave 3c｜病歷 + 檢驗 + 趨勢圖（🟢 完成 2026-05-04）
+
+**已完成檔案**：
+- 字典（3 套兩語）：
+  - `medical-records.json`（recordTypes / draftSection / templateApply / polishedSection / refine / templates / draftStorage / polish / lastCopied，~75 keys）
+  - `labs.json`（fields 60+ 檢驗欄位 + display + trendChart，~80 keys）
+  - `score-trend.json`（labels / subtitle / history headers，~10 keys）
+- 元件改寫：
+  - `src/components/medical-records.tsx`（**1320 行**，60 個替換 = 19 handler + 41 JSX；`RECORD_TYPE_CONFIG` 從靜態 const 改成 `useRecordTypeConfig()` hook）
+  - `src/components/lab-data-display.tsx`（filter buttons / legend / 60+ lab name lookup 改用 `t('fields.<key>')`）
+  - `src/components/lab-trend-chart.tsx`（時窗選項 / 參考範圍 / tooltip 狀態 / Clcr 體重來源 6 個 case）
+  - `src/components/score-trend-chart.tsx`（pain/RASS labels + 歷史紀錄表頭）
+  - `src/components/vital-signs-card.tsx`（**未動，無 UI 字串**，所有 label 透過 prop 傳入）
+- `src/i18n/config.ts`：註冊 `medical-records` / `labs` / `score-trend` 三個 namespace
+
+**設計決策**：
+- `BUILTIN_TEMPLATES` 字典名（'SOAP 格式' / '藥師 SOAP' / '一般交班' 等 11 個）與內容（主訴/處置計畫等臨床 fill-in 區段）**不翻譯**：模板名是 lookup key（含使用者自訂模板），內容是讓使用者填寫的占位結構，與 UI chrome 不同
+- `RECORD_TYPE_CONFIG` 從 module-level const 重構為 `useRecordTypeConfig()` hook，這樣 label/description/placeholder/polishLabel 跟隨語言切換 re-render
+- `RECORD_TYPE_ICONS` 拆出來保留 module-level（icons 不需要 reactive）
+- `formatTimestamp` zh-TW 寫死 → `i18n.language`（保持 `Asia/Taipei` 時區）
+- `lastCopiedHint` 用 `useMemo` + i18n hook
+- `score-trend-chart` 的 `Pain Score` / `RASS Score` 在英文模式下兩個都顯示英文，中文模式 Chinese label 為「疼痛分數」/「鎮靜分數」
+- `lab-data-display` 的 60+ 檢驗縮寫 `Na/K/BUN/...` 在英文版用全名 `Sodium/Potassium/BUN/...`
+- 命名衝突：`useTranslation` 的 `t` 與 `serverTemplates.map((t) => ...)` 衝突 → 重命名為 `tpl`
+
+**範圍外**：
+- `vital-signs-card.tsx` 純展示元件，所有顯示文字（label/value/unit）由父元件以 prop 傳入
+
+**驗收**：
+- [x] TypeScript build 過 (`npm run typecheck`)
+- [ ] 手動瀏覽器驗證
 
 #### Wave 3d-g｜patient-detail 各 tab
 - 一個 tab 一個 sub-PR：`patient-summary-tab` / `patient-medications-tab` / `patient-labs-tab` / `patient-messages-tab` / `patient-chat-tab`

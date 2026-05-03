@@ -46,6 +46,8 @@ import {
   Save,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n/config';
 
 interface MedicalRecordsProps {
   patientId: string;
@@ -58,32 +60,41 @@ type RecordType = 'progress-note' | 'medication-advice' | 'nursing-record';
 
 const RECORD_TYPES: RecordType[] = ['progress-note', 'medication-advice', 'nursing-record'];
 
-const RECORD_TYPE_CONFIG: Record<
-  RecordType,
-  { label: string; icon: typeof FileText; description: string; placeholder: string; polishLabel: string }
-> = {
-  'progress-note': {
-    label: 'Progress Note',
-    icon: FileText,
-    description: '中文／半英文都行，AI 會轉成專業 Progress Note 格式',
-    placeholder: '例：病人今天意識清楚，血壓穩定，繼續使用呼吸器...',
-    polishLabel: 'AI 修飾',
-  },
-  'medication-advice': {
-    label: '用藥建議',
-    icon: Pill,
-    description: '中英夾雜、破英文都 OK，AI 只修文法不增減你寫的內容',
-    placeholder: '例：pt renal fx poor, sug D/C morphine d/t resp depress risk, change to fentanyl patch...',
-    polishLabel: 'AI 修飾',
-  },
-  'nursing-record': {
-    label: '護理記錄',
-    icon: ClipboardList,
-    description: '使用模板快速建立，AI 協助檢查錯字與格式',
-    placeholder: '填寫護理記錄或套用模板...',
-    polishLabel: 'AI 檢查',
-  },
+type RecordTypeConfig = { label: string; icon: typeof FileText; description: string; placeholder: string; polishLabel: string };
+
+// Icons stay static; labels/strings come from t() so language switches re-render.
+const RECORD_TYPE_ICONS: Record<RecordType, typeof FileText> = {
+  'progress-note': FileText,
+  'medication-advice': Pill,
+  'nursing-record': ClipboardList,
 };
+
+function useRecordTypeConfig(): Record<RecordType, RecordTypeConfig> {
+  const { t } = useTranslation('medical-records');
+  return {
+    'progress-note': {
+      label: t('recordTypes.progressNote.label'),
+      icon: RECORD_TYPE_ICONS['progress-note'],
+      description: t('recordTypes.progressNote.description'),
+      placeholder: t('recordTypes.progressNote.placeholder'),
+      polishLabel: t('recordTypes.progressNote.polishLabel'),
+    },
+    'medication-advice': {
+      label: t('recordTypes.medicationAdvice.label'),
+      icon: RECORD_TYPE_ICONS['medication-advice'],
+      description: t('recordTypes.medicationAdvice.description'),
+      placeholder: t('recordTypes.medicationAdvice.placeholder'),
+      polishLabel: t('recordTypes.medicationAdvice.polishLabel'),
+    },
+    'nursing-record': {
+      label: t('recordTypes.nursingRecord.label'),
+      icon: RECORD_TYPE_ICONS['nursing-record'],
+      description: t('recordTypes.nursingRecord.description'),
+      placeholder: t('recordTypes.nursingRecord.placeholder'),
+      polishLabel: t('recordTypes.nursingRecord.polishLabel'),
+    },
+  };
+}
 
 type TemplateContent = string | { soap: SoapDraft };
 
@@ -272,7 +283,7 @@ function saveDrafts(userId: string | null | undefined, patientId: string, drafts
     // their drafts may not survive reload, instead of failing silently.
     if (!quotaToastShown) {
       quotaToastShown = true;
-      toast.error('儲存空間不足，目前的草稿可能無法保存到下一次開啟', {
+      toast.error(i18n.t('draftStorage.quotaWarning', { ns: 'medical-records' }), {
         id: 'draft-quota',
       });
     }
@@ -289,6 +300,8 @@ export function MedicalRecords({
   medications = null,
 }: MedicalRecordsProps) {
   const { user } = useAuth();
+  const { t } = useTranslation('medical-records');
+  const RECORD_TYPE_CONFIG = useRecordTypeConfig();
   // RAG layer removed — clinical polish is always available.
   const canPolish = true;
   const polishReason = '';
@@ -393,7 +406,7 @@ export function MedicalRecords({
       setServerTemplates(templates);
     } catch (err) {
       setServerTemplates([]);
-      toast.error('無法載入自訂模板', { id: 'record-templates-fetch' });
+      toast.error(t('templates.fetchError'), { id: 'record-templates-fetch' });
       console.error('listRecordTemplates failed', err);
     }
   }, []);
@@ -591,7 +604,7 @@ export function MedicalRecords({
       // either incomplete (timeout/network) or stale (aborted). Clear it so
       // the user can't accidentally copy a half-sentence into HIS.
       const reason = err instanceof PolishStreamError ? err.reason : 'network';
-      const message = err instanceof PolishStreamError ? err.message : 'AI 修飾失敗，請稍後再試';
+      const message = err instanceof PolishStreamError ? err.message : t('polish.fallbackError');
       updateDraft(recordType, { polished: '', polishedFrom: '' });
       if (reason === 'aborted') toast.message(message);
       else toast.error(message);
@@ -604,7 +617,7 @@ export function MedicalRecords({
   const handleRefine = async () => {
     const instruction = refinementInstruction.trim();
     if (!instruction) {
-      toast.error('請輸入要怎麼調整');
+      toast.error(t('refine.needInstruction'));
       return;
     }
     if (!polishedContent.trim()) return;
@@ -642,12 +655,12 @@ export function MedicalRecords({
       );
       updateDraft(recordType, { polished: result.polished, polishedFrom: sourceSnapshot });
       setRefinementInstruction('');
-      toast.success('已依指示重新修飾');
+      toast.success(t('refine.successToast'));
     } catch (err) {
       // Refinement failure: revert to the last good polished text so the
       // user keeps what they had, but surface the reason so they can retry.
       const reason = err instanceof PolishStreamError ? err.reason : 'network';
-      const message = err instanceof PolishStreamError ? err.message : '再修一次失敗，請稍後再試';
+      const message = err instanceof PolishStreamError ? err.message : t('refine.fallbackError');
       updateDraft(recordType, { polished: polishedContent, polishedFrom: inputContent });
       if (reason === 'aborted') toast.message(message);
       else toast.error(message);
@@ -671,10 +684,10 @@ export function MedicalRecords({
     if (ok) {
       updateDraft(recordType, { lastCopiedAt: Date.now() });
       toast.success(
-        usingPolished ? '已複製潤飾結果，可貼到 HIS' : '已複製未潤飾草稿，請貼到 HIS 後注意檢查',
+        usingPolished ? t('polishedSection.copySuccessPolished') : t('polishedSection.copySuccessDraft'),
       );
     } else {
-      toast.error('複製失敗，請手動複製');
+      toast.error(t('polishedSection.copyError'));
     }
   };
 
@@ -684,25 +697,25 @@ export function MedicalRecords({
     if (!ts) return null;
     const elapsedMs = Date.now() - ts;
     const minutes = Math.floor(elapsedMs / 60_000);
-    if (minutes < 1) return '剛剛複製';
-    if (minutes < 60) return `${minutes} 分鐘前複製`;
+    if (minutes < 1) return t('lastCopied.justNow');
+    if (minutes < 60) return t('lastCopied.minutesAgo', { count: minutes });
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} 小時前複製`;
-    return new Date(ts).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false });
+    if (hours < 24) return t('lastCopied.hoursAgo', { count: hours });
+    return new Date(ts).toLocaleString(i18n.language, { timeZone: 'Asia/Taipei', hour12: false });
   }, [currentDraft.lastCopiedAt]);
 
   const handleSaveAsTemplate = async () => {
     const name = newTemplateName.trim();
     if (!name) {
-      toast.error('請輸入模板名稱');
+      toast.error(t('templates.saveNoName'));
       return;
     }
     if (!newTemplateContent.trim()) {
-      toast.error('請輸入模板內容');
+      toast.error(t('templates.saveNoContent'));
       return;
     }
     if (name in BUILTIN_TEMPLATES[recordType]) {
-      toast.error(`「${name}」與內建模板名稱重複，請使用其他名稱`);
+      toast.error(t('templates.saveDuplicateName', { name }));
       return;
     }
     setIsSavingTemplate(true);
@@ -723,10 +736,10 @@ export function MedicalRecords({
       setNewTemplateName('');
       setNewTemplateContent('');
       setShowNewTemplate(false);
-      toast.success(`模板「${name}」已儲存`);
+      toast.success(t('templates.saveSuccess', { name }));
       fetchTemplates(recordType as RecordTemplateType);
     } catch {
-      toast.error('儲存模板失敗，請稍後再試');
+      toast.error(t('templates.saveError'));
     } finally {
       setIsSavingTemplate(false);
     }
@@ -735,21 +748,21 @@ export function MedicalRecords({
   const handleDeleteTemplate = async (name: string) => {
     const tpl = serverTemplates.find((t) => t.name === name);
     if (!tpl) {
-      toast.error('無法刪除內建模板');
+      toast.error(t('templates.deleteCannotBuiltin'));
       return;
     }
     if (!tpl.canDelete) {
-      toast.error('您沒有刪除此模板的權限');
+      toast.error(t('templates.deleteNoPermission'));
       return;
     }
     setDeletingTemplateName(name);
     try {
       await deleteRecordTemplate(tpl.id);
       if (selectedTemplate === name) setSelectedTemplate('');
-      toast.success(`模板「${name}」已刪除`);
+      toast.success(t('templates.deleteSuccess', { name }));
       fetchTemplates(recordType as RecordTemplateType);
     } catch {
-      toast.error('刪除模板失敗，請稍後再試');
+      toast.error(t('templates.deleteError'));
     } finally {
       setDeletingTemplateName(null);
     }
@@ -761,10 +774,10 @@ export function MedicalRecords({
     setUpdatingTemplateName(name);
     try {
       await updateRecordTemplate(tpl.id, { content: inputContent });
-      toast.success(`模板「${name}」已更新`);
+      toast.success(t('templates.updateSuccess', { name }));
       fetchTemplates(recordType as RecordTemplateType);
     } catch {
-      toast.error('更新模板失敗，請稍後再試');
+      toast.error(t('templates.updateError'));
     } finally {
       setUpdatingTemplateName(null);
     }
@@ -860,7 +873,7 @@ export function MedicalRecords({
               >
                 {showDecorativeIcons && <Sparkles className="h-4 w-4 shrink-0" />}
                 <span className="truncate">
-                  {selectedTemplate ? `模板：${selectedTemplate}` : '模板'}
+                  {selectedTemplate ? t('templates.popoverButtonLabelWith', { name: selectedTemplate }) : t('templates.popoverButtonLabel')}
                 </span>
               </button>
             </PopoverTrigger>
@@ -868,7 +881,7 @@ export function MedicalRecords({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    選擇模板
+                    {t('templates.popoverTitle')}
                   </p>
                   <Button
                     size="sm"
@@ -877,12 +890,12 @@ export function MedicalRecords({
                     onClick={() => setShowNewTemplate((v) => !v)}
                   >
                     <Plus className="mr-1 h-3.5 w-3.5" />
-                    新增
+                    {t('templates.addNew')}
                   </Button>
                 </div>
 
                 <div className="max-h-60 space-y-1 overflow-auto pr-1">
-                  <div className="px-1 text-[11px] uppercase tracking-wide text-slate-400">內建</div>
+                  <div className="px-1 text-[11px] uppercase tracking-wide text-slate-400">{t('templates.groupBuiltin')}</div>
                   {Object.keys(visibleBuiltins).map((name) => (
                     <Button
                       key={`b-${name}`}
@@ -903,34 +916,34 @@ export function MedicalRecords({
                   {serverTemplates.length > 0 && (
                     <>
                       <div className="mt-2 px-1 text-[11px] uppercase tracking-wide text-slate-400">
-                        自訂
+                        {t('templates.groupCustom')}
                       </div>
-                      {serverTemplates.map((t) => (
-                        <div key={t.id} className="flex items-center gap-1">
+                      {serverTemplates.map((tpl) => (
+                        <div key={tpl.id} className="flex items-center gap-1">
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
                             className={`h-auto flex-1 justify-start py-1.5 text-left text-sm ${
-                              selectedTemplate === t.name
+                              selectedTemplate === tpl.name
                                 ? 'bg-slate-100 dark:bg-slate-800'
                                 : ''
                             }`}
-                            onClick={() => handleApplyTemplate(t.name)}
+                            onClick={() => handleApplyTemplate(tpl.name)}
                           >
-                            {t.name}
+                            {tpl.name}
                           </Button>
-                          {t.canDelete && (
+                          {tpl.canDelete && (
                             <Button
                               type="button"
                               size="sm"
                               variant="ghost"
                               className="h-7 w-7 shrink-0 p-0 text-red-500 hover:bg-red-50 dark:hover:bg-red-950"
-                              disabled={deletingTemplateName === t.name}
-                              onClick={() => void handleDeleteTemplate(t.name)}
-                              title={`刪除「${t.name}」`}
+                              disabled={deletingTemplateName === tpl.name}
+                              onClick={() => void handleDeleteTemplate(tpl.name)}
+                              title={t('templates.deleteCustomTitle', { name: tpl.name })}
                             >
-                              {deletingTemplateName === t.name ? (
+                              {deletingTemplateName === tpl.name ? (
                                 <ButtonLoadingIndicator compact />
                               ) : (
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -952,7 +965,7 @@ export function MedicalRecords({
                     onClick={() => void handleUpdateTemplate(selectedTemplate)}
                   >
                     <Save className="mr-1.5 h-3.5 w-3.5" />
-                    將目前草稿覆蓋模板「{selectedTemplate}」
+                    {t('templates.overwriteServerTemplate', { name: selectedTemplate })}
                     {updatingTemplateName === selectedTemplate ? (
                       <ButtonLoadingIndicator />
                     ) : null}
@@ -967,12 +980,12 @@ export function MedicalRecords({
                     onClick={() => {
                       // Pre-fill new-template form with current draft + suggested name.
                       setShowNewTemplate(true);
-                      setNewTemplateName(`${selectedTemplate} (自訂)`);
+                      setNewTemplateName(`${selectedTemplate}${t('templates.saveBuiltinSuffix')}`);
                       setNewTemplateContent(inputContent);
                     }}
                   >
                     <Save className="mr-1.5 h-3.5 w-3.5" />
-                    另存為自訂模板（基於「{selectedTemplate}」）
+                    {t('templates.saveBuiltinAsCustom', { name: selectedTemplate })}
                   </Button>
                 )}
 
@@ -980,13 +993,13 @@ export function MedicalRecords({
                   <div className="space-y-2 rounded-md border border-dashed border-slate-300 p-2 dark:border-slate-600">
                     <input
                       type="text"
-                      placeholder="模板名稱"
+                      placeholder={t('templates.newTemplateNamePlaceholder')}
                       value={newTemplateName}
                       onChange={(e) => setNewTemplateName(e.target.value)}
                       className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                     />
                     <Textarea
-                      placeholder="模板內容（用 ___ 表示待填空位）"
+                      placeholder={t('templates.newTemplateContentPlaceholder')}
                       value={newTemplateContent}
                       onChange={(e) => setNewTemplateContent(e.target.value)}
                       className="min-h-[80px] text-sm"
@@ -997,7 +1010,7 @@ export function MedicalRecords({
                         onClick={handleSaveAsTemplate}
                         disabled={isSavingTemplate}
                       >
-                        <span>{isSavingTemplate ? '處理中' : '儲存'}</span>
+                        <span>{isSavingTemplate ? t('templates.saveProcessing') : t('templates.saveButton')}</span>
                         {isSavingTemplate ? <ButtonLoadingIndicator /> : null}
                       </Button>
                       <Button
@@ -1010,7 +1023,7 @@ export function MedicalRecords({
                           setNewTemplateContent('');
                         }}
                       >
-                        取消
+                        {t('templates.cancelButton')}
                       </Button>
                     </div>
                   </div>
@@ -1051,7 +1064,7 @@ export function MedicalRecords({
           <CardHeader className="bg-slate-50 py-3 dark:bg-slate-800">
             <CardTitle className="flex items-center gap-2 text-base">
               <Icon className="h-4 w-4" />
-              你的草稿
+              {t('draftSection.title')}
             </CardTitle>
             <CardDescription className="text-xs">{config.description}</CardDescription>
           </CardHeader>
@@ -1076,7 +1089,7 @@ export function MedicalRecords({
                   className="flex-1 border-amber-500 text-amber-700 hover:bg-amber-50 dark:text-amber-300"
                 >
                   <X className="mr-2 h-4 w-4" />
-                  <span>停止 AI 修飾</span>
+                  <span>{t('draftSection.stopPolish')}</span>
                 </Button>
               ) : (
                 <Button
@@ -1096,18 +1109,18 @@ export function MedicalRecords({
                   variant="outline"
                   size="sm"
                   onClick={clearDraft}
-                  title="清空草稿"
+                  title={t('draftSection.clearDraft')}
                 >
                   <X className="h-4 w-4" />
                 </Button>
               )}
             </div>
             <p className="text-[11px] text-slate-400 dark:text-slate-500">
-              AI 會帶入此病人的用藥列表與檢驗摘要作為背景；請檢查潤飾結果再複製。
+              {t('draftSection.polishHint')}
             </p>
             {(isPolishing || isRefining) && (
               <div className="rounded bg-slate-50 px-2 py-1 text-[11px] text-slate-500 dark:bg-slate-800/40 dark:text-slate-400">
-                AI 正在處理本次草稿；目前在草稿上的編輯不會影響此次結果。
+                {t('draftSection.polishingNotice')}
               </div>
             )}
             {/* "Just-applied" undo chip — visible while input still equals the
@@ -1117,20 +1130,20 @@ export function MedicalRecords({
               && inputContent === currentDraft.selectedTemplateSnapshot
               && stashedDraftRef.current && (
               <div className="flex items-center justify-between rounded bg-blue-50 px-2 py-1 text-xs text-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
-                <span>已套用「{selectedTemplate}」</span>
+                <span>{t('templateApply.appliedHint', { name: selectedTemplate })}</span>
                 <button
                   type="button"
                   className="font-medium underline"
                   onClick={handleUndoApply}
                 >
-                  還原上一版
+                  {t('templateApply.undoApply')}
                 </button>
               </div>
             )}
             {selectedTemplate && (
               <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                 <span>
-                  已套用模板：
+                  {t('templateApply.appliedTemplatePrefix')}
                   <span className="font-medium text-slate-700 dark:text-slate-300">
                     {selectedTemplate}
                   </span>
@@ -1139,7 +1152,7 @@ export function MedicalRecords({
                   className="hover:text-slate-700 dark:hover:text-slate-200"
                   onClick={() => setSelectedTemplate('')}
                 >
-                  取消套用
+                  {t('templateApply.removeTemplate')}
                 </button>
               </div>
             )}
@@ -1151,10 +1164,10 @@ export function MedicalRecords({
           <CardHeader className="bg-slate-50 py-3 dark:bg-slate-800">
             <CardTitle className="flex items-center gap-2 text-base">
               {showDecorativeIcons && <Sparkles className="h-4 w-4" />}
-              AI 修飾後
+              {t('polishedSection.title')}
               {polishedContent && (
                 <Badge variant="secondary" className="text-[10px]">
-                  可直接修改
+                  {t('polishedSection.editableBadge')}
                 </Badge>
               )}
               {isPolishedStale && (
@@ -1162,14 +1175,14 @@ export function MedicalRecords({
                   variant="secondary"
                   className="bg-amber-100 text-[10px] text-amber-800 dark:bg-amber-950 dark:text-amber-300"
                 >
-                  草稿已變動
+                  {t('polishedSection.staleBadge')}
                 </Badge>
               )}
             </CardTitle>
             <CardDescription className="text-xs">
               {polishedContent
-                ? '可直接修改後按「複製潤飾結果到 HIS」'
-                : `按左側的「${config.polishLabel}」生成結果`}
+                ? t('polishedSection.promptDescPolished')
+                : t('polishedSection.promptDescBlank', { label: config.polishLabel })}
             </CardDescription>
           </CardHeader>
           <CardContent
@@ -1181,7 +1194,7 @@ export function MedicalRecords({
             <Textarea
               value={polishedContent}
               onChange={(e) => setPolishedContent(e.target.value)}
-              placeholder="（尚未生成）"
+              placeholder={t('polishedSection.polishedPlaceholder')}
               className="min-h-[280px] flex-1 resize-none border-slate-300 font-mono text-sm dark:border-slate-600"
             />
             <Button
@@ -1195,13 +1208,13 @@ export function MedicalRecords({
               title={
                 polishedContent.trim().length > 0
                   ? undefined
-                  : '尚未潤飾，將複製原始草稿；建議先按 AI 修飾'
+                  : t('polishedSection.copyDraftHisTitle')
               }
             >
               <Copy className="mr-2 h-4 w-4" />
               {polishedContent.trim().length > 0
-                ? '複製潤飾結果到 HIS'
-                : '複製未潤飾草稿到 HIS'}
+                ? t('polishedSection.copyPolishedToHis')
+                : t('polishedSection.copyDraftToHis')}
             </Button>
             {lastCopiedHint && (
               <p className="text-[11px] text-slate-400 dark:text-slate-500">
@@ -1217,14 +1230,14 @@ export function MedicalRecords({
               <div className="group/refine space-y-2 rounded-md border-2 border-slate-300 bg-slate-50/60 p-3 dark:border-slate-600 dark:bg-slate-800/30">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                    再修一次
+                    {t('refine.title')}
                   </h4>
-                  <p className="text-[11px] text-slate-400">⌘/Ctrl + Enter 送出</p>
+                  <p className="text-[11px] text-slate-400">{t('refine.shortcutHint')}</p>
                 </div>
                 {/* Single-line preview chip; full text shown on the polished
                     pane right above so truncation here is fine. */}
                 <div className="truncate rounded bg-white px-2 py-1 text-[11px] text-slate-500 dark:bg-slate-900/40 dark:text-slate-400">
-                  依右側目前內容再修：
+                  {t('refine.previewLabel')}
                   <span className="ml-1 font-mono">
                     {polishedContent.replace(/\s+/g, ' ').slice(0, 60)}
                     {polishedContent.length > 60 ? '…' : ''}
@@ -1233,7 +1246,7 @@ export function MedicalRecords({
                 <Textarea
                   value={refinementInstruction}
                   onChange={(e) => setRefinementInstruction(e.target.value)}
-                  placeholder="想怎麼調整？例：再簡短一點 / 把劑量細節拿掉 / 用條列式"
+                  placeholder={t('refine.placeholder')}
                   className="min-h-[36px] resize-none border-slate-300 text-sm transition-[min-height] duration-150 focus:min-h-[80px] dark:border-slate-600"
                   disabled={isRefining}
                   onKeyDown={(e) => {
@@ -1251,7 +1264,7 @@ export function MedicalRecords({
                     className="w-full border-amber-500 text-amber-700 hover:bg-amber-50 dark:text-amber-300"
                   >
                     <X className="mr-1.5 h-3.5 w-3.5" />
-                    停止
+                    {t('refine.stop')}
                   </Button>
                 ) : (
                   <Button
@@ -1261,7 +1274,7 @@ export function MedicalRecords({
                     style={{ backgroundColor: '#1e293b' }}
                     className="w-full"
                   >
-                    再修一次
+                    {t('refine.submit')}
                   </Button>
                 )}
               </div>
@@ -1277,9 +1290,9 @@ export function MedicalRecords({
       <Dialog open={!!pendingTemplate} onOpenChange={(open) => !open && setPendingTemplate(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>套用模板「{pendingTemplate?.name}」？</DialogTitle>
+            <DialogTitle>{t('templates.applyConfirmTitle', { name: pendingTemplate?.name })}</DialogTitle>
             <DialogDescription>
-              你目前的草稿超過 {APPLY_CONFIRM_THRESHOLD} 字。請選擇要如何處理：
+              {t('templates.applyConfirmDescription', { threshold: APPLY_CONFIRM_THRESHOLD })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2">
@@ -1287,7 +1300,7 @@ export function MedicalRecords({
               variant="outline"
               onClick={() => setPendingTemplate(null)}
             >
-              取消
+              {t('templates.cancelButton')}
             </Button>
             <Button
               variant="outline"
@@ -1298,7 +1311,7 @@ export function MedicalRecords({
                 }
               }}
             >
-              附加到草稿後面
+              {t('templates.applyConfirmAppend')}
             </Button>
             <Button
               variant="destructive"
@@ -1309,7 +1322,7 @@ export function MedicalRecords({
                 }
               }}
             >
-              覆蓋目前草稿
+              {t('templates.applyConfirmReplace')}
             </Button>
           </DialogFooter>
         </DialogContent>

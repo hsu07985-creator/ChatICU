@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import {
   LineChart,
@@ -36,15 +37,8 @@ export interface LabTrendChartProps {
 
 type WindowDays = 7 | 30 | 90 | null;
 
-const WINDOW_OPTIONS: { label: string; value: WindowDays }[] = [
-  { label: '7 天', value: 7 },
-  { label: '30 天', value: 30 },
-  { label: '90 天', value: 90 },
-  { label: '全部', value: null },
-];
-
 function formatDateShort(dateStr: string): string {
-  if (!dateStr || dateStr === '目前') return dateStr;
+  if (!dateStr) return dateStr;
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -53,7 +47,7 @@ function formatDateShort(dateStr: string): string {
 }
 
 function formatDateFull(dateStr: string): string {
-  if (!dateStr || dateStr === '目前') return dateStr;
+  if (!dateStr) return dateStr;
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
   const yyyy = d.getFullYear();
@@ -62,19 +56,6 @@ function formatDateFull(dateStr: string): string {
   const hh = String(d.getHours()).padStart(2, '0');
   const min = String(d.getMinutes()).padStart(2, '0');
   return `${yyyy}/${mm}/${dd} ${hh}:${min}`;
-}
-
-function formatWeightSource(source?: string): string {
-  switch (source) {
-    case 'vital_signs':
-      return '歷史體重';
-    case 'initial_backfill':
-      return '首筆體重回補';
-    case 'patient_profile':
-      return '病人主檔體重';
-    default:
-      return source ?? '';
-  }
 }
 
 function parseReferenceRange(range?: string): { low?: number; high?: number } | null {
@@ -109,7 +90,28 @@ export function LabTrendChart({
   referenceRange,
   valueDecimals,
 }: LabTrendChartProps) {
+  const { t } = useTranslation('labs');
   const [windowDays, setWindowDays] = useState<WindowDays>(30);
+
+  const WINDOW_OPTIONS: { label: string; value: WindowDays }[] = [
+    { label: t('trendChart.windowDays7'), value: 7 },
+    { label: t('trendChart.windowDays30'), value: 30 },
+    { label: t('trendChart.windowDays90'), value: 90 },
+    { label: t('trendChart.windowAll'), value: null },
+  ];
+
+  const formatWeightSource = (source?: string): string => {
+    switch (source) {
+      case 'vital_signs':
+        return t('trendChart.weightSourceVitalSigns');
+      case 'initial_backfill':
+        return t('trendChart.weightSourceInitialBackfill');
+      case 'patient_profile':
+        return t('trendChart.weightSourcePatientProfile');
+      default:
+        return source ?? '';
+    }
+  };
 
   const refBounds = useMemo(() => parseReferenceRange(referenceRange), [referenceRange]);
 
@@ -117,8 +119,8 @@ export function LabTrendChart({
     if (windowDays === null) return trendData;
     const cutoff = Date.now() - windowDays * 24 * 60 * 60 * 1000;
     const kept = trendData.filter((d) => {
-      const t = new Date(d.date).getTime();
-      return isNaN(t) ? true : t >= cutoff;
+      const time = new Date(d.date).getTime();
+      return isNaN(time) ? true : time >= cutoff;
     });
     return kept.length > 0 ? kept : trendData;
   }, [trendData, windowDays]);
@@ -164,17 +166,17 @@ export function LabTrendChart({
             {labNameChinese} ({labName})
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            歷史趨勢分析
+            {t('trendChart.subtitleHistorical')}
             {refBounds && (
               <span className="ml-2 text-emerald-600">
-                參考範圍: {referenceRange} {unit}
+                {t('trendChart.referenceRange', { range: referenceRange, unit })}
               </span>
             )}
           </DialogDescription>
         </DialogHeader>
 
         <div className="mt-3 flex items-center gap-1">
-          <span className="mr-1 text-xs text-slate-500">顯示區間：</span>
+          <span className="mr-1 text-xs text-slate-500">{t('trendChart.windowPickerLabel')}</span>
           {WINDOW_OPTIONS.map((opt) => {
             const active = windowDays === opt.value;
             return (
@@ -192,7 +194,7 @@ export function LabTrendChart({
               </button>
             );
           })}
-          <span className="ml-2 text-xs text-slate-400">共 {filteredData.length} 筆</span>
+          <span className="ml-2 text-xs text-slate-400">{t('trendChart.totalCount', { count: filteredData.length })}</span>
         </div>
 
         <div className="mt-3 h-[400px]">
@@ -258,10 +260,10 @@ export function LabTrendChart({
                     refBounds === null
                       ? null
                       : refBounds?.high !== undefined && val > refBounds.high
-                        ? '偏高'
+                        ? t('trendChart.statusHigh')
                         : refBounds?.low !== undefined && val < refBounds.low
-                          ? '偏低'
-                          : '正常';
+                          ? t('trendChart.statusLow')
+                          : t('trendChart.statusNormal');
                   return (
                     <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 shadow-md">
                       <p className="text-xs text-slate-500 dark:text-slate-400">{formatDateFull(label ?? '')}</p>
@@ -271,16 +273,16 @@ export function LabTrendChart({
                       {labName === 'Clcr' && point && (
                         <div className="mt-1.5 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
                           {typeof point.scrValue === 'number' && (
-                            <p>Scr: {point.scrValue} mg/dL</p>
+                            <p>{t('trendChart.scrLabel', { value: point.scrValue })}</p>
                           )}
                           {typeof point.weightUsed === 'number' && (
-                            <p>使用體重: {point.weightUsed} kg</p>
+                            <p>{t('trendChart.weightUsed', { value: point.weightUsed })}</p>
                           )}
                           {point.weightTimestamp && (
-                            <p>體重時間: {formatDateFull(point.weightTimestamp)}</p>
+                            <p>{t('trendChart.weightTimestamp', { timestamp: formatDateFull(point.weightTimestamp) })}</p>
                           )}
                           {point.weightSource && (
-                            <p>體重來源: {formatWeightSource(point.weightSource)}</p>
+                            <p>{t('trendChart.weightSource', { source: formatWeightSource(point.weightSource) })}</p>
                           )}
                         </div>
                       )}

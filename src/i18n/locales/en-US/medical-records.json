@@ -1,0 +1,104 @@
+{
+  "recordTypes": {
+    "progressNote": {
+      "label": "Progress Note",
+      "description": "Chinese, English, or mixed — AI converts it into a professional Progress Note.",
+      "placeholder": "e.g. Patient is alert today, blood pressure stable, continuing on ventilator...",
+      "polishLabel": "AI Polish"
+    },
+    "medicationAdvice": {
+      "label": "Medication Advice",
+      "description": "Mixed Chinese-English or rough English is fine — AI only fixes grammar without adding or removing content.",
+      "placeholder": "e.g. pt renal fx poor, sug D/C morphine d/t resp depress risk, change to fentanyl patch...",
+      "polishLabel": "AI Polish"
+    },
+    "nursingRecord": {
+      "label": "Nursing Record",
+      "description": "Use templates for quick entry; AI helps catch typos and formatting.",
+      "placeholder": "Write a nursing record or apply a template...",
+      "polishLabel": "AI Check"
+    }
+  },
+  "draftSection": {
+    "title": "Your Draft",
+    "stopPolish": "Stop AI polish",
+    "clearDraft": "Clear draft",
+    "polishHint": "AI will use this patient's medication list and lab summary as context; please review the polished result before copying.",
+    "polishingNotice": "AI is processing this draft; edits made now will not affect the current run."
+  },
+  "templateApply": {
+    "appliedHint": "Applied \"{{name}}\"",
+    "undoApply": "Undo",
+    "appliedTemplatePrefix": "Applied template: ",
+    "removeTemplate": "Remove"
+  },
+  "polishedSection": {
+    "title": "AI Polished",
+    "editableBadge": "Editable",
+    "staleBadge": "Draft changed",
+    "promptDescPolished": "Edit if needed, then click \"Copy polished result to HIS\"",
+    "promptDescBlank": "Click the \"{{label}}\" button on the left to generate",
+    "polishedPlaceholder": "(not generated yet)",
+    "copyPolishedToHis": "Copy polished result to HIS",
+    "copyDraftToHis": "Copy unpolished draft to HIS",
+    "copyDraftHisTitle": "Not yet polished — will copy raw draft. Consider running AI Polish first.",
+    "copySuccessPolished": "Polished result copied; ready to paste into HIS",
+    "copySuccessDraft": "Unpolished draft copied; review carefully after pasting into HIS",
+    "copyError": "Copy failed — please copy manually"
+  },
+  "refine": {
+    "title": "Refine again",
+    "shortcutHint": "⌘/Ctrl + Enter to submit",
+    "previewLabel": "Refining the current right-side content:",
+    "placeholder": "How would you like to adjust? e.g. shorter / drop dosage details / use bullet points",
+    "stop": "Stop",
+    "submit": "Refine again",
+    "needInstruction": "Please describe how to adjust",
+    "fallbackError": "Refine failed. Please try again later.",
+    "successToast": "Refined per instruction"
+  },
+  "templates": {
+    "popoverButtonLabel": "Templates",
+    "popoverButtonLabelWith": "Template: {{name}}",
+    "popoverTitle": "Select a template",
+    "addNew": "Add",
+    "groupBuiltin": "Built-in",
+    "groupCustom": "Custom",
+    "deleteCustomTitle": "Delete \"{{name}}\"",
+    "overwriteServerTemplate": "Overwrite template \"{{name}}\" with current draft",
+    "saveBuiltinAsCustom": "Save as custom template (based on \"{{name}}\")",
+    "saveBuiltinSuffix": " (Custom)",
+    "newTemplateNamePlaceholder": "Template name",
+    "newTemplateContentPlaceholder": "Template content (use ___ for blanks)",
+    "saveButton": "Save",
+    "saveProcessing": "Processing",
+    "cancelButton": "Cancel",
+    "fetchError": "Failed to load custom templates",
+    "applyConfirmTitle": "Apply template \"{{name}}\"?",
+    "applyConfirmDescription": "Your current draft exceeds {{threshold}} characters. Please choose:",
+    "applyConfirmAppend": "Append to draft",
+    "applyConfirmReplace": "Replace current draft",
+    "saveSuccess": "Template \"{{name}}\" saved",
+    "saveError": "Failed to save template. Please try again later.",
+    "saveNoName": "Please enter a template name",
+    "saveNoContent": "Please enter template content",
+    "saveDuplicateName": "\"{{name}}\" duplicates a built-in template name. Please choose another.",
+    "deleteCannotBuiltin": "Cannot delete a built-in template",
+    "deleteNoPermission": "You do not have permission to delete this template",
+    "deleteSuccess": "Template \"{{name}}\" deleted",
+    "deleteError": "Failed to delete template. Please try again later.",
+    "updateSuccess": "Template \"{{name}}\" updated",
+    "updateError": "Failed to update template. Please try again later."
+  },
+  "draftStorage": {
+    "quotaWarning": "Storage is full; current drafts may not survive a reload."
+  },
+  "polish": {
+    "fallbackError": "AI Polish failed. Please try again later."
+  },
+  "lastCopied": {
+    "justNow": "Just copied",
+    "minutesAgo": "Copied {{count}} minute(s) ago",
+    "hoursAgo": "Copied {{count}} hour(s) ago"
+  }
+}

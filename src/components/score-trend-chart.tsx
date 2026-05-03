@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Dot, Tooltip, type TooltipProps } from 'recharts';
 import { Trash2 } from 'lucide-react';
@@ -22,11 +23,12 @@ export function ScoreTrendChart({
   scoreEntries,
   onDeleteEntry,
 }: ScoreTrendChartProps) {
+  const { t, i18n } = useTranslation('score-trend');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const labName = scoreType === 'pain' ? 'Pain Score' : 'RASS Score';
-  const labNameChinese = scoreType === 'pain' ? '疼痛分數' : '鎮靜分數';
-  const unit = scoreType === 'pain' ? '分 (0-10)' : '分 (-5~+4)';
+  const labName = scoreType === 'pain' ? t('labels.painLong') : t('labels.rassLong');
+  const labNameChinese = scoreType === 'pain' ? t('labels.painShort') : t('labels.rassShort');
+  const unit = scoreType === 'pain' ? t('labels.painUnit') : t('labels.rassUnit');
 
   // Y axis range
   const values = trendData.map(d => d.value);
@@ -55,7 +57,7 @@ export function ScoreTrendChart({
             {labNameChinese} ({labName})
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            歷史趨勢分析
+            {t('subtitleHistorical')}
           </DialogDescription>
         </DialogHeader>
 
@@ -139,16 +141,16 @@ export function ScoreTrendChart({
         {/* History table */}
         {scoreEntries.length > 0 && (
           <div className="mt-4">
-            <h4 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-300">歷史紀錄</h4>
+            <h4 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-300">{t('history.title')}</h4>
             <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 dark:bg-slate-800">
                   <tr>
-                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-400">時間</th>
-                    <th className="px-3 py-2 text-center font-medium text-slate-600 dark:text-slate-400">分數</th>
-                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-400">記錄者</th>
+                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-400">{t('history.headers.time')}</th>
+                    <th className="px-3 py-2 text-center font-medium text-slate-600 dark:text-slate-400">{t('history.headers.value')}</th>
+                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-400">{t('history.headers.recordedBy')}</th>
                     {onDeleteEntry && (
-                      <th className="px-3 py-2 text-center font-medium text-slate-600 dark:text-slate-400 w-16">操作</th>
+                      <th className="px-3 py-2 text-center font-medium text-slate-600 dark:text-slate-400 w-16">{t('history.headers.actions')}</th>
                     )}
                   </tr>
                 </thead>
@@ -156,7 +158,8 @@ export function ScoreTrendChart({
                   {scoreEntries.map((entry) => (
                     <tr key={entry.id} className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800">
                       <td className="px-3 py-2 text-slate-700 dark:text-slate-300">
-                        {new Date(entry.timestamp).toLocaleString('zh-TW', {
+                        {new Date(entry.timestamp).toLocaleString(i18n.language, {
+                          timeZone: 'Asia/Taipei',
                           month: '2-digit',
                           day: '2-digit',
                           hour: '2-digit',

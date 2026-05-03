@@ -1,0 +1,20 @@
+{
+  "labels": {
+    "painLong": "Pain Score",
+    "rassLong": "RASS Score",
+    "painShort": "疼痛分數",
+    "rassShort": "鎮靜分數",
+    "painUnit": "分 (0-10)",
+    "rassUnit": "分 (-5~+4)"
+  },
+  "subtitleHistorical": "歷史趨勢分析",
+  "history": {
+    "title": "歷史紀錄",
+    "headers": {
+      "time": "時間",
+      "value": "分數",
+      "recordedBy": "記錄者",
+      "actions": "操作"
+    }
+  }
+}

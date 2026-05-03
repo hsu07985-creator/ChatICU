@@ -1,0 +1,20 @@
+{
+  "labels": {
+    "painLong": "Pain Score",
+    "rassLong": "RASS Score",
+    "painShort": "Pain Score",
+    "rassShort": "RASS Score",
+    "painUnit": "Score (0-10)",
+    "rassUnit": "Score (-5 to +4)"
+  },
+  "subtitleHistorical": "Historical trend",
+  "history": {
+    "title": "History",
+    "headers": {
+      "time": "Time",
+      "value": "Score",
+      "recordedBy": "Recorded by",
+      "actions": "Actions"
+    }
+  }
+}

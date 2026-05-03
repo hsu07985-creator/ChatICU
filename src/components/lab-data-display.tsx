@@ -1,5 +1,6 @@
 import { type LabData } from '../lib/api';
 import { lazy, Suspense, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { LabTrendData } from './lab-trend-chart';
 import { getLabTrends } from '../lib/api/lab-data';
 import {
@@ -18,29 +19,6 @@ import { getValue } from './lab-data-display/helpers';
 const LabTrendChart = lazy(() =>
   import('./lab-trend-chart').then((m) => ({ default: m.LabTrendChart }))
 );
-
-const labChineseNames: Record<string, string> = {
-  Na: '鈉', K: '鉀', Ca: '鈣', freeCa: '游離鈣', Mg: '鎂',
-  Cl: '氯', CO2: '二氧化碳', Phos: '磷',
-  WBC: '白血球', RBC: '紅血球', Hb: '血紅素', PLT: '血小板',
-  Hct: '血比容', Segment: '嗜中性球', Lymph: '淋巴球', Mono: '單核球', Band: '帶狀嗜中性球',
-  Alb: '白蛋白', CRP: 'C反應蛋白', PCT: '降鈣素原',
-  DDimer: 'D-二聚體', NSE: '神經元特異性烯醇化酶',
-  Ferritin: '鐵蛋白', NH3: '血氨', Amylase: '澱粉酶', Lipase: '脂肪酶',
-  pH: '酸鹼值', PCO2: '二氧化碳分壓',
-  PO2: '氧分壓', HCO3: '碳酸氫根', Lactate: '乳酸',
-  BE: '鹼剩餘', SaO2: '動脈血氧飽和度', SO2C: '靜脈血氧飽和度',
-  AST: '天門冬胺酸轉胺酶', ALT: '丙胺酸轉胺酶', TBil: '總膽紅素', DBil: '直接膽紅素', AlkP: '鹼性磷酸酶', rGT: '丙麩氨轉肽酶',
-  INR: '國際標準化比值', BUN: '血液尿素氮', Scr: '肌酸酐',
-  eGFR: '腎絲球過濾率', Clcr: '肌酸酐清除率',
-  Glucose: '血糖', LDH: '乳酸脫氫酶', TnT: '肌鈣蛋白T',
-  Uric: '尿酸',
-  TSH: '促甲狀腺激素', freeT4: '游離甲狀腺素',
-  TCHO: '總膽固醇', TG: '三酸甘油酯', LDLC: '低密度脂蛋白', HDLC: '高密度脂蛋白',
-  HbA1C: '糖化血色素', NTproBNP: 'N端腦利鈉肽前體',
-  CK: '肌酸激酶', CKMB: '肌酸激酶同工酶',
-  PT: '凝血酶原時間', aPTT: '活化部分凝血酶原時間', Fibrinogen: '纖維蛋白原',
-};
 
 interface LabDataDisplayProps {
   labData: LabData | undefined;
@@ -81,6 +59,7 @@ function getTrendPointMeta(input: unknown): Pick<LabTrendData, 'scrValue' | 'wei
 }
 
 export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
+  const { t } = useTranslation('labs');
   const [selectedLab, setSelectedLab] = useState<{
     name: string;
     nameChinese: string;
@@ -91,6 +70,10 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
   const [, setTrendLoading] = useState(false);
   const [onlyAbnormal, setOnlyAbnormal] = useState(false);
   const [hideMissing, setHideMissing] = useState(false);
+
+  // Resolve a lab key (e.g. "Na") to its localised label, falling back to the
+  // raw key when the dictionary doesn't list it.
+  const labLabel = (key: string): string => t(`fields.${key}`, { defaultValue: key });
 
   // Data-driven grouping: replaces the old hand-written metric whitelists.
   const sections = useMemo(
@@ -141,25 +124,25 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
       }
       if (trendData.length === 0) {
         trendData.push({
-          date: '目前',
+          date: t('display.currentLabel'),
           value,
         });
       }
 
       setSelectedLab({
         name: labName,
-        nameChinese: labChineseNames[labName] || labName,
+        nameChinese: labLabel(labName),
         unit,
         trendData,
         referenceRange: refRange,
       });
     } catch (err) {
-      console.error('Failed to load trend data:', err);
+      console.error(t('display.loadTrendErrorLog'), err);
       setSelectedLab({
         name: labName,
-        nameChinese: labChineseNames[labName] || labName,
+        nameChinese: labLabel(labName),
         unit,
-        trendData: [{ date: '目前', value }],
+        trendData: [{ date: t('display.currentLabel'), value }],
         referenceRange: refRange,
       });
     } finally {
@@ -183,7 +166,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               aria-pressed={onlyAbnormal}
               onClick={() => setOnlyAbnormal((prev) => !prev)}
             >
-              只看異常
+              {t('display.filterAbnormal')}
             </button>
             <button
               type="button"
@@ -195,15 +178,15 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
               aria-pressed={hideMissing}
               onClick={() => setHideMissing((prev) => !prev)}
             >
-              隱藏無資料
+              {t('display.filterHideMissing')}
             </button>
           </div>
-          <span className="text-xs text-slate-500 dark:text-slate-400">高效率篩選</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">{t('display.filterEfficiency')}</span>
         </div>
 
         {!hasAnyVisibleSection && (
           <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
-            目前篩選條件下沒有可顯示的檢驗項目
+            {t('display.noVisibleItems')}
           </div>
         )}
 
@@ -238,7 +221,7 @@ export function LabDataDisplay({ labData, patientId }: LabDataDisplayProps) {
         {hasAnyVisibleSection && (
           <div className="flex items-center gap-2 pt-0.5">
             <div className="h-4 w-1 rounded-full bg-red-500"></div>
-            <span className="text-[11px] text-muted-foreground">紅框=偏高 • 藍框=偏低 • 點擊=歷史趨勢</span>
+            <span className="text-[11px] text-muted-foreground">{t('display.legend')}</span>
           </div>
         )}
       </div>
