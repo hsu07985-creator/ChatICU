@@ -30,6 +30,7 @@ from app.llm import call_llm_stream, TASK_PROMPTS
 from app.middleware.auth import get_current_user
 from app.models.ai_session import AISession, AIMessage
 from app.models.user import User
+from app.services.patient_acl import assert_patient_chat_access
 from app.services.patient_context_builder import (
     build_clinical_snapshot,
     build_critical_snapshot,
@@ -215,14 +216,15 @@ async def _event_stream(
     session_id: str,
     db: AsyncSession,
     request: Request,
-    original_message: Optional[str] = None,
     timings: Optional[dict] = None,
 ) -> AsyncGenerator[str, None]:
     """
     Generate SSE events from the LLM stream and persist the reply.
 
-    user_message: may include delta prefix for the LLM
-    original_message: the clean user message to store in DB history
+    The user message is already persisted by chat_stream() before this
+    generator runs (W1-T3), so client disconnects mid-stream do not lose
+    the user's question. Only the assistant reply is written here, and only
+    when generation completes successfully.
 
     SSE protocol (matches frontend parseSseFrame expectations):
       event: delta  → {"chunk": "text"}         (streaming tokens)
@@ -309,29 +311,21 @@ async def _event_stream(
             token_count,
         )
 
-    # Persist user message + assistant reply (store clean message, not delta-augmented)
-    stored_user_message = original_message or user_message
+    # Persist assistant reply only (user message was already committed by
+    # chat_stream before the generator started, see W1-T3).
     assistant_msg_id = f"msg_{uuid.uuid4().hex[:16]}"
     if full_reply:
-        user_msg = AIMessage(
-            id=f"msg_{uuid.uuid4().hex[:16]}",
-            session_id=session_id,
-            role="user",
-            content=stored_user_message,
-        )
-        assistant_msg = AIMessage(
+        db.add(AIMessage(
             id=assistant_msg_id,
             session_id=session_id,
             role="assistant",
             content=full_reply,
             token_count=token_count or None,
-        )
-        db.add(user_msg)
-        db.add(assistant_msg)
+        ))
         try:
             await db.commit()
         except Exception as e:
-            logger.warning("[AI_CHAT] Failed to persist messages: %s", str(e))
+            logger.warning("[AI_CHAT] Failed to persist assistant reply: %s", str(e))
             await db.rollback()
 
     # Send done event — frontend expects ChatResponse shape:
@@ -374,6 +368,14 @@ async def chat_stream(
     Subsequent turns: checks for data updates (delta) if snapshot > 30 min old.
     """
     t0 = time.perf_counter()
+    # W1-T1 ACL: verify patient exists + role gate + audit log.
+    # No-op when body.patient_id is None (general chat).
+    await assert_patient_chat_access(
+        db,
+        current_user,
+        body.patient_id,
+        ip=request.client.host if request.client else None,
+    )
     session = await _get_or_create_session(
         db, current_user.id, body.patient_id, body.session_id
     )
@@ -484,6 +486,19 @@ async def chat_stream(
         session.patient_id = patient_id
         await db.flush()
 
+    # W1-T3: persist the clean user message BEFORE the SSE generator starts.
+    # If the client disconnects mid-stream, the user's question is still in
+    # ai_messages so it shows up on session reload. The assistant reply is
+    # persisted by _event_stream only when generation actually completes.
+    user_msg_id = f"msg_{uuid.uuid4().hex[:16]}"
+    db.add(AIMessage(
+        id=user_msg_id,
+        session_id=session.id,
+        role="user",
+        content=body.message,
+    ))
+    await db.commit()
+
     timings = {"t0": t0, "t_session": t_session, "t_snapshot": t_snapshot}
     return StreamingResponse(
         _event_stream(
@@ -493,7 +508,6 @@ async def chat_stream(
             session.id,
             db,
             request,
-            original_message=body.message,
             timings=timings,
         ),
         media_type="text/event-stream",
