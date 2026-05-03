@@ -10,9 +10,23 @@ import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Dict, Any
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:  # pragma: no cover - Python <3.9 fallback (project pins 3.12+)
+    from backports.zoneinfo import ZoneInfo  # type: ignore
 
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
+
+# W3-T3: snapshot-facing timestamps run in Asia/Taipei. Internal DB columns
+# stay UTC; only display strings (snapshot header, ICU-day calc, delta block)
+# get converted. Keeps chronological reasoning consistent with what clinicians
+# read on bedside HIS / nursing systems.
+TAIPEI_TZ = ZoneInfo("Asia/Taipei")
+
+
+def _now_taipei() -> datetime:
+    return datetime.now(TAIPEI_TZ)
 
 from app.models.patient import Patient
 from app.models.lab_data import LabData
@@ -22,6 +36,13 @@ from app.models.ventilator import VentilatorSetting
 from app.models.diagnostic_report import DiagnosticReport
 from app.models.clinical_score import ClinicalScore
 from app.utils.duplicate_check import format_duplicate_metadata, format_duplicate_text
+from app.services.clinical_thresholds import (
+    LAB_THRESHOLDS,
+    VENT_THRESHOLDS,
+    VITAL_THRESHOLDS,
+    flag_only,
+    mark,
+)
 
 logger = logging.getLogger("chaticu")
 
@@ -222,14 +243,28 @@ def _get_lab_val(lab: Optional[LabData], category: str, key: str) -> Optional[fl
 
 
 def _vasopressor_ne_dose(meds: List[Medication]) -> Optional[float]:
-    """Extract current NE (norepinephrine) dose in mcg/kg/min."""
+    """Extract current NE (norepinephrine) dose in mcg/kg/min.
+
+    W3-T5: ``m.dose`` is a free-text string. HIS data often arrives with
+    units appended ("0.08 mcg/kg/min"). The previous ``float(m.dose)``
+    raised ValueError on those rows and silently dropped NE from the
+    delta block. Regex-extract the leading number instead.
+    """
+    import re as _re
+
     NE_NAMES = {"norepinephrine", "noradrenaline", "ne", "levophed"}
     for m in meds:
         name_lower = (m.generic_name or m.name or "").lower()
-        if any(n in name_lower for n in NE_NAMES):
+        if not any(n in name_lower for n in NE_NAMES):
+            continue
+        raw = (m.dose or "").strip()
+        if not raw:
+            continue
+        match = _re.match(r"^\s*([+-]?[0-9]*\.?[0-9]+)", raw)
+        if match:
             try:
-                return float(m.dose)
-            except (TypeError, ValueError):
+                return float(match.group(1))
+            except ValueError:
                 pass
     return None
 
@@ -237,7 +272,9 @@ def _vasopressor_ne_dose(meds: List[Medication]) -> Optional[float]:
 # ── Section formatters ────────────────────────────────────────────────────────
 
 def _fmt_patient_section(p: Patient) -> str:
-    now = datetime.now(timezone.utc)
+    # W3-T3: ICU-day uses Taipei date, otherwise admissions near midnight
+    # Taipei would shift by one day (UTC midnight = Taipei 08:00).
+    now = _now_taipei()
     icu_days = ""
     vent_days = ""
     if p.icu_admission_date:
@@ -300,28 +337,19 @@ def _fmt_vital_section(v: Optional[VitalSign]) -> str:
         except Exception:
             pass
 
-    def _mark(val: Optional[float], low: Optional[float], high: Optional[float]) -> str:
-        if val is None:
-            return "—"
-        if high is not None and val > high:
-            return f"{val}↑"
-        if low is not None and val < low:
-            return f"{val}↓"
-        return str(val)
-
-    rr = _mark(v.respiratory_rate, None, 20)
-    hr = _mark(v.heart_rate, 60, 100)
-    temp = _mark(v.temperature, 36.0, 37.5)
+    rr = mark(v.respiratory_rate, VITAL_THRESHOLDS["RR"])
+    hr = mark(v.heart_rate, VITAL_THRESHOLDS["HR"])
+    temp = mark(v.temperature, VITAL_THRESHOLDS["Temp"])
     sbp = v.systolic_bp or "—"
     dbp = v.diastolic_bp or "—"
-    map_val = _mark(v.mean_bp, 65, None)
-    spo2 = _mark(v.spo2, 92, None)
+    map_val = mark(v.mean_bp, VITAL_THRESHOLDS["MAP"])
+    spo2 = mark(v.spo2, VITAL_THRESHOLDS["SpO2"])
 
     lines = [f"【生命徵象】{ts_str}"]
     lines.append(f"體溫 {temp}°C | HR {hr} bpm | RR {rr}/min")
     lines.append(f"BP {sbp}/{dbp} mmHg (MAP {map_val}) | SpO₂ {spo2}%")
     if v.cvp is not None:
-        lines[-1] += f" | CVP {_mark(v.cvp, None, 12)} mmHg"
+        lines[-1] += f" | CVP {mark(v.cvp, VITAL_THRESHOLDS['CVP'])} mmHg"
     return "\n".join(lines)
 
 
@@ -332,19 +360,15 @@ def _fmt_vent_section(vent: Optional[VentilatorSetting]) -> str:
     if vent.mode:
         parts.append(vent.mode)
     if vent.fio2 is not None:
-        flag = "↑" if vent.fio2 > 50 else ""
-        parts.append(f"FiO₂ {vent.fio2}%{flag}")
+        parts.append(f"FiO₂ {vent.fio2}%{flag_only(vent.fio2, VENT_THRESHOLDS['FiO2'])}")
     if vent.peep is not None:
-        flag = "↑" if vent.peep > 8 else ""
-        parts.append(f"PEEP {vent.peep}{flag}")
+        parts.append(f"PEEP {vent.peep}{flag_only(vent.peep, VENT_THRESHOLDS['PEEP'])}")
     if vent.tidal_volume is not None:
         parts.append(f"Vt {vent.tidal_volume}mL")
     if vent.pip is not None:
-        flag = "↑" if vent.pip > 35 else ""
-        parts.append(f"PIP {vent.pip}{flag}")
+        parts.append(f"PIP {vent.pip}{flag_only(vent.pip, VENT_THRESHOLDS['PIP'])}")
     if vent.compliance is not None:
-        flag = "↓" if vent.compliance < 40 else ""
-        parts.append(f"Compliance {vent.compliance}{flag}")
+        parts.append(f"Compliance {vent.compliance}{flag_only(vent.compliance, VENT_THRESHOLDS['Compliance'])}")
     if not parts:
         return ""
     return "【呼吸器】\n" + " | ".join(parts)
@@ -380,11 +404,9 @@ def _fmt_lab_section(
     if cr is not None:
         parts.append(f"Cr {_format_trend(cr, pv('biochemistry', 'creatinine'))}*")
     if bun is not None:
-        flag = "↑" if bun > 20 else ""
-        parts.append(f"BUN {bun}{flag}")
+        parts.append(f"BUN {bun}{flag_only(bun, LAB_THRESHOLDS['BUN'])}")
     if egfr is not None:
-        flag = "↓" if egfr < 60 else ""
-        parts.append(f"eGFR {egfr}{flag}")
+        parts.append(f"eGFR {egfr}{flag_only(egfr, LAB_THRESHOLDS['eGFR'])}")
     if parts:
         lines.append("腎功能: " + " | ".join(parts))
 
@@ -394,11 +416,9 @@ def _fmt_lab_section(
     cl = v("biochemistry", "chloride")
     parts = []
     if k is not None:
-        flag = "↑" if k > 5.0 else ("↓" if k < 3.5 else "")
-        parts.append(f"K⁺ {k}{flag}")
+        parts.append(f"K⁺ {k}{flag_only(k, LAB_THRESHOLDS['K'])}")
     if na is not None:
-        flag = "↑" if na > 145 else ("↓" if na < 135 else "")
-        parts.append(f"Na⁺ {na}{flag}")
+        parts.append(f"Na⁺ {na}{flag_only(na, LAB_THRESHOLDS['Na'])}")
     if cl is not None:
         parts.append(f"Cl⁻ {cl}")
     if parts:
@@ -411,13 +431,13 @@ def _fmt_lab_section(
     alb = v("biochemistry", "albumin")
     parts = []
     if ast is not None:
-        parts.append(f"AST {ast}{'↑' if ast > 40 else ''}")
+        parts.append(f"AST {ast}{flag_only(ast, LAB_THRESHOLDS['AST'])}")
     if alt is not None:
-        parts.append(f"ALT {alt}{'↑' if alt > 40 else ''}")
+        parts.append(f"ALT {alt}{flag_only(alt, LAB_THRESHOLDS['ALT'])}")
     if tbil is not None:
-        parts.append(f"T-Bil {tbil}{'↑' if tbil > 1.2 else ''}")
+        parts.append(f"T-Bil {tbil}{flag_only(tbil, LAB_THRESHOLDS['T-Bil'])}")
     if alb is not None:
-        parts.append(f"Albumin {alb}{'↓' if alb < 3.5 else ''}")
+        parts.append(f"Albumin {alb}{flag_only(alb, LAB_THRESHOLDS['Albumin'])}")
     if parts:
         lines.append("肝功能: " + " | ".join(parts))
 
@@ -429,11 +449,9 @@ def _fmt_lab_section(
     if wbc is not None:
         parts.append(f"WBC {_format_trend(wbc, pv('hematology', 'wbc'))}*")
     if hb is not None:
-        flag = "↓" if hb < 8 else ""
-        parts.append(f"Hb {hb}{flag}")
+        parts.append(f"Hb {hb}{flag_only(hb, LAB_THRESHOLDS['Hb'])}")
     if plt is not None:
-        flag = "↓" if plt < 100 else ""
-        parts.append(f"PLT {plt}{flag}")
+        parts.append(f"PLT {plt}{flag_only(plt, LAB_THRESHOLDS['PLT'])}")
     if parts:
         lines.append("血液: " + " | ".join(parts))
 
@@ -443,11 +461,11 @@ def _fmt_lab_section(
     ddimer = v("coagulation", "d_dimer")
     parts = []
     if inr is not None:
-        parts.append(f"INR {inr}{'↑' if inr > 1.2 else ''}")
+        parts.append(f"INR {inr}{flag_only(inr, LAB_THRESHOLDS['INR'])}")
     if aptt is not None:
-        parts.append(f"aPTT {aptt}s{'↑' if aptt > 35 else ''}")
+        parts.append(f"aPTT {aptt}s{flag_only(aptt, LAB_THRESHOLDS['aPTT'])}")
     if ddimer is not None:
-        parts.append(f"D-Dimer {ddimer}{'↑' if ddimer > 0.5 else ''}")
+        parts.append(f"D-Dimer {ddimer}{flag_only(ddimer, LAB_THRESHOLDS['D-Dimer'])}")
     if parts:
         lines.append("凝血: " + " | ".join(parts))
 
@@ -458,7 +476,7 @@ def _fmt_lab_section(
     if crp is not None:
         parts.append(f"CRP {_format_trend(crp, pv('inflammatory', 'crp'))}*")
     if pct is not None:
-        parts.append(f"PCT {pct}{'↑' if pct > 0.5 else ''}")
+        parts.append(f"PCT {pct}{flag_only(pct, LAB_THRESHOLDS['PCT'])}")
     if parts:
         lines.append("發炎: " + " | ".join(parts))
 
@@ -470,16 +488,13 @@ def _fmt_lab_section(
     lac = v("blood_gas", "lactate")
     parts = []
     if ph is not None:
-        flag = "↓" if ph < 7.35 else ("↑" if ph > 7.45 else "")
-        parts.append(f"pH {ph}{flag}")
+        parts.append(f"pH {ph}{flag_only(ph, LAB_THRESHOLDS['pH'])}")
     if pco2 is not None:
         parts.append(f"pCO₂ {pco2}")
     if po2 is not None:
-        flag = "↓" if po2 < 60 else ""
-        parts.append(f"pO₂ {po2}{flag}")
+        parts.append(f"pO₂ {po2}{flag_only(po2, LAB_THRESHOLDS['pO2'])}")
     if hco3 is not None:
-        flag = "↓" if hco3 < 22 else ""
-        parts.append(f"HCO₃ {hco3}{flag}")
+        parts.append(f"HCO₃ {hco3}{flag_only(hco3, LAB_THRESHOLDS['HCO3'])}")
     if lac is not None:
         parts.append(f"Lac {_format_trend(lac, pv('blood_gas', 'lactate'))}*")
     if parts:
@@ -674,11 +689,11 @@ async def build_clinical_snapshot(patient_id: str, db: AsyncSession) -> str:
     if latest_lab and latest_lab.timestamp:
         prev_lab = await _get_lab_before_24h(db, patient_id, latest_lab.timestamp)
 
-    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+    now_str = _now_taipei().strftime("%Y-%m-%d %H:%M")
 
     sections = [
         f"=== ICU 病患臨床快照 ===",
-        f"時間戳記：{now_str}",
+        f"時間戳記：{now_str}（台北時間）",
         "",
         _fmt_patient_section(patient),
         "",
@@ -789,11 +804,11 @@ async def build_critical_snapshot(
         db, meds, _infer_duplicate_context(patient)
     )
 
-    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+    now_str = _now_taipei().strftime("%Y-%m-%d %H:%M")
 
     sections = [
         "=== ICU 病患臨床快照 ===",
-        f"時間戳記：{now_str}",
+        f"時間戳記：{now_str}（台北時間）",
         "",
         _fmt_patient_section(patient),
         "",
@@ -935,8 +950,8 @@ async def build_delta(
     if not changes:
         return None
 
-    now_str = datetime.now(timezone.utc).strftime("%H:%M")
-    delta_lines = [f"[資料更新 {now_str}]"]
+    now_str = _now_taipei().strftime("%H:%M")
+    delta_lines = [f"[資料更新 {now_str}（台北）]"]
     delta_lines.append(" | ".join(changes))
     delta_lines.append("---")
     return "\n".join(delta_lines)

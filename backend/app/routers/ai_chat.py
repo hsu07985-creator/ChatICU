@@ -170,31 +170,60 @@ async def _fill_deferred_snapshot_bg(
     Runs on its own AsyncSession (the request session is already closed
     by the time this fires). Failures are non-fatal — chat keeps working
     with critical-only snapshot if this background fill never completes.
+
+    W3-T2: writes via PostgreSQL JSONB ``||`` merge so concurrent writers
+    can't last-write-wins each other. SQLite (tests) falls back to the
+    classic read-modify-write because it has no JSONB merge operator;
+    the test harness has no concurrent writers so the race window is
+    moot anyway.
     """
     try:
         async with async_session() as bg_db:
             deferred_text = await build_deferred_snapshot(
                 patient_id, bg_db, intubated=intubated
             )
-            result = await bg_db.execute(
-                select(AISession).where(AISession.id == session_id)
-            )
-            sess = result.scalar_one_or_none()
-            if sess is None:
-                logger.warning(
-                    "[CHAT][DEFERRED] session=%s gone before deferred fill landed",
-                    session_id,
+            payload = {
+                "clinical_snapshot_deferred": deferred_text,
+                "deferred_status": "ready" if deferred_text else "empty",
+                "deferred_filled_at": datetime.now(timezone.utc).isoformat(),
+            }
+            dialect = bg_db.bind.dialect.name if bg_db.bind is not None else ""
+            if dialect == "postgresql":
+                # Atomic merge — UPDATE ... SET col = COALESCE(col, '{}') || :payload
+                # so we never read-then-write. Returns rowcount; 0 means session
+                # was deleted between create_task() and now.
+                from sqlalchemy import text as sa_text
+                result = await bg_db.execute(
+                    sa_text(
+                        "UPDATE ai_sessions "
+                        "SET snapshot_metadata = COALESCE(snapshot_metadata, '{}'::jsonb) || CAST(:payload AS jsonb) "
+                        "WHERE id = :sid"
+                    ),
+                    {"payload": json.dumps(payload), "sid": session_id},
                 )
-                return
-            meta = dict(sess.snapshot_metadata or {})
-            meta["clinical_snapshot_deferred"] = deferred_text
-            meta["deferred_status"] = "ready" if deferred_text else "empty"
-            meta["deferred_filled_at"] = datetime.now(timezone.utc).isoformat()
-            sess.snapshot_metadata = meta
+                if result.rowcount == 0:
+                    logger.warning(
+                        "[CHAT][DEFERRED] session=%s gone before deferred fill landed",
+                        session_id,
+                    )
+                    return
+            else:
+                # SQLite test fallback — read-modify-write in one txn.
+                sess = (await bg_db.execute(
+                    select(AISession).where(AISession.id == session_id)
+                )).scalar_one_or_none()
+                if sess is None:
+                    logger.warning(
+                        "[CHAT][DEFERRED] session=%s gone before deferred fill landed",
+                        session_id,
+                    )
+                    return
+                merged = {**(sess.snapshot_metadata or {}), **payload}
+                sess.snapshot_metadata = merged
             await bg_db.commit()
             logger.info(
                 "[CHAT][DEFERRED] session=%s deferred_chars=%d status=%s",
-                session_id, len(deferred_text), meta["deferred_status"],
+                session_id, len(deferred_text), payload["deferred_status"],
             )
     except Exception as exc:  # pragma: no cover - background fault tolerance
         logger.warning(
