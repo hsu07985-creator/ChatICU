@@ -178,16 +178,14 @@
 - **Verification:** `EXPLAIN ANALYZE` on `mentions/count` should show `Bitmap Index Scan on ix_team_chat_messages_mentioned_user_ids_gin`.
 - **References:** F-13
 
-### TC-B03 [TODO] Rate limit team chat send / pin / mark_read
+### TC-B03 [DONE] Rate limit team chat send / pin / mark_read
 - **Added by:** team-chat audit 2026-05-03 (F-15)
 - **Date:** 2026-05-03
+- **Completed:** 2026-05-03 (branch `fix/tc-b03-team-chat-rate-limit`)
 - **Priority:** P1
 - **Progress tracker:** TC-W2-T3
-- **Files:** `backend/app/routers/team_chat.py:187, 239, 271`
-- **Description:**
-  - Pattern: `@limiter.limit("20/minute")` on POST, `5/minute` on PATCH /pin, `60/minute` on PATCH /read.
-  - Compare to `auth.py` and `clinical.py` which already use slowapi.
-- **Tests:** flood with 30 POSTs in 60s → expect 429 after 20.
+- **Files modified:** `backend/app/routers/team_chat.py` — `@limiter.limit("20/minute")` on `send_team_chat`, `@limiter.limit("10/minute")` on `toggle_pin_message`, `@limiter.limit("60/minute")` on `mark_read`. Used existing `app.middleware.rate_limit.limiter` (slowapi).
+- **Verification:** `cd backend && python3 -m pytest tests/test_api/test_team_chat.py tests/test_api/test_notifications.py -q` → 29/29 passed (limiter.reset() in conftest's `client` fixture prevents bleed between tests).
 - **References:** F-15
 
 ### TC-B04 [TODO] Add 168h lookback to `mentions/count` (align with notifications)

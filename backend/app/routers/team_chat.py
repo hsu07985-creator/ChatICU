@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log
+from app.middleware.rate_limit import limiter
 from app.models.chat_message import TeamChatMessage
 from app.models.user import User
 from app.schemas.message import TeamChatCreate
@@ -189,6 +190,7 @@ async def list_team_chat(
 
 
 @router.post("")
+@limiter.limit("20/minute")
 async def send_team_chat(
     request: Request,
     body: TeamChatCreate,
@@ -251,6 +253,7 @@ async def send_team_chat(
 
 
 @router.patch("/{message_id}/read")
+@limiter.limit("60/minute")
 async def mark_read(
     message_id: str,
     request: Request,
@@ -309,6 +312,7 @@ async def mark_read(
 
 
 @router.patch("/{message_id}/pin")
+@limiter.limit("10/minute")
 async def toggle_pin_message(
     message_id: str,
     request: Request,
