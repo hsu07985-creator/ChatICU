@@ -154,6 +154,25 @@
 - **驗收**：4 個權限 case 全對 + audit log 有寫
 - **預估工時**：20-30 min
 
+### M1. Prefetch miss-rate 結構化 metric（自動）
+- **狀態**：✅ 完成（2026-05-03）
+- **目的**：自動收集 F4 啟動的核心訊號，省掉「2 週手動觀察」的麻煩，且不需要 prod 真人實測就能 baseline。
+- **實作**：
+  - `backend/app/services/ai_question_prefetch.py`：metadata 加 `prefetchCategories: List[str]`，避免 router 重複 keyword scan
+  - `backend/app/routers/ai_chat.py:chat_stream`：每輪寫 `[CHAT][PREFETCH]` info log（session、patient、msg_chars、categories、advice_refs、fired bool）
+  - `backend/app/routers/ai_chat.py:_event_stream`：reply 完成後，若 `had_patient_context AND not prefetch_fired AND _reply_looks_hedged(full_reply)` → emit `[CHAT][PREFETCH][MISS_LIKELY]` warning（這就是 F4 觸發訊號 B）
+  - `_reply_looks_hedged()` helper + 12 個中英 hedging pattern；獨立 18/18 unit test 綠
+- **PII 安全**：log 內**完全沒有** message / reply 內容，只有長度 + 布林 + categories
+- **如何看結果**（2 週後）：
+  ```bash
+  # Railway 拉 log（或 supabase log forwarding）
+  grep '\[CHAT\]\[PREFETCH\]' railway.log | wc -l       # 總對話輪
+  grep '\[CHAT\]\[PREFETCH\] .*fired=False' railway.log | grep -v 'patient=-' | wc -l   # 有病患但無 prefetch 命中
+  grep '\[CHAT\]\[PREFETCH\]\[MISS_LIKELY\]' railway.log | wc -l   # 強訊號（hedge + no prefetch + has patient）
+  ```
+  門檻：MISS_LIKELY / fired=False-with-patient ≥ 15% 連續 2 週 → 啟動 F4。
+- **後續**：完整 F4 觸發分析見 [`ai-chat-tool-loop-decision-2026-05-03.md`](ai-chat-tool-loop-decision-2026-05-03.md) §5。
+
 ---
 
 ## 4. 建議實作順序
@@ -167,10 +186,13 @@
 | 🟡 3 | **F1 同步主計畫文件** | 15 min | ✅ |
 | 🟡 4 | **F2 重新整理快照按鈕** | 1.5-2h | ✅ |
 | 🟢 5 | **F3 deep link 到藥師建議頁** | 2-3h | ✅ |
-| ⚪ 6 | **F4 正式 tool loop** | 6-10h | ☐ 等 prod 累積使用後決定 |
+| 🟢 6 | **M1 prefetch miss-rate metric** | 1.5h | ✅ |
+| ⚪ 7 | **F4 正式 tool loop** | 13.5h | ☐ 等 M1 訊號 ≥15% 或 V1 失分 case ≥2 |
 | ❌ — | **F5 留言板全文** | — | ❌ 不做 |
 
-**目前狀態**：F1/F2/F3 全部上線；剩下 V1/V2 是 prod 真人驗證（人工任務、無法自動執行），F4 等業務驅動。
+**目前狀態**：F1/F2/F3 + M1 全部上線。
+- 剩下 V1/V2 是 prod 真人驗證（人工任務、無法自動執行）
+- F4 等 M1 訊號累積 2 週或 V1 結果決定（見 [`ai-chat-tool-loop-decision-2026-05-03.md`](ai-chat-tool-loop-decision-2026-05-03.md)）
 
 ---
 
@@ -190,3 +212,4 @@
 - **2026-05-03**：F1 同步主計畫文件 ✅（`488d3030b`）— §1 拆成 snapshot vs prefetch 兩塊、§3 標 Phase 0 已選過渡方案、§5 各 Phase 標 ✅+ commit、§10 DoD 全 tick。
 - **2026-05-03**：F2 重新整理快照按鈕 ✅（`40c3d991f`）— `POST /ai/chat/sessions/{id}/refresh-snapshot` + 同 ACL；前端 chat header 加「快照 N 分鐘前」pill，>30min 高亮 amber。後端 6 tests 綠。
 - **2026-05-03**：F3 藥師建議 deep link ✅（`9aba7aff6`）— 後端新 `build_question_prefetch_with_metadata` 回傳 `adviceRefs`，piped through SSE done event；前端在 assistant bubble 下方畫 chip group 連到 `/pharmacy/advice-statistics?advice_id=&month=`，目標頁切月+滾動+amber ring 4s。Live-only（page reload 後 chip 消失）。後端 22 prefetch tests 綠。
+- **2026-05-03**：M1 prefetch miss-rate metric ✅ — 結構化 log 自動收集 F4 觸發訊號 B。`prefetchCategories` 入 metadata；`[CHAT][PREFETCH]` 每輪寫；`[CHAT][PREFETCH][MISS_LIKELY]` 在「有病患 + 無 prefetch + reply hedged」時 warn。`_reply_looks_hedged()` 12 中英 pattern + 18 unit tests 綠。完整觸發 SQL 與門檻見 decision doc §5/6。

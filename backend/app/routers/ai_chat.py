@@ -263,6 +263,42 @@ def _messages_to_api_format(messages: List[AIMessage]) -> List[dict]:
     return [{"role": m.role, "content": m.content} for m in messages]
 
 
+# M1: phrases the LLM tends to use when it wants more clinical context than
+# the snapshot+prefetch gave it. Bilingual on purpose — the same model code-
+# switches per question. Conservative list; biased toward false negatives so
+# we don't drown the [MISS_LIKELY] signal in noise. Aggregated against the
+# per-turn [CHAT][PREFETCH] log to estimate "F4 would have helped" rate.
+_HEDGING_PATTERNS: tuple[str, ...] = (
+    "缺少",
+    "若有更多",
+    "請提供",
+    "未提供",
+    "資料不足",
+    "建議補充",
+    "尚無提及",
+    "如果有",
+    "I don't have",
+    "without more",
+    "insufficient information",
+    "please provide",
+)
+
+
+def _reply_looks_hedged(reply: str) -> bool:
+    """True when the assistant reply hints it wished it had more data.
+
+    Used purely for log emission — never affects what the user sees. Match
+    is case-insensitive for the English fragments; Chinese stays literal.
+    """
+    if not reply:
+        return False
+    lowered = reply.lower()
+    for pattern in _HEDGING_PATTERNS:
+        if pattern.lower() in lowered:
+            return True
+    return False
+
+
 # ── SSE event stream ──────────────────────────────────────────────────────────
 
 # O-2: SSE comment-frame heartbeat. Emitted during LLM stalls so Vercel /
@@ -325,6 +361,8 @@ async def _event_stream(
     request: Request,
     timings: Optional[dict] = None,
     prefetch_meta: Optional[dict] = None,
+    prefetch_fired: bool = False,
+    had_patient_context: bool = False,
 ) -> AsyncGenerator[str, None]:
     """
     Generate SSE events from the LLM stream and persist the reply.
@@ -455,6 +493,32 @@ async def _event_stream(
         except Exception as e:
             logger.warning("[AI_CHAT] Failed to persist assistant reply: %s", str(e))
             await db.rollback()
+
+    # M1: F4 trigger signal — turns where the LLM hedged AND we had patient
+    # context AND no prefetch fired. Aggregating these over time answers
+    # "would a real LLM tool loop catch questions our keyword prefetch
+    # doesn't?" — see docs/ai-chat-tool-loop-decision-2026-05-03.md §5
+    # signal B. Lower-tier [REPLY][HEDGED] log captures hedging in cases
+    # where prefetch did fire (less actionable for F4 but useful sanity).
+    if full_reply and had_patient_context:
+        hedged = _reply_looks_hedged(full_reply)
+        if hedged and not prefetch_fired:
+            logger.warning(
+                "[CHAT][PREFETCH][MISS_LIKELY] session=%s reply_chars=%d "
+                "— had patient context, no prefetch fired, reply hedged. "
+                "Candidate question for F4 tool-loop coverage.",
+                session_id,
+                len(full_reply),
+            )
+        elif hedged:
+            logger.info(
+                "[CHAT][REPLY][HEDGED] session=%s reply_chars=%d prefetch_fired=%s "
+                "— LLM hedged despite prefetch firing; check whether prefetch "
+                "returned no_data or denied.",
+                session_id,
+                len(full_reply),
+                prefetch_fired,
+            )
 
     # Send done event — frontend expects ChatResponse shape:
     # { message: ChatMessage, sessionId: string, prefetchRefs?: {...} }
@@ -621,6 +685,26 @@ async def chat_stream(
         user_message, prefetch_context
     )
 
+    # M1: structured prefetch metric so prod can answer "is the keyword-based
+    # prefetch missing user questions?" without scraping LLM replies. PII-safe
+    # — log only categories that fired, message length, advice-ref count;
+    # never the message text itself. Pair with the [CHAT][PREFETCH][MISS_LIKELY]
+    # signal emitted by _event_stream after the LLM reply is complete to
+    # answer the F4 trigger question (see docs/ai-chat-tool-loop-decision-2026-05-03.md §5).
+    prefetch_categories = list(prefetch_meta.get("prefetchCategories") or [])
+    prefetch_fired = bool(prefetch_categories)
+    advice_ref_count = len(prefetch_meta.get("adviceRefs") or [])
+    logger.info(
+        "[CHAT][PREFETCH] session=%s patient=%s msg_chars=%d categories=%s "
+        "advice_refs=%d fired=%s",
+        session.id,
+        patient_id or "-",
+        len(body.message),
+        ",".join(prefetch_categories) or "none",
+        advice_ref_count,
+        prefetch_fired,
+    )
+
     # ── Load recent history ────────────────────────────────────────────────
     messages = await _load_messages(db, session.id, window=_CONTEXT_WINDOW * 2)
     history = _messages_to_api_format(messages)
@@ -660,6 +744,8 @@ async def chat_stream(
             request,
             timings=timings,
             prefetch_meta=prefetch_meta,
+            prefetch_fired=prefetch_fired,
+            had_patient_context=bool(patient_id),
         ),
         media_type="text/event-stream",
         headers={

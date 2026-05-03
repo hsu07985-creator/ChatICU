@@ -373,7 +373,23 @@ async def build_question_prefetch_with_metadata(
     wants_med_changes = should_prefetch_medication_changes(message)
     wants_advice = should_prefetch_pharmacy_advice(message)
     wants_reports = should_prefetch_diagnostic_reports(message)
-    metadata: Dict[str, Any] = {"adviceRefs": []}
+    # M1: surface which intent buckets fired so the router can emit a
+    # structured prefetch hit/miss log without re-running the keyword scan.
+    # Plain str list (not enum) keeps the JSON shape simple — the router only
+    # needs membership / count for log aggregation, not type safety.
+    prefetch_categories: List[str] = []
+    if wants_cultures:
+        prefetch_categories.append("cultures")
+    if wants_med_changes:
+        prefetch_categories.append("medication_changes")
+    if wants_advice:
+        prefetch_categories.append("pharmacy_advice")
+    if wants_reports:
+        prefetch_categories.append("diagnostic_reports")
+    metadata: Dict[str, Any] = {
+        "adviceRefs": [],
+        "prefetchCategories": prefetch_categories,
+    }
     if not patient_id and not wants_advice:
         return "", metadata
 

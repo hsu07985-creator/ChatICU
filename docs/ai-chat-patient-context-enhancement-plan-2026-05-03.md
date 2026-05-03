@@ -4,7 +4,8 @@
 > 範圍：AI 問答 `/ai-chat` 與病人詳情頁「對話助手」
 > 目標：讓 LLM 取得足夠且可追溯的病患臨床背景，同時避免把所有病歷全文無差別塞進 prompt。
 > 後續追蹤：[`ai-chat-patient-context-followup-tasks-2026-05-03.md`](ai-chat-patient-context-followup-tasks-2026-05-03.md)
-> **進度**：Phase 1-7 已上 prod（commit chain `aa116ac8c..c2ef77505`，2026-05-03 部署）；Phase 8 標記不做；前端 follow-up（重新整理快照按鈕、藥師建議 deep link）見 follow-up 文件。
+> Tool loop 決策：[`ai-chat-tool-loop-decision-2026-05-03.md`](ai-chat-tool-loop-decision-2026-05-03.md)（決定暫不做 F4，由 M1 metric 自動收集觸發訊號）
+> **進度**：Phase 1-7 已上 prod（commit chain `aa116ac8c..c2ef77505`，2026-05-03 部署）；Phase 8 標記不做；前端 follow-up F1/F2/F3 + 自動 metric M1 全部上線。
 
 ## 1. 目前狀態
 
