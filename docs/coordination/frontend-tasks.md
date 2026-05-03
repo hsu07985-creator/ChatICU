@@ -588,16 +588,15 @@
 - **Verification:** `npx tsc --noEmit` exit 0; `grep roleDisplayName src/pages/chat.tsx` empty.
 - **References:** F-08
 
-### TC-F04 [TODO] Auto scroll-to-bottom only when user is near bottom
+### TC-F04 [DONE] Auto scroll-to-bottom only when user is near bottom
 - **Added by:** team-chat audit (F-09)
 - **Date:** 2026-05-03
+- **Completed:** 2026-05-03 (branch `fix/tc-w1-t4-near-bottom-scroll`)
 - **Priority:** P1 (UX bug — reading history gets yanked to bottom on every new message)
 - **Progress tracker:** TC-W1-T4
-- **Files:** `src/pages/chat.tsx:181-188`
-- **Description:**
-  - Read scroll viewport `scrollTop + clientHeight >= scrollHeight - 100` to detect "near bottom"
-  - If near bottom: keep current auto-scroll behavior
-  - If not: don't auto-scroll; instead show a floating "↓ N 則新訊息" chip that scrolls to bottom on click
+- **Files modified:**
+  - `src/pages/chat.tsx` — added `isNearBottomRef` updated on viewport scroll (`distance < 100`); the `[messages]` effect early-returns when the ref is false. Default `true` preserves the first-paint stick-to-bottom behavior.
+- **Deferred:** the floating "↓ N 則新訊息" chip the audit suggested as an additional cue is left out to keep the diff minimal — current behavior just stops yanking, the chip can land in a follow-up PR if needed.
 - **References:** F-09
 
 ### TC-F05 [DONE] Hover-only action buttons reveal on focus

@@ -163,13 +163,28 @@ export function ChatPage() {
     loadMentions(mentionsUnreadOnly);
   }, [mentionsUnreadOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 自動滾動到底部
+  // Track whether the user is sitting near the bottom of the chat. We only
+  // auto-scroll on new messages when this is true — otherwise scrolling up
+  // to read history gets yanked back down on every new message arrival.
+  const isNearBottomRef = useRef(true);
+
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-      }
+    const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement | null;
+    if (!viewport) return;
+    const onScroll = () => {
+      const distance = viewport.scrollHeight - (viewport.scrollTop + viewport.clientHeight);
+      isNearBottomRef.current = distance < 100;
+    };
+    viewport.addEventListener('scroll', onScroll, { passive: true });
+    return () => viewport.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // 自動滾動到底部（僅當使用者已在底部附近時）
+  useEffect(() => {
+    if (!isNearBottomRef.current) return;
+    const viewport = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement | null;
+    if (viewport) {
+      viewport.scrollTop = viewport.scrollHeight;
     }
   }, [messages]);
 
