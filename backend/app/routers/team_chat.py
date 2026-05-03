@@ -15,6 +15,7 @@ from app.models.user import User
 from app.routers.notifications import MENTION_LOOKBACK_HOURS
 from app.schemas.message import TeamChatCreate
 from app.utils.jsonb_compat import array_contains_user_receipt, array_contains_value, to_utc_aware
+from app.utils.read_receipt import append_read_receipt
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/team/chat", tags=["team-chat"])
@@ -367,17 +368,8 @@ async def mark_read(
             detail="Only mentioned recipients (or admins) can mark this message read",
         )
 
-    read_by = list(msg.read_by or [])
-    # Avoid duplicate entries
-    if not any(entry.get("userId") == user.id for entry in read_by):
-        read_by.append({
-            "userId": user.id,
-            "userName": user.name,
-            "readAt": datetime.now(timezone.utc).isoformat(),
-        })
-
     msg.is_read = True
-    msg.read_by = read_by
+    msg.read_by = append_read_receipt(msg.read_by, user.id, user.name)
 
     # Audit because flipping is_read is a team-wide side effect on the
     # mention/notification badges. Without this trail a single user could

@@ -16,6 +16,7 @@ from app.models.user import User
 from app.routers.patients import normalize_patient_id
 from app.models.custom_tag import CustomTag
 from app.schemas.message import MessageCreate, MessageTagUpdate, CustomTagCreate
+from app.utils.read_receipt import append_read_receipt
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/patients/{patient_id}/messages", tags=["messages"])
@@ -616,13 +617,7 @@ async def mark_message_read(
         raise HTTPException(status_code=404, detail="Message not found")
 
     msg.is_read = True
-    read_by = msg.read_by or []
-    read_by.append({
-        "userId": user.id,
-        "userName": user.name,
-        "readAt": datetime.now(timezone.utc).isoformat(),
-    })
-    msg.read_by = read_by
+    msg.read_by = append_read_receipt(msg.read_by, user.id, user.name)
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,

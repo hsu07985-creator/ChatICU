@@ -18,6 +18,7 @@ from app.models.message import PatientMessage
 from app.models.patient import Patient
 from app.models.user import User
 from app.utils.jsonb_compat import array_contains_user_receipt, array_contains_value, to_utc_aware
+from app.utils.read_receipt import append_read_receipt
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -233,7 +234,6 @@ async def mark_all_notifications_read(
     """
     cutoff = datetime.now(timezone.utc) - timedelta(hours=_WINDOW_HOURS)
     now = datetime.now(timezone.utc)
-    receipt = {"userId": user.id, "userName": user.name, "readAt": now.isoformat()}
     dialect_name = db.bind.dialect.name
 
     db_user = await db.get(User, user.id)
@@ -265,19 +265,12 @@ async def mark_all_notifications_read(
 
     for m in pb_msgs:
         m.is_read = True
-        rb = list(m.read_by or [])
-        # Dedup: don't append a second receipt for the same user.
-        if not any(isinstance(e, dict) and e.get("userId") == user.id for e in rb):
-            rb.append(receipt)
-        m.read_by = rb
+        m.read_by = append_read_receipt(m.read_by, user.id, user.name, when=now)
 
     for m in tc_msgs:
         # is_read kept for backward compat; per-user state is read_by.
         m.is_read = True
-        rb = list(m.read_by or [])
-        if not any(isinstance(e, dict) and e.get("userId") == user.id for e in rb):
-            rb.append(receipt)
-        m.read_by = rb
+        m.read_by = append_read_receipt(m.read_by, user.id, user.name, when=now)
 
     await db.commit()
 
