@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronUp, Pill } from 'lucide-react';
 import type { DuplicateAlert, DuplicateAlertMember } from '../../lib/api/medications';
 import { cn } from '../ui/utils';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Duplicate-medication warning badges.
@@ -107,6 +108,7 @@ interface DuplicateCardProps {
 }
 
 function DuplicateCard({ alert, expanded, onToggle }: DuplicateCardProps) {
+  const { t } = useTranslation('medications');
   const config = LEVEL_CONFIG[alert.level] ?? LEVEL_CONFIG.info;
 
   return (
@@ -137,12 +139,11 @@ function DuplicateCard({ alert, expanded, onToggle }: DuplicateCardProps) {
           {alert.mechanism}
         </span>
         <span className={cn('text-[11px] opacity-80', config.textClass)}>
-          — {alert.members.length} 藥
+          — {t('duplicateBadges.memberCountSuffix', { count: alert.members.length })}
         </span>
         {alert.autoDowngraded && (
           <span className="ml-1 inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
-            自動降級
-            {alert.downgradeReason ? `：${alert.downgradeReason}` : ''}
+            {alert.downgradeReason ? t('duplicateBadges.autoDowngradedReason', { reason: alert.downgradeReason }) : t('duplicateBadges.autoDowngraded')}
           </span>
         )}
         {expanded ? (
@@ -190,7 +191,7 @@ function DuplicateCard({ alert, expanded, onToggle }: DuplicateCardProps) {
                 config.textClass,
               )}
             >
-              建議：{alert.recommendation}
+              {t('duplicateBadges.recommendation', { text: alert.recommendation })}
             </p>
           )}
 
@@ -201,7 +202,7 @@ function DuplicateCard({ alert, expanded, onToggle }: DuplicateCardProps) {
               rel="noreferrer"
               className={cn('text-[11px] underline', config.textClass)}
             >
-              參考資料
+              {t('duplicateBadges.evidence')}
             </a>
           )}
         </div>
@@ -214,6 +215,7 @@ export function MedicationDuplicateBadges({
   alerts,
   // onOverride — reserved for Phase 2; not wired in Wave 2.
 }: MedicationDuplicateBadgesProps) {
+  const { t } = useTranslation('medications');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   if (!alerts || alerts.length === 0) {
@@ -253,14 +255,14 @@ export function MedicationDuplicateBadges({
       {hasCritical && (
         <div className="flex items-center gap-1 text-[11px] font-semibold text-red-700 dark:text-red-400">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-          <span>偵測到重大重複用藥</span>
+          <span>{t('duplicateBadges.headerWarning')}</span>
         </div>
       )}
 
       {/* Count summary row */}
       <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
         <span className="font-medium text-slate-600 dark:text-slate-400">
-          重複用藥
+          {t('duplicateBadges.summaryLabel')}
         </span>
         {(['critical', 'high', 'moderate', 'low', 'info'] as Level[]).map((lvl) => {
           if (counts[lvl] === 0) return null;

@@ -1,0 +1,205 @@
+{
+  "duplicateBadges": {
+    "headerWarning": "Critical duplicate medications detected",
+    "summaryLabel": "Duplicate Therapy",
+    "memberCountSuffix": "{{count}} drugs",
+    "autoDowngraded": "Auto-downgraded",
+    "autoDowngradedReason": "Auto-downgraded: {{reason}}",
+    "recommendation": "Recommendation: {{text}}",
+    "evidence": "Evidence"
+  },
+  "ddiBadges": {
+    "headerWarning": "Contraindicated drug combination detected",
+    "riskLabels": {
+      "X": "Contraindicated",
+      "D": "Major",
+      "C": "Monitor",
+      "B": "Minor",
+      "A": "No Interaction"
+    },
+    "patientUseTooltip": "Patient is on: {{name}}",
+    "patientUseAliasTooltip": "Patient is on: {{name}} (rule: {{alias}})",
+    "notInPatientList": "Not in patient's current medications: {{name}}",
+    "xPrefix": "X Contraindicated",
+    "xSummary": "Contraindicated combination — avoid co-administration",
+    "ruleNamesLabel": "Rule: {{a}} + {{b}}"
+  },
+  "riskCard": {
+    "title": "Medication Risk",
+    "criticalBadge": "Critical alert",
+    "ddiLabel": "DDI",
+    "duplicateLabel": "Duplicate",
+    "allergyLabel": "Allergy",
+    "calculating": "Calculating…",
+    "noneBadge": "None",
+    "allergyCount": "{{count}} allergy(ies) on file",
+    "viewDetails": "View details",
+    "goToMeds": "Go to Medications",
+    "severityLabels": {
+      "critical": "Critical",
+      "high": "High",
+      "moderate": "Moderate"
+    }
+  },
+  "ivCompat": {
+    "card": {
+      "title": "IV Compatibility Check",
+      "description": "Y-Site IV compatibility lookup — source: Drug Compatibility Database (Drug Graph Source C)",
+      "modeQuick": "Quick check",
+      "modeMatrix": "Matrix mode"
+    },
+    "result": {
+      "compatible": "Compatible",
+      "ySite": "Can be co-administered via Y-Site",
+      "stability": "Stability: {{time}}",
+      "referencePrefix": "Ref: {{ref}}",
+      "incompatible": "Incompatible",
+      "alertTitle": "IV Compatibility Alert",
+      "incompatibleDescription": "{{a}} and {{b}} are incompatible — do not use the same line; use a separate IV line or stagger administration times.",
+      "noData": "No data",
+      "noDataDescription": "Y-Site IV compatibility data for {{a}} & {{b}} is not yet listed; please consult Trissel's or the manufacturer's package insert."
+    },
+    "matrix": {
+      "tooFew": "Patient has fewer than 2 IV medications recorded; cannot generate matrix.",
+      "querying": "Querying matrix...",
+      "generate": "Generate IV compatibility matrix ({{count}} drugs)",
+      "incompatibleSummary": "Found {{count}} incompatible pair(s)",
+      "incompatiblePair": "{{a}} and {{b}} — use separate IV lines",
+      "legend": {
+        "compatible": "Compatible",
+        "incompatible": "Incompatible",
+        "noData": "No data"
+      }
+    },
+    "quick": {
+      "labelA": "Drug A",
+      "labelB": "Drug B",
+      "placeholderA": "Enter drug name (e.g. Vancomycin)",
+      "placeholderB": "Enter drug name (e.g. Piperacillin)",
+      "querying": "Querying...",
+      "submit": "Check IV compatibility",
+      "queryFailed": "Query failed. Please try again later."
+    }
+  },
+  "tab": {
+    "outpatient": {
+      "discontinued": "Discontinued",
+      "expired": "Expired",
+      "active": "Active"
+    },
+    "categories": {
+      "antibiotic": "Antibiotic",
+      "antifungal": "Antifungal",
+      "antiviral": "Antiviral",
+      "vasopressor": "Vasopressor",
+      "anticoagulant": "Anticoagulant",
+      "steroid": "Steroid",
+      "ppi": "PPI",
+      "h2_blocker": "H2 Blocker",
+      "diuretic": "Diuretic",
+      "insulin": "Insulin",
+      "electrolyte": "Electrolyte",
+      "bronchodilator": "Bronchodilator",
+      "antiarrhythmic": "Antiarrhythmic",
+      "antiepileptic": "Antiepileptic",
+      "laxative": "Laxative",
+      "antiemetic": "Antiemetic"
+    },
+    "outpatientGroup": {
+      "noDate": "Undated",
+      "noDept": "No department",
+      "countSuffix": "{{count}} item(s)",
+      "issuedPrefix": "Issued {{date}}",
+      "untilSuffix": "until {{date}}",
+      "daysSupplyCompact": "({{days}}d)"
+    },
+    "scoreSelector": {
+      "saving": "Saving...",
+      "confirm": "Confirm",
+      "cancel": "Cancel"
+    },
+    "sanMedCard": {
+      "edit": "Edit",
+      "orderNote": "Order note"
+    },
+    "detailModal": {
+      "outpatientLabel": "Outpatient",
+      "selfSupplied": "Self-supplied",
+      "external": "External",
+      "internal": "Internal",
+      "active": "Active",
+      "onHold": "On hold",
+      "completed": "Completed",
+      "discontinued": "Discontinued",
+      "sourceTitle": "Prescription Source",
+      "sourceTypeLabel": "Internal / External",
+      "hospitalLabel": "Hospital",
+      "deptLabel": "Department",
+      "doctorLabel": "Physician",
+      "campusLabel": "Campus",
+      "rxTitle": "Prescription Details",
+      "genericLabel": "Generic",
+      "frequencyLabel": "Frequency",
+      "doseLabel": "Dose",
+      "daysSupplyLabel": "Days supply",
+      "daysValue": "{{count}} d",
+      "routeLabel": "Route",
+      "concentrationLabel": "Concentration",
+      "startDateLabel": "Start date",
+      "endDateLabel": "End date",
+      "indicationLabel": "Indication: ",
+      "close": "Close"
+    },
+    "main": {
+      "trendButton": "Trend",
+      "lastRecorded": "Last recorded: {{timestamp}}",
+      "painMedsLabel": "Analgesics",
+      "painMedsEmpty": "No analgesics",
+      "sedationMedsLabel": "Sedatives",
+      "sedationMedsEmpty": "No sedatives",
+      "nmbCardTitle": "Neuromuscular Blockade",
+      "nmbMedsLabel": "Neuromuscular Blockers",
+      "nmbMedsEmpty": "No neuromuscular blockers",
+      "inpatientCardTitle": "Inpatient Medications",
+      "viewAll": "All ({{count}})",
+      "viewActive": "Active ({{count}})",
+      "viewRegular": "Regular ({{count}})",
+      "viewDiscontinued": "Discontinued ({{count}})",
+      "viewDuplicate": "Duplicate ({{count}})",
+      "discontinuedHint": "Drugs used during this admission that have been discontinued",
+      "noRegular": "No regular medications",
+      "noDiscontinued": "No discontinued medications",
+      "noAll": "No medications",
+      "noActive": "No active inpatient medications",
+      "duplicateExplain": "These drugs appear in both inpatient orders and outpatient prescriptions (matched by generic name); please verify whether adjustment is needed",
+      "duplicateBadge": "Inpatient + Outpatient",
+      "inpatientBadge": "Inpatient",
+      "outpatientBadge": "Outpatient",
+      "antibioticBadge": "Antibiotic",
+      "concentrationLabel": "Concentration {{value}}",
+      "outpatientCardTitle": "Outpatient Medications",
+      "selfSuppliedFilter": "Allied clinic / ER",
+      "noSelfSupplied": "No allied clinic / ER (self-supplied) drugs"
+    },
+    "edit": {
+      "title": "Edit Medication",
+      "description": "Maintain dose, frequency, route, and concentration fields directly. If concentration is left blank, the PAD workstation will require manual entry.",
+      "noGenericName": "No generic name provided",
+      "doseLabel": "Dose",
+      "unitLabel": "Unit",
+      "concentrationLabel": "Concentration",
+      "concentrationPlaceholder": "e.g. 10",
+      "concentrationUnitLabel": "Concentration unit",
+      "concentrationUnitPlaceholder": "e.g. mcg/mL",
+      "frequencyLabel": "Frequency",
+      "routeLabel": "Route",
+      "indicationLabel": "Indication / Notes",
+      "cancel": "Cancel",
+      "submit": "Save changes",
+      "submitting": "Saving...",
+      "saveSuccess": "Medication updated",
+      "saveError": "Failed to update medication",
+      "saveErrorLog": "Failed to update medication"
+    }
+  }
+}

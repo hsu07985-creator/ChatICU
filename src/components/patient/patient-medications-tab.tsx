@@ -20,6 +20,8 @@ import { MedicationsSkeleton } from '../ui/skeletons';
 import { TabsContent } from '../ui/tabs';
 import { Textarea } from '../ui/textarea';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
+import i18n from '../../i18n/config';
 
 // Lazy-load recharts-backed trend chart (H4: keep 411 KB charts-*.js off the critical path)
 const ScoreTrendChart = lazy(() =>
@@ -52,11 +54,11 @@ function isOutpatientExpired(med: Medication): boolean {
   return end < today;
 }
 
-/** 取得門診藥物的服用狀態 */
-function getOutpatientStatus(med: Medication): { label: string; color: string } {
-  if (med.status === 'discontinued') return { label: '已停用', color: 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300' };
-  if (isOutpatientExpired(med)) return { label: '已過期', color: 'bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400' };
-  return { label: '服用中', color: 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400' };
+/** 取得門診藥物的服用狀態（key 用於 t() lookup） */
+function getOutpatientStatus(med: Medication): { labelKey: 'discontinued' | 'expired' | 'active'; color: string } {
+  if (med.status === 'discontinued') return { labelKey: 'discontinued', color: 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300' };
+  if (isOutpatientExpired(med)) return { labelKey: 'expired', color: 'bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400' };
+  return { labelKey: 'active', color: 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400' };
 }
 
 function isPrnOrStat(med: Medication): boolean {
@@ -69,14 +71,14 @@ function formatMedDate(dateStr?: string | null): string {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' })
-    + ' ' + d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return d.toLocaleDateString(i18n.language, { month: '2-digit', day: '2-digit' })
+    + ' ' + d.toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function formatMedDateFromDate(date?: Date | null): string {
   if (!date || isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' })
-    + ' ' + date.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
+  return date.toLocaleDateString(i18n.language, { month: '2-digit', day: '2-digit' })
+    + ' ' + date.toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function parseMedicationTime(dateStr?: string | null): number {
@@ -85,10 +87,10 @@ function parseMedicationTime(dateStr?: string | null): number {
   return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time;
 }
 
-function formatOutpatientGroupDate(dateStr?: string | null): string {
-  if (!dateStr) return '未標示日期';
+function formatOutpatientGroupDate(dateStr?: string | null, fallback: string = '未標示日期'): string {
+  if (!dateStr) return fallback;
   const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return '未標示日期';
+  if (isNaN(d.getTime())) return fallback;
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
@@ -109,7 +111,7 @@ function getMedicationEndDate(medication: Medication): Date | null {
 
 function formatCalendarDate(date?: Date | null): string {
   if (!date || isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('zh-TW');
+  return date.toLocaleDateString(i18n.language);
 }
 
 function formatMedicationConcentration(medication: Medication): string | null {
@@ -117,23 +119,24 @@ function formatMedicationConcentration(medication: Medication): string | null {
   return [medication.concentration, medication.concentrationUnit].filter(Boolean).join(' ');
 }
 
-const MED_CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
-  antibiotic: { label: '抗生素', color: 'bg-amber-100 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300' },
-  antifungal: { label: '抗黴菌', color: 'bg-amber-100 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300' },
-  antiviral: { label: '抗病毒', color: 'bg-amber-100 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300' },
-  vasopressor: { label: '升壓劑', color: 'bg-red-100 dark:bg-red-950/30 text-red-800 dark:text-red-300' },
-  anticoagulant: { label: '抗凝血', color: 'bg-rose-100 dark:bg-rose-950/30 text-rose-800 dark:text-rose-300' },
-  steroid: { label: '類固醇', color: 'bg-orange-100 dark:bg-orange-950/30 text-orange-800 dark:text-orange-300' },
-  ppi: { label: 'PPI', color: 'bg-sky-100 dark:bg-sky-950/30 text-sky-800 dark:text-sky-300' },
-  h2_blocker: { label: 'H2 Blocker', color: 'bg-sky-100 dark:bg-sky-950/30 text-sky-800 dark:text-sky-300' },
-  diuretic: { label: '利尿劑', color: 'bg-cyan-100 dark:bg-cyan-950/30 text-cyan-800 dark:text-cyan-300' },
-  insulin: { label: '胰島素', color: 'bg-teal-100 dark:bg-teal-950/30 text-teal-800 dark:text-teal-300' },
-  electrolyte: { label: '電解質', color: 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300' },
-  bronchodilator: { label: '支氣管擴張', color: 'bg-indigo-100 dark:bg-indigo-950/30 text-indigo-800 dark:text-indigo-300' },
-  antiarrhythmic: { label: '抗心律不整', color: 'bg-pink-100 dark:bg-pink-950/30 text-pink-800 dark:text-pink-300' },
-  antiepileptic: { label: '抗癲癇', color: 'bg-purple-100 dark:bg-purple-950/30 text-purple-800 dark:text-purple-300' },
-  laxative: { label: '緩瀉劑', color: 'bg-lime-100 dark:bg-lime-950/30 text-lime-800 dark:text-lime-300' },
-  antiemetic: { label: '止吐', color: 'bg-green-100 dark:bg-green-950/30 text-green-800 dark:text-green-300' },
+// Color only — labels come from t('medications:tab.categories.<key>')
+const MED_CATEGORY_COLORS: Record<string, string> = {
+  antibiotic: 'bg-amber-100 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300',
+  antifungal: 'bg-amber-100 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300',
+  antiviral: 'bg-amber-100 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300',
+  vasopressor: 'bg-red-100 dark:bg-red-950/30 text-red-800 dark:text-red-300',
+  anticoagulant: 'bg-rose-100 dark:bg-rose-950/30 text-rose-800 dark:text-rose-300',
+  steroid: 'bg-orange-100 dark:bg-orange-950/30 text-orange-800 dark:text-orange-300',
+  ppi: 'bg-sky-100 dark:bg-sky-950/30 text-sky-800 dark:text-sky-300',
+  h2_blocker: 'bg-sky-100 dark:bg-sky-950/30 text-sky-800 dark:text-sky-300',
+  diuretic: 'bg-cyan-100 dark:bg-cyan-950/30 text-cyan-800 dark:text-cyan-300',
+  insulin: 'bg-teal-100 dark:bg-teal-950/30 text-teal-800 dark:text-teal-300',
+  electrolyte: 'bg-emerald-100 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300',
+  bronchodilator: 'bg-indigo-100 dark:bg-indigo-950/30 text-indigo-800 dark:text-indigo-300',
+  antiarrhythmic: 'bg-pink-100 dark:bg-pink-950/30 text-pink-800 dark:text-pink-300',
+  antiepileptic: 'bg-purple-100 dark:bg-purple-950/30 text-purple-800 dark:text-purple-300',
+  laxative: 'bg-lime-100 dark:bg-lime-950/30 text-lime-800 dark:text-lime-300',
+  antiemetic: 'bg-green-100 dark:bg-green-950/30 text-green-800 dark:text-green-300',
 };
 
 /** Pain 0-10 色階：綠→黃→橙→紅 */
@@ -155,7 +158,7 @@ function rassColor(v: number): string {
 }
 
 function formatScoreTimestamp(ts: string): string {
-  return new Date(ts).toLocaleString('zh-TW', {
+  return new Date(ts).toLocaleString(i18n.language, {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -181,6 +184,7 @@ function ScoreSelector({
   formatLabel?: (v: number) => string;
   colorFn?: (v: number) => string;
 }) {
+  const { t } = useTranslation('medications');
   const [pending, setPending] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const hasPending = pending !== null && pending !== currentValue;
@@ -238,7 +242,7 @@ function ScoreSelector({
             disabled={submitting}
             onClick={handleConfirm}
           >
-            {submitting ? '記錄中...' : '確認記錄'}
+            {submitting ? t('tab.scoreSelector.saving') : t('tab.scoreSelector.confirm')}
           </Button>
           <Button
             variant="ghost"
@@ -247,7 +251,7 @@ function ScoreSelector({
             disabled={submitting}
             onClick={() => updatePending(null)}
           >
-            取消
+            {t('tab.scoreSelector.cancel')}
           </Button>
         </div>
       )}
@@ -268,6 +272,7 @@ function SanMedCard({
   onEdit: (med: Medication) => void;
   onDetail: (med: Medication) => void;
 }) {
+  const { t } = useTranslation('medications');
   const spec = medication.concentration || null;
   const noteText = medication.notes || null;
 
@@ -285,13 +290,13 @@ function SanMedCard({
             className="h-7 px-2 text-xs shrink-0"
             onClick={() => onEdit(medication)}
           >
-            編輯
+            {t('tab.sanMedCard.edit')}
           </Button>
         )}
       </div>
       {noteText && (
         <div className="rounded bg-slate-100 dark:bg-slate-800 px-2.5 py-2">
-          <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">醫令備註</p>
+          <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">{t('tab.sanMedCard.orderNote')}</p>
           <p className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{noteText}</p>
         </div>
       )}
@@ -309,6 +314,7 @@ function MedicationDetailModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation('medications');
   if (!medication) return null;
   const med = medication;
   const isOutpatient = med.sourceType === 'outpatient' || med.sourceType === 'self-supplied';
@@ -331,66 +337,66 @@ function MedicationDetailModal({
         <div className="flex gap-2 flex-wrap">
           {isOutpatient ? (
             <>
-              {(() => { const s = getOutpatientStatus(med); return <Badge className={`${s.color} border-0`}>{s.label}</Badge>; })()}
-              <Badge className="bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-0">門診用藥</Badge>
+              {(() => { const status = getOutpatientStatus(med); return <Badge className={`${status.color} border-0`}>{t(`tab.outpatient.${status.labelKey}`)}</Badge>; })()}
+              <Badge className="bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-0">{t('tab.detailModal.outpatientLabel')}</Badge>
             </>
           ) : (
             <>
               {med.status === 'active' && (
-                <Badge className="bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-0">使用中</Badge>
+                <Badge className="bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-0">{t('tab.detailModal.active')}</Badge>
               )}
               {med.status === 'on-hold' && (
-                <Badge className="bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-400 border-0">暫停</Badge>
+                <Badge className="bg-yellow-100 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-400 border-0">{t('tab.detailModal.onHold')}</Badge>
               )}
               {(med.status === 'discontinued' || med.status === 'completed') && (
                 <Badge className="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-0">
-                  {med.status === 'completed' ? '療程完成' : '已停用'}
+                  {med.status === 'completed' ? t('tab.detailModal.completed') : t('tab.detailModal.discontinued')}
                 </Badge>
               )}
             </>
           )}
           {med.sourceType === 'self-supplied' ? (
-            <Badge className="bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 border-0">自備藥</Badge>
+            <Badge className="bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 border-0">{t('tab.detailModal.selfSupplied')}</Badge>
           ) : med.isExternal ? (
-            <Badge className="bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border-0">院外</Badge>
+            <Badge className="bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border-0">{t('tab.detailModal.external')}</Badge>
           ) : null}
         </div>
 
         {/* 處方來源 */}
         {hasSource && (
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">處方來源</p>
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('tab.detailModal.sourceTitle')}</p>
             <div className="rounded-lg border dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3">
               <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                 {isOutpatient && (
                   <>
                     <div className="flex gap-2">
-                      <span className="text-muted-foreground shrink-0">院內/院外</span>
+                      <span className="text-muted-foreground shrink-0">{t('tab.detailModal.sourceTypeLabel')}</span>
                       <Badge variant="secondary" className={`text-xs h-5 ${med.sourceType === 'self-supplied' ? 'bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400' : med.isExternal ? 'bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400' : 'bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400'}`}>
-                        {med.sourceType === 'self-supplied' ? '自備藥' : med.isExternal ? '院外' : '院內'}
+                        {med.sourceType === 'self-supplied' ? t('tab.detailModal.selfSupplied') : med.isExternal ? t('tab.detailModal.external') : t('tab.detailModal.internal')}
                       </Badge>
                     </div>
                     <div className="flex gap-2">
-                      <span className="text-muted-foreground shrink-0">開立醫院</span>
+                      <span className="text-muted-foreground shrink-0">{t('tab.detailModal.hospitalLabel')}</span>
                       <span className="font-medium">{med.prescribingHospital || '—'}</span>
                     </div>
                   </>
                 )}
                 {med.prescribingDepartment && (
                   <div className="flex gap-2">
-                    <span className="text-muted-foreground shrink-0">處方科別</span>
+                    <span className="text-muted-foreground shrink-0">{t('tab.detailModal.deptLabel')}</span>
                     <span className="font-medium">{med.prescribingDepartment}</span>
                   </div>
                 )}
                 {med.prescribingDoctorName && (
                   <div className="flex gap-2">
-                    <span className="text-muted-foreground shrink-0">處方醫師</span>
+                    <span className="text-muted-foreground shrink-0">{t('tab.detailModal.doctorLabel')}</span>
                     <span className="font-medium">{med.prescribingDoctorName}</span>
                   </div>
                 )}
                 {med.sourceCampus && (
                   <div className="flex gap-2">
-                    <span className="text-muted-foreground shrink-0">院區</span>
+                    <span className="text-muted-foreground shrink-0">{t('tab.detailModal.campusLabel')}</span>
                     <span className="font-medium">{med.sourceCampus}</span>
                   </div>
                 )}
@@ -401,43 +407,43 @@ function MedicationDetailModal({
 
         {/* 處方明細 */}
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">處方明細</p>
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('tab.detailModal.rxTitle')}</p>
           <div className="rounded-lg border dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3">
             <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
               <div className="flex gap-2">
-                <span className="text-muted-foreground shrink-0">學名</span>
+                <span className="text-muted-foreground shrink-0">{t('tab.detailModal.genericLabel')}</span>
                 <span className="font-medium">{med.genericName || '—'}</span>
               </div>
               <div className="flex gap-2">
-                <span className="text-muted-foreground shrink-0">頻率</span>
+                <span className="text-muted-foreground shrink-0">{t('tab.detailModal.frequencyLabel')}</span>
                 <span className="font-medium">{med.frequency || '—'}</span>
               </div>
               <div className="flex gap-2">
-                <span className="text-muted-foreground shrink-0">劑量</span>
+                <span className="text-muted-foreground shrink-0">{t('tab.detailModal.doseLabel')}</span>
                 <span className="font-medium">{[formatDoseValue(med.dose), med.unit].filter(Boolean).join(' ') || '—'}</span>
               </div>
               {med.daysSupply != null && (
                 <div className="flex gap-2">
-                  <span className="text-muted-foreground shrink-0">給藥天數</span>
-                  <span className="font-medium">{med.daysSupply} 天</span>
+                  <span className="text-muted-foreground shrink-0">{t('tab.detailModal.daysSupplyLabel')}</span>
+                  <span className="font-medium">{t('tab.detailModal.daysValue', { count: med.daysSupply })}</span>
                 </div>
               )}
               <div className="flex gap-2">
-                <span className="text-muted-foreground shrink-0">給藥途徑</span>
+                <span className="text-muted-foreground shrink-0">{t('tab.detailModal.routeLabel')}</span>
                 <span className="font-medium">{med.route || '—'}</span>
               </div>
               {med.concentration && (
                 <div className="flex gap-2">
-                  <span className="text-muted-foreground shrink-0">濃度</span>
+                  <span className="text-muted-foreground shrink-0">{t('tab.detailModal.concentrationLabel')}</span>
                   <span className="font-medium">{[med.concentration, med.concentrationUnit].filter(Boolean).join(' ')}</span>
                 </div>
               )}
               <div className="flex gap-2">
-                <span className="text-muted-foreground shrink-0">開始日期</span>
-                <span className="font-medium">{med.startDate ? new Date(med.startDate).toLocaleDateString('zh-TW') : '—'}</span>
+                <span className="text-muted-foreground shrink-0">{t('tab.detailModal.startDateLabel')}</span>
+                <span className="font-medium">{med.startDate ? new Date(med.startDate).toLocaleDateString(i18n.language) : '—'}</span>
               </div>
               <div className="flex gap-2">
-                <span className="text-muted-foreground shrink-0">截止日期</span>
+                <span className="text-muted-foreground shrink-0">{t('tab.detailModal.endDateLabel')}</span>
                 <span className="font-medium">{formatCalendarDate(displayEndDate)}</span>
               </div>
             </div>
@@ -449,13 +455,13 @@ function MedicationDetailModal({
           <div className="space-y-2">
             {med.indication && (
               <div className="text-sm">
-                <span className="text-muted-foreground">適應症：</span>
+                <span className="text-muted-foreground">{t('tab.detailModal.indicationLabel')}</span>
                 <span>{med.indication}</span>
               </div>
             )}
             {med.notes && (
               <div className="rounded bg-slate-100 dark:bg-slate-800 px-2.5 py-2">
-                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">醫令備註</p>
+                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">{t('tab.sanMedCard.orderNote')}</p>
                 <p className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{med.notes}</p>
               </div>
             )}
@@ -474,7 +480,7 @@ function MedicationDetailModal({
         )}
 
         <div className="flex justify-end pt-2">
-          <Button variant="outline" onClick={onClose}>關閉</Button>
+          <Button variant="outline" onClick={onClose}>{t('tab.detailModal.close')}</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -600,6 +606,7 @@ export function PatientMedicationsTab({
   onCloseScoreTrend,
   onRefreshMedications,
 }: PatientMedicationsTabProps) {
+  const { t } = useTranslation('medications');
   // medView：all=全部 / active=使用中 / regular=常規（使用中且非 PRN,STAT）/ discontinued=已停用 / duplicate=重複用藥
   const [medView, setMedView] = useState<'active' | 'regular' | 'discontinued' | 'all' | 'duplicate'>('active');
   const [painPending, setPainPending] = useState<number | null>(null);
@@ -657,8 +664,8 @@ export function PatientMedicationsTab({
     });
 
     for (const med of medsSortedWithinGroup) {
-      const dept = med.prescribingDepartment || '未標示科別';
-      const groupDate = formatOutpatientGroupDate(med.startDate);
+      const dept = med.prescribingDepartment || t('tab.outpatientGroup.noDept');
+      const groupDate = formatOutpatientGroupDate(med.startDate, t('tab.outpatientGroup.noDate'));
       const key = `${groupDate}__${dept}`;
       const existing = groups.get(key);
       if (existing) {
@@ -674,7 +681,7 @@ export function PatientMedicationsTab({
     }
 
     return [...groups.values()].sort((a, b) => b.sortTime - a.sortTime);
-  }, [visibleOutpatientMeds]);
+  }, [visibleOutpatientMeds, t]);
 
   // Current base list depends on view mode
   const baseMeds =
@@ -738,11 +745,11 @@ export function PatientMedicationsTab({
         indication: editForm.indication,
       });
       await onRefreshMedications();
-      toast.success('藥物資料已更新');
+      toast.success(t('tab.edit.saveSuccess'));
       setEditingMedication(null);
     } catch (error) {
-      console.error('更新藥物失敗:', error);
-      toast.error('更新藥物失敗');
+      console.error(`${t('tab.edit.saveErrorLog')}:`, error);
+      toast.error(t('tab.edit.saveError'));
     } finally {
       setIsSavingMedication(false);
     }
@@ -774,12 +781,12 @@ export function PatientMedicationsTab({
                     className="h-7 px-3 text-xs border-[#d9b6c8] text-brand hover:bg-[#fbf4f8]"
                     onClick={() => onOpenScoreTrend('pain')}
                   >
-                    趨勢
+                    {t('tab.main.trendButton')}
                   </Button>
                 </div>
                 {painPending === null && painScoreTimestamp && (
                   <p className="text-xs text-muted-foreground tabular-nums">
-                    最後紀錄：{formatScoreTimestamp(painScoreTimestamp)}
+                    {t('tab.main.lastRecorded', { timestamp: formatScoreTimestamp(painScoreTimestamp) })}
                   </p>
                 )}
               </CardHeader>
@@ -793,9 +800,9 @@ export function PatientMedicationsTab({
                   colorFn={painColor}
                 />
                 <div>
-                  <p className="mb-2 text-xs font-medium text-muted-foreground">止痛藥物</p>
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">{t('tab.main.painMedsLabel')}</p>
                   {activePainMeds.length === 0 ? (
-                    <p className="py-3 text-sm text-muted-foreground">無止痛藥物</p>
+                    <p className="py-3 text-sm text-muted-foreground">{t('tab.main.painMedsEmpty')}</p>
                   ) : (
                     <div className="space-y-2">
                       {activePainMeds.map((medication) => (
@@ -829,12 +836,12 @@ export function PatientMedicationsTab({
                     className="h-7 px-3 text-xs border-[#d9b6c8] text-brand hover:bg-[#fbf4f8]"
                     onClick={() => onOpenScoreTrend('rass')}
                   >
-                    趨勢
+                    {t('tab.main.trendButton')}
                   </Button>
                 </div>
                 {rassPending === null && rassScoreTimestamp && (
                   <p className="text-xs text-muted-foreground tabular-nums">
-                    最後紀錄：{formatScoreTimestamp(rassScoreTimestamp)}
+                    {t('tab.main.lastRecorded', { timestamp: formatScoreTimestamp(rassScoreTimestamp) })}
                   </p>
                 )}
               </CardHeader>
@@ -849,9 +856,9 @@ export function PatientMedicationsTab({
                   colorFn={rassColor}
                 />
                 <div>
-                  <p className="mb-2 text-xs font-medium text-muted-foreground">鎮靜藥物</p>
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">{t('tab.main.sedationMedsLabel')}</p>
                   {activeSedationMeds.length === 0 ? (
-                    <p className="py-3 text-sm text-muted-foreground">無鎮靜藥物</p>
+                    <p className="py-3 text-sm text-muted-foreground">{t('tab.main.sedationMedsEmpty')}</p>
                   ) : (
                     <div className="space-y-2">
                       {activeSedationMeds.map((medication) => (
@@ -866,15 +873,15 @@ export function PatientMedicationsTab({
             {/* Neuromuscular Blockade (N) */}
             <Card className="border-border">
               <CardHeader className="pb-2 space-y-1">
-                <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">Neuromuscular Blockade 神經肌肉阻斷</CardTitle>
+                <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">{t('tab.main.nmbCardTitle')}</CardTitle>
                 <CardDescription className="text-sm leading-tight">
                   {nmbIndication || '-'}
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="mb-2 text-xs font-medium text-muted-foreground">神經肌肉阻斷藥物</p>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">{t('tab.main.nmbMedsLabel')}</p>
                 {activeNmbMeds.length === 0 ? (
-                  <p className="py-3 text-sm text-muted-foreground">無神經肌肉阻斷藥物</p>
+                  <p className="py-3 text-sm text-muted-foreground">{t('tab.main.nmbMedsEmpty')}</p>
                 ) : (
                   <div className="space-y-2">
                     {activeNmbMeds.map((medication) => (
@@ -890,7 +897,7 @@ export function PatientMedicationsTab({
           <Card className={`border-border ${medView === 'discontinued' ? 'border-dashed' : ''}`}>
             <CardHeader className="pb-2 space-y-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">住院用藥 Inpatient Medications</CardTitle>
+                <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">{t('tab.main.inpatientCardTitle')}</CardTitle>
               </div>
               {/* 主要切換：全部 / 使用中 / 常規 / 已停用 */}
               <div className="flex items-center gap-2 flex-wrap">
@@ -901,7 +908,7 @@ export function PatientMedicationsTab({
                     className={`h-7 px-3 text-xs rounded-md ${medView === 'all' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     onClick={() => setMedView('all')}
                   >
-                    全部 ({totalCount})
+                    {t('tab.main.viewAll', { count: totalCount })}
                   </Button>
                   <Button
                     variant="ghost"
@@ -909,7 +916,7 @@ export function PatientMedicationsTab({
                     className={`h-7 px-3 text-xs rounded-md ${medView === 'active' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     onClick={() => setMedView('active')}
                   >
-                    使用中 ({activeCount})
+                    {t('tab.main.viewActive', { count: activeCount })}
                   </Button>
                   <Button
                     variant="ghost"
@@ -918,7 +925,7 @@ export function PatientMedicationsTab({
                     className={`h-7 px-3 text-xs rounded-md ${medView === 'regular' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     onClick={() => setMedView('regular')}
                   >
-                    常規 ({regularCount})
+                    {t('tab.main.viewRegular', { count: regularCount })}
                   </Button>
                   <Button
                     variant="ghost"
@@ -927,7 +934,7 @@ export function PatientMedicationsTab({
                     className={`h-7 px-3 text-xs rounded-md ${medView === 'discontinued' ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-slate-100 font-medium' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
                     onClick={() => setMedView('discontinued')}
                   >
-                    已停用 ({discontinuedCount})
+                    {t('tab.main.viewDiscontinued', { count: discontinuedCount })}
                   </Button>
                 </div>
                 {duplicateMeds.length > 0 && (
@@ -937,7 +944,7 @@ export function PatientMedicationsTab({
                     className={`h-7 px-2 text-xs ${medView === 'duplicate' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30'}`}
                     onClick={() => setMedView(medView === 'duplicate' ? 'active' : 'duplicate')}
                   >
-                    重複用藥 ({duplicateMeds.length})
+                    {t('tab.main.viewDuplicate', { count: duplicateMeds.length })}
                   </Button>
                 )}
               </div>
@@ -954,14 +961,14 @@ export function PatientMedicationsTab({
               {medView === 'duplicate' ? (
                 <div className="space-y-2">
                   <p className="text-xs text-orange-700 dark:text-orange-400 mb-2">
-                    以下藥物同時出現在住院醫令與門診處方中（以學名比對），請確認是否需要調整
+                    {t('tab.main.duplicateExplain')}
                   </p>
                   {duplicateMeds.map((dup) => (
                     <div key={dup.generic} className="rounded-md border border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/20 px-3 py-2.5">
                       <div className="flex items-center gap-2 mb-2">
                         <p className="font-semibold text-sm text-orange-900 dark:text-orange-300">{dup.generic}</p>
                         <Badge className="bg-orange-200 dark:bg-orange-950/30 text-orange-800 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-950/30 text-xs px-1.5 py-0 h-4">
-                          住院+門診
+                          {t('tab.main.duplicateBadge')}
                         </Badge>
                       </div>
                       <div className="grid gap-2 sm:grid-cols-2">
@@ -972,7 +979,7 @@ export function PatientMedicationsTab({
                             onClick={() => setDetailMedication(m)}
                           >
                             <div className="flex items-center gap-1.5">
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 shrink-0">住院</Badge>
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 shrink-0">{t('tab.main.inpatientBadge')}</Badge>
                               <span className="text-sm font-medium truncate">{m.name}</span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
@@ -988,7 +995,7 @@ export function PatientMedicationsTab({
                             onClick={() => setDetailMedication(m)}
                           >
                             <div className="flex items-center gap-1.5">
-                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 shrink-0">門診</Badge>
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 shrink-0">{t('tab.main.outpatientBadge')}</Badge>
                               <span className="text-sm font-medium truncate">{m.name}</span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
@@ -1004,27 +1011,26 @@ export function PatientMedicationsTab({
               ) : (
               <>
               {medView === 'discontinued' && (
-                <p className="mb-2 text-xs text-muted-foreground">本次住院期間曾使用，現已停用的藥品</p>
+                <p className="mb-2 text-xs text-muted-foreground">{t('tab.main.discontinuedHint')}</p>
               )}
               {displayedMeds.length === 0 ? (
                 <p className="py-3 text-sm text-muted-foreground">
                   {medView === 'regular'
-                    ? '無常規用藥'
+                    ? t('tab.main.noRegular')
                     : medView === 'discontinued'
-                    ? '無已停用藥物'
+                    ? t('tab.main.noDiscontinued')
                     : medView === 'all'
-                    ? '無藥物'
-                    : '無住院用藥'}
+                    ? t('tab.main.noAll')
+                    : t('tab.main.noActive')}
                 </p>
               ) : (
                 <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
                   {displayedMeds.map((medication) => {
-                    const category = MED_CATEGORY_LABELS[medication.category];
+                    const categoryColor = MED_CATEGORY_COLORS[medication.category];
                     const abx = isAntibiotic(medication);
                     const prn = isPrnOrStat(medication);
                     const isStat = medication.frequency?.toUpperCase() === 'STAT';
                     const discontinued = isDiscontinued(medication);
-                    const statusLabel = medication.status === 'completed' ? '療程完成' : medication.status === 'on-hold' ? '暫停' : '已停用';
                     return (
                       <div
                         key={medication.id}
@@ -1044,16 +1050,16 @@ export function PatientMedicationsTab({
                             </p>
                             {discontinued ? (
                               <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                                {statusLabel}
+                                {t(`tab.detailModal.${medication.status === 'completed' ? 'completed' : medication.status === 'on-hold' ? 'onHold' : 'discontinued'}`)}
                               </Badge>
                             ) : (
                               <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
-                                使用中
+                                {t('tab.detailModal.active')}
                               </Badge>
                             )}
                             {abx && (
                               <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 bg-amber-100 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 ${discontinued ? 'opacity-60' : ''}`}>
-                                抗生素
+                                {t('tab.main.antibioticBadge')}
                               </Badge>
                             )}
                             {prn && !discontinued && (
@@ -1061,9 +1067,9 @@ export function PatientMedicationsTab({
                                 {isStat ? 'STAT' : 'PRN'}
                               </Badge>
                             )}
-                            {category && !abx && (
-                              <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 ${category.color} ${discontinued ? 'opacity-60' : ''}`}>
-                                {category.label}
+                            {categoryColor && !abx && (
+                              <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 ${MED_CATEGORY_COLORS[medication.category]} ${discontinued ? 'opacity-60' : ''}`}>
+                                {t(`tab.categories.${medication.category}`, { defaultValue: medication.category })}
                               </Badge>
                             )}
                           </div>
@@ -1074,7 +1080,7 @@ export function PatientMedicationsTab({
                               className="h-7 px-2 text-xs shrink-0"
                               onClick={() => openMedicationEditor(medication)}
                             >
-                              編輯
+                              {t('tab.sanMedCard.edit')}
                             </Button>
                           )}
                         </div>
@@ -1088,7 +1094,7 @@ export function PatientMedicationsTab({
                           )}
                         </div>
                         {!discontinued && formatMedicationConcentration(medication) && (
-                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">濃度 {formatMedicationConcentration(medication)}</p>
+                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t('tab.main.concentrationLabel', { value: formatMedicationConcentration(medication) })}</p>
                         )}
                       </div>
                     );
@@ -1106,7 +1112,7 @@ export function PatientMedicationsTab({
               <CardHeader className="pb-2">
                 <div className="flex flex-col items-start gap-2">
                   <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">
-                    門診用藥 Outpatient Medications
+                    {t('tab.main.outpatientCardTitle')}
                     <span className="ml-2 text-sm font-normal text-muted-foreground">({outpatientCount})</span>
                   </CardTitle>
                   <Button
@@ -1120,7 +1126,7 @@ export function PatientMedicationsTab({
                     }
                     onClick={() => setSelfSuppliedFilter((v) => !v)}
                   >
-                    聯醫門急診用藥
+                    {t('tab.main.selfSuppliedFilter')}
                     {selfSuppliedMeds.length > 0 && (
                       <span className={`ml-1 ${selfSuppliedFilter ? 'text-white/80' : 'text-muted-foreground'}`}>
                         ({selfSuppliedMeds.length})
@@ -1131,7 +1137,7 @@ export function PatientMedicationsTab({
               </CardHeader>
               <CardContent className="pt-0 space-y-4">
                 {selfSuppliedFilter && outpatientGroups.length === 0 && (
-                  <p className="py-3 text-sm text-muted-foreground">目前無聯醫門急診（自備）藥物</p>
+                  <p className="py-3 text-sm text-muted-foreground">{t('tab.main.noSelfSupplied')}</p>
                 )}
                 {outpatientGroups.map((group) => (
                   <div key={group.label}>
@@ -1139,7 +1145,7 @@ export function PatientMedicationsTab({
                       <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400">
                         {group.label}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">{group.meds.length} 筆</span>
+                      <span className="text-xs text-muted-foreground">{t('tab.outpatientGroup.countSuffix', { count: group.meds.length })}</span>
                     </div>
                     <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
                       {group.meds.map((medication) => (
@@ -1162,24 +1168,24 @@ export function PatientMedicationsTab({
                                 )}
                                 {medication.sourceType === 'self-supplied' ? (
                                   <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400">
-                                    自備藥
+                                    {t('tab.detailModal.selfSupplied')}
                                   </Badge>
                                 ) : medication.isExternal ? (
                                   <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400">
-                                    院外
+                                    {t('tab.detailModal.external')}
                                   </Badge>
                                 ) : null}
                               </div>
                               <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
                                 <span>{formatMedicationRegimen(medication)}</span>
                                 {medication.daysSupply != null && (
-                                  <span className="text-xs">({medication.daysSupply}天)</span>
+                                  <span className="text-xs">{t('tab.outpatientGroup.daysSupplyCompact', { days: medication.daysSupply })}</span>
                                 )}
                               </div>
                               {medication.startDate && (
                                 <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-                                  開立 {formatMedDate(medication.startDate)}
-                                  {displayEndDate && <span> → 用完 {formatMedDateFromDate(displayEndDate)}</span>}
+                                  {t('tab.outpatientGroup.issuedPrefix', { date: formatMedDate(medication.startDate) })}
+                                  {displayEndDate && <span> → {t('tab.outpatientGroup.untilSuffix', { date: formatMedDateFromDate(displayEndDate) })}</span>}
                                 </div>
                               )}
                             </div>
@@ -1216,57 +1222,57 @@ export function PatientMedicationsTab({
           <Dialog open={editingMedication !== null} onOpenChange={(open) => { if (!open) closeMedicationEditor(); }}>
             <DialogContent className="sm:max-w-xl">
               <DialogHeader>
-                <DialogTitle>編輯用藥</DialogTitle>
+                <DialogTitle>{t('tab.edit.title')}</DialogTitle>
                 <DialogDescription>
-                  可直接維護劑量、頻次、途徑與濃度欄位。濃度留空時，PAD 工作台才會要求手動補填。
+                  {t('tab.edit.description')}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4">
                 <div className="rounded-lg border dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2">
                   <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{editingMedication?.name || '—'}</p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{editingMedication?.genericName || '未提供 generic name'}</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{editingMedication?.genericName || t('tab.edit.noGenericName')}</p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="med-dose">Dose</Label>
+                    <Label htmlFor="med-dose">{t('tab.edit.doseLabel')}</Label>
                     <Input id="med-dose" value={editForm.dose} onChange={(e) => handleEditFieldChange('dose', e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="med-unit">Unit</Label>
+                    <Label htmlFor="med-unit">{t('tab.edit.unitLabel')}</Label>
                     <Input id="med-unit" value={editForm.unit} onChange={(e) => handleEditFieldChange('unit', e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="med-concentration">濃度</Label>
+                    <Label htmlFor="med-concentration">{t('tab.edit.concentrationLabel')}</Label>
                     <Input
                       id="med-concentration"
-                      placeholder="例 10"
+                      placeholder={t('tab.edit.concentrationPlaceholder')}
                       value={editForm.concentration}
                       onChange={(e) => handleEditFieldChange('concentration', e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="med-concentration-unit">濃度單位</Label>
+                    <Label htmlFor="med-concentration-unit">{t('tab.edit.concentrationUnitLabel')}</Label>
                     <Input
                       id="med-concentration-unit"
-                      placeholder="例 mcg/mL"
+                      placeholder={t('tab.edit.concentrationUnitPlaceholder')}
                       value={editForm.concentrationUnit}
                       onChange={(e) => handleEditFieldChange('concentrationUnit', e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="med-frequency">Frequency</Label>
+                    <Label htmlFor="med-frequency">{t('tab.edit.frequencyLabel')}</Label>
                     <Input id="med-frequency" value={editForm.frequency} onChange={(e) => handleEditFieldChange('frequency', e.target.value)} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="med-route">Route</Label>
+                    <Label htmlFor="med-route">{t('tab.edit.routeLabel')}</Label>
                     <Input id="med-route" value={editForm.route} onChange={(e) => handleEditFieldChange('route', e.target.value)} />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="med-indication">Indication / Notes</Label>
+                  <Label htmlFor="med-indication">{t('tab.edit.indicationLabel')}</Label>
                   <Textarea
                     id="med-indication"
                     rows={4}
@@ -1278,10 +1284,10 @@ export function PatientMedicationsTab({
 
               <DialogFooter>
                 <Button variant="outline" onClick={closeMedicationEditor} disabled={isSavingMedication}>
-                  取消
+                  {t('tab.edit.cancel')}
                 </Button>
                 <Button onClick={handleSaveMedication} disabled={isSavingMedication || !patientId}>
-                  {isSavingMedication ? '儲存中...' : '儲存變更'}
+                  {isSavingMedication ? t('tab.edit.submitting') : t('tab.edit.submit')}
                 </Button>
               </DialogFooter>
             </DialogContent>

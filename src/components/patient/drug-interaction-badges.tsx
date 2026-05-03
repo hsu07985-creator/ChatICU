@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronUp, CircleAlert } from 'lucide-react';
 import { cn } from '../ui/utils';
+import { useTranslation } from 'react-i18next';
 
 export interface DrugInteraction {
   drug_a: string;
@@ -124,29 +125,25 @@ interface RiskConfig {
   borderClass: string;
 }
 
-const RISK_CONFIG: Record<string, RiskConfig> = {
+// Style only — labels resolved dynamically via t('ddiBadges.riskLabels.<X|D|C|B|A>').
+const RISK_STYLES: Record<string, Omit<RiskConfig, 'label'>> = {
   X: {
-    label: '禁忌',
     badgeClass: 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-400 border-red-300 dark:border-red-900',
     borderClass: 'border-red-300 dark:border-red-900',
   },
   D: {
-    label: '重大',
     badgeClass: 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-400 border-orange-300 dark:border-orange-700',
     borderClass: 'border-orange-300 dark:border-orange-700',
   },
   C: {
-    label: '監測',
     badgeClass: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-400 border-yellow-300 dark:border-yellow-700',
     borderClass: 'border-yellow-300 dark:border-yellow-700',
   },
   B: {
-    label: '輕微',
     badgeClass: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-400 border-blue-300 dark:border-blue-700',
     borderClass: 'border-blue-300 dark:border-blue-700',
   },
   A: {
-    label: '無交互',
     badgeClass: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-400 border-green-300 dark:border-green-700',
     borderClass: 'border-green-300 dark:border-green-700',
   },
@@ -154,8 +151,17 @@ const RISK_CONFIG: Record<string, RiskConfig> = {
 
 const RISK_ORDER: Record<string, number> = { X: 0, D: 1, C: 2, B: 3, A: 4 };
 
-function getRiskConfig(risk: string): RiskConfig {
-  return RISK_CONFIG[risk.toUpperCase()] ?? {
+function useRiskConfig(risk: string): RiskConfig {
+  const { t } = useTranslation('medications');
+  const upper = risk.toUpperCase();
+  const styles = RISK_STYLES[upper];
+  if (styles) {
+    return {
+      label: t(`ddiBadges.riskLabels.${upper}`, { defaultValue: upper }),
+      ...styles,
+    };
+  }
+  return {
     label: risk,
     badgeClass: 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-300 border-gray-300 dark:border-gray-600',
     borderClass: 'border-gray-300 dark:border-gray-600',
@@ -169,14 +175,15 @@ interface InteractionBadgeProps {
 
 /** Render one side of a pair — matched side bolded; unmatched dim + warning. */
 function SideLabel({ side }: { side: MatchedSide }) {
+  const { t } = useTranslation('medications');
   if (side.matched) {
     return (
       <span
         className="font-medium"
         title={
           side.aliasOfRuleName && side.aliasOfRuleName.toLowerCase() !== side.display.toLowerCase()
-            ? `病人實際用藥：${side.display}（規則名：${side.aliasOfRuleName}）`
-            : `病人實際用藥：${side.display}`
+            ? t('ddiBadges.patientUseAliasTooltip', { name: side.display, alias: side.aliasOfRuleName })
+            : t('ddiBadges.patientUseTooltip', { name: side.display })
         }
       >
         {side.display}
@@ -186,7 +193,7 @@ function SideLabel({ side }: { side: MatchedSide }) {
   return (
     <span
       className="italic opacity-70 inline-flex items-center gap-0.5"
-      title={`此藥未在病人目前用藥清單中：${side.display}`}
+      title={t('ddiBadges.notInPatientList', { name: side.display })}
     >
       <CircleAlert className="h-3 w-3 shrink-0" aria-hidden />
       {side.display}
@@ -195,9 +202,10 @@ function SideLabel({ side }: { side: MatchedSide }) {
 }
 
 function InteractionBadge({ interaction, activeMedications }: InteractionBadgeProps) {
+  const { t } = useTranslation('medications');
   const [expanded, setExpanded] = useState(false);
   const riskUpper = interaction.risk.toUpperCase();
-  const config = getRiskConfig(riskUpper);
+  const config = useRiskConfig(riskUpper);
   const isRiskX = riskUpper === 'X';
 
   const sideA = matchSide(interaction.drug_a, activeMedications);
@@ -214,7 +222,7 @@ function InteractionBadge({ interaction, activeMedications }: InteractionBadgePr
       >
         <div className="flex items-center gap-1.5 font-bold text-[13px]">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-700 dark:text-red-400" />
-          <span>X 禁忌</span>
+          <span>{t('ddiBadges.xPrefix')}</span>
           <span className="font-normal text-red-700 dark:text-red-400">
             <SideLabel side={sideA} />
             <span className="mx-1">↔</span>
@@ -222,7 +230,7 @@ function InteractionBadge({ interaction, activeMedications }: InteractionBadgePr
           </span>
         </div>
         <p className="text-red-800 dark:text-red-400 font-medium text-[11px]">
-          禁忌組合 — 應避免合併使用
+          {t('ddiBadges.xSummary')}
         </p>
         {interaction.title && (
           <p className="text-red-700 dark:text-red-400 text-[11px] leading-relaxed">{interaction.title}</p>
@@ -259,7 +267,7 @@ function InteractionBadge({ interaction, activeMedications }: InteractionBadgePr
       </div>
       {expanded && (sideA.aliasOfRuleName || sideB.aliasOfRuleName) && (
         <p className="mt-1 text-[11px] opacity-80">
-          規則名：{interaction.drug_a} + {interaction.drug_b}
+          {t('ddiBadges.ruleNamesLabel', { a: interaction.drug_a, b: interaction.drug_b })}
         </p>
       )}
       {expanded && interaction.title && (
@@ -277,6 +285,7 @@ export function DrugInteractionBadges({
   hasRiskX,
   activeMedications,
 }: DrugInteractionBadgesProps) {
+  const { t } = useTranslation('medications');
   if (!interactions || interactions.length === 0) {
     return null;
   }
@@ -292,7 +301,7 @@ export function DrugInteractionBadges({
       {hasRiskX && (
         <div className="flex items-center gap-1 text-[11px] font-semibold text-red-700 dark:text-red-400">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-          <span>偵測到禁忌藥物組合</span>
+          <span>{t('ddiBadges.headerWarning')}</span>
         </div>
       )}
       <div className="flex flex-wrap gap-1.5">

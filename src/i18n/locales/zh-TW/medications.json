@@ -1,0 +1,205 @@
+{
+  "duplicateBadges": {
+    "headerWarning": "偵測到重大重複用藥",
+    "summaryLabel": "重複用藥",
+    "memberCountSuffix": "{{count}} 藥",
+    "autoDowngraded": "自動降級",
+    "autoDowngradedReason": "自動降級：{{reason}}",
+    "recommendation": "建議：{{text}}",
+    "evidence": "參考資料"
+  },
+  "ddiBadges": {
+    "headerWarning": "偵測到禁忌藥物組合",
+    "riskLabels": {
+      "X": "禁忌",
+      "D": "重大",
+      "C": "監測",
+      "B": "輕微",
+      "A": "無交互"
+    },
+    "patientUseTooltip": "病人實際用藥：{{name}}",
+    "patientUseAliasTooltip": "病人實際用藥：{{name}}（規則名：{{alias}}）",
+    "notInPatientList": "此藥未在病人目前用藥清單中：{{name}}",
+    "xPrefix": "X 禁忌",
+    "xSummary": "禁忌組合 — 應避免合併使用",
+    "ruleNamesLabel": "規則名：{{a}} + {{b}}"
+  },
+  "riskCard": {
+    "title": "用藥風險",
+    "criticalBadge": "重大警示",
+    "ddiLabel": "DDI",
+    "duplicateLabel": "重複用藥",
+    "allergyLabel": "過敏衝突",
+    "calculating": "計算中…",
+    "noneBadge": "無",
+    "allergyCount": "已登錄 {{count}} 項過敏",
+    "viewDetails": "查看詳情",
+    "goToMeds": "前往用藥頁",
+    "severityLabels": {
+      "critical": "Critical",
+      "high": "High",
+      "moderate": "Moderate"
+    }
+  },
+  "ivCompat": {
+    "card": {
+      "title": "IV 相容性快速檢查",
+      "description": "Y-Site IV 相容性查詢 — 資料來源：藥物相容性資料庫（Drug Graph Source C）",
+      "modeQuick": "快速檢查",
+      "modeMatrix": "矩陣模式"
+    },
+    "result": {
+      "compatible": "相容 (Compatible)",
+      "ySite": "可經 Y-Site 共同輸注",
+      "stability": "穩定時間：{{time}}",
+      "referencePrefix": "參考：{{ref}}",
+      "incompatible": "不相容 (Incompatible)",
+      "alertTitle": "IV 相容性警示",
+      "incompatibleDescription": "{{a}} 與 {{b}} 不相容 — 請勿共用同一管路輸注，應使用不同靜脈通路或分開給藥時間。",
+      "noData": "無資料",
+      "noDataDescription": "{{a}} & {{b}} 的 Y-Site IV 相容性資料尚未收錄，請查閱 Trissel's 或製造商說明書。"
+    },
+    "matrix": {
+      "tooFew": "病患目前登錄的 IV 藥物不足 2 種，無法產生矩陣。",
+      "querying": "矩陣查詢中...",
+      "generate": "產生 IV 相容性矩陣（{{count}} 種藥物）",
+      "incompatibleSummary": "發現 {{count}} 組不相容組合",
+      "incompatiblePair": "{{a}} 與 {{b}} — 請分管路給藥",
+      "legend": {
+        "compatible": "相容",
+        "incompatible": "不相容",
+        "noData": "無資料"
+      }
+    },
+    "quick": {
+      "labelA": "藥品 A",
+      "labelB": "藥品 B",
+      "placeholderA": "輸入藥品名稱（例：Vancomycin）",
+      "placeholderB": "輸入藥品名稱（例：Piperacillin）",
+      "querying": "查詢中...",
+      "submit": "檢查 IV 相容性",
+      "queryFailed": "查詢失敗，請稍後再試"
+    }
+  },
+  "tab": {
+    "outpatient": {
+      "discontinued": "已停用",
+      "expired": "已過期",
+      "active": "服用中"
+    },
+    "categories": {
+      "antibiotic": "抗生素",
+      "antifungal": "抗黴菌",
+      "antiviral": "抗病毒",
+      "vasopressor": "升壓劑",
+      "anticoagulant": "抗凝血",
+      "steroid": "類固醇",
+      "ppi": "PPI",
+      "h2_blocker": "H2 Blocker",
+      "diuretic": "利尿劑",
+      "insulin": "胰島素",
+      "electrolyte": "電解質",
+      "bronchodilator": "支氣管擴張",
+      "antiarrhythmic": "抗心律不整",
+      "antiepileptic": "抗癲癇",
+      "laxative": "緩瀉劑",
+      "antiemetic": "止吐"
+    },
+    "outpatientGroup": {
+      "noDate": "未標示日期",
+      "noDept": "未標示科別",
+      "countSuffix": "{{count}} 筆",
+      "issuedPrefix": "開立 {{date}}",
+      "untilSuffix": "用完 {{date}}",
+      "daysSupplyCompact": "({{days}}天)"
+    },
+    "scoreSelector": {
+      "saving": "記錄中...",
+      "confirm": "確認記錄",
+      "cancel": "取消"
+    },
+    "sanMedCard": {
+      "edit": "編輯",
+      "orderNote": "醫令備註"
+    },
+    "detailModal": {
+      "outpatientLabel": "門診用藥",
+      "selfSupplied": "自備藥",
+      "external": "院外",
+      "internal": "院內",
+      "active": "使用中",
+      "onHold": "暫停",
+      "completed": "療程完成",
+      "discontinued": "已停用",
+      "sourceTitle": "處方來源",
+      "sourceTypeLabel": "院內/院外",
+      "hospitalLabel": "開立醫院",
+      "deptLabel": "處方科別",
+      "doctorLabel": "處方醫師",
+      "campusLabel": "院區",
+      "rxTitle": "處方明細",
+      "genericLabel": "學名",
+      "frequencyLabel": "頻率",
+      "doseLabel": "劑量",
+      "daysSupplyLabel": "給藥天數",
+      "daysValue": "{{count}} 天",
+      "routeLabel": "給藥途徑",
+      "concentrationLabel": "濃度",
+      "startDateLabel": "開始日期",
+      "endDateLabel": "截止日期",
+      "indicationLabel": "適應症：",
+      "close": "關閉"
+    },
+    "main": {
+      "trendButton": "趨勢",
+      "lastRecorded": "最後紀錄：{{timestamp}}",
+      "painMedsLabel": "止痛藥物",
+      "painMedsEmpty": "無止痛藥物",
+      "sedationMedsLabel": "鎮靜藥物",
+      "sedationMedsEmpty": "無鎮靜藥物",
+      "nmbCardTitle": "Neuromuscular Blockade 神經肌肉阻斷",
+      "nmbMedsLabel": "神經肌肉阻斷藥物",
+      "nmbMedsEmpty": "無神經肌肉阻斷藥物",
+      "inpatientCardTitle": "住院用藥 Inpatient Medications",
+      "viewAll": "全部 ({{count}})",
+      "viewActive": "使用中 ({{count}})",
+      "viewRegular": "常規 ({{count}})",
+      "viewDiscontinued": "已停用 ({{count}})",
+      "viewDuplicate": "重複用藥 ({{count}})",
+      "discontinuedHint": "本次住院期間曾使用，現已停用的藥品",
+      "noRegular": "無常規用藥",
+      "noDiscontinued": "無已停用藥物",
+      "noAll": "無藥物",
+      "noActive": "無住院用藥",
+      "duplicateExplain": "以下藥物同時出現在住院醫令與門診處方中（以學名比對），請確認是否需要調整",
+      "duplicateBadge": "住院+門診",
+      "inpatientBadge": "住院",
+      "outpatientBadge": "門診",
+      "antibioticBadge": "抗生素",
+      "concentrationLabel": "濃度 {{value}}",
+      "outpatientCardTitle": "門診用藥 Outpatient Medications",
+      "selfSuppliedFilter": "聯醫門急診用藥",
+      "noSelfSupplied": "目前無聯醫門急診（自備）藥物"
+    },
+    "edit": {
+      "title": "編輯用藥",
+      "description": "可直接維護劑量、頻次、途徑與濃度欄位。濃度留空時，PAD 工作台才會要求手動補填。",
+      "noGenericName": "未提供 generic name",
+      "doseLabel": "Dose",
+      "unitLabel": "Unit",
+      "concentrationLabel": "濃度",
+      "concentrationPlaceholder": "例 10",
+      "concentrationUnitLabel": "濃度單位",
+      "concentrationUnitPlaceholder": "例 mcg/mL",
+      "frequencyLabel": "Frequency",
+      "routeLabel": "Route",
+      "indicationLabel": "Indication / Notes",
+      "cancel": "取消",
+      "submit": "儲存變更",
+      "submitting": "儲存中...",
+      "saveSuccess": "藥物資料已更新",
+      "saveError": "更新藥物失敗",
+      "saveErrorLog": "更新藥物失敗"
+    }
+  }
+}

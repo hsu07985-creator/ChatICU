@@ -15,6 +15,7 @@ import zhTWMedicalRecords from './locales/zh-TW/medical-records.json';
 import zhTWLabs from './locales/zh-TW/labs.json';
 import zhTWScoreTrend from './locales/zh-TW/score-trend.json';
 import zhTWPatientTabs from './locales/zh-TW/patient-tabs.json';
+import zhTWMedications from './locales/zh-TW/medications.json';
 
 import enUSCommon from './locales/en-US/common.json';
 import enUSSidebar from './locales/en-US/sidebar.json';
@@ -29,13 +30,14 @@ import enUSMedicalRecords from './locales/en-US/medical-records.json';
 import enUSLabs from './locales/en-US/labs.json';
 import enUSScoreTrend from './locales/en-US/score-trend.json';
 import enUSPatientTabs from './locales/en-US/patient-tabs.json';
+import enUSMedications from './locales/en-US/medications.json';
 
 export const SUPPORTED_LANGUAGES = ['zh-TW', 'en-US'] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 export const DEFAULT_LANGUAGE: SupportedLanguage = 'zh-TW';
 export const STORAGE_KEY = 'chaticu.lang';
 
-export const NAMESPACES = ['common', 'sidebar', 'errors', 'roles', 'notifications', 'auth', 'dashboard', 'patients', 'patient-detail', 'medical-records', 'labs', 'score-trend', 'patient-tabs'] as const;
+export const NAMESPACES = ['common', 'sidebar', 'errors', 'roles', 'notifications', 'auth', 'dashboard', 'patients', 'patient-detail', 'medical-records', 'labs', 'score-trend', 'patient-tabs', 'medications'] as const;
 
 void i18n
   .use(LanguageDetector)
@@ -68,6 +70,7 @@ void i18n
         labs: zhTWLabs,
         'score-trend': zhTWScoreTrend,
         'patient-tabs': zhTWPatientTabs,
+        medications: zhTWMedications,
       },
       'en-US': {
         common: enUSCommon,
@@ -83,6 +86,7 @@ void i18n
         labs: enUSLabs,
         'score-trend': enUSScoreTrend,
         'patient-tabs': enUSPatientTabs,
+        medications: enUSMedications,
       },
     },
   });

@@ -4,7 +4,7 @@
 > **配對術語表**：[`docs/i18n-medical-glossary.md`](i18n-medical-glossary.md)
 > **負責人**：Chun + Claude
 > **啟動日**：2026-05-04
-> **總進度**：🟢 3.6 / 8 Waves（W0+W1+W2+W3a+W3b+W3c 完成、W3d 完成 2026-05-04；W3e+ 待開工）
+> **總進度**：🟢 3.7 / 8 Waves（W0+...+W3d 完成、W3e 完成 2026-05-04；W3f+ 待開工）
 
 ---
 
@@ -19,7 +19,7 @@
 | 3b | patient-detail.tsx 主頁 + 5 共用元件 | 🟢 完成 | `feat/i18n-w3b` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 3c | medical-records + lab-data + lab-trend + score-trend | 🟢 完成 | `feat/i18n-w3c` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 3d | patient-summary-tab + patient-labs-tab | 🟢 完成 | `feat/i18n-w3d` | 2026-05-04 | 🚀 personal+railway 已推 |
-| 3e | patient-medications-tab + 4 medication 子元件 | ⬜ 待開工 | — | — | — |
+| 3e | patient-medications-tab + 4 medication 子元件 | 🟢 完成 | `feat/i18n-w3e` | 2026-05-04 | 待 push |
 | 3f | patient-microbiology-card + patient-diagnostic-reports | ⬜ 待開工 | — | — | — |
 | 3g | patient-messages-tab + patient-chat-tab + chat-message-thread + discharge-check-panel | ⬜ 待開工 | — | — | — |
 | 4 | team chat + ai chat | ⬜ 待開工 | — | — |

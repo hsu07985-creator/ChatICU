@@ -10,6 +10,7 @@ import {
   type MedicationsResponse,
 } from '../../lib/api/medications';
 import { cn } from '../ui/utils';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Wave 6b — 病人摘要 Tab 的「用藥風險」卡片。
@@ -86,32 +87,31 @@ function tallyDuplicatesBySeverity(
   return out;
 }
 
-const SEV_STYLES: Record<Severity, { badge: string; dot: string; label: string }> = {
+// Style only — labels resolved dynamically via t('riskCard.severityLabels.<level>').
+const SEV_STYLES: Record<Severity, { badge: string; dot: string }> = {
   critical: {
     badge:
       'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 border-red-300 dark:border-red-900',
     dot: 'bg-red-500',
-    label: 'Critical',
   },
   high: {
     badge:
       'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-800',
     dot: 'bg-orange-500',
-    label: 'High',
   },
   moderate: {
     badge:
       'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 border-yellow-300 dark:border-yellow-800',
     dot: 'bg-yellow-500',
-    label: 'Moderate',
   },
 };
 
 function SeverityBadges({ counts }: { counts: Record<Severity, number> }) {
+  const { t } = useTranslation('medications');
   const hasAny = counts.critical + counts.high + counts.moderate > 0;
   if (!hasAny) {
     return (
-      <span className="text-sm text-slate-500 dark:text-slate-400">無</span>
+      <span className="text-sm text-slate-500 dark:text-slate-400">{t('riskCard.noneBadge')}</span>
     );
   }
   return (
@@ -128,7 +128,7 @@ function SeverityBadges({ counts }: { counts: Record<Severity, number> }) {
             )}
           >
             <span className={cn('h-1.5 w-1.5 rounded-full', s.dot)} />
-            {s.label} {counts[lvl]}
+            {t(`riskCard.severityLabels.${lvl}`)} {counts[lvl]}
           </span>
         );
       })}
@@ -142,6 +142,7 @@ export function MedicationRiskCard({
   onNavigateToMeds,
   className,
 }: MedicationRiskCardProps) {
+  const { t } = useTranslation('medications');
   // DDI — 同 key 與 patient-medications-tab 之 getMedications 不共享（該頁
   // 是以 useState 管），但仍給予穩定 queryKey 讓 invalidate 可精準觸發。
   const { data: medsData, isLoading: ddiLoading } = useApiQuery<MedicationsResponse>({
@@ -231,11 +232,11 @@ export function MedicationRiskCard({
             )}
             aria-hidden
           />
-          用藥風險
+          {t('riskCard.title')}
           {hasAnyCritical && (
             <span className="ml-1 inline-flex items-center gap-1 rounded-full border border-red-300 dark:border-red-900 bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-[11px] font-semibold text-red-800 dark:text-red-300">
               <AlertTriangle className="h-3 w-3" aria-hidden />
-              重大警示
+              {t('riskCard.criticalBadge')}
             </span>
           )}
         </CardTitle>
@@ -245,12 +246,12 @@ export function MedicationRiskCard({
           {/* DDI row */}
           <div className="flex items-start gap-3">
             <span className="w-20 shrink-0 text-sm font-semibold text-slate-500 dark:text-slate-400">
-              DDI
+              {t('riskCard.ddiLabel')}
             </span>
             <div className="flex-1 min-w-0">
               {isLoading && ddiTotal === 0 ? (
                 <span className="inline-flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-                  <Loader2 className="h-3 w-3 animate-spin" /> 計算中…
+                  <Loader2 className="h-3 w-3 animate-spin" /> {t('riskCard.calculating')}
                 </span>
               ) : (
                 <SeverityBadges counts={ddiCounts} />
@@ -261,12 +262,12 @@ export function MedicationRiskCard({
           {/* Duplicate row */}
           <div className="flex items-start gap-3 border-t border-slate-100 dark:border-slate-700 pt-2.5">
             <span className="w-20 shrink-0 text-sm font-semibold text-slate-500 dark:text-slate-400">
-              重複用藥
+              {t('riskCard.duplicateLabel')}
             </span>
             <div className="flex-1 min-w-0">
               {isLoading && dupTotal === 0 ? (
                 <span className="inline-flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-                  <Loader2 className="h-3 w-3 animate-spin" /> 計算中…
+                  <Loader2 className="h-3 w-3 animate-spin" /> {t('riskCard.calculating')}
                 </span>
               ) : (
                 <SeverityBadges counts={dupCounts} />
@@ -277,13 +278,13 @@ export function MedicationRiskCard({
           {/* Allergy row — 尚未有自動偵測，用現有 patient.allergies 作提示 */}
           <div className="flex items-start gap-3 border-t border-slate-100 dark:border-slate-700 pt-2.5">
             <span className="w-20 shrink-0 text-sm font-semibold text-slate-500 dark:text-slate-400">
-              過敏衝突
+              {t('riskCard.allergyLabel')}
             </span>
             <div className="flex-1 min-w-0">
               {allergyCount > 0 ? (
                 <span className="inline-flex items-center gap-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 text-xs text-slate-700 dark:text-slate-300">
                   <Pill className="h-3 w-3" aria-hidden />
-                  已登錄 {allergyCount} 項過敏
+                  {t('riskCard.allergyCount', { count: allergyCount })}
                 </span>
               ) : (
                 <span className="text-sm text-slate-400 dark:text-slate-500">—</span>
@@ -298,9 +299,9 @@ export function MedicationRiskCard({
           onClick={handleNavigate}
           className="w-full h-8 text-xs justify-center hover:bg-slate-50 dark:hover:bg-slate-800"
         >
-          查看詳情
+          {t('riskCard.viewDetails')}
           <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-          <span className="ml-0.5">前往用藥頁</span>
+          <span className="ml-0.5">{t('riskCard.goToMeds')}</span>
         </Button>
       </CardContent>
     </Card>
