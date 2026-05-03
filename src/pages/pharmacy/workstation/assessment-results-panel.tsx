@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import {
@@ -44,12 +45,12 @@ interface AssessmentResultsPanelProps {
   isAssessing: boolean;
 }
 
-const RISK_BADGE: Record<string, { className: string; label: string; short: string }> = {
-  X: { className: 'bg-red-700 text-white', label: 'X 避免併用', short: 'X' },
-  D: { className: 'bg-[#f59e0b] text-white', label: 'D 考慮調整', short: 'D' },
-  C: { className: 'bg-blue-600 text-white', label: 'C 監測', short: 'C' },
-  B: { className: 'bg-slate-500 text-white', label: 'B 無需調整', short: 'B' },
-  A: { className: 'bg-green-600 text-white', label: 'A 無交互', short: 'A' },
+const RISK_BADGE_CLASS: Record<string, { className: string; short: string; labelKey: string }> = {
+  X: { className: 'bg-red-700 text-white', short: 'X', labelKey: 'workstation.assess.risk.X' },
+  D: { className: 'bg-[#f59e0b] text-white', short: 'D', labelKey: 'workstation.assess.risk.D' },
+  C: { className: 'bg-blue-600 text-white', short: 'C', labelKey: 'workstation.assess.risk.C' },
+  B: { className: 'bg-slate-500 text-white', short: 'B', labelKey: 'workstation.assess.risk.B' },
+  A: { className: 'bg-green-600 text-white', short: 'A', labelKey: 'workstation.assess.risk.A' },
 };
 
 
@@ -100,14 +101,15 @@ function Section({ title, icon, count, countColor, defaultOpen, children }: {
 const SEVERITY_TO_RISK: Record<string, string> = { high: 'D', medium: 'C', low: 'C' };
 
 function InteractionRow({ int }: { int: DrugInteraction }) {
+  const { t } = useTranslation('pharmacy');
   const [expanded, setExpanded] = useState(false);
   const effectiveRisk = int.riskRating || SEVERITY_TO_RISK[int.severity] || 'C';
-  const riskCfg = RISK_BADGE[effectiveRisk];
+  const riskCfg = RISK_BADGE_CLASS[effectiveRisk];
 
   return (
     <div className="border rounded-lg p-3 space-y-1.5">
       <div className="flex items-center flex-wrap gap-2">
-        {riskCfg && <Badge className={`${riskCfg.className} text-xs px-2 py-0.5`}>{riskCfg.label}</Badge>}
+        {riskCfg && <Badge className={`${riskCfg.className} text-xs px-2 py-0.5`}>{t(riskCfg.labelKey)}</Badge>}
         <span className="font-semibold text-sm">{formatDrugPair(int)}</span>
       </div>
       {int.clinicalEffect && (
@@ -115,9 +117,9 @@ function InteractionRow({ int }: { int: DrugInteraction }) {
       )}
       {int.management && (
         <p className="text-xs text-muted-foreground leading-relaxed">
-          <span className="font-medium text-slate-700 dark:text-slate-300">處置：</span>
+          <span className="font-medium text-slate-700 dark:text-slate-300">{t('workstation.assess.panel.manageLabel')}</span>
           {int.management.length > 120 && !expanded
-            ? <>{int.management.slice(0, 120)}… <button type="button" onClick={() => setExpanded(true)} className="text-brand hover:underline">展開</button></>
+            ? <>{int.management.slice(0, 120)}… <button type="button" onClick={() => setExpanded(true)} className="text-brand hover:underline">{t('workstation.assess.panel.expand')}</button></>
             : int.management
           }
         </p>
@@ -125,45 +127,46 @@ function InteractionRow({ int }: { int: DrugInteraction }) {
       {expanded && (
         <>
           {int.mechanism && (
-            <p className="text-xs text-muted-foreground"><span className="font-medium text-slate-700 dark:text-slate-300">機轉：</span>{int.mechanism}</p>
+            <p className="text-xs text-muted-foreground"><span className="font-medium text-slate-700 dark:text-slate-300">{t('workstation.assess.panel.mechanismLabel')}</span>{int.mechanism}</p>
           )}
           {int.discussion && (
-            <p className="text-xs text-muted-foreground leading-relaxed"><span className="font-medium text-slate-700 dark:text-slate-300">說明：</span>{int.discussion}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed"><span className="font-medium text-slate-700 dark:text-slate-300">{t('workstation.assess.panel.discussionLabel')}</span>{int.discussion}</p>
           )}
-          <button type="button" onClick={() => setExpanded(false)} className="text-xs text-brand hover:underline">收合</button>
+          <button type="button" onClick={() => setExpanded(false)} className="text-xs text-brand hover:underline">{t('workstation.assess.panel.collapse')}</button>
         </>
       )}
     </div>
   );
 }
 
-const DUP_LEVEL_BADGE: Record<DuplicateAlert['level'], { className: string; label: string }> = {
-  critical: { className: 'bg-red-700 text-white', label: '嚴重' },
-  high:     { className: 'bg-[#f59e0b] text-white', label: '高' },
-  moderate: { className: 'bg-amber-200 text-amber-900', label: '中' },
-  low:      { className: 'bg-blue-100 text-blue-700', label: '低' },
-  info:     { className: 'bg-slate-200 text-slate-700', label: '提示' },
+const DUP_LEVEL_CLASS: Record<DuplicateAlert['level'], { className: string; labelKey: string }> = {
+  critical: { className: 'bg-red-700 text-white', labelKey: 'workstation.assess.dupLevel.critical' },
+  high:     { className: 'bg-[#f59e0b] text-white', labelKey: 'workstation.assess.dupLevel.high' },
+  moderate: { className: 'bg-amber-200 text-amber-900', labelKey: 'workstation.assess.dupLevel.moderate' },
+  low:      { className: 'bg-blue-100 text-blue-700', labelKey: 'workstation.assess.dupLevel.low' },
+  info:     { className: 'bg-slate-200 text-slate-700', labelKey: 'workstation.assess.dupLevel.info' },
 };
 
 function DuplicateRow({ d }: { d: DuplicateAlert }) {
-  const cfg = DUP_LEVEL_BADGE[d.level];
+  const { t } = useTranslation('pharmacy');
+  const cfg = DUP_LEVEL_CLASS[d.level];
   const drugNames = d.members.map(m => m.genericName).join(' + ');
   return (
     <div className="border rounded-lg p-3 space-y-1.5">
       <div className="flex items-center flex-wrap gap-2">
-        <Badge className={`${cfg.className} text-xs px-2 py-0.5`}>{cfg.label}</Badge>
+        <Badge className={`${cfg.className} text-xs px-2 py-0.5`}>{t(cfg.labelKey)}</Badge>
         <Badge variant="outline" className="text-[10px] px-1.5 py-0">{d.layer}</Badge>
         <span className="font-semibold text-sm">{drugNames}</span>
       </div>
       <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{d.mechanism}</p>
       {d.recommendation && (
         <p className="text-xs text-muted-foreground leading-relaxed">
-          <span className="font-medium text-slate-700 dark:text-slate-300">建議：</span>
+          <span className="font-medium text-slate-700 dark:text-slate-300">{t('workstation.assess.panel.recommendLabel')}</span>
           {d.recommendation}
         </p>
       )}
       {d.autoDowngraded && d.downgradeReason && (
-        <p className="text-[11px] text-amber-600 leading-relaxed">已自動降階：{d.downgradeReason}</p>
+        <p className="text-[11px] text-amber-600 leading-relaxed">{t('workstation.assess.panel.autoDowngraded', { reason: d.downgradeReason })}</p>
       )}
     </div>
   );
@@ -171,6 +174,7 @@ function DuplicateRow({ d }: { d: DuplicateAlert }) {
 
 /** Single compatibility row */
 function CompatibilityRow({ c }: { c: IVCompatibility }) {
+  const { t } = useTranslation('pharmacy');
   return (
     <div className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm ${c.compatible ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800'}`}>
       <div className="flex items-center gap-2 min-w-0">
@@ -185,7 +189,7 @@ function CompatibilityRow({ c }: { c: IVCompatibility }) {
           <Badge variant="outline" className="text-[10px]">{c.solution}</Badge>
         )}
         <Badge className={c.compatible ? 'bg-green-600 text-white text-xs' : 'bg-red-600 text-white text-xs'}>
-          {c.compatible ? '相容' : '不相容'}
+          {c.compatible ? t('workstation.assess.panel.compatibleLabel') : t('workstation.assess.panel.incompatibleLabel')}
         </Badge>
       </div>
     </div>
@@ -202,6 +206,7 @@ export function AssessmentResultsPanel({
   assessHint,
   isAssessing,
 }: AssessmentResultsPanelProps) {
+  const { t } = useTranslation('pharmacy');
 
   if (!selectedPatient) {
     return (
@@ -210,8 +215,8 @@ export function AssessmentResultsPanel({
           <CardContent className="py-16">
             <div className="text-center space-y-3">
               <User className="h-12 w-12 mx-auto text-muted-foreground" />
-              <h3 className="font-semibold text-lg">請先選擇病患</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">選擇病患後即可管理用藥並執行評估</p>
+              <h3 className="font-semibold text-lg">{t('workstation.assess.panel.selectPatient')}</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">{t('workstation.assess.panel.selectPatientHint')}</p>
             </div>
           </CardContent>
         </Card>
@@ -226,9 +231,9 @@ export function AssessmentResultsPanel({
           <CardContent className="py-12">
             <div className="text-center space-y-5">
               <div className="space-y-2">
-                <h3 className="font-semibold text-lg">準備執行評估</h3>
+                <h3 className="font-semibold text-lg">{t('workstation.assess.panel.ready')}</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">
-                  目前已載入 {drugList.length} 項藥品
+                  {t('workstation.assess.panel.drugsLoaded', { count: drugList.length })}
                 </p>
               </div>
               <Button
@@ -237,7 +242,7 @@ export function AssessmentResultsPanel({
                 className="h-14 px-10 text-lg font-semibold bg-brand hover:bg-brand-hover shadow-lg"
                 size="lg"
               >
-                <span>{isAssessing ? '處理中' : '執行全面評估'}</span>
+                <span>{isAssessing ? t('workstation.assess.panel.processing') : t('workstation.assess.panel.runAssessment')}</span>
                 {isAssessing ? <ButtonLoadingIndicator /> : null}
               </Button>
               <p className="text-xs text-muted-foreground leading-relaxed max-w-md mx-auto">
@@ -318,7 +323,7 @@ export function AssessmentResultsPanel({
           <div className="flex items-center justify-between gap-2">
             <CardTitle className="text-white text-base flex items-center gap-2">
               <ShieldAlert className="h-5 w-5" />
-              評估摘要
+              {t('workstation.assess.panel.summary')}
             </CardTitle>
             <Button
               variant="ghost"
@@ -326,10 +331,10 @@ export function AssessmentResultsPanel({
               onClick={onRunAssessment}
               disabled={!assessReady}
               className="h-8 px-2 text-white hover:bg-white/15 hover:text-white"
-              aria-label="重新評估"
+              aria-label={t('workstation.assess.panel.rerun')}
             >
               {isAssessing ? <ButtonLoadingIndicator /> : <RotateCw className="h-4 w-4" />}
-              <span className="text-xs ml-1">{isAssessing ? '處理中' : '重新評估'}</span>
+              <span className="text-xs ml-1">{isAssessing ? t('workstation.assess.panel.processing') : t('workstation.assess.panel.rerun')}</span>
             </Button>
           </div>
         </CardHeader>
@@ -339,20 +344,20 @@ export function AssessmentResultsPanel({
             <div className="rounded-lg border p-3 text-center">
               <div className="flex items-center justify-center gap-1.5 mb-1">
                 <Copy className={`h-4 w-4 ${(duplicateSummary.critical + duplicateSummary.high) > 0 ? 'text-red-600' : duplicateSummary.total > 0 ? 'text-[#f59e0b]' : 'text-green-600'}`} />
-                <span className="text-xs font-semibold">重複用藥</span>
+                <span className="text-xs font-semibold">{t('workstation.assess.panel.duplicate')}</span>
               </div>
               {duplicateSummary.queryFailed ? (
-                <p className="text-sm font-bold text-amber-600">查詢失敗</p>
+                <p className="text-sm font-bold text-amber-600">{t('workstation.assess.panel.queryFailed')}</p>
               ) : duplicateSummary.total === 0 ? (
-                <p className="text-xl font-bold text-green-600">無</p>
+                <p className="text-xl font-bold text-green-600">{t('workstation.assess.panel.none')}</p>
               ) : (
                 <>
-                  <p className="text-xl font-bold">{duplicateSummary.total} <span className="text-xs font-normal">項</span></p>
+                  <p className="text-xl font-bold">{duplicateSummary.total} <span className="text-xs font-normal">{t('workstation.assess.panel.items')}</span></p>
                   <div className="flex justify-center gap-1 mt-1 flex-wrap">
-                    {duplicateSummary.critical > 0 && <Badge className="bg-red-700 text-white text-[10px] px-1.5 py-0">嚴重×{duplicateSummary.critical}</Badge>}
-                    {duplicateSummary.high > 0 && <Badge className="bg-[#f59e0b] text-white text-[10px] px-1.5 py-0">高×{duplicateSummary.high}</Badge>}
-                    {duplicateSummary.moderate > 0 && <Badge className="bg-amber-200 text-amber-900 text-[10px] px-1.5 py-0">中×{duplicateSummary.moderate}</Badge>}
-                    {duplicateSummary.low > 0 && <Badge className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0">低×{duplicateSummary.low}</Badge>}
+                    {duplicateSummary.critical > 0 && <Badge className="bg-red-700 text-white text-[10px] px-1.5 py-0">{t('workstation.assess.panel.criticalX', { count: duplicateSummary.critical })}</Badge>}
+                    {duplicateSummary.high > 0 && <Badge className="bg-[#f59e0b] text-white text-[10px] px-1.5 py-0">{t('workstation.assess.panel.highX', { count: duplicateSummary.high })}</Badge>}
+                    {duplicateSummary.moderate > 0 && <Badge className="bg-amber-200 text-amber-900 text-[10px] px-1.5 py-0">{t('workstation.assess.panel.moderateX', { count: duplicateSummary.moderate })}</Badge>}
+                    {duplicateSummary.low > 0 && <Badge className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0">{t('workstation.assess.panel.lowX', { count: duplicateSummary.low })}</Badge>}
                   </div>
                 </>
               )}
@@ -362,19 +367,19 @@ export function AssessmentResultsPanel({
             <div className="rounded-lg border p-3 text-center">
               <div className="flex items-center justify-center gap-1.5 mb-1">
                 <AlertTriangle className={`h-4 w-4 ${interactions.length > 0 ? 'text-[#f59e0b]' : 'text-green-600'}`} />
-                <span className="text-xs font-semibold">交互作用</span>
+                <span className="text-xs font-semibold">{t('workstation.assess.panel.interaction')}</span>
               </div>
               {interactions.length === 0 ? (
-                <p className="text-xl font-bold text-green-600">無</p>
+                <p className="text-xl font-bold text-green-600">{t('workstation.assess.panel.none')}</p>
               ) : (
                 <>
-                  <p className="text-xl font-bold">{interactions.length} <span className="text-xs font-normal">項</span></p>
+                  <p className="text-xl font-bold">{interactions.length} <span className="text-xs font-normal">{t('workstation.assess.panel.items')}</span></p>
                   {highRiskCount > 0 && (
                     <div className="flex justify-center gap-1 mt-1">
                       {(['X', 'D'] as const).map(r => {
                         const c = riskCounts[r];
                         if (!c) return null;
-                        return <Badge key={r} className={`${RISK_BADGE[r].className} text-[10px] px-1.5 py-0`}>{r}×{c}</Badge>;
+                        return <Badge key={r} className={`${RISK_BADGE_CLASS[r].className} text-[10px] px-1.5 py-0`}>{r}×{c}</Badge>;
                       })}
                     </div>
                   )}
@@ -386,38 +391,38 @@ export function AssessmentResultsPanel({
             <div className="rounded-lg border p-3 text-center">
               <div className="flex items-center justify-center gap-1.5 mb-1">
                 <Droplets className={`h-4 w-4 ${incompatibleCount > 0 ? 'text-red-600' : ivEligibleDrugs.length > 0 ? 'text-green-600' : 'text-muted-foreground'}`} />
-                <span className="text-xs font-semibold">IV 相容性</span>
+                <span className="text-xs font-semibold">{t('workstation.assess.panel.ivCompatibility')}</span>
               </div>
               {ivEligibleDrugs.length === 0 ? (
                 <>
-                  <p className="text-sm font-bold text-muted-foreground">無 IV 配對</p>
-                  <p className="text-[10px] text-muted-foreground mt-1 leading-snug">此病患無可進行 Y-Site 檢查的 IV 藥</p>
+                  <p className="text-sm font-bold text-muted-foreground">{t('workstation.assess.panel.noIvPair')}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 leading-snug">{t('workstation.assess.panel.noIvPairHint')}</p>
                 </>
               ) : incompatibleCount > 0 ? (
                 <>
                   <p className="text-xl font-bold text-red-600">
-                    {incompatibleCount} <span className="text-xs font-normal">對不相容</span>
+                    {incompatibleCount} <span className="text-xs font-normal">{t('workstation.assess.panel.incompatPairs')}</span>
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    {ivEligibleDrugs.length} 項 IV 藥 / {compatibleCount + incompatibleCount} 對配對
+                    {t('workstation.assess.panel.ivDrugsXPairs', { drugs: ivEligibleDrugs.length, pairs: compatibleCount + incompatibleCount })}
                   </p>
                 </>
               ) : (
                 <>
-                  <p className="text-xl font-bold text-green-600">全部相容</p>
+                  <p className="text-xl font-bold text-green-600">{t('workstation.assess.panel.allCompatible')}</p>
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    {ivEligibleDrugs.length} 項 IV 藥 / {compatibleCount} 對配對
+                    {t('workstation.assess.panel.ivDrugsCompatPairs', { drugs: ivEligibleDrugs.length, pairs: compatibleCount })}
                   </p>
                 </>
               )}
               {compatibilitySummary && compatibilitySummary.queryFailed > 0 && (
-                <p className="text-[10px] text-amber-500 mt-1">{compatibilitySummary.queryFailed} 組查詢失敗</p>
+                <p className="text-[10px] text-amber-500 mt-1">{t('workstation.assess.panel.queryFailedCount', { count: compatibilitySummary.queryFailed })}</p>
               )}
               {/* P0-3: surface batch truncation so pharmacist knows
                   uncovered pairs exist; previously silently counted as noData. */}
               {compatibilitySummary && (compatibilitySummary.truncatedPairs ?? 0) > 0 && (
                 <p className="text-[10px] text-red-600 mt-1 font-semibold">
-                  ⚠ 仍有 {compatibilitySummary.truncatedPairs} 對未檢查（共 {compatibilitySummary.totalPairs} 對，超過批次上限）
+                  {t('workstation.assess.panel.truncatedWarn', { truncated: compatibilitySummary.truncatedPairs, total: compatibilitySummary.totalPairs })}
                 </p>
               )}
             </div>
@@ -426,10 +431,10 @@ export function AssessmentResultsPanel({
             <div className="rounded-lg border p-3 text-center">
               <div className="flex items-center justify-center gap-1.5 mb-1">
                 <Calculator className="h-4 w-4 text-brand" />
-                <span className="text-xs font-semibold">PAD 劑量</span>
+                <span className="text-xs font-semibold">{t('workstation.assess.panel.padDose')}</span>
               </div>
               {dosage.length === 0 ? (
-                <p className="text-sm font-bold text-muted-foreground">無 PAD 藥物</p>
+                <p className="text-sm font-bold text-muted-foreground">{t('workstation.assess.panel.noPadDrug')}</p>
               ) : (
                 <p className="text-xl font-bold text-brand">{calculatedCount} <span className="text-xs font-normal">/ {dosage.length}</span></p>
               )}
@@ -440,9 +445,9 @@ export function AssessmentResultsPanel({
 
       {/* ── 重複用藥（獨立可展開） ── */}
       <Section
-        title="重複用藥"
+        title={t('workstation.assess.panel.duplicate')}
         icon={<Copy className={`h-4 w-4 ${(duplicateSummary.critical + duplicateSummary.high) > 0 ? 'text-red-600' : duplicateSummary.total > 0 ? 'text-[#f59e0b]' : 'text-green-600'}`} />}
-        count={duplicateSummary.queryFailed ? '查詢失敗' : duplicateSummary.total > 0 ? `${duplicateSummary.total} 項` : '無'}
+        count={duplicateSummary.queryFailed ? t('workstation.assess.panel.queryFailed') : duplicateSummary.total > 0 ? t('workstation.assess.panel.totalCount', { count: duplicateSummary.total }) : t('workstation.assess.panel.none')}
         countColor={
           duplicateSummary.queryFailed
             ? 'border-amber-300 text-amber-700'
@@ -457,12 +462,12 @@ export function AssessmentResultsPanel({
         {duplicateSummary.queryFailed ? (
           <div className="flex items-center gap-2 text-amber-700 py-2">
             <AlertTriangle className="h-4 w-4" />
-            <span className="text-sm">重複用藥偵測查詢失敗，建議至「重複用藥」頁手動查詢</span>
+            <span className="text-sm">{t('workstation.assess.panel.duplicateQueryFail')}</span>
           </div>
         ) : duplicates.length === 0 ? (
           <div className="flex items-center gap-2 text-green-700 py-2">
             <CheckCircle2 className="h-4 w-4" />
-            <span className="text-sm">未發現重複用藥</span>
+            <span className="text-sm">{t('workstation.assess.panel.duplicateNotFound')}</span>
           </div>
         ) : (
           <div className="space-y-2">
@@ -475,16 +480,16 @@ export function AssessmentResultsPanel({
 
       {/* ── 交互作用（獨立可展開） ── */}
       <Section
-        title="交互作用"
+        title={t('workstation.assess.panel.interaction')}
         icon={<AlertTriangle className={`h-4 w-4 ${highRiskCount > 0 ? 'text-red-600' : interactions.length > 0 ? 'text-[#f59e0b]' : 'text-green-600'}`} />}
-        count={interactions.length > 0 ? `${interactions.length} 項` : '無'}
+        count={interactions.length > 0 ? t('workstation.assess.panel.totalCount', { count: interactions.length }) : t('workstation.assess.panel.none')}
         countColor={highRiskCount > 0 ? 'border-red-300 text-red-700' : interactions.length > 0 ? 'border-amber-300 text-amber-700' : 'border-green-300 text-green-700'}
         defaultOpen={highRiskCount > 0}
       >
         {interactions.length === 0 ? (
           <div className="flex items-center gap-2 text-green-700 py-2">
             <CheckCircle2 className="h-4 w-4" />
-            <span className="text-sm">未發現藥物交互作用</span>
+            <span className="text-sm">{t('workstation.assess.panel.interactionNotFound')}</span>
           </div>
         ) : (
           <div className="space-y-2">
@@ -497,14 +502,14 @@ export function AssessmentResultsPanel({
 
       {/* ── IV 相容性（矩陣，預設摺疊；有不相容自動展開） ── */}
       <Section
-        title="IV 相容性"
+        title={t('workstation.assess.panel.ivCompatibility')}
         icon={<Droplets className={`h-4 w-4 ${incompatibleCount > 0 ? 'text-red-600' : ivEligibleDrugs.length > 0 ? 'text-green-600' : 'text-muted-foreground'}`} />}
         count={
           ivEligibleDrugs.length === 0
-            ? '無 IV 配對'
+            ? t('workstation.assess.panel.noIvPair')
             : incompatibleCount > 0
-              ? `${ivEligibleDrugs.length} 項 IV / ${incompatibleCount} 對不相容`
-              : `${ivEligibleDrugs.length} 項 IV 藥`
+              ? t('workstation.assess.panel.ivWithIncompat', { drugs: ivEligibleDrugs.length, pairs: incompatibleCount })
+              : t('workstation.assess.panel.ivDrugCount', { count: ivEligibleDrugs.length })
         }
         countColor={
           ivEligibleDrugs.length === 0
@@ -519,9 +524,9 @@ export function AssessmentResultsPanel({
           <div className="flex items-start gap-2 text-muted-foreground py-2">
             <Droplets className="h-4 w-4 mt-0.5 shrink-0" />
             <div className="text-sm leading-relaxed">
-              此病患的用藥清單未偵測到可進行 Y-Site 配對檢查的 IV 藥品。
+              {t('workstation.assess.panel.noIvY')}
               <span className="block text-xs mt-0.5">
-                若需手動比對特定 IV 藥，可至左側欄「藥事工具 → 用藥相容」查詢。
+                {t('workstation.assess.panel.noIvYHint')}
               </span>
             </div>
           </div>
@@ -533,7 +538,7 @@ export function AssessmentResultsPanel({
             {/* 不相容詳情卡片 */}
             {incompatibleCount > 0 && (
               <div className="space-y-1.5 pt-1">
-                <p className="text-xs font-semibold text-red-700 dark:text-red-400">不相容組合</p>
+                <p className="text-xs font-semibold text-red-700 dark:text-red-400">{t('workstation.assess.panel.incompatList')}</p>
                 {deduplicatedCompat.filter(c => !c.compatible).map((c, idx) => (
                   <CompatibilityRow key={`incompat-${idx}`} c={c} />
                 ))}
@@ -546,13 +551,13 @@ export function AssessmentResultsPanel({
       {/* ── PAD 劑量（獨立可展開） ── */}
       {dosage.length > 0 && (
         <Section
-          title="PAD 劑量換算"
+          title={t('workstation.assess.panel.padTitle')}
           icon={<Calculator className="h-4 w-4 text-brand" />}
           count={`${calculatedCount} / ${dosage.length}`}
           countColor="border-brand/30 text-brand"
           defaultOpen={calculatedCount > 0}
         >
-          <p className="text-xs text-muted-foreground mb-3">拖曳滑桿可即時調整最小/最大劑量與濃度</p>
+          <p className="text-xs text-muted-foreground mb-3">{t('workstation.assess.panel.padHint')}</p>
           <div className="space-y-3">
             {dosage.filter(d => d.status === 'calculated').map((d, idx) => (
               <DosageRecommendationCard
@@ -565,7 +570,7 @@ export function AssessmentResultsPanel({
               <div key={`fail-${idx}`} className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-sm">
                 <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
                 <span className="font-medium">{d.drugName}</span>
-                <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">{d.status === 'requires_input' ? '待補資料' : '計算失敗'}</Badge>
+                <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">{d.status === 'requires_input' ? t('workstation.assess.panel.requiresInput') : t('workstation.assess.panel.calcFailed')}</Badge>
               </div>
             ))}
           </div>

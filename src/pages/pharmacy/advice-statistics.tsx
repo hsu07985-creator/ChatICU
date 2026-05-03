@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import i18n from '../../i18n/config';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -59,6 +61,7 @@ function splitLinkedMedications(value: string): string[] {
 export function PharmacyAdviceStatisticsPage() {
   const { user } = useAuth();
   const canManageAdviceRecords = user?.role === 'pharmacist' || user?.role === 'admin';
+  const { t } = useTranslation('pharmacy');
 
   // ── 病患清單（共用快取） ──
   const [patients, setPatients] = useState<Patient[]>(getCachedPatientsSync() ?? []);
@@ -95,7 +98,7 @@ export function PharmacyAdviceStatisticsPage() {
     for (let i = 0; i < 24; i++) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const label = `${date.getFullYear()} 年 ${date.getMonth() + 1} 月`;
+      const label = i18n.t('pharmacy:adviceStats.monthLabel', { year: date.getFullYear(), month: date.getMonth() + 1 });
       options.push({ value, label });
     }
     return options;
@@ -109,7 +112,7 @@ export function PharmacyAdviceStatisticsPage() {
 
   const monthLabel = (() => {
     const [y, m] = selectedMonth.split('-').map(Number);
-    return `${y} 年 ${m} 月`;
+    return t('adviceStats.monthLabel', { year: y, month: m });
   })();
 
   // ── 紀錄 ──
@@ -149,7 +152,7 @@ export function PharmacyAdviceStatisticsPage() {
     let cancelled = false;
     getCachedPatients()
       .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
-      .catch(() => { if (!cancelled) { toast.error('載入病患清單失敗'); setPatientsLoading(false); } });
+      .catch(() => { if (!cancelled) { toast.error(t('adviceStats.loadPatientsFail')); setPatientsLoading(false); } });
     return () => { cancelled = true; };
   }, []);
 
@@ -267,11 +270,11 @@ export function PharmacyAdviceStatisticsPage() {
 
   const handleSaveEdit = async () => {
     if (!editingRecord || !editSelectedCategory || !editSelectedCodeItem) {
-      toast.error('請選擇完整的分類與細項');
+      toast.error(t('adviceStats.selectFullCategory'));
       return;
     }
     if (!editContent.trim()) {
-      toast.error('請輸入紀錄內容');
+      toast.error(t('adviceStats.enterContent'));
       return;
     }
 
@@ -285,12 +288,12 @@ export function PharmacyAdviceStatisticsPage() {
         linkedMedications: splitLinkedMedications(editLinkedMedications),
         accepted: editAccepted === 'yes' ? true : editAccepted === 'no' ? false : null,
       });
-      toast.success('歷史紀錄已更新');
+      toast.success(t('adviceStats.recordUpdated'));
       closeEditDialog();
       await fetchRecords();
       setTagStatsRefreshToken((v) => v + 1);
     } catch {
-      toast.error('更新紀錄失敗');
+      toast.error(t('adviceStats.updateFail'));
     } finally {
       setSavingEdit(false);
     }
@@ -301,12 +304,12 @@ export function PharmacyAdviceStatisticsPage() {
     setDeleting(true);
     try {
       await deleteAdviceRecord(deletingRecord.id);
-      toast.success('歷史紀錄已刪除');
+      toast.success(t('adviceStats.recordDeleted'));
       setDeletingRecord(null);
       await fetchRecords();
       setTagStatsRefreshToken((v) => v + 1);
     } catch {
-      toast.error('刪除紀錄失敗');
+      toast.error(t('adviceStats.deleteFail'));
     } finally {
       setDeleting(false);
     }
@@ -315,7 +318,7 @@ export function PharmacyAdviceStatisticsPage() {
   // 送出
   const handleSubmit = async () => {
     if (!selectedPatientId || !selectedCategory || !selectedCodeItem) {
-      toast.error('請選擇病患與建議類別');
+      toast.error(t('adviceStats.selectPatientCategory'));
       return;
     }
     setSubmitting(true);
@@ -328,7 +331,7 @@ export function PharmacyAdviceStatisticsPage() {
         content: content.trim() || selectedCodeItem.label,
         accepted: accepted === 'yes' ? true : accepted === 'no' ? false : undefined,
       });
-      toast.success('藥事紀錄已建立');
+      toast.success(t('adviceStats.recordCreated'));
       setSelectedPatientId('');
       setSelectedCategoryKey('');
       setSelectedCode('');
@@ -336,7 +339,7 @@ export function PharmacyAdviceStatisticsPage() {
       setContent('');
       await fetchRecords();
     } catch {
-      toast.error('建立紀錄失敗');
+      toast.error(t('adviceStats.createFail'));
     } finally {
       setSubmitting(false);
     }
@@ -391,7 +394,7 @@ export function PharmacyAdviceStatisticsPage() {
       // the user instead of silently doing nothing — the chip is supposed
       // to be a deep link, not a no-op.
       if (records.length > 0 || recordsTotal === 0) {
-        toast.error('找不到該筆藥師建議，請手動切換月份或檢查網址');
+        toast.error(t('adviceStats.deepLinkNotFound'));
         highlightHandledRef.current = true;
         // Drop the params so a future refresh doesn't keep re-toasting.
         const next = new URLSearchParams(searchParams);
@@ -466,7 +469,7 @@ export function PharmacyAdviceStatisticsPage() {
       <div className="bg-white dark:bg-slate-900 border dark:border-slate-700 rounded-lg shadow-lg p-3 text-sm">
         <p className="font-semibold">{d.code} {d.label}</p>
         <p className="text-muted-foreground text-xs">{d.category}</p>
-        <p className="font-bold mt-1 text-base">{d.count} 筆</p>
+        <p className="font-bold mt-1 text-base">{t('adviceStats.tooltipCount', { count: d.count })}</p>
       </div>
     );
   };
@@ -478,7 +481,7 @@ export function PharmacyAdviceStatisticsPage() {
     return (
       <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
         <tspan x={cx} dy="-0.4em" fontSize={28} fontWeight={700} fill="#1a1a1a">{totalAdvices}</tspan>
-        <tspan x={cx} dy="1.6em" fontSize={12} fill="#6b7280">筆建議</tspan>
+        <tspan x={cx} dy="1.6em" fontSize={12} fill="#6b7280">{t('adviceStats.centerSubtitle')}</tspan>
       </text>
     );
   };
@@ -487,8 +490,8 @@ export function PharmacyAdviceStatisticsPage() {
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold">藥物統計</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">藥師照護介入紀錄與分類統計（四大類 23 細項）</p>
+          <h1 className="text-2xl font-bold">{t('adviceStats.title')}</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">{t('adviceStats.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border dark:border-slate-700 rounded-lg px-2 py-1.5 shadow-sm">
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => shiftMonth(-1)}>
@@ -521,7 +524,7 @@ export function PharmacyAdviceStatisticsPage() {
           </Button>
           {selectedMonth !== todayMonth && (
             <Button variant="outline" size="sm" className="h-7 text-xs ml-1" onClick={() => setSelectedMonth(todayMonth)}>
-              本月
+              {t('adviceStats.thisMonth')}
             </Button>
           )}
         </div>
@@ -529,29 +532,29 @@ export function PharmacyAdviceStatisticsPage() {
 
       <Tabs value={activeTab} onValueChange={(v: string) => setActiveTab(v as 'advice' | 'soap')} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="advice">藥事介入紀錄</TabsTrigger>
-          <TabsTrigger value="soap">SOAP 紀錄</TabsTrigger>
+          <TabsTrigger value="advice">{t('adviceStats.tabAdvice')}</TabsTrigger>
+          <TabsTrigger value="soap">{t('adviceStats.tabSoap')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="advice" className="space-y-4">
       {/* ── 新增紀錄 ── */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">新增藥事紀錄</CardTitle>
+          <CardTitle className="text-base">{t('adviceStats.newRecord')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-3 md:grid-cols-4">
             {/* 病患 */}
             <div className="space-y-1">
-              <label className="text-xs font-medium">病患 *</label>
+              <label className="text-xs font-medium">{t('adviceStats.patient')} *</label>
               {patientsLoading ? (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground h-9">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> 載入中...
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('adviceStats.loading')}
                 </div>
               ) : (
                 <Select value={selectedPatientId} onValueChange={setSelectedPatientId}>
                   <SelectTrigger className="h-9">
-                    <SelectValue placeholder="選擇病患" />
+                    <SelectValue placeholder={t('adviceStats.selectPatient')} />
                   </SelectTrigger>
                   <SelectContent>
                     {patients.map((p) => (
@@ -566,7 +569,7 @@ export function PharmacyAdviceStatisticsPage() {
 
             {/* 類別 */}
             <div className="space-y-1">
-              <label className="text-xs font-medium">建議類別 *</label>
+              <label className="text-xs font-medium">{t('adviceStats.category')} *</label>
               <Select
                 value={selectedCategoryKey}
                 onValueChange={(v) => {
@@ -575,7 +578,7 @@ export function PharmacyAdviceStatisticsPage() {
                 }}
               >
                 <SelectTrigger className="h-9">
-                  <SelectValue placeholder="選擇類別" />
+                  <SelectValue placeholder={t('adviceStats.selectCategory')} />
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(PHARMACY_ADVICE_CATEGORIES).map(([key, cat]) => (
@@ -589,14 +592,14 @@ export function PharmacyAdviceStatisticsPage() {
 
             {/* 細項 */}
             <div className="space-y-1">
-              <label className="text-xs font-medium">細項 *</label>
+              <label className="text-xs font-medium">{t('adviceStats.subitem')} *</label>
               <Select
                 value={selectedCode}
                 onValueChange={setSelectedCode}
                 disabled={!selectedCategory}
               >
                 <SelectTrigger className="h-9">
-                  <SelectValue placeholder={selectedCategory ? '選擇細項' : '先選類別'} />
+                  <SelectValue placeholder={selectedCategory ? t('adviceStats.selectSubitem') : t('adviceStats.pickCategoryFirst')} />
                 </SelectTrigger>
                 <SelectContent>
                   {selectedCategory?.codes.map((c) => (
@@ -610,14 +613,14 @@ export function PharmacyAdviceStatisticsPage() {
 
             {/* 醫師是否接受 */}
             <div className="space-y-1">
-              <label className="text-xs font-medium">醫師是否接受</label>
+              <label className="text-xs font-medium">{t('adviceStats.doctorAccept')}</label>
               <Select value={accepted} onValueChange={setAccepted}>
                 <SelectTrigger className="h-9">
-                  <SelectValue placeholder="選擇" />
+                  <SelectValue placeholder={t('adviceStats.selectAcceptance')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="yes">接受</SelectItem>
-                  <SelectItem value="no">不接受</SelectItem>
+                  <SelectItem value="yes">{t('adviceStats.accepted')}</SelectItem>
+                  <SelectItem value="no">{t('adviceStats.rejected')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -627,7 +630,7 @@ export function PharmacyAdviceStatisticsPage() {
           <div className="flex gap-3 items-end">
             <div className="flex-1">
               <Textarea
-                placeholder="備註說明（選填）"
+                placeholder={t('adviceStats.notePlaceholder')}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 className="min-h-[60px] resize-none"
@@ -643,7 +646,7 @@ export function PharmacyAdviceStatisticsPage() {
               ) : (
                 <>
                   <Send className="mr-2 h-4 w-4" />
-                  送出
+                  {t('adviceStats.submit')}
                 </>
               )}
             </Button>
@@ -655,7 +658,7 @@ export function PharmacyAdviceStatisticsPage() {
       <div className="grid gap-3 md:grid-cols-5">
         <Card className="border-brand">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{monthLabel}總計</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('adviceStats.monthTotal', { label: monthLabel })}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-brand">{totalAdvices}</div>
@@ -673,7 +676,7 @@ export function PharmacyAdviceStatisticsPage() {
                 <div className="text-3xl font-bold" style={{ color }}>
                   {categoryStats[cat.label] ?? 0}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">{cat.codes.length} 細項</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('adviceStats.subitemCount', { count: cat.codes.length })}</p>
               </CardContent>
             </Card>
           );
@@ -688,7 +691,7 @@ export function PharmacyAdviceStatisticsPage() {
             {/* 甜甜圈圖 — 類別分佈 */}
             <Card className="lg:col-span-1">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">類別分佈</CardTitle>
+                <CardTitle className="text-base">{t('adviceStats.categoryDistribution')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={240}>
@@ -708,7 +711,7 @@ export function PharmacyAdviceStatisticsPage() {
                       ))}
                       <Label content={renderPieCenterLabel} position="center" />
                     </Pie>
-                    <Tooltip formatter={(value: number, name: string) => [`${value} 筆`, name]} />
+                    <Tooltip formatter={(value: number, name: string) => [t('adviceStats.tooltipCount', { count: value }), name]} />
                   </PieChart>
                 </ResponsiveContainer>
                 {/* 圖例 */}
@@ -728,7 +731,7 @@ export function PharmacyAdviceStatisticsPage() {
             <Card className="lg:col-span-1">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <CircleDot className="h-4 w-4" /> 醫師回應統計
+                  <CircleDot className="h-4 w-4" /> {t('adviceStats.doctorResponseStats')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -743,18 +746,18 @@ export function PharmacyAdviceStatisticsPage() {
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <span className="text-3xl font-bold text-[#16a34a]">{acceptRate}%</span>
-                      <span className="text-xs text-muted-foreground">接受率</span>
+                      <span className="text-xs text-muted-foreground">{t('adviceStats.acceptRate')}</span>
                     </div>
                   </div>
                   {/* 統計 */}
                   <div className="grid grid-cols-2 gap-3 w-full text-center">
                     <div className="rounded-lg bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 py-2">
                       <div className="text-lg font-bold text-green-700 dark:text-green-300">{acceptedCount}</div>
-                      <div className="text-xs text-green-600 dark:text-green-400">已接受</div>
+                      <div className="text-xs text-green-600 dark:text-green-400">{t('adviceStats.acceptedCount')}</div>
                     </div>
                     <div className="rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 py-2">
                       <div className="text-lg font-bold text-red-700 dark:text-red-300">{rejectedCount}</div>
-                      <div className="text-xs text-red-600 dark:text-red-400">未接受</div>
+                      <div className="text-xs text-red-600 dark:text-red-400">{t('adviceStats.rejectedCount')}</div>
                     </div>
                   </div>
                 </div>
@@ -764,7 +767,7 @@ export function PharmacyAdviceStatisticsPage() {
             {/* 各類別接受率 */}
             <Card className="lg:col-span-1">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">各類別接受率</CardTitle>
+                <CardTitle className="text-base">{t('adviceStats.categoryAcceptRate')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 pt-1">
@@ -804,7 +807,7 @@ export function PharmacyAdviceStatisticsPage() {
           {/* Row 2: 直方圖 — 細項分析 */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">細項分析（{barData.length} 項）</CardTitle>
+              <CardTitle className="text-base">{t('adviceStats.subitemAnalysis', { count: barData.length })}</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={340}>
@@ -847,13 +850,13 @@ export function PharmacyAdviceStatisticsPage() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Tag className="h-4 w-4" /> 留言板標籤統計
-            {tagStats.length > 0 && <Badge variant="secondary">{tagStats.length} 個標籤</Badge>}
+            <Tag className="h-4 w-4" /> {t('adviceStats.tagStats')}
+            {tagStats.length > 0 && <Badge variant="secondary">{t('adviceStats.tagBadge', { count: tagStats.length })}</Badge>}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {tagStatsLoading ? (
-            <LoadingSpinner text="載入標籤統計..." />
+            <LoadingSpinner text={t('adviceStats.loadingTagStats')} />
           ) : tagStats.length > 0 ? (
             <div className="space-y-4">
               <ResponsiveContainer width="100%" height={Math.max(200, tagStats.length * 36)}>
@@ -861,13 +864,13 @@ export function PharmacyAdviceStatisticsPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
                   <XAxis type="number" allowDecimals={false} stroke="#6b7280" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis type="category" dataKey="tag" width={160} stroke="#6b7280" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip formatter={(value: number) => [`${value} 筆`, '使用次數']} />
+                  <Tooltip formatter={(value: number) => [t('adviceStats.tooltipCount', { count: value }), t('adviceStats.tagUsage')]} />
                   <Bar dataKey="count" fill="var(--color-brand)" radius={[0, 6, 6, 0]} barSize={24} label={{ position: 'right', fontSize: 12, fontWeight: 600 }} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           ) : (
-            <EmptyState icon={Tag} title="尚無標籤資料" description={`${monthLabel}的留言板沒有使用標籤`} />
+            <EmptyState icon={Tag} title={t('adviceStats.noTags')} description={t('adviceStats.noTagsDesc', { label: monthLabel })} />
           )}
         </CardContent>
       </Card>
@@ -877,17 +880,17 @@ export function PharmacyAdviceStatisticsPage() {
         <CardHeader className="space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              歷史紀錄
-              <Badge variant="secondary">共 {recordsTotal} 筆</Badge>
+              {t('adviceStats.history')}
+              <Badge variant="secondary">{t('adviceStats.totalCount', { count: recordsTotal })}</Badge>
               {searchTerm.trim() && (
                 <Badge variant="outline" className="font-normal">
-                  搜尋符合 {filteredRecords.length} 筆
+                  {t('adviceStats.matchCount', { count: filteredRecords.length })}
                 </Badge>
               )}
             </CardTitle>
             {isTruncated && (
               <span className="text-xs text-red-600 dark:text-red-400 font-medium">
-                已顯示前 500 筆，請縮小月份範圍或使用搜尋
+                {t('adviceStats.truncatedHint')}
               </span>
             )}
           </div>
@@ -897,13 +900,13 @@ export function PharmacyAdviceStatisticsPage() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="搜尋床號 / 病人姓名 / 內容 / 藥名"
+              placeholder={t('adviceStats.searchPlaceholder')}
               className="pl-8 pr-9 h-9"
             />
             {searchTerm && (
               <button
                 type="button"
-                aria-label="清除搜尋"
+                aria-label={t('adviceStats.clearSearch')}
                 onClick={() => setSearchTerm('')}
                 className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent"
               >
@@ -914,7 +917,7 @@ export function PharmacyAdviceStatisticsPage() {
         </CardHeader>
         <CardContent>
           {recordsLoading ? (
-            <LoadingSpinner text="載入中..." />
+            <LoadingSpinner text={t('adviceStats.loadingRecords')} />
           ) : filteredRecords.length > 0 ? (
             <ScrollArea className="h-[400px] pr-4">
               <div className="space-y-3">
@@ -954,16 +957,16 @@ export function PharmacyAdviceStatisticsPage() {
                         <div className="flex items-center gap-2 ml-2 flex-wrap justify-end">
                           {isAccepted && (
                             <Badge className="bg-green-600 hover:bg-green-700 text-white text-xs gap-1 px-2.5 py-0.5">
-                              <CheckCircle2 className="h-3.5 w-3.5" /> 已接受
+                              <CheckCircle2 className="h-3.5 w-3.5" /> {t('adviceStats.acceptedBadge')}
                             </Badge>
                           )}
                           {isRejected && (
                             <Badge variant="destructive" className="text-xs gap-1 px-2.5 py-0.5">
-                              <XCircle className="h-3.5 w-3.5" /> 未接受
+                              <XCircle className="h-3.5 w-3.5" /> {t('adviceStats.rejectedBadge')}
                             </Badge>
                           )}
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            {new Date(record.timestamp).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                            {new Date(record.timestamp).toLocaleString(i18n.language, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                           </span>
                           {canManageAdviceRecords && (
                             <div className="flex items-center gap-1">
@@ -973,10 +976,10 @@ export function PharmacyAdviceStatisticsPage() {
                                 size="sm"
                                 className="h-7 px-2 text-xs"
                                 onClick={() => openEditRecord(record)}
-                                title="編輯歷史紀錄"
+                                title={t('adviceStats.editRecord')}
                               >
                                 <Edit2 className="h-3.5 w-3.5 mr-1" />
-                                編輯
+                                {t('adviceStats.edit')}
                               </Button>
                               <Button
                                 type="button"
@@ -984,10 +987,10 @@ export function PharmacyAdviceStatisticsPage() {
                                 size="sm"
                                 className="h-7 px-2 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
                                 onClick={() => setDeletingRecord(record)}
-                                title="刪除歷史紀錄"
+                                title={t('adviceStats.deleteRecord')}
                               >
                                 <Trash2 className="h-3.5 w-3.5 mr-1" />
-                                刪除
+                                {t('adviceStats.delete')}
                               </Button>
                             </div>
                           )}
@@ -1026,14 +1029,14 @@ export function PharmacyAdviceStatisticsPage() {
           ) : searchTerm.trim() ? (
             <EmptyState
               icon={Search}
-              title="搜尋無結果"
-              description={`沒有符合「${searchTerm}」的紀錄。試試清除搜尋或切換月份。`}
+              title={t('adviceStats.noSearchResult')}
+              description={t('adviceStats.noSearchResultDesc', { term: searchTerm })}
             />
 	          ) : (
 	            <EmptyState
 	              icon={FileText}
-	              title={`${monthLabel}尚無歷史紀錄`}
-	              description="使用上方表單新增藥師照護介入紀錄"
+	              title={t('adviceStats.noHistoryTitle', { label: monthLabel })}
+	              description={t('adviceStats.noHistoryDesc')}
 	            />
 	          )}
         </CardContent>
@@ -1045,11 +1048,11 @@ export function PharmacyAdviceStatisticsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <NotebookPen className="h-4 w-4" />
-                SOAP 紀錄
-                <Badge variant="secondary">{soapRecords.length} 筆</Badge>
+                {t('adviceStats.soapTitle')}
+                <Badge variant="secondary">{t('adviceStats.soapCount', { count: soapRecords.length })}</Badge>
               </CardTitle>
               <p className="text-xs text-muted-foreground">
-                從藥師 SOAP 編輯器（用藥建議模式）儲存的 S/O/A/P 草稿，僅顯示我自己寫的。
+                {t('adviceStats.soapSubtitle')}
               </p>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -1058,7 +1061,7 @@ export function PharmacyAdviceStatisticsPage() {
                   type="text"
                   value={soapSearch}
                   onChange={(e) => setSoapSearch(e.target.value)}
-                  placeholder="搜尋 Assessment 或 Plan 內容..."
+                  placeholder={t('adviceStats.soapSearchPlaceholder')}
                   className="flex-1 h-9 rounded-md border border-slate-300 bg-white dark:bg-slate-900 dark:border-slate-700 px-3 text-sm"
                 />
                 {soapSearch && (
@@ -1068,13 +1071,13 @@ export function PharmacyAdviceStatisticsPage() {
                     className="h-9"
                     onClick={() => setSoapSearch('')}
                   >
-                    清除
+                    {t('adviceStats.clear')}
                   </Button>
                 )}
               </div>
 
               {soapLoading ? (
-                <LoadingSpinner text="載入 SOAP 紀錄..." />
+                <LoadingSpinner text={t('adviceStats.loadingSoap')} />
               ) : soapRecords.length > 0 ? (
                 <ScrollArea className="h-[520px] pr-4">
                   <div className="space-y-3">
@@ -1094,7 +1097,7 @@ export function PharmacyAdviceStatisticsPage() {
                             </Badge>
                           </div>
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            {new Date(record.createdAt).toLocaleString('zh-TW', {
+                            {new Date(record.createdAt).toLocaleString(i18n.language, {
                               year: 'numeric',
                               month: '2-digit',
                               day: '2-digit',
@@ -1138,8 +1141,8 @@ export function PharmacyAdviceStatisticsPage() {
               ) : (
                 <EmptyState
                   icon={NotebookPen}
-                  title={`${monthLabel}尚無 SOAP 紀錄`}
-                  description="於藥師 SOAP 編輯器（用藥建議模式）按「儲存並複製貼到 HIS」即會留存"
+                  title={t('adviceStats.noSoapTitle', { label: monthLabel })}
+                  description={t('adviceStats.noSoapDesc')}
                 />
               )}
             </CardContent>
@@ -1152,17 +1155,17 @@ export function PharmacyAdviceStatisticsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit2 className="h-5 w-5 text-brand" />
-              編輯歷史紀錄
+              {t('adviceStats.editDialogTitle')}
             </DialogTitle>
             <DialogDescription>
-              更新後會同步調整這筆介入紀錄；若它是由統計頁或工作站建立，也會同步更新留言板的對應用藥建議。
+              {t('adviceStats.editDialogDesc')}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="grid gap-3 md:grid-cols-3">
               <div className="space-y-1">
-                <label className="text-xs font-medium">建議類別 *</label>
+                <label className="text-xs font-medium">{t('adviceStats.category')} *</label>
                 <Select
                   value={editCategoryKey}
                   onValueChange={(value) => {
@@ -1171,7 +1174,7 @@ export function PharmacyAdviceStatisticsPage() {
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="選擇類別" />
+                    <SelectValue placeholder={t('adviceStats.selectCategory')} />
                   </SelectTrigger>
                   <SelectContent>
                     {Object.entries(PHARMACY_ADVICE_CATEGORIES).map(([key, cat]) => (
@@ -1184,10 +1187,10 @@ export function PharmacyAdviceStatisticsPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-medium">細項 *</label>
+                <label className="text-xs font-medium">{t('adviceStats.subitem')} *</label>
                 <Select value={editCode} onValueChange={setEditCode} disabled={!editSelectedCategory}>
                   <SelectTrigger>
-                    <SelectValue placeholder={editSelectedCategory ? '選擇細項' : '先選類別'} />
+                    <SelectValue placeholder={editSelectedCategory ? t('adviceStats.selectSubitem') : t('adviceStats.pickCategoryFirst')} />
                   </SelectTrigger>
                   <SelectContent>
                     {editSelectedCategory?.codes.map((item) => (
@@ -1200,50 +1203,50 @@ export function PharmacyAdviceStatisticsPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-medium">醫師是否接受</label>
+                <label className="text-xs font-medium">{t('adviceStats.doctorAccept')}</label>
                 <Select value={editAccepted} onValueChange={(value) => setEditAccepted(value as EditAcceptedValue)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="選擇狀態" />
+                    <SelectValue placeholder={t('adviceStats.selectStatus')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pending">未填</SelectItem>
-                    <SelectItem value="yes">接受</SelectItem>
-                    <SelectItem value="no">不接受</SelectItem>
+                    <SelectItem value="pending">{t('adviceStats.statusPending')}</SelectItem>
+                    <SelectItem value="yes">{t('adviceStats.accepted')}</SelectItem>
+                    <SelectItem value="no">{t('adviceStats.rejected')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-medium">紀錄內容 *</label>
+              <label className="text-xs font-medium">{t('adviceStats.recordContent')} *</label>
               <Textarea
                 value={editContent}
                 onChange={(event) => setEditContent(event.target.value)}
                 className="min-h-[140px]"
-                placeholder="輸入藥事介入內容"
+                placeholder={t('adviceStats.recordContentPlaceholder')}
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-medium">連結藥物</label>
+              <label className="text-xs font-medium">{t('adviceStats.linkedDrugs')}</label>
               <Input
                 value={editLinkedMedications}
                 onChange={(event) => setEditLinkedMedications(event.target.value)}
-                placeholder="以逗號分隔，例如 Vancomycin, Gentamicin"
+                placeholder={t('adviceStats.linkedDrugsPlaceholder')}
               />
             </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={closeEditDialog} disabled={savingEdit}>
-              取消
+              {t('adviceStats.cancel')}
             </Button>
             <Button
               onClick={handleSaveEdit}
               disabled={savingEdit || !editSelectedCategory || !editSelectedCodeItem || !editContent.trim()}
             >
               {savingEdit ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit2 className="mr-2 h-4 w-4" />}
-              儲存變更
+              {t('adviceStats.saveChanges')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1257,14 +1260,13 @@ export function PharmacyAdviceStatisticsPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>刪除歷史紀錄</AlertDialogTitle>
+            <AlertDialogTitle>{t('adviceStats.deleteRecord')}</AlertDialogTitle>
             <AlertDialogDescription>
-              這會刪除「{deletingRecord?.adviceCode} {deletingRecord?.adviceLabel}」這筆紀錄。
-              若它是由統計頁或工作站建立，對應的留言板用藥建議也會一併移除。此操作無法復原。
+              {t('adviceStats.deleteDialogDesc', { code: deletingRecord?.adviceCode ?? '', label: deletingRecord?.adviceLabel ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>{t('adviceStats.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700 text-white"
               disabled={deleting}
@@ -1274,7 +1276,7 @@ export function PharmacyAdviceStatisticsPage() {
               }}
             >
               {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-              刪除
+              {t('adviceStats.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

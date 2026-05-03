@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '../../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
 import { adviceCategories } from './types';
+import { useTranslation } from 'react-i18next';
 
 interface AdviceSubmitDialogProps {
   open: boolean;
@@ -25,21 +26,22 @@ export function AdviceSubmitDialog({
   onConfirm,
   onCancel,
 }: AdviceSubmitDialogProps) {
+  const { t } = useTranslation('pharmacy');
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>選擇用藥建議分類</DialogTitle>
+          <DialogTitle>{t('workstation.submitDialog.title')}</DialogTitle>
           <DialogDescription>
-            先選擇大類別，再選擇具體項目
+            {t('workstation.submitDialog.description')}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>步驟 1：選擇大類別</Label>
+            <Label>{t('workstation.submitDialog.step1Label')}</Label>
             <Select value={selectedCategory} onValueChange={onCategoryChange}>
               <SelectTrigger>
-                <SelectValue placeholder="請選擇大類別..." />
+                <SelectValue placeholder={t('workstation.submitDialog.step1Placeholder')} />
               </SelectTrigger>
               <SelectContent>
                 {Object.entries(adviceCategories).map(([key, category]) => (
@@ -53,10 +55,10 @@ export function AdviceSubmitDialog({
 
           {selectedCategory && (
             <div className="space-y-2">
-              <Label>步驟 2：選擇具體分類</Label>
+              <Label>{t('workstation.submitDialog.step2Label')}</Label>
               <Select value={selectedAdviceCode} onValueChange={onAdviceCodeChange}>
                 <SelectTrigger>
-                  <SelectValue placeholder="請選擇具體分類..." />
+                  <SelectValue placeholder={t('workstation.submitDialog.step2Placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {adviceCategories[selectedCategory as keyof typeof adviceCategories].codes.map((item) => (
@@ -75,10 +77,10 @@ export function AdviceSubmitDialog({
             disabled={!selectedAdviceCode}
             className="bg-brand hover:bg-brand-hover"
           >
-            確認送出
+            {t('workstation.submitDialog.confirm')}
           </Button>
           <Button onClick={onCancel} variant="outline">
-            取消
+            {t('workstation.submitDialog.cancel')}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,25 +1,23 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge } from '../../../components/ui/badge';
 import type { DosageResult } from './types';
+import { useTranslation } from 'react-i18next';
 
 interface DosageRecommendationCardProps {
   dose: DosageResult;
   showAdjustmentBadge: boolean;
 }
 
-const statusConfig: Record<DosageResult['status'], { label: string; className: string }> = {
-  calculated: {
-    label: '已計算',
-    className: 'bg-brand text-white',
-  },
-  requires_input: {
-    label: '待補資料',
-    className: 'bg-[#f59e0b] text-white',
-  },
-  service_unavailable: {
-    label: '服務異常',
-    className: 'bg-red-600 text-white',
-  },
+// Color only; labels resolved via t('workstation.doseCard.<status>')
+const statusClassMap: Record<DosageResult['status'], string> = {
+  calculated: 'bg-brand text-white',
+  requires_input: 'bg-[#f59e0b] text-white',
+  service_unavailable: 'bg-red-600 text-white',
+};
+const statusKeyMap: Record<DosageResult['status'], string> = {
+  calculated: 'workstation.doseCard.calculated',
+  requires_input: 'workstation.doseCard.requiresInput',
+  service_unavailable: 'workstation.doseCard.serviceUnavailable',
 };
 
 /** Pure local rate calculation: rate = dosingWeight × dosePerKgHr / concentration */
@@ -32,6 +30,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
   dose,
   showAdjustmentBadge,
 }: DosageRecommendationCardProps) {
+  const { t } = useTranslation('pharmacy');
   const canAdjust = dose.status === 'calculated' && dose.padKey && dose.doseRangeMin != null && dose.doseRangeMax != null && dose.doseRangeMax > dose.doseRangeMin;
 
   const defaultMin = dose.doseRangeMin ?? 0;
@@ -84,7 +83,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
     : dose.status === 'service_unavailable'
       ? 'text-red-700 dark:text-red-300'
       : 'text-amber-700 dark:text-amber-300';
-  const resultBadge = dose.isEquivalentEstimate ? '等效換算' : dose.orderTypeLabel || '連續輸注';
+  const resultBadge = dose.isEquivalentEstimate ? t('workstation.doseCard.equivalentEstimate') : dose.orderTypeLabel || t('workstation.doseCard.continuousInfusion');
   const doseUnitShort = dose.doseUnit?.replace('/kg', '') || '/hr';
 
   const isModified = minDose !== defaultMin || maxDose !== defaultMax || conc !== defaultConc;
@@ -95,20 +94,20 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
         {/* Header */}
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-semibold text-sm sm:text-base">{dose.drugName}</p>
-          <Badge className={statusConfig[dose.status].className}>
-            {statusConfig[dose.status].label}
+          <Badge className={statusClassMap[dose.status]}>
+            {t(statusKeyMap[dose.status])}
           </Badge>
           <Badge variant="outline" className="text-xs border-slate-400 dark:border-slate-600 text-slate-600 dark:text-slate-400">
             {resultBadge}
           </Badge>
           {showAdjustmentBadge && (
             <Badge variant="outline" className="text-xs border-[#f59e0b] text-[#f59e0b]">
-              調
+              {t('workstation.doseCard.adjustBadge')}
             </Badge>
           )}
           {isModified && (
             <Badge variant="outline" className="text-xs border-blue-400 text-blue-600">
-              已調整
+              {t('workstation.doseCard.modifiedBadge')}
             </Badge>
           )}
         </div>
@@ -116,7 +115,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
         {/* Rate range output — primary display */}
         <div className="flex items-center gap-3">
           <div className="flex-1 rounded-lg border border-[#ead7e1] bg-[#fdf6fa] px-4 py-3">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">輸注速率範圍</p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">{t('workstation.doseCard.rateRangeLabel')}</p>
             <p className="text-lg font-bold text-brand">
               {rateMin} ~ {rateMax} <span className="text-sm font-normal">ml/hr</span>
             </p>
@@ -125,7 +124,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
             </p>
           </div>
           <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-center min-w-[80px]">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">體重</p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">{t('workstation.doseCard.weightLabel')}</p>
             <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{dosingWt} kg</p>
             <p className="text-[10px] text-muted-foreground">{dose.weightBasis || 'TBW'}</p>
           </div>
@@ -137,7 +136,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
             {/* Min dose slider */}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">最小劑量 ({dose.doseUnit})</span>
+                <span className="text-muted-foreground">{t('workstation.doseCard.minDoseLabel', { unit: dose.doseUnit })}</span>
                 <span className="font-mono font-medium text-slate-700 dark:text-slate-300">{minDose.toFixed(decimals)}</span>
               </div>
               <input
@@ -158,7 +157,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
             {/* Max dose slider */}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">最大劑量 ({dose.doseUnit})</span>
+                <span className="text-muted-foreground">{t('workstation.doseCard.maxDoseLabel', { unit: dose.doseUnit })}</span>
                 <span className="font-mono font-medium text-slate-700 dark:text-slate-300">{maxDose.toFixed(decimals)}</span>
               </div>
               <input
@@ -179,7 +178,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
             {/* Concentration slider */}
             <div className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">濃度 ({dose.concentrationUnit || 'mg/ml'})</span>
+                <span className="text-muted-foreground">{t('workstation.doseCard.concentrationLabel', { unit: dose.concentrationUnit || 'mg/ml' })}</span>
                 <span className="font-mono font-medium text-slate-700 dark:text-slate-300">{conc}</span>
               </div>
               {(() => {
@@ -199,7 +198,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
                     />
                     <div className="flex justify-between text-[10px] text-muted-foreground">
                       <span>{concMin}</span>
-                      <span>預設 {defaultConc}</span>
+                      <span>{t('workstation.doseCard.defaultPrefix', { value: defaultConc })}</span>
                       <span>{concMax}</span>
                     </div>
                   </>
@@ -214,7 +213,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
                 onClick={() => { setMinDose(defaultMin); setMaxDose(defaultMax); setConc(defaultConc); }}
                 className="text-xs text-brand hover:underline"
               >
-                重設為預設值
+                {t('workstation.doseCard.resetDefaults')}
               </button>
             )}
           </div>
@@ -223,12 +222,12 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
         {/* Calculation details */}
         {dose.weightBasis && dose.dosingWeightKg && (
           <p className="text-xs text-muted-foreground">
-            體重基準：{dose.weightBasis}（{dose.dosingWeightKg} kg）
+            {t('workstation.doseCard.weightBasis', { basis: dose.weightBasis, weight: dose.dosingWeightKg })}
           </p>
         )}
         {dose.calculationSteps && dose.calculationSteps.length > 0 && (
           <details className="text-xs text-muted-foreground">
-            <summary className="cursor-pointer hover:text-slate-600">計算步驟</summary>
+            <summary className="cursor-pointer hover:text-slate-600">{t('workstation.doseCard.stepsToggle')}</summary>
             <ol className="mt-1 ml-4 list-decimal space-y-0.5">
               {dose.calculationSteps.map((step, i) => <li key={i}>{step}</li>)}
             </ol>

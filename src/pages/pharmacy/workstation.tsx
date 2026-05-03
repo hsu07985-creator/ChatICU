@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Patient as ApiPatient } from '../../lib/api/patients';
 import {
   getCachedPatients,
@@ -66,6 +67,7 @@ function DuplicateCountsBadge({
   counts?: DuplicateSeverityCounts;
   computing?: boolean;
 }) {
+  const { t } = useTranslation('pharmacy');
   // P1-D5 follow-up: when backend is still warming the cache (computing=true),
   // show a neutral "計算中" placeholder so the UI doesn't render "0 critical"
   // (a misleading clean bill of health) on a fresh patient that may actually
@@ -74,9 +76,9 @@ function DuplicateCountsBadge({
     return (
       <span
         className="inline-flex items-center gap-1 text-[10px] leading-none rounded-full bg-slate-100 text-slate-600 px-1.5 py-0.5 font-medium"
-        aria-label="重複用藥計算中"
+        aria-label={t('workstation.duplicateBadge.computing')}
       >
-        ⏳ 計算中
+        ⏳ {t('workstation.assess.computing')}
       </span>
     );
   }
@@ -84,7 +86,7 @@ function DuplicateCountsBadge({
   const { critical, high, moderate, low } = counts;
   if (!critical && !high && !moderate && !low) return null;
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] leading-none" aria-label="重複用藥警示">
+    <span className="inline-flex items-center gap-1 text-[10px] leading-none" aria-label={t('workstation.duplicateBadge.warning')}>
       {critical > 0 && (
         <span className="rounded-full bg-red-100 text-red-700 px-1.5 py-0.5 font-medium">
           🔴 {critical}
@@ -110,6 +112,7 @@ function DuplicateCountsBadge({
 }
 
 export function PharmacyWorkstationPage() {
+  const { t } = useTranslation('pharmacy');
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -124,7 +127,7 @@ export function PharmacyWorkstationPage() {
     let cancelled = false;
     getCachedPatients()
       .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
-      .catch(() => { if (!cancelled) { setPatientsError('無法載入病患列表'); setPatientsLoading(false); } });
+      .catch(() => { if (!cancelled) { setPatientsError(t('workstation.patientSelect.loadError')); setPatientsLoading(false); } });
     return () => { cancelled = true; };
   }, []);
 
@@ -239,13 +242,13 @@ export function PharmacyWorkstationPage() {
           setDrugAtcByName(atcMap);
         }
       } catch (err) {
-        console.error('載入病患用藥醫囑失敗，改用摘要 SAN 清單:', err);
+        console.error(`${t('workstation.drugList.loadOrdersErrorLog')}:`, err);
         const sedation = selectedPatient.sedation || selectedPatient.sanSummary?.sedation || [];
         const analgesia = selectedPatient.analgesia || selectedPatient.sanSummary?.analgesia || [];
         const nmb = selectedPatient.nmb || selectedPatient.sanSummary?.nmb || [];
         const patientMeds = [...sedation, ...analgesia, ...nmb].filter(Boolean);
         if (!cancelled) setDrugList(patientMeds);
-        toast.message('無法載入用藥醫囑，已改用病患摘要用藥清單');
+        toast.message(t('workstation.drugList.ordersFallback'));
       } finally {
         if (!cancelled) {
           setAssessmentResults(null);
@@ -274,12 +277,12 @@ export function PharmacyWorkstationPage() {
 
   const handleComprehensiveAssessment = async () => {
     if (drugList.length === 0) {
-      toast.error('請至少新增一個藥品');
+      toast.error(t('workstation.drugList.addError'));
       return;
     }
 
     if (!selectedPatient) {
-      toast.error('請先選擇病患');
+      toast.error(t('workstation.drugList.needPatient'));
       return;
     }
 
@@ -399,7 +402,7 @@ export function PharmacyWorkstationPage() {
                   pubmedIds: it.pubmedIds || [],
                 }));
             } catch (fallbackErr) {
-              console.error('本地交互作用資料庫查詢失敗:', fallbackErr);
+              console.error(`${t('workstation.assess.ddiLogFail')}:`, fallbackErr);
               return [];
             }
           }
@@ -444,7 +447,7 @@ export function PharmacyWorkstationPage() {
               }));
             });
           } catch (err) {
-            console.warn('批次相容性查詢失敗:', err);
+            console.warn(`${t('workstation.assess.compatLogFail')}:`, err);
             failedCount = limitedPairs.length;
             pairResults = limitedPairs.map(() => []);
           }
@@ -501,7 +504,7 @@ export function PharmacyWorkstationPage() {
           try {
             padDrugCatalog = await getCachedPadDrugs();
           } catch {
-            console.warn('無法取得 PAD 藥物目錄，使用本地已知清單');
+            console.warn(t('workstation.assess.padCatalogWarn'));
             padDrugCatalog = KNOWN_PAD_KEYS.map(key => ({
               key,
               label: key.charAt(0).toUpperCase() + key.slice(1),
@@ -549,12 +552,12 @@ export function PharmacyWorkstationPage() {
               if (!patientWeight || patientWeight <= 0) {
                 return {
                   drugName: padInfo.label || drug,
-                  normalDose: '—', adjustedDose: '需要體重資料',
+                  normalDose: '—', adjustedDose: t('workstation.assess.noBody'),
                   renalAdjustment: '', hepaticWarning: '',
-                  warnings: ['缺少體重資料，無法計算'],
+                  warnings: [t('workstation.assess.noBodyMissing')],
                   calculationSteps: [],
                   status: 'requires_input' as DosageResult['status'],
-                  clinicalSummary: '需要體重資料才能計算',
+                  clinicalSummary: t('workstation.assess.noBodySummary'),
                   calculatedRate: '—',
                 };
               }
@@ -600,10 +603,10 @@ export function PharmacyWorkstationPage() {
                   status: 'calculated' as DosageResult['status'],
                   clinicalSummary: `${res.weight_basis} ${res.dosing_weight_kg}kg → ${rateStr}`,
                   supportingNote: res.steps.length > 1 ? res.steps.slice(1).join('；') : undefined,
-                  targetDose: doseStr, targetDoseTitle: '每小時劑量',
-                  calculatedRate: rateStr, calculatedRateTitle: '輸注速率',
+                  targetDose: doseStr, targetDoseTitle: t('workstation.assess.perHour'),
+                  calculatedRate: rateStr, calculatedRateTitle: t('workstation.assess.rateLabel'),
                   orderSummary: `${padInfo.label} ${rateStr}`,
-                  orderTypeLabel: '連續輸注',
+                  orderTypeLabel: t('workstation.assess.continuousInfusion'),
                   isEquivalentEstimate: false,
                   padKey: padInfo.key,
                   doseRangeMin: rangeMin,
@@ -625,11 +628,11 @@ export function PharmacyWorkstationPage() {
               } catch {
                 return {
                   drugName: padInfo.label || drug,
-                  normalDose: '—', adjustedDose: 'PAD 計算失敗',
+                  normalDose: '—', adjustedDose: t('workstation.assess.padCalcFail'),
                   renalAdjustment: '', hepaticWarning: '',
                   warnings: [], calculationSteps: [],
                   status: 'service_unavailable' as DosageResult['status'],
-                  clinicalSummary: 'PAD 計算失敗',
+                  clinicalSummary: t('workstation.assess.padCalcFail'),
                   calculatedRate: '—',
                 };
               }
@@ -646,7 +649,7 @@ export function PharmacyWorkstationPage() {
             const res = await getMedicationDuplicates(selectedPatient.id);
             return { alerts: res.alerts || [], queryFailed: false };
           } catch (err) {
-            console.warn('重複用藥偵測失敗:', err);
+            console.warn(`${t('workstation.assess.duplicateLogFail')}:`, err);
             return { alerts: [], queryFailed: true };
           }
         })(),
@@ -667,46 +670,46 @@ export function PharmacyWorkstationPage() {
       const adviceRecommendations: string[] = [];
       if (duplicateSummary.critical + duplicateSummary.high > 0) {
         adviceRecommendations.push(
-          `發現 ${duplicateSummary.critical + duplicateSummary.high} 項高風險重複用藥，建議優先複核並減量／停藥。`
+          t('workstation.assess.advice.duplicateHighRisk', { count: duplicateSummary.critical + duplicateSummary.high })
         );
       } else if (duplicateSummary.total > 0) {
         adviceRecommendations.push(
-          `發現 ${duplicateSummary.total} 項重複用藥提示，建議檢視是否需要簡化處方。`
+          t('workstation.assess.advice.duplicateGeneral', { count: duplicateSummary.total })
         );
       }
       if (duplicateSummary.queryFailed) {
-        adviceRecommendations.push('重複用藥偵測查詢失敗，結果可能不完整。');
+        adviceRecommendations.push(t('workstation.assess.advice.duplicateError'));
       }
       if (interactions.length > 0) {
         const high = interactions.filter(i => i.severity === 'high').length;
         adviceRecommendations.push(
           high > 0
-            ? `發現 ${high} 項高風險交互作用，建議優先處理並加強監測。`
-            : `發現 ${interactions.length} 項交互作用，建議依嚴重度調整處置與監測。`
+            ? t('workstation.assess.advice.interactionHigh', { count: high })
+            : t('workstation.assess.advice.interactionGeneral', { count: interactions.length })
         );
       }
       const incompatible = compatibility.filter(c => !c.compatible).length;
       if (incompatible > 0) {
-        adviceRecommendations.push(`發現 ${incompatible} 組不相容組合，建議分管路或避免同路輸注。`);
+        adviceRecommendations.push(t('workstation.assess.advice.incompatible', { count: incompatible }));
       }
       if (compatibilitySummary.queryFailed > 0) {
-        adviceRecommendations.push(`${compatibilitySummary.queryFailed}/${compatibilitySummary.pairsChecked} 組相容性查詢失敗，結果可能不完整。`);
+        adviceRecommendations.push(t('workstation.assess.advice.compatibilityFail', { failed: compatibilitySummary.queryFailed, total: compatibilitySummary.pairsChecked }));
       }
       if (typeof extendedData?.egfr === 'number' && extendedData.egfr < 60) {
-        adviceRecommendations.push(`腎功能 eGFR ${extendedData.egfr}，建議檢視需腎調整藥物與監測。`);
+        adviceRecommendations.push(t('workstation.assess.advice.egfrLow', { value: extendedData.egfr }));
       }
       if (extendedData?.hepaticFunction && extendedData.hepaticFunction !== 'normal') {
-        adviceRecommendations.push('肝功能異常，建議檢視需肝代謝調整藥物並監測肝功能。');
+        adviceRecommendations.push(t('workstation.assess.advice.renalAbn'));
       }
       if (dosage.some(d => d.status === 'service_unavailable')) {
-        adviceRecommendations.push('部分 PAD 藥物劑量計算失敗，建議至劑量計算頁面手動操作。');
+        adviceRecommendations.push(t('workstation.assess.advice.padFail'));
       }
       if (dosage.some(d => d.status === 'requires_input')) {
-        adviceRecommendations.push('部分 PAD 藥物缺少體重資料，無法自動計算。');
+        adviceRecommendations.push(t('workstation.assess.advice.padNeedWeight'));
       }
       const calculatedDosage = dosage.filter(d => d.status === 'calculated');
       if (calculatedDosage.length > 0) {
-        adviceRecommendations.push(`已計算 ${calculatedDosage.length} 項 PAD 藥物輸注速率，可拖曳滑桿調整目標劑量。`);
+        adviceRecommendations.push(t('workstation.assess.advice.padCalculatedWith', { count: calculatedDosage.length }));
       }
 
       setAssessmentResults({
@@ -720,7 +723,7 @@ export function PharmacyWorkstationPage() {
         compatibilityPairsChecked: limitedPairsCount,
       });
 
-      toast.success('評估完成');
+      toast.success(t('workstation.assess.complete'));
     } finally {
       setIsAssessing(false);
     }
@@ -729,65 +732,65 @@ export function PharmacyWorkstationPage() {
   // 產生用藥建議報告
   const handleGenerateAdvice = () => {
     if (!assessmentResults) {
-      toast.error('請先執行全面評估');
+      toast.error(t('workstation.assess.needFirst'));
       return;
     }
 
-    let report = `【用藥建議報告】\n\n`;
-    report += `病患：${maskPatientName(selectedPatient?.name)} (${selectedPatient?.bedNumber})\n`;
-    report += `日期：${new Date().toLocaleString('zh-TW')}\n`;
-    report += `藥師：${user?.name}\n\n`;
+    let report = `${t('workstation.report.header')}\n\n`;
+    report += `${t('workstation.report.patientLine', { name: maskPatientName(selectedPatient?.name), bed: selectedPatient?.bedNumber })}\n`;
+    report += `${t('workstation.report.dateLine', { date: new Date().toLocaleString('zh-TW') })}\n`;
+    report += `${t('workstation.report.pharmacistLine', { name: user?.name })}\n\n`;
     
-    report += `【評估藥品】\n${drugList.join('、')}\n\n`;
+    report += `${t('workstation.report.drugsHeader')}\n${drugList.join('、')}\n\n`;
 
     if (assessmentResults.duplicates.length > 0) {
       const levelLabel: Record<string, string> = {
-        critical: '嚴重',
-        high: '高',
-        moderate: '中',
-        low: '低',
-        info: '提示',
+        critical: t('workstation.assess.duplicateLevels.critical'),
+        high: t('workstation.assess.duplicateLevels.high'),
+        moderate: t('workstation.assess.duplicateLevels.moderate'),
+        low: t('workstation.assess.duplicateLevels.low'),
+        info: t('workstation.assess.duplicateLevels.info'),
       };
-      report += `【重複用藥】\n`;
+      report += `${t('workstation.report.duplicateHeader')}\n`;
       assessmentResults.duplicates.forEach((dup, idx) => {
         const drugs = dup.members.map(m => m.genericName).join(' + ');
         report += `${idx + 1}. [${levelLabel[dup.level] ?? dup.level}/${dup.layer}] ${drugs}\n`;
-        report += `   機轉：${dup.mechanism}\n`;
-        if (dup.recommendation) report += `   建議：${dup.recommendation}\n`;
+        report += `   ${t('workstation.report.mechanism', { value: dup.mechanism })}\n`;
+        if (dup.recommendation) report += `   ${t('workstation.report.recommendation', { value: dup.recommendation })}\n`;
         report += '\n';
       });
     }
 
     if (assessmentResults.interactions.length > 0) {
-      report += `【藥物交互作用】\n`;
+      report += `${t('workstation.report.ddiHeader')}\n`;
       assessmentResults.interactions.forEach((int, idx) => {
-        report += `${idx + 1}. ${int.drugA} + ${int.drugB} (嚴重度: ${int.severity})\n`;
+        report += `${idx + 1}. ${int.drugA} + ${int.drugB} (${t('workstation.report.ddiSeverity', { value: int.severity })})\n`;
         report += `   ${int.description}\n`;
-        report += `   處理: ${int.management}\n\n`;
+        report += `   ${t('workstation.report.ddiManagement', { value: int.management })}\n\n`;
       });
     }
 
     if (assessmentResults.compatibility.some(c => !c.compatible)) {
-      report += `【相容性警示】\n`;
+      report += `${t('workstation.report.compatibilityHeader')}\n`;
       assessmentResults.compatibility.filter(c => !c.compatible).forEach((comp, idx) => {
-        report += `${idx + 1}. ${comp.drugA} + ${comp.drugB}: 不相容\n`;
-        report += `   注意: ${comp.notes}\n\n`;
+        report += `${idx + 1}. ${comp.drugA} + ${comp.drugB}: ${t('workstation.report.compatibilityIncompatible')}\n`;
+        report += `   ${t('workstation.report.compatibilityNote', { value: comp.notes })}\n\n`;
       });
     }
 
     if (typeof extendedData?.egfr === 'number' && extendedData.egfr < 60) {
-      report += `【劑量調整建議】\n`;
-      report += `腎功能 eGFR ${extendedData.egfr} ml/min，建議調整劑量\n\n`;
+      report += `${t('workstation.report.doseAdjustHeader')}\n`;
+      report += `${t('workstation.report.renalAdjustment', { value: extendedData.egfr })}\n\n`;
     }
 
-    report += `【綜合建議】\n`;
+    report += `${t('workstation.report.summaryHeader')}\n`;
     assessmentResults.adviceRecommendations.forEach((rec, idx) => {
       report += `${idx + 1}. ${rec}\n`;
     });
 
     setAdviceContent(report);
     setViewMode('report');
-    toast.success('用藥建議報告已產生');
+    toast.success(t('workstation.report.generated'));
   };
 
   // AI 修飾用藥建議
@@ -801,9 +804,9 @@ export function PharmacyWorkstationPage() {
         polishType: 'medication_advice',
       });
       setAdviceContent(result.polished);
-      toast.success('AI 修飾完成');
+      toast.success(t('workstation.advice.polishSuccess'));
     } catch {
-      toast.error('AI 修飾失敗，請稍後再試');
+      toast.error(t('workstation.advice.polishError'));
     } finally {
       setIsPolishingAdvice(false);
     }
@@ -812,7 +815,7 @@ export function PharmacyWorkstationPage() {
   // 儲存用藥建議
   const handleSaveAdvice = () => {
     if (!adviceContent.trim()) {
-      toast.error('請先產生或輸入用藥建議內容');
+      toast.error(t('workstation.advice.needContent'));
       return;
     }
 
@@ -823,15 +826,15 @@ export function PharmacyWorkstationPage() {
   // 確認送出用藥建議
   const handleConfirmSubmit = async () => {
     if (!selectedPatient) {
-      toast.error('請先選擇病患');
+      toast.error(t('workstation.advice.needPatient'));
       return;
     }
     if (!adviceContent.trim()) {
-      toast.error('請先產生或輸入用藥建議內容');
+      toast.error(t('workstation.advice.needContent'));
       return;
     }
     if (!selectedAdviceCode || !selectedCategory) {
-      toast.error('請選擇用藥建議分類');
+      toast.error(t('workstation.advice.needCategory'));
       return;
     }
 
@@ -839,7 +842,7 @@ export function PharmacyWorkstationPage() {
     const categoryInfo = adviceCategories[selectedCategory as keyof typeof adviceCategories];
     const codeInfo = categoryInfo.codes.find(c => c.code === selectedAdviceCode);
     if (!codeInfo) {
-      toast.error('建議代碼無效，請重新選擇');
+      toast.error(t('workstation.advice.invalidCode'));
       return;
     }
 
@@ -852,14 +855,14 @@ export function PharmacyWorkstationPage() {
         content: adviceContent.trim(),
         linkedMedications: drugList,
       });
-      toast.success(`用藥建議已送出並同步至留言板（分類：${codeInfo.label}）`);
+      toast.success(t('workstation.advice.submittedToBoardWith', { label: codeInfo.label }));
       setAdviceContent('');
       setShowSubmitDialog(false);
       setSelectedCategory('');
       setSelectedAdviceCode('');
     } catch (err) {
-      console.error('送出用藥建議失敗:', err);
-      toast.error('送出失敗，請稍後再試');
+      console.error(`${t('workstation.advice.submitErrorLog')}:`, err);
+      toast.error(t('workstation.advice.submitError'));
     }
   };
 
@@ -870,18 +873,18 @@ export function PharmacyWorkstationPage() {
 
   const assessReady = !!selectedPatient && drugList.length > 0 && !isAssessing;
   const assessHint = !selectedPatient
-    ? '請先選擇病患'
+    ? t('workstation.assessHint.needPatient')
     : drugList.length === 0
-      ? '請先加入至少一項藥品'
-      : '一鍵檢查 劑量計算、用藥交互、重複用藥、用藥相容性與用藥建議';
+      ? t('workstation.assessHint.needDrug')
+      : t('workstation.assessHint.ready');
 
   return (
     <div className="p-6 space-y-4">
       {/* 標題 */}
       <div>
-        <h1 className="text-2xl font-bold">藥師工作站</h1>
+        <h1 className="text-2xl font-bold">{t('workstation.header.title')}</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          選擇病患、管理用藥、執行全面評估並產生用藥建議
+          {t('workstation.header.subtitle')}
         </p>
       </div>
 
@@ -897,20 +900,20 @@ export function PharmacyWorkstationPage() {
             <CardHeader className="bg-slate-50 dark:bg-slate-800 py-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <User className="h-5 w-5 text-brand" />
-                選擇病患
+                {t('workstation.patientSelect.title')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 pt-4">
               <Select value={selectedPatientId} onValueChange={setSelectedPatientId} disabled={patientsLoading}>
                 <SelectTrigger>
-                  <SelectValue placeholder={patientsLoading ? '載入病患列表中...' : patientsError ? '載入失敗' : '請選擇病患...'} />
+                  <SelectValue placeholder={patientsLoading ? t('workstation.patientSelect.loading') : patientsError ? t('workstation.patientSelect.loadFail') : t('workstation.patientSelect.placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {patients.map(patient => (
                     <SelectItem key={patient.id} value={patient.id}>
                       <span className="inline-flex items-center gap-2 w-full">
                         <span>
-                          {patient.bedNumber} - {maskPatientName(patient.name)} ({patient.age}歲)
+                          {patient.bedNumber} - {maskPatientName(patient.name)} ({t('workstation.patientSelect.labels.ageWithSuffix', { age: patient.age })})
                         </span>
                         <DuplicateCountsBadge
                           counts={duplicateSummary?.counts?.[patient.id]}
@@ -921,7 +924,7 @@ export function PharmacyWorkstationPage() {
                   ))}
                   {!patientsLoading && patients.length === 0 && (
                     <div className="p-2 text-sm text-muted-foreground text-center">
-                      {patientsError || '尚無病患資料'}
+                      {patientsError || t('workstation.patientSelect.empty')}
                     </div>
                   )}
                 </SelectContent>
@@ -932,11 +935,11 @@ export function PharmacyWorkstationPage() {
                   <Separator />
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
-                      <p className="text-muted-foreground text-xs">床號</p>
+                      <p className="text-muted-foreground text-xs">{t('workstation.patientSelect.labels.bed')}</p>
                       <p className="font-semibold">{selectedPatient.bedNumber}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground text-xs">姓名</p>
+                      <p className="text-muted-foreground text-xs">{t('workstation.patientSelect.labels.name')}</p>
                       <p className="font-semibold flex items-center gap-2">
                         {maskPatientName(selectedPatient.name)}
                         <DuplicateCountsBadge
@@ -946,13 +949,13 @@ export function PharmacyWorkstationPage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground text-xs">年齡/身高/體重</p>
+                      <p className="text-muted-foreground text-xs">{t('workstation.patientSelect.labels.ageHeightWeight')}</p>
                       <p className="font-semibold">
-                        {selectedPatient.age}歲 / {typeof extendedData.height === 'number' ? `${extendedData.height}cm` : 'N/A'} / {typeof extendedData.weight === 'number' ? `${extendedData.weight}kg` : 'N/A'}
+                        {t('workstation.patientSelect.labels.ageWithSuffix', { age: selectedPatient.age })} / {typeof extendedData.height === 'number' ? `${extendedData.height}cm` : 'N/A'} / {typeof extendedData.weight === 'number' ? `${extendedData.weight}kg` : 'N/A'}
                       </p>
                     </div>
                     <div className="col-span-2">
-                      <p className="text-muted-foreground text-xs">診斷</p>
+                      <p className="text-muted-foreground text-xs">{t('workstation.patientSelect.labels.diagnosis')}</p>
                       <p className="font-semibold text-sm">{selectedPatient.diagnosis}</p>
                     </div>
                   </div>
@@ -968,19 +971,19 @@ export function PharmacyWorkstationPage() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Pill className="h-5 w-5 text-brand" />
-                    用藥列表
+                    {t('workstation.drugList.title')}
                   </CardTitle>
                   <Badge className="bg-brand">
-                    {drugList.length} 項
+                    {t('workstation.drugList.countSuffix', { count: drugList.length })}
                   </Badge>
                 </div>
-                <CardDescription className="text-xs">已自動載入病患目前用藥</CardDescription>
+                <CardDescription className="text-xs">{t('workstation.drugList.subtitle')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 pt-4">
                 {/* 新增藥品 */}
                 <div className="flex gap-2">
                   <Input
-                    placeholder="輸入藥品名稱..."
+                    placeholder={t('workstation.drugList.addPlaceholder')}
                     value={currentDrug}
                     onChange={(e) => setCurrentDrug(e.target.value)}
                     onKeyDown={(e) => {
@@ -1027,7 +1030,7 @@ export function PharmacyWorkstationPage() {
                   <Alert className="py-2">
                     <Info className="h-4 w-4" />
                     <AlertDescription className="text-sm">
-                      尚未新增任何藥品
+                      {t('workstation.drugList.empty')}
                     </AlertDescription>
                   </Alert>
                 )}

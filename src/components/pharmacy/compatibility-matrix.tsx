@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 export type CompatStatus = 'C' | 'I' | '-' | '?';
 
 export interface CompatibilityCell {
@@ -15,27 +16,29 @@ export interface CompatibilityMatrixProps {
   maxNameLength?: number;
 }
 
-const STATUS_CONFIG: Record<CompatStatus, { label: string; short: string; color: string; bg: string }> = {
-  C: { label: '相容 (Compatible)',     short: 'C', color: 'text-green-700 dark:text-green-300', bg: 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700' },
-  I: { label: '不相容 (Incompatible)', short: 'I', color: 'text-red-700 dark:text-red-300',     bg: 'bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700' },
-  '-': { label: '無配對資料',          short: '-', color: 'text-gray-500 dark:text-gray-400',  bg: 'bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700' },
-  '?': { label: '查詢中',              short: '?', color: 'text-gray-400 dark:text-gray-500',  bg: 'bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700' },
+// Color/short only — labels resolved via t('matrix.status.<key>')
+const STATUS_CONFIG: Record<CompatStatus, { labelKey: string; short: string; color: string; bg: string }> = {
+  C: { labelKey: 'matrix.status.compatibleLabel',   short: 'C', color: 'text-green-700 dark:text-green-300', bg: 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700' },
+  I: { labelKey: 'matrix.status.incompatibleLabel', short: 'I', color: 'text-red-700 dark:text-red-300',     bg: 'bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700' },
+  '-': { labelKey: 'matrix.status.noPair',          short: '-', color: 'text-gray-500 dark:text-gray-400',  bg: 'bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700' },
+  '?': { labelKey: 'matrix.status.querying',        short: '?', color: 'text-gray-400 dark:text-gray-500',  bg: 'bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700' },
 };
 
 export function CompatibilityMatrixLegend() {
+  const { t } = useTranslation('pharmacy');
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
       <span className="inline-flex items-center gap-1">
         <span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-700">C</span>
-        相容
+        {t('matrix.legend.compatible')}
       </span>
       <span className="inline-flex items-center gap-1">
         <span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700">I</span>
-        不相容
+        {t('matrix.legend.incompatible')}
       </span>
       <span className="inline-flex items-center gap-1">
         <span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-slate-700">-</span>
-        無配對資料
+        {t('matrix.legend.noPair')}
       </span>
     </div>
   );
@@ -47,6 +50,7 @@ export function CompatibilityMatrix({
   extendedSet,
   maxNameLength = 12,
 }: CompatibilityMatrixProps) {
+  const { t } = useTranslation('pharmacy');
   if (drugs.length < 2) return null;
 
   const truncate = (s: string) => (s.length > maxNameLength ? s.slice(0, maxNameLength - 2) + '…' : s);
@@ -62,11 +66,11 @@ export function CompatibilityMatrix({
               <th
                 key={d}
                 className="px-2 py-1.5 text-center font-medium text-xs whitespace-nowrap max-w-[110px]"
-                title={isExtended(d) ? `${d}（非 Y-Site 來源，無配對資料）` : d}
+                title={isExtended(d) ? t('matrix.noYsiteDetailed', { name: d }) : d}
               >
                 <span className="truncate block">{truncate(d)}</span>
                 {isExtended(d) && (
-                  <span className="block text-[10px] text-amber-500 dark:text-amber-400 font-normal leading-tight">無 Y-Site</span>
+                  <span className="block text-[10px] text-amber-500 dark:text-amber-400 font-normal leading-tight">{t('matrix.noYsite')}</span>
                 )}
               </th>
             ))}
@@ -77,11 +81,11 @@ export function CompatibilityMatrix({
             <tr key={rowDrug}>
               <td
                 className="px-2 py-1.5 font-medium text-xs whitespace-nowrap sticky left-0 bg-background z-10 border-r max-w-[110px]"
-                title={isExtended(rowDrug) ? `${rowDrug}（非 Y-Site 來源）` : rowDrug}
+                title={isExtended(rowDrug) ? t('matrix.noYsiteSimple', { name: rowDrug }) : rowDrug}
               >
                 <span className="truncate block">{truncate(rowDrug)}</span>
                 {isExtended(rowDrug) && (
-                  <span className="block text-[10px] text-amber-500 dark:text-amber-400 font-normal leading-tight">無 Y-Site</span>
+                  <span className="block text-[10px] text-amber-500 dark:text-amber-400 font-normal leading-tight">{t('matrix.noYsite')}</span>
                 )}
               </td>
               {drugs.map((colDrug, ci) => {
@@ -94,7 +98,7 @@ export function CompatibilityMatrix({
                   <td
                     key={colDrug}
                     className={`px-2 py-1.5 text-center border ${cfg.bg} cursor-default`}
-                    title={`${rowDrug} + ${colDrug}: ${cfg.label}${cell.notes ? ` (${cell.notes})` : ''}`}
+                    title={`${rowDrug} + ${colDrug}: ${t(cfg.labelKey)}${cell.notes ? ` (${cell.notes})` : ''}`}
                   >
                     <span className={`font-bold text-xs ${cfg.color}`}>{cfg.short}</span>
                   </td>
