@@ -7,18 +7,22 @@ from sqlalchemy import select
 
 from app.models.audit_log import AuditLog
 from app.models.culture_result import CultureResult
+from app.models.diagnostic_report import DiagnosticReport
 from app.models.medication import Medication
 from app.models.pharmacy_advice import PharmacyAdvice
 from app.models.user import User
 from app.services.ai_question_prefetch import (
     build_question_prefetch_context,
     format_culture_context,
+    format_diagnostic_reports_context,
     format_medication_changes_context,
     format_pharmacy_advice_context,
     get_recent_cultures,
+    get_recent_diagnostic_reports,
     get_recent_medication_changes,
     search_pharmacy_advice_history,
     should_prefetch_cultures,
+    should_prefetch_diagnostic_reports,
     should_prefetch_medication_changes,
     should_prefetch_pharmacy_advice,
 )
@@ -43,6 +47,13 @@ def test_should_prefetch_pharmacy_advice_for_history_questions():
     assert should_prefetch_pharmacy_advice("哪裡可以看我的藥師建議歷史紀錄？")
     assert should_prefetch_pharmacy_advice("Any pharmacy advice history?")
     assert not should_prefetch_pharmacy_advice("今天 K 和 Cr 多少？")
+
+
+def test_should_prefetch_diagnostic_reports_for_report_questions():
+    assert should_prefetch_diagnostic_reports("請看最近 CT report")
+    assert should_prefetch_diagnostic_reports("胸片報告有沒有肺炎？")
+    assert should_prefetch_diagnostic_reports("完整報告內容是什麼？")
+    assert not should_prefetch_diagnostic_reports("今天 K 和 Cr 多少？")
 
 
 def _user(role: str = "pharmacist", user_id: str = "usr_test") -> User:
@@ -160,6 +171,26 @@ def test_format_pharmacy_advice_context_masks_patient_and_links_back():
     assert "/pharmacy/advice-statistics" in text
 
 
+def test_format_diagnostic_reports_context_truncates_body_text():
+    report = DiagnosticReport(
+        id="diag_unit",
+        patient_id="pat_001",
+        report_type="imaging",
+        exam_name="CT Chest",
+        exam_date=datetime(2026, 5, 3, 4, 0, tzinfo=timezone.utc),
+        impression="Bilateral pneumonia.",
+        body_text="A" * 1300,
+        status="final",
+    )
+
+    text = format_diagnostic_reports_context([report], days=14)
+
+    assert "【診斷/影像報告 最近14天】" in text
+    assert "CT Chest" in text
+    assert "Bilateral pneumonia." in text
+    assert "已截斷" in text
+
+
 @pytest.mark.asyncio
 async def test_get_recent_cultures_filters_to_recent_records(seeded_db):
     recent = CultureResult(
@@ -218,6 +249,35 @@ async def test_get_recent_medication_changes_filters_to_recent_records(seeded_db
     rows = await get_recent_medication_changes(seeded_db, "pat_001", hours=72)
 
     assert [row.id for row in rows] == ["med_recent_change"]
+
+
+@pytest.mark.asyncio
+async def test_get_recent_diagnostic_reports_filters_to_recent_records(seeded_db):
+    recent = DiagnosticReport(
+        id="diag_recent",
+        patient_id="pat_001",
+        report_type="imaging",
+        exam_name="CXR",
+        exam_date=datetime.now(timezone.utc) - timedelta(days=1),
+        body_text="No focal infiltrate.",
+        impression="No pneumonia.",
+        status="final",
+    )
+    old = DiagnosticReport(
+        id="diag_old",
+        patient_id="pat_001",
+        report_type="imaging",
+        exam_name="CT Brain",
+        exam_date=datetime.now(timezone.utc) - timedelta(days=30),
+        body_text="Old report.",
+        status="final",
+    )
+    seeded_db.add_all([recent, old])
+    await seeded_db.commit()
+
+    rows = await get_recent_diagnostic_reports(seeded_db, "pat_001", days=14)
+
+    assert [row.id for row in rows] == ["diag_recent"]
 
 
 @pytest.mark.asyncio
@@ -319,6 +379,21 @@ async def test_build_question_prefetch_context_returns_advice_history_and_audit(
     assert len(logs) == 1
     assert logs[0].ip == "10.1.2.3"
     assert logs[0].details["result_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_build_question_prefetch_context_returns_report_no_data_when_triggered(
+    seeded_db,
+):
+    text = await build_question_prefetch_context(
+        seeded_db,
+        "pat_001",
+        "請列出最近完整報告",
+        user=_user("doctor", "usr_doc"),
+    )
+
+    assert "【診斷/影像報告 最近14天】" in text
+    assert "狀態: no_data" in text
 
 
 @pytest.mark.asyncio

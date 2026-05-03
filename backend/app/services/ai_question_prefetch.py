@@ -22,6 +22,7 @@ except ImportError:  # pragma: no cover - Python <3.9 fallback
 
 from app.middleware.audit import create_audit_log
 from app.models.culture_result import CultureResult
+from app.models.diagnostic_report import DiagnosticReport
 from app.models.medication import Medication
 from app.models.pharmacy_advice import PharmacyAdvice
 from app.models.user import User
@@ -131,6 +132,34 @@ _ADVICE_CROSS_PATIENT_KEYWORDS = (
     "寫過",
 )
 
+_REPORT_INTENT_KEYWORDS = (
+    "diagnostic report",
+    "imaging report",
+    "full report",
+    "report",
+    "imaging",
+    "ct",
+    "cxr",
+    "xray",
+    "x-ray",
+    "mri",
+    "ultrasound",
+    "echo",
+    "ecg",
+    "影像",
+    "報告",
+    "完整報告",
+    "檢查報告",
+    "電腦斷層",
+    "胸片",
+    "胸部x光",
+    "x光",
+    "核磁",
+    "超音波",
+    "心超",
+    "心電圖",
+)
+
 
 def should_prefetch_cultures(message: str) -> bool:
     text = (message or "").lower()
@@ -145,6 +174,11 @@ def should_prefetch_medication_changes(message: str) -> bool:
 def should_prefetch_pharmacy_advice(message: str) -> bool:
     text = (message or "").lower()
     return any(keyword in text for keyword in _ADVICE_INTENT_KEYWORDS)
+
+
+def should_prefetch_diagnostic_reports(message: str) -> bool:
+    text = (message or "").lower()
+    return any(keyword in text for keyword in _REPORT_INTENT_KEYWORDS)
 
 
 def _fmt_dt(value: Any) -> str:
@@ -284,6 +318,7 @@ async def build_question_prefetch_context(
     wants_cultures = should_prefetch_cultures(message)
     wants_med_changes = should_prefetch_medication_changes(message)
     wants_advice = should_prefetch_pharmacy_advice(message)
+    wants_reports = should_prefetch_diagnostic_reports(message)
     if not patient_id and not wants_advice:
         return ""
 
@@ -316,6 +351,21 @@ async def build_question_prefetch_context(
             blocks.append(
                 "【最近72小時用藥變更】\n"
                 "狀態: error（讀取 medications 變更失敗）"
+            )
+
+    if patient_id and wants_reports:
+        try:
+            reports = await get_recent_diagnostic_reports(db, patient_id)
+            blocks.append(format_diagnostic_reports_context(reports))
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "[CHAT][PREFETCH] diagnostic-report prefetch failed patient=%s: %s",
+                patient_id,
+                exc,
+            )
+            blocks.append(
+                "【診斷/影像報告 最近14天】\n"
+                "狀態: error（讀取 diagnostic_reports 失敗）"
             )
 
     if wants_advice:
@@ -496,6 +546,13 @@ def _compact_text(value: Any, limit: int = 160) -> str:
     return text[:limit] + "..."
 
 
+def _compact_report_text(value: Any, limit: int = 1200) -> tuple[str, bool]:
+    text = " ".join(str(value or "").split())
+    if len(text) <= limit:
+        return text, False
+    return text[:limit] + "...", True
+
+
 def _advice_search_terms(message: str) -> List[str]:
     import re as _re
 
@@ -590,4 +647,51 @@ def format_pharmacy_advice_context(
             f"{accepted}{linked_text} | id {record.id}"
         )
         lines.append(f"  內容: {_compact_text(record.content)}")
+    return "\n".join(lines)
+
+
+async def get_recent_diagnostic_reports(
+    db: AsyncSession,
+    patient_id: str,
+    *,
+    days: int = 14,
+    limit: int = 5,
+) -> List[DiagnosticReport]:
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    result = await db.execute(
+        select(DiagnosticReport)
+        .where(
+            DiagnosticReport.patient_id == patient_id,
+            DiagnosticReport.exam_date >= cutoff,
+        )
+        .order_by(desc(DiagnosticReport.exam_date))
+        .limit(limit)
+    )
+    return list(result.scalars().all())
+
+
+def format_diagnostic_reports_context(
+    reports: List[DiagnosticReport],
+    *,
+    days: int = 14,
+) -> str:
+    lines = [f"【診斷/影像報告 最近{days}天】"]
+    if not reports:
+        lines.append(f"狀態: no_data（未查到最近{days}天 diagnostic_reports）")
+        return "\n".join(lines)
+
+    lines.append("狀態: ok（最多顯示 5 筆；body_text 每筆最多 1200 字）")
+    for report in reports[:5]:
+        exam_date = _fmt_dt(getattr(report, "exam_date", None))
+        exam_name = getattr(report, "exam_name", None) or "exam 未列"
+        report_type = getattr(report, "report_type", None) or "type 未列"
+        status = getattr(report, "status", None) or "status 未列"
+        lines.append(f"- {exam_date} | {exam_name} | {report_type} | {status}")
+        impression = _compact_text(getattr(report, "impression", None), limit=500)
+        if impression:
+            lines.append(f"  Impression: {impression}")
+        body, truncated = _compact_report_text(getattr(report, "body_text", None))
+        if body:
+            suffix = "（已截斷）" if truncated else ""
+            lines.append(f"  Body: {body}{suffix}")
     return "\n".join(lines)
