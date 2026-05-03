@@ -12,6 +12,7 @@ import { maskPatientName } from '../lib/utils/patient-name';
 import { getTeamChatMessages, sendTeamChatMessage, postAnnouncement, togglePinMessage, deleteTeamChatMessage, getTeamUsers, markChatVisited, TeamChatMessage, TeamUser } from '../lib/api/team-chat';
 import { chatCache, MSGS_STALE_MS, MENTIONS_STALE_MS } from '../lib/api/team-chat-cache';
 import { roleLabel } from '../lib/utils/user-role';
+import { mentionRegex } from '../lib/utils/mention-parser';
 import { getMyMentions, type MentionGroup } from '../lib/api/messages';
 import { LoadingSpinner } from '../components/ui/state-display';
 import { toast } from 'sonner';
@@ -224,7 +225,7 @@ export function ChatPage() {
     if (!userByName.size) return content;
     const cls = mentionClass ?? 'inline-flex items-center rounded px-1 bg-brand/10 text-brand font-medium';
     const parts: Array<string | { name: string; matched: boolean }> = [];
-    const re = /@([\p{L}\p{N}_-]+)/gu;
+    const re = mentionRegex();
     let last = 0;
     let m: RegExpExecArray | null;
     while ((m = re.exec(content)) !== null) {

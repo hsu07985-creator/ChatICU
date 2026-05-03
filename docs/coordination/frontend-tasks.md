@@ -621,16 +621,17 @@
   - Apply to: `getTeamChatMessages`, `sendTeamChatMessage`, `postAnnouncement`, `togglePinMessage`, `deleteTeamChatMessage`, `getTeamUsers`. (`markChatVisited` and `getChatUnreadCount` already do this — use them as templates.)
 - **References:** F-11
 
-### TC-F07 [TODO] Extract `MENTION_REGEX` into shared util
+### TC-F07 [DONE] Extract `MENTION_REGEX` into shared util
 - **Added by:** team-chat audit (F-19)
 - **Date:** 2026-05-03
+- **Completed:** 2026-05-03 (branch `fix/tc-w1-t7-share-mention-regex`)
 - **Priority:** P2 (drift risk — two copies of the same regex)
 - **Progress tracker:** TC-W1-T7
-- **Files:**
-  - new `src/lib/utils/mention-parser.ts` — export `MENTION_REGEX = /@([\p{L}\p{N}_-]+)/gu` and a small `parseMentions(text): string[]` helper
-  - `src/components/ui/mention-textarea.tsx:16` use shared
-  - `src/pages/chat.tsx:239` use shared
-- **Verification:** `grep -n '@(\\\[' src/` shows only the new file as the source.
+- **Files modified:**
+  - `src/lib/utils/mention-parser.ts` (NEW) — `mentionRegex()` factory (returns a fresh `RegExp` each call to avoid `g`-flag `lastIndex` leakage between callers).
+  - `src/components/ui/mention-textarea.tsx` — drop local `MENTION_REGEX` const; import shared. Inline `lastIndex = 0` reset is no longer needed because each call gets a new instance.
+  - `src/pages/chat.tsx:renderContent` — same import.
+- **Verification:** `grep '@(\p{L}' src/` matches only the shared util file.
 - **References:** F-19
 
 ### TC-F08 [DONE] Force `Asia/Taipei` for chat message timestamps

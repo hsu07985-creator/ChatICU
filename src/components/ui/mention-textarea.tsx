@@ -3,10 +3,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { Textarea } from './textarea';
 import type { TeamUser } from '../../lib/api/team-chat';
 import { ROLE_LABEL } from '../../lib/utils/user-role';
-
-// @<chinese/letter/digit>+ — stops at whitespace or punctuation. \p{L} covers
-// Han characters; \p{N} for digits; underscore + hyphen are common in IDs.
-const MENTION_REGEX = /@([\p{L}\p{N}_-]+)/gu;
+import { mentionRegex } from '../../lib/utils/mention-parser';
 
 export interface MentionTextareaProps {
   value: string;
@@ -55,9 +52,9 @@ export function MentionTextarea({
   useEffect(() => {
     if (!onMentionsChange) return;
     const ids = new Set<string>();
-    MENTION_REGEX.lastIndex = 0;
+    const re = mentionRegex();
     let m: RegExpExecArray | null;
-    while ((m = MENTION_REGEX.exec(value)) !== null) {
+    while ((m = re.exec(value)) !== null) {
       const name = m[1];
       for (const u of users) {
         if (u.name === name) ids.add(u.id);
