@@ -30,6 +30,7 @@ from app.llm import call_llm_stream, TASK_PROMPTS
 from app.middleware.auth import get_current_user
 from app.models.ai_session import AISession, AIMessage
 from app.models.user import User
+from app.services.ai_question_prefetch import build_question_prefetch_context
 from app.services.patient_acl import assert_patient_chat_access
 from app.services.patient_context_builder import (
     build_clinical_snapshot,
@@ -159,6 +160,32 @@ def _maybe_inject_deferred_into_user_message(
         f"{deferred}\n\n"
         f"[使用者提問]\n{user_message}"
     )
+
+
+def _maybe_inject_question_prefetch_into_user_message(
+    user_message: str,
+    prefetch_context: str,
+) -> str:
+    """Attach question-triggered context to the current LLM turn only.
+
+    Like deferred snapshot injection, this must not be persisted into
+    ai_messages and must not mutate the session's system prompt. If deferred
+    context is already wrapped around the question, insert the prefetch block
+    before the final [使用者提問] marker to avoid nested question wrappers.
+    """
+    context = (prefetch_context or "").strip()
+    if not context:
+        return user_message
+
+    block = (
+        "[以下為依本輪問題預取的資料，僅供回答本輪問題使用]\n"
+        f"{context}"
+    )
+    marker = "[使用者提問]\n"
+    if marker in user_message:
+        prefix, question = user_message.rsplit(marker, 1)
+        return f"{prefix.rstrip()}\n\n{block}\n\n{marker}{question}"
+    return f"{block}\n\n{marker}{user_message}"
 
 
 async def _fill_deferred_snapshot_bg(
@@ -576,6 +603,13 @@ async def chat_stream(
     user_message = _maybe_inject_deferred_into_user_message(
         user_message, session.snapshot_metadata
     )
+    if patient_id:
+        prefetch_context = await build_question_prefetch_context(
+            db, patient_id, body.message
+        )
+        user_message = _maybe_inject_question_prefetch_into_user_message(
+            user_message, prefetch_context
+        )
 
     # ── Load recent history ────────────────────────────────────────────────
     messages = await _load_messages(db, session.id, window=_CONTEXT_WINDOW * 2)

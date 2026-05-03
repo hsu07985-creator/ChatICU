@@ -20,6 +20,7 @@ from app.config import settings
 from app.routers.ai_chat import (
     _build_system_prompt,
     _maybe_inject_deferred_into_user_message,
+    _maybe_inject_question_prefetch_into_user_message,
 )
 
 
@@ -146,6 +147,35 @@ def test_inject_when_ready_and_flag_on(monkeypatch):
     assert "[以下為背景補充資料，僅供回答本輪問題使用]" in out
     assert DEFERRED_TEXT in out
     assert "[使用者提問]" in out
+    assert out.rstrip().endswith("K 多少?")
+
+
+def test_question_prefetch_injects_without_persisting_shape():
+    context = "【微生物培養 最近14天】\n狀態: no_data"
+
+    out = _maybe_inject_question_prefetch_into_user_message("抗生素怎麼調？", context)
+
+    assert "[以下為依本輪問題預取的資料，僅供回答本輪問題使用]" in out
+    assert context in out
+    assert "[使用者提問]" in out
+    assert out.rstrip().endswith("抗生素怎麼調？")
+
+
+def test_question_prefetch_merges_after_deferred_without_nested_question():
+    deferred_wrapped = (
+        "[以下為背景補充資料，僅供回答本輪問題使用]\n"
+        f"{DEFERRED_TEXT}\n\n"
+        "[使用者提問]\nK 多少?"
+    )
+    context = "【微生物培養 最近14天】\n狀態: ok"
+
+    out = _maybe_inject_question_prefetch_into_user_message(
+        deferred_wrapped, context
+    )
+
+    assert DEFERRED_TEXT in out
+    assert context in out
+    assert out.count("[使用者提問]") == 1
     assert out.rstrip().endswith("K 多少?")
 
 
