@@ -1,0 +1,128 @@
+# 多語介面（i18n）導入進度
+
+> **配對計畫文件**：[`docs/i18n-rollout-plan-2026-05-04.md`](i18n-rollout-plan-2026-05-04.md)
+> **配對術語表**：[`docs/i18n-medical-glossary.md`](i18n-medical-glossary.md)
+> **負責人**：Chun + Claude
+> **啟動日**：2026-05-04
+> **總進度**：🟢 2 / 8 Waves（W0+W1 合併完成 2026-05-04）
+
+---
+
+## 進度總覽
+
+| Wave | 主題 | 狀態 | PR / Branch | 完成日 |
+|------|------|------|-------------|--------|
+| 0 | 基建 + 切換按鈕 | 🟢 完成 | `feat/i18n-w0-w1` | 2026-05-04 |
+| 1 | sidebar + common + errors + roles + notifications | 🟢 完成 | `feat/i18n-w0-w1` | 2026-05-04 |
+| 2 | login + change-password + dashboard | ⬜ 待開工 | — | — |
+| 3 | 病人模組（patients / discharged / detail / medical records） | ⬜ 待開工 | — | — |
+| 4 | team chat + ai chat | ⬜ 待開工 | — | — |
+| 5 | 藥事 7 頁（workstation + 6 工具） | ⬜ 待開工 | — | — |
+| 6 | admin 4 頁 | ⬜ 待開工 | — | — |
+| 7 | lint 規則 + i18n-guide 文件 + 走查 | ⬜ 待開工 | — | — |
+
+> 狀態圖示：⬜ 待開工　🟡 進行中　🟢 完成　🔴 阻塞
+
+---
+
+## Wave 0 + Wave 1（合併 PR）
+
+**目標**：基建落地 + 側邊欄完全切英文。
+
+### Wave 0｜基建 + 切換按鈕（🟢 完成 2026-05-04）
+
+#### 任務清單
+- [x] `npm install i18next react-i18next i18next-browser-languagedetector`
+- [x] 建立 `src/i18n/config.ts`（i18next init、resources 註冊、fallbackLng）
+- [x] 建立 `src/i18n/index.ts`（re-export `useTranslation`、`i18n` instance）
+- [x] 建立 `src/i18n/use-language.ts`（`useLanguage()` 封裝 setter / toggle）
+- [x] 建立 `src/i18n/locales/zh-TW/` 與 `src/i18n/locales/en-US/` 資料夾
+- [x] `src/main.tsx` import `./i18n/config`（觸發初始化）
+- [x] `src/components/app-sidebar.tsx` footer 加入 `中 / EN` 切換按鈕
+- [x] localStorage key 使用 `chaticu.lang`
+- [x] 預設語言 `zh-TW`、fallback `zh-TW`、不依賴 `navigator.language`
+
+#### 驗收（Wave 0）
+- [x] 切換按鈕在 sidebar 展開、收合、短視窗（橫置手機）三種狀態下都正確顯示
+- [x] TypeScript build 過 (`npm run typecheck` 通過)
+- [ ] 手動瀏覽器驗證（待使用者跑 `npm run dev` 確認）
+
+### Wave 1｜sidebar + common + errors + roles + notifications 字典化（🟢 完成 2026-05-04）
+
+#### 已完成檔案
+- 字典：
+  - `src/i18n/locales/{zh-TW,en-US}/common.json`（actions / status / time × 兩語）
+  - `src/i18n/locales/{zh-TW,en-US}/sidebar.json`（5 groups + 14 items + header + footer + badge）
+  - `src/i18n/locales/{zh-TW,en-US}/errors.json`（boundary 6 keys）
+  - `src/i18n/locales/{zh-TW,en-US}/roles.json`（5 roles）
+  - `src/i18n/locales/{zh-TW,en-US}/notifications.json`（title / summary / labels / empty）
+- 元件改寫：
+  - `src/components/app-sidebar.tsx`（所有字串走 `t()`、加入語言切換按鈕）
+  - `src/components/notification-bell.tsx`（含 `useRelativeFormatter` hook 用 t() 處理時間）
+  - `src/components/error-boundary.tsx`（class component 用 `i18n.t()`、`SectionErrorBoundary` 用 hook）
+  - `src/lib/utils/user-role.ts`（新增 `useRoleLabel()` hook、`roleLabel()` 改用 i18n.t）
+- e2e 同步：
+  - `e2e/t27-extended-journeys.spec.js`（selector 改 regex 相容雙語）
+- 文件：
+  - `docs/i18n-medical-glossary.md`（術語對照表骨架，Wave 1 角色與側邊欄已列入校稿）
+
+#### 驗收（Wave 1）
+- [x] TypeScript build 過 (`npm run typecheck` 通過)
+- [ ] 手動瀏覽器驗證：切到 EN 後 sidebar / 鈴鐺 / error boundary 全英文
+- [ ] 切回中文，文字一致無漏字
+- [ ] EN 模式下無顯示原始 key（待瀏覽器確認 console 無 missingKey 警告）
+- [x] e2e selector 已改 regex
+- [ ] e2e 跑過（選擇性，可待 W2 一起）
+
+#### 已知限制（Wave 1 範圍外，預期）
+- `mention-textarea.tsx` / `patient-activity-panel.tsx` / `chat.tsx` / `admin/placeholder.tsx`
+  使用 `ROLE_LABEL` const，仍顯示中文。將於 Wave 3/4/6 改為 `useRoleLabel()` 後支援切換。
+
+---
+
+## Wave 2-7（待 W0+W1 合併後展開）
+
+各 Wave 任務細節待 W0+W1 落地、踩過第一輪坑後再展開到此文件。先列範圍即可：
+
+### Wave 2｜入口頁
+- 範圍：`login.tsx` / `change-password.tsx` / `dashboard.tsx` / `src/components/dashboard/*`
+- namespace：`auth.json` / `dashboard.json`
+
+### Wave 3｜病人模組（最大宗）
+- 範圍：`patients.tsx` / `discharged-patients.tsx` / `patient-detail.tsx` + `src/components/medical-records.tsx` / `vital-signs-card.tsx` / `lab-data-display.tsx` / `lab-trend-chart.tsx` / `score-trend-chart.tsx` / `src/components/patient/*`
+- namespace：`patients.json` / `patient-detail.json` / `medical-records.json`
+
+### Wave 4｜溝通
+- 範圍：`chat.tsx` / `ai-chat.tsx` / `src/components/ai-chat/*`
+- namespace：`chat.json` / `ai-chat.json`
+
+### Wave 5｜藥事 7 頁
+- 範圍：`src/pages/pharmacy/*` 9 檔 + `src/components/pharmacy/*`
+- namespace：`pharmacy.json`
+
+### Wave 6｜系統管理
+- 範圍：`src/pages/admin/*` 4 檔
+- namespace：`admin.json`
+
+### Wave 7｜收尾
+- 安裝 `eslint-plugin-i18next`，設 `no-literal-string` rule
+- 寫 `docs/frontend/i18n-guide.md`（新增字串該放哪、複數寫法、插值範例）
+- 全站 EN 走查補漏字
+- 校稿後的醫療術語回填字典
+
+---
+
+## 阻塞與決策紀錄
+
+| 日期 | 項目 | 內容 |
+|------|------|------|
+| 2026-05-04 | 計畫拍板 | §10 五題全選 A：純文字 toggle / Claude 初譯 / 只做中英 / W0+W1 合 PR / W7 加 lint |
+| 2026-05-04 | W0+W1 落地 | 基建 + 5 個 namespace + sidebar/notification/error/role 元件遷移完成；typecheck 通過 |
+| 2026-05-04 | namespace 擴充 | 原計畫 4 個 namespace（common/sidebar/errors/roles），W1 額外加 `notifications`（隔離 bell 字串） |
+
+---
+
+## 連結
+- [Plan](i18n-rollout-plan-2026-05-04.md)
+- [Medical Glossary](i18n-medical-glossary.md)（Wave 1 建立）
+- [i18n Guide](frontend/i18n-guide.md)（Wave 7 建立）
