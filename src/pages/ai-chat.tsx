@@ -13,6 +13,7 @@ import {
   Plus,
   Send,
   Sparkles,
+  Square,
   Trash2,
   User,
   X,
@@ -222,6 +223,12 @@ export function AiChatPage() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
+  // W2-T1: AbortController for the in-flight stream so the Send→Stop button
+  // can cancel mid-stream without leaving stale state.
+  const streamAbortRef = useRef<AbortController | null>(null);
+  const stopStream = useCallback(() => {
+    streamAbortRef.current?.abort();
+  }, []);
 
   const refreshSessions = useCallback(async () => {
     try {
@@ -281,6 +288,12 @@ export function AiChatPage() {
   }, []);
 
   const openSession = useCallback(async (session: SessionItem) => {
+    // W2-T2: don't switch session while a stream is in flight — its onMessage
+    // / onComplete callbacks would write into the freshly-loaded session.
+    if (isSending) {
+      toast.error('請先按停止才能切換對話');
+      return;
+    }
     setSelectedSessionId(session.id);
     try {
       const detail = await getChatSession(session.id);
@@ -288,17 +301,25 @@ export function AiChatPage() {
     } catch {
       setChatMessages([]);
     }
-  }, []);
+  }, [isSending]);
 
   const startNewSession = useCallback(() => {
+    if (isSending) {
+      toast.error('請先按停止才能開新對話');
+      return;
+    }
     setSelectedSessionId(undefined);
     setChatMessages([]);
     setChatInput('');
     chatInputRef.current?.focus();
-  }, []);
+  }, [isSending]);
 
   const confirmDelete = useCallback(async () => {
     if (!deleteTargetId) return;
+    if (isSending) {
+      toast.error('請先按停止才能刪除對話');
+      return;
+    }
     setDeleting(true);
     try {
       await deleteChatSession(deleteTargetId);
@@ -314,7 +335,7 @@ export function AiChatPage() {
       setDeleting(false);
       setDeleteTargetId(null);
     }
-  }, [deleteTargetId, refreshSessions, selectedSessionId]);
+  }, [deleteTargetId, isSending, refreshSessions, selectedSessionId]);
 
   const sendMessage = useCallback(async () => {
     if (!chatInput.trim() || isSending) return;
@@ -331,6 +352,11 @@ export function AiChatPage() {
     setChatMessages(messagesWithUser);
     setChatInput('');
     setIsSending(true);
+
+    // W2-T1: arm a new AbortController per send so Stop can cancel it.
+    const abortController = new AbortController();
+    streamAbortRef.current = abortController;
+    let aborted = false;
 
     try {
       setChatMessages([...messagesWithUser, { role: 'assistant', content: '' }]);
@@ -356,6 +382,7 @@ export function AiChatPage() {
           message: userMessage,
           sessionId: selectedSessionId,
           patientId: effectivePatientId,
+          signal: abortController.signal,
           onThinking: (detail) => setThinkingStatus(detail),
           onMessage: (chunk) => {
             if (!chunk) return;
@@ -379,6 +406,26 @@ export function AiChatPage() {
             });
             setThinkingStatus(null);
             resolve(streamResult);
+          },
+          onAbort: () => {
+            // User pressed Stop. Mark the placeholder so they see what they got.
+            aborted = true;
+            if (rafId !== null) cancelAnimationFrame(rafId);
+            const mainContent = extractStreamMainContent(rawBuffer);
+            const annotated = mainContent
+              ? `${mainContent}\n\n（已中止）`
+              : '（已中止，未產生內容）';
+            setChatMessages((prev) => {
+              if (prev.length === 0) return prev;
+              const next = [...prev];
+              const lastIndex = next.length - 1;
+              const last = next[lastIndex];
+              if (last?.role !== 'assistant') return prev;
+              next[lastIndex] = { ...last, content: annotated };
+              return next;
+            });
+            setThinkingStatus(null);
+            reject(new Error('__aborted__'));
           },
           onError: (error) => {
             if (rafId !== null) cancelAnimationFrame(rafId);
@@ -420,11 +467,18 @@ export function AiChatPage() {
         await refreshSessions();
       }
     } catch (err) {
-      const errorMessage = err instanceof Error && err.message
-        ? `AI 回覆失敗：${err.message}`
-        : 'AI 助手目前無法回應，請稍後再試。';
-      setChatMessages([...messagesWithUser, { role: 'assistant', content: errorMessage }]);
+      // W2-T1: aborts are handled by onAbort which already updated the bubble
+      // and set a sentinel error. Don't overwrite with a generic error message.
+      if (aborted || (err instanceof Error && err.message === '__aborted__')) {
+        // Sessions list won't have new entries anyway; skip refresh.
+      } else {
+        const errorMessage = err instanceof Error && err.message
+          ? `AI 回覆失敗：${err.message}`
+          : 'AI 助手目前無法回應，請稍後再試。';
+        setChatMessages([...messagesWithUser, { role: 'assistant', content: errorMessage }]);
+      }
     } finally {
+      streamAbortRef.current = null;
       setIsSending(false);
       setThinkingStatus(null);
     }
@@ -690,18 +744,29 @@ export function AiChatPage() {
                       }`}
                       disabled={!canSendAiChat}
                     />
-                    <Button
-                      onClick={() => void sendMessage()}
-                      size="icon"
-                      className={`h-[120px] w-[36px] shrink-0 transition-colors rounded-xl ${
-                        canSendAiChat ? 'bg-gray-700 hover:bg-gray-700' : 'bg-[#d1d5db] cursor-not-allowed'
-                      }`}
-                      disabled={isSending || !chatInput.trim() || !canSendAiChat}
-                    >
-                      <Send className={`h-4.5 w-4.5 ${isSending ? 'opacity-40' : ''}`} />
-                    </Button>
+                    {isSending ? (
+                      <Button
+                        onClick={stopStream}
+                        size="icon"
+                        className="h-[120px] w-[36px] shrink-0 transition-colors rounded-xl bg-red-600 hover:bg-red-700"
+                        title="停止生成"
+                      >
+                        <Square className="h-4.5 w-4.5 fill-white text-white" />
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => void sendMessage()}
+                        size="icon"
+                        className={`h-[120px] w-[36px] shrink-0 transition-colors rounded-xl ${
+                          canSendAiChat ? 'bg-gray-700 hover:bg-gray-700' : 'bg-[#d1d5db] cursor-not-allowed'
+                        }`}
+                        disabled={!chatInput.trim() || !canSendAiChat}
+                      >
+                        <Send className="h-4.5 w-4.5" />
+                      </Button>
+                    )}
                   </div>
-                  <p className="text-[9px] text-[#d0d0d0] mt-1">Enter 發送 · Shift+Enter 換行</p>
+                  <p className="text-[9px] text-[#d0d0d0] mt-1">Enter 發送 · Shift+Enter 換行 · 生成中可按停止</p>
                 </div>
               </div>
             </CardContent>

@@ -208,11 +208,28 @@ export interface StreamChatOptions {
   sessionId?: string;
   patientId?: string;
   message: string;
+  /** External AbortSignal — caller's stop button. Aborts here are silent (no onError). */
+  signal?: AbortSignal;
   onThinking?: (detail: string) => void;
   onMessage: (chunk: string) => void;
   onComplete: (response: ChatResponse) => void;
   onError: (error: Error) => void;
+  /** Called when the stream is aborted by the caller's signal (not on errors). */
+  onAbort?: () => void;
 }
+
+/** Sentinel thrown when our own idle timer fires (vs caller-initiated abort). */
+export class StreamIdleTimeoutError extends Error {
+  constructor(ms: number) {
+    super(`AI 串流逾時（${Math.round(ms / 1000)} 秒無回應）`);
+    this.name = 'StreamIdleTimeoutError';
+  }
+}
+
+/** Idle interval between chunks before we abort the stream as stalled. */
+const STREAM_IDLE_TIMEOUT_MS = 30_000;
+/** Initial fetch timeout — covers connection + headers, NOT the streaming body. */
+const STREAM_INITIAL_TIMEOUT_MS = 60_000;
 
 // API 回應類型
 interface ApiResponse<T> {
@@ -249,11 +266,41 @@ function parseSseFrame(frame: string): { event: string; data: string } | null {
 
 // 串流聊天訊息（AO-04）— SSE /ai/chat/stream
 export async function streamChatMessage(options: StreamChatOptions): Promise<void> {
+  // Local controller covers the initial fetch timeout AND the per-chunk idle
+  // timeout. Caller's options.signal is forwarded — caller-initiated aborts
+  // are silent (skip onError, fire onAbort instead).
+  const controller = new AbortController();
+  let idleTimer: ReturnType<typeof setTimeout> | null = null;
+  const armIdleTimer = () => {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      controller.abort(new StreamIdleTimeoutError(STREAM_IDLE_TIMEOUT_MS));
+    }, STREAM_IDLE_TIMEOUT_MS);
+  };
+  const clearIdleTimer = () => {
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+      idleTimer = null;
+    }
+  };
+
+  const externalAbortListener = () => {
+    controller.abort(options.signal?.reason ?? new DOMException('Aborted', 'AbortError'));
+  };
+  if (options.signal) {
+    if (options.signal.aborted) {
+      externalAbortListener();
+    } else {
+      options.signal.addEventListener('abort', externalAbortListener, { once: true });
+    }
+  }
+
   try {
     const requestId = createStreamRequestId();
-    // AbortController with 60s timeout — prevents indefinite hang if backend/proxy stalls
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60_000);
+    const initialTimer = setTimeout(
+      () => controller.abort(new Error(`AI 串流連線逾時（${STREAM_INITIAL_TIMEOUT_MS / 1000}s）`)),
+      STREAM_INITIAL_TIMEOUT_MS,
+    );
     let response: Response;
     try {
       response = await fetch(`${API_BASE_URL}/ai/chat/stream`, {
@@ -273,7 +320,7 @@ export async function streamChatMessage(options: StreamChatOptions): Promise<voi
         }),
       });
     } finally {
-      clearTimeout(timeoutId);
+      clearTimeout(initialTimer);
     }
     if (!response.ok) {
       throw new Error(`AI 串流請求失敗（HTTP ${response.status}）`);
@@ -286,11 +333,13 @@ export async function streamChatMessage(options: StreamChatOptions): Promise<voi
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
     let completed = false;
+    armIdleTimer();
 
     while (true) {
       const { done, value } = await reader.read();
       if (value) {
         buffer += decoder.decode(value, { stream: !done });
+        armIdleTimer();
       }
       buffer = buffer.replace(/\r\n/g, '\n');
       if (done && buffer.trim()) {
@@ -350,10 +399,20 @@ export async function streamChatMessage(options: StreamChatOptions): Promise<voi
       throw new Error('AI 串流中斷，請重試。');
     }
   } catch (err) {
+    // Caller pressed Stop: silent → fire onAbort, NOT onError.
+    if (options.signal?.aborted) {
+      options.onAbort?.();
+      return;
+    }
     // No fallback: backend has only /ai/chat/stream. Pre-stream failures
     // (HTTP error, network, missing body) and mid-stream failures both
     // surface directly so the UI can show a real message.
     options.onError(err instanceof Error ? err : new Error(String(err)));
+  } finally {
+    clearIdleTimer();
+    if (options.signal) {
+      options.signal.removeEventListener('abort', externalAbortListener);
+    }
   }
 }
 
