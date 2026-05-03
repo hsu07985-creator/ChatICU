@@ -148,7 +148,18 @@
 - **Frontend dependency:** TC-F02 hides the pin button for non-admin once this lands (else non-admin clicks 403 → toast spam).
 - **References:** `docs/team-chat-audit-fixes-2026-05-03.md` §F-01
 
-### TC-B02 [TODO] Replace JSONB→TEXT mention LIKE with `@>` + add GIN index
+### TC-B02 [DONE] Replace JSONB→TEXT mention LIKE with `@>` + add GIN index
+- **Completed:** 2026-05-03 (branch `fix/tc-b02-mention-jsonb-gin`)
+- **Files modified:**
+  - `backend/alembic/versions/076_team_chat_mention_gin.py` (NEW) — `CREATE INDEX ... USING GIN` on `mentioned_user_ids` and `mentioned_roles`, idempotent
+  - `backend/app/utils/jsonb_compat.py` (NEW) — `array_contains_value(col, value, dialect_name)` helper: PG path uses `@>`, SQLite (test only) path uses quoted-substring text-cast LIKE. Same call site, dialect-aware compilation.
+  - `backend/app/routers/team_chat.py:mentions_count` — uses helper; `String, cast` import dropped
+  - `backend/app/routers/notifications.py:_team_chat_mention_predicate` & `_patient_board_mention_predicate` — both take `dialect_name` arg now; `String, cast` import dropped; all 5 call sites updated
+  - `backend/tests/test_api/test_team_chat.py:test_mention_predicate_no_substring_collision` — new regression: seeds `["all_admins"]` and asserts role=admin yields count=0 (no substring collision)
+- **Verification:** `cd backend && python3 -m pytest tests/test_api/test_team_chat.py tests/test_api/test_notifications.py -q` → 29/29 passed; on PG the predicate compiles to `mentioned_roles @> '["admin"]'::jsonb` (verified via `stmt.compile(dialect=postgresql.dialect())`).
+- **References:** F-13 in audit. Original task body retained below.
+
+### TC-B02-original [original] Replace JSONB→TEXT mention LIKE with `@>` + add GIN index
 - **Added by:** team-chat audit 2026-05-03 (F-13)
 - **Date:** 2026-05-03
 - **Priority:** P0 (correctness + performance — current code can collide on `"all_admins"` substring once enum loosens, and bypasses any index)

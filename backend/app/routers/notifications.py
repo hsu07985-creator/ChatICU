@@ -8,7 +8,7 @@ Two endpoints:
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import String, cast, func, or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -17,6 +17,7 @@ from app.models.chat_message import TeamChatMessage
 from app.models.message import PatientMessage
 from app.models.patient import Patient
 from app.models.user import User
+from app.utils.jsonb_compat import array_contains_value
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -28,20 +29,26 @@ _WINDOW_HOURS = 168
 _ALERT_TYPES = ("alert", "urgent")
 
 
-def _team_chat_mention_predicate(user: User):
-    """Match team-chat rows where the current user is @-ed by role OR by user_id."""
+def _team_chat_mention_predicate(user: User, dialect_name: str):
+    """Match team-chat rows where the current user is @-ed by role OR by user_id.
+
+    Uses ``array_contains_value`` so the predicate is GIN-index-friendly
+    on PostgreSQL (via ``@>``) and still correct on SQLite tests (via
+    quoted-substring LIKE). TC-B02 replaced the prior ad-hoc text-cast
+    that risked prefix collisions on role names like ``"all"``.
+    """
     return or_(
-        cast(TeamChatMessage.mentioned_roles, String).contains(f'"{user.role}"'),
-        cast(TeamChatMessage.mentioned_user_ids, String).contains(f'"{user.id}"'),
+        array_contains_value(TeamChatMessage.mentioned_roles, user.role, dialect_name),
+        array_contains_value(TeamChatMessage.mentioned_user_ids, user.id, dialect_name),
     )
 
 
-def _patient_board_mention_predicate(user: User):
+def _patient_board_mention_predicate(user: User, dialect_name: str):
     """Match patient-board rows where the current user is @-ed by role, by user_id, or by "all"."""
     return or_(
-        cast(PatientMessage.mentioned_roles, String).contains(f'"{user.role}"'),
-        cast(PatientMessage.mentioned_roles, String).contains('"all"'),
-        cast(PatientMessage.mentioned_user_ids, String).contains(f'"{user.id}"'),
+        array_contains_value(PatientMessage.mentioned_roles, user.role, dialect_name),
+        array_contains_value(PatientMessage.mentioned_roles, "all", dialect_name),
+        array_contains_value(PatientMessage.mentioned_user_ids, user.id, dialect_name),
     )
 
 
@@ -59,18 +66,19 @@ async def get_notification_summary(
     - total: mentions + alerts (not deduplicated)
     """
     cutoff = datetime.now(timezone.utc) - timedelta(hours=_WINDOW_HOURS)
+    dialect_name = db.bind.dialect.name
 
     pb_mentions_stmt = (
         select(func.count(PatientMessage.id))
         .where(PatientMessage.timestamp >= cutoff)
         .where(PatientMessage.is_read == False)  # noqa: E712
-        .where(_patient_board_mention_predicate(user))
+        .where(_patient_board_mention_predicate(user, dialect_name))
     )
     tc_mentions_stmt = (
         select(func.count(TeamChatMessage.id))
         .where(TeamChatMessage.timestamp >= cutoff)
         .where(TeamChatMessage.is_read == False)  # noqa: E712
-        .where(_team_chat_mention_predicate(user))
+        .where(_team_chat_mention_predicate(user, dialect_name))
     )
     alerts_stmt = (
         select(func.count(PatientMessage.id))
@@ -106,13 +114,14 @@ async def get_recent_notifications(
     extra logic. Sorted by timestamp DESC, capped at `limit`.
     """
     cutoff = datetime.now(timezone.utc) - timedelta(hours=_WINDOW_HOURS)
+    dialect_name = db.bind.dialect.name
 
     # ── Patient board mentions ─────────────────────────────────────────
     pb_stmt = (
         select(PatientMessage, Patient.bed_number, Patient.name)
         .join(Patient, Patient.id == PatientMessage.patient_id, isouter=True)
         .where(PatientMessage.timestamp >= cutoff)
-        .where(_patient_board_mention_predicate(user))
+        .where(_patient_board_mention_predicate(user, dialect_name))
         .order_by(PatientMessage.timestamp.desc())
         .limit(limit)
     )
@@ -140,7 +149,7 @@ async def get_recent_notifications(
     tc_stmt = (
         select(TeamChatMessage)
         .where(TeamChatMessage.timestamp >= cutoff)
-        .where(_team_chat_mention_predicate(user))
+        .where(_team_chat_mention_predicate(user, dialect_name))
         .order_by(TeamChatMessage.timestamp.desc())
         .limit(limit)
     )
@@ -189,12 +198,13 @@ async def mark_all_notifications_read(
     cutoff = datetime.now(timezone.utc) - timedelta(hours=_WINDOW_HOURS)
     now = datetime.now(timezone.utc)
     receipt = {"userId": user.id, "userName": user.name, "readAt": now.isoformat()}
+    dialect_name = db.bind.dialect.name
 
     pb_stmt = select(PatientMessage).where(
         PatientMessage.timestamp >= cutoff,
         PatientMessage.is_read == False,  # noqa: E712
         or_(
-            _patient_board_mention_predicate(user),
+            _patient_board_mention_predicate(user, dialect_name),
             PatientMessage.message_type.in_(_ALERT_TYPES),
         ),
     )
@@ -203,7 +213,7 @@ async def mark_all_notifications_read(
     tc_stmt = select(TeamChatMessage).where(
         TeamChatMessage.timestamp >= cutoff,
         TeamChatMessage.is_read == False,  # noqa: E712
-        _team_chat_mention_predicate(user),
+        _team_chat_mention_predicate(user, dialect_name),
     )
     tc_msgs = (await db.execute(tc_stmt)).scalars().all()
 

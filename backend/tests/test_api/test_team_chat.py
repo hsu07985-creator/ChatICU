@@ -435,6 +435,48 @@ async def test_author_can_mark_own_read(client):
 
 
 @pytest.mark.asyncio
+async def test_mention_predicate_no_substring_collision(client, seeded_db):
+    """TC-B02: mentions/count must use JSONB containment, not text-cast LIKE.
+
+    The old ``cast(JSONB as text) LIKE '"<role>"'`` predicate would falsely
+    match if a row had a role string containing the caller's role as a
+    proper prefix-with-quotes match isn't possible with the current enum
+    (admin/doctor/nurse/np/pharmacist), but inserting raw rows lets us
+    pin the contract: role=admin must NOT match a row whose only
+    mentioned_role is the literal "all_admins" (a hypothetical future
+    enum addition).
+    """
+    from datetime import datetime, timezone
+    from app.models.chat_message import TeamChatMessage
+
+    seeded_db.add(TeamChatMessage(
+        id="tchat_substr_check",
+        user_id="usr_other",
+        user_name="Other",
+        user_role="doctor",
+        content="should not match admin",
+        timestamp=datetime.now(timezone.utc),
+        pinned=False,
+        is_read=False,
+        read_by=[],
+        mentioned_roles=["all_admins"],  # superset string of "admin"
+        mentioned_user_ids=[],
+    ))
+    await seeded_db.commit()
+
+    resp = await client.get("/team/chat/mentions/count")
+    assert resp.status_code == 200
+    # Default mock user is role=admin; with @> it cannot match ["all_admins"].
+    # If this returns >= 1 the predicate is back to substring matching.
+    count = resp.json()["data"]["count"]
+    # We only inserted one synthetic row; everything else was created via
+    # the API in earlier tests in the same module's session-scoped fixture
+    # — but each test runs against a fresh DB (function-scoped seeded_db),
+    # so this row is the only one. Expect 0.
+    assert count == 0, f"@> predicate must not match 'all_admins' for role=admin; got {count}"
+
+
+@pytest.mark.asyncio
 async def test_mark_read_writes_audit_log(client, seeded_db):
     """mark_read writes an audit log so silent zeroing of mention badges
     is traceable (TC-B01 mitigation for audit gap)."""

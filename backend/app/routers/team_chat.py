@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import String, and_, cast, func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -12,6 +12,7 @@ from app.middleware.audit import create_audit_log
 from app.models.chat_message import TeamChatMessage
 from app.models.user import User
 from app.schemas.message import TeamChatCreate
+from app.utils.jsonb_compat import array_contains_value
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/team/chat", tags=["team-chat"])
@@ -115,15 +116,18 @@ async def mentions_count(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Count unread messages that @ the current user (by role OR user_id)."""
-    role_match = and_(
-        TeamChatMessage.mentioned_roles.isnot(None),
-        cast(TeamChatMessage.mentioned_roles, String).contains(f'"{user.role}"'),
-    )
-    user_match = and_(
-        TeamChatMessage.mentioned_user_ids.isnot(None),
-        cast(TeamChatMessage.mentioned_user_ids, String).contains(f'"{user.id}"'),
-    )
+    """Count unread messages that @ the current user (by role OR user_id).
+
+    Uses PostgreSQL JSONB containment (``@>``) in production — TC-B02
+    replaced the prior ``cast(JSONB as text) LIKE`` predicate, which
+    couldn't use any index and could collide once role names share a
+    prefix. The GIN indexes added in migration 076 make this an index
+    lookup. ``array_contains_value`` falls back to a quoted-substring
+    LIKE on SQLite (test only) since SQLite has no ``@>`` operator.
+    """
+    dialect_name = db.bind.dialect.name
+    role_match = array_contains_value(TeamChatMessage.mentioned_roles, user.role, dialect_name)
+    user_match = array_contains_value(TeamChatMessage.mentioned_user_ids, user.id, dialect_name)
     result = await db.execute(
         select(func.count(TeamChatMessage.id)).where(
             and_(
