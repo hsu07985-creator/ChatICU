@@ -1,13 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Textarea } from '../../components/ui/textarea';
+import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { ScrollArea } from '../../components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { LoadingSpinner, EmptyState } from '../../components/ui/state-display';
-import { FileText, Loader2, User, Tag, Pill, Send, CheckCircle2, XCircle, CircleDot, ChevronLeft, ChevronRight, NotebookPen } from 'lucide-react';
+import { FileText, Loader2, User, Tag, Pill, Send, CheckCircle2, XCircle, CircleDot, ChevronLeft, ChevronRight, NotebookPen, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { maskPatientName } from '../../lib/utils/patient-name';
 import {
@@ -44,6 +45,19 @@ export function PharmacyAdviceStatisticsPage() {
   const todayMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
   const [selectedMonth, setSelectedMonth] = useState(todayMonth);
 
+  // 24 個月選項（從本月往前 24 個月）— 抄 admin/statistics.tsx 的實作模式
+  const monthOptions = useMemo(() => {
+    const now = new Date();
+    const options: Array<{ value: string; label: string }> = [];
+    for (let i = 0; i < 24; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const label = `${date.getFullYear()} 年 ${date.getMonth() + 1} 月`;
+      options.push({ value, label });
+    }
+    return options;
+  }, []);
+
   const shiftMonth = (delta: number) => {
     const [y, m] = selectedMonth.split('-').map(Number);
     const d = new Date(y, m - 1 + delta, 1);
@@ -57,7 +71,14 @@ export function PharmacyAdviceStatisticsPage() {
 
   // ── 紀錄 ──
   const [records, setRecords] = useState<PharmacyAdviceRecord[]>([]);
+  const [recordsTotal, setRecordsTotal] = useState(0);
   const [recordsLoading, setRecordsLoading] = useState(true);
+
+  // ── 搜尋 ──
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // 第一次載入用：當月若無資料則 fallback 到「最新一筆所在月份」
+  const initialFallbackTriedRef = useRef(false);
 
   // ── 留言板標籤統計 ──
   const [tagStats, setTagStats] = useState<TagStatItem[]>([]);
@@ -92,8 +113,10 @@ export function PharmacyAdviceStatisticsPage() {
     try {
       const res = await getAdviceRecords({ month: selectedMonth, limit: 500 });
       setRecords(res.records);
+      setRecordsTotal(res.total ?? res.records.length);
     } catch {
       setRecords([]);
+      setRecordsTotal(0);
     } finally {
       setRecordsLoading(false);
     }
@@ -102,6 +125,36 @@ export function PharmacyAdviceStatisticsPage() {
   useEffect(() => {
     fetchRecords();
   }, [fetchRecords]);
+
+  // 預設月份 fallback：first load 若當月無資料，撈一次「不帶 month」的最新紀錄，
+  // 將 selectedMonth 改為「最新一筆 timestamp 所在月份」。
+  // 只在 first load 嘗試一次（避免使用者手動切到沒資料的月份時被覆蓋）。
+  useEffect(() => {
+    if (initialFallbackTriedRef.current) return;
+    if (recordsLoading) return; // 等第一次 fetch 完成
+    initialFallbackTriedRef.current = true;
+    if (records.length > 0) return;
+    if (selectedMonth !== todayMonth) return; // 已偏離預設則不再 fallback
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getAdviceRecords({ limit: 1 });
+        if (cancelled) return;
+        const latest = res.records?.[0];
+        if (!latest?.timestamp) return;
+        const d = new Date(latest.timestamp);
+        if (Number.isNaN(d.getTime())) return;
+        const fallbackMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        if (fallbackMonth !== selectedMonth) {
+          setSelectedMonth(fallbackMonth);
+        }
+      } catch {
+        // 安靜失敗：保留 todayMonth
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [recordsLoading, records.length, selectedMonth, todayMonth]);
 
   // 載入留言板標籤統計
   useEffect(() => {
@@ -167,6 +220,30 @@ export function PharmacyAdviceStatisticsPage() {
       setSubmitting(false);
     }
   };
+
+  // ── 列表搜尋（client-side，僅影響清單；統計卡 / 圖表保持以 records 計算）──
+  const filteredRecords = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return records;
+    return records.filter((r) => {
+      const haystack = [
+        r.bedNumber,
+        r.patientName,
+        r.content,
+        r.category,
+        r.adviceCode,
+        r.adviceLabel,
+        r.pharmacistName,
+        ...(r.linkedMedications || []),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [records, searchTerm]);
+
+  const isTruncated = records.length === 500 && recordsTotal > 500;
 
   // ── 統計 ──
   const categoryStats: Record<string, number> = {};
@@ -244,7 +321,22 @@ export function PharmacyAdviceStatisticsPage() {
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => shiftMonth(-1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm font-medium min-w-[100px] text-center">{monthLabel}</span>
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="h-7 w-[140px] text-sm">
+              <SelectValue placeholder={monthLabel}>{monthLabel}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {monthOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+              {/* 若目前 selectedMonth 不在 24 個月清單中（例如手動 fallback 到更早），補一個選項 */}
+              {!monthOptions.some((o) => o.value === selectedMonth) && (
+                <SelectItem value={selectedMonth}>{monthLabel}</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
           <Button
             variant="ghost"
             size="icon"
@@ -609,19 +701,51 @@ export function PharmacyAdviceStatisticsPage() {
 
       {/* ── 紀錄清單 ── */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            紀錄清單
-            <Badge variant="secondary">{records.length} 筆</Badge>
-          </CardTitle>
+        <CardHeader className="space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              紀錄清單
+              <Badge variant="secondary">共 {recordsTotal} 筆</Badge>
+              {searchTerm.trim() && (
+                <Badge variant="outline" className="font-normal">
+                  搜尋符合 {filteredRecords.length} 筆
+                </Badge>
+              )}
+            </CardTitle>
+            {isTruncated && (
+              <span className="text-xs text-red-600 dark:text-red-400 font-medium">
+                已顯示前 500 筆，請縮小月份範圍或使用搜尋
+              </span>
+            )}
+          </div>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="搜尋床號 / 病人姓名 / 內容 / 藥名"
+              className="pl-8 pr-9 h-9"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                aria-label="清除搜尋"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {recordsLoading ? (
             <LoadingSpinner text="載入中..." />
-          ) : records.length > 0 ? (
+          ) : filteredRecords.length > 0 ? (
             <ScrollArea className="h-[400px] pr-4">
               <div className="space-y-3">
-                {records.map((record) => {
+                {filteredRecords.map((record) => {
                   const isAccepted = record.accepted === true;
                   const isRejected = record.accepted === false;
                   const cardBg = isAccepted
@@ -691,6 +815,12 @@ export function PharmacyAdviceStatisticsPage() {
                 })}
               </div>
             </ScrollArea>
+          ) : searchTerm.trim() ? (
+            <EmptyState
+              icon={Search}
+              title="搜尋無結果"
+              description={`沒有符合「${searchTerm}」的紀錄。試試清除搜尋或切換月份。`}
+            />
           ) : (
             <EmptyState
               icon={FileText}
