@@ -137,7 +137,12 @@ async def test_tagged_activity_hours_back_filter(client, seeded_db):
 
 @pytest.mark.asyncio
 async def test_tagged_activity_unread_count(client, seeded_db):
-    """Verify correct unread counting."""
+    """Verify correct per-user unread counting (TC-FU-T1).
+
+    "Read for me" = my user_id is in ``read_by``. The legacy global
+    ``is_read`` flag is intentionally ignored so one user's mark-read
+    does not silently zero everyone else's count.
+    """
     now = datetime.now(timezone.utc)
     read_msg = PatientMessage(
         id="pmsg_act030",
@@ -149,6 +154,12 @@ async def test_tagged_activity_unread_count(client, seeded_db):
         content="Read tagged",
         timestamp=now,
         is_read=True,
+        # Per-user receipt — the only signal the new model honours.
+        read_by=[{
+            "userId": "usr_test",
+            "userName": "Test Doctor",
+            "readAt": now.isoformat(),
+        }],
         tags=["已處理"],
     )
     unread_msg = PatientMessage(
@@ -161,6 +172,7 @@ async def test_tagged_activity_unread_count(client, seeded_db):
         content="Unread tagged",
         timestamp=now - timedelta(minutes=5),
         is_read=False,
+        read_by=[],
         tags=["急件"],
     )
     seeded_db.add_all([read_msg, unread_msg])

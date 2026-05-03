@@ -16,6 +16,7 @@ from app.models.user import User
 from app.routers.patients import normalize_patient_id
 from app.models.custom_tag import CustomTag
 from app.schemas.message import MessageCreate, MessageTagUpdate, CustomTagCreate
+from app.utils.jsonb_compat import array_contains_user_receipt
 from app.utils.read_receipt import append_read_receipt
 from app.utils.response import success_response
 
@@ -438,7 +439,18 @@ async def list_messages(
     )
 
     if unread is not None:
-        query = query.where(PatientMessage.is_read == (not unread))
+        # Per-user filter (TC-FU-T1): "unread for me" iff I'm not in
+        # ``read_by``. The legacy global ``is_read`` flag was shared
+        # across the team and gave A's mark-read action the side
+        # effect of zeroing B's unread filter.
+        dialect_name = db.bind.dialect.name
+        already_read_by_me = array_contains_user_receipt(
+            PatientMessage.read_by, user.id, dialect_name,
+        )
+        if unread:
+            query = query.where(~already_read_by_me)
+        else:
+            query = query.where(already_read_by_me)
     if message_type:
         query = query.where(PatientMessage.message_type == message_type)
 

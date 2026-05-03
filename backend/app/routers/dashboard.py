@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import JSON, cast, func, select
@@ -10,6 +10,7 @@ from app.models.medication import Medication
 from app.models.message import PatientMessage
 from app.models.patient import Patient
 from app.models.user import User
+from app.utils.jsonb_compat import array_contains_user_receipt, to_utc_aware
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -83,12 +84,27 @@ async def get_dashboard_stats(
     )
     with_san = san_distinct_result.scalar() or 0
 
-    # Unread messages
-    unread_result = await db.execute(
-        select(func.count(PatientMessage.id))
-        .where(PatientMessage.is_read == False)
+    # Per-user unread messages (TC-FU-T1) — was global ``is_read==False``
+    # which let any reader silently zero everyone else's dashboard count.
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=168)
+    db_user = await db.get(User, user.id)
+    last_visit = to_utc_aware(
+        db_user.last_chat_visit_at if db_user is not None else None
     )
-    unread_messages = unread_result.scalar() or 0
+    baseline_at = max(cutoff, last_visit) if last_visit is not None else None
+    if baseline_at is None:
+        unread_messages = 0
+    else:
+        dialect_name = db.bind.dialect.name if db.bind is not None else "sqlite"
+        already_read = array_contains_user_receipt(
+            PatientMessage.read_by, user.id, dialect_name,
+        )
+        unread_result = await db.execute(
+            select(func.count(PatientMessage.id))
+            .where(PatientMessage.timestamp >= baseline_at)
+            .where(~already_read)
+        )
+        unread_messages = unread_result.scalar() or 0
 
     # Today's messages
     now = datetime.now(timezone.utc)

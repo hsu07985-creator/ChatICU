@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from typing import Optional
 
@@ -18,7 +18,49 @@ from app.models.culture_result import CultureResult
 from app.models.message import PatientMessage
 from app.models.user import User
 from app.schemas.patient import PatientArchiveUpdate, PatientCreate, PatientUpdate
+from app.utils.jsonb_compat import array_contains_user_receipt, to_utc_aware
 from app.utils.response import escape_like, success_response
+
+
+def _pb_unread_predicate(user: User, dialect_name: str):
+    """Return a predicate matching ``PatientMessage`` rows that the
+    current user has NOT read yet.
+
+    Per-user read state lives in ``read_by`` (TC-FU-T1). The legacy
+    global ``is_read`` flag is intentionally ignored here so that one
+    user marking a message read does not silently zero everyone else's
+    "病人有未讀留言" dot — F-02 in the audit.
+    """
+    return ~array_contains_user_receipt(PatientMessage.read_by, user.id, dialect_name)
+
+
+async def _count_pb_unread_for_user(
+    db: AsyncSession, user: User, patient_id: str
+) -> int:
+    """Count patient-board messages that the current user hasn't read yet
+    for a single patient.
+
+    Used by ``GET /patients/{id}`` and the bootstrap endpoint to drive
+    ``hasUnreadMessages``. Mirrors the per-user model in
+    ``/notifications/summary`` so the patient detail badge matches the
+    bell.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=168)
+    db_user = await db.get(User, user.id)
+    last_visit = to_utc_aware(
+        db_user.last_chat_visit_at if db_user is not None else None
+    )
+    baseline_at = max(cutoff, last_visit) if last_visit is not None else None
+    if baseline_at is None:
+        return 0
+    dialect_name = db.bind.dialect.name
+    res = await db.execute(
+        select(func.count(PatientMessage.id))
+        .where(PatientMessage.patient_id == patient_id)
+        .where(PatientMessage.timestamp >= baseline_at)
+        .where(_pb_unread_predicate(user, dialect_name))
+    )
+    return int(res.scalar() or 0)
 
 router = APIRouter(prefix="/patients", tags=["patients"])
 
@@ -225,19 +267,31 @@ async def list_patients(
     result = await db.execute(query)
     patients = result.scalars().all()
 
-    # Get unread message counts
+    # Get per-user unread message counts (TC-FU-T1).
+    # Baseline: messages older than the user's last_chat_visit_at AND older
+    # than the 168h window are treated as already-read so the model switch
+    # does not retroactively flood every patient row with red dots.
     patient_ids = [p.id for p in patients]
     unread_counts = {}
     if patient_ids:
-        unread_query = (
-            select(PatientMessage.patient_id, func.count(PatientMessage.id))
-            .where(PatientMessage.patient_id.in_(patient_ids))
-            .where(PatientMessage.is_read == False)
-            .group_by(PatientMessage.patient_id)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=168)
+        db_user = await db.get(User, user.id)
+        last_visit = to_utc_aware(
+            db_user.last_chat_visit_at if db_user is not None else None
         )
-        unread_result = await db.execute(unread_query)
-        for pid, count in unread_result:
-            unread_counts[pid] = count
+        baseline_at = max(cutoff, last_visit) if last_visit is not None else None
+        if baseline_at is not None:
+            dialect_name = db.bind.dialect.name
+            unread_query = (
+                select(PatientMessage.patient_id, func.count(PatientMessage.id))
+                .where(PatientMessage.patient_id.in_(patient_ids))
+                .where(PatientMessage.timestamp >= baseline_at)
+                .where(_pb_unread_predicate(user, dialect_name))
+                .group_by(PatientMessage.patient_id)
+            )
+            unread_result = await db.execute(unread_query)
+            for pid, count in unread_result:
+                unread_counts[pid] = count
 
     airway_dates = await _fetch_airway_dates(db, patient_ids)
 
@@ -371,13 +425,7 @@ async def get_patient(
 
     verify_patient_access(user, patient)
 
-    unread_query = (
-        select(func.count(PatientMessage.id))
-        .where(PatientMessage.patient_id == pid)
-        .where(PatientMessage.is_read == False)
-    )
-    unread_result = await db.execute(unread_query)
-    unread_count = unread_result.scalar() or 0
+    unread_count = await _count_pb_unread_for_user(db, user, pid)
 
     airway_dates = await _fetch_airway_dates(db, [pid])
     return success_response(
@@ -428,12 +476,7 @@ async def get_patient_bootstrap(
     verify_patient_access(user, patient)
 
     # 1. Patient header (with unread + airway dates)
-    unread_result = await db.execute(
-        select(func.count(PatientMessage.id))
-        .where(PatientMessage.patient_id == pid)
-        .where(PatientMessage.is_read == False)  # noqa: E712
-    )
-    unread_count = unread_result.scalar() or 0
+    unread_count = await _count_pb_unread_for_user(db, user, pid)
     airway_dates = await _fetch_airway_dates(db, [pid])
     patient_dict = patient_to_dict(
         patient,
