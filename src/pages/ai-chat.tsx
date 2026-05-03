@@ -20,6 +20,10 @@ import {
 } from 'lucide-react';
 import { SnapshotRefreshControl } from '../components/ai-chat/snapshot-refresh-control';
 import { patientsApi, type Patient } from '../lib/api';
+// FIX-AVATAR (2026-05-03): same ChatICU logo the app sidebar / login /
+// patient-detail chat tab uses. Was previously avatarSrc="" which fell
+// back to the browser's broken-image rendering ("AI" placeholder icon).
+import chatBotAvatar from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 import { maskPatientName } from '../lib/utils/patient-name';
 import {
   deleteChatSession,
@@ -813,7 +817,7 @@ export function AiChatPage() {
                   onToggleReferences={toggleReferences}
                   formatCitationPageText={formatCitationPageText}
                   compactSnippet={compactSnippet}
-                  avatarSrc=""
+                  avatarSrc={chatBotAvatar}
                   onSetMessageFeedback={setMessageFeedback}
                   feedbackingMessageIndex={feedbackingMessageIndex}
                 />
