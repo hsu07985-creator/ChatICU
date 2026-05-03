@@ -1,0 +1,10 @@
+{
+  "boundary": {
+    "title": "An error occurred",
+    "fallbackMessage": "The page encountered an unexpected error",
+    "reload": "Reload",
+    "goHome": "Back to home",
+    "sectionFailed": "{{section}} failed to load, please refresh the page",
+    "sectionDefaultName": "Section"
+  }
+}

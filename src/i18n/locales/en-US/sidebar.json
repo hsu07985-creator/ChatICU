@@ -1,0 +1,42 @@
+{
+  "groups": {
+    "patientCare": "Patient Care",
+    "pharmacyAssessment": "Pharmacy Review",
+    "pharmacyTools": "Pharmacy Tools",
+    "communication": "Communication",
+    "admin": "Administration"
+  },
+  "items": {
+    "dashboard": "Overview",
+    "patients": "Inpatients",
+    "discharged": "Discharged",
+    "workstation": "Pharmacist Workstation",
+    "dosage": "Dosage Calculator",
+    "interactions": "Drug Interactions",
+    "duplicates": "Duplicate Therapy",
+    "compatibility": "IV Compatibility",
+    "drugLibrary": "Drug Library",
+    "adviceStatistics": "Advice Statistics",
+    "aiChat": "AI Assistant",
+    "teamChat": "Team Messages",
+    "audit": "Audit Log",
+    "users": "Users & Roles"
+  },
+  "header": {
+    "expand": "Expand sidebar",
+    "collapse": "Collapse sidebar"
+  },
+  "footer": {
+    "lightMode": "Light Mode",
+    "darkMode": "Dark Mode",
+    "logout": "Logout",
+    "switchToEnglish": "Switch to English",
+    "switchToChinese": "Switch to 繁體中文"
+  },
+  "badge": {
+    "unreadAria_one": "{{count}} unread notification",
+    "unreadAria_other": "{{count}} unread notifications",
+    "newMessages_one": "{{count}} new message",
+    "newMessages_other": "{{count}} new messages"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "title": "Notifications",
+  "ariaWithCount": "Notifications ({{count}} unread)",
+  "ariaEmpty": "Notifications",
+  "summary": "Unread: {{mentions}} mentions · {{alerts}} alerts",
+  "empty": "No new notifications in the last 7 days",
+  "labels": {
+    "team": "Team",
+    "patient": "Patient"
+  }
+}
