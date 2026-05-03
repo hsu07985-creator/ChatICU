@@ -19,7 +19,7 @@
 | 3b | patient-detail.tsx 主頁 + 5 共用元件 | 🟢 完成 | `feat/i18n-w3b` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 3c | medical-records + lab-data + lab-trend + score-trend | 🟢 完成 | `feat/i18n-w3c` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 3d | patient-summary-tab + patient-labs-tab | 🟢 完成 | `feat/i18n-w3d` | 2026-05-04 | 🚀 personal+railway 已推 |
-| 3e | patient-medications-tab + 4 medication 子元件 | 🟢 完成 | `feat/i18n-w3e` | 2026-05-04 | 待 push |
+| 3e | patient-medications-tab + 4 medication 子元件 | 🟢 完成 | `feat/i18n-w3e` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 3f | patient-microbiology-card + patient-diagnostic-reports | ⬜ 待開工 | — | — | — |
 | 3g | patient-messages-tab + patient-chat-tab + chat-message-thread + discharge-check-panel | ⬜ 待開工 | — | — | — |
 | 4 | team chat + ai chat | ⬜ 待開工 | — | — |
