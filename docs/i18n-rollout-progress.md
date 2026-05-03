@@ -145,6 +145,7 @@
 | 2026-05-04 | W2 落地 | auth + dashboard 兩 namespace 上線；patient-duplicate-badge 共用元件納入 dashboard namespace（Wave 5 pharmacy 沿用同 key） |
 | 2026-05-04 | pre-commit hook 修補 | detect-secrets 把 `passwordLabel` 等 i18n 字串誤判為 secret；加入 `src/i18n/locales/.*` 到 exclude pattern 解決 |
 | 2026-05-04 | W0+W1+W2 部署 | `git push personal main` + `git push railway main` 兩邊都通（personal 推 1 commit、railway 推 6 commit）；待部署完成後驗證 health + bundle |
+| 2026-05-04 | 部署驗證通過 | Railway `/health` → `{"status":"healthy","version":"1.4.5"}`；Vercel bundle `index-DWlI4vVx.js` 含 `i18next` + `chaticu.lang` localStorage key；VITE_API_URL 未洩漏（proxy 路徑正確） |
 
 ---
 
