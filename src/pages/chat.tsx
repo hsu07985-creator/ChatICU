@@ -597,7 +597,7 @@ export function ChatPage() {
 
       <div className="grid gap-6 md:grid-cols-3">
         {/* 主聊天區 */}
-        <Card className="md:col-span-2">
+        <Card className="md:col-span-2 border-slate-200 dark:border-slate-700 shadow-sm">
           <CardHeader className="bg-slate-50 dark:bg-slate-800 border-b flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <MessageSquare className="h-6 w-6 text-brand" />
@@ -733,7 +733,7 @@ export function ChatPage() {
             the main chat. The label was previously a misleading "@我的
             留言" — TC-W3-T4 / F-06 clarified it. */}
         <div className="space-y-4">
-          <Card>
+          <Card className="border-slate-200 dark:border-slate-700 shadow-sm">
             <CardHeader className="bg-slate-50 dark:bg-slate-800 pb-0">
               <div className="flex border-b border-slate-200 dark:border-slate-700">
                 <button
