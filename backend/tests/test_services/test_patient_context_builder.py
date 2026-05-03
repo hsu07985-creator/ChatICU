@@ -7,7 +7,11 @@ keys like `creatinine`/`wbc`/`ph`. These tests lock in the alias table
 and value-unwrap behavior so both legacy flat seeds and HIS-imported rows
 produce a real snapshot.
 """
+from datetime import datetime, timezone
+
 from app.services.patient_context_builder import (
+    _fmt_data_freshness_section,
+    _fmt_renal_dosing_section,
     _get_lab_val,
     extract_snapshot_key_values,
 )
@@ -25,6 +29,47 @@ class _FakeLab:
         ):
             setattr(self, name, None)
         for k, v in kwargs.items():
+            setattr(self, k, v)
+
+
+class _FakePatient:
+    def __init__(self, **kwargs):
+        defaults = dict(
+            age=70,
+            gender="M",
+            weight=60,
+            intubated=False,
+            updated_at=datetime(2026, 5, 3, 0, 0, tzinfo=timezone.utc),
+            last_update=None,
+            created_at=None,
+        )
+        defaults.update(kwargs)
+        for k, v in defaults.items():
+            setattr(self, k, v)
+
+
+class _FakeMed:
+    def __init__(self, **kwargs):
+        defaults = dict(
+            name="Acetaminophen",
+            generic_name="Acetaminophen",
+            kidney_relevant=False,
+            updated_at=datetime(2026, 5, 3, 1, 0, tzinfo=timezone.utc),
+            created_at=None,
+        )
+        defaults.update(kwargs)
+        for k, v in defaults.items():
+            setattr(self, k, v)
+
+
+class _FakeVital:
+    def __init__(self, **kwargs):
+        defaults = dict(
+            timestamp=datetime(2026, 5, 3, 2, 0, tzinfo=timezone.utc),
+            body_weight=None,
+        )
+        defaults.update(kwargs)
+        for k, v in defaults.items():
             setattr(self, k, v)
 
 
@@ -171,3 +216,91 @@ def test_extract_snapshot_key_values_all_missing():
         "plt": None,
         "vasopressor_ne_dose": None,
     }
+
+
+# ── Phase 1 snapshot additions ───────────────────────────────────────────────
+
+
+def test_renal_dosing_section_calculates_crcl_and_flags_renal_meds():
+    lab = _FakeLab(
+        biochemistry={
+            "Scr": {"value": 1.2},
+            "BUN": {"value": 32},
+            "eGFR": {"value": 55},
+        }
+    )
+    patient = _FakePatient(age=70, gender="M", weight=60)
+    meds = [
+        _FakeMed(generic_name="Vancomycin", kidney_relevant=True),
+        _FakeMed(generic_name="Acetaminophen", kidney_relevant=False),
+    ]
+
+    text = _fmt_renal_dosing_section(patient, lab, meds, None)
+
+    assert "【腎功能/給藥摘要】" in text
+    assert "Scr 1.2 mg/dL" in text
+    assert "eGFR 55" in text
+    assert "BUN 32" in text
+    assert "CrCl 約 48.6 mL/min" in text
+    assert "Vancomycin" in text
+    assert "Acetaminophen" not in text
+
+
+def test_renal_dosing_section_reports_missing_inputs_without_guessing():
+    lab = _FakeLab(biochemistry={})
+    patient = _FakePatient(age=70, gender="F", weight=None)
+
+    text = _fmt_renal_dosing_section(patient, lab, [], None)
+
+    assert "腎功能: 無近期 Scr/eGFR/BUN" in text
+    assert "CrCl: 無法計算" in text
+    assert "Scr" in text
+    assert "體重" in text
+
+
+def test_data_freshness_section_lists_timestamps_and_missing_gaps():
+    patient = _FakePatient()
+    lab = _FakeLab(
+        timestamp=datetime(2026, 5, 3, 0, 30, tzinfo=timezone.utc),
+        biochemistry={"Scr": {"value": 1.2}},
+    )
+    meds = [_FakeMed()]
+    vital = _FakeVital()
+    extra = {
+        "culture_results": datetime(2026, 5, 2, 22, 0, tzinfo=timezone.utc),
+        "medication_administrations": None,
+        "pharmacy_advices": datetime(2026, 5, 3, 3, 0, tzinfo=timezone.utc),
+    }
+
+    text = _fmt_data_freshness_section(
+        patient, lab, meds, vital, None, [], [], extra
+    )
+
+    assert "【資料狀態】" in text
+    assert "病患主檔: 2026-05-03 08:00" in text
+    assert "檢驗: 2026-05-03 08:30" in text
+    assert "用藥: 2026-05-03 09:00" in text
+    assert "培養: 2026-05-03 06:00" in text
+    assert "藥師建議: 2026-05-03 11:00" in text
+    assert "無 MAR/實際給藥資料" in text
+
+
+def test_data_freshness_section_marks_deferred_sections():
+    patient = _FakePatient(intubated=True)
+
+    text = _fmt_data_freshness_section(
+        patient,
+        None,
+        [],
+        None,
+        None,
+        [],
+        [],
+        {},
+        deferred_sections={"ventilator_settings", "diagnostic_reports", "clinical_scores"},
+    )
+
+    assert "呼吸器: 延後載入" in text
+    assert "影像/報告: 延後載入" in text
+    assert "臨床評分: 延後載入" in text
+    assert "插管中但無呼吸器資料" not in text
