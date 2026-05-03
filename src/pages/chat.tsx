@@ -319,20 +319,14 @@ export function ChatPage() {
   };
 
   // Render message content, highlighting @姓名 tokens that match real users
-  // and the @所有人 broadcast sentinel. Both render as glass-morphism chips
-  // (translucent white, subtle backdrop blur, hairline border, soft shadow)
-  // so the highlight reads as a "lifted" inline tag on any bubble color.
-  // Personal vs broadcast is differentiated by text color + weight only.
+  // and the @所有人 broadcast sentinel. Pure typography styling — no chip,
+  // no background — so the highlight stays inline with the surrounding text
+  // and the color palette of the chat stays minimal. @所有人 adds an
+  // underline to read as a broadcast vs a personal mention.
   const renderContent = useCallback((content: string, mentionClass?: string) => {
     if (!userByName.size) return content;
-    const glassBase =
-      'inline-flex items-center align-baseline px-1.5 mx-0.5 rounded-md ' +
-      'bg-white/55 dark:bg-slate-800/45 backdrop-blur-sm ' +
-      'border border-white/60 dark:border-slate-500/35 ' +
-      'shadow-[0_1px_2px_rgba(15,23,42,0.06)]';
-    const cls =
-      mentionClass ?? `${glassBase} font-medium text-brand dark:text-brand-light`;
-    const allCls = `${glassBase} font-semibold text-rose-600 dark:text-rose-300`;
+    const cls = mentionClass ?? 'font-semibold text-brand dark:text-brand-light';
+    const allCls = `${cls} underline underline-offset-4`;
     type MentionPart = { name: string; kind: 'user' | 'all' | 'plain' };
     const parts: Array<string | MentionPart> = [];
     const re = mentionRegex();
