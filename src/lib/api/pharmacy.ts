@@ -349,6 +349,75 @@ export async function getAdviceTagStats(params?: { month?: string }): Promise<Ta
   return ensureData(response.data, 'API contract');
 }
 
+// ========== 藥師 SOAP 紀錄（TC-FU-T2） ==========
+
+export interface PharmacySoapRecord {
+  id: string;
+  patientId: string;
+  patientName: string | null;
+  bedNumber: string | null;
+  pharmacistId: string | null;
+  pharmacistName: string;
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+  polishedContent: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PharmacySoapRecordsResponse {
+  records: PharmacySoapRecord[];
+  total: number;
+}
+
+export interface CreatePharmacySoapRecordData {
+  patientId: string;
+  subjective?: string;
+  objective?: string;
+  assessment?: string;
+  plan?: string;
+  polished?: string;
+}
+
+export async function createPharmacySoapRecord(
+  data: CreatePharmacySoapRecordData,
+): Promise<PharmacySoapRecord> {
+  const response = await apiClient.post<ApiResponse<PharmacySoapRecord>>(
+    '/pharmacy/soap-records',
+    data,
+  );
+  return ensureData(response.data, 'API contract');
+}
+
+export interface GetPharmacySoapRecordsParams {
+  patientId?: string;
+  month?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export async function getPharmacySoapRecords(
+  params?: GetPharmacySoapRecordsParams,
+): Promise<PharmacySoapRecordsResponse> {
+  // Backend uses snake_case for `patient_id`; map only that field, others are
+  // already snake-case-equivalent.
+  const apiParams: Record<string, string | number | undefined> = {
+    patient_id: params?.patientId,
+    month: params?.month,
+    search: params?.search,
+    page: params?.page,
+    limit: params?.limit,
+  };
+  const response = await apiClient.get<ApiResponse<PharmacySoapRecordsResponse>>(
+    '/pharmacy/soap-records',
+    { params: apiParams },
+  );
+  return ensureData(response.data, 'API contract');
+}
+
 // ========== PAD 劑量計算 ==========
 
 export interface PadDrugInfo {

@@ -8,6 +8,7 @@ from app.routers.pharmacy_routes import (
     error_reports_router,
     interactions_router,
     pad_calculate_router,
+    soap_records_router,
 )
 
 router = APIRouter(prefix="/pharmacy", tags=["pharmacy"])
@@ -19,3 +20,4 @@ router.include_router(interactions_router)
 router.include_router(pad_calculate_router)
 router.include_router(duplicate_check_router)
 router.include_router(drug_library_router)
+router.include_router(soap_records_router)

@@ -27,6 +27,7 @@ import {
 } from '../lib/clinical/format-for-paste';
 import { copyToClipboard } from '../lib/clipboard-utils';
 import { isCmdEnter } from '../lib/dom/key';
+import { createPharmacySoapRecord } from '../lib/api/pharmacy';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { ButtonLoadingIndicator } from './ui/button-loading-indicator';
@@ -326,14 +327,45 @@ export function PharmacistSoapEditor({
     .filter((chunk) => chunk.length > 0)
     .join('\n\n');
 
+  const [submitting, setSubmitting] = useState(false);
+
+  // TC-FU-T2: persist the SOAP draft into ChatICU before copying to HIS
+  // so the pharmacist can re-read it from the SOAP records tab on
+  // /pharmacy/advice-statistics. Clipboard write is the fallback path —
+  // even if the DB write fails, we still let the pharmacist paste into HIS.
   const handleCopy = async () => {
     if (!composed) return;
-    const ok = await copyToClipboard(composed);
-    if (ok) {
-      toast.success('已複製，可貼到 HIS');
+    setSubmitting(true);
+    let saved = false;
+    try {
+      await createPharmacySoapRecord({
+        patientId,
+        subjective: soap.s || undefined,
+        objective: soap.o || undefined,
+        // For A / P prefer the polished version (what the pharmacist
+        // actually intends to keep); fall back to the raw draft when AI
+        // wasn't run / refused.
+        assessment: (polishedSoap.a || soap.a || '') || undefined,
+        plan: (polishedSoap.p || soap.p || '') || undefined,
+        polished: composed,
+      });
+      saved = true;
+    } catch {
+      saved = false;
+    }
+    const copied = await copyToClipboard(composed);
+    setSubmitting(false);
+    if (saved && copied) {
+      toast.success('已儲存並複製到剪貼簿');
+      onSubmitted?.();
+    } else if (!saved && copied) {
+      toast.error('儲存失敗，已複製到剪貼簿（HIS 仍可貼上）');
+      onSubmitted?.();
+    } else if (saved && !copied) {
+      toast.success('已儲存（但複製失敗，請手動複製）');
       onSubmitted?.();
     } else {
-      toast.error('複製失敗，請手動複製');
+      toast.error('儲存與複製皆失敗，請稍後再試');
     }
   };
 
@@ -633,12 +665,13 @@ export function PharmacistSoapEditor({
             </Button>
             <Button
               onClick={handleCopy}
-              disabled={!composed}
+              disabled={!composed || submitting}
               size="sm"
               className="bg-brand hover:bg-brand-hover"
             >
               <Copy className="mr-2 h-4 w-4" />
-              複製貼到 HIS
+              {submitting ? '儲存中...' : '儲存並複製貼到 HIS'}
+              {submitting ? <ButtonLoadingIndicator /> : null}
             </Button>
           </div>
         </div>

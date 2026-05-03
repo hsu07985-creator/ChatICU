@@ -5,15 +5,18 @@ import { Badge } from '../../components/ui/badge';
 import { Textarea } from '../../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { ScrollArea } from '../../components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { LoadingSpinner, EmptyState } from '../../components/ui/state-display';
-import { FileText, Loader2, User, Tag, Pill, Send, CheckCircle2, XCircle, CircleDot, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Loader2, User, Tag, Pill, Send, CheckCircle2, XCircle, CircleDot, ChevronLeft, ChevronRight, NotebookPen } from 'lucide-react';
 import { toast } from 'sonner';
 import { maskPatientName } from '../../lib/utils/patient-name';
 import {
   getAdviceRecords,
   createAdviceRecord,
   getAdviceTagStats,
+  getPharmacySoapRecords,
   type PharmacyAdviceRecord,
+  type PharmacySoapRecord,
   type TagStatItem,
 } from '../../lib/api/pharmacy';
 import { type Patient } from '../../lib/api/patients';
@@ -60,6 +63,12 @@ export function PharmacyAdviceStatisticsPage() {
   const [tagStats, setTagStats] = useState<TagStatItem[]>([]);
   const [tagStatsLoading, setTagStatsLoading] = useState(true);
 
+  // ── SOAP 紀錄（TC-FU-T2） ──
+  const [activeTab, setActiveTab] = useState<'advice' | 'soap'>('advice');
+  const [soapRecords, setSoapRecords] = useState<PharmacySoapRecord[]>([]);
+  const [soapLoading, setSoapLoading] = useState(false);
+  const [soapSearch, setSoapSearch] = useState('');
+
   // 載入病患清單（共用快取，sync cache 命中則跳過）
   useEffect(() => {
     if (getCachedPatientsSync()) return;
@@ -104,6 +113,22 @@ export function PharmacyAdviceStatisticsPage() {
       .finally(() => { if (!cancelled) setTagStatsLoading(false); });
     return () => { cancelled = true; };
   }, [selectedMonth]);
+
+  // 載入 SOAP 紀錄 (TC-FU-T2) — 切到 SOAP tab 或月份/搜尋變更時 fetch
+  useEffect(() => {
+    if (activeTab !== 'soap') return;
+    let cancelled = false;
+    setSoapLoading(true);
+    getPharmacySoapRecords({
+      month: selectedMonth,
+      search: soapSearch.trim() || undefined,
+      limit: 200,
+    })
+      .then(res => { if (!cancelled) setSoapRecords(res.records || []); })
+      .catch(() => { if (!cancelled) setSoapRecords([]); })
+      .finally(() => { if (!cancelled) setSoapLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeTab, selectedMonth, soapSearch]);
 
   // 取得選中的類別物件
   const selectedCategory = selectedCategoryKey
@@ -237,6 +262,13 @@ export function PharmacyAdviceStatisticsPage() {
         </div>
       </div>
 
+      <Tabs value={activeTab} onValueChange={(v: string) => setActiveTab(v as 'advice' | 'soap')} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="advice">藥事介入紀錄</TabsTrigger>
+          <TabsTrigger value="soap">SOAP 紀錄</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="advice" className="space-y-4">
       {/* ── 新增紀錄 ── */}
       <Card>
         <CardHeader>
@@ -668,6 +700,114 @@ export function PharmacyAdviceStatisticsPage() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="soap" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <NotebookPen className="h-4 w-4" />
+                SOAP 紀錄
+                <Badge variant="secondary">{soapRecords.length} 筆</Badge>
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                從藥師 SOAP 編輯器（用藥建議模式）儲存的 S/O/A/P 草稿，僅顯示我自己寫的。
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={soapSearch}
+                  onChange={(e) => setSoapSearch(e.target.value)}
+                  placeholder="搜尋 Assessment 或 Plan 內容..."
+                  className="flex-1 h-9 rounded-md border border-slate-300 bg-white dark:bg-slate-900 dark:border-slate-700 px-3 text-sm"
+                />
+                {soapSearch && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9"
+                    onClick={() => setSoapSearch('')}
+                  >
+                    清除
+                  </Button>
+                )}
+              </div>
+
+              {soapLoading ? (
+                <LoadingSpinner text="載入 SOAP 紀錄..." />
+              ) : soapRecords.length > 0 ? (
+                <ScrollArea className="h-[520px] pr-4">
+                  <div className="space-y-3">
+                    {soapRecords.map((record) => (
+                      <div
+                        key={record.id}
+                        className="border rounded-lg p-3 hover:shadow-md transition-shadow bg-white dark:bg-slate-900 dark:border-slate-700"
+                      >
+                        <div className="flex items-start justify-between mb-2 flex-wrap gap-2">
+                          <div className="flex items-center gap-2 text-sm">
+                            <User className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="font-medium">
+                              {record.bedNumber || '—'} {maskPatientName(record.patientName || '')}
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                              {record.pharmacistName}
+                            </Badge>
+                          </div>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(record.createdAt).toLocaleString('zh-TW', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              timeZone: 'Asia/Taipei',
+                            })}
+                          </span>
+                        </div>
+
+                        <div className="grid gap-2 md:grid-cols-2">
+                          {record.subjective && (
+                            <div className="rounded border border-slate-200 dark:border-slate-700 p-2">
+                              <div className="text-xs font-semibold text-slate-500 mb-1">S — Subjective</div>
+                              <p className="text-sm whitespace-pre-line line-clamp-4">{record.subjective}</p>
+                            </div>
+                          )}
+                          {record.objective && (
+                            <div className="rounded border border-slate-200 dark:border-slate-700 p-2">
+                              <div className="text-xs font-semibold text-slate-500 mb-1">O — Objective</div>
+                              <p className="text-sm whitespace-pre-line line-clamp-4 font-mono">{record.objective}</p>
+                            </div>
+                          )}
+                          {record.assessment && (
+                            <div className="rounded border border-sky-200 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-950/20 p-2">
+                              <div className="text-xs font-semibold text-sky-700 dark:text-sky-300 mb-1">A — Assessment</div>
+                              <p className="text-sm whitespace-pre-line line-clamp-4">{record.assessment}</p>
+                            </div>
+                          )}
+                          {record.plan && (
+                            <div className="rounded border border-sky-200 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-950/20 p-2">
+                              <div className="text-xs font-semibold text-sky-700 dark:text-sky-300 mb-1">P — Plan</div>
+                              <p className="text-sm whitespace-pre-line line-clamp-4 font-mono">{record.plan}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <EmptyState
+                  icon={NotebookPen}
+                  title={`${monthLabel}尚無 SOAP 紀錄`}
+                  description="於藥師 SOAP 編輯器（用藥建議模式）按「儲存並複製貼到 HIS」即會留存"
+                />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

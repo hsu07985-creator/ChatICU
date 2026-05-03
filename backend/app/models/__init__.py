@@ -13,6 +13,7 @@ from app.models.drug_interaction import DrugInteraction, IVCompatibility
 from app.models.error_report import ErrorReport
 from app.models.pharmacy_advice import PharmacyAdvice
 from app.models.pharmacy_favorite import PharmacyCompatibilityFavorite
+from app.models.pharmacy_soap_record import PharmacySoapRecord
 from app.models.culture_result import CultureResult
 from app.models.symptom_record import SymptomRecord
 from app.models.custom_tag import CustomTag
@@ -48,6 +49,7 @@ __all__ = [
     "ErrorReport",
     "PharmacyAdvice",
     "PharmacyCompatibilityFavorite",
+    "PharmacySoapRecord",
     "CultureResult",
     "SymptomRecord",
     "CustomTag",
