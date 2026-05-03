@@ -3,7 +3,7 @@
 > 對應 `docs/clinical-safety-audit-fixes-2026-05-03.md`。每完成一個 P，更新此檔。
 > 圖示：☐ 未開始　⏳ 進行中　✅ 完成　⏸ 阻塞　❌ 放棄
 
-**最後更新**：2026-05-03（**P0 六條全部完成、上 prod**）
+**最後更新**：2026-05-03（**P0 6/6 + P1 12/12 + UI follow-up 全部完成、上 prod、multi-agent 驗證通過**）
 
 ---
 
@@ -28,22 +28,22 @@ cd backend && python3 -m pytest tests/ --ignore=tests/test_fhir -q
 
 ---
 
-## P1 — 兩週內（中優先，未實作）
+## P1 — 兩週內（中優先，已完成 12/12）
 
 | Task | 內容 | 觸碰檔案 | 狀態 |
 |------|------|---------|------|
-| P1-D3 | duplicate upgrade rule 找回 specific recommendation | `_apply_overrides` / `_RECOMMENDATIONS` 鍵改用 ATC L4 prefix | ☐ |
-| P1-D4 | duplicate cache write race 改 `INSERT … ON CONFLICT DO UPDATE` | `backend/app/services/duplicate_cache.py:_upsert_cache_row` | ☐ |
-| P1-D5 | dashboard cache miss 不再回 0 | `backend/app/routers/medication_duplicates.py:140-153` | ☐ |
-| P1-D6 | LLM 看到 moderate 警示 | `backend/app/utils/duplicate_check.py:_LLM_RELEVANT_LEVELS` | ☐ |
-| P1-D7 | `format_duplicate_text` truncate 加 `… +N more` | `duplicate_check.py:95` | ☐ |
-| P1-C5 | clinical SSE error frame 加 `request_id`/`trace_id` | `backend/app/routers/clinical.py` 兩處 stream + `src/lib/api/ai.ts` PolishStreamError | ☐ |
-| P1-C6 | client disconnect cancel LLM stream | `event_stream` 用 `request.is_disconnected()` poll | ☐ |
-| P1-C4 | `summary/stream` 接 `disable_reasoning`+`include_labs` | `clinical.py:253-258`、`schemas/clinical.py:14` | ☐ |
-| P1-C7 | section_delta surrogate-pair 邊界 | `_extract_json_string_value:336-402` | ☐ |
-| P1-Ph3 | `/pharmacy/duplicate-check` 補 `require_roles` | `backend/app/routers/pharmacy_routes/duplicate_check.py:187` | ☐ |
-| P1-Ph4 | local DB fallback 補 cross-class A↔B query | `src/pages/pharmacy/workstation.tsx:336-371` | ☐ |
-| P1-Ph5 | tablet `md:` breakpoint | `workstation.tsx:847` 主 grid | ☐ |
+| P1-D3 | duplicate upgrade rule 找回 specific recommendation（先試 `reason` 再試 `_ATC_L4_LABELS`→`_RECOMMENDATIONS`） | `backend/app/services/duplicate_detector.py:_apply_overrides` upgrade 區 | ✅ |
+| P1-D4 | duplicate cache write race 改 PG `INSERT...ON CONFLICT DO UPDATE`（SQLite fallback 保留） | `backend/app/services/duplicate_cache.py:_upsert_cache_row` | ✅ |
+| P1-D5 | dashboard cache miss 回 `counts:None + computing:True`；前端 `DuplicateCountsBadge` 接 `computing` prop 顯示「⏳ 計算中」 | `medication_duplicates.py` + `src/lib/api/medications.ts` + `workstation.tsx`（含 UI follow-up） | ✅ |
+| P1-D6 | `_LLM_RELEVANT_LEVELS` 加 `moderate` | `backend/app/utils/duplicate_check.py:24` | ✅ |
+| P1-D7 | `format_duplicate_text` truncate 加「… 另有 N 筆未列出（總計 M 筆）」 | `duplicate_check.py:95-114` | ✅ |
+| P1-C5 | clinical SSE error 與 done frame 都帶 `{message, request_id, trace_id}`（兩處 stream） | `backend/app/routers/clinical.py:_err_payload` × 2 + done payload | ✅ |
+| P1-C6 | client disconnect 短路 LLM stream（`request.is_disconnected()` poll） | clinical.py summary/stream + polish/stream 兩處 | ✅ |
+| P1-C4 | `SummaryRequest` 加 `summary_depth` brief/full + 接 `include_labs` | `schemas/clinical.py` + `clinical.py:summary/stream` | ✅ |
+| P1-C7 | `_extract_json_string_value` surrogate-pair 處理（high-surrogate 等 paired low-surrogate 才 emit）+ stray low-surrogate 出 U+FFFD | `clinical.py:_extract_json_string_value` | ✅ |
+| P1-Ph3 | `/pharmacy/duplicate-check` 加 `require_roles("pharmacist","doctor","np","admin")` | `pharmacy_routes/duplicate_check.py` | ✅ |
+| P1-Ph4 | local DB fallback 改 (i,j) 全配對 + 移除 drugSet 過濾 | `src/pages/pharmacy/workstation.tsx:336-360` | ✅ |
+| P1-Ph5 | tablet 主 grid 從 `lg:grid-cols-5` 改 `md:grid-cols-5` + col-span 對應改 `md:` | `workstation.tsx:872, 874` | ✅ |
 
 ---
 
@@ -76,3 +76,26 @@ cd backend && python3 -m pytest tests/ --ignore=tests/test_fhir -q
   - `e3a0a09ea` frontend P0-3+P0-4（workstation + types + assessment panel）
   - 兩個 push 完成（personal + railway），等 Railway/Vercel 部署
 - **🎉 P0 六條全部完成，實際工時 ~1.5h（預估 5-6h）。** P1 留 12 條待後續決策。
+- **2026-05-03**：P1 12 條全部完成（依 user-value-first 順序）：
+  - **D6 LLM 看到 moderate 警示**：`_LLM_RELEVANT_LEVELS` 加 `moderate`，chart-vs-chat mismatch 修
+  - **D7 truncate notice**：`format_duplicate_text` 多於 10 條時告知 LLM「另有 N 筆未列出」
+  - **D5 dashboard cache miss**：後端回 `counts:None + computing:True`；前端 `DuplicateCountsBadge` 加 `computing` prop 顯示「⏳ 計算中」（含 multi-agent 驗證後追加的 UI follow-up）
+  - **Ph5 tablet breakpoint**：`md:grid-cols-5`，iPad portrait 不再單欄
+  - **Ph4 cross-class XD fallback**：local DB fallback 改 (i,j) 全配對 + 不再用 drugSet 過濾
+  - **C6 client disconnect**：兩處 stream 加 `is_disconnected()` poll，省 token
+  - **C5 SSE error trace_id**：error/done frame 都帶 `request_id`/`trace_id`
+  - **D4 cache write race**：PG `INSERT...ON CONFLICT DO UPDATE`（dialect-aware）
+  - **D3 upgrade rule recommendation**：先試 `_RECOMMENDATIONS[reason]` 再試 `_ATC_L4_LABELS[prefix]→_RECOMMENDATIONS`
+  - **Ph3 /pharmacy/duplicate-check role gate**：`require_roles("pharmacist","doctor","np","admin")`
+  - **C4 summary brief mode + include_labs**：`SummaryRequest.summary_depth` 加 brief/full，brief 帶 `disable_reasoning=True`；`include_labs=False` 從 patient_data 拿掉 lab_data
+  - **C7 surrogate-pair handling**：high+low surrogate 合成單一 codepoint；stray low surrogate 出 U+FFFD；high 沒 paired low 時暫停等下個 chunk
+- **2026-05-03**：P1 兩個 commit 推上 main 並部署 prod：
+  - `6d8f2c9b6` backend P1-D3/D4/D5/D6/D7/C4/C5/C6/C7/Ph3
+  - `d18056e3f` frontend P1-Ph4/Ph5 + D5 type contract
+  - 兩個 push 完成（personal + railway），Railway 1.4.5 healthy、Vercel bundle `index-BCw-KzRZ.js`
+- **2026-05-03**：3 個 Opus 4.7 multi-agent 並行驗證（backend code / frontend code / prod smoke），結果：
+  - **Backend** 14 個 P-tag 全 🟢（含 P0+P1+ACL helper + heartbeat + low-cache warning），無 regression
+  - **Frontend** 5 個 P-tag 全 🟢，發現 1 個 🟡 D5 UI gap（`computing` flag 已導入型別但 UI 沒接 placeholder）
+  - **Prod smoke** Railway healthy、4 個 protected route 都正確 401（不是 404）、Vercel bundle marker `truncatedPairs` × 3 + `未檢查` × 1 確認 deploy 成功
+  - 補做 D5 UI gap：`DuplicateCountsBadge` 加 `computing` prop，cache miss 時顯示「⏳ 計算中」灰色徽章（避免「0 critical」誤導）
+- **🎉 P0 6/6 + P1 12/12 全部完成、上 prod、multi-agent 驗證通過。** 實際工時 ~3-4h（預估 P0 5-6h + P1 6-8h = 11-14h）。剩下的 🟡 P1-Ph5 right pane（pre-existing 不在這次 scope）與 P2 重構項目留待業務驅動。

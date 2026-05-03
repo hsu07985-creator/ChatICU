@@ -59,7 +59,27 @@ import { toast } from 'sonner';
 // renders non-zero buckets so the Select row stays compact. Intentionally
 // small (text-[10px]) so it fits inside <SelectItem> without pushing the
 // main label.
-function DuplicateCountsBadge({ counts }: { counts?: DuplicateSeverityCounts }) {
+function DuplicateCountsBadge({
+  counts,
+  computing = false,
+}: {
+  counts?: DuplicateSeverityCounts;
+  computing?: boolean;
+}) {
+  // P1-D5 follow-up: when backend is still warming the cache (computing=true),
+  // show a neutral "計算中" placeholder so the UI doesn't render "0 critical"
+  // (a misleading clean bill of health) on a fresh patient that may actually
+  // have RAAS-blockade or other critical duplicates.
+  if (computing) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-[10px] leading-none rounded-full bg-slate-100 text-slate-600 px-1.5 py-0.5 font-medium"
+        aria-label="重複用藥計算中"
+      >
+        ⏳ 計算中
+      </span>
+    );
+  }
   if (!counts) return null;
   const { critical, high, moderate, low } = counts;
   if (!critical && !high && !moderate && !low) return null;
@@ -892,7 +912,10 @@ export function PharmacyWorkstationPage() {
                         <span>
                           {patient.bedNumber} - {maskPatientName(patient.name)} ({patient.age}歲)
                         </span>
-                        <DuplicateCountsBadge counts={duplicateSummary?.counts?.[patient.id]} />
+                        <DuplicateCountsBadge
+                          counts={duplicateSummary?.counts?.[patient.id]}
+                          computing={duplicateSummary?.computing?.[patient.id] ?? false}
+                        />
                       </span>
                     </SelectItem>
                   ))}
@@ -916,7 +939,10 @@ export function PharmacyWorkstationPage() {
                       <p className="text-muted-foreground text-xs">姓名</p>
                       <p className="font-semibold flex items-center gap-2">
                         {maskPatientName(selectedPatient.name)}
-                        <DuplicateCountsBadge counts={duplicateSummary?.counts?.[selectedPatient.id]} />
+                        <DuplicateCountsBadge
+                          counts={duplicateSummary?.counts?.[selectedPatient.id]}
+                          computing={duplicateSummary?.computing?.[selectedPatient.id] ?? false}
+                        />
                       </p>
                     </div>
                     <div>
