@@ -6,7 +6,7 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Label } from '../components/ui/label';
-import { Search, AlertCircle, AlertTriangle, Pencil, ZoomIn, ZoomOut, RefreshCw, DownloadCloud, Loader2, FlaskConical } from 'lucide-react';
+import { Search, AlertCircle, Pencil, ZoomIn, ZoomOut, RefreshCw, DownloadCloud, Loader2, FlaskConical } from 'lucide-react';
 import { maskPatientName } from '../lib/utils/patient-name';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Patient, updatePatient } from '../lib/api/patients';
@@ -254,22 +254,16 @@ export function DashboardPage() {
     filteredPatients = [...filteredPatients].sort((a, b) => new Date(b.admissionDate).getTime() - new Date(a.admissionDate).getTime());
   }
 
-  const getSANBadges = (patient: Patient) => {
-    const badges = [];
+  const SAN_MAX_CHIPS = 2;
+  const getSANRows = (patient: Patient) => {
     const sedation = patient.sedation || patient.sanSummary?.sedation || [];
     const analgesia = patient.analgesia || patient.sanSummary?.analgesia || [];
     const nmb = patient.nmb || patient.sanSummary?.nmb || [];
-
-    if (sedation.length > 0) {
-      badges.push({ label: 'S', items: sedation, color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' });
-    }
-    if (analgesia.length > 0) {
-      badges.push({ label: 'A', items: analgesia, color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' });
-    }
-    if (nmb.length > 0) {
-      badges.push({ label: 'N', items: nmb, color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' });
-    }
-    return badges;
+    return [
+      { label: 'S', items: sedation, color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' },
+      { label: 'A', items: analgesia, color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' },
+      { label: 'N', items: nmb, color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' },
+    ];
   };
 
   return (
@@ -440,101 +434,112 @@ export function DashboardPage() {
             className="grid gap-4 transition-all duration-200"
             style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}
           >
-            {filteredPatients.map((patient) => (
-              <Card
-                key={patient.id}
-                className="group cursor-pointer hover:shadow-xl transition-all duration-200 hover:border-primary/30 bg-white dark:bg-slate-900 relative"
-                onClick={() => navigate(`/patient/${patient.id}`)}
-              >
-                {/* 編輯按鈕 */}
-                {canEditPatients && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-muted-foreground hover:text-brand hover:bg-brand/10 z-10"
-                    onClick={(e) => handleEditClick(e, patient)}
-                    title="編輯病患資料"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                )}
+            {filteredPatients.map((patient) => {
+              const stayDays = patient.admissionDate
+                ? Math.floor((new Date().getTime() - new Date(patient.admissionDate).getTime()) / (1000 * 60 * 60 * 24))
+                : null;
+              const sanRows = getSANRows(patient);
+              return (
+                <Card
+                  key={patient.id}
+                  className="group cursor-pointer hover:shadow-xl transition-all duration-200 hover:border-primary/30 bg-white dark:bg-slate-900 relative"
+                  onClick={() => navigate(`/patient/${patient.id}`)}
+                >
+                  {/* 編輯按鈕 */}
+                  {canEditPatients && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-muted-foreground hover:text-brand hover:bg-brand/10 z-10"
+                      onClick={(e) => handleEditClick(e, patient)}
+                      title="編輯病患資料"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
 
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 pr-8">
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <CardTitle className="text-xl text-foreground">{maskPatientName(patient.name)}</CardTitle>
-                        {patient.intubated && (
-                          <Badge className="bg-[#d1cbf7] text-brand hover:bg-[#d1cbf7]/90 dark:bg-[#4a2f5c] dark:text-[#efe3ff] dark:hover:bg-[#4a2f5c]/90">
-                            {getAirwayStatusLabel(patient)}
-                          </Badge>
-                        )}
+                  {/* 1. 標題區：姓名 + 氣切/插管中（固定保留一行） + 床號 */}
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0 pr-8">
+                        <div className="flex items-center gap-2 mb-1.5 min-h-[28px]">
+                          <CardTitle className="text-xl text-foreground truncate">{maskPatientName(patient.name)}</CardTitle>
+                          <div className="h-6 flex items-center shrink-0">
+                            {patient.intubated && (
+                              <Badge className="bg-[#d1cbf7] text-brand hover:bg-[#d1cbf7]/90 dark:bg-[#4a2f5c] dark:text-[#efe3ff] dark:hover:bg-[#4a2f5c]/90">
+                                {getAirwayStatusLabel(patient)}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        {/* 2. 基本資料行（強制單行） */}
+                        <p className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+                          {patient.age}&nbsp;歲&nbsp;·&nbsp;{stayDays !== null ? `住院 ${stayDays} 天` : '住'}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {patient.age} 歲 · {patient.admissionDate ? `住院 ${Math.floor((new Date().getTime() - new Date(patient.admissionDate).getTime()) / (1000 * 60 * 60 * 24))} 天` : '住'}
+                      <div className="h-12 w-12 rounded-full bg-brand text-white flex items-center justify-center font-bold text-lg shadow-lg shrink-0">
+                        {patient.bedNumber || '-'}
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="flex flex-col flex-1 space-y-3">
+                    {/* 3. 入院診斷（固定 3 行） */}
+                    <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-border">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">入院診斷</p>
+                      <p
+                        className="text-sm font-medium text-foreground line-clamp-3 min-h-[3.75rem] leading-5"
+                        title={patient.diagnosis || ''}
+                      >
+                        {patient.diagnosis || '-'}
                       </p>
                     </div>
-                    <div className="h-12 w-12 rounded-full bg-brand text-white flex items-center justify-center font-bold text-lg shadow-lg">
-                      {patient.bedNumber || '-'}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-border">
-                    <p className="text-xs font-medium text-muted-foreground mb-1">入院診斷</p>
-                    <p className="text-sm font-medium text-foreground line-clamp-3" title={patient.diagnosis || ''}>{patient.diagnosis || '-'}</p>
-                  </div>
 
-                  {/* S/A/N 標記 - 緊湊顯示 */}
-                  {getSANBadges(patient).length > 0 && (
-                    <div className="space-y-2">
-                      {getSANBadges(patient).map((badge, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <div className={`h-6 w-6 rounded flex items-center justify-center text-xs font-bold ${badge.color}`}>
-                            {badge.label}
-                          </div>
-                          <div className="flex flex-wrap gap-1 flex-1">
-                            {badge.items.map((item, i) => (
-                              <span key={i} className="text-xs bg-muted px-2 py-0.5 rounded">
-                                {item}
-                              </span>
-                            ))}
-                          </div>
+                    {/* 4. S/A/N 三行（固定保留位置；缺項留空；每行單行 + +X 更多） */}
+                    <div className="space-y-1.5">
+                      {sanRows.map((row) => (
+                        <div key={row.label} className="flex items-center gap-2 h-6">
+                          {row.items.length > 0 && (
+                            <>
+                              <div className={`h-6 w-6 rounded flex items-center justify-center text-xs font-bold shrink-0 ${row.color}`}>
+                                {row.label}
+                              </div>
+                              <div className="flex gap-1 overflow-hidden flex-1 min-w-0">
+                                {row.items.slice(0, SAN_MAX_CHIPS).map((item, i) => (
+                                  <span key={i} className="text-xs bg-muted px-2 py-0.5 rounded whitespace-nowrap truncate max-w-[10rem]">
+                                    {item}
+                                  </span>
+                                ))}
+                                {row.items.length > SAN_MAX_CHIPS && (
+                                  <span className="text-xs bg-muted px-2 py-0.5 rounded whitespace-nowrap shrink-0">
+                                    +{row.items.length - SAN_MAX_CHIPS} 更多
+                                  </span>
+                                )}
+                              </div>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>
-                  )}
 
-                  {/* 過敏 */}
-                  {patient.allergies && patient.allergies.length > 0 && (
-                    <div className="flex flex-wrap gap-1 pt-2 border-t border-red-200 dark:border-red-800">
-                      <AlertTriangle className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-                      {patient.allergies.map((allergy, idx) => (
-                        <Badge key={idx} className="text-xs font-semibold bg-red-100 text-red-800 border border-red-300 hover:bg-red-200/80 dark:bg-red-900/40 dark:text-red-200 dark:border-red-700 max-w-full" title={`過敏: ${allergy}`}>
-                          <span className="truncate">{allergy}</span>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* 警示 */}
-                  {patient.alerts.length > 0 && (
-                    <div className="flex flex-wrap gap-1 pt-2 border-t">
-                      {patient.alerts.map((alert, idx) => (
-                        <Badge key={idx} className="text-xs bg-rose-100 text-rose-700 border border-rose-200 hover:bg-rose-200/80 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-700 max-w-full" title={alert}>
+                    {/* 5. DNR 警示列（固定保留一行；只顯示 DNR） */}
+                    <div className="h-6 flex items-center">
+                      {patient.hasDNR && (
+                        <Badge className="text-xs bg-rose-100 text-rose-700 border border-rose-200 hover:bg-rose-200/80 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-700">
                           <AlertCircle className="h-3.5 w-3.5 mr-1 shrink-0" />
-                          <span className="truncate">{alert}</span>
+                          DNR
                         </Badge>
-                      ))}
+                      )}
                     </div>
-                  )}
 
-                  <div className="text-xs text-muted-foreground pt-2 border-t">
-                    <span>最後更新：{patient.lastUpdate ? new Date(patient.lastUpdate).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    {/* 6. 最後更新（釘底） */}
+                    <div className="mt-auto text-xs text-muted-foreground pt-2 border-t">
+                      <span>最後更新：{patient.lastUpdate ? new Date(patient.lastUpdate).toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
           {loading && (
