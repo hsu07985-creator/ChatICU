@@ -183,24 +183,27 @@ export function ChatPage() {
       });
 
       // Backend flattens deeper threads → newMessage.replyToId is the root id
-      // (or null for top-level). Append to the right place.
+      // (or null for top-level). Append to the right place. Use a functional
+      // updater + a closure capture so back-to-back sends compose against the
+      // freshest state (avoids dropping the first send when two awaits race).
       const rootId = newMessage.replyToId ?? null;
-      let updated: TeamChatMessage[];
-      if (rootId) {
-        updated = messages.map((m) =>
-          m.id === rootId
-            ? {
-                ...m,
-                replies: [...(m.replies ?? []), newMessage],
-                replyCount: (m.replyCount ?? 0) + 1,
-              }
-            : m,
-        );
-      } else {
-        updated = [...messages, newMessage];
-      }
-      chatCache.msgs = updated; chatCache.msgsTimestamp = Date.now();
-      setMessages(updated);
+      let next: TeamChatMessage[] = [];
+      setMessages((prev) => {
+        next = rootId
+          ? prev.map((m) =>
+              m.id === rootId
+                ? {
+                    ...m,
+                    replies: [...(m.replies ?? []), newMessage],
+                    replyCount: (m.replyCount ?? 0) + 1,
+                  }
+                : m,
+            )
+          : [...prev, newMessage];
+        return next;
+      });
+      chatCache.msgs = next;
+      chatCache.msgsTimestamp = Date.now();
       setMessage('');
       setMentionedUserIds([]);
       setReplyingTo(null);
@@ -268,9 +271,13 @@ export function ChatPage() {
     setPostingAnnouncement(true);
     try {
       const newAnnouncement = await postAnnouncement(announcementContent.trim());
-      const updated = [...messages, newAnnouncement];
-      chatCache.msgs = updated; chatCache.msgsTimestamp = Date.now();
-      setMessages(updated);
+      let next: TeamChatMessage[] = [];
+      setMessages((prev) => {
+        next = [...prev, newAnnouncement];
+        return next;
+      });
+      chatCache.msgs = next;
+      chatCache.msgsTimestamp = Date.now();
       setAnnouncementContent('');
       setAnnouncementDialogOpen(false);
       toast.success('公告已發布');

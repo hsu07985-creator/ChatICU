@@ -561,16 +561,18 @@
   - `grep _msgsCache\|_mentionsCache src/` returns nothing (no stale refs)
 - **References:** F-04
 
-### TC-F02 [TODO] `handleSend` / `handlePostAnnouncement` use functional updater + add admin gate to pin button
+### TC-F02 [PARTIAL-DONE] `handleSend` / `handlePostAnnouncement` use functional updater + (admin gate to pin button still pending)
 - **Added by:** team-chat audit (F-07, F-01 frontend half)
 - **Date:** 2026-05-03
+- **F-07 (functional updater) completed:** 2026-05-03 (branch `fix/tc-w1-t2-functional-updater`)
+- **F-01 frontend half (admin gate on pin button):** still TODO, **gated on TC-B01** so non-admin doesn't see the button before backend rejects it
 - **Priority:** P1
-- **Progress tracker:** TC-W1-T2 + TC-W2-T1 (UI half)
-- **Files:**
-  - `src/pages/chat.tsx:195-229` — `setMessages([...messages, newMessage])` → `setMessages(prev => [...prev, newMessage])`; same for `_msgsCache` write inside the updater
-  - `src/pages/chat.tsx:282-294` — same in `handlePostAnnouncement`
-  - `src/pages/chat.tsx:417-428` — wrap pin/unpin button with `{user?.role === 'admin' && (...)}` to match the trash button pattern at `:429` AND to align with backend TC-B01
-- **Coordination:** UI gate must land **after or together with** TC-B01 (otherwise admins still see the button but non-admins clicking it would 403). Since the button only currently mutates, and TC-B01 will reject it, the safe order is: TC-B01 backend → TC-F02 frontend. Land in same release.
+- **Progress tracker:** TC-W1-T2 ✅ + TC-W2-T1 (UI half) ⏸
+- **Files modified (F-07):**
+  - `src/pages/chat.tsx:handleSend` — replaced `messages.map(...)` / `[...messages, newMessage]` with `setMessages(prev => ...)` and a closure-captured `next` for the cache write. Back-to-back sends now compose against the freshest state.
+  - `src/pages/chat.tsx:handlePostAnnouncement` — same pattern.
+- **Files still pending (F-01 UI gate):**
+  - `src/pages/chat.tsx:417-428` — wrap pin/unpin button with `{user?.role === 'admin' && (...)}` once TC-B01 lands
 - **References:** F-07, F-01
 
 ### TC-F03 [DONE] Share `ROLE_LABEL` constant; fix `np` display fallback

@@ -10,7 +10,7 @@
 > - `TC-F{NN}` — frontend 工作單（在 `docs/coordination/frontend-tasks.md`）
 > - `F-XX` — audit 文件中的發現編號
 
-**最後更新**：2026-05-03（TC-W1-T1, TC-W1-T3, TC-W1-T5, TC-W1-T8 完成）
+**最後更新**：2026-05-03（TC-W1-T1, TC-W1-T2, TC-W1-T3, TC-W1-T5, TC-W1-T8 完成）
 
 ---
 
@@ -18,7 +18,7 @@
 
 | Wave | 主題 | 任務數 | 完成 / 總計 | 狀態 |
 |------|------|--------|------------|------|
-| Wave 1 | 立即修補（純前端，零依賴） | 8 | 4 / 8 | ⏳ |
+| Wave 1 | 立即修補（純前端，零依賴） | 8 | 5 / 8 | ⏳ |
 | Wave 2 | 後端權限收緊 + mention SQL | 5 | 0 / 5 | ☐ |
 | Wave 3 | 架構決策（需 PM 對齊） | 4 | 0 / 4 | ⏸ |
 | Wave 4 | 安全與資料層強化 | 6 | 0 / 6 | ☐ |
@@ -31,7 +31,7 @@
 | Task | 內容 | F-XX | 觸碰檔案 | 驗證 | 狀態 |
 |------|------|------|---------|------|------|
 | TC-W1-T1 | logout 清三個 module-level cache | F-04 | `src/lib/auth-context.tsx`、`src/lib/api/team-chat.ts`、`src/lib/api/team-chat-cache.ts`（新）、`src/pages/chat.tsx` | A 登入 → /chat → 登出 → B 登入 → /chat 第一秒不應出現 A 的訊息與 mentions | ✅ |
-| TC-W1-T2 | `handleSend`/`handlePostAnnouncement` 改 functional updater | F-07 | `src/pages/chat.tsx:195-229, 282-294` | code review：所有 setMessages 改 `prev =>`；連發兩封不會丟失樂觀訊息 | ☐ |
+| TC-W1-T2 | `handleSend`/`handlePostAnnouncement` 改 functional updater | F-07 | `src/pages/chat.tsx` | code review：所有 setMessages 改 `prev =>`；連發兩封不會丟失樂觀訊息 | ✅ |
 | TC-W1-T3 | `roleDisplayName` 補 `np` + 改 `Record<UserRole, string>` | F-08 | `src/lib/utils/user-role.ts`（新）、`src/pages/chat.tsx`、`src/components/ui/mention-textarea.tsx` | 建立 NP 帳號發訊 → 顯示「專科護理師」而非 `np`；TS 編譯確認 enum 完整 | ✅ |
 | TC-W1-T4 | 自動 scroll-to-bottom 加 near-bottom 判斷 | F-09 | `src/pages/chat.tsx:181-188` | 手動：往上看歷史訊息時，新訊息進來不會把畫面捲走；底部時仍自動跟上 | ☐ |
 | TC-W1-T5 | hover-only 操作改 `focus-within` 可見 | F-10 | `src/pages/chat.tsx`（兩處 `group-hover` cluster） | 手動：純鍵盤 Tab 可看到 pin/reply/delete 按鈕並觸發 | ✅ |
