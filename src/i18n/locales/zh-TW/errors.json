@@ -1,0 +1,10 @@
+{
+  "boundary": {
+    "title": "發生錯誤",
+    "fallbackMessage": "頁面發生未預期的錯誤",
+    "reload": "重新載入",
+    "goHome": "返回首頁",
+    "sectionFailed": "{{section}}載入失敗，請重新整理頁面",
+    "sectionDefaultName": "區塊"
+  }
+}

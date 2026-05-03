@@ -1,0 +1,40 @@
+{
+  "groups": {
+    "patientCare": "病人照護",
+    "pharmacyAssessment": "藥事評估",
+    "pharmacyTools": "藥事工具",
+    "communication": "溝通",
+    "admin": "系統管理"
+  },
+  "items": {
+    "dashboard": "總覽",
+    "patients": "住院病人",
+    "discharged": "出院病人",
+    "workstation": "智藥輔助",
+    "dosage": "劑量計算",
+    "interactions": "用藥交互",
+    "duplicates": "重複用藥",
+    "compatibility": "用藥相容",
+    "drugLibrary": "藥物管理",
+    "adviceStatistics": "藥物統計",
+    "aiChat": "AI 問答",
+    "teamChat": "團隊訊息",
+    "audit": "稽核紀錄",
+    "users": "帳號權限"
+  },
+  "header": {
+    "expand": "展開側邊欄",
+    "collapse": "收起側邊欄"
+  },
+  "footer": {
+    "lightMode": "淺色模式",
+    "darkMode": "深色模式",
+    "logout": "登出",
+    "switchToEnglish": "切換為 English",
+    "switchToChinese": "切換為繁體中文"
+  },
+  "badge": {
+    "unreadAria": "未讀通知 {{count}}",
+    "newMessages": "{{count}} 則新訊息"
+  }
+}

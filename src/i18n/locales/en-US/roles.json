@@ -1,0 +1,7 @@
+{
+  "doctor": "Physician",
+  "np": "Nurse Practitioner",
+  "nurse": "Nurse",
+  "pharmacist": "Pharmacist",
+  "admin": "Administrator"
+}

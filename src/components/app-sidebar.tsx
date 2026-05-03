@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Home, Users, MessageSquare, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Moon, Sun, LogOut, Sparkles, Archive, Copy, Library } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { useTranslation } from 'react-i18next';
 import logoImage from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 import {
   Sidebar,
@@ -21,6 +22,7 @@ import { Button } from './ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNotificationSummary } from '../hooks/use-notification-summary';
 import { useTeamChatUnread } from '../hooks/use-team-chat-unread';
+import { useLanguage } from '../i18n/use-language';
 
 export function AppSidebar() {
   const { user, logout } = useAuth();
@@ -33,9 +35,14 @@ export function AppSidebar() {
   // Kept for any future sidebar item that wants the global bell count.
   void notifSummary;
 
+  const { t } = useTranslation(['sidebar']);
+  const { current: currentLang, toggle: toggleLanguage } = useLanguage();
+
   // Per-user team-chat unread count (separate from the global bell).
   const { count: chatUnread } = useTeamChatUnread(!!user);
-  const chatTitle = chatUnread > 0 ? `${chatUnread} 則新訊息` : undefined;
+  const chatTitle = chatUnread > 0
+    ? t('sidebar:badge.newMessages', { count: chatUnread })
+    : undefined;
 
   // 橫置手機時高度太小，footer 會占掉大部分空間並擋到選單項目 → 自動收合為 icon-only
   // 視窗恢復高度時要自動展開回來，否則會卡在 icon-only 狀態（sidebar_state cookie 讓問題更明顯）
@@ -74,32 +81,32 @@ export function AppSidebar() {
   const compactFooter = isShortViewport && !isCollapsed;
 
   // 1) 病人照護（所有角色可見）
-  const patientCareItems = [
-    { title: '總覽', url: '/dashboard', icon: Home },
-    { title: '住院病人', url: '/patients', icon: Users },
-    { title: '出院病人', url: '/patients/discharged', icon: Archive },
+  const patientCareItems: MenuItem[] = [
+    { title: t('sidebar:items.dashboard'), url: '/dashboard', icon: Home },
+    { title: t('sidebar:items.patients'), url: '/patients', icon: Users },
+    { title: t('sidebar:items.discharged'), url: '/patients/discharged', icon: Archive },
   ];
 
   // 2) 藥事評估（藥師/管理者可見）— 整合性工作台
-  const pharmacyAssessmentItems = (user?.role === 'pharmacist' || user?.role === 'admin') ? [
-    { title: '藥師工作站', url: '/pharmacy/workstation', icon: Pill },
+  const pharmacyAssessmentItems: MenuItem[] = (user?.role === 'pharmacist' || user?.role === 'admin') ? [
+    { title: t('sidebar:items.workstation'), url: '/pharmacy/workstation', icon: Pill },
   ] : [];
 
   // 3) 藥事工具（藥師/管理者可見）— 獨立查詢工具
-  const pharmacyToolItems = (user?.role === 'pharmacist' || user?.role === 'admin') ? [
-    { title: '劑量計算', url: '/pharmacy/dosage', icon: Calculator },
-    { title: '用藥交互', url: '/pharmacy/interactions', icon: AlertTriangle },
-    { title: '重複用藥', url: '/pharmacy/duplicates', icon: Copy },
-    { title: '用藥相容', url: '/pharmacy/compatibility', icon: Droplets },
-    { title: '藥物管理', url: '/pharmacy/drug-library', icon: Library },
-    { title: '藥物統計', url: '/pharmacy/advice-statistics', icon: BarChart3 },
+  const pharmacyToolItems: MenuItem[] = (user?.role === 'pharmacist' || user?.role === 'admin') ? [
+    { title: t('sidebar:items.dosage'), url: '/pharmacy/dosage', icon: Calculator },
+    { title: t('sidebar:items.interactions'), url: '/pharmacy/interactions', icon: AlertTriangle },
+    { title: t('sidebar:items.duplicates'), url: '/pharmacy/duplicates', icon: Copy },
+    { title: t('sidebar:items.compatibility'), url: '/pharmacy/compatibility', icon: Droplets },
+    { title: t('sidebar:items.drugLibrary'), url: '/pharmacy/drug-library', icon: Library },
+    { title: t('sidebar:items.adviceStatistics'), url: '/pharmacy/advice-statistics', icon: BarChart3 },
   ] : [];
 
   // 4) 溝通（所有角色可見）
   const communicationItems: MenuItem[] = [
-    { title: 'AI 問答', url: '/ai-chat', icon: Sparkles },
+    { title: t('sidebar:items.aiChat'), url: '/ai-chat', icon: Sparkles },
     {
-      title: '團隊聊天室',
+      title: t('sidebar:items.teamChat'),
       url: '/chat',
       icon: MessageSquare,
       badge: chatUnread > 0 ? chatUnread : undefined,
@@ -108,9 +115,9 @@ export function AppSidebar() {
   ];
 
   // 5) 系統管理（僅管理者可見）
-  const adminItems = user?.role === 'admin' ? [
-    { title: '稽核紀錄', url: '/admin/audit', icon: FileText },
-    { title: '帳號與權限', url: '/admin/users', icon: UserCog },
+  const adminItems: MenuItem[] = user?.role === 'admin' ? [
+    { title: t('sidebar:items.audit'), url: '/admin/audit', icon: FileText },
+    { title: t('sidebar:items.users'), url: '/admin/users', icon: UserCog },
   ] : [];
 
   const renderMenuGroup = (label: string, items: MenuItem[]) => (
@@ -119,7 +126,7 @@ export function AppSidebar() {
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
+            <SidebarMenuItem key={item.url}>
               <SidebarMenuButton
                 asChild
                 isActive={isActive(item.url)}
@@ -141,7 +148,7 @@ export function AppSidebar() {
                       className={`ml-auto inline-flex items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white min-w-[18px] h-[18px] ${
                         isCollapsed ? 'absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1' : ''
                       }`}
-                      aria-label={`未讀通知 ${item.badge}`}
+                      aria-label={t('sidebar:badge.unreadAria', { count: item.badge })}
                     >
                       {item.badge > 99 ? '99+' : item.badge}
                     </span>
@@ -155,13 +162,26 @@ export function AppSidebar() {
     </SidebarGroup>
   );
 
+  // Language toggle button: pure-text "中 / EN" toggle (per Q1-A decision).
+  // The button label always shows the OTHER language — i.e. what the user
+  // will get after clicking. This mirrors common bilingual-site convention.
+  const langButtonLabel = currentLang === 'zh-TW' ? 'EN' : '中';
+  const langButtonTitle = currentLang === 'zh-TW'
+    ? t('sidebar:footer.switchToEnglish')
+    : t('sidebar:footer.switchToChinese');
+
+  const themeLabel = theme === 'dark'
+    ? t('sidebar:footer.lightMode')
+    : t('sidebar:footer.darkMode');
+  const logoutLabel = t('sidebar:footer.logout');
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b overflow-hidden">
         <button
           onClick={toggleSidebar}
           className="w-full cursor-pointer hover:opacity-80 transition-opacity"
-          title={isCollapsed ? '展開側邊欄' : '收起側邊欄'}
+          title={isCollapsed ? t('sidebar:header.expand') : t('sidebar:header.collapse')}
         >
           {isCollapsed ? (
             <div className="flex items-center justify-center py-2">
@@ -181,21 +201,21 @@ export function AppSidebar() {
 
       <SidebarContent className="gap-0.5">
         {/* 1) 病人照護 */}
-        {renderMenuGroup('病人照護', patientCareItems)}
+        {renderMenuGroup(t('sidebar:groups.patientCare'), patientCareItems)}
 
         {/* 2) 藥事評估 */}
         {pharmacyAssessmentItems.length > 0 &&
-          renderMenuGroup('藥事評估', pharmacyAssessmentItems)}
+          renderMenuGroup(t('sidebar:groups.pharmacyAssessment'), pharmacyAssessmentItems)}
 
         {/* 3) 藥事工具 */}
         {pharmacyToolItems.length > 0 &&
-          renderMenuGroup('藥事工具', pharmacyToolItems)}
+          renderMenuGroup(t('sidebar:groups.pharmacyTools'), pharmacyToolItems)}
 
         {/* 4) 溝通 */}
-        {renderMenuGroup('溝通', communicationItems)}
+        {renderMenuGroup(t('sidebar:groups.communication'), communicationItems)}
 
         {/* 5) 系統管理 */}
-        {adminItems.length > 0 && renderMenuGroup('系統管理', adminItems)}
+        {adminItems.length > 0 && renderMenuGroup(t('sidebar:groups.admin'), adminItems)}
       </SidebarContent>
 
       <SidebarFooter className="p-2 border-t">
@@ -204,21 +224,31 @@ export function AppSidebar() {
             variant="outline"
             size={isCollapsed || compactFooter ? 'icon' : 'default'}
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            title={theme === 'dark' ? '淺色模式' : '深色模式'}
+            title={themeLabel}
             className={`${isCollapsed ? 'mx-auto' : compactFooter ? 'flex-1' : 'w-full'} border-border text-foreground hover:bg-muted`}
           >
             {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            {!isCollapsed && !compactFooter && <span className="ml-2">{theme === 'dark' ? '淺色模式' : '深色模式'}</span>}
+            {!isCollapsed && !compactFooter && <span className="ml-2">{themeLabel}</span>}
+          </Button>
+          <Button
+            variant="outline"
+            size={isCollapsed || compactFooter ? 'icon' : 'default'}
+            onClick={toggleLanguage}
+            title={langButtonTitle}
+            aria-label={langButtonTitle}
+            className={`${isCollapsed ? 'mx-auto' : compactFooter ? 'flex-1' : 'w-full'} border-border text-foreground hover:bg-muted`}
+          >
+            <span className="text-xs font-semibold leading-none">{langButtonLabel}</span>
           </Button>
           <Button
             variant="outline"
             size={isCollapsed || compactFooter ? 'icon' : 'default'}
             onClick={handleLogout}
-            title="登出"
+            title={logoutLabel}
             className={`${isCollapsed ? 'mx-auto' : compactFooter ? 'flex-1' : 'w-full'} border-border text-foreground hover:bg-muted`}
           >
             <LogOut className="h-4 w-4" />
-            {!isCollapsed && !compactFooter && <span className="ml-2">登出</span>}
+            {!isCollapsed && !compactFooter && <span className="ml-2">{logoutLabel}</span>}
           </Button>
         </div>
       </SidebarFooter>

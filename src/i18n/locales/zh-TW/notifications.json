@@ -1,0 +1,11 @@
+{
+  "title": "通知中心",
+  "ariaWithCount": "通知中心（{{count}} 則未讀）",
+  "ariaEmpty": "通知中心",
+  "summary": "未讀 {{mentions}} 提及 · {{alerts}} 警示",
+  "empty": "近 7 天沒有新通知",
+  "labels": {
+    "team": "團隊",
+    "patient": "病人"
+  }
+}

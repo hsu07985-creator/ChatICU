@@ -1,0 +1,28 @@
+{
+  "actions": {
+    "save": "儲存",
+    "cancel": "取消",
+    "confirm": "確認",
+    "delete": "刪除",
+    "edit": "編輯",
+    "add": "新增",
+    "back": "返回",
+    "close": "關閉",
+    "search": "搜尋",
+    "retry": "重試",
+    "refresh": "重新整理",
+    "submit": "送出"
+  },
+  "status": {
+    "loading": "載入中...",
+    "noData": "無資料",
+    "error": "發生錯誤",
+    "saving": "儲存中..."
+  },
+  "time": {
+    "justNow": "剛剛",
+    "minutesAgo": "{{count}} 分鐘前",
+    "hoursAgo": "{{count}} 小時前",
+    "daysAgo": "{{count}} 天前"
+  }
+}
