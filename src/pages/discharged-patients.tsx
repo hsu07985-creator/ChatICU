@@ -219,7 +219,7 @@ export function DischargedPatientsPage() {
       return;
     }
     if (ids.length > 10) {
-      toast.error('一次最多可選 10 位病患詢問 AI 臨床夥伴');
+      toast.error('一次最多可選 10 位病患進行 AI 問答');
       return;
     }
     navigate(`/ai-chat?patientIds=${ids.map(encodeURIComponent).join(',')}`);
@@ -241,7 +241,7 @@ export function DischargedPatientsPage() {
               模擬資料
             </div>
           </div>
-          <p className="text-muted-foreground text-sm mt-1">回顧歷史出院病人資料，可篩選並對選取病人開啟 AI 臨床夥伴</p>
+          <p className="text-muted-foreground text-sm mt-1">回顧歷史出院病人資料，可篩選並對選取病人發起 AI 問答</p>
         </div>
       </div>
 
@@ -386,7 +386,7 @@ export function DischargedPatientsPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => navigate(`/ai-chat?patientId=${encodeURIComponent(p.id)}`)}
-                              title="AI 臨床夥伴"
+                              title="AI 問答"
                               className="text-brand hover:text-brand hover:bg-slate-50 dark:hover:bg-slate-800"
                             >
                               <MessageSquare className="h-4 w-4" />
@@ -461,7 +461,7 @@ export function DischargedPatientsPage() {
           <div className="text-sm">
             已選擇 <span className="font-semibold">{selectedIds.size}</span> 位病患
             {selectedIds.size > 10 && (
-              <span className="text-red-600 ml-2">（AI 臨床夥伴最多 10 位）</span>
+              <span className="text-red-600 ml-2">（AI 問答最多 10 位）</span>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -475,7 +475,7 @@ export function DischargedPatientsPage() {
               className="bg-brand hover:bg-brand-hover"
             >
               <MessageSquare className="h-4 w-4 mr-1.5" />
-              詢問 AI 臨床夥伴
+              對選取病人 AI 問答
             </Button>
           </div>
         </div>
