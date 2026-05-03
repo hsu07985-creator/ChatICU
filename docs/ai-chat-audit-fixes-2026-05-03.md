@@ -22,7 +22,7 @@
 | 訊息持久化 | 🔴 高 | Persistence 在 SSE generator 內，client 斷線 → user + assistant 訊息雙雙不寫入 DB |
 | 串流可控性 | 🟡 中 | 無 AbortController、無 stop 鈕、無 idle timeout，LLM 卡住會無限等待 |
 | Session 切換競態 | 🟡 中 | `isSending=true` 不擋 `openSession()`，串流結果可能落入錯的 session |
-| LLM 不對稱 | 🟡 中 | `_call_openai_multi` 漏 gpt-5 `minimal` fallback；Anthropic 路徑無 cache_control |
+| LLM 不對稱 | 🟡 中 | `_call_openai_multi` 漏 gpt-5 `minimal` fallback；~~Anthropic 路徑無 cache_control~~（放棄，無額度） |
 | DB pool 容量 | 🟡 中 | 並發 ~2 個首輪 chat / Railway replica 就會 Supabase pool 飽和 |
 | Snapshot 設計 | 🟢 低 | UTC 時間戳違反 Taipei 偏好；threshold 硬編碼四散；單位假設未驗證 |
 | 前端品質 | 🟢 低 | `canSendAiChat=true` 寫死的死碼、feedback/regenerate 接 noop、`hasDataQuality` 無 JSX |
@@ -207,24 +207,13 @@ def _build_openai_param_block(*, task: str, disable_reasoning: bool) -> dict:
 
 ---
 
-### 3.4 Anthropic 路徑加 prompt cache — `backend/app/llm.py`
+### 3.4 Anthropic 路徑加 prompt cache — `backend/app/llm.py`（❌ 放棄）
 
-**現況**：所有 Anthropic 呼叫（`_call_anthropic*`、`_stream_anthropic` `:668-674, 850-852, 884-887`）都只送 `system=system_prompt, messages=messages`，**完全沒設 `cache_control`**。整套 OpenAI cache 優化（snapshot 只進 system、deferred 只進 user message）對 Anthropic 失效；切 provider 後每輪都全文重送，成本與 TTFT 暴增。
+**現況**：所有 Anthropic 呼叫（`_call_anthropic*`、`_stream_anthropic`）都只送 `system=system_prompt, messages=messages`，**完全沒設 `cache_control`**。
 
-**修補**：
-1. `_stream_anthropic`、`_call_anthropic*` 改用 system blocks 寫法：
-   ```python
-   system=[
-       {"type": "text", "text": task_prompt_only,
-        "cache_control": {"type": "ephemeral"}},
-       {"type": "text", "text": f"[病患臨床快照]\n{snapshot}",
-        "cache_control": {"type": "ephemeral"}},
-   ]
-   ```
-2. 但這要求 `ai_chat.py:_build_system_prompt`（`:116-118`）回傳結構化 list 而非單字串 —— 為避免動 OpenAI 路徑，建議在 `llm.py` 內判斷 provider 後再切分（拿 `[病患臨床快照]\n` 當 splitter）
-3. 確認 `model` 支援 prompt caching（claude-3.5-sonnet 以上）
+**決策（2026-05-03）**：**放棄此項**。使用者沒有 Anthropic API 額度，prod 永遠不會切到 `LLM_PROVIDER=anthropic`，做了也用不到。曾經實作（commit `a59f07df5`）但同日 revert，避免增加未來維護表面。
 
-**估時**：2h。**Owner**：後端組。**前置**：先在 staging 跑一次 Anthropic 確認預設模型可用。
+**未來何時重啟**：當有預算切 Claude provider 時，從 git history 撿回原始 `_build_anthropic_system_blocks` + `_log_anthropic_cache` helper（含 3 條 unit test）。Splitter 設計仍可重用：在 `llm.py` 內以 `[病患臨床快照]\n` 切分。
 
 ---
 
@@ -409,7 +398,7 @@ LLM 卡住或長 reasoning 期間，Vercel / Railway proxy 可能在無資料超
 | **下週（中）** | 3.1 Stop 鈕 + idle timeout | 2h | 前端 |
 |  | 3.2 擋 session 切換 | 30min | 前端 |
 |  | 3.3 LLM helper 抽取 | 1h | 後端 |
-|  | 3.4 Anthropic prompt cache | 2h | 後端 |
+|  | ~~3.4 Anthropic prompt cache~~ | — | ❌ 放棄（無額度） |
 |  | 3.5 Pool 緩解 | 2h | 後端 |
 |  | 3.6 Deferred race | 1.5h | 後端 |
 | **下下週（低）** | 4.1 Taipei 時區 | 30min | 後端 |

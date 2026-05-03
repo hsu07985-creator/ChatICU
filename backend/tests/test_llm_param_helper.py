@@ -114,36 +114,3 @@ def test_helper_never_emits_both_keys(monkeypatch, model, reasoning, disable, ic
         icu_chat_skips_reasoning=icu_skip,
     )
     assert not ("temperature" in block and "reasoning_effort" in block)
-
-
-# ── W2-T4: Anthropic cached system block builder ──────────────────────────────
-
-def test_anthropic_blocks_split_at_snapshot_marker():
-    """When the snapshot marker is present, base prompt and snapshot become
-    two separate cached blocks. Both carry cache_control:ephemeral so they
-    survive across turns within the cache window."""
-    sys_prompt = "你是 ICU 助手。\n\n[病患臨床快照]\n床號：I-1\nNa: 138"
-    blocks = llm_module._build_anthropic_system_blocks(sys_prompt)
-    assert len(blocks) == 2
-    assert blocks[0]["text"] == "你是 ICU 助手。"
-    assert blocks[1]["text"].startswith("[病患臨床快照]")
-    assert all(b["cache_control"] == {"type": "ephemeral"} for b in blocks)
-
-
-def test_anthropic_blocks_single_when_no_snapshot():
-    """General chat without patient context — whole prompt is one cached block."""
-    sys_prompt = "你是 ICU 助手。"
-    blocks = llm_module._build_anthropic_system_blocks(sys_prompt)
-    assert blocks == [
-        {"type": "text", "text": "你是 ICU 助手。", "cache_control": {"type": "ephemeral"}},
-    ]
-
-
-def test_anthropic_blocks_byte_stable_per_session():
-    """Same input ⇒ same blocks. Required so the Anthropic cache key is stable
-    across turns. Regression guard against any future helper that mutates the
-    snapshot in-place."""
-    sys_prompt = "你是 ICU 助手。\n\n[病患臨床快照]\nNa: 138"
-    a = llm_module._build_anthropic_system_blocks(sys_prompt)
-    b = llm_module._build_anthropic_system_blocks(sys_prompt)
-    assert a == b

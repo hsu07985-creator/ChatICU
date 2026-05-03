@@ -581,51 +581,6 @@ async def call_llm_stream(
         yield f"[ERROR] {str(e)}"
 
 
-def _build_anthropic_system_blocks(system_prompt: str) -> list:
-    """Anthropic system as cached blocks.
-
-    Splits system_prompt at the ``[病患臨床快照]`` marker (the same byte-stable
-    boundary the OpenAI cache relies on, see backend/app/routers/ai_chat.py
-    `_build_system_prompt`). The base task prompt becomes one cached block,
-    the snapshot becomes another. Both get ``cache_control: ephemeral`` so
-    repeated turns within ~5 minutes hit the cache.
-
-    If the marker is missing (e.g. general chat without patient context),
-    falls back to a single cached block containing the whole system_prompt.
-
-    Cache support is limited to claude-3.5+ / claude-4 models. For other
-    models (or when caching beta is off) the Anthropic API still accepts
-    the structured form and silently degrades to no cache.
-    """
-    marker = "[病患臨床快照]"
-    if marker in system_prompt:
-        head, tail = system_prompt.split(marker, 1)
-        base = head.rstrip()
-        snapshot = (marker + tail).strip()
-        return [
-            {"type": "text", "text": base, "cache_control": {"type": "ephemeral"}},
-            {"type": "text", "text": snapshot, "cache_control": {"type": "ephemeral"}},
-        ]
-    return [
-        {"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}},
-    ]
-
-
-def _log_anthropic_cache(task: str, usage) -> None:
-    """Emit [LLM][CACHE] line in the same shape as the OpenAI logger."""
-    input_tokens = getattr(usage, "input_tokens", 0) or 0
-    output_tokens = getattr(usage, "output_tokens", 0) or 0
-    cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
-    cache_create = getattr(usage, "cache_creation_input_tokens", 0) or 0
-    total_input = input_tokens + cache_read + cache_create
-    if total_input:
-        ratio = (cache_read / total_input * 100)
-        logger.info(
-            "[LLM][CACHE] task=%s prompt_tokens=%d cached_tokens=%d cache_create=%d hit_ratio=%.0f%% completion_tokens=%d provider=anthropic",
-            task, total_input, cache_read, cache_create, ratio, output_tokens,
-        )
-
-
 def _build_openai_reasoning_param_block(
     *,
     task: str,
@@ -738,8 +693,7 @@ async def _stream_anthropic(
         model=settings.LLM_MODEL,
         temperature=settings.LLM_TEMPERATURE,
         max_tokens=max_tokens,
-        # W2-T4: cached system blocks so repeated turns within ~5 min hit cache.
-        system=_build_anthropic_system_blocks(system_prompt),
+        system=system_prompt,
         messages=messages,
     ) as stream:
         async for text in stream.text_stream:
@@ -750,10 +704,7 @@ async def _stream_anthropic(
         usage_meta = {
             "input_tokens": final_message.usage.input_tokens,
             "output_tokens": final_message.usage.output_tokens,
-            "cache_read_input_tokens": getattr(final_message.usage, "cache_read_input_tokens", 0) or 0,
-            "cache_creation_input_tokens": getattr(final_message.usage, "cache_creation_input_tokens", 0) or 0,
         }
-        _log_anthropic_cache(task, final_message.usage)
 
     _maybe_capture_provider_raw(
         provider="anthropic", task=task, model=settings.LLM_MODEL,
@@ -919,11 +870,9 @@ def _call_anthropic(
     client = _get_anthropic_sync()
     response = client.messages.create(
         model=settings.LLM_MODEL, temperature=temperature, max_tokens=max_tokens,
-        # W2-T4: cached system blocks.
-        system=_build_anthropic_system_blocks(system_prompt),
+        system=system_prompt,
         messages=[{"role": "user", "content": json.dumps(input_data, ensure_ascii=False, default=str)}],
     )
-    _log_anthropic_cache(task, response.usage)
     _maybe_capture_provider_raw(
         provider="anthropic",
         task=task,
@@ -939,8 +888,6 @@ def _call_anthropic(
         "metadata": {"model": settings.LLM_MODEL, "usage": {
             "input_tokens": response.usage.input_tokens,
             "output_tokens": response.usage.output_tokens,
-            "cache_read_input_tokens": getattr(response.usage, "cache_read_input_tokens", 0) or 0,
-            "cache_creation_input_tokens": getattr(response.usage, "cache_creation_input_tokens", 0) or 0,
         }},
     }
 
@@ -958,11 +905,9 @@ def _call_anthropic_multi(
     client = _get_anthropic_sync()
     response = client.messages.create(
         model=settings.LLM_MODEL, temperature=temperature, max_tokens=max_tokens,
-        # W2-T4: cached system blocks.
-        system=_build_anthropic_system_blocks(system_prompt),
+        system=system_prompt,
         messages=messages,
     )
-    _log_anthropic_cache(task, response.usage)
     _maybe_capture_provider_raw(
         provider="anthropic",
         task=task,
@@ -978,7 +923,5 @@ def _call_anthropic_multi(
         "metadata": {"model": settings.LLM_MODEL, "usage": {
             "input_tokens": response.usage.input_tokens,
             "output_tokens": response.usage.output_tokens,
-            "cache_read_input_tokens": getattr(response.usage, "cache_read_input_tokens", 0) or 0,
-            "cache_creation_input_tokens": getattr(response.usage, "cache_creation_input_tokens", 0) or 0,
         }},
     }
