@@ -18,6 +18,7 @@ import zhTWPatientTabs from './locales/zh-TW/patient-tabs.json';
 import zhTWMedications from './locales/zh-TW/medications.json';
 import zhTWMicrobiology from './locales/zh-TW/microbiology.json';
 import zhTWDiagnosticReports from './locales/zh-TW/diagnostic-reports.json';
+import zhTWPatientChat from './locales/zh-TW/patient-chat.json';
 
 import enUSCommon from './locales/en-US/common.json';
 import enUSSidebar from './locales/en-US/sidebar.json';
@@ -35,13 +36,14 @@ import enUSPatientTabs from './locales/en-US/patient-tabs.json';
 import enUSMedications from './locales/en-US/medications.json';
 import enUSMicrobiology from './locales/en-US/microbiology.json';
 import enUSDiagnosticReports from './locales/en-US/diagnostic-reports.json';
+import enUSPatientChat from './locales/en-US/patient-chat.json';
 
 export const SUPPORTED_LANGUAGES = ['zh-TW', 'en-US'] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 export const DEFAULT_LANGUAGE: SupportedLanguage = 'zh-TW';
 export const STORAGE_KEY = 'chaticu.lang';
 
-export const NAMESPACES = ['common', 'sidebar', 'errors', 'roles', 'notifications', 'auth', 'dashboard', 'patients', 'patient-detail', 'medical-records', 'labs', 'score-trend', 'patient-tabs', 'medications', 'microbiology', 'diagnostic-reports'] as const;
+export const NAMESPACES = ['common', 'sidebar', 'errors', 'roles', 'notifications', 'auth', 'dashboard', 'patients', 'patient-detail', 'medical-records', 'labs', 'score-trend', 'patient-tabs', 'medications', 'microbiology', 'diagnostic-reports', 'patient-chat'] as const;
 
 void i18n
   .use(LanguageDetector)
@@ -77,6 +79,7 @@ void i18n
         medications: zhTWMedications,
         microbiology: zhTWMicrobiology,
         'diagnostic-reports': zhTWDiagnosticReports,
+        'patient-chat': zhTWPatientChat,
       },
       'en-US': {
         common: enUSCommon,
@@ -95,6 +98,7 @@ void i18n
         medications: enUSMedications,
         microbiology: enUSMicrobiology,
         'diagnostic-reports': enUSDiagnosticReports,
+        'patient-chat': enUSPatientChat,
       },
     },
   });

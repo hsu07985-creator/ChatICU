@@ -17,6 +17,8 @@ import { Input } from '../ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Textarea } from '../ui/textarea';
 import { groupMessagesByWeek } from '../../pages/patient-detail-utils';
+import { useTranslation } from 'react-i18next';
+import { useRoleLabel } from '../../lib/utils/user-role';
 
 interface PharmacyTagCategory {
   category: string;
@@ -53,11 +55,12 @@ interface PatientMessagesTabProps {
 }
 
 const ROLE_CONFIG: Record<string, { icon: typeof Pill; color: string; label: string }> = {
-  pharmacist: { icon: Pill, color: 'text-green-600', label: '藥師' },
-  doctor: { icon: Stethoscope, color: 'text-blue-600', label: '醫師' },
-  np: { icon: Stethoscope, color: 'text-teal-600', label: '專科護理師' },
-  nurse: { icon: Activity, color: 'text-purple-600', label: '護理師' },
-  admin: { icon: Shield, color: 'text-orange-600', label: '管理者' },
+  // labels resolved via useRoleLabel(); kept here only for icon + color.
+  pharmacist: { icon: Pill, color: 'text-green-600', label: '' },
+  doctor: { icon: Stethoscope, color: 'text-blue-600', label: '' },
+  np: { icon: Stethoscope, color: 'text-teal-600', label: '' },
+  nurse: { icon: Activity, color: 'text-purple-600', label: '' },
+  admin: { icon: Shield, color: 'text-orange-600', label: '' },
   all: { icon: Users, color: 'text-rose-600', label: 'all' },
 };
 
@@ -81,6 +84,7 @@ function TagSelector({
   onCreateCustomTag?: (name: string) => void | Promise<void>;
   onDeleteCustomTag?: (tagId: string) => void | Promise<void>;
 }) {
+  const { t } = useTranslation('patient-chat');
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [showManage, setShowManage] = useState(false);
@@ -123,7 +127,7 @@ function TagSelector({
         <div className="space-y-2">
           <div className="flex gap-1">
             <Input
-              placeholder="新增標籤..."
+              placeholder={t('messages.addTagPlaceholder')}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleCustom(); } }}
@@ -160,7 +164,7 @@ function TagSelector({
                 className="text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left"
                 onClick={() => setShowManage(!showManage)}
               >
-                {showManage ? '收起' : '管理自訂標籤'}
+                {showManage ? t('messages.collapseManage') : t('messages.manageCustomTags')}
                 {!showManage && ` (${customTags!.length})`}
               </button>
               {showManage && (
@@ -179,7 +183,7 @@ function TagSelector({
                         type="button"
                         className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600 shrink-0 ml-1"
                         onClick={() => void onDeleteCustomTag(ct.id)}
-                        title="刪除此共用標籤"
+                        title={t('messages.deleteCustomTagTitle')}
                       >
                         <XCircle className="h-3.5 w-3.5" />
                       </button>
@@ -211,6 +215,7 @@ function PharmacyTagSelector({
   existingTags: string[];
   onAdd: (tags: string[]) => void;
 }) {
+  const { t } = useTranslation('patient-chat');
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const existingSet = new Set(existingTags);
@@ -266,7 +271,7 @@ function PharmacyTagSelector({
               {isExpanded && (
                 <div className="px-2 py-1.5 space-y-0.5">
                   {availableTags.length === 0 ? (
-                    <div className="text-[10px] text-slate-400 px-1 py-0.5">已全部選取</div>
+                    <div className="text-[10px] text-slate-400 px-1 py-0.5">{t('messages.allSelected')}</div>
                   ) : (
                     availableTags.map((tag) => (
                       <button
@@ -312,6 +317,8 @@ export function PatientMessagesTab({
   onRespondToAdvice,
   onDeleteMessage,
 }: PatientMessagesTabProps) {
+  const { t } = useTranslation('patient-chat');
+  const roleLabel = useRoleLabel();
   const [replyToId, setReplyToId] = useState<string | null>(null);
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
   const [composeTags, setComposeTags] = useState<string[]>([]);
@@ -473,7 +480,7 @@ export function PatientMessagesTab({
           <div className="space-y-2 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3">
             <div className="flex items-center gap-1.5">
               <Send className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
-              <span className="text-sm font-medium text-slate-600 dark:text-slate-400">新增留言</span>
+              <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{t('messages.addMessageLabel')}</span>
             </div>
 
             {/* 回覆指示條 */}
@@ -490,7 +497,7 @@ export function PatientMessagesTab({
             )}
 
             <MentionTextarea
-              placeholder={replyToMessage ? '輸入回覆內容...（輸入 @ 可指定人員）' : '輸入照護相關訊息或用藥建議（輸入 @ 可指定人員）...'}
+              placeholder={replyToMessage ? t('messages.replyPlaceholder') : t('messages.newMessagePlaceholder')}
               value={messageInput}
               onChange={onMessageInputChange}
               users={pickableUsers}
@@ -500,7 +507,7 @@ export function PatientMessagesTab({
 
             {/* 標籤選擇 */}
             <div className="flex flex-wrap items-center gap-1">
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">標籤:</span>
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('messages.tagsLabel')}</span>
               {composeTags.map((tag) => (
                 <Badge
                   key={tag}
@@ -538,7 +545,7 @@ export function PatientMessagesTab({
 
             {/* 角色提及 */}
             <div className="flex flex-wrap items-center gap-1">
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">提及:</span>
+              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('messages.mentionsLabel')}</span>
               {(['doctor', 'np', 'nurse', 'pharmacist', 'all'] as const).map((role) => {
                 const selected = composeMentionedRoles.includes(role);
                 const cfg = ROLE_CONFIG[role];
@@ -566,7 +573,7 @@ export function PatientMessagesTab({
                 disabled={sending || !messageInput.trim() || !patientId}
               >
                 <Send className="mr-1.5 h-3.5 w-3.5" />
-                <span>{sending ? '處理中' : replyToId ? '發送回覆' : '發送留言'}</span>
+                <span>{sending ? t('messages.sending') : replyToId ? t('messages.sendReply') : t('messages.sendMessage')}</span>
                 {sending ? <ButtonLoadingIndicator /> : null}
               </Button>
             </div>
@@ -596,7 +603,7 @@ export function PatientMessagesTab({
                   <div className="max-h-64 overflow-y-auto p-2 space-y-2">
                     {groupedFilterTags.general.length > 0 && (
                       <div>
-                        <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-1">一般</div>
+                        <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-1">{t('messages.tagGroupGeneral')}</div>
                         <div className="space-y-0.5">
                           {groupedFilterTags.general.map((tag) => (
                             <button
@@ -620,7 +627,7 @@ export function PatientMessagesTab({
                     )}
                     {groupedFilterTags.pharmacy.length > 0 && (
                       <div>
-                        <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-1">藥事分類</div>
+                        <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-1">{t('messages.tagGroupPharmacy')}</div>
                         <div className="space-y-0.5">
                           {groupedFilterTags.pharmacy.map((tag) => {
                             const catColor = CATEGORY_COLORS[tag];
@@ -647,7 +654,7 @@ export function PatientMessagesTab({
                     )}
                     {groupedFilterTags.subcodes.length > 0 && (
                       <div>
-                        <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-1">藥事子代碼</div>
+                        <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-1">{t('messages.tagGroupPharmacySub')}</div>
                         <div className="space-y-0.5">
                           {groupedFilterTags.subcodes.map((tag) => (
                             <button
@@ -713,14 +720,14 @@ export function PatientMessagesTab({
             ) : filteredMessages.length === 0 ? (
               <EmptyState
                 icon={filterTag ? Filter : MessagesSquare}
-                title={filterTag ? `沒有「${filterTag}」標籤的留言` : '尚無留言'}
-                description={filterTag ? '嘗試清除篩選條件查看所有留言' : '開始新增第一則留言，與團隊分享照護資訊'}
+                title={filterTag ? t('messages.filteredEmpty', { tag: filterTag }) : t('messages.noMessages')}
+                description={filterTag ? t('messages.filteredEmptyDesc') : t('messages.noMessagesDesc')}
               />
             ) : (
               <div className="space-y-3">
                 {groupMessagesByWeek(filteredMessages).map((group) => {
                   const messageCards = group.messages.map((message) => {
-                    const roleCfg = ROLE_CONFIG[message.authorRole ?? ''] ?? { icon: User, color: 'text-slate-500', label: '使用者' };
+                    const roleCfg = ROLE_CONFIG[message.authorRole ?? ''] ?? { icon: User, color: 'text-slate-500', label: '' };
                     const RoleIcon = roleCfg.icon;
                     const typeStyle = MSG_TYPE_STYLE[message.messageType ?? ''] ?? 'border-l-slate-300';
                     const replies = message.replies ?? [];
@@ -744,7 +751,7 @@ export function PatientMessagesTab({
                               <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{message.authorName}</span>
                               <Badge variant="outline" className="text-xs shrink-0">{roleCfg.label}</Badge>
                               {message.messageType === 'medication-advice' && (
-                                <Badge className="bg-green-600 text-white text-xs shrink-0 hover:bg-green-600">用藥建議</Badge>
+                                <Badge className="bg-green-600 text-white text-xs shrink-0 hover:bg-green-600">{t('messages.adviceBadge')}</Badge>
                               )}
                               {message.messageType === 'medication-advice' && message.adviceRecordId && message.adviceAccepted === true && (
                                 <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs shrink-0 hover:bg-emerald-100">
@@ -759,10 +766,10 @@ export function PatientMessagesTab({
                                 </Badge>
                               )}
                               {message.messageType === 'alert' && (
-                                <Badge variant="destructive" className="text-xs shrink-0">警示</Badge>
+                                <Badge variant="destructive" className="text-xs shrink-0">{t('messages.alertBadge')}</Badge>
                               )}
                               {!message.isRead && (
-                                <Badge variant="destructive" className="text-xs shrink-0">未讀</Badge>
+                                <Badge variant="destructive" className="text-xs shrink-0">{t('messages.unreadBadge')}</Badge>
                               )}
                               {(message.mentionedRoles?.length ?? 0) > 0 && message.mentionedRoles!.map((role) => (
                                 <Badge key={role} className="bg-orange-100 text-orange-800 border-orange-300 text-xs shrink-0 hover:bg-orange-100">
@@ -813,7 +820,7 @@ export function PatientMessagesTab({
                                   onClick={() => void handleMarkRead(message.id)}
                                 >
                                   <CheckCircle2 className="h-3 w-3 mr-1" />
-                                  <span>{processingMessageId === message.id ? '處理中' : '已讀'}</span>
+                                  <span>{processingMessageId === message.id ? t('messages.processing') : t('messages.markRead')}</span>
                                   {processingMessageId === message.id ? <ButtonLoadingIndicator compact /> : null}
                                 </Button>
                               )}
@@ -827,7 +834,7 @@ export function PatientMessagesTab({
                                     onClick={() => void handleRespondAdvice(message.adviceRecordId!, true)}
                                   >
                                     <ThumbsUp className="h-3 w-3 mr-1" />
-                                    <span>{respondingAdviceId === message.adviceRecordId ? '處理中' : '接受建議'}</span>
+                                    <span>{respondingAdviceId === message.adviceRecordId ? t('messages.processing') : t('messages.acceptAdvice')}</span>
                                     {respondingAdviceId === message.adviceRecordId ? <ButtonLoadingIndicator compact /> : null}
                                   </Button>
                                   <Button
@@ -838,7 +845,7 @@ export function PatientMessagesTab({
                                     onClick={() => void handleRespondAdvice(message.adviceRecordId!, false)}
                                   >
                                     <ThumbsDown className="h-3 w-3 mr-1" />
-                                    <span>{respondingAdviceId === message.adviceRecordId ? '處理中' : '不接受'}</span>
+                                    <span>{respondingAdviceId === message.adviceRecordId ? t('messages.processing') : t('messages.rejectAdvice')}</span>
                                     {respondingAdviceId === message.adviceRecordId ? <ButtonLoadingIndicator compact /> : null}
                                   </Button>
                                 </>
@@ -852,7 +859,7 @@ export function PatientMessagesTab({
                                   onClick={() => void handleDelete(message.id)}
                                 >
                                   <Trash2 className="h-3 w-3 mr-1" />
-                                  <span>{processingMessageId === message.id ? '處理中' : '刪除'}</span>
+                                  <span>{processingMessageId === message.id ? t('messages.processing') : t('messages.deleteMessage')}</span>
                                   {processingMessageId === message.id ? <ButtonLoadingIndicator compact /> : null}
                                 </Button>
                               )}
@@ -901,7 +908,7 @@ export function PatientMessagesTab({
                                 onClick={() => toggleThread(message.id)}
                               >
                                 <MessagesSquare className="h-3.5 w-3.5" />
-                                {isThreadExpanded ? '收起回覆' : `${message.replyCount ?? 0} 則回覆`}
+                                {isThreadExpanded ? t('messages.collapseReplies') : t('messages.expandReplies', { count: message.replyCount ?? 0 })}
                               </button>
                             )}
                           </div>
@@ -909,7 +916,7 @@ export function PatientMessagesTab({
                         {isThreadExpanded && replies.length > 0 && (
                           <div className="ml-6 mt-1.5 space-y-1.5 border-l-2 border-blue-200 pl-3">
                             {replies.map((reply) => {
-                              const replyRoleCfg = ROLE_CONFIG[reply.authorRole ?? ''] ?? { icon: User, color: 'text-slate-500', label: '使用者' };
+                              const replyRoleCfg = ROLE_CONFIG[reply.authorRole ?? ''] ?? { icon: User, color: 'text-slate-500', label: '' };
                               const ReplyRoleIcon = replyRoleCfg.icon;
                               return (
                                 <div key={reply.id} className="rounded-md border border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 px-2.5 py-2">

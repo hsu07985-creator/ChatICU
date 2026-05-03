@@ -19,6 +19,7 @@ import { AdviceRefChips } from '../ai-chat/advice-ref-chips';
 import { DrugInteractionBadges } from './drug-interaction-badges';
 import { ExpertReviewWarning } from './expert-review-warning';
 import { ButtonLoadingIndicator } from '../ui/button-loading-indicator';
+import { useTranslation } from 'react-i18next';
 
 interface ChatMessageThreadProps {
   chatMessages: SessionChatMessage[];
@@ -59,6 +60,7 @@ export function ChatMessageThread({
   onSetMessageFeedback,
   feedbackingMessageIndex = null,
 }: ChatMessageThreadProps) {
+  const { t } = useTranslation('patient-chat');
   return (
     <div
       ref={containerRef}
@@ -68,8 +70,8 @@ export function ChatMessageThread({
       {chatMessages.length === 0 ? (
         <div className="text-center text-muted-foreground py-12">
           <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-30 text-[#9ca3af]" />
-          <p className="text-base font-medium">開始對話以獲得 AI 協助</p>
-          <p className="text-sm text-muted-foreground mt-2">可以詢問檢驗數據、用藥建議、治療指引等</p>
+          <p className="text-base font-medium">{t('thread.emptyTitle')}</p>
+          <p className="text-sm text-muted-foreground mt-2">{t('thread.emptyHint')}</p>
         </div>
       ) : (
         chatMessages.map((msg, idx) => {
@@ -198,7 +200,7 @@ export function ChatMessageThread({
                                           {ref.summary ? (
                                             <div className="mt-1 space-y-1">
                                               <p className="text-xs text-[#374151] dark:text-slate-300 leading-relaxed">
-                                                <span className="font-medium text-[#374151] dark:text-slate-300">重點：</span>
+                                                <span className="font-medium text-[#374151] dark:text-slate-300">{t('thread.highlightLabel')}</span>
                                                 {ref.summary}
                                               </p>
                                               {ref.keyQuote && (
@@ -253,7 +255,7 @@ export function ChatMessageThread({
                             <button
                               onClick={() => onToggleExplanation(idx)}
                               className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
-                              aria-label={isDetailExpanded ? '收合說明' : '展開說明'}
+                              aria-label={isDetailExpanded ? t('thread.collapseDetail') : t('thread.expandDetail')}
                             >
                               {isDetailExpanded ? (
                                 <>
@@ -272,7 +274,7 @@ export function ChatMessageThread({
                             <button
                               onClick={() => onToggleReferences(idx)}
                               className="flex items-center gap-0.5 hover:text-[#4B5563] cursor-pointer transition-colors"
-                              aria-label="參考依據"
+                              aria-label={t('thread.referencesAria')}
                             >
                               <BookOpen className="h-3.5 w-3.5" />
                               {references.length}
@@ -288,11 +290,11 @@ export function ChatMessageThread({
                           <button
                             onClick={async () => {
                               const success = await copyToClipboard(msg.content);
-                              if (success) toast.success('已複製到剪貼簿');
-                              else toast.error('複製失敗，請手動複製');
+                              if (success) toast.success(t('thread.copySuccess'));
+                              else toast.error(t('thread.copyError'));
                             }}
                             className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
-                            aria-label="複製回覆"
+                            aria-label={t('thread.copyAria')}
                           >
                             <Copy className="h-3 w-3" />
                           </button>
@@ -304,7 +306,7 @@ export function ChatMessageThread({
                                   ? 'text-green-600'
                                   : 'hover:text-[#4B5563]'
                               }`}
-                              aria-label="讚"
+                              aria-label={t('thread.thumbsUpAria')}
                               disabled={isProcessingFeedback}
                             >
                               <ThumbsUp className="h-3 w-3" />
@@ -319,7 +321,7 @@ export function ChatMessageThread({
                                   ? 'text-red-500'
                                   : 'hover:text-[#4B5563]'
                               }`}
-                              aria-label="倒讚"
+                              aria-label={t('thread.thumbsDownAria')}
                               disabled={isProcessingFeedback}
                             >
                               <ThumbsDown className="h-3 w-3" />
@@ -341,7 +343,7 @@ export function ChatMessageThread({
         <button
           onClick={onJumpToLatest}
           className="sticky bottom-2 ml-auto flex items-center gap-1 text-white text-xs rounded-full px-3 py-1.5 shadow-lg transition-colors z-10 bg-gray-700 hover:bg-gray-700"
-          aria-label="跳到最新訊息"
+          aria-label={t('thread.scrollToLatestAria')}
         >
           <ArrowDown className="h-3.5 w-3.5" />
           跳到最新

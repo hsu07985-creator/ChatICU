@@ -33,6 +33,7 @@ import { Textarea } from '../ui/textarea';
 import { AiMarkdown, SafetyWarnings } from '../ui/ai-markdown';
 import { LoadingSpinner } from '../ui/state-display';
 import { copyToClipboard } from '../../lib/clipboard-utils';
+import { useTranslation } from 'react-i18next';
 
 // Local mirrors of the parent's `ChatSession` / `ChatMessage` shapes. Kept as
 // generic structural interfaces so the parent can keep its own types without
@@ -195,6 +196,7 @@ export function PatientChatTab({
   refreshingSnapshot = false,
   onRefreshSnapshot,
 }: PatientChatTabProps) {
+  const { t } = useTranslation('patient-chat');
   return (
     <TabsContent value="chat" className="space-y-2">
       <div className="grid grid-cols-12 gap-2">
@@ -216,7 +218,7 @@ export function PatientChatTab({
                         className="h-6 px-2 text-xs"
                         onClick={onToggleSelectMode}
                       >
-                        {isSelectMode ? '完成' : '管理'}
+                        {isSelectMode ? t('chatTab.manageDone') : t('chatTab.manage')}
                       </Button>
                     )}
                     {!isSelectMode && (
@@ -227,7 +229,7 @@ export function PatientChatTab({
                         disabled={isStartingSession}
                       >
                         <Plus className="h-3 w-3 mr-1" />
-                        <span>{isStartingSession ? '處理中' : '新對話'}</span>
+                        <span>{isStartingSession ? t('chatTab.newSessionPending') : t('chatTab.newSession')}</span>
                         {isStartingSession ? <ButtonLoadingIndicator compact /> : null}
                       </Button>
                     )}
@@ -241,7 +243,7 @@ export function PatientChatTab({
                       className="h-6 px-2 text-xs"
                       onClick={onSelectAllSessions}
                     >
-                      {selectedSessionIds.length === chatSessions.length ? '取消全選' : '全選'}
+                      {selectedSessionIds.length === chatSessions.length ? t('chatTab.deselectAll') : t('chatTab.selectAll')}
                     </Button>
                     <Button
                       size="sm"
@@ -251,7 +253,7 @@ export function PatientChatTab({
                       onClick={() => void onBatchDelete()}
                     >
                       <Trash2 className="h-3 w-3 mr-1" />
-                      <span>{isDeletingSessions ? '處理中' : `刪除 (${selectedSessionIds.length})`}</span>
+                      <span>{isDeletingSessions ? t('chatTab.deletingPending') : t('chatTab.deleteSelected', { count: selectedSessionIds.length })}</span>
                       {isDeletingSessions ? <ButtonLoadingIndicator compact /> : null}
                     </Button>
                   </div>
@@ -261,13 +263,13 @@ export function PatientChatTab({
                 <ScrollArea style={{ height: 'calc(100vh - 220px)', minHeight: '400px' }}>
                   {chatSessionsLoading ? (
                     <div className="p-8 flex flex-col items-center gap-2 text-center text-muted-foreground">
-                      <LoadingSpinner size="sm" text="載入對話記錄中..." />
+                      <LoadingSpinner size="sm" text={t('chatTab.loadingSessions')} />
                     </div>
                   ) : chatSessions.length === 0 ? (
                     <div className="p-8 flex flex-col items-center gap-2 text-center text-muted-foreground">
                       <MessageSquare className="h-10 w-10 opacity-30 text-[#9ca3af]" />
-                      <p className="text-sm font-medium text-muted-foreground">尚無對話記錄</p>
-                      <p className="text-xs text-[#9ca3af] leading-relaxed">點擊「新對話」開始<br/>向 AI 詢問照護問題</p>
+                      <p className="text-sm font-medium text-muted-foreground">{t('chatTab.noSessions')}</p>
+                      <p className="text-xs text-[#9ca3af] leading-relaxed">{t('chatTab.newSessionHintTop')}<br/>{t('chatTab.newSessionHintBottom')}</p>
                     </div>
                   ) : (
                     <div className="space-y-1 p-2">
@@ -326,7 +328,7 @@ export function PatientChatTab({
                                     onClick={(e) => void onDeleteSession(e, session.id)}
                                     disabled={deletingSessionId === session.id}
                                     className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 disabled:opacity-100 disabled:text-red-600"
-                                    title="刪除對話"
+                                    title={t('chatTab.deleteSessionTitle')}
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </button>
@@ -364,7 +366,7 @@ export function PatientChatTab({
                 )}
                 <div className="flex items-center gap-1">
                   <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-brand"
-                    onClick={onToggleSessionList} title={showSessionList ? '隱藏記錄列表' : '顯示記錄列表'}>
+                    onClick={onToggleSessionList} title={showSessionList ? t('chatTab.hideList') : t('chatTab.showList')}>
                     <History className="h-3 w-3" />
                   </Button>
                 </div>
@@ -381,8 +383,8 @@ export function PatientChatTab({
                   {chatMessages.length === 0 ? (
                     <div className="text-center text-muted-foreground py-12">
                       <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-30 text-[#9ca3af]" />
-                      <p className="text-base font-medium">開始對話以獲得 AI 協助</p>
-                      <p className="text-sm text-muted-foreground mt-2">可以詢問檢驗數據、用藥建議、治療指引等</p>
+                      <p className="text-base font-medium">{t('thread.emptyTitle')}</p>
+                      <p className="text-sm text-muted-foreground mt-2">{t('thread.emptyHint')}</p>
                     </div>
                   ) : (
                     chatMessages.map((msg, idx) => {
@@ -454,7 +456,7 @@ export function PatientChatTab({
                                     {isRefsExpanded && (
                                       <div className="mt-2 rounded-md bg-slate-50 dark:bg-slate-800 border border-border p-2.5">
                                         {references.length === 0 ? (
-                                          <p className="text-xs text-muted-foreground">本次回答未擷取到可顯示的文獻段落，可改用更具體關鍵詞再詢問。</p>
+                                          <p className="text-xs text-muted-foreground">{t('thread.noReferences')}</p>
                                         ) : (
                                           <ul className="space-y-2">
                                             {references.map((ref, refIdx) => (
@@ -473,7 +475,7 @@ export function PatientChatTab({
                                                     {ref.summary ? (
                                                       <div className="mt-1 space-y-1">
                                                         <p className="text-xs text-[#374151] leading-relaxed">
-                                                          <span className="font-medium text-[#374151]">重點：</span>{ref.summary}
+                                                          <span className="font-medium text-[#374151]">{t('thread.highlightLabel')}</span>{ref.summary}
                                                         </p>
                                                         {ref.keyQuote && (
                                                           <div className="rounded border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs leading-relaxed text-muted-foreground italic">
@@ -498,7 +500,7 @@ export function PatientChatTab({
                                                         {compactSnippet(ref.snippet)}
                                                       </div>
                                                     ) : (
-                                                      <p className="text-xs text-[#9ca3af] mt-1">未提供原文段落。</p>
+                                                      <p className="text-xs text-[#9ca3af] mt-1">{t('thread.noOriginalSnippet')}</p>
                                                     )}
                                                   </div>
                                                 </div>
@@ -528,16 +530,16 @@ export function PatientChatTab({
                                         <button
                                           onClick={() => onSetExpandedExplanations(prev => isDetailExpanded ? prev.filter(i => i !== idx) : [...prev, idx])}
                                           className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
-                                          aria-label={isDetailExpanded ? '收合說明' : '展開說明'}
+                                          aria-label={isDetailExpanded ? t('thread.collapseDetail') : t('thread.expandDetail')}
                                         >
-                                          {isDetailExpanded ? <><ChevronDown className="h-3 w-3" />收合</> : <><ChevronRight className="h-3 w-3" />詳細</>}
+                                          {isDetailExpanded ? <><ChevronDown className="h-3 w-3" />{t('thread.shortCollapse')}</> : <><ChevronRight className="h-3 w-3" />{t('thread.shortDetail')}</>}
                                         </button>
                                       )}
                                       {references.length > 0 && (
                                         <button
                                           onClick={() => onSetExpandedReferences(prev => isRefsExpanded ? prev.filter(i => i !== idx) : [...prev, idx])}
                                           className="flex items-center gap-0.5 hover:text-[#4B5563] cursor-pointer transition-colors"
-                                          aria-label="參考依據"
+                                          aria-label={t('thread.referencesAria')}
                                         >
                                           <BookOpen className="h-3.5 w-3.5" />
                                           {references.length}
@@ -547,7 +549,7 @@ export function PatientChatTab({
                                         <button
                                           onClick={() => onSetExpandedDataQuality(prev => isQualityExpanded ? prev.filter(i => i !== idx) : [...prev, idx])}
                                           className="flex items-center gap-0.5 text-amber-500 hover:text-amber-700 transition-colors"
-                                          aria-label="資料品質警告"
+                                          aria-label={t('thread.dataQualityAria')}
                                         >
                                           <AlertCircle className="h-3.5 w-3.5" />
                                         </button>
@@ -562,11 +564,11 @@ export function PatientChatTab({
                                       <button
                                         onClick={async () => {
                                           const success = await copyToClipboard(msg.content);
-                                          if (success) toast.success('已複製到剪貼簿');
-                                          else toast.error('複製失敗，請手動複製');
+                                          if (success) toast.success(t('thread.copySuccess'));
+                                          else toast.error(t('thread.copyError'));
                                         }}
                                         className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
-                                        aria-label="複製回覆"
+                                        aria-label={t('thread.copyAria')}
                                       >
                                         <Copy className="h-3 w-3" />
                                       </button>
@@ -576,7 +578,7 @@ export function PatientChatTab({
                                           className={`flex items-center gap-0.5 transition-colors ${
                                             msg.feedback === 'up' ? 'text-green-600' : 'hover:text-[#4B5563]'
                                           }`}
-                                          aria-label="讚"
+                                          aria-label={t('thread.thumbsUpAria')}
                                           disabled={feedbackingMessageIndex === idx || regeneratingMessageIndex === idx}
                                         >
                                           <ThumbsUp className="h-3 w-3" />
@@ -589,7 +591,7 @@ export function PatientChatTab({
                                           className={`flex items-center gap-0.5 transition-colors ${
                                             msg.feedback === 'down' ? 'text-red-500' : 'hover:text-[#4B5563]'
                                           }`}
-                                          aria-label="倒讚"
+                                          aria-label={t('thread.thumbsDownAria')}
                                           disabled={feedbackingMessageIndex === idx || regeneratingMessageIndex === idx}
                                         >
                                           <ThumbsDown className="h-3 w-3" />
@@ -600,7 +602,7 @@ export function PatientChatTab({
                                         <button
                                           onClick={() => void onRegenerateMessage(idx)}
                                           className="flex items-center gap-0.5 hover:text-[#4B5563] transition-colors"
-                                          aria-label="重新生成"
+                                          aria-label={t('thread.regenerateAria')}
                                           disabled={isSending || feedbackingMessageIndex === idx || regeneratingMessageIndex === idx}
                                         >
                                           <RefreshCw className={`h-3 w-3 ${isSending || regeneratingMessageIndex === idx ? 'opacity-40' : ''}`} />
@@ -622,7 +624,7 @@ export function PatientChatTab({
                     <button
                       onClick={onJumpToLatest}
                       className="sticky bottom-2 ml-auto flex items-center gap-1 text-white text-xs rounded-full px-3 py-1.5 shadow-lg transition-colors z-10 bg-gray-700 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500"
-                      aria-label="跳到最新訊息"
+                      aria-label={t('thread.scrollToLatestAria')}
                     >
                       <ArrowDown className="h-3.5 w-3.5" />
                       跳到最新
@@ -665,7 +667,7 @@ export function PatientChatTab({
                       <Send className={`h-4.5 w-4.5 ${isSending ? 'opacity-40' : ''}`} />
                     </Button>
                   </div>
-                  <p className="text-xs text-[#d0d0d0] mt-1">Enter 發送 · Shift+Enter 換行</p>
+                  <p className="text-xs text-[#d0d0d0] mt-1">{t('chatTab.inputShortcutHint')}</p>
                 </div>
               </div>{/* end flex column */}
             </CardContent>

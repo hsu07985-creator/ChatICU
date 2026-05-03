@@ -11,6 +11,7 @@ import { Badge } from '../ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { cn } from '../ui/utils';
 import { MedicationDuplicateBadges } from './medication-duplicate-badges';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Wave 6a — 出院用藥檢查 panel
@@ -24,12 +25,7 @@ import { MedicationDuplicateBadges } from './medication-duplicate-badges';
  */
 
 // ── UI constants ────────────────────────────────────────────────────
-const CATEGORY_LABEL: Record<DischargeMissedCategory, string> = {
-  sup_ppi: '住院 SUP PPI 未明確停藥',
-  empirical_antibiotic: '住院抗生素未延續至出院 — 確認療程是否結束',
-  prn_only: '住院 PRN 未在出院單',
-  other: '住院常規用藥未延續',
-};
+// Category labels resolved via t('discharge.categories.<key>').
 
 const SEVERITY_CONFIG: Record<DischargeMissedSeverity, { icon: string; label: string; pill: string; row: string; text: string }> = {
   high: {
@@ -62,6 +58,7 @@ export interface DischargeCheckPanelProps {
 }
 
 export function DischargeCheckPanel({ patientId, className }: DischargeCheckPanelProps) {
+  const { t } = useTranslation('patient-chat');
   const { data, isLoading, isError, error } = useApiQuery<DischargeCheckResponse>({
     queryKey: ['discharge-check', patientId],
     queryFn: () => getDischargeCheck(patientId),
@@ -76,7 +73,7 @@ export function DischargeCheckPanel({ patientId, className }: DischargeCheckPane
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-base font-semibold">
             <ClipboardCheck className="h-4 w-4 text-brand" />
-            出院用藥檢查
+            {t('discharge.title')}
           </CardTitle>
           {data && <SummaryCounts data={data} />}
         </div>
@@ -86,7 +83,7 @@ export function DischargeCheckPanel({ patientId, className }: DischargeCheckPane
         {isLoading && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            載入出院用藥檢查中…
+            {t('discharge.loading')}
           </div>
         )}
 
@@ -94,9 +91,9 @@ export function DischargeCheckPanel({ patientId, className }: DischargeCheckPane
           <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
             <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
             <div>
-              <div className="font-medium">暫時無法載入出院用藥檢查</div>
+              <div className="font-medium">{t('discharge.errorTitle')}</div>
               <div className="opacity-80">
-                {error instanceof Error ? error.message : '請稍後重試'}
+                {error instanceof Error ? error.message : t('discharge.retryHint')}
               </div>
             </div>
           </div>
@@ -111,6 +108,7 @@ export function DischargeCheckPanel({ patientId, className }: DischargeCheckPane
 }
 
 function SummaryCounts({ data }: { data: DischargeCheckResponse }) {
+  const { t } = useTranslation('patient-chat');
   const missed = data.counts.missedDiscontinuations;
   const dup = data.counts.dischargeDuplicates;
   return (
@@ -123,7 +121,7 @@ function SummaryCounts({ data }: { data: DischargeCheckResponse }) {
             : 'bg-emerald-50 border-emerald-300 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-300',
         )}
       >
-        遺漏停藥 {missed}
+        {t('discharge.missedSummary', { count: missed })}
       </Badge>
       {(['critical', 'high', 'moderate', 'low', 'info'] as const).map((lvl) => {
         const n = dup[lvl];
@@ -137,7 +135,7 @@ function SummaryCounts({ data }: { data: DischargeCheckResponse }) {
         };
         return (
           <Badge key={lvl} variant="outline" className={palette[lvl]}>
-            重複 {lvl} {n}
+            {t('discharge.duplicateSummary', { level: lvl, count: n })}
           </Badge>
         );
       })}
@@ -146,6 +144,7 @@ function SummaryCounts({ data }: { data: DischargeCheckResponse }) {
 }
 
 function DischargeCheckBody({ data }: { data: DischargeCheckResponse }) {
+  const { t } = useTranslation('patient-chat');
   const missed = data.missedDiscontinuations ?? [];
   const duplicates = data.dischargeDuplicates ?? [];
   const bothEmpty = missed.length === 0 && duplicates.length === 0;
@@ -154,7 +153,7 @@ function DischargeCheckBody({ data }: { data: DischargeCheckResponse }) {
     return (
       <div className="flex items-center gap-2 rounded-md border border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 px-3 py-2.5 text-sm text-emerald-800 dark:text-emerald-300">
         <CheckCircle2 className="h-4 w-4 shrink-0" />
-        <span className="font-medium">✓ 無遺漏停藥、無重複用藥</span>
+        <span className="font-medium">{t('discharge.allClear')}</span>
       </div>
     );
   }
@@ -165,7 +164,7 @@ function DischargeCheckBody({ data }: { data: DischargeCheckResponse }) {
       {missed.length > 0 && (
         <section>
           <h5 className="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-2">
-            疑似遺漏停藥（{missed.length}）
+            {t('discharge.missedSection', { count: missed.length })}
           </h5>
           <ul className="space-y-1.5">
             {missed.map((m, idx) => {
@@ -192,11 +191,11 @@ function DischargeCheckBody({ data }: { data: DischargeCheckResponse }) {
                       )}
                     </span>
                     <span className={cn('opacity-90', cfg.text)}>
-                      — {CATEGORY_LABEL[m.category] ?? CATEGORY_LABEL.other}
+                      — {t(`discharge.categories.${m.category}`, { defaultValue: t('discharge.categories.other') })}
                     </span>
                     {m.inpatientStartDate && (
                       <span className="ml-auto text-[10px] text-slate-500 dark:text-slate-400 tabular-nums">
-                        住院開立：{m.inpatientStartDate}
+                        {t('discharge.inpatientStartLabel', { date: m.inpatientStartDate })}
                       </span>
                     )}
                   </div>
@@ -216,7 +215,7 @@ function DischargeCheckBody({ data }: { data: DischargeCheckResponse }) {
       {duplicates.length > 0 && (
         <section>
           <h5 className="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-2">
-            出院用藥重複（{duplicates.length}）
+            {t('discharge.duplicateSection', { count: duplicates.length })}
           </h5>
           <MedicationDuplicateBadges alerts={duplicates} />
         </section>
