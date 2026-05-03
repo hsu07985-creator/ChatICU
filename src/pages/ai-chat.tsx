@@ -221,18 +221,47 @@ export function AiChatPage() {
     void refreshSessions();
   }, [refreshSessions]);
 
+  // W3-T7: only auto-scroll when the user is already near the bottom.
+  // IntersectionObserver tracks whether endRef is in view; when the user
+  // scrolls up to read history, new chunks no longer yank them back.
+  // The "跳到最新" floating pill now actually serves a purpose instead of
+  // fighting the auto-scroll loop.
+  const isNearBottomRef = useRef(true);
   useEffect(() => {
+    const target = messagesEndRef.current;
+    if (!target) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          isNearBottomRef.current = entry.isIntersecting;
+          setShowScrollToBottom(!entry.isIntersecting);
+        }
+      },
+      { root: messagesContainerRef.current, threshold: 0, rootMargin: '0px 0px 200px 0px' },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isNearBottomRef.current) return;
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
+  // Scroll handler retained as a safety net for browsers / cases where
+  // IntersectionObserver fires late; effectively a no-op when the
+  // observer's state is already authoritative.
   const handleMessagesScroll = useCallback(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
     const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    setShowScrollToBottom(distFromBottom > 200);
+    const near = distFromBottom <= 200;
+    isNearBottomRef.current = near;
+    setShowScrollToBottom(!near);
   }, []);
 
   const jumpToLatest = useCallback(() => {
+    isNearBottomRef.current = true;
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
