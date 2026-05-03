@@ -10,7 +10,7 @@
 > - `TC-F{NN}` — frontend 工作單（在 `docs/coordination/frontend-tasks.md`）
 > - `F-XX` — audit 文件中的發現編號
 
-**最後更新**：2026-05-03（TC-W1-T1, T2, T3, T4, T5, T7, T8 完成）
+**最後更新**：2026-05-03（**Wave 1 全部完成** — T1, T2, T3, T4, T5, T6, T7, T8）
 
 ---
 
@@ -18,7 +18,7 @@
 
 | Wave | 主題 | 任務數 | 完成 / 總計 | 狀態 |
 |------|------|--------|------------|------|
-| Wave 1 | 立即修補（純前端，零依賴） | 8 | 7 / 8 | ⏳ |
+| Wave 1 | 立即修補（純前端，零依賴） | 8 | 8 / 8 | ✅ |
 | Wave 2 | 後端權限收緊 + mention SQL | 5 | 0 / 5 | ☐ |
 | Wave 3 | 架構決策（需 PM 對齊） | 4 | 0 / 4 | ⏸ |
 | Wave 4 | 安全與資料層強化 | 6 | 0 / 6 | ☐ |
@@ -35,7 +35,7 @@
 | TC-W1-T3 | `roleDisplayName` 補 `np` + 改 `Record<UserRole, string>` | F-08 | `src/lib/utils/user-role.ts`（新）、`src/pages/chat.tsx`、`src/components/ui/mention-textarea.tsx` | 建立 NP 帳號發訊 → 顯示「專科護理師」而非 `np`；TS 編譯確認 enum 完整 | ✅ |
 | TC-W1-T4 | 自動 scroll-to-bottom 加 near-bottom 判斷 | F-09 | `src/pages/chat.tsx` | 手動：往上看歷史訊息時，新訊息進來不會把畫面捲走；底部時仍自動跟上 | ✅ |
 | TC-W1-T5 | hover-only 操作改 `focus-within` 可見 | F-10 | `src/pages/chat.tsx`（兩處 `group-hover` cluster） | 手動：純鍵盤 Tab 可看到 pin/reply/delete 按鈕並觸發 | ✅ |
-| TC-W1-T6 | 錯誤 toast 雙重觸發收斂 | F-11 | `src/lib/api/team-chat.ts`（多函式加 `suppressErrorToast: true`） | 手動：發訊失敗只跳一次 toast；inline error 與 toast 不重疊 | ☐ |
+| TC-W1-T6 | 錯誤 toast 雙重觸發收斂 | F-11 | `src/lib/api/team-chat.ts` | 手動：發訊失敗只跳一次 toast；inline error 與 toast 不重疊 | ✅ |
 | TC-W1-T7 | `MENTION_REGEX` 抽到 `src/lib/utils/mention-parser.ts` 共用 | F-19 | `src/lib/utils/mention-parser.ts`（新）、`mention-textarea.tsx`、`chat.tsx` | grep 確認全 repo 只剩一份 regex 定義 | ✅ |
 | TC-W1-T8 | 時間戳強制 `Asia/Taipei` | F-26 | `src/pages/chat.tsx` | 手動：把瀏覽器時區改成 Asia/Tokyo，訊息時間仍顯示台北時間 | ✅ |
 
@@ -49,6 +49,30 @@ npm run lint
 ```
 
 > 推送：純前端 → `git push railway main`（Vercel）。
+
+### Wave 1 結案總結（2026-05-03）
+
+**Commits（依時序，全部 fast-forward 進 main）：**
+
+| Commit | Task | 主要改動 |
+|--------|------|---------|
+| `0ba6c3106` | TC-W1-T1 | 新 `team-chat-cache.ts`；logout/login 清三個 module-level cache |
+| `b4daa3d41` | TC-W1-T3 | 新 `user-role.ts`；共用 `ROLE_LABEL`，修 NP 顯示 |
+| `64e59778a` | TC-W1-T8 | `formatTimestamp` 強制 `Asia/Taipei` |
+| `03992862d` | TC-W1-T5 | hover-only 操作 cluster 加 `group-focus-within:opacity-100` |
+| `f863b37fe` | TC-W1-T2 | `handleSend` / `handlePostAnnouncement` 改 functional updater |
+| `91d77f9b9` | TC-W1-T7 | 新 `mention-parser.ts`；regex 改 factory pattern |
+| `6528a6589` | TC-W1-T4 | `isNearBottomRef` + 條件式 auto-scroll |
+| `(this)`    | TC-W1-T6 | 8 個 endpoint 統一 `NO_TOAST`，停止雙重 toast |
+
+**驗證**：每個 branch 都通過 `npx tsc --noEmit` exit 0；TC-W1-T1 額外確認 `npm run build` 後 `chat-*.js` 仍是獨立 lazy chunk。pre-commit hook 全綠（secrets / large files / merge conflict / private key / branch 守衛）。
+
+**未做**（intentional scope 限制）：
+- F-01 UI 半（pin button admin gate）— 等 TC-B01 後端先收緊權限
+- F-09 「↓ N 新訊息」chip — 留 follow-up，目前只「不 yank」即可
+- 三個 console-only mention 錯誤等仍在 chat.tsx；應該與 toast 政策一致地呈現給使用者，但屬於 polish，留 Wave 5
+
+**下一步**：TC-W2 後端權限收緊（`TC-B01` ~ `TC-B05`）。動工前需確認後端 session 可以接手；前端目前的改動都不破壞既有 API 契約。
 
 ---
 

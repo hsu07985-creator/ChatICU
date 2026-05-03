@@ -45,11 +45,16 @@ interface ApiResponse<T> {
   data?: T;
 }
 
+// All team-chat endpoints suppress the apiClient interceptor's automatic
+// error toast — callers in chat.tsx own user-facing messaging via inline
+// `error` state or per-action toasts, and double-toasting is noisy.
+const NO_TOAST = { suppressErrorToast: true } as const;
+
 export async function getTeamChatMessages(options: { limit?: number } = {}): Promise<TeamChatResponse> {
   const params = new URLSearchParams();
   if (options.limit) params.append('limit', String(options.limit));
 
-  const response = await apiClient.get<ApiResponse<TeamChatResponse>>(`/team/chat?${params}`);
+  const response = await apiClient.get<ApiResponse<TeamChatResponse>>(`/team/chat?${params}`, NO_TOAST);
   return ensureData(response.data, 'API contract');
 }
 
@@ -74,7 +79,7 @@ export async function sendTeamChatMessage(
   if (opts.replyToId) {
     body.replyToId = opts.replyToId;
   }
-  const response = await apiClient.post<ApiResponse<TeamChatMessage>>('/team/chat', body);
+  const response = await apiClient.post<ApiResponse<TeamChatMessage>>('/team/chat', body, NO_TOAST);
   return ensureData(response.data, 'API contract');
 }
 
@@ -85,19 +90,21 @@ export async function postAnnouncement(content: string): Promise<TeamChatMessage
 export async function togglePinMessage(messageId: string): Promise<{ messageId: string; pinned: boolean }> {
   const response = await apiClient.patch<ApiResponse<{ messageId: string; pinned: boolean }>>(
     `/team/chat/${messageId}/pin`,
+    undefined,
+    NO_TOAST,
   );
   return ensureData(response.data, 'API contract');
 }
 
 export async function deleteTeamChatMessage(messageId: string): Promise<void> {
-  await apiClient.delete(`/team/chat/${messageId}`);
+  await apiClient.delete(`/team/chat/${messageId}`, NO_TOAST);
 }
 
 export async function markChatVisited(): Promise<{ lastVisitAt: string }> {
   const response = await apiClient.post<ApiResponse<{ lastVisitAt: string }>>(
     '/team/chat/visit',
     undefined,
-    { suppressErrorToast: true },
+    NO_TOAST,
   );
   return ensureData(response.data, 'API contract');
 }
@@ -105,7 +112,7 @@ export async function markChatVisited(): Promise<{ lastVisitAt: string }> {
 export async function getChatUnreadCount(): Promise<{ count: number }> {
   const response = await apiClient.get<ApiResponse<{ count: number }>>(
     '/team/chat/unread-count',
-    { suppressErrorToast: true },
+    NO_TOAST,
   );
   return ensureData(response.data, 'API contract');
 }
@@ -119,7 +126,7 @@ export async function getTeamUsers(force = false): Promise<TeamUser[]> {
   if (!force && _teamUsersCache && Date.now() - _teamUsersFetchedAt < TEAM_USERS_TTL_MS) {
     return _teamUsersCache;
   }
-  const response = await apiClient.get<ApiResponse<{ users: TeamUser[] }>>('/team/users');
+  const response = await apiClient.get<ApiResponse<{ users: TeamUser[] }>>('/team/users', NO_TOAST);
   const payload = ensureData(response.data, 'API contract');
   _teamUsersCache = payload.users;
   _teamUsersFetchedAt = Date.now();

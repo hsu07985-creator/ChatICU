@@ -608,16 +608,14 @@
 - **Files modified:** `src/pages/chat.tsx` — both `opacity-0 group-hover:opacity-100 transition-opacity` clusters (message-bubble action row at L391, mention-sidebar pin button at L709) gained `group-focus-within:opacity-100`. Tabbing through actions now reveals them.
 - **References:** F-10
 
-### TC-F06 [TODO] Suppress duplicate error toasts in team-chat API client
+### TC-F06 [DONE] Suppress duplicate error toasts in team-chat API client
 - **Added by:** team-chat audit (F-11)
 - **Date:** 2026-05-03
+- **Completed:** 2026-05-03 (branch `fix/tc-w1-t6-suppress-duplicate-toasts`)
 - **Priority:** P1
 - **Progress tracker:** TC-W1-T6
-- **Files:** `src/lib/api/team-chat.ts`
-- **Description:**
-  - Today: `apiClient` interceptor toasts on every non-2xx, AND `chat.tsx` catches and toasts a second time → users see two toasts per failure.
-  - Pick a side and stick to it. Recommended: pass `{ suppressErrorToast: true }` to all team-chat calls (so the page-level `catch` owns user messaging).
-  - Apply to: `getTeamChatMessages`, `sendTeamChatMessage`, `postAnnouncement`, `togglePinMessage`, `deleteTeamChatMessage`, `getTeamUsers`. (`markChatVisited` and `getChatUnreadCount` already do this — use them as templates.)
+- **Files modified:** `src/lib/api/team-chat.ts` — introduced `const NO_TOAST = { suppressErrorToast: true } as const` and applied to **all 8 endpoints**: `getTeamChatMessages`, `sendTeamChatMessage`, `togglePinMessage`, `deleteTeamChatMessage`, `getTeamUsers`, `markChatVisited` (kept), `getChatUnreadCount` (kept). `postAnnouncement` inherits via `sendTeamChatMessage`.
+- **Rationale:** `chat.tsx` already owns user-facing messaging via inline `error` state and per-action toasts; the apiClient interceptor's automatic toast was a redundant second message on every failure.
 - **References:** F-11
 
 ### TC-F07 [DONE] Extract `MENTION_REGEX` into shared util
