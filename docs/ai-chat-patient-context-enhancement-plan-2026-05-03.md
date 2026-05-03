@@ -1,14 +1,16 @@
 # AI 對話助手病患資料讀取強化計畫
 
-> 日期：2026-05-03  
-> 範圍：AI 問答 `/ai-chat` 與病人詳情頁「對話助手」  
+> 日期：2026-05-03
+> 範圍：AI 問答 `/ai-chat` 與病人詳情頁「對話助手」
 > 目標：讓 LLM 取得足夠且可追溯的病患臨床背景，同時避免把所有病歷全文無差別塞進 prompt。
+> 後續追蹤：[`ai-chat-patient-context-followup-tasks-2026-05-03.md`](ai-chat-patient-context-followup-tasks-2026-05-03.md)
+> **進度**：Phase 1-7 已上 prod（commit chain `aa116ac8c..c2ef77505`，2026-05-03 部署）；Phase 8 標記不做；前端 follow-up（重新整理快照按鈕、藥師建議 deep link）見 follow-up 文件。
 
 ## 1. 目前狀態
 
 目前前端送出對話時只帶 `patientId`、`sessionId`、`message`，後端在 `/ai/chat/stream` 依 `patientId` 從資料庫查資料，組成 `Clinical Snapshot` 後放進 LLM system prompt。
 
-目前已讀取：
+### 1.1 目前 system prompt snapshot 已讀取（每輪都送）
 
 - 病患基本資料：姓名、年齡、性別、床號、診斷、ICU 天數、呼吸器天數、插管狀態、DNR、過敏、警示。
 - 最新生命徵象：體溫、心跳、呼吸速率、血壓、MAP、SpO2、CVP。
@@ -18,21 +20,30 @@
 - 自動重複用藥警示：critical / high / moderate，最多列 10 筆。
 - 近期影像/報告：最新 3 筆 impression，沒有 impression 時截取 body text 前 100 字。
 - 臨床評分：Pain、RASS。
+- **【資料狀態】各區塊最後更新時間 + 缺口提示**（`aa116ac8c`，Phase 1）。
+- **【腎功能/給藥摘要】Cockcroft-Gault CrCl + 需腎調整 active meds**（`aa116ac8c`，Phase 2）。
+- **【用藥安全摘要】重複用藥 + 過敏衝突 + QT/出血/腎毒/CNS 堆疊**（`ee3469cd8`，Phase 3）。
 
-目前沒有放進對話助手快照：
+### 1.2 依問題關鍵字預取（本輪 user message 才注入，不污染 system prompt）
 
-- 微生物培養與抗生素感受性。注意：目前資料表與病人 API 已有 `culture_results` / `/patients/{id}/cultures`，但 AI chat snapshot 尚未讀取。
-- Creatinine clearance（CrCl）或腎功能給藥摘要。
+由 `app/services/ai_question_prefetch.py:build_question_prefetch_context` 處理：
+
+- **微生物培養 + susceptibility**（最近 14 天）— 命中 culture/抗生素/敗血/VAP/UTI 等關鍵字觸發（`e95634ac9`，Phase 4）。
+- **最近 72 小時用藥變更**（started/discontinued/dose/route/frequency changed）— 命中 started/stopped/72h/dose change 等關鍵字觸發（`5400296ed`，Phase 5）。
+- **藥師建議歷史搜尋**（限 admin/pharmacist；pharmacist 只看自己寫的；每次查寫 audit log）— 命中藥師建議/我之前寫過 等關鍵字觸發（`e0b7f1132`，Phase 6）。
+- **影像/診斷報告完整內文**（最近 14 天）— 命中 報告/CT/CXR/影像 等關鍵字觸發（`c2ef77505`，Phase 7）。
+
+### 1.3 仍未放進 snapshot 也未提供 tool
+
 - MAR / 實際給藥紀錄。
-- 最近 72 小時用藥變更。
-- 藥師建議歷史與藥物統計中的建議紀錄。
-- 留言板、團隊聊天室、完整病歷紀錄全文、完整影像報告全文、完整歷史檢驗趨勢。
+- 留言板、團隊聊天室全文（`docs/ai-chat-patient-context-followup-tasks-2026-05-03.md` F5 標記不做）。
+- 完整病歷紀錄全文、完整歷史檢驗趨勢、完整停用藥歷史。
 
-架構限制：
+### 1.4 架構現況
 
-- 目前 `/ai/chat/stream` 是一次性組 prompt 後直接呼叫 `call_llm_stream()`。
-- 目前尚未實作 LLM tool calling / agent loop。
-- 因此本文件提到的 `get_cultures()`、`get_medication_changes()`、`search_pharmacy_advice_history()` 等 tool，不能只新增 service，還需要先完成 tool 執行架構或改成後端依問題意圖預先查資料。
+- `/ai/chat/stream` 仍是一次性組 prompt + `call_llm_stream()`，**沒有正式 LLM tool calling / agent loop**。
+- Phase 4-7 的「依問題查資料」走 §3.2 過渡方案：後端用關鍵字判斷意圖，預取資料附到本輪 user message。
+- 升級成正式 tool loop 是後續 follow-up（`docs/ai-chat-patient-context-followup-tasks-2026-05-03.md` F4），等 prod 用一陣子看 prefetch 漏什麼類型的問題再做。
 
 ## 2. 設計原則
 
@@ -54,6 +65,8 @@
 ## 3. 架構前置決策
 
 Phase 3 以後若要支援「依問題查資料」，需要先選一種架構。
+
+> **2026-05-03 決策**：採用 §3.2 **過渡方案（後端關鍵字預取）**。Phase 4-7 全部以此方式實作（`app/services/ai_question_prefetch.py`）。升級為 §3.1 正式 tool loop 列為後續 follow-up（見 `ai-chat-patient-context-followup-tasks-2026-05-03.md` F4），觸發條件為「prod 累積 1-2 週使用後實際看到關鍵字漏掉的問題類型」。
 
 ### 3.1 建議方案：LLM tool loop
 
@@ -289,7 +302,7 @@ Scr 1.8 mg/dL | eGFR 32 | CrCl 約 28 mL/min（Cockcroft-Gault，使用體重 60
 
 ## 5. 修改步驟
 
-### Phase 0：決定 tool 架構
+### Phase 0：決定 tool 架構　✅ 完成（過渡方案）
 
 目的：避免文件後半段寫 tool，但實作時發現現有 `/ai/chat/stream` 不支援 tool calling。
 
@@ -316,7 +329,7 @@ Scr 1.8 mg/dL | eGFR 32 | CrCl 約 28 mL/min（Cockcroft-Gault，使用體重 60
 
 - 文件中 Phase 3 到 Phase 6 的 tool 類功能，有明確可落地的執行路徑。
 
-### Phase 1：補資料狀態與腎功能摘要
+### Phase 1：補資料狀態與腎功能摘要　✅ 完成（`aa116ac8c`）
 
 目的：低風險、高臨床價值，先讓 LLM 知道資料時間與腎功能限制。
 
@@ -353,7 +366,7 @@ Scr 1.8 mg/dL | eGFR 32 | CrCl 約 28 mL/min（Cockcroft-Gault，使用體重 60
 - AI 第一輪回答能看到資料時間。
 - 問腎功能調整時，LLM 有 CrCl 或明確知道 CrCl 無法計算。
 
-### Phase 2：補用藥安全摘要
+### Phase 2：補用藥安全摘要　✅ 完成（`ee3469cd8`）
 
 目的：把藥師工作站已有的用藥安全資訊轉成 LLM 可讀摘要。
 
@@ -384,7 +397,7 @@ Scr 1.8 mg/dL | eGFR 32 | CrCl 約 28 mL/min（Cockcroft-Gault，使用體重 60
 - 問「這床用藥有沒有問題」時，LLM 能先提重大風險。
 - 問單一藥物時，不會忽略已存在的重複用藥或交互作用。
 
-### Phase 3：新增微生物培養 tool 或後端預取
+### Phase 3：新增微生物培養 tool 或後端預取　✅ 完成（`e95634ac9`，過渡方案）
 
 目的：讓抗生素建議能引用 culture / susceptibility。
 
@@ -418,7 +431,7 @@ Scr 1.8 mg/dL | eGFR 32 | CrCl 約 28 mL/min（Cockcroft-Gault，使用體重 60
 - 問抗生素調整時，LLM 會根據 culture 給建議。
 - 無培養資料時，LLM 會明確說「沒有看到培養資料」。
 
-### Phase 4：新增用藥變更 tool 或後端預取
+### Phase 4：新增用藥變更 tool 或後端預取　✅ 完成（`5400296ed`，過渡方案）
 
 目的：補足 active meds 看不到的時間脈絡。
 
@@ -447,7 +460,7 @@ Scr 1.8 mg/dL | eGFR 32 | CrCl 約 28 mL/min（Cockcroft-Gault，使用體重 60
 - 問「這 2 天有改什麼藥」時，不需要人工翻用藥頁。
 - 問病況變化時，LLM 能把近期用藥改變納入推理。
 
-### Phase 5：新增藥師建議歷史搜尋
+### Phase 5：新增藥師建議歷史搜尋　✅ 後端完成（`e0b7f1132`，過渡方案）｜⚠ 前端 deep link 未做（見 follow-up F3）
 
 目的：解決「我之前給過的用藥建議寫在哪一床」這類跨病人搜尋需求。
 
@@ -492,7 +505,7 @@ Scr 1.8 mg/dL | eGFR 32 | CrCl 約 28 mL/min（Cockcroft-Gault，使用體重 60
 - 使用者問「我之前給過 vancomycin 建議在哪床？」能查到。
 - 使用者問「這床之前有沒有藥師建議？」能列出近期摘要。
 
-### Phase 6：完整報告與長資料 tool 化或後端預取
+### Phase 6：完整報告與長資料 tool 化或後端預取　✅ 完成（`c2ef77505`，過渡方案）
 
 目的：保留查詢能力，但不污染核心 prompt。
 
@@ -586,17 +599,23 @@ Scr 1.8 mg/dL | eGFR 32 | CrCl 約 28 mL/min（Cockcroft-Gault，使用體重 60
 
 ## 8. 建議實作順序總表
 
-| 順序 | 項目 | 風險 | 臨床價值 | 建議 |
-| --- | --- | --- | --- | --- |
-| 0 | Tool loop 或後端預取架構決策 | 中 | 高 | 先決定 |
-| 1 | 資料新鮮度/缺口 | 低 | 高 | 先做 |
-| 2 | CrCl/腎功能給藥摘要 | 低 | 高 | 先做 |
-| 3 | 用藥安全摘要 | 中 | 高 | 第二步 |
-| 4 | 微生物培養 tool/預取 | 中 | 高 | 第三步 |
-| 5 | 72h 用藥變更 tool/預取 | 中 | 中高 | 第四步 |
-| 6 | 藥師建議歷史搜尋 | 中高 | 高 | 權限確認後做 |
-| 7 | 完整報告 tool/預取 | 中 | 中 | 最後補 |
-| 8 | 留言板/團隊聊天室全文 | 高 | 不固定 | 暫不做 |
+| 順序 | 項目 | 風險 | 臨床價值 | 狀態 | Commit |
+| --- | --- | --- | --- | --- | --- |
+| 0 | Tool loop 或後端預取架構決策 | 中 | 高 | ✅ 選過渡方案（後端關鍵字預取） | — |
+| 1 | 資料新鮮度/缺口 | 低 | 高 | ✅ | `aa116ac8c` |
+| 2 | CrCl/腎功能給藥摘要 | 低 | 高 | ✅ | `aa116ac8c` |
+| 3 | 用藥安全摘要 | 中 | 高 | ✅ | `ee3469cd8` |
+| 4 | 微生物培養 tool/預取 | 中 | 高 | ✅ 過渡方案 | `e95634ac9` |
+| 5 | 72h 用藥變更 tool/預取 | 中 | 中高 | ✅ 過渡方案 | `5400296ed` |
+| 6 | 藥師建議歷史搜尋 | 中高 | 高 | ✅ 後端 / ⚠ 前端 deep link 待做 | `e0b7f1132` |
+| 7 | 完整報告 tool/預取 | 中 | 中 | ✅ 過渡方案 | `c2ef77505` |
+| 8 | 留言板/團隊聊天室全文 | 高 | 不固定 | ❌ 不做 | — |
+
+後續 follow-up 見 [`ai-chat-patient-context-followup-tasks-2026-05-03.md`](ai-chat-patient-context-followup-tasks-2026-05-03.md)：
+- F1：本文件同步（即本次更新）
+- F2：重新整理快照按鈕
+- F3：藥師建議 deep link
+- F4：升級為正式 LLM tool loop（等 prod 累積使用後決定）
 
 ## 9. 提交、Push 與部署細節
 
@@ -658,10 +677,18 @@ git push railway main
 
 完成後至少要達到：
 
-1. LLM 回答能明確知道資料時間與缺口。
-2. 問腎功能或腎調整時，有 CrCl 或明確缺資料原因。
-3. 問用藥安全時，能看到重複用藥、重大交互作用、過敏衝突與高風險堆疊。
-4. 問抗生素時，能查培養與感受性；沒有資料時明確說明。
-5. 問「我之前寫過哪床用藥建議」時，pharmacist/admin 可以查到藥師建議歷史。
-6. 所有跨病人查詢都有權限限制與 audit log。
-7. 核心 snapshot 不因長資料膨脹到不可控。
+1. ✅ LLM 回答能明確知道資料時間與缺口。
+2. ✅ 問腎功能或腎調整時，有 CrCl 或明確缺資料原因。
+3. ✅ 問用藥安全時，能看到重複用藥、重大交互作用、過敏衝突與高風險堆疊。
+4. ✅ 問抗生素時，能查培養與感受性；沒有資料時明確說明。
+5. ✅ 問「我之前寫過哪床用藥建議」時，pharmacist/admin 可以查到藥師建議歷史。
+6. ✅ 所有跨病人查詢都有權限限制與 audit log。
+7. ✅ 核心 snapshot 不因長資料膨脹到不可控（Phase 4-7 走 user message prefetch，不進 system prompt）。
+
+**Out of scope（轉 follow-up）**：
+- F2 重新整理快照按鈕（覆蓋 §7.2「snapshot age 提示」的剩餘缺口）。
+- F3 藥師建議 deep link（覆蓋 Phase 5 §5 frontend 的 deep link 需求）。
+- F4 升級正式 LLM tool loop（替代 §3.2 過渡方案的長期路徑）。
+- 計畫表 Phase 8 留言板/團隊聊天室全文（明確不做）。
+
+**Prod 真人驗證仍未做**：見 follow-up V1（5 case 跑一輪）+ V2（4 個權限 case）。
