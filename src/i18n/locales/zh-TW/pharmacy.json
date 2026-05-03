@@ -183,6 +183,229 @@
       "loading": "查詢中..."
     }
   },
+  "library": {
+    "list": {
+      "loadingStats": "載入系統覆蓋總覽",
+      "lastUpdated": "最後更新 {{timestamp}}",
+      "overviewTitle": "系統覆蓋總覽",
+      "drugCount": "種藥物",
+      "ddiCount": "條交互作用",
+      "recentlyAdded": "近期新增 {{count}} 條",
+      "sourcesLabel": "資料源：",
+      "loadError": "載入失敗",
+      "header": {
+        "title": "藥物管理",
+        "subtitle": "系統涵蓋的所有藥物與交互作用規則總覽 · 藥師/管理者專用"
+      },
+      "search": {
+        "placeholder": "搜尋學名 / 商品名 / 院內代碼 / ATC",
+        "sortName": "名稱 A → Z",
+        "sortDdi": "DDI 條數多 → 少"
+      },
+      "filters": {
+        "inFormulary": "院內藥",
+        "hasX": "含 X 級規則",
+        "missingAtc": "缺 ATC",
+        "recentlyAdded": "近期新增 (Lexicomp)"
+      },
+      "atcSidebar": {
+        "title": "ATC 分類",
+        "all": "全部"
+      },
+      "card": {
+        "external": "院外",
+        "newBadge": "新增",
+        "missingData": "缺資料",
+        "missingAtc": "待補 ATC",
+        "brand": "商品",
+        "moreCount": "等 {{count}} 種",
+        "hospitalCode": "院內代碼",
+        "interactions": "交互作用",
+        "rulesCount": "{{count}} 條",
+        "sourceCount": "{{count}} 個資料源",
+        "alias": "（另有 {{aliases}}）"
+      },
+      "pagination": {
+        "totalText": "共 {{count}} 種 · 第 {{page}} / {{total}} 頁",
+        "prev": "上一頁",
+        "next": "下一頁"
+      },
+      "noResults": "沒有符合條件的藥物"
+    },
+    "proposals": {
+      "statusFilters": {
+        "pending": "待批准",
+        "approved": "已核准",
+        "rejected": "已拒絕",
+        "withdrawn": "已撤回",
+        "all": "全部"
+      },
+      "header": {
+        "back": "回藥物管理",
+        "title": "提議審核",
+        "subtitle": "藥師提出的院內 override 提議，由 admin 4-eye 簽核後生效"
+      },
+      "noAccess": "僅 admin 角色可進入此頁",
+      "loading": "載入中",
+      "loadError": "載入失敗",
+      "noProposalsFor": "目前沒有「{{label}}」的提議",
+      "card": {
+        "viewRules": "看規則",
+        "sourcePrefix": "來源 {{ref}}：",
+        "proposedTo": "→ 提議覆寫為：",
+        "byAuthor": "by {{name}}（{{role}}）",
+        "reason": "理由：",
+        "evidence": "證據：",
+        "approve": "核准",
+        "reject": "拒絕",
+        "selfWarn": "⚠ 不可核准自己的提議",
+        "approved": "已核准",
+        "rejected": "已拒絕",
+        "withdrawn": "已撤回",
+        "approvedBy": "by {{name}} · {{timestamp}}",
+        "decisionComment": "— {{comment}}"
+      },
+      "approveDialog": {
+        "title": "核准提議",
+        "description": "「{{a}} × {{b}}」 風險將從 {{from}} 覆寫為 {{to}}",
+        "proposer": "提議者：",
+        "reason": "理由：",
+        "evidence": "證據：",
+        "proposedAt": "提議時間：",
+        "selfBlock": "⚠ 不可核准自己的提議（4-eye 簽核）",
+        "commentPlaceholder": "（選填）核准備註：例如同意此 SOP，每年複審",
+        "cancel": "取消",
+        "submit": "核准並套用",
+        "successWith": "已核准，套用 risk = {{risk}}",
+        "errorFallback": "失敗"
+      },
+      "rejectDialog": {
+        "title": "拒絕提議",
+        "description": "拒絕原因將存進稽核日誌（≥10 字）",
+        "placeholder": "例：證據強度不足；建議補 PMID 後重新提議",
+        "charCount": "{{count}} / 500（最少 10 字）",
+        "cancel": "取消",
+        "submit": "拒絕",
+        "success": "已拒絕提議",
+        "errorFallback": "失敗"
+      }
+    },
+    "detail": {
+      "evidence": {
+        "Excellent": "證據強度：優",
+        "Good": "證據強度：良",
+        "Fair": "證據強度：中等",
+        "Poor": "證據強度：弱",
+        "Intermediate": "證據強度：中等",
+        "Intermediate-High": "證據強度：中-高",
+        "Intermediate-Low": "證據強度：中-低"
+      },
+      "noteSavedToast": "備註已儲存",
+      "noteSaveError": "儲存失敗",
+      "actionFailed": "失敗",
+      "noteCardLabel": "藥師備註",
+      "notePlaceholder": "例：本院共識為 SAH 病人 Aspirin + Warfarin 不警告，依神內 2024 SOP",
+      "proposeDialog": {
+        "submitToast": "已送出提議，等待 admin 核准",
+        "title": "提議院內 override",
+        "newRiskLabel": "院內覆寫為：",
+        "reasonLabel": "院內共識理由（≥30 字）",
+        "reasonPlaceholder": "例：本院神內 2024 共識，SAH 病人在嚴密 BP 監測下可允許此組合...",
+        "citationLabel": "證據引用（≥10 字 — PMID / UpToDate / 院內 SOP 文號）",
+        "citationPlaceholder": "例：PMID:32887891；院內 SOP-NEU-2024-03；UpToDate Vasopressors topic",
+        "ttlLabel": "需重新核驗的天數（30-730）",
+        "ttlSuffix": "天後到期",
+        "cancel": "取消"
+      },
+      "deprecateDialog": {
+        "title": "標記 deprecated",
+        "successToast": "已標記 deprecated（reload 後從清單消失）",
+        "placeholder": "例：與 Lexicomp 2026.07 撤銷規則，本院神內 SOP 也不再採用",
+        "cancel": "取消"
+      },
+      "historyDialog": {
+        "title": "規則異動歷史",
+        "reason": "理由："
+      },
+      "rule": {
+        "originalSourceLabel": "原始來源：",
+        "overrideArrow": "→ 院內覆寫：",
+        "reasonInline": "理由：",
+        "evidenceInline": "證據：",
+        "mechanismInline": "機制：",
+        "managementInline": "處置：",
+        "discussionToggle": "詳細討論",
+        "pharmacistNote": "藥師備註："
+      },
+      "compatibility": {
+        "compatibleHeading": "相容",
+        "incompatibleHeading": "不相容"
+      },
+      "header": {
+        "loadError": "載入失敗",
+        "modeLabel": "模式：",
+        "inFormularyBadge": "院內 formulary",
+        "externalBadge": "院外",
+        "back": "回藥物管理",
+        "modeView": "檢視",
+        "modeEdit": "編輯"
+      },
+      "gap": {
+        "title": "資料缺口提示：",
+        "body": "未列規則 ≠ 安全。本系統來源主要為 Lexicomp + MICROMEDEX，罕見組合 / 中草藥 / 食物交互可能未涵蓋。IV 相容性以 Trissel's Handbook 為主，未列組合請諮詢藥劑科。"
+      },
+      "page": {
+        "loading": "載入中",
+        "notFound": "找不到藥物 {{name}} 的資料",
+        "atcPath": "ATC 階層：",
+        "brand": "商品",
+        "hospitalCode": "院內代碼",
+        "sourcesLabel": "資料源：",
+        "ddiTab": "交互作用 ({{count}})",
+        "ivTab": "IV 相容性 ({{count}})",
+        "clearFilter": "清除篩選",
+        "noDdi": "系統未收錄此藥的交互作用規則"
+      },
+      "ddiCard": {
+        "pubmedCount": "{{count}} 篇文獻引用",
+        "verifiedAt": "✓ 已核對 {{timestamp}}",
+        "verifiedBy": " by {{name}}",
+        "expireAt": "到期：{{timestamp}}"
+      },
+      "iv": {
+        "noData": "系統未收錄此藥的 IV 相容性資料",
+        "solution": "溶液 {{value}}",
+        "stable": "穩定 {{value}}"
+      },
+      "editRail": {
+        "saveNoteCounter": "{{count}} / 2000",
+        "saveNote": "儲存備註",
+        "verify": "標記已核對",
+        "verifySuccessWith": "已標記核對 by {{name}}",
+        "propose": "提議 override",
+        "deprecate": "標 deprecated",
+        "history": "歷史"
+      },
+      "proposeRules": {
+        "sourceRule": "來源規則：「× {{label}}」目前為 {{risk}}",
+        "afterApproval": "。提議後須經 admin 核准（4-eye）才會生效。",
+        "xDowngradeBlocked": "X (Avoid combination) 永遠禁止降級（僅可維持 X）",
+        "reasonCounter": "{{count}} / 1000（最少 30 字）",
+        "citationCounter": "{{count}} / 500（最少 10 字）",
+        "submit": "送出提議"
+      },
+      "deprecateExtra": {
+        "description": "此規則「× {{label}}」將被軟刪除（is_active = FALSE），後續所有藥師查詢、API 都不會再回傳這條。可隨時 restore。必填理由（≥30 字，存進稽核 log）。",
+        "counter": "{{count}} / 500（最少 30 字）",
+        "submit": "確認標記"
+      },
+      "history": {
+        "subtitle": "{{ruleId}} 的所有編輯紀錄（最多 200 筆，新→舊）",
+        "loading": "載入歷史",
+        "empty": "尚無編輯紀錄"
+      }
+    }
+  },
   "compatibility": {
     "header": {
       "title": "用藥相容",

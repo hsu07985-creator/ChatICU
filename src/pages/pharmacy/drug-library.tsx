@@ -8,6 +8,7 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Checkbox } from '../../components/ui/checkbox';
 import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { useTranslation } from 'react-i18next';
 import {
   type DrugListItem,
   type DrugListResponse,
@@ -19,10 +20,16 @@ import {
 const PAGE_SIZE = 50;
 
 // Status badges: only show when ABNORMAL — "完整" is the silent default.
-const STATUS_LABEL: Record<string, { label: string; cls: string } | null> = {
+// Color only — labels resolved via t('library.list.card.missingData' / '.missingAtc').
+const STATUS_CLASS: Record<string, string | null> = {
   green: null,
-  yellow: { label: '缺資料', cls: 'bg-amber-500/10 text-amber-400 border-amber-500/30' },
-  red: { label: '待補 ATC', cls: 'bg-rose-500/10 text-rose-400 border-rose-500/30' },
+  yellow: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+  red: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+};
+const STATUS_LABEL_KEY: Record<string, string | null> = {
+  green: null,
+  yellow: 'library.list.card.missingData',
+  red: 'library.list.card.missingAtc',
 };
 
 const RISK_CLS: Record<string, string> = {
@@ -34,36 +41,37 @@ const RISK_CLS: Record<string, string> = {
 };
 
 function StatsBanner({ stats }: { stats: DrugLibraryStats | null }) {
+  const { t, i18n } = useTranslation('pharmacy');
   if (!stats) {
     return (
       <Card className="bg-card/40 border-border/40">
         <CardContent className="py-4 flex items-center gap-2 text-muted-foreground text-sm">
-          <Loader2 className="size-4 animate-spin" /> 載入系統覆蓋總覽
+          <Loader2 className="size-4 animate-spin" /> {t('library.list.loadingStats')}
         </CardContent>
       </Card>
     );
   }
 
   const updated = stats.last_updated
-    ? new Date(stats.last_updated).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false })
+    ? new Date(stats.last_updated).toLocaleString(i18n.language, { timeZone: 'Asia/Taipei', hour12: false })
     : '—';
 
   return (
     <Card className="bg-card/60 border-border/40">
       <CardContent className="py-4 space-y-3">
         <div className="flex items-baseline justify-between flex-wrap gap-2">
-          <div className="text-sm text-muted-foreground">系統覆蓋總覽</div>
-          <div className="text-xs text-muted-foreground">最後更新 {updated}</div>
+          <div className="text-sm text-muted-foreground">{t('library.list.overviewTitle')}</div>
+          <div className="text-xs text-muted-foreground">{t('library.list.lastUpdated', { timestamp: updated })}</div>
         </div>
         <div className="flex items-center gap-4 flex-wrap text-sm">
           <span className="font-semibold">{stats.total_drugs.toLocaleString()}</span>
-          <span className="text-muted-foreground">種藥物</span>
+          <span className="text-muted-foreground">{t('library.list.drugCount')}</span>
           <span className="text-muted-foreground">·</span>
           <span className="font-semibold">{stats.total_ddi.toLocaleString()}</span>
-          <span className="text-muted-foreground">條交互作用</span>
+          <span className="text-muted-foreground">{t('library.list.ddiCount')}</span>
           {stats.recently_added > 0 && (
             <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/30">
-              近期新增 {stats.recently_added.toLocaleString()} 條
+              {t('library.list.recentlyAdded', { count: stats.recently_added.toLocaleString() })}
             </Badge>
           )}
         </div>
@@ -75,7 +83,7 @@ function StatsBanner({ stats }: { stats: DrugLibraryStats | null }) {
           ))}
         </div>
         <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
-          資料源：
+          {t('library.list.sourcesLabel')}
           {Object.entries(stats.sources).map(([src, n]) => (
             <span key={src} className="ml-1">
               {src} <span className="font-medium text-foreground">{n.toLocaleString()}</span>
@@ -88,8 +96,10 @@ function StatsBanner({ stats }: { stats: DrugLibraryStats | null }) {
 }
 
 function DrugCard({ item, onClick }: { item: DrugListItem; onClick: () => void }) {
-  const status = STATUS_LABEL[item.status];
-  const aliasText = item.aliases.length > 0 ? `（另有 ${item.aliases.join(' · ')}）` : '';
+  const { t } = useTranslation('pharmacy');
+  const statusCls = STATUS_CLASS[item.status];
+  const statusKey = STATUS_LABEL_KEY[item.status];
+  const aliasText = item.aliases.length > 0 ? t('library.list.card.alias', { aliases: item.aliases.join(' · ') }) : '';
   return (
     <Card
       className="cursor-pointer hover:border-primary/40 transition-colors"
@@ -105,29 +115,29 @@ function DrugCard({ item, onClick }: { item: DrugListItem; onClick: () => void }
               )}
               {!item.in_formulary && (
                 <Badge variant="outline" className="text-[10px] bg-zinc-500/10 text-zinc-400 border-zinc-500/30 py-0">
-                  院外
+                  {t('library.list.card.external')}
                 </Badge>
               )}
               {item.recently_added && (
                 <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/30 py-0">
-                  新增
+                  {t('library.list.card.newBadge')}
                 </Badge>
               )}
-              {status && (
-                <Badge variant="outline" className={`text-[10px] py-0 ${status.cls}`}>{status.label}</Badge>
+              {statusCls && statusKey && (
+                <Badge variant="outline" className={`text-[10px] py-0 ${statusCls}`}>{t(statusKey)}</Badge>
               )}
             </div>
             {(item.brand_names.length > 0 || aliasText) && (
               <div className="text-xs text-muted-foreground mt-0.5 truncate">
                 {item.brand_names.length > 0 && (
                   <>
-                    商品 {item.brand_names.slice(0, 3).join(' · ')}
-                    {item.brand_names.length > 3 && ` 等 ${item.brand_names.length} 種`}
+                    {t('library.list.card.brand')} {item.brand_names.slice(0, 3).join(' · ')}
+                    {item.brand_names.length > 3 && ` ${t('library.list.card.moreCount', { count: item.brand_names.length })}`}
                   </>
                 )}
                 {item.brand_names.length > 0 && item.hospital_codes.length > 0 && ' · '}
                 {item.hospital_codes.length > 0 && (
-                  <>院內代碼 {item.hospital_codes.slice(0, 2).join(' · ')}</>
+                  <>{t('library.list.card.hospitalCode')} {item.hospital_codes.slice(0, 2).join(' · ')}</>
                 )}
                 {aliasText && (
                   <span className="ml-1 text-muted-foreground/70">{aliasText}</span>
@@ -138,8 +148,8 @@ function DrugCard({ item, onClick }: { item: DrugListItem; onClick: () => void }
         </div>
 
         <div className="flex items-center gap-2 flex-wrap text-xs">
-          <span className="text-muted-foreground">交互作用</span>
-          <span className="font-medium">{item.ddi_counts.total} 條</span>
+          <span className="text-muted-foreground">{t('library.list.card.interactions')}</span>
+          <span className="font-medium">{t('library.list.card.rulesCount', { count: item.ddi_counts.total })}</span>
           {(['X', 'D', 'C', 'B'] as const).map((r) =>
             item.ddi_counts[r] > 0 ? (
               <span key={r} className={`px-1.5 py-0.5 rounded border ${RISK_CLS[r]} text-[10px]`}>
@@ -149,7 +159,7 @@ function DrugCard({ item, onClick }: { item: DrugListItem; onClick: () => void }
           )}
           {item.sources.length > 0 && (
             <span className="text-muted-foreground/70 ml-auto">
-              {item.sources.length} 個資料源
+              {t('library.list.card.sourceCount', { count: item.sources.length })}
             </span>
           )}
         </div>
@@ -174,6 +184,7 @@ function CardSkeleton() {
 }
 
 export function DrugLibraryPage() {
+  const { t } = useTranslation('pharmacy');
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -224,7 +235,7 @@ export function DrugLibraryPage() {
       recently_added_only: recentlyAddedOnly || undefined,
     })
       .then(setData)
-      .catch((e) => setError(e?.message || '載入失敗'))
+      .catch((e) => setError(e?.message || t('library.list.loadError')))
       .finally(() => setLoading(false));
   }, [q, atc, sort, page, inFormularyOnly, hasXOnly, missingAtcOnly, recentlyAddedOnly]);
 
@@ -248,9 +259,9 @@ export function DrugLibraryPage() {
   return (
     <div className="container mx-auto p-4 lg:p-6 space-y-4 max-w-screen-2xl">
       <div>
-        <h1 className="text-2xl font-bold">藥物管理</h1>
+        <h1 className="text-2xl font-bold">{t('library.list.header.title')}</h1>
         <p className="text-sm text-muted-foreground">
-          系統涵蓋的所有藥物與交互作用規則總覽 · 藥師/管理者專用
+          {t('library.list.header.subtitle')}
         </p>
       </div>
 
@@ -264,7 +275,7 @@ export function DrugLibraryPage() {
               <Input
                 value={qInput}
                 onChange={(e) => setQInput(e.target.value)}
-                placeholder="搜尋學名 / 商品名 / 院內代碼 / ATC"
+                placeholder={t('library.list.search.placeholder')}
                 className="pl-9"
               />
             </div>
@@ -273,27 +284,27 @@ export function DrugLibraryPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="name">名稱 A → Z</SelectItem>
-                <SelectItem value="ddi_count">DDI 條數多 → 少</SelectItem>
+                <SelectItem value="name">{t('library.list.search.sortName')}</SelectItem>
+                <SelectItem value="ddi_count">{t('library.list.search.sortDdi')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="flex items-center gap-3 text-xs flex-wrap">
             <label className="flex items-center gap-1.5 cursor-pointer">
               <Checkbox checked={inFormularyOnly} onCheckedChange={() => toggleParam('in_formulary')} />
-              <span>院內藥</span>
+              <span>{t('library.list.filters.inFormulary')}</span>
             </label>
             <label className="flex items-center gap-1.5 cursor-pointer">
               <Checkbox checked={hasXOnly} onCheckedChange={() => toggleParam('has_x')} />
-              <span>含 X 級規則</span>
+              <span>{t('library.list.filters.hasX')}</span>
             </label>
             <label className="flex items-center gap-1.5 cursor-pointer">
               <Checkbox checked={missingAtcOnly} onCheckedChange={() => toggleParam('missing_atc')} />
-              <span>缺 ATC</span>
+              <span>{t('library.list.filters.missingAtc')}</span>
             </label>
             <label className="flex items-center gap-1.5 cursor-pointer">
               <Checkbox checked={recentlyAddedOnly} onCheckedChange={() => toggleParam('recently_added')} />
-              <span>近期新增 (Lexicomp)</span>
+              <span>{t('library.list.filters.recentlyAdded')}</span>
             </label>
             {atc && (
               <Badge variant="outline" className="gap-1">
@@ -308,12 +319,12 @@ export function DrugLibraryPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[148px_1fr] gap-4">
         <Card className="h-fit lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] overflow-hidden">
           <CardContent className="py-2 px-2 space-y-0.5 overflow-y-auto max-h-[60vh] lg:max-h-[calc(100vh-3rem)]">
-            <div className="text-[10px] font-semibold text-muted-foreground px-2 py-1 sticky top-0 bg-card">ATC 分類</div>
+            <div className="text-[10px] font-semibold text-muted-foreground px-2 py-1 sticky top-0 bg-card">{t('library.list.atcSidebar.title')}</div>
             <button
               onClick={() => updateParam('atc', null)}
               className={`w-full text-left px-2 py-1 rounded text-xs hover:bg-accent ${!atc ? 'bg-accent font-semibold' : ''}`}
             >
-              全部
+              {t('library.list.atcSidebar.all')}
             </button>
             {data?.atc_classes.map((c) => (
               <button
@@ -340,10 +351,7 @@ export function DrugLibraryPage() {
 
           {data && (
             <div className="text-xs text-muted-foreground flex items-center justify-between">
-              <span>
-                共 <span className="font-semibold text-foreground">{data.total.toLocaleString()}</span> 種 ·
-                第 {page} / {totalPages} 頁
-              </span>
+              <span>{t('library.list.pagination.totalText', { count: data.total.toLocaleString(), page, total: totalPages })}</span>
               {loading && <Loader2 className="size-3 animate-spin" />}
             </div>
           )}
@@ -362,7 +370,7 @@ export function DrugLibraryPage() {
           {data && data.total === 0 && (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground text-sm">
-                沒有符合條件的藥物
+                {t('library.list.noResults')}
               </CardContent>
             </Card>
           )}
@@ -375,7 +383,7 @@ export function DrugLibraryPage() {
                 disabled={page <= 1 || loading}
                 onClick={() => updateParam('page', String(page - 1))}
               >
-                上一頁
+                {t('library.list.pagination.prev')}
               </Button>
               <span className="text-sm text-muted-foreground">
                 {page} / {totalPages}
@@ -386,7 +394,7 @@ export function DrugLibraryPage() {
                 disabled={page >= totalPages || loading}
                 onClick={() => updateParam('page', String(page + 1))}
               >
-                下一頁
+                {t('library.list.pagination.next')}
               </Button>
             </div>
           )}

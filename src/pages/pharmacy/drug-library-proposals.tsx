@@ -16,6 +16,7 @@ import {
 } from '../../components/ui/dialog';
 import { Textarea } from '../../components/ui/textarea';
 import { useAuth } from '../../lib/auth-context';
+import { useTranslation } from 'react-i18next';
 import {
   type ProposalItem,
   approveProposal,
@@ -32,16 +33,16 @@ const RISK_CLS: Record<string, string> = {
 };
 
 const STATUS_FILTERS = [
-  { key: 'pending', label: '待批准' },
-  { key: 'approved', label: '已核准' },
-  { key: 'rejected', label: '已拒絕' },
-  { key: 'withdrawn', label: '已撤回' },
-  { key: 'all', label: '全部' },
+  { key: 'pending', labelKey: 'library.proposals.statusFilters.pending' },
+  { key: 'approved', labelKey: 'library.proposals.statusFilters.approved' },
+  { key: 'rejected', labelKey: 'library.proposals.statusFilters.rejected' },
+  { key: 'withdrawn', labelKey: 'library.proposals.statusFilters.withdrawn' },
+  { key: 'all', labelKey: 'library.proposals.statusFilters.all' },
 ] as const;
 
-function formatTaipei(iso: string | null): string {
+function formatTaipei(iso: string | null, locale = 'zh-TW'): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false });
+  return new Date(iso).toLocaleString(locale, { timeZone: 'Asia/Taipei', hour12: false });
 }
 
 function ApproveDialog({
@@ -55,6 +56,7 @@ function ApproveDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const { t, i18n } = useTranslation('pharmacy');
   const { user } = useAuth();
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -65,10 +67,10 @@ function ApproveDialog({
     setSubmitting(true);
     try {
       const r = await approveProposal(proposal.id, comment.trim() || undefined);
-      toast.success(`已核准，套用 risk = ${r.applied_risk}`);
+      toast.success(t('library.proposals.approveDialog.successWith', { risk: r.applied_risk }));
       onDone();
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || e?.message || '失敗');
+      toast.error(e?.response?.data?.detail || e?.message || t('library.proposals.approveDialog.errorFallback'));
       setSubmitting(false);
     }
   };
@@ -79,38 +81,38 @@ function ApproveDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>核准提議</DialogTitle>
+          <DialogTitle>{t('library.proposals.approveDialog.title')}</DialogTitle>
           <DialogDescription>
             「{proposal.source_drug1} × {proposal.source_drug2}」
-            風險將從 <Badge variant="outline" className={RISK_CLS[proposal.source_risk_rating || '']}>{proposal.source_risk_rating}</Badge>
-            {' '}覆寫為 <Badge variant="outline" className={RISK_CLS[newRisk]}>{newRisk}</Badge>
+            <Badge variant="outline" className={RISK_CLS[proposal.source_risk_rating || '']}>{proposal.source_risk_rating}</Badge>
+            {' → '}<Badge variant="outline" className={RISK_CLS[newRisk]}>{newRisk}</Badge>
           </DialogDescription>
         </DialogHeader>
 
         <div className="text-xs space-y-1.5 bg-accent/30 rounded p-2">
-          <div><span className="text-muted-foreground">提議者：</span>{proposal.proposer_name}（{proposal.proposer_role}）</div>
-          <div><span className="text-muted-foreground">理由：</span>{proposal.reason}</div>
-          <div><span className="text-muted-foreground">證據：</span>{proposal.citation}</div>
-          <div><span className="text-muted-foreground">提議時間：</span>{formatTaipei(proposal.created_at)}</div>
+          <div><span className="text-muted-foreground">{t('library.proposals.approveDialog.proposer')}</span>{proposal.proposer_name}（{proposal.proposer_role}）</div>
+          <div><span className="text-muted-foreground">{t('library.proposals.approveDialog.reason')}</span>{proposal.reason}</div>
+          <div><span className="text-muted-foreground">{t('library.proposals.approveDialog.evidence')}</span>{proposal.citation}</div>
+          <div><span className="text-muted-foreground">{t('library.proposals.approveDialog.proposedAt')}</span>{formatTaipei(proposal.created_at, i18n.language)}</div>
         </div>
 
         {isSelf && (
           <div className="text-xs text-rose-400">
-            ⚠ 不可核准自己的提議（4-eye 簽核）
+            {t('library.proposals.approveDialog.selfBlock')}
           </div>
         )}
 
         <Textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          placeholder="（選填）核准備註：例如同意此 SOP，每年複審"
+          placeholder={t('library.proposals.approveDialog.commentPlaceholder')}
           maxLength={500}
         />
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={submitting}>取消</Button>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>{t('library.proposals.approveDialog.cancel')}</Button>
           <Button disabled={!!isSelf || submitting} onClick={submit}>
             {submitting && <Loader2 className="size-4 mr-1 animate-spin" />}
-            核准並套用
+            {t('library.proposals.approveDialog.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -129,6 +131,7 @@ function RejectDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const { t } = useTranslation('pharmacy');
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const ok = comment.trim().length >= 10;
@@ -138,10 +141,10 @@ function RejectDialog({
     setSubmitting(true);
     try {
       await rejectProposal(proposal.id, comment.trim());
-      toast.success('已拒絕提議');
+      toast.success(t('library.proposals.rejectDialog.success'));
       onDone();
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || e?.message || '失敗');
+      toast.error(e?.response?.data?.detail || e?.message || t('library.proposals.rejectDialog.errorFallback'));
       setSubmitting(false);
     }
   };
@@ -151,24 +154,24 @@ function RejectDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>拒絕提議</DialogTitle>
+          <DialogTitle>{t('library.proposals.rejectDialog.title')}</DialogTitle>
           <DialogDescription>
-            拒絕原因將存進稽核日誌（≥10 字）
+            {t('library.proposals.rejectDialog.description')}
           </DialogDescription>
         </DialogHeader>
         <Textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          placeholder="例：證據強度不足；建議補 PMID 後重新提議"
+          placeholder={t('library.proposals.rejectDialog.placeholder')}
           className="min-h-[80px]"
           maxLength={500}
         />
-        <div className="text-[10px] text-muted-foreground">{comment.length} / 500（最少 10 字）</div>
+        <div className="text-[10px] text-muted-foreground">{t('library.proposals.rejectDialog.charCount', { count: comment.length })}</div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={submitting}>取消</Button>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>{t('library.proposals.rejectDialog.cancel')}</Button>
           <Button variant="destructive" disabled={!ok || submitting} onClick={submit}>
             {submitting && <Loader2 className="size-4 mr-1 animate-spin" />}
-            拒絕
+            {t('library.proposals.rejectDialog.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -177,6 +180,7 @@ function RejectDialog({
 }
 
 export function DrugLibraryProposalsPage() {
+  const { t, i18n } = useTranslation('pharmacy');
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
@@ -193,7 +197,7 @@ export function DrugLibraryProposalsPage() {
     setError(null);
     listProposals(filter)
       .then((d) => setItems(d.items))
-      .catch((e) => setError(e?.message || '載入失敗'))
+      .catch((e) => setError(e?.message || t('library.proposals.loadError')))
       .finally(() => setLoading(false));
   };
 
@@ -207,7 +211,7 @@ export function DrugLibraryProposalsPage() {
       <div className="container mx-auto p-6 max-w-screen-md">
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground text-sm">
-            僅 admin 角色可進入此頁
+            {t('library.proposals.noAccess')}
           </CardContent>
         </Card>
       </div>
@@ -223,14 +227,14 @@ export function DrugLibraryProposalsPage() {
           onClick={() => navigate('/pharmacy/drug-library')}
           className="-ml-2"
         >
-          <ArrowLeft className="size-4 mr-1" /> 回藥物管理
+          <ArrowLeft className="size-4 mr-1" /> {t('library.proposals.header.back')}
         </Button>
       </div>
 
       <div>
-        <h1 className="text-2xl font-bold">提議審核</h1>
+        <h1 className="text-2xl font-bold">{t('library.proposals.header.title')}</h1>
         <p className="text-sm text-muted-foreground">
-          藥師提出的院內 override 提議，由 admin 4-eye 簽核後生效
+          {t('library.proposals.header.subtitle')}
         </p>
       </div>
 
@@ -243,7 +247,7 @@ export function DrugLibraryProposalsPage() {
               filter === f.key ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-accent'
             }`}
           >
-            {f.label}
+            {t(f.labelKey)}
           </button>
         ))}
       </div>
@@ -251,7 +255,7 @@ export function DrugLibraryProposalsPage() {
       {loading && (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground flex items-center justify-center gap-2">
-            <Loader2 className="size-4 animate-spin" /> 載入中
+            <Loader2 className="size-4 animate-spin" /> {t('library.proposals.loading')}
           </CardContent>
         </Card>
       )}
@@ -265,7 +269,7 @@ export function DrugLibraryProposalsPage() {
       {items && items.length === 0 && (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground text-sm">
-            目前沒有「{STATUS_FILTERS.find(f => f.key === filter)?.label}」的提議
+            {t('library.proposals.noProposalsFor', { label: t(STATUS_FILTERS.find(f => f.key === filter)?.labelKey || '') })}
           </CardContent>
         </Card>
       )}
@@ -286,25 +290,25 @@ export function DrugLibraryProposalsPage() {
                         to={`/pharmacy/drug-library/${encodeURIComponent(p.source_drug1 || '')}`}
                         className="text-xs text-blue-400 hover:underline inline-flex items-center gap-0.5"
                       >
-                        看規則 <ExternalLink className="size-3" />
+                        {t('library.proposals.card.viewRules')} <ExternalLink className="size-3" />
                       </Link>
                     </div>
                     <div className="flex items-center gap-2 mt-1 text-xs">
-                      <span className="text-muted-foreground">來源 {p.source_ref || '?'}：</span>
+                      <span className="text-muted-foreground">{t('library.proposals.card.sourcePrefix', { ref: p.source_ref || '?' })}</span>
                       <Badge variant="outline" className={RISK_CLS[p.source_risk_rating || '']}>{p.source_risk_rating}</Badge>
-                      <span className="text-muted-foreground">→ 提議覆寫為：</span>
+                      <span className="text-muted-foreground">{t('library.proposals.card.proposedTo')}</span>
                       <Badge variant="outline" className={RISK_CLS[newRisk]}>{newRisk}</Badge>
                     </div>
                   </div>
                   <div className="text-right text-xs text-muted-foreground">
-                    <div>by {p.proposer_name}（{p.proposer_role}）</div>
-                    <div>{formatTaipei(p.created_at)}</div>
+                    <div>{t('library.proposals.card.byAuthor', { name: p.proposer_name, role: p.proposer_role })}</div>
+                    <div>{formatTaipei(p.created_at, i18n.language)}</div>
                   </div>
                 </div>
 
                 <div className="text-xs space-y-1 bg-accent/20 rounded p-2">
-                  <div><span className="text-muted-foreground">理由：</span>{p.reason}</div>
-                  <div><span className="text-muted-foreground">證據：</span>{p.citation || '—'}</div>
+                  <div><span className="text-muted-foreground">{t('library.proposals.card.reason')}</span>{p.reason}</div>
+                  <div><span className="text-muted-foreground">{t('library.proposals.card.evidence')}</span>{p.citation || '—'}</div>
                 </div>
 
                 {p.status === 'pending' ? (
@@ -315,7 +319,7 @@ export function DrugLibraryProposalsPage() {
                       disabled={p.proposer_id === user?.id}
                       className="h-7 text-xs"
                     >
-                      核准
+                      {t('library.proposals.card.approve')}
                     </Button>
                     <Button
                       size="sm"
@@ -323,11 +327,11 @@ export function DrugLibraryProposalsPage() {
                       onClick={() => setRejectTarget(p)}
                       className="h-7 text-xs text-rose-400 border-rose-500/30 hover:bg-rose-500/10"
                     >
-                      拒絕
+                      {t('library.proposals.card.reject')}
                     </Button>
                     {p.proposer_id === user?.id && (
                       <span className="text-[10px] text-muted-foreground ml-2">
-                        ⚠ 不可核准自己的提議
+                        {t('library.proposals.card.selfWarn')}
                       </span>
                     )}
                   </div>
@@ -341,15 +345,15 @@ export function DrugLibraryProposalsPage() {
                         'bg-zinc-500/10 text-zinc-400 border-zinc-500/30'
                       }
                     >
-                      {p.status === 'approved' ? '已核准' : p.status === 'rejected' ? '已拒絕' : '已撤回'}
+                      {p.status === 'approved' ? t('library.proposals.card.approved') : p.status === 'rejected' ? t('library.proposals.card.rejected') : t('library.proposals.card.withdrawn')}
                     </Badge>
                     {p.approver_name && (
                       <span className="text-muted-foreground">
-                        by {p.approver_name} · {formatTaipei(p.decided_at)}
+                        {t('library.proposals.card.approvedBy', { name: p.approver_name, timestamp: formatTaipei(p.decided_at, i18n.language) })}
                       </span>
                     )}
                     {p.decision_comment && (
-                      <span className="text-muted-foreground">— {p.decision_comment}</span>
+                      <span className="text-muted-foreground">{t('library.proposals.card.decisionComment', { comment: p.decision_comment })}</span>
                     )}
                   </div>
                 )}

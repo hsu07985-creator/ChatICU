@@ -17,6 +17,7 @@ import {
 import { Textarea } from '../../components/ui/textarea';
 import { useAuth } from '../../lib/auth-context';
 import { useEditMode } from '../../lib/drug-library-edit-mode';
+import { useTranslation } from 'react-i18next';
 import {
   type DdiDetailItem,
   type DrugDetail,
@@ -38,19 +39,20 @@ const RISK_META: Record<string, { cls: string; descr: string }> = {
   A: { cls: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30', descr: 'No known interaction' },
 };
 
-const RELIABILITY_META: Record<string, { cls: string; tip: string }> = {
-  Excellent: { cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30', tip: '證據強度：優' },
-  Good: { cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30', tip: '證據強度：良' },
-  Fair: { cls: 'bg-amber-500/10 text-amber-400 border-amber-500/30', tip: '證據強度：中等' },
-  Poor: { cls: 'bg-rose-500/10 text-rose-400 border-rose-500/30', tip: '證據強度：弱' },
-  Intermediate: { cls: 'bg-amber-500/10 text-amber-400 border-amber-500/30', tip: '證據強度：中等' },
-  'Intermediate-High': { cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30', tip: '證據強度：中-高' },
-  'Intermediate-Low': { cls: 'bg-amber-500/10 text-amber-400 border-amber-500/30', tip: '證據強度：中-低' },
+// Style only — tooltips resolved via t('library.detail.evidence.<key>').
+const RELIABILITY_CLS: Record<string, string> = {
+  Excellent: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+  Good: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+  Fair: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+  Poor: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+  Intermediate: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+  'Intermediate-High': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+  'Intermediate-Low': 'bg-amber-500/10 text-amber-400 border-amber-500/30',
 };
 
-function formatTaipei(iso: string | null | undefined): string {
+function formatTaipei(iso: string | null | undefined, locale = 'zh-TW'): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false });
+  return new Date(iso).toLocaleString(locale, { timeZone: 'Asia/Taipei', hour12: false });
 }
 
 // ── Edit-mode action rail per DDI card ─────────────────────────────────
@@ -61,6 +63,7 @@ function DdiEditRail({
   item: DdiDetailItem;
   onChange: (updates: Partial<DdiDetailItem>) => void;
 }) {
+  const { t } = useTranslation('pharmacy');
   const [noteDraft, setNoteDraft] = useState<string>(item.pharmacist_note ?? '');
   const [savingNote, setSavingNote] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -75,9 +78,9 @@ function DdiEditRail({
     try {
       const r = await updateRuleNote(item.id, noteDraft || null);
       onChange({ pharmacist_note: r.pharmacist_note, etag: r.etag });
-      toast.success('備註已儲存');
+      toast.success(t('library.detail.noteSavedToast'));
     } catch (e: any) {
-      toast.error(e?.message || '儲存失敗');
+      toast.error(e?.message || t('library.detail.noteSaveError'));
     } finally {
       setSavingNote(false);
     }
@@ -93,9 +96,9 @@ function DdiEditRail({
         verified_by_name: r.verified_by_name,
         etag: r.etag,
       });
-      toast.success(`已標記核對 by ${r.verified_by_name}`);
+      toast.success(t('library.detail.editRail.verifySuccessWith', { name: r.verified_by_name }));
     } catch (e: any) {
-      toast.error(e?.message || '失敗');
+      toast.error(e?.message || t('library.detail.actionFailed'));
     } finally {
       setVerifying(false);
     }
@@ -104,16 +107,16 @@ function DdiEditRail({
   return (
     <div className="border-t border-border/30 pt-2 mt-2 space-y-2">
       <div className="space-y-1">
-        <div className="text-[10px] text-muted-foreground">藥師備註</div>
+        <div className="text-[10px] text-muted-foreground">{t('library.detail.noteCardLabel')}</div>
         <Textarea
           value={noteDraft}
           onChange={(e) => setNoteDraft(e.target.value)}
-          placeholder="例：本院共識為 SAH 病人 Aspirin + Warfarin 不警告，依神內 2024 SOP"
+          placeholder={t('library.detail.notePlaceholder')}
           className="text-xs min-h-[60px]"
           maxLength={2000}
         />
         <div className="flex items-center justify-between">
-          <span className="text-[10px] text-muted-foreground">{noteDraft.length} / 2000</span>
+          <span className="text-[10px] text-muted-foreground">{t('library.detail.editRail.saveNoteCounter', { count: noteDraft.length })}</span>
           <Button
             size="sm"
             variant="outline"
@@ -122,7 +125,7 @@ function DdiEditRail({
             className="h-7 text-xs"
           >
             {savingNote && <Loader2 className="size-3 mr-1 animate-spin" />}
-            儲存備註
+            {t('library.detail.editRail.saveNote')}
           </Button>
         </div>
       </div>
@@ -136,7 +139,7 @@ function DdiEditRail({
           className="h-7 text-xs"
         >
           {verifying && <Loader2 className="size-3 mr-1 animate-spin" />}
-          標記已核對
+          {t('library.detail.editRail.verify')}
         </Button>
         <Button
           size="sm"
@@ -144,7 +147,7 @@ function DdiEditRail({
           onClick={() => setProposeOpen(true)}
           className="h-7 text-xs text-blue-400 border-blue-500/30 hover:bg-blue-500/10"
         >
-          提議 override
+          {t('library.detail.editRail.propose')}
         </Button>
         <Button
           size="sm"
@@ -152,7 +155,7 @@ function DdiEditRail({
           onClick={() => setDeprecateOpen(true)}
           className="h-7 text-xs text-rose-400 border-rose-500/30 hover:bg-rose-500/10"
         >
-          標 deprecated
+          {t('library.detail.editRail.deprecate')}
         </Button>
         <Button
           size="sm"
@@ -160,7 +163,7 @@ function DdiEditRail({
           onClick={() => setHistoryOpen(true)}
           className="h-7 text-xs ml-auto"
         >
-          歷史
+          {t('library.detail.editRail.history')}
         </Button>
       </div>
 
@@ -210,6 +213,7 @@ function ProposeOverrideDialog({
   const [newRisk, setNewRisk] = useState<typeof RISKS[number]>('C');
   const [reason, setReason] = useState('');
   const [citation, setCitation] = useState('');
+  const { t } = useTranslation('pharmacy');
   const [days, setDays] = useState(365);
   const [submitting, setSubmitting] = useState(false);
 
@@ -229,10 +233,10 @@ function ProposeOverrideDialog({
         citation: citation.trim(),
         expires_in_days: days,
       });
-      toast.success('已送出提議，等待 admin 核准');
+      toast.success(t('library.detail.proposeDialog.submitToast'));
       onProposed();
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || e?.message || '失敗');
+      toast.error(e?.response?.data?.detail || e?.message || t('library.detail.actionFailed'));
       setSubmitting(false);
     }
   };
@@ -241,16 +245,16 @@ function ProposeOverrideDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>提議院內 override</DialogTitle>
+          <DialogTitle>{t('library.detail.proposeDialog.title')}</DialogTitle>
           <DialogDescription>
-            來源規則：「× {ruleLabel}」目前為 <Badge variant="outline" className="text-[10px]">{sourceRisk}</Badge>
-            。提議後須經 admin 核准（4-eye）才會生效。
+            {t('library.detail.proposeRules.sourceRule', { label: ruleLabel, risk: '' })}<Badge variant="outline" className="text-[10px]">{sourceRisk}</Badge>
+            {t('library.detail.proposeRules.afterApproval')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
           <div>
-            <div className="text-xs text-muted-foreground mb-1">院內覆寫為：</div>
+            <div className="text-xs text-muted-foreground mb-1">{t('library.detail.proposeDialog.newRiskLabel')}</div>
             <div className="flex gap-1.5">
               {RISKS.map((r) => (
                 <button
@@ -266,37 +270,37 @@ function ProposeOverrideDialog({
             </div>
             {xDowngradeBlocked && (
               <div className="text-xs text-rose-400 mt-1">
-                X (Avoid combination) 永遠禁止降級（僅可維持 X）
+                {t('library.detail.proposeRules.xDowngradeBlocked')}
               </div>
             )}
           </div>
 
           <div>
-            <div className="text-xs text-muted-foreground mb-1">院內共識理由（≥30 字）</div>
+            <div className="text-xs text-muted-foreground mb-1">{t('library.detail.proposeDialog.reasonLabel')}</div>
             <Textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="例：本院神內 2024 共識，SAH 病人在嚴密 BP 監測下可允許此組合..."
+              placeholder={t('library.detail.proposeDialog.reasonPlaceholder')}
               className="min-h-[80px]"
               maxLength={1000}
             />
-            <div className="text-[10px] text-muted-foreground">{reason.length} / 1000（最少 30 字）</div>
+            <div className="text-[10px] text-muted-foreground">{t('library.detail.proposeRules.reasonCounter', { count: reason.length })}</div>
           </div>
 
           <div>
-            <div className="text-xs text-muted-foreground mb-1">證據引用（≥10 字 — PMID / UpToDate / 院內 SOP 文號）</div>
+            <div className="text-xs text-muted-foreground mb-1">{t('library.detail.proposeDialog.citationLabel')}</div>
             <Textarea
               value={citation}
               onChange={(e) => setCitation(e.target.value)}
-              placeholder="例：PMID:32887891；院內 SOP-NEU-2024-03；UpToDate Vasopressors topic"
+              placeholder={t('library.detail.proposeDialog.citationPlaceholder')}
               className="min-h-[50px]"
               maxLength={500}
             />
-            <div className="text-[10px] text-muted-foreground">{citation.length} / 500（最少 10 字）</div>
+            <div className="text-[10px] text-muted-foreground">{t('library.detail.proposeRules.citationCounter', { count: citation.length })}</div>
           </div>
 
           <div>
-            <div className="text-xs text-muted-foreground mb-1">需重新核驗的天數（30-730）</div>
+            <div className="text-xs text-muted-foreground mb-1">{t('library.detail.proposeDialog.ttlLabel')}</div>
             <input
               type="number"
               min={30}
@@ -305,15 +309,15 @@ function ProposeOverrideDialog({
               onChange={(e) => setDays(parseInt(e.target.value) || 365)}
               className="w-32 px-2 py-1 text-sm rounded border bg-background"
             />
-            <span className="ml-2 text-xs text-muted-foreground">天後到期</span>
+            <span className="ml-2 text-xs text-muted-foreground">{t('library.detail.proposeDialog.ttlSuffix')}</span>
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={submitting}>取消</Button>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>{t('library.detail.proposeDialog.cancel')}</Button>
           <Button disabled={!ok || submitting} onClick={submit}>
             {submitting && <Loader2 className="size-4 mr-1 animate-spin" />}
-            送出提議
+            {t('library.detail.proposeRules.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -334,6 +338,7 @@ function DeprecateDialog({
   ruleLabel: string;
   onDeprecated: () => void;
 }) {
+  const { t } = useTranslation('pharmacy');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const ok = reason.trim().length >= 30;
@@ -342,12 +347,12 @@ function DeprecateDialog({
     setSubmitting(true);
     try {
       await deprecateRule(ruleId, reason.trim());
-      toast.success('已標記 deprecated（reload 後從清單消失）');
+      toast.success(t('library.detail.deprecateDialog.successToast'));
       onDeprecated();
       // Reload page so the row disappears (is_active=FALSE filter)
       setTimeout(() => window.location.reload(), 500);
     } catch (e: any) {
-      toast.error(e?.message || '失敗');
+      toast.error(e?.message || t('library.detail.actionFailed'));
       setSubmitting(false);
     }
   };
@@ -355,32 +360,30 @@ function DeprecateDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>標記 deprecated</DialogTitle>
+          <DialogTitle>{t('library.detail.deprecateDialog.title')}</DialogTitle>
           <DialogDescription>
-            此規則「× {ruleLabel}」將被軟刪除（is_active = FALSE），
-            後續所有藥師查詢、API 都不會再回傳這條。可隨時 restore。
-            必填理由（≥30 字，存進稽核 log）。
+            {t('library.detail.deprecateExtra.description', { label: ruleLabel })}
           </DialogDescription>
         </DialogHeader>
         <Textarea
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="例：與 Lexicomp 2026.07 撤銷規則，本院神內 SOP 也不再採用"
+          placeholder={t('library.detail.deprecateDialog.placeholder')}
           className="min-h-[100px]"
           maxLength={500}
         />
         <div className="text-xs text-muted-foreground">
-          {reason.length} / 500（最少 30 字）
+          {t('library.detail.deprecateExtra.counter', { count: reason.length })}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={submitting}>取消</Button>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>{t('library.detail.deprecateDialog.cancel')}</Button>
           <Button
             variant="destructive"
             disabled={!ok || submitting}
             onClick={submit}
           >
             {submitting && <Loader2 className="size-4 mr-1 animate-spin" />}
-            確認標記
+            {t('library.detail.deprecateExtra.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -397,6 +400,7 @@ function HistoryDialog({
   onClose: () => void;
   ruleId: string;
 }) {
+  const { t, i18n } = useTranslation('pharmacy');
   const [history, setHistory] = useState<RuleHistoryEntry[] | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -414,20 +418,20 @@ function HistoryDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>規則異動歷史</DialogTitle>
+          <DialogTitle>{t('library.detail.historyDialog.title')}</DialogTitle>
           <DialogDescription>
-            <span className="font-mono text-xs">{ruleId}</span> 的所有編輯紀錄（最多 200 筆，新→舊）
+            <span className="font-mono text-xs">{ruleId}</span> {t('library.detail.history.subtitle', { ruleId: '' })}
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[60vh] overflow-y-auto space-y-2">
           {loading && (
             <div className="text-sm text-muted-foreground py-4 text-center flex items-center justify-center gap-2">
-              <Loader2 className="size-4 animate-spin" /> 載入歷史
+              <Loader2 className="size-4 animate-spin" /> {t('library.detail.history.loading')}
             </div>
           )}
           {history && history.length === 0 && (
             <div className="text-sm text-muted-foreground py-4 text-center">
-              尚無編輯紀錄
+              {t('library.detail.history.empty')}
             </div>
           )}
           {history?.map((h, i) => (
@@ -441,11 +445,11 @@ function HistoryDialog({
                       <span className="text-muted-foreground">{h.actor_role}</span>
                     )}
                   </div>
-                  <span className="text-muted-foreground">{formatTaipei(h.created_at)}</span>
+                  <span className="text-muted-foreground">{formatTaipei(h.created_at, i18n.language)}</span>
                 </div>
                 {h.reason && (
                   <div className="text-xs">
-                    <span className="text-muted-foreground">理由：</span>{h.reason}
+                    <span className="text-muted-foreground">{t('library.detail.historyDialog.reason')}</span>{h.reason}
                   </div>
                 )}
                 {h.before && (
@@ -477,7 +481,8 @@ function DdiCard({
   editMode: boolean;
   onChange: (updates: Partial<DdiDetailItem>) => void;
 }) {
-  const reliability = item.reliability ? RELIABILITY_META[item.reliability] : null;
+  const { t, i18n } = useTranslation('pharmacy');
+  const reliabilityCls = item.reliability ? RELIABILITY_CLS[item.reliability] : null;
   const hasOverride = !!item.override_risk_rating;
   const sourceRisk = item.source_risk_rating || item.risk_rating;
   return (
@@ -494,8 +499,8 @@ function DdiCard({
             {item.severity_label && (
               <Badge variant="outline" className="text-[10px]">{item.severity_label}</Badge>
             )}
-            {reliability && (
-              <Badge variant="outline" className={`text-[10px] ${reliability.cls}`} title={reliability.tip}>
+            {reliabilityCls && item.reliability && (
+              <Badge variant="outline" className={`text-[10px] ${reliabilityCls}`} title={t(`library.detail.evidence.${item.reliability}`, { defaultValue: item.reliability })}>
                 {item.reliability}
               </Badge>
             )}
@@ -508,23 +513,23 @@ function DdiCard({
         {hasOverride && (
           <div className="bg-blue-500/5 border border-blue-500/20 rounded p-2 text-xs space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-muted-foreground">原始來源：</span>
+              <span className="text-muted-foreground">{t('library.detail.rule.originalSourceLabel')}</span>
               <span className={`px-1.5 py-0.5 rounded border ${RISK_META[sourceRisk]?.cls || ''} font-mono text-[11px]`}>{sourceRisk}</span>
-              <span className="text-muted-foreground">→ 院內覆寫：</span>
+              <span className="text-muted-foreground">{t('library.detail.rule.overrideArrow')}</span>
               <span className={`px-1.5 py-0.5 rounded border ${RISK_META[item.risk_rating]?.cls || ''} font-mono text-[11px] font-semibold`}>{item.risk_rating}</span>
               <span className="text-blue-400 ml-auto">
                 by {item.overridden_by_name || item.overridden_by}
               </span>
             </div>
             {item.override_reason && (
-              <div><span className="text-muted-foreground">理由：</span>{item.override_reason}</div>
+              <div><span className="text-muted-foreground">{t('library.detail.rule.reasonInline')}</span>{item.override_reason}</div>
             )}
             {item.override_citation && (
-              <div><span className="text-muted-foreground">證據：</span>{item.override_citation}</div>
+              <div><span className="text-muted-foreground">{t('library.detail.rule.evidenceInline')}</span>{item.override_citation}</div>
             )}
             {item.override_expires_at && (
               <div className="text-muted-foreground">
-                到期：{formatTaipei(item.override_expires_at)}
+                {t('library.detail.ddiCard.expireAt', { timestamp: formatTaipei(item.override_expires_at, i18n.language) })}
               </div>
             )}
           </div>
@@ -532,19 +537,19 @@ function DdiCard({
 
         {item.mechanism && (
           <div className="text-xs">
-            <span className="text-muted-foreground">機制：</span>
+            <span className="text-muted-foreground">{t('library.detail.rule.mechanismInline')}</span>
             <span>{item.mechanism}</span>
           </div>
         )}
         {item.management && (
           <div className="text-xs">
-            <span className="text-muted-foreground">處置：</span>
+            <span className="text-muted-foreground">{t('library.detail.rule.managementInline')}</span>
             <span>{item.management}</span>
           </div>
         )}
         {item.discussion && (
           <details className="text-xs text-muted-foreground">
-            <summary className="cursor-pointer hover:text-foreground">詳細討論</summary>
+            <summary className="cursor-pointer hover:text-foreground">{t('library.detail.rule.discussionToggle')}</summary>
             <div className="mt-1 pl-2 border-l-2 border-border/40 whitespace-pre-wrap">
               {item.discussion}
             </div>
@@ -552,22 +557,22 @@ function DdiCard({
         )}
         {item.pubmed_count > 0 && (
           <div className="text-xs text-muted-foreground">
-            {item.pubmed_count} 篇文獻引用
+            {t('library.detail.ddiCard.pubmedCount', { count: item.pubmed_count })}
           </div>
         )}
 
         {/* Read-mode pinned note + verify status */}
         {!editMode && item.pharmacist_note && (
           <div className="text-xs bg-blue-500/5 border border-blue-500/20 rounded p-2 mt-1">
-            <span className="text-blue-400 font-medium">藥師備註：</span>
+            <span className="text-blue-400 font-medium">{t('library.detail.rule.pharmacistNote')}</span>
             <span className="whitespace-pre-wrap">{item.pharmacist_note}</span>
           </div>
         )}
         {!editMode && item.last_verified_at && (
           <div className="text-[10px] text-emerald-400">
-            ✓ 已核對 {formatTaipei(item.last_verified_at)}
+            {t('library.detail.ddiCard.verifiedAt', { timestamp: formatTaipei(item.last_verified_at, i18n.language) })}
             {(item.verified_by_name || item.verified_by) && (
-              <> by {item.verified_by_name || item.verified_by}</>
+              <>{t('library.detail.ddiCard.verifiedBy', { name: item.verified_by_name || item.verified_by })}</>
             )}
           </div>
         )}
@@ -622,10 +627,11 @@ function RiskGroup({
 }
 
 function IvCompatList({ items }: { items: IvCompatItem[] }) {
+  const { t } = useTranslation('pharmacy');
   if (items.length === 0) {
     return (
       <div className="text-sm text-muted-foreground py-4 text-center">
-        系統未收錄此藥的 IV 相容性資料
+        {t('library.detail.iv.noData')}
       </div>
     );
   }
@@ -642,10 +648,10 @@ function IvCompatList({ items }: { items: IvCompatItem[] }) {
                 <div className="flex items-start justify-between gap-2 flex-wrap text-sm">
                   <span className="font-medium">{it.other_drug}</span>
                   <div className="flex items-center gap-1 text-[10px]">
-                    {it.solution && <Badge variant="outline" className="text-[10px]">溶液 {it.solution}</Badge>}
+                    {it.solution && <Badge variant="outline" className="text-[10px]">{t('library.detail.iv.solution', { value: it.solution })}</Badge>}
                     {it.time_stability && (
                       <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
-                        穩定 {it.time_stability}
+                        {t('library.detail.iv.stable', { value: it.time_stability })}
                       </Badge>
                     )}
                     {it.source && <Badge variant="outline" className="text-[10px]">{it.source}</Badge>}
@@ -663,8 +669,8 @@ function IvCompatList({ items }: { items: IvCompatItem[] }) {
   );
   return (
     <div className="space-y-3">
-      {sectionRender('相容', compatible, 'text-emerald-400')}
-      {sectionRender('不相容', incompatible, 'text-rose-400')}
+      {sectionRender(t('library.detail.compatibility.compatibleHeading'), compatible, 'text-emerald-400')}
+      {sectionRender(t('library.detail.compatibility.incompatibleHeading'), incompatible, 'text-rose-400')}
     </div>
   );
 }
@@ -672,6 +678,7 @@ function IvCompatList({ items }: { items: IvCompatItem[] }) {
 type TabKey = 'ddi' | 'iv';
 
 export function DrugLibraryDetailPage() {
+  const { t } = useTranslation('pharmacy');
   const { name } = useParams<{ name: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -690,7 +697,7 @@ export function DrugLibraryDetailPage() {
     setError(null);
     getDrugDetail(name)
       .then((d) => setData(d))
-      .catch((e) => setError(e?.message || '載入失敗'))
+      .catch((e) => setError(e?.message || t('library.detail.header.loadError')))
       .finally(() => setLoading(false));
   }, [name]);
 
@@ -739,18 +746,18 @@ export function DrugLibraryDetailPage() {
           onClick={() => navigate('/pharmacy/drug-library')}
           className="-ml-2"
         >
-          <ArrowLeft className="size-4 mr-1" /> 回藥物管理
+          <ArrowLeft className="size-4 mr-1" /> {t('library.detail.header.back')}
         </Button>
         {isPharmOrAdmin && (
           <div className="flex items-center gap-1 text-xs">
-            <span className="text-muted-foreground">模式：</span>
+            <span className="text-muted-foreground">{t('library.detail.header.modeLabel')}</span>
             <Button
               size="sm"
               variant={editMode ? 'outline' : 'default'}
               onClick={() => setEditMode(false)}
               className="h-7 text-xs"
             >
-              檢視
+              {t('library.detail.header.modeView')}
             </Button>
             <Button
               size="sm"
@@ -758,7 +765,7 @@ export function DrugLibraryDetailPage() {
               onClick={() => setEditMode(true)}
               className="h-7 text-xs"
             >
-              編輯
+              {t('library.detail.header.modeEdit')}
             </Button>
           </div>
         )}
@@ -767,7 +774,7 @@ export function DrugLibraryDetailPage() {
       {loading && (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground flex items-center justify-center gap-2">
-            <Loader2 className="size-4 animate-spin" /> 載入中
+            <Loader2 className="size-4 animate-spin" /> {t('library.detail.page.loading')}
           </CardContent>
         </Card>
       )}
@@ -781,7 +788,7 @@ export function DrugLibraryDetailPage() {
       {data && !data.exists && (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground text-sm">
-            找不到藥物 <span className="font-mono">{name}</span> 的資料
+            {t('library.detail.page.notFound', { name: '' })}<span className="font-mono">{name}</span>
           </CardContent>
         </Card>
       )}
@@ -798,14 +805,14 @@ export function DrugLibraryDetailPage() {
                       <Badge variant="outline" className="font-mono">{data.atc}</Badge>
                     )}
                     {data.in_formulary ? (
-                      <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30">院內 formulary</Badge>
+                      <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30">{t('library.detail.header.inFormularyBadge')}</Badge>
                     ) : (
-                      <Badge variant="outline" className="bg-zinc-500/10 text-zinc-400 border-zinc-500/30">院外</Badge>
+                      <Badge variant="outline" className="bg-zinc-500/10 text-zinc-400 border-zinc-500/30">{t('library.detail.header.externalBadge')}</Badge>
                     )}
                   </div>
                   {data.atc_path.length > 0 && (
                     <div className="text-xs text-muted-foreground mt-2 flex items-center gap-1 flex-wrap">
-                      ATC 階層：
+                      {t('library.detail.page.atcPath')}
                       {data.atc_path.map((p, i) => (
                         <span key={p.code} className="flex items-center gap-1">
                           {i > 0 && <span className="text-muted-foreground">/</span>}
@@ -817,9 +824,9 @@ export function DrugLibraryDetailPage() {
                   )}
                   {(data.brand_names.length > 0 || data.hospital_codes.length > 0) && (
                     <div className="text-xs text-muted-foreground mt-2">
-                      {data.brand_names.length > 0 && <>商品 {data.brand_names.join(' · ')}</>}
+                      {data.brand_names.length > 0 && <>{t('library.detail.page.brand')} {data.brand_names.join(' · ')}</>}
                       {data.brand_names.length > 0 && data.hospital_codes.length > 0 && ' · '}
-                      {data.hospital_codes.length > 0 && <>院內代碼 {data.hospital_codes.join(' · ')}</>}
+                      {data.hospital_codes.length > 0 && <>{t('library.detail.page.hospitalCode')} {data.hospital_codes.join(' · ')}</>}
                     </div>
                   )}
                 </div>
@@ -827,7 +834,7 @@ export function DrugLibraryDetailPage() {
 
               {data.sources.length > 0 && (
                 <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-                  資料源：
+                  {t('library.detail.page.sourcesLabel')}
                   {data.sources.map((s) => (
                     <Badge key={s} variant="outline" className="text-[10px]">{s}</Badge>
                   ))}
@@ -840,10 +847,10 @@ export function DrugLibraryDetailPage() {
             <CardContent className="py-0 px-0">
               <div className="border-b border-border/40 flex items-center gap-2 px-3">
                 <button onClick={() => setTab('ddi')} className={tabClass('ddi')}>
-                  交互作用 ({data.ddi_total})
+                  {t('library.detail.page.ddiTab', { count: data.ddi_total })}
                 </button>
                 <button onClick={() => setTab('iv')} className={tabClass('iv')}>
-                  IV 相容性 ({ivCount})
+                  {t('library.detail.page.ivTab', { count: ivCount })}
                 </button>
               </div>
 
@@ -871,7 +878,7 @@ export function DrugLibraryDetailPage() {
                           onClick={() => setRiskFilter(new Set())}
                           className="text-xs text-muted-foreground hover:text-foreground ml-2"
                         >
-                          清除篩選
+                          {t('library.detail.page.clearFilter')}
                         </button>
                       )}
                     </div>
@@ -889,7 +896,7 @@ export function DrugLibraryDetailPage() {
                       ))}
                       {data.ddi_total === 0 && (
                         <div className="text-sm text-muted-foreground text-center py-4">
-                          系統未收錄此藥的交互作用規則
+                          {t('library.detail.page.noDdi')}
                         </div>
                       )}
                     </div>
@@ -905,8 +912,8 @@ export function DrugLibraryDetailPage() {
 
           <Card className="border-amber-500/30 bg-amber-500/5">
             <CardContent className="py-3 text-xs text-amber-400">
-              <span className="font-semibold">資料缺口提示：</span>
-              未列規則 ≠ 安全。本系統來源主要為 Lexicomp + MICROMEDEX，罕見組合 / 中草藥 / 食物交互可能未涵蓋。IV 相容性以 Trissel's Handbook 為主，未列組合請諮詢藥劑科。
+              <span className="font-semibold">{t('library.detail.gap.title')}</span>
+              {t('library.detail.gap.body')}
             </CardContent>
           </Card>
         </>

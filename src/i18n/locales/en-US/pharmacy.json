@@ -183,6 +183,229 @@
       "loading": "Querying..."
     }
   },
+  "library": {
+    "list": {
+      "loadingStats": "Loading system coverage overview",
+      "lastUpdated": "Last updated {{timestamp}}",
+      "overviewTitle": "System coverage overview",
+      "drugCount": "drugs",
+      "ddiCount": "interactions",
+      "recentlyAdded": "+{{count}} added recently",
+      "sourcesLabel": "Sources: ",
+      "loadError": "Load failed",
+      "header": {
+        "title": "Drug Library",
+        "subtitle": "Overview of all drugs and interaction rules · For pharmacists / admins"
+      },
+      "search": {
+        "placeholder": "Search generic / brand / hospital code / ATC",
+        "sortName": "Name A → Z",
+        "sortDdi": "DDI count high → low"
+      },
+      "filters": {
+        "inFormulary": "In-formulary",
+        "hasX": "Has X-level rule",
+        "missingAtc": "Missing ATC",
+        "recentlyAdded": "Recently added (Lexicomp)"
+      },
+      "atcSidebar": {
+        "title": "ATC classes",
+        "all": "All"
+      },
+      "card": {
+        "external": "External",
+        "newBadge": "New",
+        "missingData": "Missing data",
+        "missingAtc": "ATC TBD",
+        "brand": "Brands",
+        "moreCount": "and {{count}} more",
+        "hospitalCode": "Hospital code",
+        "interactions": "Interactions",
+        "rulesCount": "{{count}} rules",
+        "sourceCount": "{{count}} source(s)",
+        "alias": "(also {{aliases}})"
+      },
+      "pagination": {
+        "totalText": "{{count}} total · page {{page}} / {{total}}",
+        "prev": "Prev",
+        "next": "Next"
+      },
+      "noResults": "No drugs match the criteria"
+    },
+    "proposals": {
+      "statusFilters": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "withdrawn": "Withdrawn",
+        "all": "All"
+      },
+      "header": {
+        "back": "Back to Drug Library",
+        "title": "Proposal Review",
+        "subtitle": "Pharmacist-submitted hospital override proposals, signed off by admin (4-eye)"
+      },
+      "noAccess": "Only admin role can access this page",
+      "loading": "Loading",
+      "loadError": "Load failed",
+      "noProposalsFor": "No proposals in \"{{label}}\"",
+      "card": {
+        "viewRules": "View rule",
+        "sourcePrefix": "Source {{ref}}: ",
+        "proposedTo": "→ override to: ",
+        "byAuthor": "by {{name}} ({{role}})",
+        "reason": "Reason: ",
+        "evidence": "Evidence: ",
+        "approve": "Approve",
+        "reject": "Reject",
+        "selfWarn": "⚠ Cannot approve your own proposal",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "withdrawn": "Withdrawn",
+        "approvedBy": "by {{name}} · {{timestamp}}",
+        "decisionComment": "— {{comment}}"
+      },
+      "approveDialog": {
+        "title": "Approve Proposal",
+        "description": "\"{{a}} × {{b}}\" risk will be overridden from {{from}} to {{to}}",
+        "proposer": "Proposer: ",
+        "reason": "Reason: ",
+        "evidence": "Evidence: ",
+        "proposedAt": "Proposed at: ",
+        "selfBlock": "⚠ Cannot approve your own proposal (4-eye sign-off)",
+        "commentPlaceholder": "(Optional) Approval note: e.g. agree with this SOP, annual review",
+        "cancel": "Cancel",
+        "submit": "Approve and apply",
+        "successWith": "Approved with risk = {{risk}}",
+        "errorFallback": "Failed"
+      },
+      "rejectDialog": {
+        "title": "Reject Proposal",
+        "description": "Rejection reason will be stored in audit log (≥10 chars)",
+        "placeholder": "e.g. Insufficient evidence; please add PMID and resubmit",
+        "charCount": "{{count}} / 500 (min 10 chars)",
+        "cancel": "Cancel",
+        "submit": "Reject",
+        "success": "Proposal rejected",
+        "errorFallback": "Failed"
+      }
+    },
+    "detail": {
+      "evidence": {
+        "Excellent": "Evidence: Excellent",
+        "Good": "Evidence: Good",
+        "Fair": "Evidence: Fair",
+        "Poor": "Evidence: Poor",
+        "Intermediate": "Evidence: Intermediate",
+        "Intermediate-High": "Evidence: Intermediate-High",
+        "Intermediate-Low": "Evidence: Intermediate-Low"
+      },
+      "noteSavedToast": "Note saved",
+      "noteSaveError": "Save failed",
+      "actionFailed": "Failed",
+      "noteCardLabel": "Pharmacist note",
+      "notePlaceholder": "e.g. Hospital consensus: do not warn for SAH patients on Aspirin + Warfarin per Neuro 2024 SOP",
+      "proposeDialog": {
+        "submitToast": "Proposal submitted, awaiting admin approval",
+        "title": "Propose Hospital Override",
+        "newRiskLabel": "Hospital override to: ",
+        "reasonLabel": "Hospital consensus reason (≥30 chars)",
+        "reasonPlaceholder": "e.g. Per hospital Neuro 2024 consensus, SAH patient on strict BP monitoring may use this combo...",
+        "citationLabel": "Evidence citation (≥10 chars — PMID / UpToDate / hospital SOP number)",
+        "citationPlaceholder": "e.g. PMID:32887891; hospital SOP-NEU-2024-03; UpToDate Vasopressors topic",
+        "ttlLabel": "Days until re-validation required (30-730)",
+        "ttlSuffix": "days until expiry",
+        "cancel": "Cancel"
+      },
+      "deprecateDialog": {
+        "title": "Mark deprecated",
+        "successToast": "Marked deprecated (will disappear from list after reload)",
+        "placeholder": "e.g. Lexicomp 2026.07 retracted this rule; hospital Neuro SOP no longer applies",
+        "cancel": "Cancel"
+      },
+      "historyDialog": {
+        "title": "Rule change history",
+        "reason": "Reason: "
+      },
+      "rule": {
+        "originalSourceLabel": "Original source: ",
+        "overrideArrow": "→ Hospital override: ",
+        "reasonInline": "Reason: ",
+        "evidenceInline": "Evidence: ",
+        "mechanismInline": "Mechanism: ",
+        "managementInline": "Management: ",
+        "discussionToggle": "Detailed discussion",
+        "pharmacistNote": "Pharmacist note: "
+      },
+      "compatibility": {
+        "compatibleHeading": "Compatible",
+        "incompatibleHeading": "Incompatible"
+      },
+      "header": {
+        "loadError": "Load failed",
+        "modeLabel": "Mode: ",
+        "inFormularyBadge": "In-formulary",
+        "externalBadge": "External",
+        "back": "Back to Drug Library",
+        "modeView": "View",
+        "modeEdit": "Edit"
+      },
+      "gap": {
+        "title": "Data gap notice: ",
+        "body": "Absence of a rule ≠ safety. This system mainly sources Lexicomp + MICROMEDEX; rare combinations, herbs, or food interactions may not be covered. IV compatibility is primarily from Trissel's Handbook; consult Pharmacy for unlisted combinations."
+      },
+      "page": {
+        "loading": "Loading",
+        "notFound": "No data for drug {{name}}",
+        "atcPath": "ATC hierarchy: ",
+        "brand": "Brands",
+        "hospitalCode": "Hospital code",
+        "sourcesLabel": "Sources: ",
+        "ddiTab": "Interactions ({{count}})",
+        "ivTab": "IV Compatibility ({{count}})",
+        "clearFilter": "Clear filter",
+        "noDdi": "No interaction rules recorded for this drug"
+      },
+      "ddiCard": {
+        "pubmedCount": "{{count}} literature reference(s)",
+        "verifiedAt": "✓ Verified {{timestamp}}",
+        "verifiedBy": " by {{name}}",
+        "expireAt": "Expires: {{timestamp}}"
+      },
+      "iv": {
+        "noData": "No IV compatibility data recorded for this drug",
+        "solution": "Solution {{value}}",
+        "stable": "Stable {{value}}"
+      },
+      "editRail": {
+        "saveNoteCounter": "{{count}} / 2000",
+        "saveNote": "Save note",
+        "verify": "Mark verified",
+        "verifySuccessWith": "Verified by {{name}}",
+        "propose": "Propose override",
+        "deprecate": "Mark deprecated",
+        "history": "History"
+      },
+      "proposeRules": {
+        "sourceRule": "Source rule: \"× {{label}}\" is currently {{risk}}",
+        "afterApproval": ". Requires admin approval (4-eye sign-off) before taking effect.",
+        "xDowngradeBlocked": "X (Avoid combination) downgrade is permanently forbidden (X may only stay X)",
+        "reasonCounter": "{{count}} / 1000 (min 30 chars)",
+        "citationCounter": "{{count}} / 500 (min 10 chars)",
+        "submit": "Submit proposal"
+      },
+      "deprecateExtra": {
+        "description": "Rule \"× {{label}}\" will be soft-deleted (is_active = FALSE). All pharmacist queries and APIs will no longer return it. Can be restored at any time. Reason required (≥30 chars, stored in audit log).",
+        "counter": "{{count}} / 500 (min 30 chars)",
+        "submit": "Confirm mark"
+      },
+      "history": {
+        "subtitle": "All edit history for {{ruleId}} (max 200 entries, newest first)",
+        "loading": "Loading history",
+        "empty": "No edit history yet"
+      }
+    }
+  },
   "compatibility": {
     "header": {
       "title": "IV Compatibility",
