@@ -21,7 +21,7 @@
 | 3d | patient-summary-tab + patient-labs-tab | 🟢 完成 | `feat/i18n-w3d` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 3e | patient-medications-tab + 4 medication 子元件 | 🟢 完成 | `feat/i18n-w3e` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 3f | patient-microbiology-card + patient-diagnostic-reports | 🟢 完成 | `feat/i18n-w3f` | 2026-05-04 | 🚀 personal+railway 已推 |
-| 3g | patient-messages-tab + patient-chat-tab + chat-message-thread + discharge-check-panel | 🟢 完成 | `feat/i18n-w3g` | 2026-05-04 | 待 push |
+| 3g | patient-messages-tab + patient-chat-tab + chat-message-thread + discharge-check-panel | 🟢 完成 | `feat/i18n-w3g` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 4 | team chat + ai chat | ⬜ 待開工 | — | — |
 | 5 | 藥事 7 頁（workstation + 6 工具） | ⬜ 待開工 | — | — |
 | 6 | admin 4 頁 | ⬜ 待開工 | — | — |
