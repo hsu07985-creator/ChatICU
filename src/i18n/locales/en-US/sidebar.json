@@ -27,8 +27,8 @@
     "collapse": "Collapse sidebar"
   },
   "footer": {
-    "lightMode": "Light Mode",
-    "darkMode": "Dark Mode",
+    "lightMode": "Light",
+    "darkMode": "Dark",
     "logout": "Logout",
     "switchToEnglish": "Switch to English",
     "switchToChinese": "Switch to 繁體中文"

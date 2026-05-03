@@ -162,10 +162,11 @@ export function AppSidebar() {
     </SidebarGroup>
   );
 
-  // Language toggle button: pure-text "中 / EN" toggle (per Q1-A decision).
-  // The button label always shows the OTHER language — i.e. what the user
-  // will get after clicking. This mirrors common bilingual-site convention.
-  const langButtonLabel = currentLang === 'zh-TW' ? 'EN' : '中';
+  // Language toggle button: single-char target-language label paired with a
+  // Globe icon. zh-TW mode shows "英" (target = English); en-US mode shows
+  // "中" (target = Chinese). Following common bilingual-site convention the
+  // label says what you'll get after clicking, not what you currently are.
+  const langButtonLabel = currentLang === 'zh-TW' ? '英' : '中';
   const langButtonTitle = currentLang === 'zh-TW'
     ? t('sidebar:footer.switchToEnglish')
     : t('sidebar:footer.switchToChinese');

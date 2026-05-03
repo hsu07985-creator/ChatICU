@@ -27,8 +27,8 @@
     "collapse": "收起側邊欄"
   },
   "footer": {
-    "lightMode": "淺色模式",
-    "darkMode": "深色模式",
+    "lightMode": "淺",
+    "darkMode": "深",
     "logout": "登出",
     "switchToEnglish": "切換為 English",
     "switchToChinese": "切換為繁體中文"
