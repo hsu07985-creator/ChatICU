@@ -23,8 +23,15 @@ class TeamChatMessage(Base):
     pinned_by: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # {userId, userName}
     pinned_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    # Reply threading
-    reply_to_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
+    # Reply threading. The DB has a self-referencing FK (migration 015) with
+    # ON DELETE SET NULL — declare it on the model so ORM-only test fixtures
+    # respect it too. TC-B12 closed the schema-vs-model drift.
+    reply_to_id: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        ForeignKey("team_chat_messages.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     # Read tracking
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
