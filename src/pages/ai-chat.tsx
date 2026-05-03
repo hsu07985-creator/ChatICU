@@ -9,8 +9,10 @@ import {
   ChevronRight,
   ChevronUp,
   Info,
+  Loader2,
   MessageSquare,
   Plus,
+  RotateCw,
   Send,
   Sparkles,
   Square,
@@ -25,6 +27,7 @@ import {
   extractStreamMainContent,
   getChatSession,
   getChatSessions,
+  refreshChatSessionSnapshot,
   streamChatMessage,
   updateMessageFeedback,
   type ChatResponse,
@@ -133,6 +136,55 @@ function mapApiMessage(item: {
   };
 }
 
+/**
+ * F2: snapshot freshness pill + refresh button shown in the chat header
+ * when the active session has a patient context. Stays hidden for
+ * general-chat sessions and for fresh sessions whose first turn hasn't
+ * fired (no snapshot to display age for).
+ *
+ * The button highlights amber once the snapshot is older than 30 minutes
+ * to nudge the user — the LLM's vent/lab/score view of the patient may
+ * have drifted by then.
+ */
+function SnapshotRefreshControl({
+  visible,
+  takenAt,
+  refreshing,
+  onRefresh,
+}: {
+  visible: boolean;
+  takenAt: string | null;
+  refreshing: boolean;
+  onRefresh: () => void;
+}) {
+  if (!visible || !takenAt) return null;
+
+  const age = Date.now() - new Date(takenAt).getTime();
+  const ageMinutes = Math.max(0, Math.floor(age / 60000));
+  const isStale = ageMinutes >= 30;
+  const ageLabel = ageMinutes === 0 ? '剛剛' : `${ageMinutes} 分鐘前`;
+
+  return (
+    <button
+      onClick={onRefresh}
+      disabled={refreshing}
+      className={`flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors ${
+        isStale
+          ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
+          : 'border-border text-muted-foreground hover:bg-slate-100 dark:hover:bg-slate-800'
+      } disabled:cursor-not-allowed disabled:opacity-60`}
+      title={isStale ? '快照已過 30 分鐘，建議重新整理以避免 LLM 用過期資料推論' : '重新整理病患快照'}
+    >
+      {refreshing ? (
+        <Loader2 className="h-3 w-3 animate-spin" />
+      ) : (
+        <RotateCw className="h-3 w-3" />
+      )}
+      <span>快照{ageLabel}</span>
+    </button>
+  );
+}
+
 export function AiChatPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -195,6 +247,15 @@ export function AiChatPage() {
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // F2: snapshot freshness indicator + manual refresh button.
+  // snapshotTakenAt is the ISO-8601 of when the LLM-facing snapshot was
+  // last (re)built. Null when the session has no patient context yet
+  // (general chat) or when the first turn hasn't fired. The chat header
+  // shows the age and highlights the refresh button at >30min so the
+  // user knows the LLM may be reasoning off stale vent/lab/score data.
+  const [snapshotTakenAt, setSnapshotTakenAt] = useState<string | null>(null);
+  const [refreshingSnapshot, setRefreshingSnapshot] = useState(false);
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -326,9 +387,11 @@ export function AiChatPage() {
       return;
     }
     setSelectedSessionId(session.id);
+    setSnapshotTakenAt(null);
     try {
       const detail = await getChatSession(session.id);
       setChatMessages((detail.messages || []).map(mapApiMessage));
+      setSnapshotTakenAt(detail.session?.snapshotTakenAt ?? null);
     } catch {
       setChatMessages([]);
     }
@@ -342,8 +405,28 @@ export function AiChatPage() {
     setSelectedSessionId(undefined);
     setChatMessages([]);
     setChatInput('');
+    setSnapshotTakenAt(null);
     chatInputRef.current?.focus();
   }, [isSending]);
+
+  const refreshSnapshot = useCallback(async () => {
+    if (!selectedSessionId) return;
+    if (isSending) {
+      toast.error('請先按停止才能重新整理快照');
+      return;
+    }
+    setRefreshingSnapshot(true);
+    try {
+      const result = await refreshChatSessionSnapshot(selectedSessionId);
+      setSnapshotTakenAt(result.snapshotTakenAt);
+      toast.success('已重新整理病患快照');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : '重新整理快照失敗';
+      toast.error(msg);
+    } finally {
+      setRefreshingSnapshot(false);
+    }
+  }, [isSending, selectedSessionId]);
 
   const confirmDelete = useCallback(async () => {
     if (!deleteTargetId) return;
@@ -486,6 +569,13 @@ export function AiChatPage() {
       if (!selectedSessionId) {
         setSelectedSessionId(response.sessionId);
       }
+      // F2: first turn just built the snapshot — show the freshness pill
+      // immediately so the user can see the "0 minutes ago" baseline. The
+      // exact timestamp differs from server-side by a few ms, which doesn't
+      // matter for the "N 分鐘前" display.
+      if (effectivePatientId && !snapshotTakenAt) {
+        setSnapshotTakenAt(new Date().toISOString());
+      }
       await refreshSessions();
     } catch (err) {
       // W2-T1: aborts are handled by onAbort which already updated the bubble
@@ -503,7 +593,7 @@ export function AiChatPage() {
       setIsSending(false);
       setThinkingStatus(null);
     }
-  }, [chatInput, chatMessages, effectivePatientId, isSending, refreshSessions, selectedSessionId]);
+  }, [chatInput, chatMessages, effectivePatientId, isSending, refreshSessions, selectedSessionId, snapshotTakenAt]);
 
   const now = new Date();
   const todayDateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -705,6 +795,12 @@ export function AiChatPage() {
                   </div>
                 )}
                 <div className="flex-1" />
+                <SnapshotRefreshControl
+                  visible={Boolean(selectedSessionId && effectivePatientId && snapshotTakenAt)}
+                  takenAt={snapshotTakenAt}
+                  refreshing={refreshingSnapshot}
+                  onRefresh={() => void refreshSnapshot()}
+                />
               </div>
             </CardHeader>
             <CardContent className="p-0">

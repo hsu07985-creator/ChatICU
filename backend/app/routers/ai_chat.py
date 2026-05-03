@@ -662,6 +662,11 @@ async def chat_stream(
 
 
 def _session_to_dict(s: AISession, message_count: int = 0) -> dict:
+    # F2: expose snapshot_taken_at so the frontend can compute "snapshot age"
+    # and decide whether to highlight the refresh-snapshot button.
+    snapshot_taken_at = None
+    if s.snapshot_metadata and isinstance(s.snapshot_metadata, dict):
+        snapshot_taken_at = s.snapshot_metadata.get("snapshot_taken_at")
     return {
         "id": s.id,
         "userId": s.user_id,
@@ -670,6 +675,7 @@ def _session_to_dict(s: AISession, message_count: int = 0) -> dict:
         "createdAt": s.created_at.isoformat() if s.created_at else None,
         "updatedAt": s.updated_at.isoformat() if s.updated_at else None,
         "messageCount": message_count,
+        "snapshotTakenAt": snapshot_taken_at,
     }
 
 
@@ -812,6 +818,101 @@ async def update_session(
     await db.commit()
     await db.refresh(session)
     return {"success": True, "data": _session_to_dict(session)}
+
+
+@router.post("/chat/sessions/{session_id}/refresh-snapshot")
+async def refresh_session_snapshot(
+    session_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """F2: rebuild a session's clinical snapshot on demand.
+
+    The first-turn snapshot is normally good for the session, but when a
+    chat runs for >30min the LLM may be reasoning off stale vent/lab/score
+    data. This endpoint re-runs build_critical_snapshot synchronously and
+    fires a new background deferred fill, so the next turn sees fresh data.
+
+    Auth: must own the session AND clear assert_patient_chat_access for
+    the session's patient (same gate as chat_stream).
+    """
+    session_result = await db.execute(
+        select(AISession).where(
+            AISession.id == session_id,
+            AISession.user_id == current_user.id,
+        )
+    )
+    session = session_result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if not session.patient_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Session has no patient — nothing to refresh",
+        )
+
+    await assert_patient_chat_access(
+        db,
+        current_user,
+        session.patient_id,
+        ip=request.client.host if request.client else None,
+    )
+
+    patient_id = session.patient_id
+    if settings.SNAPSHOT_DEFERRED_ENABLED:
+        critical, key_vals, deferred_meta = await build_critical_snapshot(
+            patient_id, db
+        )
+        new_meta = {
+            "snapshot_taken_at": datetime.now(timezone.utc).isoformat(),
+            "snapshot_key_values": key_vals,
+            "clinical_snapshot": critical,
+            "deferred_status": "pending",
+            "deferred_intubated": deferred_meta.get("intubated", False),
+        }
+        session.snapshot_metadata = new_meta
+        await db.commit()
+        # Fire-and-forget background fill (own AsyncSession, never blocks).
+        asyncio.create_task(
+            _fill_deferred_snapshot_bg(
+                session.id,
+                patient_id,
+                deferred_meta.get("intubated", False),
+            )
+        )
+    else:
+        snapshot, (lab, meds) = await asyncio.gather(
+            build_clinical_snapshot(patient_id, db),
+            asyncio.gather(
+                _get_latest_lab(db, patient_id),
+                _get_active_medications(db, patient_id),
+            ),
+        )
+        key_vals = extract_snapshot_key_values(lab, meds)
+        new_meta = {
+            "snapshot_taken_at": datetime.now(timezone.utc).isoformat(),
+            "snapshot_key_values": key_vals,
+            "clinical_snapshot": snapshot,
+        }
+        session.snapshot_metadata = new_meta
+        await db.commit()
+
+    logger.info(
+        "[CHAT][REFRESH_SNAPSHOT] session=%s patient=%s user=%s",
+        session.id, patient_id, current_user.id,
+    )
+
+    return {
+        "success": True,
+        "data": {
+            "sessionId": session.id,
+            "patientId": patient_id,
+            "snapshotTakenAt": new_meta["snapshot_taken_at"],
+            "deferredStatus": new_meta.get("deferred_status", "n/a"),
+        },
+    }
 
 
 @router.patch("/chat/messages/{message_id}/feedback")

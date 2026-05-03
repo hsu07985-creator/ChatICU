@@ -187,6 +187,10 @@ export interface ChatSession {
   createdAt: string;
   updatedAt: string;
   messageCount: number;
+  /** F2: ISO-8601 timestamp the snapshot was last (re)built. Null until the
+   *  first turn lands. Used by the UI to show snapshot age + highlight the
+   *  "重新整理快照" button when the snapshot is older than 30 minutes. */
+  snapshotTakenAt?: string | null;
 }
 
 export interface ChatSessionsResponse {
@@ -448,6 +452,38 @@ export async function deleteChatSession(sessionId: string): Promise<void> {
 
 export async function updateChatSessionTitle(sessionId: string, title: string): Promise<void> {
   await apiClient.patch(`/ai/sessions/${sessionId}`, { title });
+}
+
+/** F2: response shape for POST /ai/chat/sessions/{id}/refresh-snapshot. */
+export interface RefreshSnapshotResponse {
+  sessionId: string;
+  patientId: string;
+  /** ISO-8601 timestamp the new snapshot was built — same value the next
+   *  getChatSession() call will return as session.snapshotTakenAt. */
+  snapshotTakenAt: string;
+  /** "pending" once the background deferred fill is queued; the next chat
+   *  turn will see "ready" or "empty". */
+  deferredStatus: string;
+}
+
+/**
+ * F2: rebuild this session's clinical snapshot on demand.
+ *
+ * The first-turn snapshot is normally good for the whole session, but when
+ * a chat runs >30min the LLM may be reasoning off stale vent/lab/score
+ * data. Calling this endpoint re-runs build_critical_snapshot synchronously
+ * and queues a fresh deferred fill — the next chat message sees fresh data.
+ *
+ * 400 if the session has no patient (general-chat sessions can't refresh).
+ * 404 if the session was deleted or the patient no longer exists.
+ */
+export async function refreshChatSessionSnapshot(
+  sessionId: string,
+): Promise<RefreshSnapshotResponse> {
+  const response = await apiClient.post<ApiResponse<RefreshSnapshotResponse>>(
+    `/ai/chat/sessions/${sessionId}/refresh-snapshot`,
+  );
+  return ensureData(response.data, 'API contract');
 }
 
 // ─── Clinical Polish ────────────────────────────────────────
