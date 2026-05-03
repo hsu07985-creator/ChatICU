@@ -1,5 +1,16 @@
 # CLAUDE.md — 專案重整與防護規範
 
+## 開工前必讀（live tracking docs）
+
+每次進入這個 repo 工作前，先讀以下檔案以掌握「目前正在進行的修補」與「PM 已決策但尚未落地」項目：
+
+1. **[`docs/team-chat-followup-fixes-2026-05-03.md`](docs/team-chat-followup-fixes-2026-05-03.md)** — 團隊聊天室 audit 後續追加修補（Wave 5）。包含 patient-board per-user 未讀、SOAP 落地、藥物統計頁 UX 三條進行中任務。
+2. **[`docs/team-chat-fixes-progress.md`](docs/team-chat-fixes-progress.md)** — 主進度面板（Wave 1-5 + Backlog）。
+3. **[`docs/team-chat-audit-fixes-2026-05-03.md`](docs/team-chat-audit-fixes-2026-05-03.md)** — 完整 41 條 audit 發現對照表。
+4. **[`docs/coordination/backend-tasks.md`](docs/coordination/backend-tasks.md)** / **[`docs/coordination/frontend-tasks.md`](docs/coordination/frontend-tasks.md)** — 任務佇列。
+
+如果你的工作觸碰 team chat / 鈴鐺 / mention / patient board 任何相關區域，先看 `team-chat-followup-fixes-2026-05-03.md` 的「修補狀態」段落，確認你不會與正在進行的修補衝突。
+
 ## 背景
 
 本次任務基於 2026-02-18 的專案盤點報告。Batch 1-5 的封存/遷移/修正已完成，
