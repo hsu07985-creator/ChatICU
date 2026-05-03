@@ -4,7 +4,7 @@
 > **配對術語表**：[`docs/i18n-medical-glossary.md`](i18n-medical-glossary.md)
 > **負責人**：Chun + Claude
 > **啟動日**：2026-05-04
-> **總進度**：🟢 5 / 8 Waves（W0+...+W4 全部完成 2026-05-04；W5+ 待開工）
+> **總進度**：🟢 6 / 8 Waves（W0+...+W5 全部完成 2026-05-04；W6+ 待開工）
 
 ---
 
@@ -23,7 +23,10 @@
 | 3f | patient-microbiology-card + patient-diagnostic-reports | 🟢 完成 | `feat/i18n-w3f` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 3g | patient-messages-tab + patient-chat-tab + chat-message-thread + discharge-check-panel | 🟢 完成 | `feat/i18n-w3g` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 4 | team chat + ai chat | 🟢 完成 | `feat/i18n-w4` | 2026-05-04 | 🚀 personal+railway 已推 |
-| 5 | 藥事 7 頁（workstation + 6 工具） | ⬜ 待開工 | — | — |
+| 5a | 4 個藥事工具頁（duplicates + dosage + interactions + compatibility） | 🟢 完成 | `feat/i18n-w5a` | 2026-05-04 | 🚀 personal+railway 已推 |
+| 5b | drug-library 3 頁（list + detail + proposals） | 🟢 完成 | `feat/i18n-w5b` | 2026-05-04 | 🚀 personal+railway 已推 |
+| 5c | workstation + 2 子元件（assessment-results-panel + pharmacy-report-view） | 🟢 完成 | `feat/i18n-w5` | 2026-05-04 | 🚀 personal+railway 已推 |
+| 5d | advice-statistics（含 SOAP tab + edit/delete dialog） | 🟢 完成 | `feat/i18n-w5` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 6 | admin 4 頁 | ⬜ 待開工 | — | — |
 | 7 | lint 規則 + i18n-guide 文件 + 走查 | ⬜ 待開工 | — | — |
 
@@ -210,9 +213,39 @@
 - 範圍：`chat.tsx` / `ai-chat.tsx` / `src/components/ai-chat/*`
 - namespace：`chat.json` / `ai-chat.json`
 
-### Wave 5｜藥事 7 頁
-- 範圍：`src/pages/pharmacy/*` 9 檔 + `src/components/pharmacy/*`
-- namespace：`pharmacy.json`
+### Wave 5｜藥事 7 頁（🟢 完成 2026-05-04）
+
+#### 已完成檔案
+
+**W5a — 4 個藥事工具頁** (`feat/i18n-w5a`)
+- `src/pages/pharmacy/duplicates.tsx`
+- `src/pages/pharmacy/dosage.tsx`
+- `src/pages/pharmacy/interactions.tsx`
+- `src/pages/pharmacy/compatibility.tsx`
+
+**W5b — drug-library 3 頁** (`feat/i18n-w5b`)
+- `src/pages/pharmacy/drug-library.tsx`
+- `src/pages/pharmacy/drug-library/detail.tsx`（如有）
+- `src/pages/pharmacy/drug-library/proposals.tsx`（如有）
+
+**W5c — workstation 主檔 + 2 子元件** (`feat/i18n-w5`)
+- `src/pages/pharmacy/workstation.tsx` (1101 行)
+- `src/pages/pharmacy/workstation/assessment-results-panel.tsx` (576 行)
+- `src/pages/pharmacy/workstation/pharmacy-report-view.tsx` (489 行)
+- `src/pages/pharmacy/workstation/advice-submit-dialog.tsx`
+- `src/pages/pharmacy/workstation/dosage-recommendation-card.tsx`
+- `src/components/pharmacy/compatibility-matrix.tsx`
+- 新增 keys：`workstation.assess.panel/risk/dupLevel/reportView`
+
+**W5d — advice-statistics** (`feat/i18n-w5`)
+- `src/pages/pharmacy/advice-statistics.tsx` (1284 行，~86 字串)
+- 新增獨立 namespace 區段 `adviceStats`（含 SOAP tab、edit dialog、delete confirm）
+
+#### 設計決策（W5）
+- **保留 emoji + 嚴重度色塊**：依 CLAUDE.md memory「藥事工具頁面避免 emoji 與裝飾 icon」，遷移時不新增任何 icon／emoji；既有 ⏳ / 🔴🟠🟡🔵 屬功能性符號（嚴重度視覺化），不在禁用範圍內
+- **DRUG_CATEGORY 重構**：報告分類從中文字面常數（`'抗生素與感染治療'`）改為 ID（`'antibiotics'`），label 用 t() 查表，避免分類規則與顯示文字耦合
+- **`toLocaleString('zh-TW')` → `i18n.language`**：報告日期、歷史紀錄時間戳改為跟隨當前語言，仍透過 `Asia/Taipei` 控制時區
+- **adviceStats 採 flat namespace**：1284 行單檔內共用 ~86 keys，扁平結構檢索成本低於深層巢狀
 
 ### Wave 6｜系統管理
 - 範圍：`src/pages/admin/*` 4 檔
@@ -242,6 +275,7 @@
 | 2026-05-04 | Wave 3 拆分決策 | 原計畫 1.5 天估算嚴重低估（patient-detail 1802 行 + medical-records 1320 行 + 21 個子元件最大 61KB）。拆成 W3a-g 共 7 個 sub-PR，依檔案 size + 使用頻率分配。dead code（patients-list-card、patient-create-dialog）跳過 |
 | 2026-05-04 | W3a 落地 | patients/discharged/edit-dialog/archive-dialog 全部 t() 化，~120 keys，typecheck 通過 |
 | 2026-05-04 | W3a 部署 | commit `6889772c2`、`git push personal main` + `git push railway main` 兩邊都通 |
+| 2026-05-04 | W5c+W5d 落地 | commit `b85e1089a`：workstation 全套 + advice-statistics + ~75 strings via Python batch；typecheck pass；branch `feat/i18n-w5` merge 進 main，已 push personal+railway |
 
 ---
 
