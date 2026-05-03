@@ -77,8 +77,8 @@ export function AppSidebar() {
   // 1) 病人照護（所有角色可見）
   const patientCareItems = [
     { title: '總覽', url: '/dashboard', icon: Home },
-    { title: '病人清單', url: '/patients', icon: Users },
-    { title: '已出院病人', url: '/patients/discharged', icon: Archive },
+    { title: '住院病人', url: '/patients', icon: Users },
+    { title: '出院病人', url: '/patients/discharged', icon: Archive },
   ];
 
   // 2) 藥事評估（藥師/管理者可見）— 整合性工作台

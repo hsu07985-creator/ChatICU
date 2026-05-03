@@ -37,7 +37,7 @@ export function PatientDetailStateGuard({
         <div className="flex justify-center mt-4">
           <Button onClick={onBackToPatients} variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            返回病人清單
+            返回住院病人
           </Button>
         </div>
       </div>
@@ -54,7 +54,7 @@ export function PatientDetailStateGuard({
       <div className="flex justify-center mt-4">
         <Button onClick={onBackToPatients} variant="outline">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          返回病人清單
+          返回住院病人
         </Button>
       </div>
     </div>

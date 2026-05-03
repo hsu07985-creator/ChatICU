@@ -27,7 +27,7 @@ export function PatientDetailHeader({
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={onBackToPatients} className="hover:bg-slate-50 dark:hover:bg-slate-800" title="返回病人清單">
+            <Button variant="ghost" size="icon" onClick={onBackToPatients} className="hover:bg-slate-50 dark:hover:bg-slate-800" title="返回住院病人">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex items-center gap-4">

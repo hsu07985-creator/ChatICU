@@ -908,7 +908,7 @@ export function PatientDetailPage() {
         <div className="flex justify-center mt-4">
           <Button onClick={() => navigate('/patients')} variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            返回病人清單
+            返回住院病人
           </Button>
         </div>
       </div>
@@ -927,7 +927,7 @@ export function PatientDetailPage() {
         <div className="flex justify-center mt-4">
           <Button onClick={() => navigate('/patients')} variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            返回病人清單
+            返回住院病人
           </Button>
         </div>
       </div>
@@ -1471,7 +1471,7 @@ export function PatientDetailPage() {
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/patients')} className="hover:bg-slate-50 dark:hover:bg-slate-800" title="返回病人清單">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/patients')} className="hover:bg-slate-50 dark:hover:bg-slate-800" title="返回住院病人">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div className="flex items-center gap-4">

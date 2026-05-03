@@ -36,7 +36,7 @@ export function usePatientDialogState({
   const refreshPatientsAfterMutation = async () => {
     const refreshSuccess = await onPatientsMutated({ background: true });
     if (!refreshSuccess) {
-      toast.error('操作已完成，但病人清單重新載入失敗，請手動重新整理');
+      toast.error('操作已完成，但住院病人重新載入失敗，請手動重新整理');
     }
   };
 

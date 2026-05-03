@@ -339,7 +339,7 @@ export function PatientsPage() {
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold">病人清單</h1>
+            <h1 className="text-2xl font-bold">住院病人</h1>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
               <FlaskConical className="h-3.5 w-3.5" />
               模擬資料

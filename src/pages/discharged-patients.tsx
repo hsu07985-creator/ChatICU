@@ -100,8 +100,8 @@ export function DischargedPatientsPage() {
       setTotal(resp.pagination?.total ?? list.length);
       setTotalPages(resp.pagination?.totalPages ?? 1);
     } catch (err) {
-      console.error('載入已出院病人失敗:', err);
-      setError('無法載入已出院病人，請稍後再試');
+      console.error('載入出院病人失敗:', err);
+      setError('無法載入出院病人，請稍後再試');
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -234,7 +234,7 @@ export function DischargedPatientsPage() {
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Archive className="h-6 w-6 text-brand" />
-              已出院病人
+              出院病人
             </h1>
             <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
               <FlaskConical className="h-3.5 w-3.5" />
@@ -293,7 +293,7 @@ export function DischargedPatientsPage() {
           {!loading && !error && filtered.length === 0 && (
             <EmptyState
               icon={Archive}
-              title={patients.length === 0 ? '目前沒有已出院病人' : '找不到符合條件的病人'}
+              title={patients.length === 0 ? '目前沒有出院病人' : '找不到符合條件的病人'}
               description={patients.length === 0 ? '當病人被辦理出院後，將會出現在此' : '請嘗試調整篩選條件'}
             />
           )}

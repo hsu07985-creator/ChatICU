@@ -84,7 +84,7 @@ export function PatientArchiveDialog({
             辦理出院（封存病患）
           </DialogTitle>
           <DialogDescription>
-            出院後病患將從住院中清單移除，但所有用藥/檢驗/對話紀錄都會保留，可於「已出院病人」頁回顧或復住院。
+            出院後病患將從住院中清單移除，但所有用藥/檢驗/對話紀錄都會保留，可於「出院病人」頁回顧或復住院。
           </DialogDescription>
         </DialogHeader>
 
