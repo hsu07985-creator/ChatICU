@@ -15,7 +15,7 @@
 | 0 | 基建 + 切換按鈕 | 🟢 完成 | `feat/i18n-w0-w1` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 1 | sidebar + common + errors + roles + notifications | 🟢 完成 | `feat/i18n-w0-w1` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 2 | login + change-password + dashboard | 🟢 完成 | `feat/i18n-w2` | 2026-05-04 | 🚀 personal+railway 已推 |
-| 3a | 病人列表 + 出院列表 + 編輯/封存對話框 | 🟢 完成 | `feat/i18n-w3a` | 2026-05-04 | 待 push |
+| 3a | 病人列表 + 出院列表 + 編輯/封存對話框 | 🟢 完成 | `feat/i18n-w3a` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 3b | patient-detail.tsx 主頁 + 共用元件 | ⬜ 待開工 | — | — | — |
 | 3c | medical-records + vital-signs + lab-data + trends | ⬜ 待開工 | — | — | — |
 | 3d-g | patient-detail 各 tab（summary / meds / labs / messages / chat） | ⬜ 待開工（5 個 sub-PR） | — | — | — |
@@ -185,6 +185,7 @@
 | 2026-05-04 | 縮短按鈕文字 | 深色模式/淺色模式 → 深/淺；Dark Mode/Light Mode → Dark/Light；EN → 英（語言按鈕）。理由：50/50 layout 文字長度需收斂 |
 | 2026-05-04 | Wave 3 拆分決策 | 原計畫 1.5 天估算嚴重低估（patient-detail 1802 行 + medical-records 1320 行 + 21 個子元件最大 61KB）。拆成 W3a-g 共 7 個 sub-PR，依檔案 size + 使用頻率分配。dead code（patients-list-card、patient-create-dialog）跳過 |
 | 2026-05-04 | W3a 落地 | patients/discharged/edit-dialog/archive-dialog 全部 t() 化，~120 keys，typecheck 通過 |
+| 2026-05-04 | W3a 部署 | commit `6889772c2`、`git push personal main` + `git push railway main` 兩邊都通 |
 
 ---
 
