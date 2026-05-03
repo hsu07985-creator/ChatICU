@@ -22,8 +22,11 @@ from app.utils.response import success_response
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
-# Look-back window for counts (matches team-chat mentions default of 168h)
-_WINDOW_HOURS = 168
+# Look-back window for mention/alert counts. Public so team-chat router
+# can import the same value — TC-B04 aligned the team-chat mentions/count
+# endpoint with this window so the bell number matches the chat sidebar.
+MENTION_LOOKBACK_HOURS = 168
+_WINDOW_HOURS = MENTION_LOOKBACK_HOURS  # backward-compat alias for in-file refs
 
 # Message types that count as "alert" notifications
 _ALERT_TYPES = ("alert", "urgent")

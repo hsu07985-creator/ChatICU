@@ -435,6 +435,36 @@ async def test_author_can_mark_own_read(client):
 
 
 @pytest.mark.asyncio
+async def test_mentions_count_excludes_old_mentions(client, seeded_db):
+    """TC-B04: mentions/count should only consider messages within the
+    168h look-back window, matching /notifications/summary.
+
+    Without this cap the bell number (windowed) and the chat sidebar
+    number (un-windowed) diverged for old @-mentions."""
+    from datetime import datetime, timedelta, timezone
+    from app.models.chat_message import TeamChatMessage
+
+    seeded_db.add(TeamChatMessage(
+        id="tchat_old_mention",
+        user_id="usr_other",
+        user_name="Other",
+        user_role="doctor",
+        content="200 hours ago",
+        timestamp=datetime.now(timezone.utc) - timedelta(hours=200),
+        pinned=False,
+        is_read=False,
+        read_by=[],
+        mentioned_roles=["admin"],
+        mentioned_user_ids=[],
+    ))
+    await seeded_db.commit()
+
+    resp = await client.get("/team/chat/mentions/count")
+    assert resp.status_code == 200
+    assert resp.json()["data"]["count"] == 0
+
+
+@pytest.mark.asyncio
 async def test_mention_predicate_no_substring_collision(client, seeded_db):
     """TC-B02: mentions/count must use JSONB containment, not text-cast LIKE.
 

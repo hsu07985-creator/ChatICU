@@ -188,7 +188,16 @@
 - **Verification:** `cd backend && python3 -m pytest tests/test_api/test_team_chat.py tests/test_api/test_notifications.py -q` → 29/29 passed (limiter.reset() in conftest's `client` fixture prevents bleed between tests).
 - **References:** F-15
 
-### TC-B04 [TODO] Add 168h lookback to `mentions/count` (align with notifications)
+### TC-B04 [DONE] Add 168h lookback to `mentions/count` (align with notifications)
+- **Completed:** 2026-05-03 (branch `fix/tc-b04-mentions-time-window`)
+- **Files modified:**
+  - `backend/app/routers/notifications.py` — promote `_WINDOW_HOURS` to public `MENTION_LOOKBACK_HOURS = 168` (kept `_WINDOW_HOURS` alias for in-file refs to avoid touching unrelated lines)
+  - `backend/app/routers/team_chat.py` — import `MENTION_LOOKBACK_HOURS`, add `cutoff` filter to `mentions_count`'s WHERE clause
+  - `backend/tests/test_api/test_team_chat.py:test_mentions_count_excludes_old_mentions` — new regression test seeding a 200h-old mention and asserting count=0
+- **Verification:** `cd backend && python3 -m pytest tests/test_api/test_team_chat.py tests/test_api/test_notifications.py -q` → 30/30 passed (was 29, +1 new)
+- **References:** F-17. Original task body retained below.
+
+### TC-B04-original [original] Add 168h lookback to `mentions/count` (align with notifications)
 - **Added by:** team-chat audit 2026-05-03 (F-17)
 - **Date:** 2026-05-03
 - **Priority:** P1

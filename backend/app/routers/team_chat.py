@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -12,6 +12,7 @@ from app.middleware.audit import create_audit_log
 from app.middleware.rate_limit import limiter
 from app.models.chat_message import TeamChatMessage
 from app.models.user import User
+from app.routers.notifications import MENTION_LOOKBACK_HOURS
 from app.schemas.message import TeamChatCreate
 from app.utils.jsonb_compat import array_contains_value
 from app.utils.response import success_response
@@ -125,13 +126,19 @@ async def mentions_count(
     prefix. The GIN indexes added in migration 076 make this an index
     lookup. ``array_contains_value`` falls back to a quoted-substring
     LIKE on SQLite (test only) since SQLite has no ``@>`` operator.
+
+    Capped at ``MENTION_LOOKBACK_HOURS`` (168h) — TC-B04 aligned this
+    with ``/notifications/summary`` so the bell number and the chat
+    sidebar number stop disagreeing on old mentions.
     """
     dialect_name = db.bind.dialect.name
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=MENTION_LOOKBACK_HOURS)
     role_match = array_contains_value(TeamChatMessage.mentioned_roles, user.role, dialect_name)
     user_match = array_contains_value(TeamChatMessage.mentioned_user_ids, user.id, dialect_name)
     result = await db.execute(
         select(func.count(TeamChatMessage.id)).where(
             and_(
+                TeamChatMessage.timestamp >= cutoff,
                 TeamChatMessage.is_read == False,  # noqa: E712
                 or_(role_match, user_match),
             )
