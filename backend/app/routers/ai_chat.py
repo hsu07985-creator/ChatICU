@@ -486,6 +486,12 @@ async def chat_stream(
         session.patient_id = patient_id
         await db.flush()
 
+    # W3-T8: auto-generate session title from the first user message so
+    # the sidebar shows real text immediately (no race against the frontend
+    # PATCH that previously left "新對話" if the user refreshed too fast).
+    if session.title is None:
+        session.title = body.message[:50]
+
     # W1-T3: persist the clean user message BEFORE the SSE generator starts.
     # If the client disconnects mid-stream, the user's question is still in
     # ai_messages so it shows up on session reload. The assistant reply is

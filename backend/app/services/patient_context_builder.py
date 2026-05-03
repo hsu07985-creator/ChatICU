@@ -752,16 +752,13 @@ async def build_critical_snapshot(
     # fan out to multiple backend connections, max parallel limited by
     # the slowest fetcher (~vital ~2.4s) instead of the sum.
     #
-    # The passed-in `db` parameter is now used only for the post-gather
-    # serial work (lab_before_24h needs latest_lab.timestamp). Background
-    # task `_fill_deferred_snapshot_bg` already uses its own session, so
-    # we mirror that pattern here.
-    #
-    # Pool-pressure note: each first-turn chat request now opens up to
-    # 6 simultaneous connections (vs 1 before). With Supabase pool size 5
-    # + max_overflow 5 = 10 max per Railway replica, ~2 concurrent
-    # first-turn chats can still co-exist without contention. Watch
-    # Railway logs for QueuePool timeouts after this change.
+    # W3-T1 (pool relief): first wave keeps 4 fresh connections so the
+    # critical-path SELECTs run truly in parallel (~2.4s wall vs ~5s
+    # serial). Second wave (lab_before_24h + duplicate_warnings) is
+    # serialized onto the request's `db` connection — both are fast
+    # (~600ms / in-process) and serializing them drops the per-request
+    # connection ceiling from 6 → 4. With Supabase pool 5 + overflow 5,
+    # safe concurrent first-turn chats rise from ~2 to ~3 per replica.
     from app.database import async_session as _async_session
 
     async def _fresh(fn, *args):
@@ -778,19 +775,19 @@ async def build_critical_snapshot(
     if not patient:
         return f"[無法取得患者資料 patient_id={patient_id}]", {}, {}
 
-    # Post-gather: lab_before_24h depends on latest_lab.timestamp. Run it
-    # concurrently with duplicate-warnings detection so neither blocks the
-    # other on the second wave.
+    # Post-gather: serialize on the request's db connection (no extra pool
+    # slot). lab_before_24h needs latest_lab.timestamp, so it would have to
+    # wait anyway; running duplicate_warnings right after costs the same
+    # wall time as the previous parallel pair (both are sub-second) but
+    # uses 0 extra connections.
+    await db.connection()  # warm up before reuse
     if latest_lab and latest_lab.timestamp:
-        prev_lab, duplicate_warnings = await asyncio.gather(
-            _fresh(_get_lab_before_24h, patient_id, latest_lab.timestamp),
-            _fresh(_safe_duplicate_warnings, meds, _infer_duplicate_context(patient)),
-        )
+        prev_lab = await _get_lab_before_24h(db, patient_id, latest_lab.timestamp)
     else:
         prev_lab = None
-        duplicate_warnings = await _fresh(
-            _safe_duplicate_warnings, meds, _infer_duplicate_context(patient)
-        )
+    duplicate_warnings = await _safe_duplicate_warnings(
+        db, meds, _infer_duplicate_context(patient)
+    )
 
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
 
