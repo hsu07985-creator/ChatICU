@@ -30,7 +30,7 @@
 ## 1. 短期可做（建議本週／下週收）
 
 ### F1. 同步主計畫文件（避免文件落後實作）
-- **狀態**：☐
+- **狀態**：✅ 完成（commit `488d3030b`，2026-05-03）
 - **問題**：主計畫 §1「目前狀態」仍寫著「沒有放進 snapshot：培養、CrCl、MAR、72h 用藥變更、藥師建議」，但這些已全部上線。新加入的人讀文件會被誤導。
 - **觸碰檔案**：`docs/ai-chat-patient-context-enhancement-plan-2026-05-03.md`
 - **要改哪幾段**：
@@ -43,7 +43,7 @@
 - **風險**：低
 
 ### F2. 「重新整理快照」按鈕
-- **狀態**：☐
+- **狀態**：✅ 完成（commit `40c3d991f`，2026-05-03）
 - **問題**：主計畫 §7.2 提到 snapshot 過 30 分鐘可能變舊，但目前使用者只能「開新對話」才能重抓 snapshot；同 session 內病況變化（新檢驗、新生命徵象）只能靠 delta 偵測，碰不到的欄位（如 vent、reports、cultures）會卡在第一輪的快照。
 - **設計**：
   - 前端：對話區工具列加一顆「重新整理快照」按鈕，按下去呼叫新後端 endpoint
@@ -62,7 +62,7 @@
 - **風險**：低-中（需注意 OpenAI prompt cache：新 snapshot 會破當前 session 的 cache，但這是預期行為）
 
 ### F3. AI chat 結果裡 deep link 到藥師建議頁
-- **狀態**：☐
+- **狀態**：✅ 完成（commit `9aba7aff6`，2026-05-03，live-only chips）
 - **問題**：Phase 5 後端會把藥師建議內容回傳給 LLM，但 LLM 引用後使用者點不回原始記錄。主計畫 §5 Phase 5 frontend §3 提到「回答中附上可點回的 deep link」，這條沒做。
 - **設計**：
   - 後端：`format_pharmacy_advice_context` 在每筆 advice 結尾加上 `[advice_id=adv_xxx][bed=NN][patient=usr_xxx]` 標記，讓 LLM 能引用
@@ -160,15 +160,17 @@
 
 按 **user-value-first** 原則（不照計畫文件號碼順序）：
 
-| 優先級 | 項目 | 工時 | 為何排這順序 |
-|-------|------|------|------------|
-| 🔴 1 | **V1 prod 實測 5 case** | 30-60 min | 沒實測就不知道 prefetch 在 prod 真的有用嗎；其他項目可能因實測結果改方向 |
-| 🔴 2 | **V2 權限驗證** | 20-30 min | 個資洩漏是 hard fail，必須先排除 |
-| 🟡 3 | **F1 同步主計畫文件** | 15 min | 沒做別人看文件會誤判；最便宜 |
-| 🟡 4 | **F2 重新整理快照按鈕** | 1.5-2h | V1 若發現 30 min 後資料明顯過期會推這條優先級 |
-| 🟢 5 | **F3 deep link 到藥師建議頁** | 2-3h | 等 V1 確認藥師會用這功能再做 |
-| ⚪ 6 | **F4 正式 tool loop** | 6-10h | 等累積 1-2 週 prod usage data，知道漏什麼再做 |
-| ❌ — | **F5 留言板全文** | — | 不做 |
+| 優先級 | 項目 | 工時 | 狀態 |
+|-------|------|------|------|
+| 🔴 1 | **V1 prod 實測 5 case** | 30-60 min | ☐ 待人工 |
+| 🔴 2 | **V2 權限驗證** | 20-30 min | ☐ 待人工 |
+| 🟡 3 | **F1 同步主計畫文件** | 15 min | ✅ |
+| 🟡 4 | **F2 重新整理快照按鈕** | 1.5-2h | ✅ |
+| 🟢 5 | **F3 deep link 到藥師建議頁** | 2-3h | ✅ |
+| ⚪ 6 | **F4 正式 tool loop** | 6-10h | ☐ 等 prod 累積使用後決定 |
+| ❌ — | **F5 留言板全文** | — | ❌ 不做 |
+
+**目前狀態**：F1/F2/F3 全部上線；剩下 V1/V2 是 prod 真人驗證（人工任務、無法自動執行），F4 等業務驅動。
 
 ---
 
@@ -185,3 +187,6 @@
 ## 6. 變更記錄
 
 - **2026-05-03**：建立本文件，盤點主計畫 8 條 → 7 條完成、1 條不做、列出 3 條前端 follow-up + 2 條 prod 驗證 + 1 條長期升級。
+- **2026-05-03**：F1 同步主計畫文件 ✅（`488d3030b`）— §1 拆成 snapshot vs prefetch 兩塊、§3 標 Phase 0 已選過渡方案、§5 各 Phase 標 ✅+ commit、§10 DoD 全 tick。
+- **2026-05-03**：F2 重新整理快照按鈕 ✅（`40c3d991f`）— `POST /ai/chat/sessions/{id}/refresh-snapshot` + 同 ACL；前端 chat header 加「快照 N 分鐘前」pill，>30min 高亮 amber。後端 6 tests 綠。
+- **2026-05-03**：F3 藥師建議 deep link ✅（`9aba7aff6`）— 後端新 `build_question_prefetch_with_metadata` 回傳 `adviceRefs`，piped through SSE done event；前端在 assistant bubble 下方畫 chip group 連到 `/pharmacy/advice-statistics?advice_id=&month=`，目標頁切月+滾動+amber ring 4s。Live-only（page reload 後 chip 消失）。後端 22 prefetch tests 綠。
