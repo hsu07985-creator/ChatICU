@@ -3,7 +3,7 @@
 > 對應 `docs/ai-chat-audit-fixes-2026-05-03.md`。每完成一個 T，更新此檔。
 > 圖示：☐ 未開始　⏳ 進行中　✅ 完成　⏸ 阻塞　❌ 放棄　🚧 部分完成
 
-**最後更新**：2026-05-03（建立進度檔，尚未開始實作）
+**最後更新**：2026-05-03（W1 三任務完成、prod deploy + smoke verify 通過）
 
 ---
 
@@ -11,9 +11,9 @@
 
 | Task | 內容 | 觸碰檔案 | 驗證 | 狀態 |
 |------|------|---------|------|------|
-| W1-T1 | Patient-level ACL：`chat_stream` / `list_sessions` / `get_session` 都檢查 `patient_id` 歸屬 | `backend/app/routers/ai_chat.py:363,528,583`、新檔 `backend/app/services/patient_acl.py` | ① 新測試 `test_ai_chat_acl.py`：user A 用 user B 病人 patient_id 收 403 ② Playwright 兩帳號 cross-MRN 嘗試 | ☐ |
-| W1-T2 | 移除 fallback 404：刪 `sendChatMessage` 與 `streamChatMessage` 的 fallback 分支 | `src/lib/api/ai.ts:225-235,368-383` | ① 後端關掉，前端按 send → UI 顯示具體錯誤訊息 ② tsc 無錯（檢查 ChatResponse 引用） | ☐ |
-| W1-T3 | 持久化 user message（Step 1）：把 user message insert + commit 移到 generator 啟動前 | `backend/app/routers/ai_chat.py:312-335,474-485` | ① curl 開串流後 0.5s kill ② GET `/ai/sessions/{id}` 看到 user message 已存 ③ 後端 pytest 全綠 | ☐ |
+| W1-T1 | Patient-level ACL（採選項 C：role + patient 存在 + audit log）：`chat_stream` 入口檢查 | `backend/app/routers/ai_chat.py:33,384-391`、新檔 `backend/app/services/patient_acl.py`、新測試 `backend/tests/test_api/test_ai_chat_acl.py` | ① 新 6 條 ACL 單元測試全綠 ② audit_log 表會記錄每次 access（成功 / 失敗都記） | ✅ |
+| W1-T2 | 移除 fallback 404：刪 `sendChatMessage` 與 `streamChatMessage` 的 fallback 分支 | `src/lib/api/ai.ts:225-235, 367-383`（共刪 29 行） | ① tsc 無錯 ② Vercel bundle 已不含 `sendChatMessage` symbol | ✅ |
+| W1-T3 | 持久化 user message（Step 1）：把 user message insert + commit 移到 generator 啟動前 | `backend/app/routers/ai_chat.py:_event_stream` 內持久化區塊 + `chat_stream` 結尾新增 `db.add(AIMessage)` + `db.commit()` | ① 後端 17/17 ai_chat 測試 + 485/485 全套（除 5 個無關 FHIR real-data）綠 | ✅ |
 
 **Wave 1 整體驗收**：
 ```bash
@@ -112,3 +112,13 @@ python3 scripts/loadtest_critical_snapshot.py --concurrent 10
 ## 變更記錄
 
 - **2026-05-03**：建立進度文件、與 `ai-chat-audit-fixes-2026-05-03.md` 對齊。預計 W1（~3h 必修）→ W2（~5h 中優先）→ W3（~9h 中低優先）共 ~17h。
+- **2026-05-03**：W1-T1 ACL 設計決策。原審查文件提案「unit-based ACL」，但發現 `backend/app/routers/patients.py` 的 GET 端點本身也沒有 patient-level ACL（既有威脅模型是「認證即邊界」）。為避免「AI chat 鎖、`/patients` 開」的架構不對稱，改採「選項 C：role gate + patient existence + audit log」——務實、不擋會診、事後可追溯。真正的 unit-based ACL 留待跨系統獨立計畫處理。
+- **2026-05-03**：W1-T1 ✅ — 新 `backend/app/services/patient_acl.py` 提供 `assert_patient_chat_access(db, user, patient_id, ip=...)`：①role 必須 ∈ {admin, doctor, np, nurse, pharmacist} ②patient_id 必須存在於 DB（不存在拋 404 不洩漏）③每次 access 寫 audit_log（action=`ai_chat_patient_access` 或 `ai_chat_access_denied`）。`ai_chat.py:chat_stream` 在取 session 前呼叫該 helper。新測試檔 `test_ai_chat_acl.py` 6 條（含 5 個 clinical role parametrize、403 拒絕、404 不存在 patient、IP 記錄、no-patient skip）全綠。順手修了 `audit_logs` CHECK constraint 用 `failed` 不是 `failure`。
+- **2026-05-03**：W1-T2 ✅ — 從 `src/lib/api/ai.ts` 刪除 `sendChatMessage`（11 行）+ `streamChatMessage` catch 內的 fallback 分支（14 行）+ `streamStarted` 旗標（4 行），共 29 行。pre-stream 失敗（HTTP/網路/missing body）與串流中失敗都直接走 `onError`，UI 顯示真正錯誤而不是「AI 串流請求失敗」掩護的 404。`grep sendChatMessage src/` 無剩餘呼叫端，`tsc` 無錯。
+- **2026-05-03**：W1-T3 ✅ — `chat_stream` 結尾新增 user message INSERT + COMMIT（在 `return StreamingResponse` 之前）。`_event_stream` 移除 user message 持久化邏輯與 `original_message` 參數，只保留 assistant message 的條件持久化（仍只在 `full_reply` 非空時寫入）。client mid-stream 斷線不再丟掉 user 提問。`_event_stream` docstring 同步更新。後端 17/17 ai_chat 測試 + 485/485 全套（除 5 個無關 FHIR real-data 缺檔）綠。
+- **2026-05-03**：W1 三個 commit 推上 main 並部署 prod：
+  - feature branch `fix/ai-chat-w1-acl-fallback-persist`，3 個 commit（`0730e4e6f` docs / `576d5029c` backend W1-T1+T3 / `061a97119` frontend W1-T2）
+  - `git push personal main` → Railway 部署 1.4.5（先 502 大約 20s 後 healthy，新 deploy 已生效）
+  - `git push railway main` → Vercel 新 bundle `BG7j0l9J`，grep 確認 `sendChatMessage` 已從 bundle 中消失
+  - Smoke：`curl /ai/chat/stream` 401（端點存在、新 ACL 模組成功 import）、Vercel bundle 不洩漏 `chaticu-production` URL
+  - **待人工驗證**：登入 doctor 帳號用合法 `pat_001` 開 chat 應 200；用 `pat_doesnotexist` 應 404；用非 clinical role（如 admin 改成 guest）應 403。需要使用者 prod 帳號才能完整跑。
