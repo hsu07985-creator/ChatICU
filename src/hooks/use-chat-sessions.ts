@@ -3,6 +3,7 @@ import {
   deleteChatSession,
   getChatSession as fetchChatSessionApi,
   getChatSessions as fetchChatSessionsApi,
+  splitMainAndDetail,
   type AdviceRef,
   type ChatMessage as ApiChatMessage,
   type ChatSession as ApiChatSession,
@@ -91,10 +92,22 @@ function mapApiMessage(item: ApiChatMessage): SessionChatMessage {
     }
   }
 
+  // FIX-LOAD-SPLIT (2026-05-03): backend stores assistant `content` with
+  // 【說明/補充】 inline. The send paths run splitMainAndDetail; the load
+  // path must too so a reloaded session has the same shape (with the
+  // 詳細 collapse panel populated). Skipped for user messages — they
+  // have no markers and a split would just no-op.
+  let mainContent = item.content || '';
+  let detailContent: string | null = item.explanation || null;
+  if (!detailContent && item.role === 'assistant' && mainContent) {
+    const split = splitMainAndDetail(mainContent);
+    mainContent = split.main;
+    detailContent = split.detail;
+  }
   return {
     role: item.role === 'assistant' ? 'assistant' : 'user',
-    content: item.content,
-    explanation: item.explanation || null,
+    content: mainContent,
+    explanation: detailContent,
     timestamp,
     references: item.citations || [],
     warnings: item.safetyWarnings || null,

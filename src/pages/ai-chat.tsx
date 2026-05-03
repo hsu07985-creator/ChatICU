@@ -27,6 +27,7 @@ import {
   getChatSession,
   getChatSessions,
   refreshChatSessionSnapshot,
+  splitMainAndDetail,
   streamChatMessage,
   updateMessageFeedback,
   type ChatResponse,
@@ -119,10 +120,25 @@ function mapApiMessage(item: {
       timestamp = undefined;
     }
   }
+  // FIX-LOAD-SPLIT (2026-05-03): assistant `content` from the backend is
+  // the raw concatenated string with 【說明/補充】 inline. Without this
+  // split, the bubble shows main + detail in one block on session reload
+  // (the 詳細 collapse button only appears for live-sent messages because
+  // the send path was the only one calling splitMainAndDetail). Match
+  // patient-detail.tsx's send-time logic so live and reloaded views are
+  // identical — backend `explanation` takes precedence if it ever arrives
+  // populated (no current path emits it, but contract preserved).
+  let mainContent = item.content || '';
+  let detailContent: string | null = item.explanation || null;
+  if (!detailContent && item.role === 'assistant' && mainContent) {
+    const split = splitMainAndDetail(mainContent);
+    mainContent = split.main;
+    detailContent = split.detail;
+  }
   return {
     role: item.role === 'assistant' ? 'assistant' : 'user',
-    content: item.content,
-    explanation: item.explanation || null,
+    content: mainContent,
+    explanation: detailContent,
     timestamp,
     references: item.citations || [],
     warnings: item.safetyWarnings || null,
@@ -495,11 +511,24 @@ export function AiChatPage() {
         });
       });
 
+      // FIX-LOAD-SPLIT: same split as mapApiMessage. Backend currently
+      // doesn't pre-split, so we must split client-side to populate the
+      // 詳細 collapse panel. Live + reload paths must converge on the
+      // same shape — otherwise the user sees inline 【說明/補充】 in the
+      // bubble on the second render (e.g. after sidebar refresh).
+      const rawContent = response.message.content || '';
+      let mainContent = rawContent;
+      let detailContent: string | null = response.message.explanation || null;
+      if (!detailContent && rawContent) {
+        const split = splitMainAndDetail(rawContent);
+        mainContent = split.main;
+        detailContent = split.detail;
+      }
       const assistantMsg: SessionChatMessage = {
         role: 'assistant',
-        content: response.message.content,
+        content: mainContent,
         messageId: response.message.id,
-        explanation: response.message.explanation || null,
+        explanation: detailContent,
         references: response.message.citations || [],
         warnings: response.message.safetyWarnings || null,
         requiresExpertReview: response.message.requiresExpertReview || false,

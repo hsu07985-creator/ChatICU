@@ -1040,10 +1040,22 @@ export function PatientDetailPage() {
         if (m.timestamp) {
           try { ts = new Date(m.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }); } catch { ts = undefined; }
         }
+        // FIX-LOAD-SPLIT (2026-05-03): the assistant `content` from the
+        // backend has 【說明/補充】 inline. handleSendMessage already runs
+        // splitMainAndDetail; the load path must do the same so a
+        // reloaded session looks identical to the live-sent version
+        // (otherwise the 詳細 collapse panel never shows on reload).
+        let mainContent = m.content || '';
+        let detailContent: string | null = m.explanation || null;
+        if (!detailContent && m.role === 'assistant' && mainContent) {
+          const split = splitMainAndDetail(mainContent);
+          mainContent = split.main;
+          detailContent = split.detail;
+        }
         return {
           role: (m.role === 'assistant' ? 'assistant' : 'user'),
-          content: m.content,
-          explanation: m.explanation || null,
+          content: mainContent,
+          explanation: detailContent,
           timestamp: ts,
           references: m.citations || [],
           warnings: m.safetyWarnings || null,
