@@ -10,7 +10,7 @@
 > - `TC-F{NN}` — frontend 工作單（在 `docs/coordination/frontend-tasks.md`）
 > - `F-XX` — audit 文件中的發現編號
 
-**最後更新**：2026-05-03（**Wave 1+2+3 全部完成** — 17/21 audit 主任務已落地，剩 Wave 4 + backlog）
+**最後更新**：2026-05-03（**Wave 1+2+3 全部完成、Wave 4 結案** — 21/23 audit 主任務落地，2 條 deferred 待 PM 決策）
 
 ---
 
@@ -21,7 +21,7 @@
 | Wave 1 | 立即修補（純前端，零依賴） | 8 | 8 / 8 | ✅ |
 | Wave 2 | 後端權限收緊 + mention SQL | 5 | 5 / 5 | ✅ |
 | Wave 3 | 架構決策（PM 已決，動工中） | 4 | 4 / 4 | ✅ |
-| Wave 4 | 安全與資料層強化 | 6 | 3 / 6 | ⏳ |
+| Wave 4 | 安全與資料層強化 | 6 | 4 / 6 + 2 deferred | ✅ |
 | Backlog | 低優先 / 觀察 | 18 | — | — |
 
 ---
@@ -169,12 +169,50 @@ cd backend && alembic upgrade head && alembic downgrade -1 && alembic upgrade he
 
 | Task | 內容 | F-XX | 觸碰檔案 | 驗證 | 狀態 |
 |------|------|------|---------|------|------|
-| TC-W4-T1 | `/team/users` 加單位過濾、訊息 content PII 提示 | F-12 | `backend/app/routers/team_chat.py:21-40`、`src/components/ui/mention-textarea.tsx`（輸入時 lint） | 手動：北院藥師 `/team/users` 不應回南院使用者；輸入 MRN 數字模式跳警示 | ☐ |
+| TC-W4-T1 | `/team/users` 加單位過濾、訊息 content PII 提示 | F-12 | （需 PM UX 決策） | — | ⏸ DEFER |
 | TC-W4-T2 | `read_by` append 抽共用 helper + dedup | F-14 | `backend/app/utils/read_receipt.py`（新）、`backend/app/routers/team_chat.py`、`backend/app/routers/notifications.py`、`backend/app/routers/messages.py`、`backend/tests/test_services/test_read_receipt.py`（新） | pytest：同一 user 連續 mark-read 10 次後 `read_by` 仍只一條 | ✅ |
 | TC-W4-T3 | admin 刪訊息改軟刪除 + audit 帶 content snapshot | F-16 | `backend/app/models/chat_message.py`、`backend/app/models/user.py`（FK 消歧）、`backend/app/routers/team_chat.py`、`backend/alembic/versions/078_team_chat_soft_delete.py`（新）、test 補完 | pytest：軟刪後 list 不顯示，但 audit log details 含 content[:500]；前端對孤兒 reply 顯示 `[原訊息已刪除]`（後者留 polish） | ✅ |
-| TC-W4-T4 | 多人交互 regression test 補完 | F-29 | `backend/tests/test_api/test_team_chat_multiuser.py`（新檔） | 涵蓋：多人 mark_read 不互相污染、非 admin pin 403、`@>` 不誤命中、`read_by` 不膨脹 | ☐ |
+| TC-W4-T4 | 多人交互 regression test 補完 | F-29 | 已分散在 W2/W3/W4 各 commit；下方說明覆蓋情況 | 多人 mark_read 不互相污染 ✅、非 admin pin 403 ✅、`@>` 不誤命中 ✅、`read_by` 不膨脹 ✅ | ✅ |
 | TC-W4-T5 | Schema 漂移整理（`reply_count` dead column、ORM FK） | F-30 | `backend/app/models/chat_message.py`、`backend/alembic/versions/077_drop_dead_reply_count.py`（新） | alembic upgrade/downgrade 來回；ORM 與 DB schema 對稱 | ✅ |
-| TC-W4-T6 | 訊息 retention：archive job + `total` 移除 | F-31, F-32 | `backend/scripts/archive_team_chat.py`（新）、`backend/app/routers/team_chat.py:147-152` | 手動：seed 200 筆 90 天前訊息 → 跑 archive → list 預設不含 | ☐ |
+| TC-W4-T6 | 訊息 retention：archive job + `total` 移除 | F-31, F-32 | （需 policy 決策；perf 已被 W2-T4 168h 窗 + GIN index 緩解） | — | ⏸ DEFER |
+
+### Wave 4 結案總結（2026-05-03）
+
+**Commits（依時序）：**
+
+| Commit | Task | F-XX | 主要改動 |
+|--------|------|------|---------|
+| `bd5bcedb0` | TC-W4-T2 / TC-B09 | F-14 | 新 `app/utils/read_receipt.py:append_read_receipt()`；4 個 endpoint（team_chat / notifications×2 / messages）共用，停止無上限累積；8 個 unit test |
+| `6662aa1f0` | TC-W4-T5 / TC-B12 | F-30 | Migration 077 drop dead `reply_count` column；model `reply_to_id` 補 ForeignKey 補正 ORM-vs-DB schema 對稱 |
+| `dae3e4b75` | TC-W4-T3 / TC-B11 | F-16 | Migration 078 加 `deleted_at`/`deleted_by_id` (+ partial index + FK→users SET NULL)；admin DELETE 改軟刪除；audit log 帶 500-char content snapshot；list 過濾 deleted_at IS NULL；多 FK 觸發 user.chat_messages 須 disambiguate |
+
+**TC-W4-T4（多人 regression test 補完）覆蓋情況**：原計畫新建 `test_team_chat_multiuser.py`，但同等覆蓋已分散在主測試檔：
+
+- 多人 mark_read 不互相污染 → `test_per_user_unread_isolation` (TC-W3-T1)
+- 非 admin pin 403 → `test_non_admin_cannot_toggle_pin` (TC-B01)
+- 非 admin 首發 pinned 403 → `test_non_admin_cannot_post_pinned` (TC-B01)
+- 非 mention 對象 mark_read 403 → `test_non_recipient_cannot_mark_read` (TC-B01)
+- `@>` 不誤命中 → `test_mention_predicate_no_substring_collision` (TC-B02)
+- 168h 時間窗排除舊 mention → `test_mentions_count_excludes_old_mentions` (TC-B04)
+- 未知 mentionedUserIds 422 → `test_post_rejects_unknown_mentioned_user_id` (TC-B05)
+- `read_by` dedup → 8 個 unit cases in `test_read_receipt.py` + integration via mark_read paths (TC-B09)
+- 軟刪除 + audit content → `test_admin_delete_is_soft_delete_with_audit_snapshot` (TC-B11)
+- list cursor + DESC → `test_list_returns_latest_with_cursor` (TC-W3-T2)
+- audit log 寫入 → `test_mark_read_writes_audit_log` (TC-B01)
+
+合計 backend test_team_chat.py + test_notifications.py + test_read_receipt.py：43 cases pass。
+
+**Deferred 兩條（需 PM/policy 決策）**：
+- **TC-W4-T1 / TC-B08（`/team/users` 單位過濾、PII）**：audit 標記為「是否該限制」是疑問句，不是硬要求。現端點僅回 id/name/role（這些已在訊息 header 顯示），實際 PII 揭露面有限；強制單位過濾會破壞跨單位 @-mention 合理使用情境（公告、跨科會診）。建議若 PM 確認需要嚴格隔離再動工；否則維持現狀並在 mention picker 顯示 unit 後綴消歧義（屬 F-20 backlog）。
+- **TC-W4-T6 / TC-B13（retention archive）**：原 audit 顧慮「半年後 30 萬+ 訊息全表掃 mention」。實際上 W2-T4 已加 168h 時間窗、W2-T2 已加 GIN index，mention 計數不再全表掃；list 用 cursor 分頁。perf 顧慮已大幅緩解，retention 變成純 compliance/legal 議題（HIPAA / 個資法）— 屬 policy 而非工程。建議由 legal/PM 決定保留期限後再實作。
+
+**部署注意**：
+- Migration 077 drop column — irreversible for `reply_count` data (但欄位永遠是 0，無實際資料損失)
+- Migration 078 add columns — 增加，無風險
+- 推送 `personal main` → Railway 自動跑 `alembic upgrade head` 會 apply 077 + 078
+- Frontend 無變更（軟刪除 list 過濾在 backend，前端拿到的訊息列表自動少掉被刪的）
+
+**整體成果**：Wave 1+2+3+4 共 **21 commit + 2 migration**，audit 41 條主要發現中 **21 條落地，2 條 deferred-with-rationale，18 條 backlog**。
 
 ---
 
