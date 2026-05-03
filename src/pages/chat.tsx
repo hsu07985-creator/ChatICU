@@ -319,13 +319,20 @@ export function ChatPage() {
   };
 
   // Render message content, highlighting @姓名 tokens that match real users
-  // and the @所有人 broadcast sentinel. mentionClass lets the caller pick a
-  // highlight that contrasts with the surrounding bubble color; @所有人 has
-  // its own (red) class so a broadcast pops vs a personal mention.
+  // and the @所有人 broadcast sentinel. Both render as glass-morphism chips
+  // (translucent white, subtle backdrop blur, hairline border, soft shadow)
+  // so the highlight reads as a "lifted" inline tag on any bubble color.
+  // Personal vs broadcast is differentiated by text color + weight only.
   const renderContent = useCallback((content: string, mentionClass?: string) => {
     if (!userByName.size) return content;
-    const cls = mentionClass ?? 'inline-flex items-center rounded px-1 bg-brand/10 text-brand font-medium';
-    const allCls = 'inline-flex items-center rounded px-1 bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 font-semibold';
+    const glassBase =
+      'inline-flex items-center align-baseline px-1.5 mx-0.5 rounded-md ' +
+      'bg-white/55 dark:bg-slate-800/45 backdrop-blur-sm ' +
+      'border border-white/60 dark:border-slate-500/35 ' +
+      'shadow-[0_1px_2px_rgba(15,23,42,0.06)]';
+    const cls =
+      mentionClass ?? `${glassBase} font-medium text-brand dark:text-brand-light`;
+    const allCls = `${glassBase} font-semibold text-rose-600 dark:text-rose-300`;
     type MentionPart = { name: string; kind: 'user' | 'all' | 'plain' };
     const parts: Array<string | MentionPart> = [];
     const re = mentionRegex();
@@ -425,10 +432,6 @@ export function ChatPage() {
     // Speech-tail: the corner adjacent to the speaker is less rounded.
     const cornerClass = isSelf ? 'rounded-2xl rounded-tr-sm' : 'rounded-2xl rounded-tl-sm';
 
-    // @mentions read as colored bold text, no pill — keeps the inline flow
-    // of the sentence and still pops against the bubble bg.
-    const mentionClass = 'font-semibold text-brand dark:text-brand-light';
-
     const isFlashed = flashedMessageId === msg.id;
 
     return (
@@ -486,7 +489,7 @@ export function ChatPage() {
                 </button>
               )}
               <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
-                {renderContent(msg.content, mentionClass)}
+                {renderContent(msg.content)}
               </p>
             </div>
 
