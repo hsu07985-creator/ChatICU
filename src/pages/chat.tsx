@@ -421,19 +421,21 @@ export function ChatPage() {
               >
                 <CornerUpLeft className="h-3.5 w-3.5" />
               </Button>
-              <span className="inline-flex items-center">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`h-7 w-7 p-0 ${msg.pinned ? 'text-[#f59e0b]' : 'text-muted-foreground hover:text-[#f59e0b]'}`}
-                  onClick={() => void handleTogglePin(msg.id)}
-                  disabled={pinningMessageId === msg.id}
-                  title={msg.pinned ? '取消釘選' : '釘選此訊息'}
-                >
-                  <Pin className="h-3.5 w-3.5" />
-                </Button>
-                {pinningMessageId === msg.id ? <ButtonLoadingIndicator compact /> : null}
-              </span>
+              {user?.role === 'admin' && (
+                <span className="inline-flex items-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`h-7 w-7 p-0 ${msg.pinned ? 'text-[#f59e0b]' : 'text-muted-foreground hover:text-[#f59e0b]'}`}
+                    onClick={() => void handleTogglePin(msg.id)}
+                    disabled={pinningMessageId === msg.id}
+                    title={msg.pinned ? '取消釘選' : '釘選此訊息'}
+                  >
+                    <Pin className="h-3.5 w-3.5" />
+                  </Button>
+                  {pinningMessageId === msg.id ? <ButtonLoadingIndicator compact /> : null}
+                </span>
+              )}
               {user?.role === 'admin' && (
                 <span className="inline-flex items-center">
                   <Button
@@ -725,19 +727,21 @@ export function ChatPage() {
                     <div className="space-y-3">
                       {messages.filter(m => m.pinned).map((msg) => (
                         <div key={msg.id} className="group p-3 bg-white dark:bg-slate-900 border border-[#f59e0b] rounded-lg relative">
-                          <span className="absolute top-2 right-2 inline-flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity text-[#f59e0b] h-6 w-6 p-0"
-                              onClick={() => void handleTogglePin(msg.id)}
-                              disabled={pinningMessageId === msg.id}
-                              title="取消釘選"
-                            >
-                              <Pin className="h-3 w-3" />
-                            </Button>
-                            {pinningMessageId === msg.id ? <ButtonLoadingIndicator compact /> : null}
-                          </span>
+                          {user?.role === 'admin' && (
+                            <span className="absolute top-2 right-2 inline-flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity text-[#f59e0b] h-6 w-6 p-0"
+                                onClick={() => void handleTogglePin(msg.id)}
+                                disabled={pinningMessageId === msg.id}
+                                title="取消釘選"
+                              >
+                                <Pin className="h-3 w-3" />
+                              </Button>
+                              {pinningMessageId === msg.id ? <ButtonLoadingIndicator compact /> : null}
+                            </span>
+                          )}
                           <div className="font-semibold mb-2 text-foreground">{msg.userName}</div>
                           <p className="text-foreground text-sm leading-relaxed">{msg.content}</p>
                           <p className="text-xs text-muted-foreground mt-2">{formatTimestamp(msg.timestamp)}</p>

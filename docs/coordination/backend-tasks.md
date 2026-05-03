@@ -117,7 +117,18 @@
 
 ---
 
-### TC-B01 [TODO] Lock pin / mark_read / first-post-pinned to admin (or owner)
+### TC-B01 [DONE] Lock pin / mark_read / first-post-pinned to admin (or owner)
+- **Completed:** 2026-05-03 (branch `fix/tc-b01-pin-read-admin-gate`)
+- **Files modified:**
+  - `backend/app/routers/team_chat.py:send_team_chat` — reject `body.pinned=True` for non-admin (403)
+  - `backend/app/routers/team_chat.py:toggle_pin_message` — `Depends(require_roles("admin"))`
+  - `backend/app/routers/team_chat.py:mark_read` — recipient gate (author / mentioned_user_ids / mentioned_roles / admin); added audit log entry "標記團隊訊息已讀" so the team-wide is_read flip is traceable
+  - `backend/tests/test_api/test_team_chat.py` — 6 new regression tests covering each negative + positive case
+  - `src/pages/chat.tsx` — wrap message-bubble pin button (L425-438) AND pinned-sidebar pin button (L730-744) with `{user?.role === 'admin' && (...)}`
+- **Verification:** `cd backend && python3 -m pytest tests/test_api/test_team_chat.py -v` → 23/23 passed (was 17, +6 new); `npx tsc --noEmit` exit 0
+- **Original task body retained below for reference.**
+
+### TC-B01-original [original] Lock pin / mark_read / first-post-pinned to admin (or owner)
 - **Added by:** team-chat audit 2026-05-03 (F-01)
 - **Date:** 2026-05-03
 - **Priority:** P0 (security gap — any user can pin/unpin/silently zero everyone's mention badge)

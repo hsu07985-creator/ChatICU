@@ -191,6 +191,16 @@ async def send_team_chat(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Pinned messages are admin-only — they surface in the team's "公告"
+    # / pinned-tab and would otherwise be a trivial griefing vector. The
+    # equivalent UI affordance ("發布公告" button) is admin-gated, but the
+    # raw POST path was open before TC-B01.
+    if body.pinned and user.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Only admins can post pinned messages",
+        )
+
     reply_to_id = body.replyToId
 
     # Validate and flatten reply chain
@@ -251,6 +261,23 @@ async def mark_read(
     if not msg:
         raise HTTPException(status_code=404, detail="Message not found")
 
+    # Recipient gate: marking a message read flips the global `is_read` flag,
+    # which other users' mention/notification queries observe (per audit
+    # F-02). Restrict this side-effect to people the message was actually
+    # sent to. Admins are exempt for moderation/cleanup.
+    mentioned_user_ids = msg.mentioned_user_ids or []
+    mentioned_roles = msg.mentioned_roles or []
+    is_recipient = (
+        user.id == msg.user_id  # author marking own
+        or user.id in mentioned_user_ids
+        or user.role in mentioned_roles
+    )
+    if not is_recipient and user.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Only mentioned recipients (or admins) can mark this message read",
+        )
+
     read_by = list(msg.read_by or [])
     # Avoid duplicate entries
     if not any(entry.get("userId") == user.id for entry in read_by):
@@ -262,6 +289,15 @@ async def mark_read(
 
     msg.is_read = True
     msg.read_by = read_by
+
+    # Audit because flipping is_read is a team-wide side effect on the
+    # mention/notification badges. Without this trail a single user could
+    # silently zero everyone's red dot with no record.
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="標記團隊訊息已讀", target=message_id, status="success",
+        ip=request.client.host if request.client else None,
+    )
     await db.commit()
     await db.refresh(msg)
 
@@ -272,7 +308,7 @@ async def mark_read(
 async def toggle_pin_message(
     message_id: str,
     request: Request,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_roles("admin")),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(

@@ -10,7 +10,7 @@
 > - `TC-F{NN}` — frontend 工作單（在 `docs/coordination/frontend-tasks.md`）
 > - `F-XX` — audit 文件中的發現編號
 
-**最後更新**：2026-05-03（**Wave 1 全部完成** — T1, T2, T3, T4, T5, T6, T7, T8）
+**最後更新**：2026-05-03（Wave 1 全部完成 + Wave 2 TC-W2-T1 完成）
 
 ---
 
@@ -19,7 +19,7 @@
 | Wave | 主題 | 任務數 | 完成 / 總計 | 狀態 |
 |------|------|--------|------------|------|
 | Wave 1 | 立即修補（純前端，零依賴） | 8 | 8 / 8 | ✅ |
-| Wave 2 | 後端權限收緊 + mention SQL | 5 | 0 / 5 | ☐ |
+| Wave 2 | 後端權限收緊 + mention SQL | 5 | 1 / 5 | ⏳ |
 | Wave 3 | 架構決策（需 PM 對齊） | 4 | 0 / 4 | ⏸ |
 | Wave 4 | 安全與資料層強化 | 6 | 0 / 6 | ☐ |
 | Backlog | 低優先 / 觀察 | 18 | — | — |
@@ -80,7 +80,7 @@ npm run lint
 
 | Task | 內容 | F-XX | 觸碰檔案 | 驗證 | 狀態 |
 |------|------|------|---------|------|------|
-| TC-W2-T1 | Pin/unpin/首發 pinned/mark_read 加 admin gate（或 owner 檢查） | F-01 | `backend/app/routers/team_chat.py:187, 239-268, 271-304`、`src/pages/chat.tsx:417-428` | pytest：nurse pin 訊息 403、未被 mention 對象 mark_read 403；UI：非 admin 看不到 pin 按鈕 | ☐ |
+| TC-W2-T1 | Pin/unpin/首發 pinned/mark_read 加 admin gate（或 owner 檢查） | F-01 | `backend/app/routers/team_chat.py`、`src/pages/chat.tsx` | pytest：nurse pin 訊息 403、未被 mention 對象 mark_read 403；UI：非 admin 看不到 pin 按鈕 | ✅ |
 | TC-W2-T2 | Mention SQL 改 `@>` + 加 GIN index | F-13 | `backend/app/routers/team_chat.py:118-137`、`backend/app/routers/notifications.py:31-45`、新 alembic migration | pytest：seed `["all_admins"]` + role=`admin` query 不誤命中；EXPLAIN 顯示 GIN index scan | ☐ |
 | TC-W2-T3 | 訊息發送 / pin / mark_read 加 rate limit | F-15 | `backend/app/routers/team_chat.py:187, 239, 271` 套 `@limiter.limit(...)` | pytest：超頻發訊回 429；prod：手動連按 30 次發訊 | ☐ |
 | TC-W2-T4 | `mentions/count` 加 168h 時間窗（與 notifications 對齊） | F-17 | `backend/app/routers/team_chat.py:113-137`，抽 `MENTION_LOOKBACK_HOURS` 常數 | 手動：seed 一筆 200h 前的 mention，`mentions/count` 不應計入 | ☐ |

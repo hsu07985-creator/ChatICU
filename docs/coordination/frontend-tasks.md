@@ -561,18 +561,16 @@
   - `grep _msgsCache\|_mentionsCache src/` returns nothing (no stale refs)
 - **References:** F-04
 
-### TC-F02 [PARTIAL-DONE] `handleSend` / `handlePostAnnouncement` use functional updater + (admin gate to pin button still pending)
+### TC-F02 [DONE] `handleSend` / `handlePostAnnouncement` use functional updater + admin gate on pin button
 - **Added by:** team-chat audit (F-07, F-01 frontend half)
 - **Date:** 2026-05-03
-- **F-07 (functional updater) completed:** 2026-05-03 (branch `fix/tc-w1-t2-functional-updater`)
-- **F-01 frontend half (admin gate on pin button):** still TODO, **gated on TC-B01** so non-admin doesn't see the button before backend rejects it
+- **Completed:** 2026-05-03 (F-07 in branch `fix/tc-w1-t2-functional-updater`; F-01 UI gate in branch `fix/tc-b01-pin-read-admin-gate`)
 - **Priority:** P1
-- **Progress tracker:** TC-W1-T2 ✅ + TC-W2-T1 (UI half) ⏸
-- **Files modified (F-07):**
-  - `src/pages/chat.tsx:handleSend` — replaced `messages.map(...)` / `[...messages, newMessage]` with `setMessages(prev => ...)` and a closure-captured `next` for the cache write. Back-to-back sends now compose against the freshest state.
+- **Progress tracker:** TC-W1-T2 ✅ + TC-W2-T1 ✅
+- **Files modified:**
+  - `src/pages/chat.tsx:handleSend` — `setMessages(prev => ...)` with closure-captured `next` for cache write. Back-to-back sends now compose against the freshest state.
   - `src/pages/chat.tsx:handlePostAnnouncement` — same pattern.
-- **Files still pending (F-01 UI gate):**
-  - `src/pages/chat.tsx:417-428` — wrap pin/unpin button with `{user?.role === 'admin' && (...)}` once TC-B01 lands
+  - `src/pages/chat.tsx` — message-bubble pin button (L425-438) and pinned-sidebar pin button (L730-744) wrapped with `{user?.role === 'admin' && (...)}`. Aligns with TC-B01 backend, so non-admin no longer sees a button that would 403.
 - **References:** F-07, F-01
 
 ### TC-F03 [DONE] Share `ROLE_LABEL` constant; fix `np` display fallback
