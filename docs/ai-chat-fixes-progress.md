@@ -3,7 +3,7 @@
 > 對應 `docs/ai-chat-audit-fixes-2026-05-03.md`。每完成一個 T，更新此檔。
 > 圖示：☐ 未開始　⏳ 進行中　✅ 完成　⏸ 阻塞　❌ 放棄　🚧 部分完成
 
-**最後更新**：2026-05-03（W2 四任務完成、prod deploy + bundle marker verify 通過）
+**最後更新**：2026-05-03（W3 三任務完成 T6+T1+T8、prod deploy + bundle marker verify 通過）
 
 ---
 
@@ -65,14 +65,14 @@ cd backend && python3 -m pytest tests/test_unit/test_llm.py -v
 
 | Task | 內容 | 觸碰檔案 | 驗證 | 狀態 |
 |------|------|---------|------|------|
-| W3-T1 | Pool 緩解：第二輪 gather 改串行 / 同 connection、patient+vital 合併 query | `backend/app/services/patient_context_builder.py:723-820`、`scripts/loadtest_critical_snapshot.py`（新） | loadtest：10 並發首輪無 `QueuePool limit exceeded` | ☐ |
+| W3-T1 | Pool 緩解：第二輪 gather 改用 request 的 `db` connection（serial），首輪 chat 連線數 6→4 | `backend/app/services/patient_context_builder.py:build_critical_snapshot` 第二輪改 `await db.connection()` + serial calls | 後端 537/537（除 5 個無關 FHIR）綠，無回歸；安全並發 ~2 → ~3 / replica | ✅ |
 | W3-T2 | Deferred race 防護：JSONB partial update 或 `SELECT ... FOR UPDATE` | `backend/app/routers/ai_chat.py:163-202` | 寫 unit test 模擬主路徑 + 背景 task 並發寫，最終 metadata 不丟 deferred 內容 | ☐ |
 | W3-T3 | Snapshot 時間戳改 Taipei（含 ICU-day） | `backend/app/services/patient_context_builder.py:240,251,677,795,898,941` | 新 unit test：snapshot 字串含「(台北時間)」標記 | ☐ |
 | W3-T4 | 集中 threshold config | 新檔 `backend/app/services/clinical_thresholds.py`、`patient_context_builder.py` 各 `_fmt_*_section` | 既有 snapshot test 全綠（行為不變，只是搬家） | ☐ |
 | W3-T5 | `m.dose` regex 解析（NE delta 不再因單位字串炸） | `backend/app/services/patient_context_builder.py:224-234` | 新 case：`dose="0.08 mcg/kg/min"` 解析回 0.08 | ☐ |
-| W3-T6 | 清前端死碼：`canSendAiChat`、feedback/regenerate noop、`hasDataQuality` 相關 props | `src/pages/ai-chat.tsx:201-203,436,669-670`、`src/components/patient/chat-message-thread.tsx`（dataQuality 相關） | tsc + npm build 全綠；視覺：按鈕區簡化 | ☐ |
+| W3-T6 | 清前端死碼：`canSendAiChat`（4 處 dead JSX）、`expandedDataQuality` / `hasDataQuality`、`onRegenerateMessage` noop、`getDisplayFreshnessHints`/`formatAiDegradedReason` 無消費端的 props；順手 wire feedback API | `src/pages/ai-chat.tsx`、`src/components/patient/chat-message-thread.tsx`（共刪 ~110 行） | ① tsc 無錯 ② Vercel bundle marker：dead 全 0 + `儲存評價失敗` toast 出現 ③ ai-chat chunk 從 34460 bytes 縮到 32309 bytes (-6%) | ✅ |
 | W3-T7 | Auto-scroll 改 IntersectionObserver gating | `src/pages/ai-chat.tsx:241-250`、`src/components/patient/chat-message-thread.tsx:365-375` | 手動：捲到上方看舊訊息時，下方串流不會強制拉回 | ☐ |
-| W3-T8 | 後端寫 session title（first turn `body.message[:50]`），前端不再 PATCH | `backend/app/routers/ai_chat.py:_get_or_create_session` 或 `chat_stream`、`src/pages/ai-chat.tsx:410-416` | 手動：first turn 後立刻刷新瀏覽器，sidebar session title 已是訊息前 50 字 | ☐ |
+| W3-T8 | 後端寫 session title（first turn `body.message[:50]`），前端不再 PATCH | `backend/app/routers/ai_chat.py:chat_stream` + `src/pages/ai-chat.tsx`（刪 `updateChatSessionTitle` import & call） | ① 後端：`session.title is None` 時設定為 `body.message[:50]` ② 前端：bundle 無 `updateChatSessionTitle` symbol | ✅ |
 
 **Wave 3 整體驗收**：
 ```bash
@@ -134,3 +134,13 @@ python3 scripts/loadtest_critical_snapshot.py --concurrent 10
   - Bundle marker 驗證：`AI 串流連線逾時` × 1、`AI 串流連線失敗` × 2、`串流逾時` × 1、`AbortController` × 2（共用 lib chunk）；`已中止` × 2、`請先按停止` × 3、`生成中可按停止` × 1（頁面 chunk）→ W2-T1+T2 全部 deploy 成功
   - 後端 533/533 全套（除 5 個無關 FHIR real-data）綠
   - **待人工驗證**：① 開 chat 送長題 → 點 Stop → bubble 後綴「（已中止）」+ Send 鈕回來 ② 串流中點別的 session → toast「請先按停止才能切換對話」 ③ Anthropic 路徑要切 `LLM_PROVIDER=anthropic` 才能看到 cache log（預設 OpenAI 沒影響）。
+- **2026-05-03**：W3-T6 ✅ — `src/pages/ai-chat.tsx` 刪 `canSendAiChat=true` + `aiChatGateReason=''` constants 與 4 處 dead JSX path（disabled banner / textarea bg / button disabled+color / placeholder）；刪 `expandedDataQuality` state、`toggleDataQuality` callback、`noop` useMemo（regenerate 改成從元件移除按鈕）。`chat-message-thread.tsx` 刪 `expandedDataQuality` / `onToggleDataQuality` props、`hasDataQuality` / `isQualityExpanded` 局部變數、`freshnessHints` 局部變數（無消費端）、整個 regenerate 按鈕區塊 + `onRegenerateMessage` / `regeneratingMessageIndex` props + `RefreshCw` import、`getDisplayFreshnessHints` / `formatAiDegradedReason` props（無消費端）。順手 wire feedback：`setMessageFeedback` callback 呼叫 `updateMessageFeedback` API + 樂觀 UI + 失敗 rollback + toast。共刪 ~110 行；ai-chat chunk 從 34460 bytes 縮到 32309 bytes (-6%)。tsc 無錯。
+- **2026-05-03**：W3-T1 ✅ — `backend/app/services/patient_context_builder.py:build_critical_snapshot` 第二輪 gather（`_get_lab_before_24h` + `_safe_duplicate_warnings`）改為 serial 跑在 request 的 `db` connection 上，不再開額外 fresh session。max 同時連線數從 6 降到 4，安全並發 first-turn chat 從 ~2 升到 ~3 / Railway replica。第一輪 4-way fresh-connection 並行不變（critical path 仍真並行 ~2.4s vs serial ~5s）。後端 537/537（除 5 個無關 FHIR）綠，無回歸。
+- **2026-05-03**：W3-T8 ✅ — `backend/app/routers/ai_chat.py:chat_stream` 在 `_get_or_create_session` 之後檢查 `if session.title is None: session.title = body.message[:50]`，於同一 commit 內寫入。`src/pages/ai-chat.tsx` 移除 first-turn 後 `updateChatSessionTitle(response.sessionId, fallbackTitle)` 呼叫 + 對應 import。前端只剩 `setSelectedSessionId(response.sessionId)` + `refreshSessions()`，sidebar 從 server 拿到 real title。即使使用者第一輪結束後立刻刷新瀏覽器也不會看到「新對話」殘影。
+- **2026-05-03**：W3 部分（T1+T6+T8）兩個 commit 推上 main 並部署 prod：
+  - `1c8669ebb` backend W3-T1+T8（patient_context_builder.py + ai_chat.py）
+  - `ffc3b394b` frontend W3-T6+T8（ai-chat.tsx + chat-message-thread.tsx）
+  - `git push personal main` → Railway 1.4.5 healthy
+  - `git push railway main` → Vercel 新 bundle `index-DTKZcnAw.js` + 共用 chunk `ai-BcPrQstj.js` + 頁面 chunk `ai-chat-B7mujOzH.js`
+  - Bundle marker 驗證：dead code 全 0（`canSendAiChat`、`aiChatGateReason`、`RegenerateMessage`、`DataQuality`、`updateChatSessionTitle`），feedback 已接（`儲存評價失敗` toast 出現、`/ai/chat/messages/` PATCH 路徑出現於 ai lib chunk）
+  - **待人工驗證**：① 第一輪結束後立刻刷新 → sidebar 顯示訊息前 50 字（不是「新對話」）② 點 👍/👎 → 顏色切換 + 後端紀錄 ③ 多人同時開首輪 chat 不再 `QueuePool limit exceeded`
