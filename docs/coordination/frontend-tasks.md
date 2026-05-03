@@ -631,13 +631,13 @@
 - **Verification:** `grep -n '@(\\\[' src/` shows only the new file as the source.
 - **References:** F-19
 
-### TC-F08 [TODO] Force `Asia/Taipei` for chat message timestamps
+### TC-F08 [DONE] Force `Asia/Taipei` for chat message timestamps
 - **Added by:** team-chat audit (F-26)
 - **Date:** 2026-05-03
+- **Completed:** 2026-05-03 (branch `fix/tc-w1-t8-taipei-timezone`)
 - **Priority:** P2 (CLAUDE.md compliance — "顯示時間一律台北 (UTC+8)")
 - **Progress tracker:** TC-W1-T8
-- **Files:** `src/pages/chat.tsx:45-54`
-- **Change:** `toLocaleString('zh-TW', { ... })` → `toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', ... })`
+- **Files modified:** `src/pages/chat.tsx:formatTimestamp` — added `timeZone: 'Asia/Taipei'` to `toLocaleString` options.
 - **References:** F-26, project memory `feedback_taipei_timezone.md`
 
 ### TC-F09 [BLOCKED] Show `[原訊息已刪除]` placeholder for orphaned reply quotes
