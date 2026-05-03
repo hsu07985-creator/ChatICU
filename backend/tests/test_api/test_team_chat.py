@@ -811,3 +811,129 @@ async def test_mentions_all_recipient_gate_open(client, seeded_db):
         app.dependency_overrides[get_current_user] = _user_override(
             "usr_test", "Test Doctor", role="admin",
         )
+
+
+# ── Soft-delete clears recipient unread/mention counts ────────────────
+
+@pytest.mark.asyncio
+async def test_soft_delete_clears_recipient_mention_count(client, seeded_db):
+    """Bug: admin deletes a message after @-ing someone, but the
+    recipient's mention count and bell still showed the deleted row.
+    Every count predicate must filter ``deleted_at IS NULL`` so a
+    soft-delete also removes the badge."""
+    from app.main import app
+    from app.middleware.auth import get_current_user
+    from app.models.user import User
+    from datetime import datetime, timedelta, timezone
+
+    # Seed a second admin so we can swap the request user mid-test
+    other = User(
+        id="usr_admin_b",
+        name="Admin B",
+        username="adminb",
+        password_hash="",
+        email="adminb@hospital.com",
+        role="admin",
+        unit="ICU",
+        active=True,
+        last_chat_visit_at=datetime.now(timezone.utc) - timedelta(hours=1),
+    )
+    seeded_db.add(other)
+    await _seed_visit_baseline_in_past(seeded_db, user_id="usr_test", hours_ago=1)
+    await seeded_db.commit()
+
+    # usr_test (admin) sends a message mentioning the admin role
+    msg = await _send(client, "for admins", mentioned_roles=["admin"])
+
+    # Admin B sees the mention and the bell
+    app.dependency_overrides[get_current_user] = _user_override(
+        "usr_admin_b", "Admin B", role="admin",
+    )
+    try:
+        before_mentions = await client.get("/team/chat/mentions/count")
+        assert before_mentions.json()["data"]["count"] == 1
+        before_bell = await client.get("/notifications/summary")
+        assert before_bell.json()["data"]["mentions"] >= 1
+    finally:
+        app.dependency_overrides[get_current_user] = _user_override(
+            "usr_test", "Test Doctor", role="admin",
+        )
+
+    # Author soft-deletes the message
+    delete_resp = await client.delete(f"/team/chat/{msg['id']}")
+    assert delete_resp.status_code == 200
+
+    # Admin B's mention count + bell drop to 0
+    app.dependency_overrides[get_current_user] = _user_override(
+        "usr_admin_b", "Admin B", role="admin",
+    )
+    try:
+        after_mentions = await client.get("/team/chat/mentions/count")
+        assert after_mentions.json()["data"]["count"] == 0, (
+            "Soft-deleted messages must not contribute to /mentions/count."
+        )
+        after_bell = await client.get("/notifications/summary")
+        assert after_bell.json()["data"]["mentions"] == 0, (
+            "Soft-deleted messages must not contribute to /notifications/summary."
+        )
+        # Recent feed also should not surface the deleted row
+        recent = await client.get("/notifications/recent")
+        ids = [item["messageId"] for item in recent.json()["data"]["items"]]
+        assert msg["id"] not in ids
+    finally:
+        app.dependency_overrides[get_current_user] = _user_override(
+            "usr_test", "Test Doctor", role="admin",
+        )
+
+
+@pytest.mark.asyncio
+async def test_soft_delete_clears_recipient_unread_count(client, seeded_db):
+    """The chat sidebar's unread-count badge must also drop a
+    soft-deleted message so deleting clears every notification surface."""
+    from app.main import app
+    from app.middleware.auth import get_current_user
+    from app.models.user import User
+    from datetime import datetime, timedelta, timezone
+
+    other = User(
+        id="usr_admin_b",
+        name="Admin B",
+        username="adminb",
+        password_hash="",
+        email="adminb@hospital.com",
+        role="admin",
+        unit="ICU",
+        active=True,
+        last_chat_visit_at=datetime.now(timezone.utc) - timedelta(hours=1),
+    )
+    seeded_db.add(other)
+    await seeded_db.commit()
+
+    msg = await _send(client, "anything")
+
+    app.dependency_overrides[get_current_user] = _user_override(
+        "usr_admin_b", "Admin B", role="admin",
+    )
+    try:
+        before = await client.get("/team/chat/unread-count")
+        assert before.json()["data"]["count"] == 1
+    finally:
+        app.dependency_overrides[get_current_user] = _user_override(
+            "usr_test", "Test Doctor", role="admin",
+        )
+
+    delete_resp = await client.delete(f"/team/chat/{msg['id']}")
+    assert delete_resp.status_code == 200
+
+    app.dependency_overrides[get_current_user] = _user_override(
+        "usr_admin_b", "Admin B", role="admin",
+    )
+    try:
+        after = await client.get("/team/chat/unread-count")
+        assert after.json()["data"]["count"] == 0, (
+            "Soft-deleted messages must not contribute to /unread-count."
+        )
+    finally:
+        app.dependency_overrides[get_current_user] = _user_override(
+            "usr_test", "Test Doctor", role="admin",
+        )

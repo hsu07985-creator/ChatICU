@@ -110,6 +110,7 @@ async def get_chat_unread_count(
         select(func.count(TeamChatMessage.id)).where(
             TeamChatMessage.timestamp > last_visit,
             TeamChatMessage.user_id != user.id,
+            TeamChatMessage.deleted_at.is_(None),
         )
     )
     return success_response(data={"count": int(result.scalar() or 0)})
@@ -162,6 +163,7 @@ async def mentions_count(
         select(func.count(TeamChatMessage.id)).where(
             and_(
                 TeamChatMessage.timestamp > baseline,
+                TeamChatMessage.deleted_at.is_(None),
                 ~already_read_by_me,
                 or_(role_match, user_match, all_match),
             )

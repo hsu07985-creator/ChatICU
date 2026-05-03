@@ -122,6 +122,7 @@ async def get_notification_summary(
         tc_mentions_stmt = (
             select(func.count(TeamChatMessage.id))
             .where(TeamChatMessage.timestamp > baseline_at)
+            .where(TeamChatMessage.deleted_at.is_(None))
             .where(~tc_already_read)
             .where(_team_chat_mention_predicate(user, dialect_name))
         )
@@ -214,6 +215,7 @@ async def get_recent_notifications(
         tc_stmt = (
             select(TeamChatMessage)
             .where(TeamChatMessage.timestamp > baseline_at)
+            .where(TeamChatMessage.deleted_at.is_(None))
             .where(_team_chat_mention_predicate(user, dialect_name))
             .order_by(TeamChatMessage.timestamp.desc())
             .limit(limit)
@@ -301,6 +303,7 @@ async def mark_all_notifications_read(
 
         tc_stmt = select(TeamChatMessage).where(
             TeamChatMessage.timestamp > baseline_at,
+            TeamChatMessage.deleted_at.is_(None),
             ~tc_already_read,
             _team_chat_mention_predicate(user, dialect_name),
         )
