@@ -598,13 +598,13 @@
   - If not: don't auto-scroll; instead show a floating "↓ N 則新訊息" chip that scrolls to bottom on click
 - **References:** F-09
 
-### TC-F05 [TODO] Hover-only action buttons reveal on focus
+### TC-F05 [DONE] Hover-only action buttons reveal on focus
 - **Added by:** team-chat audit (F-10)
 - **Date:** 2026-05-03
+- **Completed:** 2026-05-03 (branch `fix/tc-w1-t5-focus-within-actions`)
 - **Priority:** P1 (a11y — keyboard users cannot reach pin/reply/delete)
 - **Progress tracker:** TC-W1-T5
-- **Files:** `src/pages/chat.tsx:406`
-- **Change:** `opacity-0 group-hover:opacity-100` → `opacity-0 group-hover:opacity-100 group-focus-within:opacity-100`
+- **Files modified:** `src/pages/chat.tsx` — both `opacity-0 group-hover:opacity-100 transition-opacity` clusters (message-bubble action row at L391, mention-sidebar pin button at L709) gained `group-focus-within:opacity-100`. Tabbing through actions now reveals them.
 - **References:** F-10
 
 ### TC-F06 [TODO] Suppress duplicate error toasts in team-chat API client

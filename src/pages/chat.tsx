@@ -388,7 +388,7 @@ export function ChatPage() {
             </div>
 
             {/* Hover actions, opposite side from the bubble */}
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity self-center">
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity self-center">
               <Button
                 variant="ghost"
                 size="sm"
@@ -706,7 +706,7 @@ export function ChatPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-[#f59e0b] h-6 w-6 p-0"
+                              className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity text-[#f59e0b] h-6 w-6 p-0"
                               onClick={() => void handleTogglePin(msg.id)}
                               disabled={pinningMessageId === msg.id}
                               title="取消釘選"
