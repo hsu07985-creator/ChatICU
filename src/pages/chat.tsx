@@ -43,6 +43,7 @@ export function ChatPage() {
   const { user } = useAuth();
   const [message, setMessage] = useState('');
   const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
+  const [mentionsAll, setMentionsAll] = useState(false);
   const [teamUsers, setTeamUsers] = useState<TeamUser[]>([]);
   const [messages, setMessages] = useState<TeamChatMessage[]>(chatCache.msgs ?? []);
   const [loading, setLoading] = useState(!chatCache.msgs);
@@ -278,6 +279,7 @@ export function ChatPage() {
     try {
       const newMessage = await sendTeamChatMessage(message.trim(), {
         mentionedUserIds,
+        mentionsAll,
         replyToId: replyingTo?.id,
       });
 
@@ -305,6 +307,7 @@ export function ChatPage() {
       chatCache.msgsTimestamp = Date.now();
       setMessage('');
       setMentionedUserIds([]);
+      setMentionsAll(false);
       setReplyingTo(null);
       toast.success(rootId ? '回覆已發送' : '訊息已發送');
     } catch (err) {
@@ -410,8 +413,15 @@ export function ChatPage() {
   // left-aligned gray with avatar + name above. Replies show a quote block
   // INSIDE the bubble pointing back to the parent.
   const renderMessage = (msg: TeamChatMessage) => {
-    const mentionsMe = !!user && (msg.mentionedUserIds?.includes(user.id) ?? false);
     const isSelf = !!user && msg.userId === user.id;
+    const mentionsAllFlag = !!msg.mentionsAll;
+    // @所有人 broadcasts to everyone except the author. Combined with
+    // explicit @user mentions so a single message hitting both paths
+    // still lights up the "提到你" badge.
+    const mentionsMe =
+      !!user &&
+      ((msg.mentionedUserIds?.includes(user.id) ?? false) ||
+        (mentionsAllFlag && !isSelf));
     const repliedTo = msg.replyToId ? messageById.get(msg.replyToId) : null;
 
     // Self → soft WhatsApp/LINE-style mint, others → light gray.
@@ -443,7 +453,7 @@ export function ChatPage() {
 
         <div className={`flex flex-col max-w-[78%] ${isSelf ? 'items-end' : 'items-start'}`}>
           {/* Header row above bubble — name+role for others, badges for both */}
-          {(!isSelf || msg.pinned || (mentionsMe && !isSelf)) && (
+          {(!isSelf || msg.pinned || mentionsAllFlag || (mentionsMe && !isSelf)) && (
             <div className={`flex items-center gap-1.5 mb-1 px-1 ${isSelf ? 'flex-row-reverse' : ''}`}>
               {!isSelf && (
                 <>
@@ -459,7 +469,13 @@ export function ChatPage() {
                   已釘選
                 </Badge>
               )}
-              {mentionsMe && !isSelf && (
+              {mentionsAllFlag && (
+                <Badge className="bg-rose-600 text-white text-[10px] px-1 py-0 h-4 shadow-sm">
+                  <AtSign className="h-2.5 w-2.5 mr-0.5" />
+                  @所有人
+                </Badge>
+              )}
+              {mentionsMe && !isSelf && !mentionsAllFlag && (
                 <Badge className="bg-brand text-white text-[10px] px-1 py-0 h-4">
                   <AtSign className="h-2.5 w-2.5 mr-0.5" />
                   提到你
@@ -681,6 +697,8 @@ export function ChatPage() {
                   value={message}
                   onChange={setMessage}
                   onMentionsChange={setMentionedUserIds}
+                  onMentionsAllChange={setMentionsAll}
+                  enableMentionAll
                   users={teamUsers}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {

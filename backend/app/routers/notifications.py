@@ -8,7 +8,7 @@ Two endpoints:
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -34,16 +34,24 @@ _ALERT_TYPES = ("alert", "urgent")
 
 
 def _team_chat_mention_predicate(user: User, dialect_name: str):
-    """Match team-chat rows where the current user is @-ed by role OR by user_id.
+    """Match team-chat rows where the current user is @-ed by role OR by user_id OR by @所有人.
 
     Uses ``array_contains_value`` so the predicate is GIN-index-friendly
     on PostgreSQL (via ``@>``) and still correct on SQLite tests (via
     quoted-substring LIKE). TC-B02 replaced the prior ad-hoc text-cast
     that risked prefix collisions on role names like ``"all"``.
+
+    @所有人 path uses the dedicated ``mentions_all`` boolean column
+    (migration 080) and excludes the author so the sender doesn't
+    bell-notify themselves.
     """
     return or_(
         array_contains_value(TeamChatMessage.mentioned_roles, user.role, dialect_name),
         array_contains_value(TeamChatMessage.mentioned_user_ids, user.id, dialect_name),
+        and_(
+            TeamChatMessage.mentions_all == True,  # noqa: E712
+            TeamChatMessage.user_id != user.id,
+        ),
     )
 
 

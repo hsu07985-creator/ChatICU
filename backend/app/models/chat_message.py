@@ -43,6 +43,14 @@ class TeamChatMessage(Base):
     # Per-user mentions (Path B): list of user.id strings
     mentioned_user_ids: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True, default=list)
 
+    # @所有人 — dynamic mention. Anyone except the author counts as a
+    # recipient when this is True; new users joining later still see it
+    # as @ them. Stored separately from mentioned_user_ids so the row
+    # doesn't snapshot a stale user list at send time.
+    mentions_all: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

@@ -63,6 +63,7 @@ class TeamChatCreate(BaseModel):
     replyToId: Optional[str] = Field(None, max_length=50)
     mentionedRoles: Optional[List[str]] = None
     mentionedUserIds: Optional[List[str]] = None
+    mentionsAll: bool = False
 
     @field_validator("mentionedRoles")
     @classmethod

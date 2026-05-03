@@ -5,12 +5,14 @@ import pytest
 
 # ── Helpers ────────────────────────────────────────────────────────────
 
-async def _send(client, content, pinned=False, reply_to_id=None, mentioned_roles=None):
+async def _send(client, content, pinned=False, reply_to_id=None, mentioned_roles=None, mentions_all=False):
     body = {"content": content, "pinned": pinned}
     if reply_to_id:
         body["replyToId"] = reply_to_id
     if mentioned_roles:
         body["mentionedRoles"] = mentioned_roles
+    if mentions_all:
+        body["mentionsAll"] = True
     resp = await client.post("/team/chat", json=body)
     assert resp.status_code == 200
     assert resp.json()["success"] is True
@@ -715,3 +717,97 @@ async def test_mark_read_writes_audit_log(client, seeded_db):
     )).scalars().all()
     actions = [r.action for r in audit_rows]
     assert "標記團隊訊息已讀" in actions
+
+
+# ── @所有人 (mentions_all) ─────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_mentions_all_persists_and_returns(client):
+    """POST with mentionsAll=true returns mentionsAll=true and persists."""
+    msg = await _send(client, "聽好了大家", mentions_all=True)
+    assert msg["mentionsAll"] is True
+
+
+@pytest.mark.asyncio
+async def test_mentions_all_default_false(client):
+    """Messages without mentionsAll default to false."""
+    msg = await _send(client, "regular message")
+    assert msg["mentionsAll"] is False
+
+
+@pytest.mark.asyncio
+async def test_mentions_all_counts_for_other_user(client, seeded_db):
+    """@所有人 from user A increments user B's mention count, even when
+    B is not in mentioned_user_ids and B's role is not in mentioned_roles."""
+    from app.main import app
+    from app.middleware.auth import get_current_user
+    from app.models.user import User
+    from datetime import datetime, timedelta, timezone
+
+    await _seed_visit_baseline_in_past(seeded_db)
+    other = User(
+        id="usr_doc_a",
+        name="Doctor A",
+        username="doctora",
+        password_hash="",
+        email="doctora@hospital.com",
+        role="doctor",
+        unit="ICU",
+        active=True,
+        last_chat_visit_at=datetime.now(timezone.utc) - timedelta(hours=1),
+    )
+    seeded_db.add(other)
+    await seeded_db.commit()
+
+    # Doctor A posts @所有人
+    app.dependency_overrides[get_current_user] = _user_override(
+        "usr_doc_a", "Doctor A", role="doctor",
+    )
+    try:
+        await _send(client, "全體注意", mentions_all=True)
+    finally:
+        app.dependency_overrides[get_current_user] = _user_override(
+            "usr_test", "Test Doctor", role="admin",
+        )
+
+    # Admin (the original test user) sees the @所有人 in their count
+    resp = await client.get("/team/chat/mentions/count")
+    assert resp.status_code == 200
+    assert resp.json()["data"]["count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_mentions_all_excludes_author(client, seeded_db):
+    """A user's own @所有人 message does not count for themselves."""
+    await _seed_visit_baseline_in_past(seeded_db)
+    await _send(client, "全體注意", mentions_all=True)
+
+    resp = await client.get("/team/chat/mentions/count")
+    assert resp.status_code == 200
+    # Author shouldn't get bell-pinged by their own broadcast
+    assert resp.json()["data"]["count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_mentions_all_recipient_gate_open(client, seeded_db):
+    """Any user can mark a @所有人 message read, even when not in
+    mentioned_user_ids and role is not in mentioned_roles."""
+    from app.main import app
+    from app.middleware.auth import get_current_user
+
+    msg = await _send(client, "全體注意", mentions_all=True)
+
+    # Switch to a nurse who is neither @-ed by user_id nor by role
+    app.dependency_overrides[get_current_user] = _user_override(
+        "usr_nurse_b", "Nurse B", role="nurse",
+    )
+    try:
+        resp = await client.patch(f"/team/chat/{msg['id']}/read")
+        assert resp.status_code == 200, (
+            "@所有人 should make every active user a recipient — the "
+            "recipient gate must accept this nurse without a 403."
+        )
+    finally:
+        app.dependency_overrides[get_current_user] = _user_override(
+            "usr_test", "Test Doctor", role="admin",
+        )

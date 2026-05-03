@@ -60,6 +60,7 @@ def chat_to_dict(msg: TeamChatMessage, replies: Optional[List[dict]] = None) -> 
         "readBy": msg.read_by or [],
         "mentionedRoles": msg.mentioned_roles or [],
         "mentionedUserIds": msg.mentioned_user_ids or [],
+        "mentionsAll": bool(msg.mentions_all),
         "replyCount": len(replies) if replies is not None else 0,
         "replies": replies if replies is not None else [],
     }
@@ -150,13 +151,19 @@ async def mentions_count(
 
     role_match = array_contains_value(TeamChatMessage.mentioned_roles, user.role, dialect_name)
     user_match = array_contains_value(TeamChatMessage.mentioned_user_ids, user.id, dialect_name)
+    # @所有人 — anyone except the author. Author exclusion via user_id
+    # avoids self-bell when an admin posts an "@所有人" announcement.
+    all_match = and_(
+        TeamChatMessage.mentions_all == True,  # noqa: E712
+        TeamChatMessage.user_id != user.id,
+    )
     already_read_by_me = array_contains_user_receipt(TeamChatMessage.read_by, user.id, dialect_name)
     result = await db.execute(
         select(func.count(TeamChatMessage.id)).where(
             and_(
                 TeamChatMessage.timestamp > baseline,
                 ~already_read_by_me,
-                or_(role_match, user_match),
+                or_(role_match, user_match, all_match),
             )
         )
     )
@@ -323,6 +330,7 @@ async def send_team_chat(
         read_by=[],
         mentioned_roles=body.mentionedRoles or [],
         mentioned_user_ids=body.mentionedUserIds or [],
+        mentions_all=bool(body.mentionsAll),
     )
 
     if body.pinned:
@@ -367,6 +375,7 @@ async def mark_read(
         user.id == msg.user_id  # author marking own
         or user.id in mentioned_user_ids
         or user.role in mentioned_roles
+        or bool(msg.mentions_all)  # @所有人 — every active user is a recipient
     )
     if not is_recipient and user.role != "admin":
         raise HTTPException(

@@ -24,6 +24,7 @@ export interface TeamChatMessage {
   readBy?: TeamChatReadReceipt[];
   mentionedRoles?: string[];
   mentionedUserIds?: string[];
+  mentionsAll?: boolean;
   replyCount?: number;
   replies?: TeamChatMessage[];
 }
@@ -69,6 +70,7 @@ export interface SendTeamChatOptions {
   pinned?: boolean;
   mentionedUserIds?: string[];
   mentionedRoles?: string[];
+  mentionsAll?: boolean;
   replyToId?: string;
 }
 
@@ -82,6 +84,9 @@ export async function sendTeamChatMessage(
   }
   if (opts.mentionedRoles && opts.mentionedRoles.length > 0) {
     body.mentionedRoles = opts.mentionedRoles;
+  }
+  if (opts.mentionsAll) {
+    body.mentionsAll = true;
   }
   if (opts.replyToId) {
     body.replyToId = opts.replyToId;
