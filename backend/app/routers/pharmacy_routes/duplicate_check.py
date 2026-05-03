@@ -42,7 +42,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.middleware.auth import get_current_user
+from app.middleware.auth import get_current_user, require_roles
 from app.models.user import User
 from app.services.duplicate_detector import DuplicateDetector
 from app.utils.response import success_response
@@ -184,7 +184,11 @@ class _DuplicateCheckRequest(BaseModel):
 @router.post("/duplicate-check")
 async def check_duplicate_medications(
     body: _DuplicateCheckRequest,
-    user: User = Depends(get_current_user),
+    # P1-Ph3: match sister pharmacy endpoints (compatibility-favorites,
+    # error-reports, advice-records all use require_roles). Previously bare
+    # get_current_user let any authenticated user POST arbitrary drug lists
+    # to the detector — inconsistent with the rest of the pharmacy surface.
+    user: User = Depends(require_roles("pharmacist", "doctor", "np", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
     """Run the duplicate-medication detector on an ad-hoc drug list.

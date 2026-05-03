@@ -308,10 +308,44 @@ async def _upsert_cache_row(
     counts: Dict[str, int],
     context: str,
 ) -> None:
-    """Insert or update the cache row. Portable across SQLite (tests) & PG."""
+    """Insert or update the cache row.
+
+    P1-D4: PostgreSQL path uses ``INSERT ... ON CONFLICT (patient_id) DO
+    UPDATE`` so two concurrent cache misses for the same patient (common
+    when the pharmacy workstation fans out warmup batches) cannot both
+    INSERT and one hit a PK conflict the other session would swallow.
+    SQLite (tests) keeps the read-modify-write path because there are no
+    concurrent writers in the test harness and SQLite's UPSERT syntax
+    differs.
+    """
     now = datetime.now(timezone.utc)
     payload = alerts_to_jsonb(alerts)
 
+    dialect = session.bind.dialect.name if session.bind is not None else ""
+    if dialect == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+        stmt = pg_insert(MedicationDuplicateCache.__table__).values(
+            patient_id=patient_id,
+            computed_at=now,
+            medications_hash=meds_hash,
+            alerts_json=payload,
+            context=context,
+            counts=counts,
+        ).on_conflict_do_update(
+            index_elements=[MedicationDuplicateCache.__table__.c.patient_id],
+            set_={
+                "computed_at": now,
+                "medications_hash": meds_hash,
+                "alerts_json": payload,
+                "context": context,
+                "counts": counts,
+            },
+        )
+        await session.execute(stmt)
+        await session.flush()
+        return
+
+    # SQLite test-only fallback.
     existing = await _fetch_cache_row(session, patient_id)
     if existing is None:
         row = MedicationDuplicateCache(

@@ -239,11 +239,16 @@ async def clinical_summary_stream(
       event: error  → {"message": "..."}
     """
     patient_data = await _get_patient_dict(req.patient_id, db)
+    # P1-C4: honor include_labs by trimming the lab block when False.
+    if not req.include_labs:
+        patient_data = {k: v for k, v in patient_data.items() if k != "lab_data"}
     data_freshness = build_data_freshness(patient_data)
 
     request_id = getattr(request.state, "request_id", None)
     trace_id = getattr(request.state, "trace_id", None)
     client_host = request.client.host if request.client else None
+    # P1-C4: brief mode skips LLM reasoning for a quick chart digest.
+    summary_disable_reasoning = (req.summary_depth == "brief")
     # P0-6: schema-shaped envelope so the LLM cannot mistake free-text fields
     # in patient_data (diagnosis / alerts / symptoms — sourced from HIS or
     # nursing input) for instructions. Previously the raw patient JSON was
@@ -268,13 +273,33 @@ async def clinical_summary_stream(
         full_content = ""
         usage_meta: Dict[str, Any] = {}
         stream_failed = False
+        client_disconnected = False
+        # P1-C5: error frames carry trace_id so support can cross-reference
+        # without parsing log files. Helper closure keeps the call site short.
+        def _err_payload(message: str) -> str:
+            return json.dumps({
+                "message": message,
+                "request_id": request_id,
+                "trace_id": trace_id,
+            })
         try:
             async for chunk in call_llm_stream(
                 "clinical_summary",
                 user_msg,
                 request_id=request_id,
                 trace_id=trace_id,
+                disable_reasoning=summary_disable_reasoning,
             ):
+                # P1-C6: short-circuit if the client closed the tab. Without
+                # this, OpenAI keeps reasoning to completion and we pay the
+                # full token cost while the user sees nothing.
+                if await request.is_disconnected():
+                    client_disconnected = True
+                    logger.info(
+                        "[INTG][AI][API] clinical_summary stream aborted: client disconnected (request_id=%s)",
+                        request_id,
+                    )
+                    return
                 if chunk.startswith("{") and "__done__" in chunk:
                     try:
                         meta = json.loads(chunk)
@@ -286,16 +311,16 @@ async def clinical_summary_stream(
                     err = chunk[7:].strip() if len(chunk) > 7 else "AI service error"
                     logger.error("[INTG][AI][API] clinical_summary stream failed: %s", err[:500])
                     stream_failed = True
-                    yield f"event: error\ndata: {json.dumps({'message': err})}\n\n"
+                    yield f"event: error\ndata: {_err_payload(err)}\n\n"
                     return
                 full_content += chunk
                 yield f"event: delta\ndata: {json.dumps({'chunk': chunk}, ensure_ascii=False)}\n\n"
         except Exception as e:
             logger.error("[INTG][AI][API] clinical_summary stream exception: %s", str(e)[:500])
-            yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+            yield f"event: error\ndata: {_err_payload(str(e))}\n\n"
             return
 
-        if stream_failed:
+        if stream_failed or client_disconnected:
             return
 
         guardrail = apply_safety_guardrail(full_content, user_role=user.role, include_disclaimer=False)
@@ -307,6 +332,10 @@ async def clinical_summary_stream(
             "metadata": {"model": settings.LLM_MODEL, "usage": usage_meta},
             "safetyWarnings": guardrail["warnings"] if guardrail["flagged"] else None,
             "dataFreshness": data_freshness,
+            # P1-C5: surface trace ids in done payload too so the toast can
+            # show them on partial-success warnings.
+            "request_id": request_id,
+            "trace_id": trace_id,
         }
 
         yield f"event: done\ndata: {json.dumps({'data': response_data}, ensure_ascii=False)}\n\n"
@@ -358,11 +387,15 @@ def _extract_json_string_value(buf: str, key: str) -> Optional[str]:
     far for ``key`` (may be partial — caller should keep calling as buf grows),
     or ``None`` if the key marker has not arrived yet.
 
-    Handles standard JSON escapes including ``\\uXXXX``. If the buffer ends
-    mid-escape, returns whatever is decoded so far (the missing chars will
-    arrive in the next chunk). Non-BMP code points (surrogate pairs) are
-    decoded by the second-half emit on the next call — acceptable here since
-    the authoritative final value comes from the ``done`` event.
+    Handles standard JSON escapes including ``\\uXXXX``.
+
+    P1-C7: surrogate pairs are now decoded as a single non-BMP code point
+    (e.g. ``"\\uD83D\\uDC8A"`` → "💊", ``"\\uD842\\uDF9F"`` → "𠀋"). The
+    previous version emitted each half as ``chr(0xD83D)`` which is an
+    invalid code point that the frontend's TextDecoder either rendered as
+    U+FFFD or threw on. When a buffer ends after a high-surrogate but
+    before its low-surrogate arrives, we stop and let the next call resume
+    from the same position — the partial result so far is still safe.
     """
     marker = f'"{key}":"'
     idx = buf.find(marker)
@@ -405,11 +438,36 @@ def _extract_json_string_value(buf: str, key: str) -> Optional[str]:
                 if i + 6 > n:  # need 4 hex chars
                     break
                 try:
-                    out.append(chr(int(buf[i + 2 : i + 6], 16)))
-                    i += 6
+                    cp = int(buf[i + 2 : i + 6], 16)
                 except ValueError:
                     out.append(nxt)
                     i += 2
+                    continue
+                # P1-C7: surrogate-pair handling. High surrogate alone is
+                # invalid — wait for the matching \\uYYYY and combine.
+                if 0xD800 <= cp <= 0xDBFF:
+                    if i + 12 > n or buf[i + 6 : i + 8] != '\\u':
+                        # Low half not in buffer yet — stop and resume next call.
+                        break
+                    try:
+                        low = int(buf[i + 8 : i + 12], 16)
+                    except ValueError:
+                        out.append(nxt)
+                        i += 2
+                        continue
+                    if 0xDC00 <= low <= 0xDFFF:
+                        combined = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00)
+                        out.append(chr(combined))
+                        i += 12
+                        continue
+                    # Malformed — fall through and emit as-is.
+                if 0xDC00 <= cp <= 0xDFFF:
+                    # Stray low surrogate — emit U+FFFD replacement.
+                    out.append('�')
+                    i += 6
+                    continue
+                out.append(chr(cp))
+                i += 6
             else:
                 out.append(nxt)
                 i += 2
@@ -656,6 +714,16 @@ async def polish_clinical_text_stream(
         full_content = ""
         usage_meta: Dict[str, Any] = {}
         stream_failed = False
+        client_disconnected = False
+
+        # P1-C5: error frames carry trace_id + request_id for support cross-ref.
+        def _err_payload(message: str) -> str:
+            return json.dumps({
+                "message": message,
+                "request_id": request_id,
+                "trace_id": trace_id,
+            })
+
         try:
             async for chunk in call_llm_stream(
                 task_name,
@@ -664,6 +732,14 @@ async def polish_clinical_text_stream(
                 request_id=request_id,
                 trace_id=trace_id,
             ):
+                # P1-C6: stop the LLM stream if the client closed the tab.
+                if await request.is_disconnected():
+                    client_disconnected = True
+                    logger.info(
+                        "[INTG][AI][API] polish stream aborted: client disconnected (request_id=%s)",
+                        request_id,
+                    )
+                    return
                 if chunk.startswith("{") and "__done__" in chunk:
                     try:
                         meta = json.loads(chunk)
@@ -675,7 +751,7 @@ async def polish_clinical_text_stream(
                     err = chunk[7:].strip() if len(chunk) > 7 else "AI service error"
                     logger.error("[INTG][AI][API] polish stream failed: %s", err[:500])
                     stream_failed = True
-                    yield f"event: error\ndata: {json.dumps({'message': err})}\n\n"
+                    yield f"event: error\ndata: {_err_payload(err)}\n\n"
                     return
                 full_content += chunk
                 yield f"event: delta\ndata: {json.dumps({'chunk': chunk}, ensure_ascii=False)}\n\n"
@@ -693,10 +769,10 @@ async def polish_clinical_text_stream(
                         )
         except Exception as e:
             logger.error("[INTG][AI][API] polish stream exception: %s", str(e)[:500])
-            yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+            yield f"event: error\ndata: {_err_payload(str(e))}\n\n"
             return
 
-        if stream_failed:
+        if stream_failed or client_disconnected:
             return
 
         response_data, guardrail = _build_polish_response_data(

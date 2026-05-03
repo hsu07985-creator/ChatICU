@@ -11,7 +11,14 @@ from pydantic import BaseModel, Field, model_validator
 
 class SummaryRequest(BaseModel):
     patient_id: str = Field(..., min_length=1, max_length=50)
+    # P1-C4: include_labs is now actually honored (was declared but ignored).
+    # When False, _get_patient_dict drops the lab block to keep the prompt
+    # short for quick "scan-the-chart" summaries.
     include_labs: bool = True
+    # P1-C4: brief mode skips reasoning (3-5s TTFT savings) for the case
+    # where the user just wants a one-paragraph chart digest. full mode
+    # retains the original reasoning_effort behavior.
+    summary_depth: Literal["brief", "full"] = "full"
 
 
 class ExplanationRequest(BaseModel):

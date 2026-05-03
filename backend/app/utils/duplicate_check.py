@@ -21,7 +21,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-_LLM_RELEVANT_LEVELS = ("critical", "high")
+# P1-D6: include "moderate" so route-switch PPIs, anticholinergic burden,
+# transitional heparin↔LMWH bridging etc. surface in the chat assistant.
+# Previous filter only kept critical/high, so the LLM answered "no duplicate
+# concerns" while the chart actually had moderate ones (chart-vs-chat
+# mismatch is a clinical safety issue).
+_LLM_RELEVANT_LEVELS = ("critical", "high", "moderate")
 
 _LEVEL_BADGE: Dict[str, str] = {
     "critical": "🔴 Critical",
@@ -91,8 +96,10 @@ def format_duplicate_text(warnings: List[Dict[str, Any]]) -> str:
     """
     if not warnings:
         return ""
-    lines = [f"\n[重複用藥警示（自動偵測）] (共 {len(warnings)} 筆)"]
-    for w in warnings[:10]:
+    total = len(warnings)
+    lines = [f"\n[重複用藥警示（自動偵測）] (共 {total} 筆)"]
+    cap = 10
+    for w in warnings[:cap]:
         badge = _LEVEL_BADGE.get(str(w.get("level", "")), "⚠")
         mech = w.get("mechanism") or "?"
         members = " + ".join(w.get("members") or [])
@@ -100,4 +107,9 @@ def format_duplicate_text(warnings: List[Dict[str, Any]]) -> str:
         lines.append(f"  {badge} — {mech}：{members}")
         if rec:
             lines.append(f"      建議：{rec}")
+    # P1-D7: surface truncation so the LLM knows it didn't see everything.
+    # Previously >10 alerts were silently dropped → model could conclude
+    # "no further duplicate concerns" while #11+ were unrendered.
+    if total > cap:
+        lines.append(f"  … 另有 {total - cap} 筆未列出（總計 {total} 筆，請查閱完整警示）")
     return "\n".join(lines)

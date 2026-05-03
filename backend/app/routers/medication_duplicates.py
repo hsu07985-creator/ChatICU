@@ -133,11 +133,16 @@ async def duplicate_summary(
     """Batched per-patient severity counts for audit / dashboard tiles.
 
     Cache-first: patients whose cache is fresh return counts immediately.
-    Misses return zeroed counts now **and** schedule a background recompute
-    so the next call is a hit — keeps the UI responsive for large lists.
+    Misses return ``counts: null + computing: true`` and schedule a background
+    recompute so the next call is a hit. This is critical safety UX — a
+    fresh patient with a real RAAS-blockade duplicate would otherwise render
+    as "0 critical" until the cache warms; explicit ``computing`` lets the
+    UI render a skeleton/spinner instead of a misleading zero.
+
+    Backward compat: the ``counts`` key still exists; consumers that
+    assume a non-null dict must guard on ``cached`` / ``computing`` first.
     """
     ctx: Context = context  # type: ignore[assignment]
-    empty_counts = {"critical": 0, "high": 0, "moderate": 0, "low": 0, "info": 0}
 
     results: dict = {}
     misses: List[str] = []
@@ -147,9 +152,11 @@ async def duplicate_summary(
         cached = await get_cached_duplicates(db, pid, meds, ctx)
         if cached is not None:
             _, counts = cached
-            results[pid] = {"counts": counts, "cached": True}
+            results[pid] = {"counts": counts, "cached": True, "computing": False}
         else:
-            results[pid] = {"counts": dict(empty_counts), "cached": False}
+            # P1-D5: counts=None signals "not authoritative". UI must render
+            # a calculating state, not a zero.
+            results[pid] = {"counts": None, "cached": False, "computing": True}
             misses.append(pid)
 
     # Schedule background recomputes for misses — they'll populate the cache

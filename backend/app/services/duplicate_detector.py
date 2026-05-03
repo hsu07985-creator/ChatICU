@@ -920,6 +920,25 @@ class DuplicateDetector:
                     # Reset auto_downgraded if we just upgraded
                     alert.auto_downgraded = False
                     alert.downgrade_reason = None
+                    # P1-D3: when an upgrade rule fires, the alert mechanism
+                    # is whatever was synthesized earlier (e.g. "Diazepam ×
+                    # Clonazepam") which doesn't match _RECOMMENDATIONS keys.
+                    # The rule's reason carries a canonical mechanism / group
+                    # key in many cases — try to map it; otherwise fall back
+                    # to ATC-prefix lookup against _ATC_PREFIX_LABELS so we
+                    # surface specific guidance instead of the generic text.
+                    if alert.recommendation == _GENERIC_REC_FALLBACK or not alert.recommendation:
+                        better = _RECOMMENDATIONS.get(reason or "")
+                        if better is None:
+                            # Try ATC-prefix label (e.g. "N05BA" → "Long-acting BZD × Long-acting BZD")
+                            for atc in atcs:
+                                prefix = (atc or "")[:5]
+                                label = _ATC_L4_LABELS.get(prefix)
+                                if label and label in _RECOMMENDATIONS:
+                                    better = _RECOMMENDATIONS[label]
+                                    break
+                        if better:
+                            alert.recommendation = better
             kept.append(alert)
         return kept
 
