@@ -147,6 +147,11 @@ async def test_snapshot_contains_duplicate_block_for_dual_ppi(_stub_snapshot_db)
     assert "PPI × PPI" in snapshot
     assert "Esomeprazole + Pantoprazole" in snapshot
     assert "建議：" in snapshot
+    # Phase 2: compact medication-safety summary appears before the full
+    # duplicate-warning block so LLM answers can lead with major risk buckets.
+    assert "【用藥安全摘要】" in snapshot
+    assert "自動警示: 共 1 筆（high 1）" in snapshot
+    assert "重複/其他: high - PPI × PPI: Esomeprazole + Pantoprazole" in snapshot
     # And still shows the patient + med sections around it
     assert "【用藥】" in snapshot
     assert "=== 快照結束 ===" in snapshot
@@ -165,6 +170,8 @@ async def test_snapshot_omits_duplicate_block_when_no_warnings(_stub_snapshot_db
 
     assert fake_fmt.await_count == 1
     assert "[重複用藥警示（自動偵測）]" not in snapshot
+    assert "【用藥安全摘要】" in snapshot
+    assert "自動警示: 無 critical/high/moderate" in snapshot
     # Snapshot must still render (med section present, not an error payload)
     assert "【用藥】" in snapshot
     assert "=== 快照結束 ===" in snapshot

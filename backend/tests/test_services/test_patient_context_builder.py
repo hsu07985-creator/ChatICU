@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 from app.services.patient_context_builder import (
     _fmt_data_freshness_section,
+    _fmt_medication_safety_section,
     _fmt_renal_dosing_section,
     _get_lab_val,
     extract_snapshot_key_values,
@@ -304,3 +305,79 @@ def test_data_freshness_section_marks_deferred_sections():
     assert "影像/報告: 延後載入" in text
     assert "臨床評分: 延後載入" in text
     assert "插管中但無呼吸器資料" not in text
+
+
+# ── Phase 2 snapshot additions ───────────────────────────────────────────────
+
+
+def test_medication_safety_section_flags_allergy_and_risk_buckets():
+    patient = _FakePatient(allergies=[{"drug": "Penicillin"}])
+    meds = [
+        _FakeMed(generic_name="Piperacillin/Tazobactam"),
+        _FakeMed(generic_name="Ondansetron"),
+    ]
+    warnings = [
+        {
+            "level": "high",
+            "mechanism": "qtc_prolonging",
+            "members": ["Ondansetron", "Haloperidol"],
+        },
+        {
+            "level": "critical",
+            "mechanism": "bleeding_risk",
+            "members": ["Warfarin", "Aspirin"],
+        },
+        {
+            "level": "high",
+            "mechanism": "nephrotoxic_triple_whammy",
+            "members": ["Ibuprofen", "Lisinopril", "Furosemide"],
+        },
+        {
+            "level": "moderate",
+            "mechanism": "cns_depressant",
+            "members": ["Morphine", "Midazolam"],
+        },
+    ]
+
+    text = _fmt_medication_safety_section(patient, meds, warnings)
+
+    assert "【用藥安全摘要】" in text
+    assert "過敏衝突: Penicillin ↔ Piperacillin/Tazobactam" in text
+    assert "自動警示: 共 4 筆" in text
+    assert "critical 1" in text
+    assert "high 2" in text
+    assert "moderate 1" in text
+    assert "QT/心律風險: high - qtc_prolonging" in text
+    assert "出血風險: critical - bleeding_risk" in text
+    assert "腎毒性風險: high - nephrotoxic_triple_whammy" in text
+    assert "CNS/鎮靜呼吸風險: moderate - cns_depressant" in text
+
+
+def test_medication_safety_section_does_not_create_false_warnings():
+    patient = _FakePatient(allergies="NKDA")
+    meds = [_FakeMed(generic_name="Acetaminophen")]
+
+    text = _fmt_medication_safety_section(patient, meds, [])
+
+    assert "過敏衝突: 過敏欄位無資料/未記載" in text
+    assert "自動警示: 無 critical/high/moderate" in text
+    assert "QT/心律風險" not in text
+    assert "出血風險" not in text
+
+
+def test_medication_safety_section_truncates_large_warning_bucket():
+    patient = _FakePatient()
+    meds = [_FakeMed(generic_name="Ondansetron")]
+    warnings = [
+        {
+            "level": "high",
+            "mechanism": "qtc_prolonging",
+            "members": [f"Drug{i}", f"Drug{i + 1}"],
+        }
+        for i in range(7)
+    ]
+
+    text = _fmt_medication_safety_section(patient, meds, warnings)
+
+    assert "QT/心律風險:" in text
+    assert "另有 2 筆未列出" in text
