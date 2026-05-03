@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Home, Users, MessageSquare, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Moon, Sun, LogOut, Sparkles, Archive, Copy, Library } from 'lucide-react';
+import { Home, Users, MessageSquare, FileText, UserCog, Pill, AlertTriangle, Calculator, Droplets, BarChart3, Moon, Sun, LogOut, Sparkles, Archive, Copy, Library, Globe } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useTranslation } from 'react-i18next';
 import logoImage from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
@@ -219,27 +219,60 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-2 border-t">
+        {/* Layout:
+            - Expanded normal:  [theme | language] (50/50) → [logout] (full width)
+            - compactFooter (short viewport):  [theme][lang][logout] all icons in a row
+            - Collapsed (icon-only):  three icons stacked vertically
+        */}
         <div className={compactFooter ? 'flex gap-1.5' : 'space-y-1.5'}>
-          <Button
-            variant="outline"
-            size={isCollapsed || compactFooter ? 'icon' : 'default'}
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            title={themeLabel}
-            className={`${isCollapsed ? 'mx-auto' : compactFooter ? 'flex-1' : 'w-full'} border-border text-foreground hover:bg-muted`}
-          >
-            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            {!isCollapsed && !compactFooter && <span className="ml-2">{themeLabel}</span>}
-          </Button>
-          <Button
-            variant="outline"
-            size={isCollapsed || compactFooter ? 'icon' : 'default'}
-            onClick={toggleLanguage}
-            title={langButtonTitle}
-            aria-label={langButtonTitle}
-            className={`${isCollapsed ? 'mx-auto' : compactFooter ? 'flex-1' : 'w-full'} border-border text-foreground hover:bg-muted`}
-          >
-            <span className="text-xs font-semibold leading-none">{langButtonLabel}</span>
-          </Button>
+          {/* Theme + Language paired row in expanded mode */}
+          {!isCollapsed && !compactFooter ? (
+            <div className="flex gap-1.5">
+              <Button
+                variant="outline"
+                size="default"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                title={themeLabel}
+                className="flex-1 min-w-0 border-border text-foreground hover:bg-muted px-2"
+              >
+                {theme === 'dark' ? <Sun className="h-4 w-4 shrink-0" /> : <Moon className="h-4 w-4 shrink-0" />}
+                <span className="ml-2 truncate">{themeLabel}</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="default"
+                onClick={toggleLanguage}
+                title={langButtonTitle}
+                aria-label={langButtonTitle}
+                className="flex-1 min-w-0 border-border text-foreground hover:bg-muted px-2"
+              >
+                <Globe className="h-4 w-4 shrink-0" />
+                <span className="ml-2 text-xs font-semibold">{langButtonLabel}</span>
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                title={themeLabel}
+                className={`${isCollapsed ? 'mx-auto' : 'flex-1'} border-border text-foreground hover:bg-muted`}
+              >
+                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={toggleLanguage}
+                title={langButtonTitle}
+                aria-label={langButtonTitle}
+                className={`${isCollapsed ? 'mx-auto' : 'flex-1'} border-border text-foreground hover:bg-muted`}
+              >
+                <Globe className="h-4 w-4" />
+              </Button>
+            </>
+          )}
           <Button
             variant="outline"
             size={isCollapsed || compactFooter ? 'icon' : 'default'}
