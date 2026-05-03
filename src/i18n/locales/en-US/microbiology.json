@@ -1,0 +1,25 @@
+{
+  "categories": {
+    "sputum": "Sputum",
+    "urine": "Urine",
+    "blood": "Blood",
+    "other": "Other"
+  },
+  "summary": {
+    "positive": "Positive {{count}}",
+    "negative": "Negative {{count}}",
+    "normalFlora": "Normal flora {{count}}"
+  },
+  "filters": {
+    "onlyPositive": "Positive only",
+    "onlyResistant": "Resistant only",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all"
+  },
+  "empty": {
+    "filtered": "No results under current filters",
+    "none": "No culture data"
+  },
+  "loading": "Loading...",
+  "coloniesLabel": "Colonies: {{value}}"
+}

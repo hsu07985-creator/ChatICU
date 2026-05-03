@@ -1,0 +1,22 @@
+{
+  "types": {
+    "imaging": "Imaging",
+    "procedure": "Procedure",
+    "other": "Other"
+  },
+  "preliminary": "Preliminary",
+  "reporterPrefix": " · Reporter: {{name}}",
+  "expand": "Show full report",
+  "collapse": "Collapse",
+  "loading": "Loading reports...",
+  "filters": {
+    "all": "All ({{count}})",
+    "imaging": "Imaging ({{count}})",
+    "procedure": "Procedure ({{count}})"
+  },
+  "empty": {
+    "none": "No diagnostic reports yet",
+    "filtered": "No reports match the filter"
+  },
+  "loadErrorLog": "Failed to load diagnostic reports"
+}

@@ -4,7 +4,7 @@
 > **配對術語表**：[`docs/i18n-medical-glossary.md`](i18n-medical-glossary.md)
 > **負責人**：Chun + Claude
 > **啟動日**：2026-05-04
-> **總進度**：🟢 3.7 / 8 Waves（W0+...+W3d 完成、W3e 完成 2026-05-04；W3f+ 待開工）
+> **總進度**：🟢 3.8 / 8 Waves（W0+...+W3e 完成、W3f 完成 2026-05-04；W3g 待開工）
 
 ---
 
@@ -20,7 +20,7 @@
 | 3c | medical-records + lab-data + lab-trend + score-trend | 🟢 完成 | `feat/i18n-w3c` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 3d | patient-summary-tab + patient-labs-tab | 🟢 完成 | `feat/i18n-w3d` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 3e | patient-medications-tab + 4 medication 子元件 | 🟢 完成 | `feat/i18n-w3e` | 2026-05-04 | 🚀 personal+railway 已推 |
-| 3f | patient-microbiology-card + patient-diagnostic-reports | ⬜ 待開工 | — | — | — |
+| 3f | patient-microbiology-card + patient-diagnostic-reports | 🟢 完成 | `feat/i18n-w3f` | 2026-05-04 | 待 push |
 | 3g | patient-messages-tab + patient-chat-tab + chat-message-thread + discharge-check-panel | ⬜ 待開工 | — | — | — |
 | 4 | team chat + ai chat | ⬜ 待開工 | — | — |
 | 5 | 藥事 7 頁（workstation + 6 工具） | ⬜ 待開工 | — | — |

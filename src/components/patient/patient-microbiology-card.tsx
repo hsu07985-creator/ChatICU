@@ -4,6 +4,7 @@ import { getCultureSusceptibility } from '../../lib/api/microbiology';
 import type { CulturePanel, CultureSusceptibilityData, SusceptibilityResult } from '../../lib/api/microbiology';
 import { LoadingSpinner } from '../ui/state-display';
 import type { LucideIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /* ── helpers ─────────────────────────────────────────────── */
 
@@ -120,6 +121,7 @@ function mergeConsecutiveCultures(panels: CulturePanel[]): MergedCulture[] {
 /* ── Collapsible Culture Card ────────────────────────────── */
 
 function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture; defaultOpen?: boolean; forceOpen?: boolean | null }) {
+  const { t } = useTranslation('microbiology');
   const [open, setOpen] = useState(defaultOpen ?? false);
 
   // Respond to global expand/collapse toggle
@@ -203,7 +205,7 @@ function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture
           {/* Meta line: colonies */}
           {coloniesStr && (
             <div className="text-xs text-slate-500 dark:text-slate-400">
-              Colonies: {coloniesStr}
+              {t('coloniesLabel', { value: coloniesStr })}
             </div>
           )}
 
@@ -313,6 +315,7 @@ function CategorySection({
   onlyResistant: boolean;
   forceOpen?: boolean | null;
 }) {
+  const { t } = useTranslation('microbiology');
   const showAll = !onlyPositive && !onlyResistant;
   const filteredPositive = onlyResistant
     ? group.positive.filter((p) => p.susceptibility.some((s) => s.result === 'R' || s.result === 'I'))
@@ -350,14 +353,14 @@ function CategorySection({
         <span className="flex items-center gap-2 ml-auto text-xs">
           {posCount > 0 && (
             <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-              陽性 {posCount}
+              {t('summary.positive', { count: posCount })}
             </span>
           )}
           {(negCount > 0 || floraCount > 0) && (
             <span className="text-slate-500 dark:text-slate-400">
               {[
-                negCount > 0 ? `陰性 ${negCount}` : null,
-                floraCount > 0 ? `正常菌 ${floraCount}` : null,
+                negCount > 0 ? t('summary.negative', { count: negCount }) : null,
+                floraCount > 0 ? t('summary.normalFlora', { count: floraCount }) : null,
               ].filter(Boolean).join(' · ')}
             </span>
           )}
@@ -370,7 +373,7 @@ function CategorySection({
         <div className="px-3 py-2.5 space-y-2">
           {total === 0 ? (
             <p className="text-sm text-slate-400 dark:text-slate-500 py-2 text-center">
-              {(onlyPositive || onlyResistant) ? '篩選條件下無結果' : '無培養資料'}
+              {(onlyPositive || onlyResistant) ? t('empty.filtered') : t('empty.none')}
             </p>
           ) : (
             <>
@@ -429,11 +432,12 @@ function CategorySection({
 
 type SpecimenCategory = 'sputum' | 'urine' | 'blood' | 'other';
 
-const CATEGORY_META: Record<SpecimenCategory, { label: string; Icon: LucideIcon }> = {
-  sputum: { label: '痰 Sputum', Icon: Wind },
-  urine:  { label: '尿 Urine',  Icon: FlaskConical },
-  blood:  { label: '血液 Blood', Icon: Droplets },
-  other:  { label: '其他 Other', Icon: FileText },
+// Icons stay static; labels resolved at render via t('categories.<key>').
+const CATEGORY_ICONS: Record<SpecimenCategory, LucideIcon> = {
+  sputum: Wind,
+  urine: FlaskConical,
+  blood: Droplets,
+  other: FileText,
 };
 
 const CATEGORY_ORDER: SpecimenCategory[] = ['sputum', 'urine', 'blood', 'other'];
@@ -480,6 +484,7 @@ interface PatientMicrobiologyCardProps {
 }
 
 export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardProps) {
+  const { t } = useTranslation('microbiology');
   const [data, setData] = useState<CultureSusceptibilityData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -515,7 +520,7 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <LoadingSpinner size="md" text="Loading..." />
+        <LoadingSpinner size="md" text={t('loading')} />
       </div>
     );
   }
@@ -538,7 +543,7 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
           aria-pressed={onlyPositive}
           onClick={() => setOnlyPositive((prev) => !prev)}
         >
-          只看陽性
+          {t('filters.onlyPositive')}
         </button>
         <button
           type="button"
@@ -550,26 +555,27 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
           aria-pressed={onlyResistant}
           onClick={() => setOnlyResistant((prev) => !prev)}
         >
-          只看抗藥
+          {t('filters.onlyResistant')}
         </button>
         <button
           type="button"
           className="rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2.5 py-1 text-sm font-medium text-slate-700 dark:text-slate-300 hover:border-brand/40 dark:hover:border-brand/50 transition-colors ml-auto"
           onClick={toggleExpandAll}
         >
-          {expandAll ? '全部收合' : '全部展開'}
+          {expandAll ? t('filters.collapseAll') : t('filters.expandAll')}
         </button>
       </div>
 
       {/* 2x2 Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
         {categoryGroups.map((group) => {
-          const meta = CATEGORY_META[group.category];
+          const Icon = CATEGORY_ICONS[group.category];
+          const label = t(`categories.${group.category}`);
           return (
             <CategorySection
               key={group.category}
-              label={meta.label}
-              Icon={meta.Icon}
+              label={label}
+              Icon={Icon}
               group={group}
               onlyPositive={onlyPositive}
               onlyResistant={onlyResistant}

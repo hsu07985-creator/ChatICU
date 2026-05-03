@@ -1,0 +1,22 @@
+{
+  "types": {
+    "imaging": "影像",
+    "procedure": "檢查",
+    "other": "其他"
+  },
+  "preliminary": "初步報告",
+  "reporterPrefix": " · 報告者: {{name}}",
+  "expand": "展開全文",
+  "collapse": "收合",
+  "loading": "載入報告中...",
+  "filters": {
+    "all": "全部 ({{count}})",
+    "imaging": "影像 ({{count}})",
+    "procedure": "檢查 ({{count}})"
+  },
+  "empty": {
+    "none": "尚無檢查報告",
+    "filtered": "無符合篩選條件的報告"
+  },
+  "loadErrorLog": "Failed to load diagnostic reports"
+}

@@ -1,0 +1,25 @@
+{
+  "categories": {
+    "sputum": "痰 Sputum",
+    "urine": "尿 Urine",
+    "blood": "血液 Blood",
+    "other": "其他 Other"
+  },
+  "summary": {
+    "positive": "陽性 {{count}}",
+    "negative": "陰性 {{count}}",
+    "normalFlora": "正常菌 {{count}}"
+  },
+  "filters": {
+    "onlyPositive": "只看陽性",
+    "onlyResistant": "只看抗藥",
+    "expandAll": "全部展開",
+    "collapseAll": "全部收合"
+  },
+  "empty": {
+    "filtered": "篩選條件下無結果",
+    "none": "無培養資料"
+  },
+  "loading": "Loading...",
+  "coloniesLabel": "Colonies: {{value}}"
+}
