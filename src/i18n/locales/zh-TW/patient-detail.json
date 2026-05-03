@@ -1,0 +1,178 @@
+{
+  "header": {
+    "backToList": "返回住院病人",
+    "ageGender": "{{age}}歲 / {{gender}}",
+    "stayDays": "住院 {{days}} 天",
+    "mrnPrefix": "病歷號 {{mrn}}",
+    "physicianPrefix": "主治：{{physician}}",
+    "intubated": "插管中",
+    "tracheostomy": "氣切",
+    "isolating": "隔離中",
+    "editButton": "編輯基本資料",
+    "allergiesLabel": "過敏：",
+    "diagnosisLabel": "診斷：",
+    "diagnosisPending": "待確認",
+    "saveSuccess": "病人資料已更新",
+    "saveError": "更新失敗，請稍後再試"
+  },
+  "state": {
+    "loadingPatient": "載入病人資料中...",
+    "loadFailedTitle": "載入失敗",
+    "loadFailedMessage": "無法載入病人資料",
+    "notFoundTitle": "找不到病患",
+    "notFoundMessage": "您所查詢的病患資料不存在或已被刪除",
+    "loadErrorLog": "載入病人資料失敗"
+  },
+  "bundle": {
+    "refreshSuccess": "已更新患者數值",
+    "refreshError": "更新患者數值失敗，請確認網路與後端服務狀態"
+  },
+  "tabs": {
+    "chat": "AI 臨床夥伴",
+    "messages": "留言板",
+    "records": "病歷記錄",
+    "labs": "檢驗數據",
+    "meds": "用藥",
+    "summary": "病歷摘要",
+    "newBadge": "新",
+    "loading": "載入中..."
+  },
+  "messages": {
+    "sendSuccess": "留言發送成功",
+    "sendError": "發送留言失敗",
+    "sendErrorLog": "發送留言失敗",
+    "adviceSendSuccess": "用藥建議發送成功",
+    "adviceSendError": "發送用藥建議失敗",
+    "adviceSendErrorLog": "發送用藥建議失敗",
+    "adviceOnlyPharmacist": "只有藥師可以發送用藥建議",
+    "tagsUpdated": "標籤已更新",
+    "tagsUpdateError": "更新標籤失敗",
+    "tagsUpdateErrorLog": "更新標籤失敗",
+    "adviceAccepted": "已接受藥事建議",
+    "adviceRejected": "已拒絕藥事建議",
+    "adviceAlreadyResponded": "此建議已有回覆，無法重複操作",
+    "adviceRespondError": "回覆藥事建議失敗",
+    "markedAsRead": "已標記為已讀",
+    "markReadError": "標記已讀失敗",
+    "markReadErrorLog": "標記已讀失敗",
+    "messageDeleted": "留言已刪除",
+    "messageDeleteError": "刪除留言失敗",
+    "messageDeleteErrorLog": "刪除留言失敗",
+    "markAllReadSuccess": "已標記 {{count}} 則留言為已讀",
+    "markAllReadError": "全部標為已讀失敗",
+    "markAllReadErrorLog": "全部標為已讀失敗",
+    "reloadError": "重新載入留言失敗",
+    "reloadErrorLog": "重新載入留言失敗"
+  },
+  "session": {
+    "deleteConfirm": "確定要刪除此對話記錄嗎？",
+    "deleteSuccess": "對話記錄已刪除",
+    "deleteError": "刪除對話記錄失敗",
+    "batchDeleteConfirm": "確定要刪除所選的 {{count}} 筆對話記錄嗎？",
+    "batchDeleteSuccess": "已刪除 {{count}} 筆對話記錄",
+    "batchDeleteError": "部分對話記錄刪除失敗",
+    "loadDetailError": "載入對話內容失敗"
+  },
+  "snapshot": {
+    "stopFirst": "請先按停止才能重新整理快照",
+    "refreshSuccess": "已重新整理病患快照",
+    "refreshError": "重新整理快照失敗"
+  },
+  "chat": {
+    "feedbackError": "回饋儲存失敗",
+    "aiFailedLog": "AI 回覆失敗",
+    "aiFallback": "AI 助手目前無法回應，請確認後端服務是否正常運行，稍後再試。",
+    "aiUnavailable": "AI 服務暫時不可用：{{detail}}",
+    "aiHttpError": "AI 服務錯誤（HTTP {{status}}）",
+    "aiGenericError": "AI 回覆失敗：{{message}}",
+    "regenerateError": "重新生成失敗，請稍後再試。"
+  },
+  "degradedReason": {
+    "insufficientEvidence": "目前可用證據有限",
+    "insufficientPatientData": "病患關鍵資料不足（已改為部分回覆）",
+    "llmUnavailable": "LLM 服務不可用",
+    "unknown": "unknown"
+  },
+  "freshnessHints": {
+    "vitalsMissing": "目前缺少生命徵象資料，建議先補抓最新數值。",
+    "vitalsStale": "生命徵象資料較舊，解讀時請先確認最新量測。",
+    "labMissing": "目前缺少檢驗資料。",
+    "labStale": "檢驗資料較舊，請留意時效性。",
+    "medsMissing": "目前缺少用藥資料。"
+  },
+  "citation": {
+    "pages": "第 {{pages}} 頁",
+    "page": "第 {{page}} 頁",
+    "pageMissing": "頁碼待補"
+  },
+  "labFields": {
+    "RespiratoryRate": "呼吸速率",
+    "Temperature": "體溫",
+    "BloodPressureSystolic": "收縮壓 SBP",
+    "BloodPressureDiastolic": "舒張壓 DBP",
+    "HeartRate": "心率",
+    "SpO2": "血氧飽和度",
+    "EtCO2": "呼氣末二氧化碳",
+    "CVP": "中心靜脈壓",
+    "ICP": "顱內壓",
+    "FiO2": "吸入氧濃度",
+    "PEEP": "呼氣末正壓",
+    "TidalVolume": "潮氣量",
+    "VentRR": "呼吸器設定呼吸速率",
+    "PIP": "尖峰吸氣壓",
+    "Plateau": "平台壓",
+    "Compliance": "肺順應性",
+    "Na": "鈉",
+    "K": "鉀",
+    "Cl": "氯",
+    "BUN": "血中尿素氮",
+    "Scr": "肌酐酸",
+    "WBC": "白血球",
+    "Hb": "血紅素",
+    "PLT": "血小板",
+    "CRP": "C反應蛋白",
+    "pH": "酸鹼值",
+    "PCO2": "二氧化碳分壓",
+    "PO2": "氧分壓",
+    "Lactate": "乳酸",
+    "BodyWeight": "體重"
+  },
+  "medCategories": {
+    "antibiotic": "抗生素",
+    "antifungal": "抗黴菌",
+    "antiviral": "抗病毒",
+    "vasopressor": "升壓劑",
+    "anticoagulant": "抗凝血",
+    "steroid": "類固醇",
+    "ppi": "PPI",
+    "h2_blocker": "H2 Blocker",
+    "diuretic": "利尿劑",
+    "insulin": "胰島素",
+    "electrolyte": "電解質",
+    "bronchodilator": "支氣管擴張",
+    "antiarrhythmic": "抗心律不整",
+    "antiepileptic": "抗癲癇",
+    "laxative": "緩瀉劑",
+    "antiemetic": "止吐"
+  },
+  "expertReview": {
+    "title": "此回答需要專家審核 — 建議由藥師或主治醫師確認後再採用"
+  },
+  "confidence": {
+    "high": "高信心",
+    "medium": "中等信心",
+    "low": "低信心 — 建議諮詢專科"
+  },
+  "activityPanel": {
+    "title": "病患留言動態",
+    "hours24": "24 小時",
+    "hours48": "48 小時",
+    "days7": "7 天",
+    "clear": "清除",
+    "loading": "載入中...",
+    "emptyTagged": "目前無「{{tag}}」標籤的留言動態",
+    "emptyHours": "過去 {{label}} 內無標籤留言",
+    "unreadBadge": "{{count}} 未讀",
+    "messageCountBadge": "{{count}} 則"
+  }
+}

@@ -1,9 +1,12 @@
 import { Activity, Clock, RefreshCw, User, ChevronRight, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { ScrollArea } from '../ui/scroll-area';
 import { maskPatientName } from '../../lib/utils/patient-name';
+import { useRoleLabel } from '../../lib/utils/user-role';
+
 export interface PatientMessageActivityItem {
   patientId: string;
   patientName: string;
@@ -17,7 +20,8 @@ export interface PatientMessageActivityItem {
   latestTimestamp: string;
 }
 
-// 標籤色彩映射
+// 標籤色彩映射 — keep tag literals as zh-TW data labels for now (Wave 4 will
+// translate via tag taxonomy lookup).
 const TAG_STYLE: Record<string, string> = {
   '急件': 'bg-red-100 text-red-700 border-red-200',
   '急診優先': 'bg-red-100 text-red-700 border-red-200',
@@ -27,19 +31,6 @@ const TAG_STYLE: Record<string, string> = {
   '感控': 'bg-purple-100 text-purple-700 border-purple-200',
 };
 const DEFAULT_TAG_STYLE = 'bg-indigo-50 text-indigo-700 border-indigo-200';
-
-const ROLE_LABEL: Record<string, string> = {
-  doctor: '醫師',
-  nurse: '護理師',
-  pharmacist: '藥師',
-  admin: '管理者',
-};
-
-const HOURS_OPTIONS = [
-  { label: '24 小時', value: 24 },
-  { label: '48 小時', value: 48 },
-  { label: '7 天', value: 168 },
-];
 
 interface PatientActivityPanelProps {
   activity: PatientMessageActivityItem[];
@@ -62,6 +53,26 @@ export function PatientActivityPanel({
   onTagFilter,
   onPatientClick,
 }: PatientActivityPanelProps) {
+  const { t, i18n } = useTranslation('patient-detail');
+  const roleLabel = useRoleLabel();
+
+  const HOURS_OPTIONS = [
+    { label: t('activityPanel.hours24'), value: 24 },
+    { label: t('activityPanel.hours48'), value: 48 },
+    { label: t('activityPanel.days7'), value: 168 },
+  ];
+
+  const formatTimestamp = (ts: string): string => {
+    const date = new Date(ts);
+    return date.toLocaleString(i18n.language, {
+      timeZone: 'Asia/Taipei',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
   // Collect all unique tags for the filter bar
   const allTags = Array.from(new Set(activity.flatMap((a: PatientMessageActivityItem) => a.tags)));
 
@@ -75,7 +86,7 @@ export function PatientActivityPanel({
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Activity className="h-4 w-4 text-brand" />
-            病患留言動態
+            {t('activityPanel.title')}
             {filtered.length > 0 && (
               <Badge className="bg-brand text-white text-xs ml-1">{filtered.length}</Badge>
             )}
@@ -117,7 +128,7 @@ export function PatientActivityPanel({
             {selectedTag && (
               <Button variant="ghost" size="sm" className="h-5 text-xs px-1 text-slate-500" onClick={() => onTagFilter(null)}>
                 <X className="h-2.5 w-2.5 mr-0.5" />
-                清除
+                {t('activityPanel.clear')}
               </Button>
             )}
           </div>
@@ -128,15 +139,17 @@ export function PatientActivityPanel({
           {loading ? (
             <div className="flex items-center justify-center py-6 text-sm text-slate-400 dark:text-slate-500">
               <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-              載入中...
+              {t('activityPanel.loading')}
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-6 text-center">
               <Activity className="h-12 w-12 text-slate-300 mb-4" />
               <p className="text-xs text-slate-400 dark:text-slate-500">
                 {selectedTag
-                  ? `目前無「${selectedTag}」標籤的留言動態`
-                  : `過去 ${HOURS_OPTIONS.find(o => o.value === hoursBack)?.label || hoursBack + 'h'} 內無標籤留言`}
+                  ? t('activityPanel.emptyTagged', { tag: selectedTag })
+                  : t('activityPanel.emptyHours', {
+                      label: HOURS_OPTIONS.find((o) => o.value === hoursBack)?.label || `${hoursBack}h`,
+                    })}
               </p>
             </div>
           ) : (
@@ -157,7 +170,7 @@ export function PatientActivityPanel({
                     </div>
                     <div className="flex items-center gap-1">
                       {item.unreadCount > 0 && (
-                        <Badge variant="destructive" className="text-xs">{item.unreadCount} 未讀</Badge>
+                        <Badge variant="destructive" className="text-xs">{t('activityPanel.unreadBadge', { count: item.unreadCount })}</Badge>
                       )}
                       <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-brand transition-colors" />
                     </div>
@@ -175,7 +188,7 @@ export function PatientActivityPanel({
                       </Badge>
                     ))}
                     <Badge variant="outline" className="text-[9px] bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700">
-                      {item.taggedCount} 則
+                      {t('activityPanel.messageCountBadge', { count: item.taggedCount })}
                     </Badge>
                   </div>
 
@@ -189,7 +202,7 @@ export function PatientActivityPanel({
                     <User className="h-2.5 w-2.5" />
                     <span>{item.latestAuthorName}</span>
                     <span className="text-slate-300">·</span>
-                    <span>{ROLE_LABEL[item.latestAuthorRole] || item.latestAuthorRole}</span>
+                    <span>{roleLabel(item.latestAuthorRole)}</span>
                     <span className="text-slate-300">·</span>
                     <Clock className="h-2.5 w-2.5" />
                     <span>{formatTimestamp(item.latestTimestamp)}</span>
@@ -202,14 +215,4 @@ export function PatientActivityPanel({
       </CardContent>
     </Card>
   );
-}
-
-function formatTimestamp(ts: string): string {
-  const date = new Date(ts);
-  return date.toLocaleString('zh-TW', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }

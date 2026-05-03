@@ -10,6 +10,7 @@ import zhTWNotifications from './locales/zh-TW/notifications.json';
 import zhTWAuth from './locales/zh-TW/auth.json';
 import zhTWDashboard from './locales/zh-TW/dashboard.json';
 import zhTWPatients from './locales/zh-TW/patients.json';
+import zhTWPatientDetail from './locales/zh-TW/patient-detail.json';
 
 import enUSCommon from './locales/en-US/common.json';
 import enUSSidebar from './locales/en-US/sidebar.json';
@@ -19,13 +20,14 @@ import enUSNotifications from './locales/en-US/notifications.json';
 import enUSAuth from './locales/en-US/auth.json';
 import enUSDashboard from './locales/en-US/dashboard.json';
 import enUSPatients from './locales/en-US/patients.json';
+import enUSPatientDetail from './locales/en-US/patient-detail.json';
 
 export const SUPPORTED_LANGUAGES = ['zh-TW', 'en-US'] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 export const DEFAULT_LANGUAGE: SupportedLanguage = 'zh-TW';
 export const STORAGE_KEY = 'chaticu.lang';
 
-export const NAMESPACES = ['common', 'sidebar', 'errors', 'roles', 'notifications', 'auth', 'dashboard', 'patients'] as const;
+export const NAMESPACES = ['common', 'sidebar', 'errors', 'roles', 'notifications', 'auth', 'dashboard', 'patients', 'patient-detail'] as const;
 
 void i18n
   .use(LanguageDetector)
@@ -53,6 +55,7 @@ void i18n
         auth: zhTWAuth,
         dashboard: zhTWDashboard,
         patients: zhTWPatients,
+        'patient-detail': zhTWPatientDetail,
       },
       'en-US': {
         common: enUSCommon,
@@ -63,6 +66,7 @@ void i18n
         auth: enUSAuth,
         dashboard: enUSDashboard,
         patients: enUSPatients,
+        'patient-detail': enUSPatientDetail,
       },
     },
   });

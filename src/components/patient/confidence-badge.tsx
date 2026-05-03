@@ -1,4 +1,5 @@
 import { CheckCircle2, XCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/components/ui/utils';
 
@@ -27,6 +28,7 @@ export function ConfidenceBadge({
   showLabel = true,
   className,
 }: ConfidenceBadgeProps) {
+  const { t } = useTranslation('patient-detail');
   // 防衛性判斷：無效值不渲染
   if (!Number.isFinite(confidence)) return null;
 
@@ -43,7 +45,7 @@ export function ConfidenceBadge({
         )}
       >
         <CheckCircle2 className={isMd ? 'h-4 w-4' : 'h-3.5 w-3.5'} />
-        {showLabel && <span>高信心</span>}
+        {showLabel && <span>{t('confidence.high')}</span>}
         <span>({pct}%)</span>
       </Badge>
     );
@@ -64,7 +66,7 @@ export function ConfidenceBadge({
             isMd ? 'h-2 w-2' : 'h-1.5 w-1.5',
           )}
         />
-        {showLabel && <span>中等信心</span>}
+        {showLabel && <span>{t('confidence.medium')}</span>}
         <span>({pct}%)</span>
       </Badge>
     );
@@ -79,7 +81,7 @@ export function ConfidenceBadge({
       )}
     >
       <XCircle className={isMd ? 'h-4 w-4' : 'h-3.5 w-3.5'} />
-      {showLabel && <span>低信心 — 建議諮詢專科</span>}
+      {showLabel && <span>{t('confidence.low')}</span>}
       <span>({pct}%)</span>
     </Badge>
   );

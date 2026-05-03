@@ -1,4 +1,5 @@
 import { ArrowLeft } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '../ui/button';
 import { ErrorDisplay, LoadingSpinner } from '../ui/state-display';
 
@@ -17,10 +18,11 @@ export function PatientDetailStateGuard({
   onRetry,
   onBackToPatients,
 }: PatientDetailStateGuardProps) {
+  const { t } = useTranslation('patient-detail');
   if (state === 'loading') {
     return (
       <div className="min-h-[400px] flex flex-col items-center justify-center p-6">
-        <LoadingSpinner size="lg" text="載入病人資料中..." />
+        <LoadingSpinner size="lg" text={t('state.loadingPatient')} />
       </div>
     );
   }
@@ -30,14 +32,14 @@ export function PatientDetailStateGuard({
       <div className="p-6">
         <ErrorDisplay
           type="server"
-          title="載入失敗"
-          message={errorMessage || '無法載入病人資料'}
+          title={t('state.loadFailedTitle')}
+          message={errorMessage || t('state.loadFailedMessage')}
           onRetry={onRetry}
         />
         <div className="flex justify-center mt-4">
           <Button onClick={onBackToPatients} variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            返回住院病人
+            {t('header.backToList')}
           </Button>
         </div>
       </div>
@@ -48,13 +50,13 @@ export function PatientDetailStateGuard({
     <div className="p-6">
       <ErrorDisplay
         type="notFound"
-        title="找不到病患"
-        message="您所查詢的病患資料不存在或已被刪除"
+        title={t('state.notFoundTitle')}
+        message={t('state.notFoundMessage')}
       />
       <div className="flex justify-center mt-4">
         <Button onClick={onBackToPatients} variant="outline">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          返回住院病人
+          {t('header.backToList')}
         </Button>
       </div>
     </div>

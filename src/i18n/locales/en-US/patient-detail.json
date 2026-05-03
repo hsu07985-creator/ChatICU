@@ -1,0 +1,178 @@
+{
+  "header": {
+    "backToList": "Back to inpatients",
+    "ageGender": "{{age}} y/o / {{gender}}",
+    "stayDays": "Day {{days}} of stay",
+    "mrnPrefix": "MRN {{mrn}}",
+    "physicianPrefix": "Attending: {{physician}}",
+    "intubated": "Intubated",
+    "tracheostomy": "Tracheostomy",
+    "isolating": "Isolation",
+    "editButton": "Edit profile",
+    "allergiesLabel": "Allergies:",
+    "diagnosisLabel": "Diagnosis:",
+    "diagnosisPending": "Pending",
+    "saveSuccess": "Patient updated",
+    "saveError": "Update failed. Please try again later."
+  },
+  "state": {
+    "loadingPatient": "Loading patient data...",
+    "loadFailedTitle": "Load failed",
+    "loadFailedMessage": "Failed to load patient data",
+    "notFoundTitle": "Patient not found",
+    "notFoundMessage": "The patient you are looking for does not exist or has been deleted",
+    "loadErrorLog": "Failed to load patient data"
+  },
+  "bundle": {
+    "refreshSuccess": "Patient data refreshed",
+    "refreshError": "Failed to refresh patient data. Please check the network and backend service."
+  },
+  "tabs": {
+    "chat": "AI Clinical Partner",
+    "messages": "Message Board",
+    "records": "Medical Records",
+    "labs": "Lab Data",
+    "meds": "Medications",
+    "summary": "Summary",
+    "newBadge": "New",
+    "loading": "Loading..."
+  },
+  "messages": {
+    "sendSuccess": "Message sent",
+    "sendError": "Failed to send message",
+    "sendErrorLog": "Failed to send message",
+    "adviceSendSuccess": "Medication advice sent",
+    "adviceSendError": "Failed to send medication advice",
+    "adviceSendErrorLog": "Failed to send medication advice",
+    "adviceOnlyPharmacist": "Only pharmacists can send medication advice",
+    "tagsUpdated": "Tags updated",
+    "tagsUpdateError": "Failed to update tags",
+    "tagsUpdateErrorLog": "Failed to update tags",
+    "adviceAccepted": "Medication advice accepted",
+    "adviceRejected": "Medication advice rejected",
+    "adviceAlreadyResponded": "This advice has already been responded to",
+    "adviceRespondError": "Failed to respond to medication advice",
+    "markedAsRead": "Marked as read",
+    "markReadError": "Failed to mark as read",
+    "markReadErrorLog": "Failed to mark as read",
+    "messageDeleted": "Message deleted",
+    "messageDeleteError": "Failed to delete message",
+    "messageDeleteErrorLog": "Failed to delete message",
+    "markAllReadSuccess": "{{count}} message(s) marked as read",
+    "markAllReadError": "Failed to mark all as read",
+    "markAllReadErrorLog": "Failed to mark all as read",
+    "reloadError": "Failed to reload messages",
+    "reloadErrorLog": "Failed to reload messages"
+  },
+  "session": {
+    "deleteConfirm": "Are you sure you want to delete this chat session?",
+    "deleteSuccess": "Chat session deleted",
+    "deleteError": "Failed to delete chat session",
+    "batchDeleteConfirm": "Are you sure you want to delete the selected {{count}} chat session(s)?",
+    "batchDeleteSuccess": "{{count}} chat session(s) deleted",
+    "batchDeleteError": "Some chat sessions failed to delete",
+    "loadDetailError": "Failed to load chat session content"
+  },
+  "snapshot": {
+    "stopFirst": "Press Stop before refreshing the snapshot",
+    "refreshSuccess": "Patient snapshot refreshed",
+    "refreshError": "Failed to refresh snapshot"
+  },
+  "chat": {
+    "feedbackError": "Failed to save feedback",
+    "aiFailedLog": "AI response failed",
+    "aiFallback": "AI assistant is unavailable. Please verify the backend service is running and try again later.",
+    "aiUnavailable": "AI service unavailable: {{detail}}",
+    "aiHttpError": "AI service error (HTTP {{status}})",
+    "aiGenericError": "AI response failed: {{message}}",
+    "regenerateError": "Regeneration failed. Please try again later."
+  },
+  "degradedReason": {
+    "insufficientEvidence": "Available evidence is limited",
+    "insufficientPatientData": "Insufficient patient data (partial response only)",
+    "llmUnavailable": "LLM service unavailable",
+    "unknown": "unknown"
+  },
+  "freshnessHints": {
+    "vitalsMissing": "Vital signs are missing — please refresh the latest values first.",
+    "vitalsStale": "Vital signs are stale — please confirm the latest measurements.",
+    "labMissing": "Lab data is missing.",
+    "labStale": "Lab data is stale — please note timeliness.",
+    "medsMissing": "Medication data is missing."
+  },
+  "citation": {
+    "pages": "Pages {{pages}}",
+    "page": "Page {{page}}",
+    "pageMissing": "Page TBD"
+  },
+  "labFields": {
+    "RespiratoryRate": "Respiratory Rate",
+    "Temperature": "Temperature",
+    "BloodPressureSystolic": "SBP",
+    "BloodPressureDiastolic": "DBP",
+    "HeartRate": "Heart Rate",
+    "SpO2": "SpO2",
+    "EtCO2": "EtCO2",
+    "CVP": "CVP",
+    "ICP": "ICP",
+    "FiO2": "FiO2",
+    "PEEP": "PEEP",
+    "TidalVolume": "Tidal Volume",
+    "VentRR": "Vent RR",
+    "PIP": "PIP",
+    "Plateau": "Plateau Pressure",
+    "Compliance": "Lung Compliance",
+    "Na": "Sodium",
+    "K": "Potassium",
+    "Cl": "Chloride",
+    "BUN": "BUN",
+    "Scr": "Creatinine",
+    "WBC": "WBC",
+    "Hb": "Hemoglobin",
+    "PLT": "Platelets",
+    "CRP": "CRP",
+    "pH": "pH",
+    "PCO2": "PCO2",
+    "PO2": "PO2",
+    "Lactate": "Lactate",
+    "BodyWeight": "Body Weight"
+  },
+  "medCategories": {
+    "antibiotic": "Antibiotic",
+    "antifungal": "Antifungal",
+    "antiviral": "Antiviral",
+    "vasopressor": "Vasopressor",
+    "anticoagulant": "Anticoagulant",
+    "steroid": "Steroid",
+    "ppi": "PPI",
+    "h2_blocker": "H2 Blocker",
+    "diuretic": "Diuretic",
+    "insulin": "Insulin",
+    "electrolyte": "Electrolyte",
+    "bronchodilator": "Bronchodilator",
+    "antiarrhythmic": "Antiarrhythmic",
+    "antiepileptic": "Antiepileptic",
+    "laxative": "Laxative",
+    "antiemetic": "Antiemetic"
+  },
+  "expertReview": {
+    "title": "This answer requires expert review — confirm with a pharmacist or attending physician before adopting"
+  },
+  "confidence": {
+    "high": "High confidence",
+    "medium": "Medium confidence",
+    "low": "Low confidence — consult a specialist"
+  },
+  "activityPanel": {
+    "title": "Patient Message Activity",
+    "hours24": "24 hours",
+    "hours48": "48 hours",
+    "days7": "7 days",
+    "clear": "Clear",
+    "loading": "Loading...",
+    "emptyTagged": "No tagged messages for \"{{tag}}\"",
+    "emptyHours": "No tagged messages in the past {{label}}",
+    "unreadBadge": "{{count}} unread",
+    "messageCountBadge": "{{count}} msg"
+  }
+}

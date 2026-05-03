@@ -4,7 +4,7 @@
 > **配對術語表**：[`docs/i18n-medical-glossary.md`](i18n-medical-glossary.md)
 > **負責人**：Chun + Claude
 > **啟動日**：2026-05-04
-> **總進度**：🟢 3.3 / 8 Waves（W0+W1+W2 完成、W3a 完成 2026-05-04；W3b+ 待開工）
+> **總進度**：🟢 3.4 / 8 Waves（W0+W1+W2+W3a 完成、W3b 完成 2026-05-04；W3c+ 待開工）
 
 ---
 
@@ -16,7 +16,7 @@
 | 1 | sidebar + common + errors + roles + notifications | 🟢 完成 | `feat/i18n-w0-w1` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 2 | login + change-password + dashboard | 🟢 完成 | `feat/i18n-w2` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 3a | 病人列表 + 出院列表 + 編輯/封存對話框 | 🟢 完成 | `feat/i18n-w3a` | 2026-05-04 | 🚀 personal+railway 已推 |
-| 3b | patient-detail.tsx 主頁 + 共用元件 | ⬜ 待開工 | — | — | — |
+| 3b | patient-detail.tsx 主頁 + 5 共用元件 | 🟢 完成 | `feat/i18n-w3b` | 2026-05-04 | 待 push |
 | 3c | medical-records + vital-signs + lab-data + trends | ⬜ 待開工 | — | — | — |
 | 3d-g | patient-detail 各 tab（summary / meds / labs / messages / chat） | ⬜ 待開工（5 個 sub-PR） | — | — | — |
 | 4 | team chat + ai chat | ⬜ 待開工 | — | — |
@@ -138,9 +138,34 @@
 - [x] TypeScript build 過 (`npm run typecheck`)
 - [ ] 手動瀏覽器驗證
 
-#### Wave 3b｜patient-detail.tsx 主頁 + 共用 patient 元件
-- 範圍：`patient-detail.tsx` + `patient-detail-header.tsx` + `patient-detail-state-guard.tsx` + `patient-activity-panel.tsx` + `confidence-badge.tsx` + `expert-review-warning.tsx`
-- namespace：`patient-detail.json`
+#### Wave 3b｜patient-detail.tsx 主頁 + 5 共用元件（🟢 完成 2026-05-04）
+
+**已完成檔案**：
+- 字典：`src/i18n/locales/{zh-TW,en-US}/patient-detail.json`（header / state / bundle / tabs / messages / session / snapshot / chat / degradedReason / freshnessHints / citation / labFields(30) / medCategories(16) / expertReview / confidence / activityPanel 共 16 個 sub-section、~150 keys）
+- 元件改寫：
+  - `src/pages/patient-detail.tsx`（**1802 行**，主頁面 + AI 對話 + 留言板協調 + 病人 header + 6 個 tab 觸發器）
+  - `src/components/patient/patient-detail-header.tsx`
+  - `src/components/patient/patient-detail-state-guard.tsx`
+  - `src/components/patient/expert-review-warning.tsx`
+  - `src/components/patient/confidence-badge.tsx`
+  - `src/components/patient/patient-activity-panel.tsx`
+- `src/i18n/config.ts`：註冊 `patient-detail` namespace
+
+**設計決策**：
+- module-scope helper 函式（`formatAiDegradedReason`、`getDisplayFreshnessHints`、`formatCitationPageText`、`formatDisplayTimestamp`）改用 `i18n.t()` 直接呼叫（非 hook 形式），透過閉包讀當前語言
+- `LAB_CHINESE_NAMES_MAP` 大字典移除，改成 `i18n.t('labFields.<key>')` 動態查詢
+- `MED_CATEGORY_LABELS` 在 patient-detail.tsx 是 dead code（patient-medications-tab.tsx 有自己的 copy），直接刪除
+- `formatTimestamp` 內 hardcoded `'zh-TW'` locale 改為 `i18n.language`
+- `useRoleLabel()` hook 在 patient-activity-panel.tsx 取代本地 ROLE_LABEL
+- gender 顯示用三元運算 + 跨 namespace `t('patients:create.gender.male', ...)`，避免重複定義
+
+**踩到的坑**：
+- patient-detail.tsx 1802 行，無法 Edit 全文重寫；改用 Python 批次 replace（47 個 toast/console + 26 個 JSX = 共 73 個 in-component 替換 + 8 個 module-scope）
+- `'JSON 離線模式'` / `'資料快照時間'` 是後端送來的 zh marker，故意保留不翻譯
+
+**驗收**：
+- [x] TypeScript build 過 (`npm run typecheck`)
+- [ ] 手動瀏覽器驗證
 
 #### Wave 3c｜病歷 + 生命徵象 + 檢驗
 - 範圍：`medical-records.tsx` / `vital-signs-card.tsx` / `lab-data-display.tsx` / `lab-trend-chart.tsx` / `score-trend-chart.tsx`

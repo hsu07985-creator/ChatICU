@@ -111,7 +111,61 @@
 | 永久刪除（admin） | Permanent delete (admin) | — | ⬜ | hard delete |
 | 對選取病人 AI 問答 | AI Chat about selected | — | ⬜ | |
 
-## Wave 3b+ 後續
+## Wave 3b — patient-detail 主頁 + 共用元件
+
+### 主頁與狀態
+| zh-TW | Claude 初譯 | 最終版 | 狀態 | 備註 |
+|-------|-------------|--------|------|------|
+| AI 臨床夥伴 | AI Clinical Partner | — | ⬜ | tab 名 |
+| 留言板 | Message Board | — | ⬜ | |
+| 病歷記錄 | Medical Records | — | ⬜ | |
+| 病歷摘要 | Summary | — | ⬜ | |
+| 病人快照 | Patient snapshot | — | ⬜ | F2 freshness pill |
+| 待確認 | Pending | — | ⬜ | 診斷 placeholder |
+
+### 檢驗欄位（labFields）
+| zh-TW | en-US 初譯 | 最終版 | 狀態 | 備註 |
+|-------|------------|--------|------|------|
+| 呼吸速率 | Respiratory Rate | — | ⬜ | 也可 RR |
+| 收縮壓 SBP / 舒張壓 DBP | SBP / DBP | — | ⬜ | 縮寫已通用 |
+| 血氧飽和度 | SpO2 | — | ⬜ | |
+| 呼氣末二氧化碳 | EtCO2 | — | ⬜ | |
+| 中心靜脈壓 / 顱內壓 | CVP / ICP | — | ⬜ | |
+| 吸入氧濃度 / 呼氣末正壓 / 潮氣量 | FiO2 / PEEP / Tidal Volume | — | ⬜ | 呼吸器設定 |
+| 尖峰吸氣壓 / 平台壓 / 肺順應性 | PIP / Plateau Pressure / Lung Compliance | — | ⬜ | |
+| 鈉 鉀 氯 血中尿素氮 肌酐酸 | Sodium Potassium Chloride BUN Creatinine | — | ⬜ | 生化 |
+| 白血球 血紅素 血小板 C反應蛋白 | WBC Hemoglobin Platelets CRP | — | ⬜ | 血液 + 發炎 |
+| 酸鹼值 二氧化碳分壓 氧分壓 乳酸 | pH PCO2 PO2 Lactate | — | ⬜ | ABG |
+
+### 用藥類別（medCategories）
+| zh-TW | en-US 初譯 | 最終版 | 狀態 | 備註 |
+|-------|------------|--------|------|------|
+| 抗生素 / 抗黴菌 / 抗病毒 | Antibiotic / Antifungal / Antiviral | — | ⬜ | |
+| 升壓劑 | Vasopressor | — | ⬜ | |
+| 抗凝血 / 類固醇 | Anticoagulant / Steroid | — | ⬜ | |
+| 利尿劑 / 胰島素 / 電解質 | Diuretic / Insulin / Electrolyte | — | ⬜ | |
+| 支氣管擴張 | Bronchodilator | — | ⬜ | |
+| 抗心律不整 / 抗癲癇 | Antiarrhythmic / Antiepileptic | — | ⬜ | |
+| 緩瀉劑 / 止吐 | Laxative / Antiemetic | — | ⬜ | |
+
+### 信心 / 專家審核
+| zh-TW | en-US 初譯 | 最終版 | 狀態 | 備註 |
+|-------|------------|--------|------|------|
+| 高信心 | High confidence | — | ⬜ | |
+| 中等信心 | Medium confidence | — | ⬜ | |
+| 低信心 — 建議諮詢專科 | Low confidence — consult a specialist | — | ⬜ | |
+| 此回答需要專家審核 — 建議由藥師或主治醫師確認後再採用 | This answer requires expert review — confirm with a pharmacist or attending physician before adopting | — | ⬜ | 完整句子 |
+
+### AI 降級理由 / 資料新鮮度
+| zh-TW | en-US 初譯 | 最終版 | 狀態 |
+|-------|------------|--------|------|
+| 目前可用證據有限 | Available evidence is limited | — | ⬜ |
+| 病患關鍵資料不足（已改為部分回覆） | Insufficient patient data (partial response only) | — | ⬜ |
+| LLM 服務不可用 | LLM service unavailable | — | ⬜ |
+| 目前缺少生命徵象資料，建議先補抓最新數值 | Vital signs are missing — please refresh the latest values first | — | ⬜ |
+| 生命徵象資料較舊 | Vital signs are stale | — | ⬜ |
+
+## Wave 3c+ 後續
 
 各 Wave 啟動時補進此表。建議優先校稿項目：
 - 藥品劑型用語（tab/cap/inj/syr）

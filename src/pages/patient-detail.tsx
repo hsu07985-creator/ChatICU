@@ -108,6 +108,8 @@ import {
 import { LabDataDisplay } from '../components/lab-data-display';
 import chatBotAvatar from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 import { getAirwayStatusLabel } from '../lib/patient-airway';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n/config';
 
 // 預設空的 labData 結構（用於 API 載入前）
 const defaultLabData: LabData = {
@@ -121,19 +123,7 @@ const defaultLabData: LabData = {
   inflammatory: {}
 };
 
-// 檢驗項目中文名稱對照
-const LAB_CHINESE_NAMES_MAP: Record<string, string> = {
-  RespiratoryRate: '呼吸速率', Temperature: '體溫',
-  BloodPressureSystolic: '收縮壓 SBP', BloodPressureDiastolic: '舒張壓 DBP',
-  HeartRate: '心率', SpO2: '血氧飽和度', EtCO2: '呼氣末二氧化碳',
-  CVP: '中心靜脈壓', ICP: '顱內壓', FiO2: '吸入氧濃度',
-  PEEP: '呼氣末正壓', TidalVolume: '潮氣量', VentRR: '呼吸器設定呼吸速率',
-  PIP: '尖峰吸氣壓', Plateau: '平台壓', Compliance: '肺順應性',
-  Na: '鈉', K: '鉀', Cl: '氯', BUN: '血中尿素氮', Scr: '肌酐酸',
-  WBC: '白血球', Hb: '血紅素', PLT: '血小板', CRP: 'C反應蛋白',
-  pH: '酸鹼值', PCO2: '二氧化碳分壓', PO2: '氧分壓', Lactate: '乳酸',
-  BodyWeight: '體重',
-};
+// 檢驗項目中文名稱對照已遷移到 patient-detail.json:labFields；改用 t('patient-detail:labFields.<key>')。
 
 // 擴展 Patient 類型以包含前端需要的額外欄位
 interface PatientWithFrontendFields extends Patient {
@@ -199,36 +189,13 @@ const EMPTY_MEDICATION_GROUPS: MedicationGroups = {
   outpatient: [],
 };
 
-const MED_CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
-  antibiotic: { label: '抗生素', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' },
-  antifungal: { label: '抗黴菌', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' },
-  antiviral: { label: '抗病毒', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' },
-  vasopressor: { label: '升壓劑', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' },
-  anticoagulant: { label: '抗凝血', color: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300' },
-  steroid: { label: '類固醇', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' },
-  ppi: { label: 'PPI', color: 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300' },
-  h2_blocker: { label: 'H2 Blocker', color: 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300' },
-  diuretic: { label: '利尿劑', color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300' },
-  insulin: { label: '胰島素', color: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300' },
-  electrolyte: { label: '電解質', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' },
-  bronchodilator: { label: '支氣管擴張', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' },
-  antiarrhythmic: { label: '抗心律不整', color: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300' },
-  antiepileptic: { label: '抗癲癇', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' },
-  laxative: { label: '緩瀉劑', color: 'bg-lime-100 text-lime-800 dark:bg-lime-900/30 dark:text-lime-300' },
-  antiemetic: { label: '止吐', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' },
-};
 
 function formatAiDegradedReason(reason?: string | null, upstreamStatus?: string | null): string {
-  if (reason === 'insufficient_evidence') {
-    return '目前可用證據有限';
-  }
-  if (reason === 'insufficient_patient_data') {
-    return '病患關鍵資料不足（已改為部分回覆）';
-  }
-  if (reason === 'llm_unavailable') {
-    return 'LLM 服務不可用';
-  }
-  return reason || upstreamStatus || 'unknown';
+  const tr = (k: string) => i18n.t(k, { ns: 'patient-detail' });
+  if (reason === 'insufficient_evidence') return tr('degradedReason.insufficientEvidence');
+  if (reason === 'insufficient_patient_data') return tr('degradedReason.insufficientPatientData');
+  if (reason === 'llm_unavailable') return tr('degradedReason.llmUnavailable');
+  return reason || upstreamStatus || tr('degradedReason.unknown');
 }
 
 function getDisplayFreshnessHints(dataFreshness?: DataFreshness | null): string[] {
@@ -247,21 +214,22 @@ function getDisplayFreshnessHints(dataFreshness?: DataFreshness | null): string[
     hints.push(text);
   };
 
+  const tr = (k: string) => i18n.t(k, { ns: 'patient-detail' });
   const sections = dataFreshness.sections || ({} as DataFreshness['sections']);
   if (sections.vital_signs?.status === 'missing') {
-    pushHint('目前缺少生命徵象資料，建議先補抓最新數值。');
+    pushHint(tr('freshnessHints.vitalsMissing'));
   } else if (sections.vital_signs?.status === 'stale') {
-    pushHint('生命徵象資料較舊，解讀時請先確認最新量測。');
+    pushHint(tr('freshnessHints.vitalsStale'));
   }
 
   if (sections.lab_data?.status === 'missing') {
-    pushHint('目前缺少檢驗資料。');
+    pushHint(tr('freshnessHints.labMissing'));
   } else if (sections.lab_data?.status === 'stale') {
-    pushHint('檢驗資料較舊，請留意時效性。');
+    pushHint(tr('freshnessHints.labStale'));
   }
 
   if (sections.medications?.status === 'missing') {
-    pushHint('目前缺少用藥資料。');
+    pushHint(tr('freshnessHints.medsMissing'));
   }
 
   if (hints.length > 0) {
@@ -283,20 +251,21 @@ function getDisplayFreshnessHints(dataFreshness?: DataFreshness | null): string[
 }
 
 function formatCitationPageText(citation: AiCitation): string {
+  const tr = (k: string, opts?: Record<string, unknown>) => i18n.t(k, { ns: 'patient-detail', ...(opts ?? {}) }) as string;
   const pages = Array.isArray(citation.pages)
     ? citation.pages.filter((p): p is number => Number.isFinite(Number(p))).map((p) => Number(p))
     : [];
   if (pages.length > 1) {
     const uniq = Array.from(new Set(pages)).sort((a, b) => a - b);
-    return `第 ${uniq.join('、')} 頁`;
+    return tr('citation.pages', { pages: uniq.join('、') });
   }
   if (typeof citation.page === 'number') {
-    return `第 ${citation.page} 頁`;
+    return tr('citation.page', { page: citation.page });
   }
   if (pages.length === 1) {
-    return `第 ${pages[0]} 頁`;
+    return tr('citation.page', { page: pages[0] });
   }
-  return '頁碼待補';
+  return tr('citation.pageMissing');
 }
 
 function compactSnippet(snippet?: string): string {
@@ -367,7 +336,7 @@ function formatDisplayTimestamp(timestamp?: string | null): string {
   if (!timestamp) return '-';
   const parsed = new Date(timestamp);
   if (Number.isNaN(parsed.getTime())) return '-';
-  return parsed.toLocaleString('zh-TW');
+  return parsed.toLocaleString(i18n.language);
 }
 
 
@@ -427,6 +396,7 @@ export function PatientDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useTranslation('patient-detail');
   const [activeTab, setActiveTab] = useState('chat');
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -472,9 +442,9 @@ export function PatientDetailPage() {
       await refreshSharedPatientDataAfterMutation();
       setPatient(updated as PatientWithFrontendFields);
       setEditingPatient(null);
-      toast.success('病人資料已更新');
+      toast.success(t('header.saveSuccess'));
     } catch {
-      toast.error('更新失敗，請稍後再試');
+      toast.error(t('header.saveError'));
     } finally {
       setSavingPatient(false);
     }
@@ -583,14 +553,14 @@ export function PatientDetailPage() {
       setVentilator(bundle.latestVentilator);
 
       if (mode === 'refresh') {
-        toast.success('已更新患者數值');
+        toast.success(t('bundle.refreshSuccess'));
       }
     } catch (err) {
-      console.error('載入病人資料失敗:', err);
+      console.error(`${t('state.loadErrorLog')}:`, err);
       if (mode === 'initial') {
-        setPatientError('無法載入病人資料');
+        setPatientError(t('state.loadFailedMessage'));
       } else {
-        toast.error('更新患者數值失敗，請確認網路與後端服務狀態');
+        toast.error(t('bundle.refreshError'));
       }
     } finally {
       if (mode === 'initial') {
@@ -613,8 +583,8 @@ export function PatientDetailPage() {
       setMessages(res.messages);
       setMessagesLoaded(true);
     } catch (err) {
-      console.error('重新載入留言失敗:', err);
-      toast.error('重新載入留言失敗');
+      console.error(`${t('messages.reloadErrorLog')}:`, err);
+      toast.error(t('messages.reloadError'));
     } finally {
       setMessagesLoading(false);
     }
@@ -764,10 +734,10 @@ export function PatientDetailPage() {
         setMessages(prev => [newMessage, ...prev]);
       }
       setMessageInput('');
-      toast.success('留言發送成功');
+      toast.success(t('messages.sendSuccess'));
     } catch (err) {
-      console.error('發送留言失敗:', err);
-      toast.error('發送留言失敗');
+      console.error(`${t('messages.sendErrorLog')}:`, err);
+      toast.error(t('messages.sendError'));
     }
   }, [messageInput, id, refreshMessagesOnly]);
 
@@ -775,7 +745,7 @@ export function PatientDetailPage() {
   const handleSendMedicationAdvice = useCallback(async (replyToId?: string, tags?: string[], mentionedRoles?: string[], mentionedUserIds?: string[]) => {
     if (!messageInput.trim() || !id) return;
     if (user?.role !== 'pharmacist') {
-      toast.error('只有藥師可以發送用藥建議');
+      toast.error(t('messages.adviceOnlyPharmacist'));
       return;
     }
     try {
@@ -793,10 +763,10 @@ export function PatientDetailPage() {
         setMessages(prev => [newMessage, ...prev]);
       }
       setMessageInput('');
-      toast.success('用藥建議發送成功');
+      toast.success(t('messages.adviceSendSuccess'));
     } catch (err) {
-      console.error('發送用藥建議失敗:', err);
-      toast.error('發送用藥建議失敗');
+      console.error(`${t('messages.adviceSendErrorLog')}:`, err);
+      toast.error(t('messages.adviceSendError'));
     }
   }, [messageInput, id, user?.role, refreshMessagesOnly]);
 
@@ -806,10 +776,10 @@ export function PatientDetailPage() {
     try {
       await messagesApi.updateMessageTags(id, messageId, data);
       await refreshMessagesOnly();
-      toast.success('標籤已更新');
+      toast.success(t('messages.tagsUpdated'));
     } catch (err) {
-      console.error('更新標籤失敗:', err);
-      toast.error('更新標籤失敗');
+      console.error(`${t('messages.tagsUpdateErrorLog')}:`, err);
+      toast.error(t('messages.tagsUpdateError'));
     }
   }, [id, refreshMessagesOnly]);
 
@@ -817,14 +787,14 @@ export function PatientDetailPage() {
   const handleRespondToAdvice = useCallback(async (adviceRecordId: string, accepted: boolean) => {
     try {
       await respondToAdvice(adviceRecordId, { accepted });
-      toast.success(accepted ? '已接受藥事建議' : '已拒絕藥事建議');
+      toast.success(accepted ? t('messages.adviceAccepted') : t('messages.adviceRejected'));
       await refreshMessagesOnly();
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
       if (status === 409) {
-        toast.error('此建議已有回覆，無法重複操作');
+        toast.error(t('messages.adviceAlreadyResponded'));
       } else {
-        toast.error('回覆藥事建議失敗');
+        toast.error(t('messages.adviceRespondError'));
       }
     }
   }, [refreshMessagesOnly]);
@@ -834,11 +804,11 @@ export function PatientDetailPage() {
     if (!id) return;
     try {
       await messagesApi.markMessageRead(id, messageId);
-      toast.success('已標記為已讀');
+      toast.success(t('messages.markedAsRead'));
       await refreshMessagesOnly();
     } catch (err) {
-      console.error('標記已讀失敗:', err);
-      toast.error('標記已讀失敗');
+      console.error(`${t('messages.markReadErrorLog')}:`, err);
+      toast.error(t('messages.markReadError'));
     }
   }, [id, refreshMessagesOnly]);
 
@@ -847,11 +817,11 @@ export function PatientDetailPage() {
     if (!id) return;
     try {
       await messagesApi.deletePatientMessage(id, messageId);
-      toast.success('留言已刪除');
+      toast.success(t('messages.messageDeleted'));
       await refreshMessagesOnly();
     } catch (err) {
-      console.error('刪除留言失敗:', err);
-      toast.error('刪除留言失敗');
+      console.error(`${t('messages.messageDeleteErrorLog')}:`, err);
+      toast.error(t('messages.messageDeleteError'));
     }
   }, [id, refreshMessagesOnly]);
 
@@ -862,11 +832,11 @@ export function PatientDetailPage() {
     if (unread.length === 0) return;
     try {
       await Promise.all(unread.map(m => messagesApi.markMessageRead(id, m.id).catch(() => null)));
-      toast.success(`已標記 ${unread.length} 則留言為已讀`);
+      toast.success(t('messages.markAllReadSuccess', { count: unread.length }));
       await refreshMessagesOnly();
     } catch (err) {
-      console.error('全部標為已讀失敗:', err);
-      toast.error('全部標為已讀失敗');
+      console.error(`${t('messages.markAllReadErrorLog')}:`, err);
+      toast.error(t('messages.markAllReadError'));
     }
   }, [id, messages, refreshMessagesOnly]);
 
@@ -874,7 +844,7 @@ export function PatientDetailPage() {
   const formatTimestamp = (timestamp: string) => {
     try {
       const date = new Date(timestamp);
-      return date.toLocaleString('zh-TW', {
+      return date.toLocaleString(i18n.language, {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -890,7 +860,7 @@ export function PatientDetailPage() {
   if (patientLoading) {
     return (
       <div className="min-h-[400px] flex flex-col items-center justify-center p-6">
-        <LoadingSpinner size="lg" text="載入病人資料中..." />
+        <LoadingSpinner size="lg" text={t('state.loadingPatient')} />
       </div>
     );
   }
@@ -901,14 +871,14 @@ export function PatientDetailPage() {
       <div className="p-6">
         <ErrorDisplay
           type="server"
-          title="載入失敗"
+          title={t('state.loadFailedTitle')}
           message={patientError}
           onRetry={() => window.location.reload()}
         />
         <div className="flex justify-center mt-4">
           <Button onClick={() => navigate('/patients')} variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            返回住院病人
+            {t('header.backToList')}
           </Button>
         </div>
       </div>
@@ -921,13 +891,13 @@ export function PatientDetailPage() {
       <div className="p-6">
         <ErrorDisplay
           type="notFound"
-          title="找不到病患"
-          message="您所查詢的病患資料不存在或已被刪除"
+          title={t('state.notFoundTitle')}
+          message={t('state.notFoundMessage')}
         />
         <div className="flex justify-center mt-4">
           <Button onClick={() => navigate('/patients')} variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            返回住院病人
+            {t('header.backToList')}
           </Button>
         </div>
       </div>
@@ -942,11 +912,11 @@ export function PatientDetailPage() {
   const aiChatGateReason = '';
   const unreadMessageCount = messages.filter(m => !m.isRead).length;
   const showUnreadBadge = unreadMessageCount > 0 || (messages.length === 0 && !!patient.hasUnreadMessages);
-  const unreadBadgeLabel = messages.length > 0 ? String(unreadMessageCount) : '新';
+  const unreadBadgeLabel = messages.length > 0 ? String(unreadMessageCount) : t('tabs.newBadge');
 
   const handleDeleteSession = async (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
-    if (!confirm('確定要刪除此對話記錄嗎？')) return;
+    if (!confirm(t('session.deleteConfirm'))) return;
     setDeletingSessionId(sessionId);
     try {
       await deleteChatSession(sessionId);
@@ -956,9 +926,9 @@ export function PatientDetailPage() {
         setSessionTitle('');
       }
       await refreshChatSessions();
-      toast.success('對話記錄已刪除');
+      toast.success(t('session.deleteSuccess'));
     } catch {
-      toast.error('刪除對話記錄失敗');
+      toast.error(t('session.deleteError'));
     } finally {
       setDeletingSessionId(null);
     }
@@ -966,7 +936,7 @@ export function PatientDetailPage() {
 
   const handleBatchDelete = async () => {
     if (selectedSessionIds.length === 0) return;
-    if (!confirm(`確定要刪除所選的 ${selectedSessionIds.length} 筆對話記錄嗎？`)) return;
+    if (!confirm(t('session.batchDeleteConfirm', { count: selectedSessionIds.length }))) return;
     setIsDeletingSessions(true);
     try {
       const ids = [...selectedSessionIds];
@@ -979,9 +949,9 @@ export function PatientDetailPage() {
       setSelectedSessionIds([]);
       setIsSelectMode(false);
       await refreshChatSessions();
-      toast.success(`已刪除 ${ids.length} 筆對話記錄`);
+      toast.success(t('session.batchDeleteSuccess', { count: ids.length }));
     } catch {
-      toast.error('部分對話記錄刪除失敗');
+      toast.error(t('session.batchDeleteError'));
     } finally {
       setIsDeletingSessions(false);
     }
@@ -1070,7 +1040,7 @@ export function PatientDetailPage() {
       // so the freshness pill renders here too.
       setSnapshotTakenAt(detail.session?.snapshotTakenAt ?? null);
     } catch {
-      toast.error('載入對話內容失敗');
+      toast.error(t('session.loadDetailError'));
       setChatMessages([]);
     }
   };
@@ -1081,16 +1051,16 @@ export function PatientDetailPage() {
   const handleRefreshSnapshot = async () => {
     if (!selectedSession) return;
     if (isSending) {
-      toast.error('請先按停止才能重新整理快照');
+      toast.error(t('snapshot.stopFirst'));
       return;
     }
     setRefreshingSnapshot(true);
     try {
       const result = await refreshChatSessionSnapshot(selectedSession.id);
       setSnapshotTakenAt(result.snapshotTakenAt);
-      toast.success('已重新整理病患快照');
+      toast.success(t('snapshot.refreshSuccess'));
     } catch (error) {
-      const msg = error instanceof Error ? error.message : '重新整理快照失敗';
+      const msg = error instanceof Error ? error.message : t('snapshot.refreshError');
       toast.error(msg);
     } finally {
       setRefreshingSnapshot(false);
@@ -1267,18 +1237,18 @@ export function PatientDetailPage() {
       if (optimisticSessionId) {
         setChatSessions(prev => prev.filter(s => s.id !== optimisticSessionId));
       }
-      console.error('AI 回覆失敗:', err);
-      let errorMessage = 'AI 助手目前無法回應，請確認後端服務是否正常運行，稍後再試。';
+      console.error(`${t('chat.aiFailedLog')}:`, err);
+      let errorMessage = t('chat.aiFallback');
       if (isAxiosError(err)) {
         const data = err.response?.data as { message?: unknown; detail?: unknown } | undefined;
         const detail = (data?.message ?? data?.detail);
         if (typeof detail === 'string' && detail.trim()) {
-          errorMessage = `AI 服務暫時不可用：${detail}`;
+          errorMessage = t('chat.aiUnavailable', { detail });
         } else if (err.response) {
-          errorMessage = `AI 服務錯誤（HTTP ${err.response.status}）`;
+          errorMessage = t('chat.aiHttpError', { status: err.response.status });
         }
       } else if (err instanceof Error && err.message) {
-        errorMessage = `AI 回覆失敗：${err.message}`;
+        errorMessage = t('chat.aiGenericError', { message: err.message });
       }
       setChatMessages([
         ...messagesWithUser,
@@ -1312,7 +1282,7 @@ export function PatientDetailPage() {
         next[msgIndex] = { ...next[msgIndex], feedback: msg.feedback };
         return next;
       });
-      toast.error('回饋儲存失敗');
+      toast.error(t('chat.feedbackError'));
     } finally {
       setFeedbackingMessageIndex(null);
     }
@@ -1413,7 +1383,7 @@ export function PatientDetailPage() {
     } catch {
       setChatMessages([
         ...messagesBeforeAssistant,
-        { role: 'assistant', content: '重新生成失敗，請稍後再試。' },
+        { role: 'assistant', content: t('chat.regenerateError') },
       ]);
     } finally {
       setIsSending(false);
@@ -1457,7 +1427,7 @@ export function PatientDetailPage() {
   const handleVitalSignClick = (labName: string, value: number, unit: string, source: TrendSource = 'vital') => {
     setSelectedTrendMetric({
       name: labName,
-      nameChinese: LAB_CHINESE_NAMES_MAP[labName] || labName,
+      nameChinese: i18n.t(`labFields.${labName}`, { ns: 'patient-detail', defaultValue: labName }),
       unit,
       value,
       source,
@@ -1471,7 +1441,7 @@ export function PatientDetailPage() {
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/patients')} className="hover:bg-slate-50 dark:hover:bg-slate-800" title="返回住院病人">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/patients')} className="hover:bg-slate-50 dark:hover:bg-slate-800" title={t('header.backToList')}>
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div className="flex items-center gap-4">
@@ -1482,7 +1452,7 @@ export function PatientDetailPage() {
                   <div className="flex items-center gap-3">
                     <h1 className="text-3xl font-bold text-[#3c7acb]">{maskPatientName(patient.name)}</h1>
                     <span className="text-base text-slate-500 dark:text-slate-400">
-                      {patient.age}歲 / {patient.gender === 'M' || patient.gender === '男' ? '男' : '女'}
+                      {t('header.ageGender', { age: patient.age, gender: patient.gender === 'M' || patient.gender === '男' ? t('patients:create.gender.male', { defaultValue: '男' }) : t('patients:create.gender.female', { defaultValue: '女' }) })}
                     </span>
                     {patient.bloodType && (
                       <Badge variant="outline" className="border-red-200 text-red-700 font-semibold dark:border-red-700 dark:text-red-300">
@@ -1492,17 +1462,17 @@ export function PatientDetailPage() {
                   </div>
                   <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground flex-wrap">
                     {patient.medicalRecordNumber && (
-                      <span className="text-slate-500 dark:text-slate-400">病歷號 {patient.medicalRecordNumber}</span>
+                      <span className="text-slate-500 dark:text-slate-400">{t('header.mrnPrefix', { mrn: patient.medicalRecordNumber })}</span>
                     )}
                     {patient.department && (
                       <span className="text-slate-500 dark:text-slate-400">{patient.department}</span>
                     )}
                     {patient.attendingPhysician && (
-                      <span className="text-slate-500 dark:text-slate-400">主治：{patient.attendingPhysician}</span>
+                      <span className="text-slate-500 dark:text-slate-400">{t('header.physicianPrefix', { physician: patient.attendingPhysician })}</span>
                     )}
                     <span className="flex items-center gap-1 bg-white dark:bg-slate-800 px-3 py-1 rounded-full">
                       <Clock className="h-3.5 w-3.5" />
-                      住院 {daysAdmitted} 天
+                      {t('header.stayDays', { days: daysAdmitted })}
                     </span>
                   </div>
                 </div>
@@ -1522,11 +1492,11 @@ export function PatientDetailPage() {
               )}
               {patient.isIsolated && (
                 <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100/90 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700">
-                  隔離中
+                  {t('header.isolating')}
                 </Badge>
               )}
               {user?.role === 'admin' && (
-                <Button className="bg-brand hover:bg-brand-hover" onClick={() => setEditingPatient({ ...patient })}>編輯基本資料</Button>
+                <Button className="bg-brand hover:bg-brand-hover" onClick={() => setEditingPatient({ ...patient })}>{t('header.editButton')}</Button>
               )}
             </div>
           </div>
@@ -1536,7 +1506,7 @@ export function PatientDetailPage() {
               {patient.allergies && patient.allergies.length > 0 && (
                 <div className="flex items-center gap-2 flex-wrap px-2 py-1.5 rounded-md bg-red-50 border border-red-200 dark:bg-red-900/30 dark:border-red-800">
                   <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
-                  <span className="text-xs font-semibold text-red-700 dark:text-red-300">過敏：</span>
+                  <span className="text-xs font-semibold text-red-700 dark:text-red-300">{t('header.allergiesLabel')}</span>
                   {patient.allergies.map((allergy: string, idx: number) => (
                     <Badge key={idx} variant="outline" className="border-red-300 bg-red-100 text-red-800 text-xs font-semibold dark:bg-red-900/50 dark:text-red-200 dark:border-red-700">
                       {allergy}
@@ -1544,9 +1514,9 @@ export function PatientDetailPage() {
                   ))}
                 </div>
               )}
-              {patient.diagnosis && patient.diagnosis !== '待確認' && (
+              {patient.diagnosis && patient.diagnosis !== t('header.diagnosisPending', { defaultValue: '待確認' }) && (
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">診斷：</span>{patient.diagnosis}
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">{t('header.diagnosisLabel')}</span>{patient.diagnosis}
                 </p>
               )}
               {patient.alerts && patient.alerts.length > 0 && (
@@ -1569,11 +1539,11 @@ export function PatientDetailPage() {
         <TabsList className="grid w-full grid-cols-6 h-[44px] bg-slate-50 dark:bg-slate-800 border border-border gap-0.5 p-0.5">
           <TabsTrigger value="chat" className="text-xs font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
             <MessageSquare className="mr-1.5 h-4 w-4" />
-            AI 臨床夥伴
+            {t('tabs.chat')}
           </TabsTrigger>
           <TabsTrigger value="messages" className="text-xs font-medium data-[state=active]:bg-brand data-[state=active]:text-white relative rounded-md">
             <MessagesSquare className="mr-1.5 h-4 w-4" />
-            留言板
+            {t('tabs.messages')}
             {showUnreadBadge && (
               <Badge className="ml-2 bg-[#ff3975] text-white px-2 py-0.5 text-xs">
                 {unreadBadgeLabel}
@@ -1582,19 +1552,19 @@ export function PatientDetailPage() {
           </TabsTrigger>
           <TabsTrigger value="records" className="text-xs font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
             <FileText className="mr-1.5 h-4 w-4" />
-            病歷記錄
+            {t('tabs.records')}
           </TabsTrigger>
           <TabsTrigger value="labs" className="text-xs font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
             <TestTube className="mr-1.5 h-4 w-4" />
-            檢驗數據
+            {t('tabs.labs')}
           </TabsTrigger>
           <TabsTrigger value="meds" className="text-xs font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
             <Pill className="mr-1.5 h-4 w-4" />
-            用藥
+            {t('tabs.meds')}
           </TabsTrigger>
           <TabsTrigger value="summary" className="text-xs font-medium data-[state=active]:bg-brand data-[state=active]:text-white rounded-md">
             <FileText className="mr-1.5 h-4 w-4" />
-            病歷摘要
+            {t('tabs.summary')}
           </TabsTrigger>
         </TabsList>
 
@@ -1652,7 +1622,7 @@ export function PatientDetailPage() {
 
         {/* 留言板 — Phase 3.4: lazy-loaded, only mount when active to avoid Suspense flash. */}
         {activeTab === 'messages' && (
-          <Suspense fallback={<TabsContent value="messages" className="py-12"><LoadingSpinner size="lg" text="載入中..." /></TabsContent>}>
+          <Suspense fallback={<TabsContent value="messages" className="py-12"><LoadingSpinner size="lg" text={t('tabs.loading')} /></TabsContent>}>
             <PatientMessagesTab
               patientId={id}
               userId={user?.id}
@@ -1680,7 +1650,7 @@ export function PatientDetailPage() {
 
         {/* 病歷記錄 — Phase 3.4: lazy-loaded; Suspense sits inside TabsContent so fallback only fires on activation. */}
         <TabsContent value="records" className="space-y-4">
-          <Suspense fallback={<LoadingSpinner size="lg" text="載入中..." className="py-12" />}>
+          <Suspense fallback={<LoadingSpinner size="lg" text={t('tabs.loading')} className="py-12" />}>
             <MedicalRecords
               patientId={patient.id}
               patientName={maskPatientName(patient.name)}
@@ -1693,7 +1663,7 @@ export function PatientDetailPage() {
         {/* 檢驗數據 */}
         {/* 檢驗 + 微生物 — Phase 3.4: lazy-loaded, only mount when active. */}
         {activeTab === 'labs' && (
-          <Suspense fallback={<TabsContent value="labs" className="py-12"><LoadingSpinner size="lg" text="載入中..." /></TabsContent>}>
+          <Suspense fallback={<TabsContent value="labs" className="py-12"><LoadingSpinner size="lg" text={t('tabs.loading')} /></TabsContent>}>
             <PatientLabsTab
               patientId={patient.id}
               patientIntubated={!!patient.intubated}
@@ -1733,7 +1703,7 @@ export function PatientDetailPage() {
 
         {/* 用藥 — Phase 3.4: lazy-loaded, only mount when active. */}
         {activeTab === 'meds' && (
-          <Suspense fallback={<TabsContent value="meds" className="py-12"><LoadingSpinner size="lg" text="載入中..." /></TabsContent>}>
+          <Suspense fallback={<TabsContent value="meds" className="py-12"><LoadingSpinner size="lg" text={t('tabs.loading')} /></TabsContent>}>
             <PatientMedicationsTab
               patientId={id}
               userRole={user?.role}
@@ -1765,7 +1735,7 @@ export function PatientDetailPage() {
 
         {/* 病歷摘要 — Phase 3.4: lazy-loaded; Suspense sits inside TabsContent so fallback only fires on activation. */}
         <TabsContent value="summary" className="space-y-4">
-          <Suspense fallback={<LoadingSpinner size="lg" text="載入中..." className="py-12" />}>
+          <Suspense fallback={<LoadingSpinner size="lg" text={t('tabs.loading')} className="py-12" />}>
             <PatientSummaryTab
               patient={patient}
               userRole={user?.role}
