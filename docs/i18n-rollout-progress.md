@@ -10,11 +10,11 @@
 
 ## 進度總覽
 
-| Wave | 主題 | 狀態 | PR / Branch | 完成日 |
-|------|------|------|-------------|--------|
-| 0 | 基建 + 切換按鈕 | 🟢 完成 | `feat/i18n-w0-w1` | 2026-05-04 |
-| 1 | sidebar + common + errors + roles + notifications | 🟢 完成 | `feat/i18n-w0-w1` | 2026-05-04 |
-| 2 | login + change-password + dashboard | 🟢 完成 | `feat/i18n-w2` | 2026-05-04 |
+| Wave | 主題 | 狀態 | PR / Branch | 完成日 | 部署 |
+|------|------|------|-------------|--------|------|
+| 0 | 基建 + 切換按鈕 | 🟢 完成 | `feat/i18n-w0-w1` | 2026-05-04 | 🚀 personal+railway 已推 |
+| 1 | sidebar + common + errors + roles + notifications | 🟢 完成 | `feat/i18n-w0-w1` | 2026-05-04 | 🚀 personal+railway 已推 |
+| 2 | login + change-password + dashboard | 🟢 完成 | `feat/i18n-w2` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 3 | 病人模組（patients / discharged / detail / medical records） | ⬜ 待開工 | — | — |
 | 4 | team chat + ai chat | ⬜ 待開工 | — | — |
 | 5 | 藥事 7 頁（workstation + 6 工具） | ⬜ 待開工 | — | — |
@@ -143,6 +143,8 @@
 | 2026-05-04 | W0+W1 落地 | 基建 + 5 個 namespace + sidebar/notification/error/role 元件遷移完成；typecheck 通過 |
 | 2026-05-04 | namespace 擴充 | 原計畫 4 個 namespace（common/sidebar/errors/roles），W1 額外加 `notifications`（隔離 bell 字串） |
 | 2026-05-04 | W2 落地 | auth + dashboard 兩 namespace 上線；patient-duplicate-badge 共用元件納入 dashboard namespace（Wave 5 pharmacy 沿用同 key） |
+| 2026-05-04 | pre-commit hook 修補 | detect-secrets 把 `passwordLabel` 等 i18n 字串誤判為 secret；加入 `src/i18n/locales/.*` 到 exclude pattern 解決 |
+| 2026-05-04 | W0+W1+W2 部署 | `git push personal main` + `git push railway main` 兩邊都通（personal 推 1 commit、railway 推 6 commit）；待部署完成後驗證 health + bundle |
 
 ---
 
