@@ -11,7 +11,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
   SidebarHeader,
   SidebarFooter,
   useSidebar
@@ -115,8 +114,8 @@ export function AppSidebar() {
   ] : [];
 
   const renderMenuGroup = (label: string, items: MenuItem[]) => (
-    <SidebarGroup>
-      <SidebarGroupLabel>{label}</SidebarGroupLabel>
+    <SidebarGroup className="py-1">
+      <SidebarGroupLabel className="h-6">{label}</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => (
@@ -180,33 +179,23 @@ export function AppSidebar() {
         </button>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="gap-0.5">
         {/* 1) 病人照護 */}
         {renderMenuGroup('病人照護', patientCareItems)}
 
         {/* 2) 藥事評估 */}
-        {pharmacyAssessmentItems.length > 0 && (
-          <>
-            <SidebarSeparator />
-            {renderMenuGroup('藥事評估', pharmacyAssessmentItems)}
-          </>
-        )}
+        {pharmacyAssessmentItems.length > 0 &&
+          renderMenuGroup('藥事評估', pharmacyAssessmentItems)}
 
         {/* 3) 藥事工具 */}
-        {pharmacyToolItems.length > 0 && (
-          renderMenuGroup('藥事工具', pharmacyToolItems)
-        )}
+        {pharmacyToolItems.length > 0 &&
+          renderMenuGroup('藥事工具', pharmacyToolItems)}
 
         {/* 4) 溝通 */}
         {renderMenuGroup('溝通', communicationItems)}
 
         {/* 5) 系統管理 */}
-        {adminItems.length > 0 && (
-          <>
-            <SidebarSeparator />
-            {renderMenuGroup('系統管理', adminItems)}
-          </>
-        )}
+        {adminItems.length > 0 && renderMenuGroup('系統管理', adminItems)}
       </SidebarContent>
 
       <SidebarFooter className="p-2 border-t">
