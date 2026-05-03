@@ -25,6 +25,7 @@ import {
   subscribePatientsCache,
 } from '../../lib/patients-cache';
 import { maskPatientName } from '../../lib/utils/patient-name';
+import { useTranslation } from 'react-i18next';
 
 const MIN_DRUGS = 2;
 const MAX_DRUGS = 30;
@@ -73,6 +74,7 @@ function toDrugLabel(m: Medication): string {
 }
 
 export function MedicationDuplicatesPage() {
+  const { t } = useTranslation('pharmacy');
   // ── Patient selector (shared — picking a patient auto-loads their meds) ──
   const [patients, setPatients] = useState<Patient[]>(getCachedPatientsSync() ?? []);
   const [patientsLoading, setPatientsLoading] = useState(!getCachedPatientsSync());
@@ -170,7 +172,7 @@ export function MedicationDuplicatesPage() {
 
   const addDrug = () => {
     if (drugs.length >= MAX_DRUGS) {
-      toast.error(`最多 ${MAX_DRUGS} 個藥品`);
+      toast.error(t('duplicates.errors.tooManyDrugs', { max: MAX_DRUGS }));
       return;
     }
     setDrugs((prev) => [...prev, '']);
@@ -183,7 +185,7 @@ export function MedicationDuplicatesPage() {
   const runManualCheck = async () => {
     const clean = drugs.map((d) => d.trim()).filter(Boolean);
     if (clean.length < MIN_DRUGS) {
-      toast.error(`請輸入至少 ${MIN_DRUGS} 個藥品`);
+      toast.error(t('duplicates.errors.tooFewDrugs', { min: MIN_DRUGS }));
       return;
     }
     setManualLoading(true);
@@ -194,7 +196,7 @@ export function MedicationDuplicatesPage() {
       setManualCounts(res.counts);
       setManualResolved(res.resolved);
     } catch (e) {
-      toast.error('重複用藥偵測失敗，請稍後再試');
+      toast.error(t('duplicates.errors.checkFailed'));
       setManualAlerts([]);
       setManualCounts({});
       setManualResolved([]);
@@ -220,7 +222,7 @@ export function MedicationDuplicatesPage() {
   // ── Render helpers ──────────────────────────────────────────────────
   const countsBar = (counts: Record<string, number>, total: number) => (
     <div className="flex flex-wrap items-center gap-3 text-sm">
-      <span className="font-medium text-muted-foreground">風險分佈：</span>
+      <span className="font-medium text-muted-foreground">{t('duplicates.countsBar.label')}</span>
       <span className="inline-flex items-center gap-1 text-red-700 dark:text-red-400">🔴 Critical {counts.critical ?? 0}</span>
       <span className="inline-flex items-center gap-1 text-orange-700 dark:text-orange-400">🟠 High {counts.high ?? 0}</span>
       <span className="inline-flex items-center gap-1 text-yellow-700 dark:text-yellow-500">🟡 Moderate {counts.moderate ?? 0}</span>
@@ -230,16 +232,16 @@ export function MedicationDuplicatesPage() {
       {(counts.info ?? 0) > 0 && (
         <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-400">⚪ Info {counts.info}</span>
       )}
-      <span className="ml-auto text-xs text-muted-foreground">共 {total} 筆</span>
+      <span className="ml-auto text-xs text-muted-foreground">{t('duplicates.countsBar.totalSuffix', { count: total })}</span>
     </div>
   );
 
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">重複用藥偵測</h1>
+        <h1 className="text-2xl font-bold">{t('duplicates.header.title')}</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          依病人目前住院用藥清單、或手動輸入藥品清單，偵測同機轉 / 同類藥物 / 同給藥途徑的重複項目
+          {t('duplicates.header.subtitle')}
         </p>
       </div>
 
@@ -249,12 +251,12 @@ export function MedicationDuplicatesPage() {
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium w-16 shrink-0">
               <User className="inline h-3.5 w-3.5 mr-1" />
-              病患
+              {t('duplicates.patientPicker.label')}
             </label>
             <div className="flex-1">
               <Select value={selectedPatientId} onValueChange={handlePatientSelect} disabled={patientsLoading}>
                 <SelectTrigger className="h-9">
-                  <SelectValue placeholder={patientsLoading ? '載入中...' : '選擇病患（可留空，走手動模式）'} />
+                  <SelectValue placeholder={patientsLoading ? t('duplicates.patientPicker.placeholderLoading') : t('duplicates.patientPicker.placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {patients.map((p) => (
@@ -271,7 +273,7 @@ export function MedicationDuplicatesPage() {
                 size="icon"
                 className="shrink-0 h-9 w-9 text-muted-foreground hover:text-destructive"
                 onClick={resetAll}
-                aria-label="清除選擇"
+                aria-label={t('duplicates.patientPicker.clear')}
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -286,13 +288,13 @@ export function MedicationDuplicatesPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Copy className="h-5 w-5" />
-              病人用藥重複偵測
+              {t('duplicates.patientResult.title')}
             </CardTitle>
             <CardDescription>
-              納入病人目前住院用藥 + 門診中的自備藥 / 院外藥，執行 L1 / L2 / L3 / L4 重複用藥偵測
+              {t('duplicates.patientResult.description')}
               {skippedMeds.length > 0 && (
                 <span className="ml-2 text-xs text-muted-foreground">
-                  （已排除 {skippedMeds.length} 筆門診常規處方）
+                  {t('duplicates.patientResult.skippedNote', { count: skippedMeds.length })}
                 </span>
               )}
             </CardDescription>
@@ -301,27 +303,27 @@ export function MedicationDuplicatesPage() {
             {patientLoading ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                載入中...
+                {t('duplicates.patientResult.loading')}
               </div>
             ) : patientError ? (
               <Alert className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30">
                 <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
                 <AlertDescription className="text-sm text-red-800 dark:text-red-200">
-                  重複用藥服務暫時無法使用，請稍後再試。
+                  {t('duplicates.patientResult.errorMessage')}
                 </AlertDescription>
               </Alert>
             ) : !patientSearched ? (
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="text-sm">
-                  納入範圍內的用藥不足 {MIN_DRUGS} 種，無法執行重複用藥偵測。
+                  {t('duplicates.patientResult.tooFew', { min: MIN_DRUGS })}
                 </AlertDescription>
               </Alert>
             ) : patientAlerts.length === 0 ? (
               <Alert className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/30">
                 <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
                 <AlertDescription className="text-sm text-green-800 dark:text-green-200 font-medium">
-                  ✓ 未偵測到重複用藥
+                  {t('duplicates.patientResult.noDuplicate')}
                 </AlertDescription>
               </Alert>
             ) : (
@@ -340,11 +342,10 @@ export function MedicationDuplicatesPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Copy className="h-5 w-5" />
-            手動輸入藥品清單
+            {t('duplicates.manual.title')}
           </CardTitle>
           <CardDescription>
-            輸入至少 {MIN_DRUGS} 個藥品（最多 {MAX_DRUGS}），系統會依 ATC 與機轉比對是否有重複用藥。
-            不選病人也可以使用。
+            {t('duplicates.manual.description', { min: MIN_DRUGS, max: MAX_DRUGS })}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -357,7 +358,7 @@ export function MedicationDuplicatesPage() {
                     value={drug}
                     onValueChange={(v) => updateDrug(idx, v)}
                     drugList={DRUG_LIST}
-                    placeholder="藥品名稱（generic / brand 皆可）"
+                    placeholder={t('duplicates.manual.drugPlaceholder')}
                   />
                 </div>
                 <Button
@@ -366,7 +367,7 @@ export function MedicationDuplicatesPage() {
                   className="h-9 w-9 shrink-0"
                   onClick={() => removeDrug(idx)}
                   disabled={drugs.length <= MIN_DRUGS}
-                  aria-label="移除此藥品"
+                  aria-label={t('duplicates.manual.removeDrug')}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -377,7 +378,7 @@ export function MedicationDuplicatesPage() {
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={addDrug} disabled={drugs.length >= MAX_DRUGS}>
               <Plus className="h-3.5 w-3.5 mr-1" />
-              新增藥品
+              {t('duplicates.manual.addDrug')}
             </Button>
             <Button
               onClick={runManualCheck}
@@ -387,23 +388,23 @@ export function MedicationDuplicatesPage() {
               {manualLoading ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                  偵測中...
+                  {t('duplicates.manual.submitting')}
                 </>
               ) : (
-                '檢查重複用藥'
+                t('duplicates.manual.submit')
               )}
             </Button>
           </div>
 
           {manualResolved.length > 0 && (
             <div className="rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30 p-3 text-xs space-y-1">
-              <p className="font-medium text-slate-700 dark:text-slate-300">藥品 ATC 解析：</p>
+              <p className="font-medium text-slate-700 dark:text-slate-300">{t('duplicates.manual.atcResolveLabel')}</p>
               <div className="flex flex-wrap gap-x-4 gap-y-1">
                 {manualResolved.map((r, i) => (
                   <span key={i} className="text-slate-600 dark:text-slate-400">
                     {r.name} →{' '}
                     <span className={r.atcCode ? 'font-mono' : 'italic text-amber-600 dark:text-amber-400'}>
-                      {r.atcCode ?? '無 ATC（藥典未收錄）'}
+                      {r.atcCode ?? t('duplicates.manual.atcMissing')}
                     </span>
                   </span>
                 ))}

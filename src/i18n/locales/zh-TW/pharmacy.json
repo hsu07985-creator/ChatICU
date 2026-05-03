@@ -1,0 +1,218 @@
+{
+  "common": {
+    "patient": "病患",
+    "patientLabel": "病患（可選）",
+    "patientPlaceholder": "選擇病患（自動帶入目前用藥）",
+    "patientPlaceholderLoading": "載入中...",
+    "clearPatient": "清除病患選擇",
+    "patientLoadError": "無法載入病患列表",
+    "loadingPatientMeds": "載入病患用藥失敗"
+  },
+  "duplicates": {
+    "header": {
+      "title": "重複用藥偵測",
+      "subtitle": "依病人目前住院用藥清單、或手動輸入藥品清單，偵測同機轉 / 同類藥物 / 同給藥途徑的重複項目"
+    },
+    "patientPicker": {
+      "label": "病患",
+      "placeholder": "選擇病患（可留空，走手動模式）",
+      "placeholderLoading": "載入中...",
+      "clear": "清除選擇"
+    },
+    "patientResult": {
+      "title": "病人用藥重複偵測",
+      "description": "納入病人目前住院用藥 + 門診中的自備藥 / 院外藥，執行 L1 / L2 / L3 / L4 重複用藥偵測",
+      "skippedNote": "（已排除 {{count}} 筆門診常規處方）",
+      "loading": "載入中...",
+      "errorMessage": "重複用藥服務暫時無法使用，請稍後再試。",
+      "tooFew": "納入範圍內的用藥不足 {{min}} 種，無法執行重複用藥偵測。",
+      "noDuplicate": "✓ 未偵測到重複用藥"
+    },
+    "manual": {
+      "title": "手動輸入藥品清單",
+      "description": "輸入至少 {{min}} 個藥品（最多 {{max}}），系統會依 ATC 與機轉比對是否有重複用藥。不選病人也可以使用。",
+      "rowPrefix": "#",
+      "drugPlaceholder": "藥品名稱（generic / brand 皆可）",
+      "removeDrug": "移除此藥品",
+      "addDrug": "新增藥品",
+      "submitting": "偵測中...",
+      "submit": "檢查重複用藥",
+      "atcResolveLabel": "藥品 ATC 解析：",
+      "atcMissing": "無 ATC（藥典未收錄）"
+    },
+    "errors": {
+      "tooManyDrugs": "最多 {{max}} 個藥品",
+      "tooFewDrugs": "請輸入至少 {{min}} 個藥品",
+      "checkFailed": "重複用藥偵測失敗，請稍後再試"
+    },
+    "countsBar": {
+      "label": "風險分佈：",
+      "totalSuffix": "共 {{count}} 筆"
+    }
+  },
+  "dosage": {
+    "header": {
+      "title": "劑量計算",
+      "subtitle": "ICU PAD 藥物輸注速率計算（含肥胖體重調整）"
+    },
+    "card": {
+      "title": "PAD 藥物劑量計算",
+      "description": "選擇藥品、輸入體重與目標劑量，系統自動計算輸注速率 (ml/hr)"
+    },
+    "patient": {
+      "label": "病患（可選）",
+      "placeholder": "選擇病患帶入體重/身高",
+      "placeholderLoading": "載入...",
+      "clear": "清除病患",
+      "filledFromPatient": "已帶入 {{name}} 的基本資料"
+    },
+    "drug": {
+      "label": "藥品 *",
+      "placeholder": "選擇 PAD 藥品",
+      "placeholderLoading": "載入中..."
+    },
+    "weight": {
+      "label": "體重 (kg) *",
+      "placeholder": "選擇病患自動帶入"
+    },
+    "info": {
+      "rangeLabel": "建議範圍",
+      "concAllowedLabel": "允許濃度",
+      "concDefaultLabel": "預設濃度",
+      "obeseBasisLabel": "肥胖時基準",
+      "thisCalcBasisLabel": "本次計算"
+    },
+    "fixedAlert": "{{label}} 為固定劑量藥物（非體重依賴），建議劑量：{{range}}。不需輸入目標劑量與濃度。",
+    "doseMin": {
+      "label": "最小劑量 *",
+      "rangeHint": "範圍 {{lo}}–{{hi}}"
+    },
+    "doseMax": {
+      "label": "最大劑量 *",
+      "rangeHint": "範圍 {{lo}}–{{hi}}"
+    },
+    "concentration": {
+      "label": "濃度 *",
+      "outOfRange": "超出允許範圍（{{lo}}–{{hi}} {{unit}}）",
+      "differentDefault": "與預設濃度不同（預設 {{value}} {{unit}}）"
+    },
+    "height": {
+      "label": "身高 (cm)",
+      "placeholder": "選擇病患自動帶入"
+    },
+    "buttons": {
+      "calculate": "計算輸注速率",
+      "reset": "清除全部"
+    },
+    "validation": {
+      "noDrug": "請選擇藥品",
+      "noWeight": "請輸入體重",
+      "noMinDose": "請輸入最小目標劑量",
+      "noMaxDose": "請輸入最大目標劑量",
+      "noConcentration": "請輸入藥物濃度",
+      "calcFailedLog": "PAD 劑量計算失敗",
+      "calcFailedFallback": "劑量計算失敗"
+    },
+    "result": {
+      "calculating": "計算中...",
+      "fixedDoseBadge": "固定劑量",
+      "rateMin": "最小速率",
+      "rate": "輸注速率",
+      "rateMax": "最大速率",
+      "rateUnit": "ml/hr",
+      "secondaryDoseLabel": "計算體重",
+      "secondaryHourlyLabel": "每小時劑量",
+      "secondaryConcentrationLabel": "濃度",
+      "secondaryWeightUnit": "kg",
+      "weightObese": "肥胖",
+      "weightUnderweight": "體重偏低",
+      "stepsToggle": "計算步驟"
+    }
+  },
+  "interactions": {
+    "header": {
+      "title": "用藥交互",
+      "subtitle": "查詢藥物之間的交互作用（DDI）並依風險等級排序"
+    },
+    "patientPicker": {
+      "placeholder": "選擇病患（自動帶入目前用藥）",
+      "placeholderLoading": "載入中...",
+      "clear": "清除病患選擇",
+      "noMeds": "該病患目前無可比對的用藥"
+    },
+    "drugCard": {
+      "title": "藥品選擇",
+      "description": "選擇至少兩種藥品，系統將自動比對所有兩兩組合的交互作用"
+    },
+    "validation": {
+      "needTwo": "請至少選擇兩種不同的藥品",
+      "queryErrorLog": "查詢交互作用失敗",
+      "queryError": "查詢失敗，請確認後端服務是否正常運行"
+    },
+    "risk": {
+      "high": "高風險",
+      "medium": "中風險",
+      "low": "低風險"
+    },
+    "sourceToast": {
+      "noLiterature": "此筆資料未提供文獻來源",
+      "copySuccess": "已複製文獻來源到剪貼簿"
+    },
+    "summary": {
+      "title": "查詢摘要",
+      "riskDistribution": "風險分佈",
+      "pairLookup": "配對速查",
+      "tableHeaders": {
+        "pair": "藥物配對",
+        "highestRisk": "最高風險",
+        "count": "筆數"
+      }
+    },
+    "results": {
+      "noData": "未發現藥物交互作用。",
+      "noDataAlt": "未找到相關的藥物交互作用資料。請確認藥品名稱是否正確。",
+      "aiNote": "結果由 AI 依藥理機轉推論，建議以資料庫結果為優先參考",
+      "dbNote": "結果來自藥物交互作用資料庫（Lexi-Interact 衍生 + ICU 補充對照）",
+      "detailHeading": "詳細交互作用",
+      "viewSourceAria": "查看文獻來源",
+      "routeDependencyLabel": "給藥途徑注意：",
+      "dependencyConditionsLabel": "依賴條件",
+      "interactionGroupsLabel": "交互作用藥物群組",
+      "interactionDescriptionLabel": "交互作用說明",
+      "clinicalManagementLabel": "臨床處置建議",
+      "loading": "查詢中..."
+    }
+  },
+  "compatibility": {
+    "header": {
+      "title": "用藥相容",
+      "subtitle": "Y-Site 靜脈輸注藥物配伍相容性查詢（支援多藥品矩陣）"
+    },
+    "card": {
+      "title": "藥品選擇",
+      "description": "選擇至少兩種 IV 藥品，系統將查詢所有兩兩組合的 Y-Site 相容性"
+    },
+    "patientPicker": {
+      "placeholder": "選擇病患自動帶入 IV 用藥（可選）",
+      "placeholderLoading": "載入中...",
+      "clear": "清除病患選擇",
+      "noIVMeds": "該病患目前無可比對的 IV 用藥"
+    },
+    "validation": {
+      "needTwo": "請至少選擇兩種不同的藥品"
+    },
+    "results": {
+      "noData": "未找到相關的 Y-Site 相容性資料。建議使用分開的輸注管路。",
+      "summaryTitle": "查詢摘要",
+      "compatibleCountSuffix": "對",
+      "compatibleLabel": "相容：",
+      "incompatibleLabel": "不相容：",
+      "noDataLabel": "無資料：",
+      "matrixTitle": "相容性矩陣",
+      "incompatibleHeading": "不相容組合",
+      "incompatibleBadge": "不相容",
+      "sourceNote": "資料來源：陽明院區 Y-site compatibility 資料整理（8 科 ICU）",
+      "loading": "查詢中..."
+    }
+  }
+}

@@ -17,6 +17,7 @@ import { selectPharmacyReviewMeds } from '../../lib/medication-scope';
 import { copyToClipboard } from '../../lib/clipboard-utils';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
 import { DRUG_LIST, hasInteractionData } from '../../lib/drug-list';
+import { useTranslation } from 'react-i18next';
 
 interface InteractingMemberGroup {
   group_name: string;
@@ -120,6 +121,7 @@ function matchDrugName(medName: string): string | null {
 }
 
 export function DrugInteractionsPage() {
+  const { t } = useTranslation('pharmacy');
   const [drugs, setDrugs] = useState<string[]>(['', '']);
   const [searchResults, setSearchResults] = useState<DisplayInteraction[]>([]);
   const [overallSeverity, setOverallSeverity] = useState<string>('');
@@ -176,7 +178,7 @@ export function DrugInteractionsPage() {
       const matched = [...matchedSet];
 
       if (matched.length === 0) {
-        toast('該病患目前無可比對的用藥');
+        toast(t('interactions.patientPicker.noMeds'));
         return;
       }
 
@@ -188,7 +190,7 @@ export function DrugInteractionsPage() {
       setHasSearched(false);
       toast.success(`已載入 ${matched.length} 種用藥`);
     } catch {
-      toast.error('載入病患用藥失敗');
+      toast.error(t('common.loadingPatientMeds'));
     } finally {
       setMedsLoading(false);
     }
@@ -211,7 +213,7 @@ export function DrugInteractionsPage() {
   const handleSearch = async () => {
     const validDrugs = [...new Set(drugs.map(d => d.trim()).filter(Boolean))];
     if (validDrugs.length < 2) {
-      toast.error('請至少選擇兩種不同的藥品');
+      toast.error(t('interactions.validation.needTwo'));
       return;
     }
 
@@ -307,8 +309,8 @@ export function DrugInteractionsPage() {
         setSearchResults(dbResults);
       }
     } catch (err) {
-      console.error('查詢交互作用失敗:', err);
-      toast.error('查詢失敗，請確認後端服務是否正常運行');
+      console.error(`${t('interactions.validation.queryErrorLog')}:`, err);
+      toast.error(t('interactions.validation.queryError'));
       setSearchResults([]);
     } finally {
       setLoading(false);
@@ -318,7 +320,7 @@ export function DrugInteractionsPage() {
   const handleViewReference = async (ref: string) => {
     const trimmed = String(ref || '').trim();
     if (!trimmed) {
-      toast.message('此筆資料未提供文獻來源');
+      toast.message(t('interactions.sourceToast.noLiterature'));
       return;
     }
     if (/^https?:\/\//i.test(trimmed)) {
@@ -326,7 +328,7 @@ export function DrugInteractionsPage() {
       return;
     }
     const ok = await copyToClipboard(trimmed);
-    if (ok) toast.success('已複製文獻來源到剪貼簿');
+    if (ok) toast.success(t('interactions.sourceToast.copySuccess'));
     else toast.message(`資料來源：${trimmed}`);
   };
 
@@ -356,11 +358,11 @@ export function DrugInteractionsPage() {
   const getSeverityBadge = (severity: string) => {
     switch (severity) {
       case 'high':
-        return <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3.5 w-3.5" />高風險</Badge>;
+        return <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3.5 w-3.5" />{t('interactions.risk.high')}</Badge>;
       case 'medium':
-        return <Badge variant="secondary" className="gap-1 bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200"><AlertCircle className="h-3.5 w-3.5" />中風險</Badge>;
+        return <Badge variant="secondary" className="gap-1 bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200"><AlertCircle className="h-3.5 w-3.5" />{t('interactions.risk.medium')}</Badge>;
       case 'low':
-        return <Badge variant="outline" className="gap-1"><Info className="h-3.5 w-3.5" />低風險</Badge>;
+        return <Badge variant="outline" className="gap-1"><Info className="h-3.5 w-3.5" />{t('interactions.risk.low')}</Badge>;
       default:
         return null;
     }
@@ -431,7 +433,7 @@ export function DrugInteractionsPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">用藥交互</h1>
+        <h1 className="text-2xl font-bold">{t('interactions.header.title')}</h1>
         <p className="text-muted-foreground text-sm mt-1">
           查詢藥物兩兩交互作用（重複用藥已獨立於左側欄「重複用藥」頁）
         </p>
@@ -443,12 +445,12 @@ export function DrugInteractionsPage() {
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium w-16 shrink-0">
               <User className="inline h-3.5 w-3.5 mr-1" />
-              病患
+              {t('common.patient')}
             </label>
             <div className="flex-1">
               <Select value={selectedPatientId} onValueChange={handlePatientSelect} disabled={patientsLoading}>
                 <SelectTrigger className="h-9">
-                  <SelectValue placeholder={patientsLoading ? '載入中...' : '選擇病患（自動帶入目前用藥）'} />
+                  <SelectValue placeholder={patientsLoading ? t('interactions.patientPicker.placeholderLoading') : t('interactions.patientPicker.placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {patients.map(p => (
@@ -472,7 +474,7 @@ export function DrugInteractionsPage() {
                   setSkippedMeds([]);
                   setSkippedExpanded(false);
                 }}
-                aria-label="清除病患選擇"
+                aria-label={t('interactions.patientPicker.clear')}
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -492,8 +494,8 @@ export function DrugInteractionsPage() {
       {/* 搜尋區 */}
       <Card>
         <CardHeader>
-          <CardTitle>藥品選擇</CardTitle>
-          <CardDescription>選擇至少兩種藥品，系統將自動比對所有兩兩組合的交互作用</CardDescription>
+          <CardTitle>{t('interactions.drugCard.title')}</CardTitle>
+          <CardDescription>{t('interactions.drugCard.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {skippedMeds.length > 0 && (
@@ -608,8 +610,8 @@ export function DrugInteractionsPage() {
               <Info className="h-4 w-4" />
               <AlertDescription>
                 {overallSeverity === 'none'
-                  ? '未發現藥物交互作用。'
-                  : '未找到相關的藥物交互作用資料。請確認藥品名稱是否正確。'}
+                  ? t('interactions.results.noData')
+                  : t('interactions.results.noDataAlt')}
               </AlertDescription>
             </Alert>
           ) : (
@@ -641,7 +643,7 @@ export function DrugInteractionsPage() {
 
                     {/* 風險分佈 */}
                     <div>
-                      <h4 className="font-medium mb-1.5 text-sm text-muted-foreground">風險分佈</h4>
+                      <h4 className="font-medium mb-1.5 text-sm text-muted-foreground">{t('interactions.summary.riskDistribution')}</h4>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
                         {(['X', 'D', 'C', 'B', 'A'] as const).map(r => {
                           const count = summary.riskCounts[r];
@@ -659,14 +661,14 @@ export function DrugInteractionsPage() {
                     {/* 配對速查 */}
                     {summary.pairs.length > 0 && (
                       <div>
-                        <h4 className="font-medium mb-1.5 text-sm text-muted-foreground">配對速查</h4>
+                        <h4 className="font-medium mb-1.5 text-sm text-muted-foreground">{t('interactions.summary.pairLookup')}</h4>
                         <div className="border rounded-md overflow-hidden">
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="border-b bg-muted/40">
-                                <th className="text-left px-3 py-1.5 font-medium">藥物配對</th>
-                                <th className="text-left px-3 py-1.5 font-medium">最高風險</th>
-                                <th className="text-right px-3 py-1.5 font-medium">筆數</th>
+                                <th className="text-left px-3 py-1.5 font-medium">{t('interactions.summary.tableHeaders.pair')}</th>
+                                <th className="text-left px-3 py-1.5 font-medium">{t('interactions.summary.tableHeaders.highestRisk')}</th>
+                                <th className="text-right px-3 py-1.5 font-medium">{t('interactions.summary.tableHeaders.count')}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -702,19 +704,19 @@ export function DrugInteractionsPage() {
                     <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-2 py-0.5 font-medium border border-purple-200 dark:border-purple-700">
                       AI 推論
                     </span>
-                    <span>結果由 AI 依藥理機轉推論，建議以資料庫結果為優先參考</span>
+                    <span>{t('interactions.results.aiNote')}</span>
                   </>
                 ) : (
                   <>
                     <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 font-medium border border-blue-200 dark:border-blue-700">
                       DDI 資料庫
                     </span>
-                    <span>結果來自藥物交互作用資料庫（Lexi-Interact 衍生 + ICU 補充對照）</span>
+                    <span>{t('interactions.results.dbNote')}</span>
                   </>
                 )}
               </div>
 
-              <h2>詳細交互作用</h2>
+              <h2>{t('interactions.results.detailHeading')}</h2>
 
               <div className="grid gap-4">
                 {searchResults.map((interaction) => (
@@ -737,7 +739,7 @@ export function DrugInteractionsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          aria-label="查看文獻來源"
+                          aria-label={t('interactions.results.viewSourceAria')}
                           onClick={() => handleViewReference(interaction.references)}
                         >
                           <BookOpen className="h-4 w-4" />
@@ -750,7 +752,7 @@ export function DrugInteractionsPage() {
                         <Alert className="border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30">
                           <Route className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                           <AlertDescription className="text-amber-800 dark:text-amber-200">
-                            <span className="font-medium">給藥途徑注意：</span>{interaction.routeDependency}
+                            <span className="font-medium">{t('interactions.results.routeDependencyLabel')}</span>{interaction.routeDependency}
                           </AlertDescription>
                         </Alert>
                       )}
@@ -758,7 +760,7 @@ export function DrugInteractionsPage() {
                       {/* 依賴條件 */}
                       {interaction.dependencies.length > 0 && (
                         <div>
-                          <h4 className="font-medium mb-1 text-sm text-muted-foreground">依賴條件</h4>
+                          <h4 className="font-medium mb-1 text-sm text-muted-foreground">{t('interactions.results.dependencyConditionsLabel')}</h4>
                           <div className="flex flex-wrap gap-1.5">
                             {interaction.dependencies.map((dep, i) => (
                               <Badge key={i} variant="outline" className="text-xs bg-slate-50 dark:bg-slate-800">
@@ -772,7 +774,7 @@ export function DrugInteractionsPage() {
                       {/* 交互作用藥物群組 */}
                       {interaction.interactingMembers.length > 0 && (
                         <div>
-                          <h4 className="font-medium mb-1.5 text-sm text-muted-foreground">交互作用藥物群組</h4>
+                          <h4 className="font-medium mb-1.5 text-sm text-muted-foreground">{t('interactions.results.interactionGroupsLabel')}</h4>
                           <div className="space-y-2">
                             {interaction.interactingMembers.map((group, i) => (
                               <div key={i} className="text-sm border rounded-md p-2.5 bg-muted/20">
@@ -797,7 +799,7 @@ export function DrugInteractionsPage() {
                       {/* 交互作用說明 */}
                       {interaction.clinicalEffect && (
                         <div>
-                          <h4 className="font-medium mb-1 text-sm text-muted-foreground">交互作用說明</h4>
+                          <h4 className="font-medium mb-1 text-sm text-muted-foreground">{t('interactions.results.interactionDescriptionLabel')}</h4>
                           <p className="text-sm">{interaction.clinicalEffect}</p>
                         </div>
                       )}
@@ -807,7 +809,7 @@ export function DrugInteractionsPage() {
                         <>
                           <Separator />
                           <div>
-                            <h4 className="font-medium mb-2 text-sm text-muted-foreground">臨床處置建議</h4>
+                            <h4 className="font-medium mb-2 text-sm text-muted-foreground">{t('interactions.results.clinicalManagementLabel')}</h4>
                             <Alert className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30">
                               <AlertTriangle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                               <AlertDescription className="text-sm text-blue-900 dark:text-blue-200 leading-relaxed">{interaction.management}</AlertDescription>
@@ -828,7 +830,7 @@ export function DrugInteractionsPage() {
       {loading && (
         <div className="text-center py-12">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-brand" />
-          <p className="text-muted-foreground">查詢中...</p>
+          <p className="text-muted-foreground">{t('interactions.results.loading')}</p>
         </div>
       )}
 

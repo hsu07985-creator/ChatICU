@@ -1,0 +1,218 @@
+{
+  "common": {
+    "patient": "Patient",
+    "patientLabel": "Patient (optional)",
+    "patientPlaceholder": "Select patient (auto-loads current meds)",
+    "patientPlaceholderLoading": "Loading...",
+    "clearPatient": "Clear patient selection",
+    "patientLoadError": "Failed to load patient list",
+    "loadingPatientMeds": "Failed to load patient medications"
+  },
+  "duplicates": {
+    "header": {
+      "title": "Duplicate Therapy Check",
+      "subtitle": "Detect duplicate therapy by mechanism / class / route across the patient's current inpatient list, or a manual list"
+    },
+    "patientPicker": {
+      "label": "Patient",
+      "placeholder": "Select a patient (or leave blank for manual mode)",
+      "placeholderLoading": "Loading...",
+      "clear": "Clear selection"
+    },
+    "patientResult": {
+      "title": "Patient Duplicate Therapy Check",
+      "description": "Includes inpatient meds + outpatient self-supplied / external; runs L1 / L2 / L3 / L4 duplicate detection",
+      "skippedNote": "({{count}} routine outpatient prescriptions excluded)",
+      "loading": "Loading...",
+      "errorMessage": "Duplicate therapy service is temporarily unavailable. Please try again later.",
+      "tooFew": "Fewer than {{min}} medications in scope; cannot run duplicate detection.",
+      "noDuplicate": "✓ No duplicate therapy detected"
+    },
+    "manual": {
+      "title": "Manual Drug List",
+      "description": "Enter at least {{min}} drugs (up to {{max}}); the system compares ATC + mechanism. No patient required.",
+      "rowPrefix": "#",
+      "drugPlaceholder": "Drug name (generic or brand)",
+      "removeDrug": "Remove this drug",
+      "addDrug": "Add drug",
+      "submitting": "Detecting...",
+      "submit": "Check duplicates",
+      "atcResolveLabel": "Drug ATC resolution:",
+      "atcMissing": "No ATC (not in pharmacopoeia)"
+    },
+    "errors": {
+      "tooManyDrugs": "Maximum {{max}} drugs",
+      "tooFewDrugs": "Please enter at least {{min}} drugs",
+      "checkFailed": "Duplicate detection failed. Please try again later."
+    },
+    "countsBar": {
+      "label": "Risk distribution:",
+      "totalSuffix": "{{count}} total"
+    }
+  },
+  "dosage": {
+    "header": {
+      "title": "Dosage Calculator",
+      "subtitle": "ICU PAD drug infusion rate calculator (with obesity-adjusted dosing weight)"
+    },
+    "card": {
+      "title": "PAD Drug Dosage Calculation",
+      "description": "Select a drug, enter weight and target dose; the system calculates infusion rate (ml/hr)"
+    },
+    "patient": {
+      "label": "Patient (optional)",
+      "placeholder": "Select patient to autofill weight/height",
+      "placeholderLoading": "Loading...",
+      "clear": "Clear patient",
+      "filledFromPatient": "Loaded basic data for {{name}}"
+    },
+    "drug": {
+      "label": "Drug *",
+      "placeholder": "Select PAD drug",
+      "placeholderLoading": "Loading..."
+    },
+    "weight": {
+      "label": "Weight (kg) *",
+      "placeholder": "Auto-filled from patient"
+    },
+    "info": {
+      "rangeLabel": "Recommended range",
+      "concAllowedLabel": "Allowed concentration",
+      "concDefaultLabel": "Default concentration",
+      "obeseBasisLabel": "Obesity weight basis",
+      "thisCalcBasisLabel": "This calculation"
+    },
+    "fixedAlert": "{{label}} is a fixed-dose drug (not weight-dependent). Recommended dose: {{range}}. No target dose / concentration needed.",
+    "doseMin": {
+      "label": "Min dose *",
+      "rangeHint": "Range {{lo}}–{{hi}}"
+    },
+    "doseMax": {
+      "label": "Max dose *",
+      "rangeHint": "Range {{lo}}–{{hi}}"
+    },
+    "concentration": {
+      "label": "Concentration *",
+      "outOfRange": "Out of allowed range ({{lo}}–{{hi}} {{unit}})",
+      "differentDefault": "Differs from default (default {{value}} {{unit}})"
+    },
+    "height": {
+      "label": "Height (cm)",
+      "placeholder": "Auto-filled from patient"
+    },
+    "buttons": {
+      "calculate": "Calculate infusion rate",
+      "reset": "Clear all"
+    },
+    "validation": {
+      "noDrug": "Please select a drug",
+      "noWeight": "Please enter weight",
+      "noMinDose": "Please enter minimum target dose",
+      "noMaxDose": "Please enter maximum target dose",
+      "noConcentration": "Please enter drug concentration",
+      "calcFailedLog": "PAD dosage calculation failed",
+      "calcFailedFallback": "Dosage calculation failed"
+    },
+    "result": {
+      "calculating": "Calculating...",
+      "fixedDoseBadge": "Fixed dose",
+      "rateMin": "Min rate",
+      "rate": "Infusion rate",
+      "rateMax": "Max rate",
+      "rateUnit": "ml/hr",
+      "secondaryDoseLabel": "Dosing weight",
+      "secondaryHourlyLabel": "Hourly dose",
+      "secondaryConcentrationLabel": "Concentration",
+      "secondaryWeightUnit": "kg",
+      "weightObese": "Obese",
+      "weightUnderweight": "Underweight",
+      "stepsToggle": "Calculation steps"
+    }
+  },
+  "interactions": {
+    "header": {
+      "title": "Drug Interactions",
+      "subtitle": "Look up drug-drug interactions (DDI) sorted by risk level"
+    },
+    "patientPicker": {
+      "placeholder": "Select patient (auto-loads current meds)",
+      "placeholderLoading": "Loading...",
+      "clear": "Clear patient selection",
+      "noMeds": "Patient has no comparable medications"
+    },
+    "drugCard": {
+      "title": "Drug Selection",
+      "description": "Select at least two drugs; the system checks all pairwise interactions"
+    },
+    "validation": {
+      "needTwo": "Please select at least two different drugs",
+      "queryErrorLog": "Failed to query drug interactions",
+      "queryError": "Query failed. Please verify the backend service is running."
+    },
+    "risk": {
+      "high": "High Risk",
+      "medium": "Medium Risk",
+      "low": "Low Risk"
+    },
+    "sourceToast": {
+      "noLiterature": "This entry has no literature source provided",
+      "copySuccess": "Literature source copied to clipboard"
+    },
+    "summary": {
+      "title": "Query Summary",
+      "riskDistribution": "Risk distribution",
+      "pairLookup": "Pair quick lookup",
+      "tableHeaders": {
+        "pair": "Drug pair",
+        "highestRisk": "Highest risk",
+        "count": "Count"
+      }
+    },
+    "results": {
+      "noData": "No drug interactions found.",
+      "noDataAlt": "No matching drug interaction data. Please verify drug names.",
+      "aiNote": "Results inferred by AI based on pharmacological mechanism; prefer database results when available",
+      "dbNote": "Results from drug interaction database (Lexi-Interact derived + ICU supplementary mapping)",
+      "detailHeading": "Detailed interactions",
+      "viewSourceAria": "View literature source",
+      "routeDependencyLabel": "Route dependency: ",
+      "dependencyConditionsLabel": "Dependency conditions",
+      "interactionGroupsLabel": "Interacting drug groups",
+      "interactionDescriptionLabel": "Interaction description",
+      "clinicalManagementLabel": "Clinical management",
+      "loading": "Querying..."
+    }
+  },
+  "compatibility": {
+    "header": {
+      "title": "IV Compatibility",
+      "subtitle": "Y-Site IV co-administration compatibility lookup (multi-drug matrix supported)"
+    },
+    "card": {
+      "title": "Drug Selection",
+      "description": "Select at least two IV drugs; the system queries all pairwise Y-Site compatibility"
+    },
+    "patientPicker": {
+      "placeholder": "Select patient to autofill IV meds (optional)",
+      "placeholderLoading": "Loading...",
+      "clear": "Clear patient selection",
+      "noIVMeds": "Patient has no comparable IV medications"
+    },
+    "validation": {
+      "needTwo": "Please select at least two different drugs"
+    },
+    "results": {
+      "noData": "No matching Y-Site compatibility data found. Recommend separate infusion lines.",
+      "summaryTitle": "Query Summary",
+      "compatibleCountSuffix": "pair(s)",
+      "compatibleLabel": "Compatible: ",
+      "incompatibleLabel": "Incompatible: ",
+      "noDataLabel": "No data: ",
+      "matrixTitle": "Compatibility Matrix",
+      "incompatibleHeading": "Incompatible Combinations",
+      "incompatibleBadge": "Incompatible",
+      "sourceNote": "Source: Yangming campus Y-site compatibility data (8 ICU departments)",
+      "loading": "Querying..."
+    }
+  }
+}

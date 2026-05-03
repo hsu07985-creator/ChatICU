@@ -14,6 +14,7 @@ import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from
 import { getMedications, type Medication } from '../../lib/api/medications';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
 import { CompatibilityMatrix, CompatibilityMatrixLegend, type CompatStatus as SharedCompatStatus, type CompatibilityCell } from '../../components/pharmacy/compatibility-matrix';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Y-Site 相容性藥品清單
@@ -185,6 +186,7 @@ interface MatrixCell {
 const MIN_DRUGS = 2;
 
 export function CompatibilityPage() {
+  const { t } = useTranslation('pharmacy');
   const [drugs, setDrugs] = useState<string[]>(['', '']);
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -204,7 +206,7 @@ export function CompatibilityPage() {
     let cancelled = false;
     getCachedPatients()
       .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
-      .catch(() => { if (!cancelled) { toast.error('無法載入病患列表'); setPatientsLoading(false); } });
+      .catch(() => { if (!cancelled) { toast.error(t('common.patientLoadError')); setPatientsLoading(false); } });
     return () => { cancelled = true; };
   }, []);
 
@@ -242,7 +244,7 @@ export function CompatibilityPage() {
       const matched = [...matchedSet];
 
       if (matched.length === 0) {
-        toast('該病患目前無可比對的 IV 用藥');
+        toast(t('compatibility.patientPicker.noIVMeds'));
         return;
       }
       const newDrugs = matched.length >= MIN_DRUGS
@@ -253,7 +255,7 @@ export function CompatibilityPage() {
       setHasSearched(false);
       toast.success(`已載入 ${matched.length} 種 IV 用藥`);
     } catch {
-      toast.error('載入病患用藥失敗');
+      toast.error(t('common.loadingPatientMeds'));
     } finally {
       setMedsLoading(false);
     }
@@ -274,7 +276,7 @@ export function CompatibilityPage() {
   const handleSearch = async () => {
     const validDrugs = [...new Set(drugs.map(d => d.trim()).filter(Boolean))];
     if (validDrugs.length < 2) {
-      toast.error('請至少選擇兩種不同的藥品');
+      toast.error(t('compatibility.validation.needTwo'));
       return;
     }
 
@@ -329,27 +331,27 @@ export function CompatibilityPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">用藥相容</h1>
-        <p className="text-muted-foreground text-sm mt-1">Y-Site 靜脈輸注藥物配伍相容性查詢（支援多藥品矩陣）</p>
+        <h1 className="text-2xl font-bold">{t('compatibility.header.title')}</h1>
+        <p className="text-muted-foreground text-sm mt-1">{t('compatibility.header.subtitle')}</p>
       </div>
 
       {/* 搜尋區 */}
       <Card>
         <CardHeader>
-          <CardTitle>藥品選擇</CardTitle>
-          <CardDescription>選擇至少兩種 IV 藥品，系統將查詢所有兩兩組合的 Y-Site 相容性</CardDescription>
+          <CardTitle>{t('compatibility.card.title')}</CardTitle>
+          <CardDescription>{t('compatibility.card.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* 病患選擇器 */}
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium w-16 shrink-0">
               <User className="inline h-3.5 w-3.5 mr-1" />
-              病患
+              {t('common.patient')}
             </label>
             <div className="flex-1">
               <Select value={selectedPatientId} onValueChange={handlePatientSelect} disabled={patientsLoading}>
                 <SelectTrigger className="h-9">
-                  <SelectValue placeholder={patientsLoading ? '載入中...' : '選擇病患自動帶入 IV 用藥（可選）'} />
+                  <SelectValue placeholder={patientsLoading ? t('compatibility.patientPicker.placeholderLoading') : t('compatibility.patientPicker.placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {patients.map(p => (
@@ -372,7 +374,7 @@ export function CompatibilityPage() {
                   setSkippedMeds([]);
                   setSkippedExpanded(false);
                 }}
-                aria-label="清除病患選擇"
+                aria-label={t('compatibility.patientPicker.clear')}
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -488,7 +490,7 @@ export function CompatibilityPage() {
           {matrixResults.length === 0 ? (
             <Alert>
               <HelpCircle className="h-4 w-4" />
-              <AlertDescription>未找到相關的 Y-Site 相容性資料。建議使用分開的輸注管路。</AlertDescription>
+              <AlertDescription>{t('compatibility.results.noData')}</AlertDescription>
             </Alert>
           ) : (
             <>
@@ -497,7 +499,7 @@ export function CompatibilityPage() {
                 <Card>
                   <CardHeader>
                     <div className="flex items-center justify-between">
-                      <CardTitle>查詢摘要</CardTitle>
+                      <CardTitle>{t('compatibility.results.summaryTitle')}</CardTitle>
                       <span className="text-sm text-muted-foreground">
                         {filledCount} 種藥品，{matrixResults.length} 對組合
                       </span>
@@ -507,15 +509,15 @@ export function CompatibilityPage() {
                     <div className="flex flex-wrap gap-4 text-sm">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <span>相容：<strong>{summary.C}</strong> 對</span>
+                        <span>{t('compatibility.results.compatibleLabel')}<strong>{summary.C}</strong> {t('compatibility.results.compatibleCountSuffix')}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <XCircle className="h-4 w-4 text-red-600" />
-                        <span>不相容：<strong className="text-red-600">{summary.I}</strong> 對</span>
+                        <span>{t('compatibility.results.incompatibleLabel')}<strong className="text-red-600">{summary.I}</strong> {t('compatibility.results.compatibleCountSuffix')}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <HelpCircle className="h-4 w-4 text-gray-400 dark:text-gray-500" />
-                        <span>無資料：<strong>{summary['-']}</strong> 對</span>
+                        <span>{t('compatibility.results.noDataLabel')}<strong>{summary['-']}</strong> {t('compatibility.results.compatibleCountSuffix')}</span>
                       </div>
                     </div>
 
@@ -535,7 +537,7 @@ export function CompatibilityPage() {
               {validDrugs.length >= 2 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>相容性矩陣</CardTitle>
+                    <CardTitle>{t('compatibility.results.matrixTitle')}</CardTitle>
                     <CardDescription>
                       <CompatibilityMatrixLegend />
                       <span className="block mt-1 text-amber-600 dark:text-amber-400 text-[11px]">
@@ -561,7 +563,7 @@ export function CompatibilityPage() {
               {/* 詳細不相容列表 */}
               {matrixResults.filter(r => r.status === 'I').length > 0 && (
                 <>
-                  <h2>不相容組合</h2>
+                  <h2>{t('compatibility.results.incompatibleHeading')}</h2>
                   <div className="grid gap-3">
                     {matrixResults.filter(r => r.status === 'I').map((r, i) => (
                       <Card key={i} className="border-red-200 dark:border-red-800">
@@ -569,7 +571,7 @@ export function CompatibilityPage() {
                           <XCircle className="h-5 w-5 text-red-600 shrink-0" />
                           <div>
                             <span className="font-medium">{r.drugA} + {r.drugB}</span>
-                            <Badge variant="destructive" className="ml-2 text-xs">不相容</Badge>
+                            <Badge variant="destructive" className="ml-2 text-xs">{t('compatibility.results.incompatibleBadge')}</Badge>
                             {r.notes && <p className="text-sm text-muted-foreground mt-0.5">{r.notes}</p>}
                           </div>
                         </CardContent>
@@ -579,7 +581,7 @@ export function CompatibilityPage() {
                 </>
               )}
 
-              <p className="text-xs text-muted-foreground">資料來源：陽明院區 Y-site compatibility 資料整理（8 科 ICU）</p>
+              <p className="text-xs text-muted-foreground">{t('compatibility.results.sourceNote')}</p>
             </>
           )}
         </div>
@@ -588,7 +590,7 @@ export function CompatibilityPage() {
       {loading && (
         <div className="text-center py-12">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-brand" />
-          <p className="text-muted-foreground">查詢中...</p>
+          <p className="text-muted-foreground">{t('compatibility.results.loading')}</p>
         </div>
       )}
     </div>

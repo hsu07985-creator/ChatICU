@@ -15,6 +15,7 @@ import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from
 import { getCachedPadDrugs, getCachedPadDrugsSync } from '../../lib/pad-drugs-cache';
 import { normalizePatientGender } from '../../lib/patient-gender';
 import { isAxiosError } from 'axios';
+import { useTranslation } from 'react-i18next';
 
 /** Parse dose_range like "0.03–0.6" → [0.03, 0.6] */
 function parseDoseRange(range?: string): [number, number] | null {
@@ -28,6 +29,7 @@ function parseDoseRange(range?: string): [number, number] | null {
 }
 
 export function DosagePage() {
+  const { t } = useTranslation('pharmacy');
   // Drug catalog (from shared cache)
   const [padDrugs, setPadDrugs] = useState<PadDrugInfo[]>(getCachedPadDrugsSync() ?? []);
   const [drugsLoading, setDrugsLoading] = useState(!getCachedPadDrugsSync());
@@ -111,7 +113,7 @@ export function DosagePage() {
     if (!getCachedPatientsSync()) {
       getCachedPatients()
         .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
-        .catch(() => { if (!cancelled) { toast.error('無法載入病患列表'); setPatientsLoading(false); } });
+        .catch(() => { if (!cancelled) { toast.error(t('common.patientLoadError')); setPatientsLoading(false); } });
     }
     return () => { cancelled = true; };
   }, []);
@@ -155,7 +157,7 @@ export function DosagePage() {
       if (p.height) setHeight(String(p.height));
       if (p.weight) setWeight(String(p.weight));
       setSex(normalizePatientGender(p.gender) ?? '');
-      toast.success(`已帶入 ${maskPatientName(p.name)} 的基本資料`);
+      toast.success(t('dosage.patient.filledFromPatient', { name: maskPatientName(p.name) }));
     }
   }, [patients]);
 
@@ -195,11 +197,11 @@ export function DosagePage() {
   const isFixedDose = drugInfo?.weight_basis === 'fixed';
 
   const handleCalculate = async () => {
-    if (!selectedDrug) { toast.error('請選擇藥品'); return; }
-    if (!weight || parseFloat(weight) <= 0) { toast.error('請輸入體重'); return; }
-    if (!isFixedDose && (!targetDoseMin || parseFloat(targetDoseMin) < 0)) { toast.error('請輸入最小目標劑量'); return; }
-    if (!isFixedDose && (!targetDoseMax || parseFloat(targetDoseMax) < 0)) { toast.error('請輸入最大目標劑量'); return; }
-    if (!isFixedDose && (!concentration || parseFloat(concentration) <= 0)) { toast.error('請輸入藥物濃度'); return; }
+    if (!selectedDrug) { toast.error(t('dosage.validation.noDrug')); return; }
+    if (!weight || parseFloat(weight) <= 0) { toast.error(t('dosage.validation.noWeight')); return; }
+    if (!isFixedDose && (!targetDoseMin || parseFloat(targetDoseMin) < 0)) { toast.error(t('dosage.validation.noMinDose')); return; }
+    if (!isFixedDose && (!targetDoseMax || parseFloat(targetDoseMax) < 0)) { toast.error(t('dosage.validation.noMaxDose')); return; }
+    if (!isFixedDose && (!concentration || parseFloat(concentration) <= 0)) { toast.error(t('dosage.validation.noConcentration')); return; }
 
     setLoading(true);
     try {
@@ -233,12 +235,12 @@ export function DosagePage() {
       }
       setStepsOpen(false);
     } catch (err) {
-      console.error('PAD 劑量計算失敗:', err);
+      console.error(`${t('dosage.validation.calcFailedLog')}:`, err);
       if (isAxiosError(err)) {
         const msg = String((err.response?.data as Record<string, unknown>)?.message || '');
-        toast.error(msg || '劑量計算失敗');
+        toast.error(msg || t('dosage.validation.calcFailedFallback'));
       } else {
-        toast.error('劑量計算失敗');
+        toast.error(t('dosage.validation.calcFailedFallback'));
       }
     } finally {
       setLoading(false);
@@ -250,26 +252,26 @@ export function DosagePage() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">劑量計算</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">ICU PAD 藥物輸注速率計算（含肥胖體重調整）</p>
+        <h1 className="text-2xl font-bold">{t('dosage.header.title')}</h1>
+        <p className="text-muted-foreground text-sm mt-0.5">{t('dosage.header.subtitle')}</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">PAD 藥物劑量計算</CardTitle>
-          <CardDescription className="text-xs">選擇藥品、輸入體重與目標劑量，系統自動計算輸注速率 (ml/hr)</CardDescription>
+          <CardTitle className="text-base">{t('dosage.card.title')}</CardTitle>
+          <CardDescription className="text-xs">{t('dosage.card.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {/* Row 1: Patient + Drug + Weight (3-col desktop) */}
           <div className="grid gap-3 md:grid-cols-3">
             <div className="space-y-1">
               <label className="text-xs font-medium">
-                <User className="inline h-3 w-3 mr-0.5" />病患（可選）
+                <User className="inline h-3 w-3 mr-0.5" />{t('dosage.patient.label')}
               </label>
               <div className="flex gap-1">
                 <Select value={selectedPatientId} onValueChange={handlePatientSelect} disabled={patientsLoading}>
                   <SelectTrigger className="h-9">
-                    <SelectValue placeholder={patientsLoading ? '載入...' : '選擇病患帶入體重/身高'} />
+                    <SelectValue placeholder={patientsLoading ? t('dosage.patient.placeholderLoading') : t('dosage.patient.placeholder')} />
                   </SelectTrigger>
                   <SelectContent>
                     {patients.map(p => (
@@ -281,17 +283,17 @@ export function DosagePage() {
                 </Select>
                 {selectedPatientId && (
                   <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9 text-muted-foreground hover:text-destructive"
-                    onClick={() => setSelectedPatientId('')} aria-label="清除病患">
+                    onClick={() => setSelectedPatientId('')} aria-label={t('dosage.patient.clear')}>
                     <X className="h-3.5 w-3.5" />
                   </Button>
                 )}
               </div>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium">藥品 *</label>
+              <label className="text-xs font-medium">{t('dosage.drug.label')}</label>
               <Select value={selectedDrug} onValueChange={handleDrugChange} disabled={drugsLoading}>
                 <SelectTrigger className="h-9">
-                  <SelectValue placeholder={drugsLoading ? '載入中...' : '選擇 PAD 藥品'} />
+                  <SelectValue placeholder={drugsLoading ? t('dosage.drug.placeholderLoading') : t('dosage.drug.placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {padDrugs.map(d => (
@@ -301,8 +303,8 @@ export function DosagePage() {
               </Select>
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium">體重 (kg) *</label>
-              <Input type="number" className="h-9 bg-muted/50" placeholder="選擇病患自動帶入" value={weight} readOnly tabIndex={-1} />
+              <label className="text-xs font-medium">{t('dosage.weight.label')}</label>
+              <Input type="number" className="h-9 bg-muted/50" placeholder={t('dosage.weight.placeholder')} value={weight} readOnly tabIndex={-1} />
             </div>
           </div>
 
@@ -310,18 +312,18 @@ export function DosagePage() {
           {drugInfo && !isFixedDose && (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-md text-xs">
               <Badge variant="outline" className="text-xs px-1.5 py-0 shrink-0">{drugInfo.label}</Badge>
-              <span className="text-muted-foreground">建議範圍</span>
+              <span className="text-muted-foreground">{t('dosage.info.rangeLabel')}</span>
               <span className="font-medium">{drugInfo.dose_range} {drugInfo.dose_unit}</span>
               <span className="text-muted-foreground mx-1">|</span>
-              <span className="text-muted-foreground">{drugInfo.concentration_range ? '允許濃度' : '預設濃度'}</span>
+              <span className="text-muted-foreground">{drugInfo.concentration_range ? t('dosage.info.concAllowedLabel') : t('dosage.info.concDefaultLabel')}</span>
               <span className="font-medium">{drugInfo.concentration_range ? `${drugInfo.concentration_range[0]}–${drugInfo.concentration_range[1]}` : drugInfo.concentration} {drugInfo.concentration_unit}</span>
               <span className="text-muted-foreground mx-1">|</span>
-              <span className="text-muted-foreground">肥胖時基準</span>
+              <span className="text-muted-foreground">{t('dosage.info.obeseBasisLabel')}</span>
               <span className="font-medium">{drugInfo.weight_basis}</span>
               {resultMin && (
                 <>
                   <span className="text-muted-foreground mx-1">|</span>
-                  <span className="text-muted-foreground">本次計算</span>
+                  <span className="text-muted-foreground">{t('dosage.info.thisCalcBasisLabel')}</span>
                   <span className="font-medium">{resultMin.weight_basis}</span>
                 </>
               )}
@@ -332,7 +334,7 @@ export function DosagePage() {
           {isFixedDose && drugInfo && (
             <Alert className="py-2">
               <AlertDescription className="text-xs leading-relaxed">
-                <strong>{drugInfo.label}</strong> 為固定劑量藥物（非體重依賴），建議劑量：{drugInfo.dose_range}。不需輸入目標劑量與濃度。
+                {t('dosage.fixedAlert', { label: drugInfo.label, range: drugInfo.dose_range })}
               </AlertDescription>
             </Alert>
           )}
@@ -342,7 +344,7 @@ export function DosagePage() {
             <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
               <div className="space-y-1">
                 <label className="text-xs font-medium">
-                  最小劑量 *
+                  {t('dosage.doseMin.label')}
                   {drugInfo && <span className="text-muted-foreground font-normal ml-0.5 text-xs">({drugInfo.dose_unit})</span>}
                 </label>
                 <Input type="number" step={doseStep} className="h-9"
@@ -351,12 +353,12 @@ export function DosagePage() {
                   placeholder={doseRange ? String(doseRange[0]) : ''} value={targetDoseMin}
                   onChange={(e) => setTargetDoseMin(e.target.value)} onBlur={handleDoseMinBlur} />
                 {doseRange && (
-                  <p className="text-xs text-muted-foreground">範圍 {doseRange[0]}–{doseRange[1]}</p>
+                  <p className="text-xs text-muted-foreground">{t('dosage.doseMin.rangeHint', { lo: doseRange[0], hi: doseRange[1] })}</p>
                 )}
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium">
-                  最大劑量 *
+                  {t('dosage.doseMax.label')}
                   {drugInfo && <span className="text-muted-foreground font-normal ml-0.5 text-xs">({drugInfo.dose_unit})</span>}
                 </label>
                 <Input type="number" step={doseStep} className="h-9"
@@ -365,12 +367,12 @@ export function DosagePage() {
                   placeholder={doseRange ? String(doseRange[1]) : ''} value={targetDoseMax}
                   onChange={(e) => setTargetDoseMax(e.target.value)} onBlur={handleDoseMaxBlur} />
                 {doseRange && (
-                  <p className="text-xs text-muted-foreground">範圍 {doseRange[0]}–{doseRange[1]}</p>
+                  <p className="text-xs text-muted-foreground">{t('dosage.doseMin.rangeHint', { lo: doseRange[0], hi: doseRange[1] })}</p>
                 )}
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium">
-                  濃度 *
+                  {t('dosage.concentration.label')}
                   {drugInfo && <span className="text-muted-foreground font-normal ml-0.5 text-xs">({drugInfo.concentration_unit})</span>}
                 </label>
                 <Input type="number" step="any" className={`h-9 ${isConcentrationChanged ? 'border-red-500 dark:border-red-400 border-2 focus-visible:ring-red-500' : ''}`}
@@ -379,14 +381,14 @@ export function DosagePage() {
                   <p className="text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-1">
                     <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                     {drugInfo.concentration_range
-                      ? `超出允許範圍（${drugInfo.concentration_range[0]}–${drugInfo.concentration_range[1]} ${drugInfo.concentration_unit}）`
-                      : `與預設濃度不同（預設 ${drugInfo.concentration} ${drugInfo.concentration_unit}）`}
+                      ? t('dosage.concentration.outOfRange', { lo: drugInfo.concentration_range[0], hi: drugInfo.concentration_range[1], unit: drugInfo.concentration_unit })
+                      : t('dosage.concentration.differentDefault', { value: drugInfo.concentration, unit: drugInfo.concentration_unit })}
                   </p>
                 )}
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">身高 (cm)</label>
-                <Input type="number" className="h-9 bg-muted/50" placeholder="選擇病患自動帶入" value={height} readOnly tabIndex={-1} />
+                <label className="text-xs font-medium text-muted-foreground">{t('dosage.height.label')}</label>
+                <Input type="number" className="h-9 bg-muted/50" placeholder={t('dosage.height.placeholder')} value={height} readOnly tabIndex={-1} />
               </div>
             </div>
           )}
@@ -395,8 +397,8 @@ export function DosagePage() {
           {isFixedDose && (
             <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
               <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">身高 (cm)</label>
-                <Input type="number" className="h-9 bg-muted/50" placeholder="選擇病患自動帶入" value={height} readOnly tabIndex={-1} />
+                <label className="text-xs font-medium text-muted-foreground">{t('dosage.height.label')}</label>
+                <Input type="number" className="h-9 bg-muted/50" placeholder={t('dosage.height.placeholder')} value={height} readOnly tabIndex={-1} />
               </div>
             </div>
           )}
@@ -405,11 +407,11 @@ export function DosagePage() {
           <div className="flex gap-2 pt-1">
             <Button size="sm" onClick={handleCalculate} disabled={loading}>
               {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Calculator className="mr-1.5 h-3.5 w-3.5" />}
-              計算輸注速率
+              {t('dosage.buttons.calculate')}
             </Button>
             {(selectedDrug || weight || targetDoseMin || targetDoseMax || concentration || sex || height) && (
               <Button variant="outline" size="sm" onClick={handleReset}>
-                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />清除全部
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t('dosage.buttons.reset')}
               </Button>
             )}
           </div>
@@ -418,7 +420,7 @@ export function DosagePage() {
           {loading && (
             <div className="text-center py-6">
               <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-brand" />
-              <p className="text-xs text-muted-foreground">計算中...</p>
+              <p className="text-xs text-muted-foreground">{t('dosage.result.calculating')}</p>
             </div>
           )}
 
@@ -431,7 +433,7 @@ export function DosagePage() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{drugInfo?.label || resultMin.drug}</span>
-                    <Badge variant="secondary" className="text-xs">固定劑量</Badge>
+                    <Badge variant="secondary" className="text-xs">{t('dosage.result.fixedDoseBadge')}</Badge>
                   </div>
                   <Alert className="py-2">
                     <AlertTriangle className="h-3.5 w-3.5" />
@@ -452,7 +454,7 @@ export function DosagePage() {
                   {/* Rate hero: min–max range */}
                   <div className="flex items-stretch gap-0 rounded-lg overflow-hidden border border-brand/20">
                     <div className="flex-1 px-4 py-3 bg-brand/10 text-center">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-tight mb-1">{resultMax ? '最小速率' : '輸注速率'}</p>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-tight mb-1">{resultMax ? t('dosage.result.rateMin') : t('dosage.result.rate')}</p>
                       <p className="text-3xl font-bold text-brand leading-none">{resultMin.rate_ml_hr}</p>
                       <p className="text-xs font-medium text-brand/70 mt-0.5">ml/hr</p>
                     </div>
@@ -462,7 +464,7 @@ export function DosagePage() {
                           <span className="text-xl text-brand/40 font-light">→</span>
                         </div>
                         <div className="flex-1 px-4 py-3 bg-brand/10 text-center">
-                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-tight mb-1">最大速率</p>
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-tight mb-1">{t('dosage.result.rateMax')}</p>
                           <p className="text-3xl font-bold text-brand leading-none">{resultMax.rate_ml_hr}</p>
                           <p className="text-xs font-medium text-brand/70 mt-0.5">ml/hr</p>
                         </div>
@@ -473,17 +475,17 @@ export function DosagePage() {
                   {/* Secondary stats */}
                   <div className="grid grid-cols-3 gap-3 text-xs bg-muted/30 rounded-md px-3 py-2">
                     <div>
-                      <span className="text-muted-foreground">計算體重</span>
+                      <span className="text-muted-foreground">{t('dosage.result.secondaryDoseLabel')}</span>
                       <p className="font-semibold">{resultMin.dosing_weight_kg} kg</p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">每小時劑量</span>
+                      <span className="text-muted-foreground">{t('dosage.result.secondaryHourlyLabel')}</span>
                       <p className="font-semibold">
                         {resultMin.dose_per_hr}{resultMax ? ` – ${resultMax.dose_per_hr}` : ''} {doseUnitShort}
                       </p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">濃度</span>
+                      <span className="text-muted-foreground">{t('dosage.result.secondaryConcentrationLabel')}</span>
                       <p className="font-semibold">{resultMin.concentration}</p>
                     </div>
                   </div>
@@ -501,9 +503,9 @@ export function DosagePage() {
                       <span>
                         <span className="text-muted-foreground">%IBW</span>{' '}
                         <span className="font-medium">{resultMin.pct_IBW}%</span>
-                        {resultMin.is_obese && <Badge variant="destructive" className="ml-1 text-xs px-1 py-0">肥胖</Badge>}
+                        {resultMin.is_obese && <Badge variant="destructive" className="ml-1 text-xs px-1 py-0">{t('dosage.result.weightObese')}</Badge>}
                         {!resultMin.is_obese && resultMin.pct_IBW != null && resultMin.pct_IBW < 90 && (
-                          <Badge className="ml-1 text-xs px-1 py-0 bg-amber-500 hover:bg-amber-600">體重偏低</Badge>
+                          <Badge className="ml-1 text-xs px-1 py-0 bg-amber-500 hover:bg-amber-600">{t('dosage.result.weightUnderweight')}</Badge>
                         )}
                       </span>
                     </div>
@@ -517,7 +519,7 @@ export function DosagePage() {
                         onClick={() => setStepsOpen(!stepsOpen)}
                       >
                         {stepsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                        計算步驟
+                        {t('dosage.result.stepsToggle')}
                       </button>
                       {stepsOpen && (
                         <ol className="list-decimal list-inside space-y-0.5 text-xs text-muted-foreground mt-1.5 pl-1">
