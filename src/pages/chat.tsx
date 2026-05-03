@@ -11,6 +11,7 @@ import { useAuth } from '../lib/auth-context';
 import { maskPatientName } from '../lib/utils/patient-name';
 import { getTeamChatMessages, sendTeamChatMessage, postAnnouncement, togglePinMessage, deleteTeamChatMessage, getTeamUsers, markChatVisited, TeamChatMessage, TeamUser } from '../lib/api/team-chat';
 import { chatCache, MSGS_STALE_MS, MENTIONS_STALE_MS } from '../lib/api/team-chat-cache';
+import { roleLabel } from '../lib/utils/user-role';
 import { getMyMentions, type MentionGroup } from '../lib/api/messages';
 import { LoadingSpinner } from '../components/ui/state-display';
 import { toast } from 'sonner';
@@ -23,14 +24,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
-
-// 角色顯示名稱
-const roleDisplayName: Record<string, string> = {
-  doctor: '醫師',
-  nurse: '護理師',
-  pharmacist: '藥師',
-  admin: '管理者',
-};
 
 // 格式化時間戳
 function formatTimestamp(timestamp: string): string {
@@ -349,7 +342,7 @@ export function ChatPage() {
                 <>
                   <span className="text-xs font-medium text-foreground">{msg.userName}</span>
                   <Badge variant="outline" className="text-[10px] px-1 py-0">
-                    {roleDisplayName[msg.userRole] || msg.userRole}
+                    {roleLabel(msg.userRole)}
                   </Badge>
                 </>
               )}
@@ -677,7 +670,7 @@ export function ChatPage() {
                                     >
                                       <div className="flex items-center gap-1.5 mb-1">
                                         <span className="text-xs font-medium text-foreground">{msg.authorName}</span>
-                                        <Badge variant="outline" className="text-xs px-1 py-0">{roleDisplayName[msg.authorRole] || msg.authorRole}</Badge>
+                                        <Badge variant="outline" className="text-xs px-1 py-0">{roleLabel(msg.authorRole)}</Badge>
                                         <span className="text-xs text-muted-foreground ml-auto">{formatTimestamp(msg.timestamp)}</span>
                                       </div>
                                       <p className="text-sm text-foreground leading-relaxed line-clamp-3">{msg.content}</p>

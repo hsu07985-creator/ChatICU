@@ -1,15 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 
 import { Textarea } from './textarea';
-import type { TeamUser, UserRole } from '../../lib/api/team-chat';
-
-const ROLE_LABEL: Record<UserRole, string> = {
-  doctor: '醫師',
-  np: '專科護理師',
-  nurse: '護理師',
-  pharmacist: '藥師',
-  admin: 'admin',
-};
+import type { TeamUser } from '../../lib/api/team-chat';
+import { ROLE_LABEL } from '../../lib/utils/user-role';
 
 // @<chinese/letter/digit>+ — stops at whitespace or punctuation. \p{L} covers
 // Han characters; \p{N} for digits; underscore + hyphen are common in IDs.

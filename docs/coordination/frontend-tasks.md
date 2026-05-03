@@ -573,14 +573,17 @@
 - **Coordination:** UI gate must land **after or together with** TC-B01 (otherwise admins still see the button but non-admins clicking it would 403). Since the button only currently mutates, and TC-B01 will reject it, the safe order is: TC-B01 backend → TC-F02 frontend. Land in same release.
 - **References:** F-07, F-01
 
-### TC-F03 [TODO] Share `ROLE_LABEL` constant; fix `np` display fallback
+### TC-F03 [DONE] Share `ROLE_LABEL` constant; fix `np` display fallback
 - **Added by:** team-chat audit (F-08)
 - **Date:** 2026-05-03
+- **Completed:** 2026-05-03 (branch `fix/tc-w1-t3-share-role-label`)
 - **Priority:** P1 (NP users currently see raw `np` string in chat bubbles)
 - **Progress tracker:** TC-W1-T3
-- **Files:**
-  - `src/components/ui/mention-textarea.tsx:6-12` — export `ROLE_LABEL` (already complete with all 5 roles)
-  - `src/pages/chat.tsx:37-42` — delete local `roleDisplayName`, import `ROLE_LABEL`; type as `Record<UserRole, string>` so future role enum changes fail compile
+- **Files modified:**
+  - `src/lib/utils/user-role.ts` (NEW) — canonical `ROLE_LABEL: Record<UserRole, string>` + `roleLabel(role)` helper that falls back to the raw string on unknown role.
+  - `src/components/ui/mention-textarea.tsx:6-12` — deleted local `ROLE_LABEL`, import shared. Picker now shows '管理者' instead of 'admin'.
+  - `src/pages/chat.tsx:28-33, 352, 680` — deleted local `roleDisplayName`; both `userRole` (chat bubble) and `authorRole` (mention sidebar) call `roleLabel(...)`. NP users now display '專科護理師'.
+- **Verification:** `npx tsc --noEmit` exit 0; `grep roleDisplayName src/pages/chat.tsx` empty.
 - **References:** F-08
 
 ### TC-F04 [TODO] Auto scroll-to-bottom only when user is near bottom
