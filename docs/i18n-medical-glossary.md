@@ -83,7 +83,35 @@
 | 呼吸道支持 / 侵入性呼吸道支持 / 已氣切 | Airway Support / Invasive airway support / Tracheostomy | — | ⬜ | Trach 縮寫常見 |
 | 重複用藥警示 | Duplicate medication alert | — | ⬜ | Therapeutic Duplication Alert |
 
-## Wave 3+ 後續
+## Wave 3a — 病人列表 / 出院 / 編輯封存對話框
+
+### 列表 / 表格欄位（patients.json）
+| zh-TW | Claude 初譯（en-US） | 最終版 | 狀態 | 備註 |
+|-------|---------------------|--------|------|------|
+| 住院病人 | Inpatients | — | ⬜ | Admitted Patients 也可 |
+| 病例號碼 | MRN | — | ⬜ | Medical Record Number |
+| 入ICU日期 | ICU Admit | — | ⬜ | ICU Admission Date 較完整 |
+| 呼吸器天數 | Vent Days | — | ⬜ | Ventilator Days |
+| 隔離 | Isolation | — | ⬜ | |
+| 插管 / 未插管 | Airway / No | — | ⬜ | 表頭僅一格、避免太長 |
+| 辦理出院（保留病歷） | Discharge (keep records) | — | ⬜ | |
+
+### 新增/編輯/封存
+| zh-TW | Claude 初譯（en-US） | 最終版 | 狀態 | 備註 |
+|-------|---------------------|--------|------|------|
+| 新增病患 | Add Patient | — | ⬜ | New Patient |
+| 編輯病人資料 | Edit Patient | — | ⬜ | |
+| 同意書狀態 | Consent Status | — | ⬜ | |
+| 已同意 / 已過期 / 未簽署 | Signed / Expired / Not signed | — | ⬜ | |
+| 神經肌肉阻斷 / 肌肉鬆弛劑 | Neuromuscular Blocker | — | ⬜ | NMB；列表用 Sedation/Analgesia/NMB 三縮寫 |
+| 氣管切開術 | Tracheostomy | — | ⬜ | Trach 為常用縮寫 |
+| 侵入性呼吸道支持 | Invasive airway support | — | ⬜ | |
+| 辦理出院（封存病患） | Discharge (archive patient) | — | ⬜ | Soft Discharge |
+| 一般出院 / 轉院 / 死亡 / 其他 | Discharge / Transfer / Death / Other | — | ⬜ | |
+| 永久刪除（admin） | Permanent delete (admin) | — | ⬜ | hard delete |
+| 對選取病人 AI 問答 | AI Chat about selected | — | ⬜ | |
+
+## Wave 3b+ 後續
 
 各 Wave 啟動時補進此表。建議優先校稿項目：
 - 藥品劑型用語（tab/cap/inj/syr）

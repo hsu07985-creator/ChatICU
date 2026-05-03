@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Archive } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { PatientWithFrontendFields } from '../../../features/patients/types';
 import { maskPatientName } from '../../../lib/utils/patient-name';
 import { Button } from '../../ui/button';
@@ -58,6 +59,7 @@ export function PatientArchiveDialog({
   onConfirmArchive,
   lockTarget = false,
 }: PatientArchiveDialogProps) {
+  const { t } = useTranslation(['patients', 'common']);
   const [dischargeType, setDischargeType] = useState<DischargeType>('discharge');
   const [dischargeDate, setDischargeDate] = useState<string>(todayIso());
   const [reason, setReason] = useState<string>('');
@@ -81,25 +83,25 @@ export function PatientArchiveDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Archive className="h-5 w-5 text-brand" />
-            辦理出院（封存病患）
+            {t('patients:archive.title')}
           </DialogTitle>
           <DialogDescription>
-            出院後病患將從住院中清單移除，但所有用藥/檢驗/對話紀錄都會保留，可於「出院病人」頁回顧或復住院。
+            {t('patients:archive.description')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           {lockTarget ? (
             <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
-              <span className="text-muted-foreground">對象病患：</span>
-              <span className="font-medium ml-1">{label || '—'}</span>
+              <span className="text-muted-foreground">{t('patients:archive.targetLabel')}</span>
+              <span className="font-medium ml-1">{label || t('patients:archive.targetLabelEmpty')}</span>
             </div>
           ) : (
             <div className="space-y-2">
-              <Label>選擇病患</Label>
+              <Label>{t('patients:archive.selectLabel')}</Label>
               <Select value={archiveTargetId} onValueChange={onArchiveTargetChange}>
                 <SelectTrigger>
-                  <SelectValue placeholder="請選擇病患..." />
+                  <SelectValue placeholder={t('patients:archive.selectPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {patients.map((patient) => (
@@ -114,22 +116,22 @@ export function PatientArchiveDialog({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>出院類別 *</Label>
+              <Label>{t('patients:archive.dischargeTypeLabel')}</Label>
               <Select value={dischargeType} onValueChange={(v) => setDischargeType(v as DischargeType)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="discharge">一般出院</SelectItem>
-                  <SelectItem value="transfer">轉院 / 轉出</SelectItem>
-                  <SelectItem value="death">死亡</SelectItem>
-                  <SelectItem value="other">其他</SelectItem>
+                  <SelectItem value="discharge">{t('patients:dischargeType.discharge')}</SelectItem>
+                  <SelectItem value="transfer">{t('patients:dischargeType.transferLong')}</SelectItem>
+                  <SelectItem value="death">{t('patients:dischargeType.death')}</SelectItem>
+                  <SelectItem value="other">{t('patients:dischargeType.other')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label>出院日期 *</Label>
+              <Label>{t('patients:archive.dischargeDateLabel')}</Label>
               <Input
                 type="date"
                 value={dischargeDate}
@@ -139,9 +141,9 @@ export function PatientArchiveDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>備註（選填）</Label>
+            <Label>{t('patients:archive.remarkLabel')}</Label>
             <Textarea
-              placeholder="轉院目的醫院、死亡原因、其他備註..."
+              placeholder={t('patients:archive.remarkPlaceholder')}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
@@ -151,7 +153,7 @@ export function PatientArchiveDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={archivingPatient}>
-            取消
+            {t('common:actions.cancel')}
           </Button>
           <Button
             onClick={() =>
@@ -165,7 +167,7 @@ export function PatientArchiveDialog({
             disabled={!canConfirm}
             className="bg-brand hover:bg-brand-hover"
           >
-            {archivingPatient ? '處理中...' : '確認出院'}
+            {archivingPatient ? t('patients:archive.submitting') : t('patients:archive.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>

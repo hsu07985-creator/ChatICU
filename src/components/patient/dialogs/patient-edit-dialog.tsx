@@ -1,4 +1,5 @@
 import { Edit2, Save, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { ICU_DEPARTMENTS, type PatientWithFrontendFields } from '../../../features/patients/types';
 import { Button } from '../../ui/button';
 import { ButtonLoadingIndicator } from '../../ui/button-loading-indicator';
@@ -30,6 +31,7 @@ export function PatientEditDialog({
   onSave,
   isSaving = false,
 }: PatientEditDialogProps) {
+  const { t } = useTranslation(['patients', 'common']);
   if (!patient) {
     return null;
   }
@@ -94,13 +96,13 @@ export function PatientEditDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Edit2 className="h-5 w-5 text-brand" />
-            編輯病人資料
+            {t('patients:edit.title')}
           </DialogTitle>
-          <DialogDescription>請修改病人資料並儲存。</DialogDescription>
+          <DialogDescription>{t('patients:edit.description')}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="bedNumber" className="text-right">床號</Label>
+            <Label htmlFor="bedNumber" className="text-right">{t('patients:edit.labels.bed')}</Label>
             <Input
               id="bedNumber"
               value={patient.bedNumber}
@@ -109,7 +111,7 @@ export function PatientEditDialog({
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">姓名</Label>
+            <Label htmlFor="name" className="text-right">{t('patients:edit.labels.name')}</Label>
             <Input
               id="name"
               value={patient.name}
@@ -118,7 +120,7 @@ export function PatientEditDialog({
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="gender" className="text-right">性別</Label>
+            <Label htmlFor="gender" className="text-right">{t('patients:edit.labels.gender')}</Label>
             <Select
               value={patient.gender}
               onValueChange={(value) => updatePatientField('gender', value)}
@@ -127,13 +129,13 @@ export function PatientEditDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="男">男</SelectItem>
-                <SelectItem value="女">女</SelectItem>
+                <SelectItem value="男">{t('patients:create.gender.male')}</SelectItem>
+                <SelectItem value="女">{t('patients:create.gender.female')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="age" className="text-right">年齡</Label>
+            <Label htmlFor="age" className="text-right">{t('patients:edit.labels.age')}</Label>
             <Input
               id="age"
               type="number"
@@ -143,31 +145,31 @@ export function PatientEditDialog({
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="height" className="text-right">身高 (cm)</Label>
+            <Label htmlFor="height" className="text-right">{t('patients:edit.labels.heightCm')}</Label>
             <Input
               id="height"
               type="number"
               step="0.1"
-              placeholder="例: 170"
+              placeholder={t('patients:edit.placeholders.height')}
               value={patient.height ?? ''}
               onChange={(e) => updatePatientField('height', e.target.value ? Number(e.target.value) : null)}
               className="col-span-3"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="weight" className="text-right">體重 (kg)</Label>
+            <Label htmlFor="weight" className="text-right">{t('patients:edit.labels.weightKg')}</Label>
             <Input
               id="weight"
               type="number"
               step="0.1"
-              placeholder="例: 65"
+              placeholder={t('patients:edit.placeholders.weight')}
               value={patient.weight ?? ''}
               onChange={(e) => updatePatientField('weight', e.target.value ? Number(e.target.value) : null)}
               className="col-span-3"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="attendingPhysician" className="text-right">主治醫師</Label>
+            <Label htmlFor="attendingPhysician" className="text-right">{t('patients:edit.labels.physician')}</Label>
             <Input
               id="attendingPhysician"
               value={patient.attendingPhysician}
@@ -176,7 +178,7 @@ export function PatientEditDialog({
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="department" className="text-right">科別</Label>
+            <Label htmlFor="department" className="text-right">{t('patients:edit.labels.department')}</Label>
             <Select value={patient.department} onValueChange={(value) => updatePatientField('department', value)}>
               <SelectTrigger className="col-span-3">
                 <SelectValue />
@@ -191,7 +193,7 @@ export function PatientEditDialog({
             </Select>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="diagnosis" className="text-right">入院診斷</Label>
+            <Label htmlFor="diagnosis" className="text-right">{t('patients:edit.labels.diagnosis')}</Label>
             <Input
               id="diagnosis"
               value={patient.diagnosis}
@@ -200,7 +202,7 @@ export function PatientEditDialog({
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="admissionDate" className="text-right">入院日期</Label>
+            <Label htmlFor="admissionDate" className="text-right">{t('patients:edit.labels.admissionDate')}</Label>
             <Input
               id="admissionDate"
               type="date"
@@ -210,7 +212,7 @@ export function PatientEditDialog({
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="icuAdmissionDate" className="text-right">ICU入院日期</Label>
+            <Label htmlFor="icuAdmissionDate" className="text-right">{t('patients:edit.labels.icuAdmissionDate')}</Label>
             <Input
               id="icuAdmissionDate"
               type="date"
@@ -220,7 +222,7 @@ export function PatientEditDialog({
             />
           </div>
           <div className="grid grid-cols-4 items-start gap-4">
-            <Label className="pt-2 text-right">呼吸道支持</Label>
+            <Label className="pt-2 text-right">{t('patients:edit.labels.airway')}</Label>
             <div className="col-span-3 space-y-4 rounded-lg border border-border/70 bg-muted/30 p-4">
               <div className="flex flex-wrap items-center gap-6">
                 <label className="flex items-center gap-2">
@@ -229,7 +231,7 @@ export function PatientEditDialog({
                     checked={patient.intubated}
                     onCheckedChange={(checked) => handleIntubatedChange(checked === true)}
                   />
-                  <span className="text-sm font-medium">目前使用侵入性呼吸道支持</span>
+                  <span className="text-sm font-medium">{t('patients:edit.airway.invasiveCheckbox')}</span>
                 </label>
                 <label className="flex items-center gap-2">
                   <Checkbox
@@ -237,13 +239,13 @@ export function PatientEditDialog({
                     checked={hasTracheostomy}
                     onCheckedChange={(checked) => handleTracheostomyChange(checked === true)}
                   />
-                  <span className="text-sm font-medium">已執行氣管切開術</span>
+                  <span className="text-sm font-medium">{t('patients:edit.airway.tracheostomyCheckbox')}</span>
                 </label>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="intubationDate">插管日期</Label>
+                  <Label htmlFor="intubationDate">{t('patients:edit.airway.intubationDate')}</Label>
                   <Input
                     id="intubationDate"
                     type="date"
@@ -252,11 +254,11 @@ export function PatientEditDialog({
                     disabled={!patient.intubated}
                   />
                   <p className="text-xs text-muted-foreground">
-                    病人入 ICU 前已插管時可直接填寫；日期未知可先留空。
+                    {t('patients:edit.airway.intubationHint')}
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="tracheostomyDate">氣切日期</Label>
+                  <Label htmlFor="tracheostomyDate">{t('patients:edit.airway.tracheostomyDate')}</Label>
                   <Input
                     id="tracheostomyDate"
                     type="date"
@@ -265,63 +267,63 @@ export function PatientEditDialog({
                     disabled={!hasTracheostomy}
                   />
                   <p className="text-xs text-muted-foreground">
-                    可只勾選「已執行氣管切開術」；若填日期會自動視為已氣切。
+                    {t('patients:edit.airway.tracheostomyHint')}
                   </p>
                 </div>
               </div>
 
               <div className="rounded-md bg-background/80 px-3 py-2 text-xs text-muted-foreground">
-                若病人由氣切處接呼吸器，仍視為侵入性呼吸道支持中；此區塊先提供狀態與日期兩種記錄方式。
+                {t('patients:edit.airway.footerNote')}
               </div>
             </div>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="ventilatorDays" className="text-right">呼吸器天數</Label>
+            <Label htmlFor="ventilatorDays" className="text-right">{t('patients:edit.labels.ventilatorDays')}</Label>
             <div className="col-span-3 flex items-center gap-2">
               <span className="text-sm font-medium">
-                {airwaySupportDays} 天
+                {t('patients:edit.ventilatorDaysValue', { days: airwaySupportDays })}
               </span>
               <span className="text-xs text-muted-foreground">
                 {patient.intubationDate
-                  ? '（依插管日期自動計算）'
+                  ? t('patients:edit.ventilatorDaysSource.intubation')
                   : patient.tracheostomyDate
-                    ? '（示意：暫以氣切日期估算）'
-                    : '（請先設定插管或氣切日期）'}
+                    ? t('patients:edit.ventilatorDaysSource.tracheostomy')
+                    : t('patients:edit.ventilatorDaysSource.none')}
               </span>
             </div>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="sedation" className="text-right">鎮靜劑 (S)</Label>
+            <Label htmlFor="sedation" className="text-right">{t('patients:edit.labels.sedation')}</Label>
             <Input
               id="sedation"
               value={(patient.sedation ?? []).join(', ')}
               onChange={(e) => updatePatientField('sedation', e.target.value ? e.target.value.split(',').map(s => s.trim()) : [])}
               className="col-span-3"
-              placeholder="多個藥品用逗號分隔"
+              placeholder={t('patients:edit.placeholders.drugListsCsv')}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="analgesia" className="text-right">止痛劑 (A)</Label>
+            <Label htmlFor="analgesia" className="text-right">{t('patients:edit.labels.analgesia')}</Label>
             <Input
               id="analgesia"
               value={(patient.analgesia ?? []).join(', ')}
               onChange={(e) => updatePatientField('analgesia', e.target.value ? e.target.value.split(',').map(s => s.trim()) : [])}
               className="col-span-3"
-              placeholder="多個藥品用逗號分隔"
+              placeholder={t('patients:edit.placeholders.drugListsCsv')}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="nmb" className="text-right">肌肉鬆弛劑 (N)</Label>
+            <Label htmlFor="nmb" className="text-right">{t('patients:edit.labels.nmb')}</Label>
             <Input
               id="nmb"
               value={(patient.nmb ?? []).join(', ')}
               onChange={(e) => updatePatientField('nmb', e.target.value ? e.target.value.split(',').map(s => s.trim()) : [])}
               className="col-span-3"
-              placeholder="多個藥品用逗號分隔"
+              placeholder={t('patients:edit.placeholders.drugListsCsv')}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="consentStatus" className="text-right">同意書狀態</Label>
+            <Label htmlFor="consentStatus" className="text-right">{t('patients:edit.labels.consent')}</Label>
             <Select
               value={patient.consentStatus ?? 'none'}
               onValueChange={(value) => updatePatientField('consentStatus', value)}
@@ -330,9 +332,9 @@ export function PatientEditDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="valid">已同意</SelectItem>
-                <SelectItem value="expired">已過期</SelectItem>
-                <SelectItem value="none">未簽署</SelectItem>
+                <SelectItem value="valid">{t('patients:edit.consentOptions.valid')}</SelectItem>
+                <SelectItem value="expired">{t('patients:edit.consentOptions.expired')}</SelectItem>
+                <SelectItem value="none">{t('patients:edit.consentOptions.none')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -340,11 +342,11 @@ export function PatientEditDialog({
         <DialogFooter>
           <Button variant="outline" onClick={onCancel} disabled={isSaving}>
             <X className="mr-2 h-4 w-4" />
-            取消
+            {t('common:actions.cancel')}
           </Button>
           <Button onClick={onSave} className="bg-brand hover:bg-brand-hover" disabled={isSaving}>
             <Save className="mr-2 h-4 w-4" />
-            <span>{isSaving ? '處理中' : '儲存變更'}</span>
+            <span>{isSaving ? t('patients:edit.submitting') : t('patients:edit.submit')}</span>
             {isSaving ? <ButtonLoadingIndicator /> : null}
           </Button>
         </DialogFooter>

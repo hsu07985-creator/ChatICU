@@ -4,7 +4,7 @@
 > **配對術語表**：[`docs/i18n-medical-glossary.md`](i18n-medical-glossary.md)
 > **負責人**：Chun + Claude
 > **啟動日**：2026-05-04
-> **總進度**：🟢 3 / 8 Waves（W0+W1 合併完成、W2 完成 2026-05-04）
+> **總進度**：🟢 3.3 / 8 Waves（W0+W1+W2 完成、W3a 完成 2026-05-04；W3b+ 待開工）
 
 ---
 
@@ -15,7 +15,10 @@
 | 0 | 基建 + 切換按鈕 | 🟢 完成 | `feat/i18n-w0-w1` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 1 | sidebar + common + errors + roles + notifications | 🟢 完成 | `feat/i18n-w0-w1` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 2 | login + change-password + dashboard | 🟢 完成 | `feat/i18n-w2` | 2026-05-04 | 🚀 personal+railway 已推 |
-| 3 | 病人模組（patients / discharged / detail / medical records） | ⬜ 待開工 | — | — |
+| 3a | 病人列表 + 出院列表 + 編輯/封存對話框 | 🟢 完成 | `feat/i18n-w3a` | 2026-05-04 | 待 push |
+| 3b | patient-detail.tsx 主頁 + 共用元件 | ⬜ 待開工 | — | — | — |
+| 3c | medical-records + vital-signs + lab-data + trends | ⬜ 待開工 | — | — | — |
+| 3d-g | patient-detail 各 tab（summary / meds / labs / messages / chat） | ⬜ 待開工（5 個 sub-PR） | — | — | — |
 | 4 | team chat + ai chat | ⬜ 待開工 | — | — |
 | 5 | 藥事 7 頁（workstation + 6 工具） | ⬜ 待開工 | — | — |
 | 6 | admin 4 頁 | ⬜ 待開工 | — | — |
@@ -111,9 +114,41 @@
 - 病患卡片 `{age} 歲` 用 `t('card.ageYears', {age})` 帶插值，英文版直接 `{{age}} y/o`
 - 編輯對話框的「儲存/取消」走 `common:` namespace 而非 `dashboard:`，重複利用
 
-### Wave 3｜病人模組（最大宗）
-- 範圍：`patients.tsx` / `discharged-patients.tsx` / `patient-detail.tsx` + `src/components/medical-records.tsx` / `vital-signs-card.tsx` / `lab-data-display.tsx` / `lab-trend-chart.tsx` / `score-trend-chart.tsx` / `src/components/patient/*`
-- namespace：`patients.json` / `patient-detail.json` / `medical-records.json`
+### Wave 3｜病人模組（拆 W3a + W3b + W3c + W3d-g 共 7 個 sub-PR）
+
+**為何拆**：原計畫 1.5 天估算嚴重低估。實際範圍 ~5,400 行 source（patient-detail.tsx 1802 行、medical-records.tsx 1320 行、patient-medications-tab.tsx 61KB 等），分多個 PR 較好 review。
+
+#### Wave 3a｜病人列表 + 出院列表 + 編輯/封存對話框（🟢 完成 2026-05-04）
+
+**已完成檔案**：
+- 字典：`src/i18n/locales/{zh-TW,en-US}/patients.json`（list / create / edit / archive / dischargeType / discharged 6 個 sub-section、~120 keys）
+- 元件改寫：
+  - `src/pages/patients.tsx`（住院病人列表 + 內嵌新增/封存對話框，895 行）
+  - `src/pages/discharged-patients.tsx`（出院病人列表 + 多選 + AI 問答，485 行）
+  - `src/components/patient/dialogs/patient-edit-dialog.tsx`（共用編輯對話框，354 行）
+  - `src/components/patient/dialogs/patient-archive-dialog.tsx`（共用辦理出院對話框，174 行）
+- `src/i18n/config.ts`：註冊 `patients` namespace
+- 文件：`docs/i18n-medical-glossary.md` 補入 Wave 3a 校稿表
+
+**已知範圍外（dead code，跳過）**：
+- `src/components/patient/patients-list-card.tsx`（沒有 import 它）
+- `src/components/patient/dialogs/patient-create-dialog.tsx`（沒有 import 它，創建邏輯已內嵌在 patients.tsx）
+
+**驗收**：
+- [x] TypeScript build 過 (`npm run typecheck`)
+- [ ] 手動瀏覽器驗證
+
+#### Wave 3b｜patient-detail.tsx 主頁 + 共用 patient 元件
+- 範圍：`patient-detail.tsx` + `patient-detail-header.tsx` + `patient-detail-state-guard.tsx` + `patient-activity-panel.tsx` + `confidence-badge.tsx` + `expert-review-warning.tsx`
+- namespace：`patient-detail.json`
+
+#### Wave 3c｜病歷 + 生命徵象 + 檢驗
+- 範圍：`medical-records.tsx` / `vital-signs-card.tsx` / `lab-data-display.tsx` / `lab-trend-chart.tsx` / `score-trend-chart.tsx`
+- namespace：`medical-records.json` + `vital-signs.json` + `labs.json`
+
+#### Wave 3d-g｜patient-detail 各 tab
+- 一個 tab 一個 sub-PR：`patient-summary-tab` / `patient-medications-tab` / `patient-labs-tab` / `patient-messages-tab` / `patient-chat-tab`
+- 加上 `medication-risk-card`、`drug-interaction-badges`、`medication-duplicate-badges`、`iv-compatibility-checker`、`patient-microbiology-card`、`patient-diagnostic-reports`、`discharge-check-panel`、`chat-message-thread`
 
 ### Wave 4｜溝通
 - 範圍：`chat.tsx` / `ai-chat.tsx` / `src/components/ai-chat/*`
@@ -147,6 +182,9 @@
 | 2026-05-04 | W0+W1+W2 部署 | `git push personal main` + `git push railway main` 兩邊都通（personal 推 1 commit、railway 推 6 commit）；待部署完成後驗證 health + bundle |
 | 2026-05-04 | 部署驗證通過 | Railway `/health` → `{"status":"healthy","version":"1.4.5"}`；Vercel bundle `index-DWlI4vVx.js` 含 `i18next` + `chaticu.lang` localStorage key；VITE_API_URL 未洩漏（proxy 路徑正確） |
 | 2026-05-04 | 切換按鈕版面調整 | Theme + Language 由「上下兩行 full-width」改為「50/50 並排」；語言按鈕補上 lucide `Globe` icon（方案 B）。覆寫 Q1-A 的「純文字」原始決定，原因：使用者在實機看到後覺得語言按鈕太突兀，icon 化反而更協調 |
+| 2026-05-04 | 縮短按鈕文字 | 深色模式/淺色模式 → 深/淺；Dark Mode/Light Mode → Dark/Light；EN → 英（語言按鈕）。理由：50/50 layout 文字長度需收斂 |
+| 2026-05-04 | Wave 3 拆分決策 | 原計畫 1.5 天估算嚴重低估（patient-detail 1802 行 + medical-records 1320 行 + 21 個子元件最大 61KB）。拆成 W3a-g 共 7 個 sub-PR，依檔案 size + 使用頻率分配。dead code（patients-list-card、patient-create-dialog）跳過 |
+| 2026-05-04 | W3a 落地 | patients/discharged/edit-dialog/archive-dialog 全部 t() 化，~120 keys，typecheck 通過 |
 
 ---
 
