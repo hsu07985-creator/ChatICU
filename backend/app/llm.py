@@ -581,6 +581,89 @@ async def call_llm_stream(
         yield f"[ERROR] {str(e)}"
 
 
+def _build_anthropic_system_blocks(system_prompt: str) -> list:
+    """Anthropic system as cached blocks.
+
+    Splits system_prompt at the ``[病患臨床快照]`` marker (the same byte-stable
+    boundary the OpenAI cache relies on, see backend/app/routers/ai_chat.py
+    `_build_system_prompt`). The base task prompt becomes one cached block,
+    the snapshot becomes another. Both get ``cache_control: ephemeral`` so
+    repeated turns within ~5 minutes hit the cache.
+
+    If the marker is missing (e.g. general chat without patient context),
+    falls back to a single cached block containing the whole system_prompt.
+
+    Cache support is limited to claude-3.5+ / claude-4 models. For other
+    models (or when caching beta is off) the Anthropic API still accepts
+    the structured form and silently degrades to no cache.
+    """
+    marker = "[病患臨床快照]"
+    if marker in system_prompt:
+        head, tail = system_prompt.split(marker, 1)
+        base = head.rstrip()
+        snapshot = (marker + tail).strip()
+        return [
+            {"type": "text", "text": base, "cache_control": {"type": "ephemeral"}},
+            {"type": "text", "text": snapshot, "cache_control": {"type": "ephemeral"}},
+        ]
+    return [
+        {"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}},
+    ]
+
+
+def _log_anthropic_cache(task: str, usage) -> None:
+    """Emit [LLM][CACHE] line in the same shape as the OpenAI logger."""
+    input_tokens = getattr(usage, "input_tokens", 0) or 0
+    output_tokens = getattr(usage, "output_tokens", 0) or 0
+    cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
+    cache_create = getattr(usage, "cache_creation_input_tokens", 0) or 0
+    total_input = input_tokens + cache_read + cache_create
+    if total_input:
+        ratio = (cache_read / total_input * 100)
+        logger.info(
+            "[LLM][CACHE] task=%s prompt_tokens=%d cached_tokens=%d cache_create=%d hit_ratio=%.0f%% completion_tokens=%d provider=anthropic",
+            task, total_input, cache_read, cache_create, ratio, output_tokens,
+        )
+
+
+def _build_openai_reasoning_param_block(
+    *,
+    task: str,
+    temperature: float,
+    disable_reasoning: bool = False,
+    icu_chat_skips_reasoning: bool = False,
+) -> dict:
+    """Single source of truth for OpenAI reasoning_effort vs temperature.
+
+    Returns a partial kwargs dict to merge into ``client.chat.completions.create``.
+
+    - If reasoning is wanted and the call qualifies, sets ``reasoning_effort``
+      from ``LLM_REASONING_EFFORT``.
+    - Else if model is gpt-5.x, sets ``reasoning_effort="minimal"``. Required
+      because gpt-5.x without an explicit field falls back to the server
+      default (medium), which can consume the entire ``max_completion_tokens``
+      budget and yield empty output. (W2-T3 fix: previously _call_openai_multi
+      did not have this fallback and would silently emit temperature, which
+      reasoning models reject and which then triggered the empty-output trap.)
+    - Else (non-reasoning models like gpt-4o), passes ``temperature``.
+
+    ``icu_chat_skips_reasoning=True`` is the streaming-chat TTFT carve-out:
+    user-facing chat skips reasoning to avoid the 2-5s pause before the
+    first visible token. Only ``_stream_openai`` sets this; non-streaming
+    paths keep reasoning for answer quality.
+    """
+    use_reasoning = (
+        bool(_REASONING_EFFORT)
+        and not disable_reasoning
+        and not (icu_chat_skips_reasoning and task == "icu_chat")
+    )
+    if use_reasoning:
+        return {"reasoning_effort": _REASONING_EFFORT}
+    if settings.LLM_MODEL.startswith("gpt-5"):
+        return {"reasoning_effort": "minimal"}
+    return {"temperature": temperature}
+
+
 async def _stream_openai(
     system_prompt: str,
     messages: List[dict],
@@ -603,26 +686,12 @@ async def _stream_openai(
         stream=True,
         stream_options={"include_usage": True},
     )
-    # icu_chat is the interactive user-facing chat assistant — reasoning tokens
-    # push TTFT to 2-5s before the first visible token, which dominates perceived
-    # latency. Skip reasoning for this task so the model streams immediately.
-    # Other tasks (safety_check, citation_summary, orchestrator, etc.) keep
-    # reasoning for answer quality unless disable_reasoning is set (e.g.
-    # pharmacist_polish grammar_only mode).
-    # NOTE: gpt-5.x reasoning models only accept the default temperature (1),
-    # so we do NOT pass temperature at all — let the API use its default.
-    # Non-reasoning models (gpt-4o, etc.) honor LLM_TEMPERATURE.
-    # When we want to skip reasoning on a gpt-5.x model we must explicitly send
-    # reasoning_effort="minimal" — omitting the field makes OpenAI fall back to
-    # the server default (medium), which can consume the entire
-    # max_completion_tokens budget and yield an empty stream.
-    use_reasoning = bool(_REASONING_EFFORT) and task != "icu_chat" and not disable_reasoning
-    if use_reasoning:
-        create_kwargs["reasoning_effort"] = _REASONING_EFFORT
-    elif settings.LLM_MODEL.startswith("gpt-5"):
-        create_kwargs["reasoning_effort"] = "minimal"
-    else:
-        create_kwargs["temperature"] = settings.LLM_TEMPERATURE
+    create_kwargs.update(_build_openai_reasoning_param_block(
+        task=task,
+        temperature=settings.LLM_TEMPERATURE,
+        disable_reasoning=disable_reasoning,
+        icu_chat_skips_reasoning=True,
+    ))
     stream = await client.chat.completions.create(**create_kwargs)
 
     full_content = ""
@@ -669,7 +738,8 @@ async def _stream_anthropic(
         model=settings.LLM_MODEL,
         temperature=settings.LLM_TEMPERATURE,
         max_tokens=max_tokens,
-        system=system_prompt,
+        # W2-T4: cached system blocks so repeated turns within ~5 min hit cache.
+        system=_build_anthropic_system_blocks(system_prompt),
         messages=messages,
     ) as stream:
         async for text in stream.text_stream:
@@ -680,7 +750,10 @@ async def _stream_anthropic(
         usage_meta = {
             "input_tokens": final_message.usage.input_tokens,
             "output_tokens": final_message.usage.output_tokens,
+            "cache_read_input_tokens": getattr(final_message.usage, "cache_read_input_tokens", 0) or 0,
+            "cache_creation_input_tokens": getattr(final_message.usage, "cache_creation_input_tokens", 0) or 0,
         }
+        _log_anthropic_cache(task, final_message.usage)
 
     _maybe_capture_provider_raw(
         provider="anthropic", task=task, model=settings.LLM_MODEL,
@@ -710,17 +783,11 @@ def _call_openai(
             {"role": "user", "content": json.dumps(input_data, ensure_ascii=False, default=str)},
         ],
     )
-    if _REASONING_EFFORT and not disable_reasoning:
-        create_kwargs["reasoning_effort"] = _REASONING_EFFORT
-    elif settings.LLM_MODEL.startswith("gpt-5"):
-        # When we explicitly want to skip reasoning on a gpt-5.x model we must
-        # send reasoning_effort="minimal" — omitting the field falls back to the
-        # server default (medium), which can eat all max_completion_tokens.
-        create_kwargs["reasoning_effort"] = "minimal"
-    else:
-        # gpt-5.x reasoning models reject non-default temperature; only set it
-        # for non-reasoning models (gpt-4o, etc.).
-        create_kwargs["temperature"] = temperature
+    create_kwargs.update(_build_openai_reasoning_param_block(
+        task=task,
+        temperature=temperature,
+        disable_reasoning=disable_reasoning,
+    ))
     response = client.chat.completions.create(**create_kwargs)
     _maybe_capture_provider_raw(
         provider="openai",
@@ -777,10 +844,14 @@ def _call_openai_multi(
         max_completion_tokens=max_tokens,
         messages=api_messages,
     )
-    if _REASONING_EFFORT:
-        create_kwargs["reasoning_effort"] = _REASONING_EFFORT
-    else:
-        create_kwargs["temperature"] = temperature
+    # W2-T3: previously this path had no gpt-5 minimal fallback — when
+    # _REASONING_EFFORT was empty on a gpt-5.x model it sent temperature,
+    # which gets rejected and falls into the empty-output trap. Now the
+    # shared helper covers all three branches.
+    create_kwargs.update(_build_openai_reasoning_param_block(
+        task=task,
+        temperature=temperature,
+    ))
     response = client.chat.completions.create(**create_kwargs)
     _maybe_capture_provider_raw(
         provider="openai",
@@ -848,9 +919,11 @@ def _call_anthropic(
     client = _get_anthropic_sync()
     response = client.messages.create(
         model=settings.LLM_MODEL, temperature=temperature, max_tokens=max_tokens,
-        system=system_prompt,
+        # W2-T4: cached system blocks.
+        system=_build_anthropic_system_blocks(system_prompt),
         messages=[{"role": "user", "content": json.dumps(input_data, ensure_ascii=False, default=str)}],
     )
+    _log_anthropic_cache(task, response.usage)
     _maybe_capture_provider_raw(
         provider="anthropic",
         task=task,
@@ -866,6 +939,8 @@ def _call_anthropic(
         "metadata": {"model": settings.LLM_MODEL, "usage": {
             "input_tokens": response.usage.input_tokens,
             "output_tokens": response.usage.output_tokens,
+            "cache_read_input_tokens": getattr(response.usage, "cache_read_input_tokens", 0) or 0,
+            "cache_creation_input_tokens": getattr(response.usage, "cache_creation_input_tokens", 0) or 0,
         }},
     }
 
@@ -883,9 +958,11 @@ def _call_anthropic_multi(
     client = _get_anthropic_sync()
     response = client.messages.create(
         model=settings.LLM_MODEL, temperature=temperature, max_tokens=max_tokens,
-        system=system_prompt,
+        # W2-T4: cached system blocks.
+        system=_build_anthropic_system_blocks(system_prompt),
         messages=messages,
     )
+    _log_anthropic_cache(task, response.usage)
     _maybe_capture_provider_raw(
         provider="anthropic",
         task=task,
@@ -901,5 +978,7 @@ def _call_anthropic_multi(
         "metadata": {"model": settings.LLM_MODEL, "usage": {
             "input_tokens": response.usage.input_tokens,
             "output_tokens": response.usage.output_tokens,
+            "cache_read_input_tokens": getattr(response.usage, "cache_read_input_tokens", 0) or 0,
+            "cache_creation_input_tokens": getattr(response.usage, "cache_creation_input_tokens", 0) or 0,
         }},
     }
