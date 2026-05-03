@@ -6,7 +6,26 @@
 >
 > **進度追蹤檔**：[`docs/team-chat-fixes-progress.md`](team-chat-fixes-progress.md) — 仍是主進度面板，本檔案的任務以 `TC-FU-XX` 為 ID 列入該檔的「Wave 5」。
 
-**最後更新**：2026-05-03（建立 + Wave 5 規劃完成；實作中）
+**最後更新**：2026-05-03（**Wave 5 全部完成並整合進 main**；尚未 push prod）
+
+## Wave 5 結案總結
+
+| Task | Commit | 主要改動 |
+|------|--------|---------|
+| TC-FU-T1 | `0375754c9` | 後端 PB mention/alert/list/dashboard/my-mentions 全改 per-user `read_by`，沿用 W3-T1 模式；新 `_pb_unread_predicate` / `_count_pb_unread_for_user` helper；`jsonb_compat.array_contains_user_receipt` 補 `case((expr, True), else_=False)` 解決 NULL `read_by` 誤判（連帶補 W3-T1 同 bug）；新 5 條 multi-user isolation 測試 |
+| TC-FU-T2 | `2d9156e57` | 新 `pharmacy_soap_records` 表 + migration 079 + endpoint + 6 測試；前端 SOAP editor 改「先落地後 copy」、4 outcome 處理；`/pharmacy/advice-statistics` 加 SOAP tab |
+| TC-FU-T3 | `9b9165b05` | 藥物統計頁加 24 個月 dropdown + 搜尋框 + total 顯示 + 截斷警示 + 預設跳最新紀錄月 fallback |
+
+整合過程修了 3 條衝突：
+1. T2 migration 079 `down_revision` 從 worktree 看到的舊 head `"067"` → main 上的 `"078"`
+2. `pharmacy.py` HEAD 的 `drug_library_router` 與 T2 的 `soap_records_router` 都保留
+3. `pharmacist-soap-editor.tsx` T2 在 CardContent 加的 inline copy button 與 HEAD 的 W4-T2 sticky-bar button 重複，刪 inline 並把 `submitting` 狀態移到 sticky-bar
+4. `advice-statistics.tsx` T2/T3 各自加不同 lucide icon 進同一 import，合併
+
+驗證：
+- `pytest tests/test_api/test_team_chat.py tests/test_api/test_notifications.py tests/test_api/test_messages.py tests/test_api/test_dashboard.py tests/test_api/test_message_activity.py tests/test_api/test_patient_board_per_user_unread.py tests/test_services/test_read_receipt.py tests/test_api/test_advice_per_user_scope.py tests/test_api/test_pharmacy_soap.py -q` → 83/83 pass
+- `npx tsc --noEmit` 對觸碰的檔案 0 新增 error
+- `npm run build` ✓ in 2.38s
 
 ---
 
