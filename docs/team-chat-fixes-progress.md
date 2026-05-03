@@ -10,7 +10,7 @@
 > - `TC-F{NN}` — frontend 工作單（在 `docs/coordination/frontend-tasks.md`）
 > - `F-XX` — audit 文件中的發現編號
 
-**最後更新**：2026-05-03（Wave 1+2 全部完成；Wave 3 T1+T2+T3 完成）
+**最後更新**：2026-05-03（**Wave 1+2+3 全部完成** — 17/21 audit 主任務已落地，剩 Wave 4 + backlog）
 
 ---
 
@@ -20,7 +20,7 @@
 |------|------|--------|------------|------|
 | Wave 1 | 立即修補（純前端，零依賴） | 8 | 8 / 8 | ✅ |
 | Wave 2 | 後端權限收緊 + mention SQL | 5 | 5 / 5 | ✅ |
-| Wave 3 | 架構決策（PM 已決，動工中） | 4 | 3 / 4 | ⏳ |
+| Wave 3 | 架構決策（PM 已決，動工中） | 4 | 4 / 4 | ✅ |
 | Wave 4 | 安全與資料層強化 | 6 | 0 / 6 | ☐ |
 | Backlog | 低優先 / 觀察 | 18 | — | — |
 
@@ -136,7 +136,32 @@ cd backend && alembic upgrade head && alembic downgrade -1 && alembic upgrade he
 | TC-W3-T1 | 拆解 `is_read` 全域旗標 → per-user 計算 | F-02 | `backend/app/utils/jsonb_compat.py`、`backend/app/routers/team_chat.py`、`backend/app/routers/notifications.py`、`backend/tests/test_api/test_team_chat.py`（新 isolation 測試） | ✅ |
 | TC-W3-T2 | `list_team_chat` 改 `DESC` + cursor 分頁 | F-03 | `backend/app/routers/team_chat.py`、`backend/tests/test_api/test_team_chat.py`、`src/lib/api/team-chat.ts`、`src/pages/chat.tsx` | ✅ |
 | TC-W3-T3 | ChatPage 即時更新（30s polling 短期 / WebSocket 長期） | F-05 | `src/pages/chat.tsx` | ✅（短期 polling） |
-| TC-W3-T4 | 三套 badge 統一語意（sidebar / bell / chat tab） | F-06 | （大部分由 T1 解決，剩 chat tab 標題清楚化） | ☐ |
+| TC-W3-T4 | 三套 badge 統一語意（sidebar / bell / chat tab） | F-06 | T1 已對齊 sidebar/bell；chat tab 標題改成「病人留言提到我」消除誤導 | ✅ |
+
+### Wave 3 結案總結（2026-05-03）
+
+**前置**：PM 確認三大決策 → 全部選 A（per-user 未讀＋舊資料當已讀／pin 維持 admin only／list 改成最新優先）。
+
+**Commits（依時序）：**
+
+| Commit | Task | F-XX | 主要改動 |
+|--------|------|------|---------|
+| `7693e4400` | TC-W3-T1 | F-02 | 全域 `is_read` 旗標退役為 legacy；mention 計數改 per-user `read_by @>` + `last_chat_visit_at` baseline。新 `jsonb_compat.array_contains_user_receipt()` + `to_utc_aware()`。**核心 multi-user bug 修復**（A 讀掉 ≠ B 紅點消失）。 |
+| `fdeaa652c` | TC-W3-T2 | F-03 | `list_team_chat` `ORDER BY DESC LIMIT N`（記憶體反轉保 ASC contract）+ `?before=<ts>` cursor + `hasMore`/`oldestTimestamp`；前端 `loadOlder()` 反向 infinite scroll，scroll-anchored 不會 yank。 |
+| `235d438b6` | TC-W3-T3 | F-05 | ChatPage 加 30s polling，visibility-aware、`isNearBottomRef` 守衛（看歷史時不打擾）、`pollInFlightRef` 防重入。 |
+| `(this)`    | TC-W3-T4 | F-06 | 「@我的留言」tab 標題改成「病人留言提到我」消除誤導；T1 已自然對齊 sidebar/bell 的紅點計數。 |
+
+**驗證**：每 commit 後 `npx tsc --noEmit` exit 0、`npm run build` 通過、`pytest tests/test_api/test_team_chat.py tests/test_api/test_notifications.py` 全綠（27 → 34 cases，+7 regression 含 multi-user isolation 與 cursor 分頁）。pre-commit hook 全綠。
+
+**未做**（intentional）：
+- WebSocket 長期 realtime — Wave 5+；目前 30s polling 已 close gap
+- 「@我的留言」tab 合併 team-chat mentions — 留 Wave 5 polish；現在標題已誠實標註只看 patient board
+
+**部署注意**：
+- 後端：team_chat.py 邏輯改變但無 DB schema 變更，部署無 migration 需求
+- 前端：chat.tsx 有 polling + infinite scroll + tab 標題改變；user-facing 變化最大的一波
+
+**下一步**：Wave 4（PII 過濾 / soft delete / read_by dedup / schema cleanup / retention），無架構決策依賴。或先 push 到 prod 驗證 Wave 1+2+3 累積成果。
 
 ---
 
