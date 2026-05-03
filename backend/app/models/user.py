@@ -36,7 +36,13 @@ class User(Base):
 
     # Relationships
     audit_logs = relationship("AuditLog", back_populates="user_rel")
-    chat_messages = relationship("TeamChatMessage", back_populates="user_rel")
+    # Disambiguate from the deleted_by_id FK added in TC-B11 — the
+    # primary author relationship is on user_id only.
+    chat_messages = relationship(
+        "TeamChatMessage",
+        back_populates="user_rel",
+        foreign_keys="TeamChatMessage.user_id",
+    )
     password_history = relationship(
         "PasswordHistory", back_populates="user_rel",
         order_by="PasswordHistory.created_at.desc()",

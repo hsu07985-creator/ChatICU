@@ -21,7 +21,7 @@
 | Wave 1 | 立即修補（純前端，零依賴） | 8 | 8 / 8 | ✅ |
 | Wave 2 | 後端權限收緊 + mention SQL | 5 | 5 / 5 | ✅ |
 | Wave 3 | 架構決策（PM 已決，動工中） | 4 | 4 / 4 | ✅ |
-| Wave 4 | 安全與資料層強化 | 6 | 2 / 6 | ⏳ |
+| Wave 4 | 安全與資料層強化 | 6 | 3 / 6 | ⏳ |
 | Backlog | 低優先 / 觀察 | 18 | — | — |
 
 ---
@@ -171,7 +171,7 @@ cd backend && alembic upgrade head && alembic downgrade -1 && alembic upgrade he
 |------|------|------|---------|------|------|
 | TC-W4-T1 | `/team/users` 加單位過濾、訊息 content PII 提示 | F-12 | `backend/app/routers/team_chat.py:21-40`、`src/components/ui/mention-textarea.tsx`（輸入時 lint） | 手動：北院藥師 `/team/users` 不應回南院使用者；輸入 MRN 數字模式跳警示 | ☐ |
 | TC-W4-T2 | `read_by` append 抽共用 helper + dedup | F-14 | `backend/app/utils/read_receipt.py`（新）、`backend/app/routers/team_chat.py`、`backend/app/routers/notifications.py`、`backend/app/routers/messages.py`、`backend/tests/test_services/test_read_receipt.py`（新） | pytest：同一 user 連續 mark-read 10 次後 `read_by` 仍只一條 | ✅ |
-| TC-W4-T3 | admin 刪訊息改軟刪除 + audit 帶 content snapshot | F-16 | `backend/app/models/chat_message.py`（加 `deleted_at`/`deleted_by_id`）、`backend/app/routers/team_chat.py:307-328`、新 migration | pytest：軟刪後 list 不顯示，但 audit log details 含 content[:500]；前端對孤兒 reply 顯示 `[原訊息已刪除]` | ☐ |
+| TC-W4-T3 | admin 刪訊息改軟刪除 + audit 帶 content snapshot | F-16 | `backend/app/models/chat_message.py`、`backend/app/models/user.py`（FK 消歧）、`backend/app/routers/team_chat.py`、`backend/alembic/versions/078_team_chat_soft_delete.py`（新）、test 補完 | pytest：軟刪後 list 不顯示，但 audit log details 含 content[:500]；前端對孤兒 reply 顯示 `[原訊息已刪除]`（後者留 polish） | ✅ |
 | TC-W4-T4 | 多人交互 regression test 補完 | F-29 | `backend/tests/test_api/test_team_chat_multiuser.py`（新檔） | 涵蓋：多人 mark_read 不互相污染、非 admin pin 403、`@>` 不誤命中、`read_by` 不膨脹 | ☐ |
 | TC-W4-T5 | Schema 漂移整理（`reply_count` dead column、ORM FK） | F-30 | `backend/app/models/chat_message.py`、`backend/alembic/versions/077_drop_dead_reply_count.py`（新） | alembic upgrade/downgrade 來回；ORM 與 DB schema 對稱 | ✅ |
 | TC-W4-T6 | 訊息 retention：archive job + `total` 移除 | F-31, F-32 | `backend/scripts/archive_team_chat.py`（新）、`backend/app/routers/team_chat.py:147-152` | 手動：seed 200 筆 90 天前訊息 → 跑 archive → list 預設不含 | ☐ |

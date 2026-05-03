@@ -50,5 +50,21 @@ class TeamChatMessage(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
+    # Soft delete (TC-B11). Admin DELETE writes deleted_at + deleted_by_id
+    # instead of removing the row, so the audit trail and any reply-quote
+    # references survive. List queries filter deleted_at IS NULL.
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    deleted_by_id: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     # Relationships
-    user_rel = relationship("User", back_populates="chat_messages")
+    user_rel = relationship(
+        "User",
+        back_populates="chat_messages",
+        foreign_keys=[user_id],
+    )

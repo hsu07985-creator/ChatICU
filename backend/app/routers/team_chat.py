@@ -184,7 +184,10 @@ async def list_team_chat(
     The response remains chronologically ascending so the frontend can
     keep treating ``messages`` as "top to bottom in conversation order".
     """
-    base_filter = TeamChatMessage.reply_to_id.is_(None)
+    # Soft-deleted messages are hidden from the chat (TC-B11). The audit
+    # log retains the content snapshot for moderation review.
+    not_deleted = TeamChatMessage.deleted_at.is_(None)
+    base_filter = and_(TeamChatMessage.reply_to_id.is_(None), not_deleted)
     where_clauses = [base_filter]
 
     # Cursor — strictly older than ``before``. Tie-break by id desc so a
@@ -220,7 +223,10 @@ async def list_team_chat(
     if top_ids:
         reply_result = await db.execute(
             select(TeamChatMessage)
-            .where(TeamChatMessage.reply_to_id.in_(top_ids))
+            .where(
+                TeamChatMessage.reply_to_id.in_(top_ids),
+                TeamChatMessage.deleted_at.is_(None),
+            )
             .order_by(TeamChatMessage.timestamp.asc())
         )
         for r in reply_result.scalars().all():
@@ -429,18 +435,42 @@ async def delete_team_chat_message(
     user: User = Depends(require_roles("admin")),
     db: AsyncSession = Depends(get_db),
 ):
+    """Soft delete (TC-B11): mark the row deleted instead of removing it.
+
+    The list endpoint filters ``deleted_at IS NULL`` so the message
+    disappears from the chat UI, but the audit trail keeps a content
+    snapshot, reply quotes don't lose their parent reference, and a
+    moderation review can still surface what was removed.
+    """
     result = await db.execute(
-        select(TeamChatMessage).where(TeamChatMessage.id == message_id)
+        select(TeamChatMessage).where(
+            TeamChatMessage.id == message_id,
+            TeamChatMessage.deleted_at.is_(None),
+        )
     )
     msg = result.scalar_one_or_none()
     if not msg:
         raise HTTPException(status_code=404, detail="Message not found")
 
-    await db.delete(msg)
+    now = datetime.now(timezone.utc)
+    msg.deleted_at = now
+    msg.deleted_by_id = user.id
+
+    # Capture content snapshot in audit details so the full record
+    # outlives the soft-deleted row. 500 chars caps DB write size while
+    # still being useful for moderation review (Pydantic max content
+    # length is 10000, so this is "first paragraph or so").
+    content_snapshot = (msg.content or "")[:500]
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="刪除團隊訊息", target=message_id, status="success",
         ip=request.client.host if request.client else None,
+        details={
+            "content": content_snapshot,
+            "author_id": msg.user_id,
+            "author_name": msg.user_name,
+            "original_timestamp": msg.timestamp.isoformat() if msg.timestamp else None,
+        },
     )
     await db.commit()
     return success_response(message="訊息已刪除")

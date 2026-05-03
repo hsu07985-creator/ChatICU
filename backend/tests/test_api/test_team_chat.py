@@ -567,6 +567,46 @@ async def test_mention_predicate_no_substring_collision(client, seeded_db):
 
 
 @pytest.mark.asyncio
+async def test_admin_delete_is_soft_delete_with_audit_snapshot(client, seeded_db):
+    """TC-B11: DELETE /team/chat/{id} is admin-only and writes a soft
+    delete + a content snapshot into the audit log so the row's text
+    survives admin removal for moderation review."""
+    from sqlalchemy import select as _select
+    from app.models.audit_log import AuditLog
+    from app.models.chat_message import TeamChatMessage
+
+    msg = await _send(client, "this should be moderated away")
+    msg_id = msg["id"]
+
+    resp = await client.delete(f"/team/chat/{msg_id}")
+    assert resp.status_code == 200
+
+    # Hidden from list
+    list_resp = await client.get("/team/chat")
+    list_ids = [m["id"] for m in list_resp.json()["data"]["messages"]]
+    assert msg_id not in list_ids
+
+    # Row still exists with deleted_at + deleted_by_id set
+    seeded_db.expire_all()
+    row = (await seeded_db.execute(
+        _select(TeamChatMessage).where(TeamChatMessage.id == msg_id)
+    )).scalar_one()
+    assert row.deleted_at is not None
+    assert row.deleted_by_id == "usr_test"
+
+    # Audit log carries the content snapshot
+    audit_rows = (await seeded_db.execute(
+        _select(AuditLog)
+        .where(AuditLog.target == msg_id)
+        .where(AuditLog.action == "刪除團隊訊息")
+    )).scalars().all()
+    assert len(audit_rows) == 1
+    assert audit_rows[0].details is not None
+    assert "this should be moderated away" in audit_rows[0].details.get("content", "")
+    assert audit_rows[0].details.get("author_id") == "usr_test"
+
+
+@pytest.mark.asyncio
 async def test_list_returns_latest_with_cursor(client, seeded_db):
     """TC-W3-T2: with > limit messages, the default page returns the
     LATEST N (not the earliest), and ``before`` cursor walks back."""
