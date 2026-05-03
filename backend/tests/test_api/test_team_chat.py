@@ -308,3 +308,146 @@ async def test_invalid_mentioned_role_rejected(client):
         "mentionedRoles": ["invalid_role"],
     })
     assert resp.status_code == 422
+
+
+# ── TC-B01: admin gate for pin / pinned-post / mark_read ───────────────
+
+def _user_override(user_id: str, name: str, role: str):
+    """Return a get_current_user override that yields a User with the
+    given role. Used to swap the mock-auth identity mid-test so we can
+    assert non-admin paths are 403."""
+    from app.models.user import User
+    async def _inner():
+        return User(
+            id=user_id,
+            name=name,
+            username=user_id,
+            password_hash="",
+            email=f"{user_id}@hospital.com",
+            role=role,
+            unit="ICU",
+            active=True,
+        )
+    return _inner
+
+
+@pytest.mark.asyncio
+async def test_non_admin_cannot_post_pinned(client):
+    """POST /team/chat with pinned=True must reject non-admin (TC-B01)."""
+    from app.main import app
+    from app.middleware.auth import get_current_user
+
+    app.dependency_overrides[get_current_user] = _user_override(
+        "usr_nurse_a", "Nurse A", role="nurse",
+    )
+    try:
+        resp = await client.post("/team/chat", json={
+            "content": "sneaky announcement",
+            "pinned": True,
+        })
+        assert resp.status_code == 403
+        # Plain (non-pinned) post should still succeed for nurse
+        resp_ok = await client.post("/team/chat", json={
+            "content": "regular message",
+            "pinned": False,
+        })
+        assert resp_ok.status_code == 200
+    finally:
+        app.dependency_overrides[get_current_user] = _user_override(
+            "usr_test", "Test Doctor", role="admin",
+        )
+
+
+@pytest.mark.asyncio
+async def test_non_admin_cannot_toggle_pin(client):
+    """PATCH /team/chat/{id}/pin must reject non-admin (TC-B01)."""
+    from app.main import app
+    from app.middleware.auth import get_current_user
+
+    # Admin posts a message first
+    msg = await _send(client, "to be pinned by admin only")
+
+    # Swap to nurse and try to pin
+    app.dependency_overrides[get_current_user] = _user_override(
+        "usr_nurse_b", "Nurse B", role="nurse",
+    )
+    try:
+        resp = await client.patch(f"/team/chat/{msg['id']}/pin")
+        assert resp.status_code == 403
+    finally:
+        app.dependency_overrides[get_current_user] = _user_override(
+            "usr_test", "Test Doctor", role="admin",
+        )
+
+
+@pytest.mark.asyncio
+async def test_non_recipient_cannot_mark_read(client):
+    """Marking-read flips a global is_read flag that drives team-wide
+    mention badges; restrict to author / mentioned recipients / admin
+    (TC-B01 + audit F-02 mitigation)."""
+    from app.main import app
+    from app.middleware.auth import get_current_user
+
+    # Admin sends a message mentioning role=doctor
+    msg = await _send(client, "for doctors only", mentioned_roles=["doctor"])
+
+    # Switch to a pharmacist (not author, not mentioned)
+    app.dependency_overrides[get_current_user] = _user_override(
+        "usr_pharm_x", "Pharmacist X", role="pharmacist",
+    )
+    try:
+        resp = await client.patch(f"/team/chat/{msg['id']}/read")
+        assert resp.status_code == 403
+    finally:
+        app.dependency_overrides[get_current_user] = _user_override(
+            "usr_test", "Test Doctor", role="admin",
+        )
+
+
+@pytest.mark.asyncio
+async def test_mentioned_recipient_can_mark_read(client):
+    """A user in mentioned_roles SHOULD be able to mark read."""
+    from app.main import app
+    from app.middleware.auth import get_current_user
+
+    msg = await _send(client, "doctors please ack", mentioned_roles=["doctor"])
+
+    # Doctor (different from admin author) reads it
+    app.dependency_overrides[get_current_user] = _user_override(
+        "usr_doc_a", "Doctor A", role="doctor",
+    )
+    try:
+        resp = await client.patch(f"/team/chat/{msg['id']}/read")
+        assert resp.status_code == 200
+        assert resp.json()["data"]["isRead"] is True
+    finally:
+        app.dependency_overrides[get_current_user] = _user_override(
+            "usr_test", "Test Doctor", role="admin",
+        )
+
+
+@pytest.mark.asyncio
+async def test_author_can_mark_own_read(client):
+    """Authors can mark their own message read (idempotent self-action)."""
+    msg = await _send(client, "self note")
+    resp = await client.patch(f"/team/chat/{msg['id']}/read")
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_mark_read_writes_audit_log(client, seeded_db):
+    """mark_read writes an audit log so silent zeroing of mention badges
+    is traceable (TC-B01 mitigation for audit gap)."""
+    from sqlalchemy import select as _select
+    from app.models.audit_log import AuditLog
+
+    msg = await _send(client, "auditable", mentioned_roles=["admin"])
+    resp = await client.patch(f"/team/chat/{msg['id']}/read")
+    assert resp.status_code == 200
+
+    seeded_db.expire_all()
+    audit_rows = (await seeded_db.execute(
+        _select(AuditLog).where(AuditLog.target == msg["id"])
+    )).scalars().all()
+    actions = [r.action for r in audit_rows]
+    assert "標記團隊訊息已讀" in actions
