@@ -223,7 +223,7 @@ export function DrugLibraryProposalsPage() {
           onClick={() => navigate('/pharmacy/drug-library')}
           className="-ml-2"
         >
-          <ArrowLeft className="size-4 mr-1" /> 回藥物資料庫
+          <ArrowLeft className="size-4 mr-1" /> 回藥物管理
         </Button>
       </div>
 

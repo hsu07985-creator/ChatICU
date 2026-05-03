@@ -161,7 +161,7 @@ export interface DrugDetail {
 
 export async function getDrugLibraryStats(): Promise<DrugLibraryStats> {
   const r = await apiClient.get('/pharmacy/drug-library/stats');
-  return ensureData(r.data, '藥物資料庫總覽');
+  return ensureData(r.data, '藥物管理總覽');
 }
 
 export async function listDrugs(params: DrugListParams = {}): Promise<DrugListResponse> {

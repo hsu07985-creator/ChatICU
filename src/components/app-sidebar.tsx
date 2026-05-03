@@ -92,7 +92,7 @@ export function AppSidebar() {
     { title: '用藥交互', url: '/pharmacy/interactions', icon: AlertTriangle },
     { title: '重複用藥', url: '/pharmacy/duplicates', icon: Copy },
     { title: '用藥相容', url: '/pharmacy/compatibility', icon: Droplets },
-    { title: '藥物資料庫', url: '/pharmacy/drug-library', icon: Library },
+    { title: '藥物管理', url: '/pharmacy/drug-library', icon: Library },
     { title: '藥物統計', url: '/pharmacy/advice-statistics', icon: BarChart3 },
   ] : [];
 

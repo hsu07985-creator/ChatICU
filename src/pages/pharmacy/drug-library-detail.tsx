@@ -739,7 +739,7 @@ export function DrugLibraryDetailPage() {
           onClick={() => navigate('/pharmacy/drug-library')}
           className="-ml-2"
         >
-          <ArrowLeft className="size-4 mr-1" /> 回藥物資料庫
+          <ArrowLeft className="size-4 mr-1" /> 回藥物管理
         </Button>
         {isPharmOrAdmin && (
           <div className="flex items-center gap-1 text-xs">

@@ -248,7 +248,7 @@ export function DrugLibraryPage() {
   return (
     <div className="container mx-auto p-4 lg:p-6 space-y-4 max-w-screen-2xl">
       <div>
-        <h1 className="text-2xl font-bold">藥物資料庫</h1>
+        <h1 className="text-2xl font-bold">藥物管理</h1>
         <p className="text-sm text-muted-foreground">
           系統涵蓋的所有藥物與交互作用規則總覽 · 藥師/管理者專用
         </p>
