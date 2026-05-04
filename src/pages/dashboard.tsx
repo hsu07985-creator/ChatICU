@@ -7,9 +7,10 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Label } from '../components/ui/label';
-import { Search, AlertCircle, Pencil, ZoomIn, ZoomOut, RefreshCw, DownloadCloud, Loader2, FlaskConical } from 'lucide-react';
+import { Search, AlertCircle, AlertTriangle, Pencil, ZoomIn, ZoomOut, RefreshCw, DownloadCloud, Loader2, FlaskConical } from 'lucide-react';
 import { maskPatientName } from '../lib/utils/patient-name';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Patient, updatePatient } from '../lib/api/patients';
 import { getCachedPatientsSync, invalidatePatients, subscribePatientsCache } from '../lib/patients-cache';
 import type { DashboardStats } from '../lib/api/dashboard';
@@ -46,6 +47,7 @@ interface EditFormData {
   tracheostomyDate?: string | null;
   age: number;
   attendingPhysician: string;
+  allergies: string;
 }
 
 export function DashboardPage() {
@@ -73,6 +75,7 @@ export function DashboardPage() {
     tracheostomyDate: null,
     age: 0,
     attendingPhysician: '',
+    allergies: '',
   });
   const [saving, setSaving] = useState(false);
   const { data: stats } = useDashboardStats();
@@ -160,6 +163,7 @@ export function DashboardPage() {
       tracheostomyDate: patient.tracheostomyDate ?? null,
       age: patient.age,
       attendingPhysician: patient.attendingPhysician,
+      allergies: (patient.allergies ?? []).join(', '),
     });
     setEditDialogOpen(true);
   };
@@ -170,7 +174,10 @@ export function DashboardPage() {
 
     setSaving(true);
     try {
-      const updated = await updatePatient(editingPatient.id, editFormData);
+      const updated = await updatePatient(editingPatient.id, {
+        ...editFormData,
+        allergies: parseCsvList(editFormData.allergies),
+      });
       // refreshSharedPatientDataAfterMutation invalidates both the patients
       // cache and the TanStack dashboard.all key — useDashboardStats() will
       // refetch automatically.
@@ -258,6 +265,11 @@ export function DashboardPage() {
   }
 
   const SAN_MAX_CHIPS = 2;
+  const ALLERGY_MAX_CHIPS = 2;
+  const parseCsvList = (value: string) =>
+    value ? value.split(',').map((item) => item.trim()).filter(Boolean) : [];
+  const getPatientAllergies = (patient: Patient) =>
+    (patient.allergies ?? []).map((allergy) => allergy.trim()).filter(Boolean);
   const getSANRows = (patient: Patient) => {
     const sedation = patient.sedation || patient.sanSummary?.sedation || [];
     const analgesia = patient.analgesia || patient.sanSummary?.analgesia || [];
@@ -267,6 +279,58 @@ export function DashboardPage() {
       { label: 'A', items: analgesia, color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' },
       { label: 'N', items: nmb, color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' },
     ];
+  };
+
+  const renderAllergyBadge = (patient: Patient) => {
+    const allergies = getPatientAllergies(patient);
+
+    if (allergies.length === 0) {
+      return null;
+    }
+
+    const shown = allergies.slice(0, ALLERGY_MAX_CHIPS);
+    const extraCount = allergies.length - shown.length;
+
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex max-w-full"
+            title={t('card.allergyTooltip', { items: allergies.join(', ') })}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <Badge className="max-w-full cursor-pointer border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-700 dark:bg-red-900/30 dark:text-red-300">
+              <AlertTriangle className="mr-1 h-3.5 w-3.5 shrink-0" />
+              <span className="shrink-0">{t('card.allergyLabel')}</span>
+              <span className="ml-1 truncate">{shown.join('、')}</span>
+              {extraCount > 0 && (
+                <span className="ml-1 shrink-0">{t('card.moreItems', { count: extraCount })}</span>
+              )}
+            </Badge>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-3" align="start">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-red-700 dark:text-red-300">
+              <AlertTriangle className="h-4 w-4" />
+              {t('card.allergyDetailsTitle')}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {allergies.map((allergy, index) => (
+                <Badge
+                  key={`${allergy}-${index}`}
+                  variant="outline"
+                  className="border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-900/40 dark:text-red-200"
+                >
+                  {allergy}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
   };
 
   return (
@@ -532,14 +596,15 @@ export function DashboardPage() {
                       ))}
                     </div>
 
-                    {/* 5. DNR 警示列（固定保留一行；只顯示 DNR） */}
-                    <div className="h-6 flex items-center">
+                    {/* 5. 臨床旗標列（DNR 與過敏同列） */}
+                    <div className="h-6 flex items-center gap-2 overflow-hidden">
                       {patient.hasDNR && (
                         <Badge className="text-xs bg-rose-100 text-rose-700 border border-rose-200 hover:bg-rose-200/80 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-700">
                           <AlertCircle className="h-3.5 w-3.5 mr-1 shrink-0" />
                           DNR
                         </Badge>
                       )}
+                      {renderAllergyBadge(patient)}
                     </div>
 
                     {/* 6. 最後更新（釘底） */}
@@ -643,6 +708,18 @@ export function DashboardPage() {
                 value={editFormData.attendingPhysician}
                 onChange={(e) => setEditFormData(prev => ({ ...prev, attendingPhysician: e.target.value }))}
                 className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-allergies" className="text-right">
+                {t('edit.labels.allergies')}
+              </Label>
+              <Input
+                id="edit-allergies"
+                value={editFormData.allergies}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, allergies: e.target.value }))}
+                className="col-span-3"
+                placeholder={t('edit.placeholders.allergies')}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">

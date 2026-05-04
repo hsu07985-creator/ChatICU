@@ -62,6 +62,9 @@
     "stayShort": "Stay",
     "diagnosisLabel": "Admission Diagnosis",
     "moreItems": "+{{count}} more",
+    "allergyLabel": "Allergy",
+    "allergyTooltip": "Allergy medication details: {{items}}",
+    "allergyDetailsTitle": "Allergy Details",
     "lastUpdatePrefix": "Last update: ",
     "editButtonTitle": "Edit patient info"
   },
@@ -74,7 +77,11 @@
       "diagnosis": "Diagnosis",
       "age": "Age",
       "physician": "Attending Physician",
+      "allergies": "Allergy Medication Details",
       "airway": "Airway Support"
+    },
+    "placeholders": {
+      "allergies": "Comma-separated allergy medications, e.g. Penicillin, Aspirin"
     },
     "airway": {
       "invasive": "Invasive airway support",

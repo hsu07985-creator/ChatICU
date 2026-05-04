@@ -60,6 +60,9 @@
     "stayShort": "住",
     "diagnosisLabel": "入院診斷",
     "moreItems": "+{{count}} 更多",
+    "allergyLabel": "過敏",
+    "allergyTooltip": "過敏藥品明細：{{items}}",
+    "allergyDetailsTitle": "過敏藥品明細",
     "lastUpdatePrefix": "最後更新：",
     "editButtonTitle": "編輯病患資料"
   },
@@ -72,7 +75,11 @@
       "diagnosis": "診斷",
       "age": "年齡",
       "physician": "主治醫師",
+      "allergies": "過敏藥品明細",
       "airway": "呼吸道支持"
+    },
+    "placeholders": {
+      "allergies": "多個過敏藥品用逗號分隔，例：Penicillin, Aspirin"
     },
     "airway": {
       "invasive": "侵入性呼吸道支持",
