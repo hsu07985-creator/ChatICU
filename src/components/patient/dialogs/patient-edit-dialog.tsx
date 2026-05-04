@@ -43,6 +43,9 @@ export function PatientEditDialog({
     onPatientChange({ ...patient, [key]: value });
   };
 
+  const parseCsvList = (value: string) =>
+    value ? value.split(',').map((item) => item.trim()).filter(Boolean) : [];
+
   const hasTracheostomy = patient.tracheostomy === true || Boolean(patient.tracheostomyDate);
   const airwayReferenceDate = patient.intubationDate ?? patient.tracheostomyDate ?? null;
   const airwaySupportDays = airwayReferenceDate
@@ -320,6 +323,16 @@ export function PatientEditDialog({
               onChange={(e) => updatePatientField('nmb', e.target.value ? e.target.value.split(',').map(s => s.trim()) : [])}
               className="col-span-3"
               placeholder={t('patients:edit.placeholders.drugListsCsv')}
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="allergies" className="text-right">{t('patients:edit.labels.allergies')}</Label>
+            <Input
+              id="allergies"
+              value={(patient.allergies ?? []).join(', ')}
+              onChange={(e) => updatePatientField('allergies', parseCsvList(e.target.value))}
+              className="col-span-3"
+              placeholder={t('patients:edit.placeholders.allergies')}
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">

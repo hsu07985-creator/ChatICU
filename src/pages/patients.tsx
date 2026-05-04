@@ -18,9 +18,10 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import { Search, Plus, Archive, Edit2, Users, LogOut, FlaskConical } from 'lucide-react';
+import { AlertTriangle, Search, Plus, Archive, Edit2, Users, LogOut, FlaskConical } from 'lucide-react';
 import { maskPatientName } from '../lib/utils/patient-name';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { PatientEditDialog } from '../components/patient/dialogs/patient-edit-dialog';
 import { PatientArchiveDialog, type ArchivePayload } from '../components/patient/dialogs/patient-archive-dialog';
@@ -75,6 +76,8 @@ export function PatientsPage() {
   const getSedation = (patient: PatientWithFrontendFields) => patient.sedation || patient.sanSummary?.sedation || [];
   const getAnalgesia = (patient: PatientWithFrontendFields) => patient.analgesia || patient.sanSummary?.analgesia || [];
   const getNmb = (patient: PatientWithFrontendFields) => patient.nmb || patient.sanSummary?.nmb || [];
+  const getPatientAllergies = (patient: PatientWithFrontendFields) =>
+    (patient.allergies ?? []).map((allergy) => allergy.trim()).filter(Boolean);
 
   // Dynamic doctor list from patient data
   const doctorOptions = useMemo(() => {
@@ -110,6 +113,58 @@ export function PatientsPage() {
     if (department?.includes('內科')) return 'bg-blue-600 text-white dark:bg-blue-700';
     if (department?.includes('外科')) return 'bg-amber-600 text-white dark:bg-amber-700';
     return 'bg-gray-600 text-white dark:bg-gray-700';
+  };
+
+  const renderAllergyCell = (patient: PatientWithFrontendFields) => {
+    const allergies = getPatientAllergies(patient);
+
+    if (allergies.length === 0) {
+      return (
+        <Badge
+          variant="outline"
+          className="text-muted-foreground"
+          title={t('patients:list.noAllergiesRegistered')}
+        >
+          {t('patients:list.no')}
+        </Badge>
+      );
+    }
+
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex"
+            title={t('patients:list.allergyDetailsTooltip')}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <Badge className="cursor-pointer border border-red-200 bg-red-100 text-red-700 hover:bg-red-100/90 dark:border-red-700 dark:bg-red-900/30 dark:text-red-300">
+              {t('patients:list.yes')}
+            </Badge>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-3" align="center">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-red-700 dark:text-red-300">
+              <AlertTriangle className="h-4 w-4" />
+              {t('patients:list.allergyDetailsTitle')}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {allergies.map((allergy, index) => (
+                <Badge
+                  key={`${allergy}-${index}`}
+                  variant="outline"
+                  className="border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-900/40 dark:text-red-200"
+                >
+                  {allergy}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
   };
 
   const [editingPatientId, setEditingPatientId] = useState<string | null>(null);
@@ -384,7 +439,7 @@ export function PatientsPage() {
         <CardContent>
           {/* Loading 狀態 */}
           {loading && (
-            <TableSkeleton rows={8} columns={12} />
+            <TableSkeleton rows={8} columns={15} />
           )}
 
           {/* 錯誤狀態 */}
@@ -409,7 +464,7 @@ export function PatientsPage() {
           {/* 病人列表 */}
           {!loading && !error && filteredPatients.length > 0 && (
           <div className="overflow-x-auto">
-          <Table className="compact-table" style={{ tableLayout: 'fixed', minWidth: '1100px' }}>
+          <Table className="compact-table" style={{ tableLayout: 'fixed', minWidth: '1160px' }}>
             <colgroup>
               <col style={{ width: '60px' }} />    {/* 床號 */}
               <col style={{ width: '90px' }} />    {/* 病例號碼 */}
@@ -421,6 +476,7 @@ export function PatientsPage() {
               <col style={{ width: '130px' }} />   {/* 入ICU日期 */}
               <col style={{ width: '75px' }} />    {/* 呼吸器天數 */}
               <col style={{ width: '50px' }} />    {/* DNR */}
+              <col style={{ width: '60px' }} />    {/* 過敏 */}
               <col style={{ width: '50px' }} />    {/* 隔離 */}
               <col style={{ width: '72px' }} />    {/* 插管 */}
               <col style={{ width: '50px' }} />    {/* 編輯 */}
@@ -438,6 +494,7 @@ export function PatientsPage() {
                 <TableHead className="text-center">{t('patients:list.table.icuAdmission')}</TableHead>
                 <TableHead className="text-center">{t('patients:list.table.ventilatorDays')}</TableHead>
                 <TableHead className="text-center">{t('patients:list.table.dnr')}</TableHead>
+                <TableHead className="text-center">{t('patients:list.table.allergy')}</TableHead>
                 <TableHead className="text-center">{t('patients:list.table.isolation')}</TableHead>
                 <TableHead className="text-center">{t('patients:list.table.intubation')}</TableHead>
                 <TableHead className="text-center">{t('patients:list.table.edit')}</TableHead>
@@ -490,6 +547,9 @@ export function PatientsPage() {
                     ) : (
                       <Badge variant="outline" className="text-muted-foreground">{t('patients:list.no')}</Badge>
                     )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {renderAllergyCell(patient)}
                   </TableCell>
                   <TableCell className="text-center">
                     {patient.isIsolated ? (

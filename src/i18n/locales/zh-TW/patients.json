@@ -22,6 +22,7 @@
       "icuAdmission": "入ICU日期",
       "ventilatorDays": "呼吸器天數",
       "dnr": "DNR",
+      "allergy": "過敏",
       "isolation": "隔離",
       "intubation": "插管",
       "edit": "編輯",
@@ -32,6 +33,9 @@
     "ventilatorDaysSuffix": "{{days}} 天",
     "yes": "有",
     "no": "無",
+    "allergyDetailsTitle": "過敏藥品明細",
+    "allergyDetailsTooltip": "查看過敏藥品明細",
+    "noAllergiesRegistered": "目前無登錄過敏藥品",
     "isolating": "隔離",
     "notIntubated": "未插管",
     "editTooltip": "編輯",
@@ -116,12 +120,14 @@
       "sedation": "鎮靜劑 (S)",
       "analgesia": "止痛劑 (A)",
       "nmb": "肌肉鬆弛劑 (N)",
+      "allergies": "過敏藥品明細",
       "consent": "同意書狀態"
     },
     "placeholders": {
       "height": "例: 170",
       "weight": "例: 65",
-      "drugListsCsv": "多個藥品用逗號分隔"
+      "drugListsCsv": "多個藥品用逗號分隔",
+      "allergies": "多個過敏藥品用逗號分隔，例：Penicillin, Aspirin"
     },
     "airway": {
       "invasiveCheckbox": "目前使用侵入性呼吸道支持",
