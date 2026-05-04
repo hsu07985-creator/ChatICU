@@ -311,11 +311,53 @@
 - `eslint.config.mjs` 的 `i18next/no-literal-string` 從 `warn` 改 `error`
 - `npx eslint .` → 0 errors / 0 warnings；CI 防線就位
 
+#### W7 hot-fix：藥事分類顯示中文（commit `3c07b4142`，2026-05-05）
+
+🟢 **使用者實機回報**：Advice Statistics 4 大分類卡（`1. 建議處方` / `2. 主動建議` / `3. 建議監測` / `4. 用藥連貫性`）在英文模式下仍是中文。Drug Interactions / IV Compatibility 部分元件也是。
+
+**根因**：`src/lib/pharmacy-master-data.ts` 把中文字串**既當顯示文字、又當 primary key**（`PHARMACY_ADVICE_CATEGORY_COLORS` 整個 map keyed by 中文標籤），lint 抓不到（不是 JSX text）。
+
+**Phase 1 修補（display-only，不動 DB / API）**：
+- `AdviceCategoryItem` / `AdviceCodeItem` interface 新增 optional `labelKey`
+- 4 categories + 27 codes 都設好 labelKey；`pharmacy.json` 補 `adviceCategories.*`、`adviceCodes.*` 共 71 keys × 2 locale = 142 條
+- `PHARMACY_ADVICE_CATEGORY_COLORS` 重新 key 為 `cat.key`（English ID）
+- 新增 helpers：`getAdviceCategoryColor(labelOrKey)`、`getAdviceCategoryKeyByLabel(label)`
+- 4 個 callsite 檔改成 `t(cat.labelKey ?? cat.label)`：
+  * `pages/pharmacy/advice-statistics.tsx`（13 處 + record badge）
+  * `pages/admin/statistics.tsx`（chart data + 4 個分類卡）
+  * `pages/pharmacy/workstation/advice-submit-dialog.tsx`（兩個 select）
+  * `components/patient/patient-messages-tab.tsx`（pharmacy tag selector）
+- DB 端維持儲存中文 label（避免 destructive migration），API 回傳中文時前端反查取 key 走 t()
+
 #### 仍未做（P2 / P3，非急）
 - **15+ P2 audit 建議**：句末標點、跨 namespace 術語細微對齊（Pharmacy Statistics ↔ Advice Statistics、Pharmacy Review ↔ Pharmacy Assessment、Duplicate Therapy 風格統一等）
 - **medications.json 中文標題的 inline 英文移除**（如「住院用藥 Inpatient Medications」中的英文部分）
 - **i18n-medical-glossary.md 最終版欄位回填**
 - **react-hooks plugin 啟用**：目前只裝 stub，可後續啟用 `exhaustive-deps` / `rules-of-hooks`
+
+#### Phase 2（DB migration 把 category 改 English key）— Backlog
+
+**目前 Phase 1 完整解決顯示問題**，使用者體驗已等同 Phase 2 後的狀態。Phase 2 留作技術債，等明確 trigger 出現再做。
+
+**現狀**：DB / API 流動的仍是中文字串（`record.category = "1. 建議處方"`），前端在最後一刻反查回 English key 後 t() 翻譯顯示。
+
+**Phase 2 內容（暫不做）**：
+- DB 欄位 `record.category` 改存英文 key（`"prescription"`）
+- alembic migration 把舊資料中文字串 → English key（一次性）
+- 後端所有 query / filter 從中文比對改英文比對
+- 前端 hardcode 比對（如 `patient-messages-tab.tsx` 的 `PHARMACY_CATEGORIES` 陣列）改英文 key
+- 移除前端反查 helper `getAdviceCategoryKeyByLabel`
+- HIS 同步 / 報表匯出端接收 schema 評估
+- 工時估 1.5–2 天，含後端、前端、DB 同步上線
+
+**觸發條件（任一發生再做 Phase 2）**：
+1. **要改中文翻譯**——例如藥師團隊覺得「主動建議」字面不夠精確，要改成「藥師主動介入」。Phase 1 的反查依賴中文字串相符，改字典會壞舊資料反查。
+2. **要加第三語言**（如日文）——一個 label 對兩個 key 還勉強，三個就荒謬。
+3. **後端要加新 category 查詢 API**——每次寫 SQL 都要嵌中文太醜。
+
+**Phase 1 留下的技術債（已知）**：
+- 改 `pharmacy:adviceCategories.*` 的中文翻譯時，會讓 DB 既有 record 的 `category` 欄位值跟字典不符 → 反查失效。修字典前要記得同步 update DB。
+- `getAdviceCategoryKeyByLabel(label)` 若回傳 `undefined`（API 回傳意外值），會 fallback 到中文顯示。
 
 ---
 
@@ -339,6 +381,8 @@
 | 2026-05-05 | W6 落地 | commit `81ab38ebc`：admin 4 頁 + 新 admin.json namespace（19 → 20 namespaces）；Python batch 53/55 hits + 2 手動補；typecheck pass；branch `feat/i18n-w6` merge 進 main，已 push personal+railway |
 | 2026-05-05 | W7 落地 | commit `e4046f22d`：3 個 sub-agent 平行執行（i18n-guide 寫作 / eslint-plugin-i18next 接入 / locale audit）；新增 eslint.config.mjs（flat config）+ 2 份 docs；audit 發現 0 個 P0 blocker；修 1 個 key 命名 bug（renalAbn → hepaticAbn）；branch `feat/i18n-w7` merge 進 main，已 push personal+railway |
 | 2026-05-05 | W7 followup 全清 | commit `cb982a4dc`：6 個 sub-agent 平行清 239 → 0 lint warning；新建 `soap-editor` namespace（21 個 namespace 為止）；補 P1 audit（plural-form 對稱、Attending Physician、notIntubated → None、tooltipCount 補單位）；i18next/no-literal-string rule 升級為 error；branch `feat/i18n-w7-followup` merge 進 main，已 push personal+railway |
+| 2026-05-05 | W7 hot-fix Phase 1 | commit `3c07b4142`：使用者回報藥事 4 大分類卡英文模式仍中文。根因為 `pharmacy-master-data.ts` 把中文字當 primary key（lint 抓不到，不是 JSX text）。Phase 1 修補：master-data 加 optional `labelKey`、`pharmacy.json` 補 142 keys、COLORS map 重 key 為 English、4 個 callsite 檔改用 `t(cat.labelKey)`。display-only fix，DB 維持儲存中文以避免 destructive migration |
+| 2026-05-05 | Phase 2 決策：暫不做 | DB schema migration（category 改 English key）保留為 backlog。Phase 1 已完整解決使用者體驗；Phase 2 賠率高（destructive migration）、報酬低（看不出差別）。觸發條件：(1) 要改中文翻譯 / (2) 加第三語言 / (3) 後端要加新 category 查詢 API。任一出現再做 |
 
 ---
 
