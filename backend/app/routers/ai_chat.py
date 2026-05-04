@@ -393,6 +393,47 @@ async def _with_heartbeat(stream, interval_s: float = _HEARTBEAT_INTERVAL_S):
                 pass
 
 
+def _web_annotations_to_citations(
+    annotations: list[dict], reply_text: str
+) -> list[dict]:
+    """Map OpenAI web_search url_citation annotations → frontend Citation shape.
+
+    OpenAI gives `{type: "url_citation", url_citation: {url, title,
+    start_index, end_index}}`; the frontend expects an `id`, `type`, `title`,
+    `source`, `url`, `relevance`, plus optional `keyQuote` (the cited passage
+    from the assistant reply, derived from the index span).
+    """
+    from urllib.parse import urlparse
+    out: list[dict] = []
+    for idx, ann in enumerate(annotations):
+        if (ann or {}).get("type") != "url_citation":
+            continue
+        cit = ann.get("url_citation") or {}
+        url = cit.get("url") or ""
+        host = "web"
+        try:
+            host = (urlparse(url).netloc or "web").replace("www.", "") or "web"
+        except Exception:
+            pass
+        start, end = cit.get("start_index"), cit.get("end_index")
+        quote = ""
+        if (
+            isinstance(start, int) and isinstance(end, int)
+            and 0 <= start < end <= len(reply_text)
+        ):
+            quote = reply_text[start:end].strip()
+        out.append({
+            "id": f"web-{idx}",
+            "type": "literature",
+            "title": cit.get("title") or url or "Untitled",
+            "source": host,
+            "url": url,
+            "relevance": 1.0,
+            "keyQuote": quote or None,
+        })
+    return out
+
+
 async def _event_stream(
     user_message: str,
     system_prompt: str,
@@ -430,6 +471,7 @@ async def _event_stream(
     cached_tokens = 0
     first_token_logged = False
     t_pre_llm = time.perf_counter()
+    web_annotations: list[dict] = []
 
     try:
         llm_stream = call_llm_stream(
@@ -456,6 +498,7 @@ async def _event_stream(
                     )
                     prompt_tokens = usage.get("prompt_tokens") or 0
                     cached_tokens = usage.get("cached_tokens") or 0
+                    web_annotations = meta.get("annotations") or []
                 except Exception:
                     pass
                 break
@@ -576,7 +619,7 @@ async def _event_stream(
             "content": full_reply,
             "timestamp": now_iso,
             "explanation": None,
-            "citations": [],
+            "citations": _web_annotations_to_citations(web_annotations, full_reply),
             "safetyWarnings": None,
             "requiresExpertReview": False,
             "degraded": False,
