@@ -4,7 +4,7 @@
 > **配對術語表**：[`docs/i18n-medical-glossary.md`](i18n-medical-glossary.md)
 > **負責人**：Chun + Claude
 > **啟動日**：2026-05-04
-> **總進度**：🟢 6 / 8 Waves（W0+...+W5 全部完成 2026-05-04；W6+ 待開工）
+> **總進度**：🟢 7 / 8 Waves（W0+...+W6 全部完成 2026-05-05；W7 待開工）
 
 ---
 
@@ -27,7 +27,7 @@
 | 5b | drug-library 3 頁（list + detail + proposals） | 🟢 完成 | `feat/i18n-w5b` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 5c | workstation + 2 子元件（assessment-results-panel + pharmacy-report-view） | 🟢 完成 | `feat/i18n-w5` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 5d | advice-statistics（含 SOAP tab + edit/delete dialog） | 🟢 完成 | `feat/i18n-w5` | 2026-05-04 | 🚀 personal+railway 已推 |
-| 6 | admin 4 頁 | ⬜ 待開工 | — | — |
+| 6 | admin 4 頁（users + audit + statistics + medication-normalization） | 🟢 完成 | `feat/i18n-w6` | 2026-05-05 | 🚀 personal+railway 已推 |
 | 7 | lint 規則 + i18n-guide 文件 + 走查 | ⬜ 待開工 | — | — |
 
 > 狀態圖示：⬜ 待開工　🟡 進行中　🟢 完成　🔴 阻塞
@@ -247,9 +247,20 @@
 - **`toLocaleString('zh-TW')` → `i18n.language`**：報告日期、歷史紀錄時間戳改為跟隨當前語言，仍透過 `Asia/Taipei` 控制時區
 - **adviceStats 採 flat namespace**：1284 行單檔內共用 ~86 keys，扁平結構檢索成本低於深層巢狀
 
-### Wave 6｜系統管理
-- 範圍：`src/pages/admin/*` 4 檔
-- namespace：`admin.json`
+### Wave 6｜系統管理（🟢 完成 2026-05-05）
+
+#### 已完成檔案
+- `src/pages/admin/users.tsx` (628L, ~91 strings) — 帳號清單、role badge、新增/編輯 dialog、刪除 confirm prompt
+- `src/pages/admin/placeholder.tsx` (312L, ~52 strings) — 稽核紀錄、role legacy 中文 key 對應、分頁
+- `src/pages/admin/statistics.tsx` (344L, ~37 strings) — 藥事統計（管理者）、月份選單、四大類分佈、Top 10
+- `src/pages/admin/medication-normalization.tsx` (214L, ~18 strings) — 用藥標準化字典 + JSON parse 錯誤訊息
+
+#### 設計決策（W6）
+- **新增 `admin.json` namespace**（zh-TW + en-US 各 ~196 keys）；register 進 `i18n/config.ts` 第 20 個 namespace
+- **Role label 統一走 `users.roleLabel.*`** 而非沿用 `roles.json`：admin 頁面顯示「系統管理員」，roles.json 仍保留「管理者」（後者用於 sidebar 等其他位置）
+- **Legacy 中文 role key 對應**：placeholder.tsx 後端可能回傳 `'管理者'/'醫師'/'護理師'/'藥師'`（舊資料），新增 `LEGACY_ROLE_KEY` map 轉成英文 key 後再走 `t()` 查表，避免顯示時 fallback
+- **`toLocaleString('zh-TW')` → `i18n.language`**：users.tsx 最後登入時間、placeholder.tsx Intl.DateTimeFormat（含台北時區）改為跟隨當前語言
+- **JSON parse error message i18n**：medication-normalization.tsx 的 `throw new Error(...)` 用 `i18n.t()`（module-scope helper 不能用 hook）
 
 ### Wave 7｜收尾
 - 安裝 `eslint-plugin-i18next`，設 `no-literal-string` rule
@@ -276,6 +287,7 @@
 | 2026-05-04 | W3a 落地 | patients/discharged/edit-dialog/archive-dialog 全部 t() 化，~120 keys，typecheck 通過 |
 | 2026-05-04 | W3a 部署 | commit `6889772c2`、`git push personal main` + `git push railway main` 兩邊都通 |
 | 2026-05-04 | W5c+W5d 落地 | commit `b85e1089a`：workstation 全套 + advice-statistics + ~75 strings via Python batch；typecheck pass；branch `feat/i18n-w5` merge 進 main，已 push personal+railway |
+| 2026-05-05 | W6 落地 | commit `81ab38ebc`：admin 4 頁 + 新 admin.json namespace（19 → 20 namespaces）；Python batch 53/55 hits + 2 手動補；typecheck pass；branch `feat/i18n-w6` merge 進 main，已 push personal+railway |
 
 ---
 
