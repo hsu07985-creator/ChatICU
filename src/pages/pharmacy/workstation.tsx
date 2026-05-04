@@ -699,7 +699,7 @@ export function PharmacyWorkstationPage() {
         adviceRecommendations.push(t('workstation.assess.advice.egfrLow', { value: extendedData.egfr }));
       }
       if (extendedData?.hepaticFunction && extendedData.hepaticFunction !== 'normal') {
-        adviceRecommendations.push(t('workstation.assess.advice.renalAbn'));
+        adviceRecommendations.push(t('workstation.assess.advice.hepaticAbn'));
       }
       if (dosage.some(d => d.status === 'service_unavailable')) {
         adviceRecommendations.push(t('workstation.assess.advice.padFail'));

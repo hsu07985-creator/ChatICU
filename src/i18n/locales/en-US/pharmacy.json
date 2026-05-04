@@ -473,7 +473,7 @@
       "duplicateLogFail": "Duplicate medication detection failed",
       "advice": {
         "duplicateError": "Duplicate detection query failed; results may be incomplete.",
-        "renalAbn": "Liver function abnormal; review hepatic dosing adjustments and monitor LFTs.",
+        "hepaticAbn": "Liver function abnormal; review hepatic dosing adjustments and monitor LFTs.",
         "padFail": "Some PAD dosage calculations failed; please use the dosage calculator manually.",
         "padNeedWeight": "Some PAD drugs missing weight data; cannot auto-calculate.",
         "padCalculatedWith": "{{count}} PAD infusion rate(s) calculated; drag the slider to adjust target dose.",

@@ -59,14 +59,22 @@
             "@types/node": "^20.10.0",
             "@types/react": "^19.2.14",
             "@types/react-dom": "^19.2.3",
+            "@typescript-eslint/parser": "^8.59.2",
             "@vitejs/plugin-react-swc": "^3.10.2",
+            "eslint": "^9.39.4",
+            "eslint-plugin-i18next": "^6.1.4",
+            "eslint-plugin-react-hooks": "^7.1.1",
+            "globals": "^17.6.0",
             "typescript": "^5.9.3",
+            "typescript-eslint": "^8.59.2",
             "vite": "^6.4.1"
       },
       "scripts": {
             "dev": "vite",
             "build": "vite build",
             "typecheck": "tsc -p tsconfig.json",
+            "lint": "eslint .",
+            "lint:ci": "eslint --max-warnings 9999 .",
             "test:e2e": "bash ./scripts/e2e/run_managed_e2e.sh",
             "test:e2e:raw": "playwright test"
       }

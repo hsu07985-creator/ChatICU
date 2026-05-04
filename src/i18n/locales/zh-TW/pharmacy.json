@@ -473,7 +473,7 @@
       "duplicateLogFail": "重複用藥偵測失敗",
       "advice": {
         "duplicateError": "重複用藥偵測查詢失敗，結果可能不完整。",
-        "renalAbn": "肝功能異常，建議檢視需肝代謝調整藥物並監測肝功能。",
+        "hepaticAbn": "肝功能異常，建議檢視需肝代謝調整藥物並監測肝功能。",
         "padFail": "部分 PAD 藥物劑量計算失敗，建議至劑量計算頁面手動操作。",
         "padNeedWeight": "部分 PAD 藥物缺少體重資料，無法自動計算。",
         "padCalculatedWith": "已計算 {{count}} 項 PAD 藥物輸注速率，可拖曳滑桿調整目標劑量。",
