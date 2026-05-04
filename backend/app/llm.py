@@ -594,12 +594,14 @@ def _build_openai_reasoning_param_block(
 
     - If reasoning is wanted and the call qualifies, sets ``reasoning_effort``
       from ``LLM_REASONING_EFFORT``.
-    - Else if model is gpt-5.x, sets ``reasoning_effort="minimal"``. Required
+    - Else if model is gpt-5.x, sets ``reasoning_effort="none"``. Required
       because gpt-5.x without an explicit field falls back to the server
       default (medium), which can consume the entire ``max_completion_tokens``
       budget and yield empty output. (W2-T3 fix: previously _call_openai_multi
       did not have this fallback and would silently emit temperature, which
       reasoning models reject and which then triggered the empty-output trap.)
+      Note: pre-5.5 gpt-5 used ``"minimal"`` for this slot; gpt-5.5+ replaced
+      that with ``"none"`` and rejects ``"minimal"`` outright (HTTP 400).
     - Else (non-reasoning models like gpt-4o), passes ``temperature``.
 
     ``icu_chat_skips_reasoning=True`` is the streaming-chat TTFT carve-out:
@@ -615,7 +617,7 @@ def _build_openai_reasoning_param_block(
     if use_reasoning:
         return {"reasoning_effort": _REASONING_EFFORT}
     if settings.LLM_MODEL.startswith("gpt-5"):
-        return {"reasoning_effort": "minimal"}
+        return {"reasoning_effort": "none"}
     return {"temperature": temperature}
 
 
