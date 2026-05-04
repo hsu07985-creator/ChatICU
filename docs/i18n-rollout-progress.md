@@ -288,17 +288,34 @@
    - `pharmacy.workstation.assess.advice.renalAbn` → `hepaticAbn`
      （內容是肝功能異常，但 key 名稱錯寫成 renalAbn — W5d 引入的 bug）
 
-#### 未完成 / Followup（不擋 W7 收尾，待後續處理）
-- **239 lint warning 修補**：top 6 熱點檔吃掉 50%+
-  - `patient/dialogs/patient-create-dialog.tsx` (28)
-  - `patient/patients-list-card.tsx` (26)
-  - `pharmacy/interactions.tsx` (23)
-  - `patient/patient-messages-tab.tsx` (22)
-  - `pharmacist-soap-editor.tsx` (17)
-  - `pharmacy/compatibility.tsx` (15)
-- **15 個 P1 audit 建議**：plural-form 對稱、跨 namespace 術語統一（Attending、Admission Dx、age suffix `y/o` vs `y` 等）
-- **lint rule 升級為 error**：等 warning 清完 + 觀察一陣子穩定後再切換
-- **react-hooks plugin 啟用**：目前只裝了 stub（避免 disable directive 報 unknown rule），實際規則沒開
+#### Followup 後續上線（commit `cb982a4dc`，2026-05-05）
+
+🟢 **239 lint warning 全清** — 5 個 sub-agent 平行 + tail sweep
+- Agent A: patient-create-dialog + patients-list-card (54 → 0)
+- Agent B: pharmacy/interactions + compatibility (38 → 0)
+- Agent C: patient-messages-tab + pharmacist-soap-editor (39 → 0)
+- Agent D: patient-chat-tab + ai-chat + chat-message-thread (31 → 0)
+- Agent E: dosage + duplicates + InflammationIndicesPanel + drug-combobox (31 → 0)
+- Agent F (tail sweep): 21 檔 46 → 0
+- 4 個 eslint-disable（品牌名 ChatICU、I-C-U 字謎、⚠ 裝飾符、× 關閉符）
+- 新建 `soap-editor` namespace（54 keys）— pharmacist-soap-editor 專屬，NAMESPACE 數 20 → 21
+- 新增 `common.a11y.*`（10 keys）— shadcn UI primitives sr-only label 共用區
+
+🟢 **P1 audit 修補**
+- A1 zh-TW 補 plural-form 對應 key（time / sidebar.badge / dashboard.list.columns / dashboard.card.stayDays）
+- D2 patient-tabs:summary.infoCard.rows.physician → "Attending Physician"
+- D6 patients:list.notIntubated → "None"（原 "No" 在 Airway 欄頭下無語意）
+- C4 pharmacy:adviceStats.{tooltipCount,soapCount} → "{{count}} item(s)"
+
+🟢 **Lint rule 升級為 error**
+- `eslint.config.mjs` 的 `i18next/no-literal-string` 從 `warn` 改 `error`
+- `npx eslint .` → 0 errors / 0 warnings；CI 防線就位
+
+#### 仍未做（P2 / P3，非急）
+- **15+ P2 audit 建議**：句末標點、跨 namespace 術語細微對齊（Pharmacy Statistics ↔ Advice Statistics、Pharmacy Review ↔ Pharmacy Assessment、Duplicate Therapy 風格統一等）
+- **medications.json 中文標題的 inline 英文移除**（如「住院用藥 Inpatient Medications」中的英文部分）
+- **i18n-medical-glossary.md 最終版欄位回填**
+- **react-hooks plugin 啟用**：目前只裝 stub，可後續啟用 `exhaustive-deps` / `rules-of-hooks`
 
 ---
 
@@ -321,6 +338,7 @@
 | 2026-05-04 | W5c+W5d 落地 | commit `b85e1089a`：workstation 全套 + advice-statistics + ~75 strings via Python batch；typecheck pass；branch `feat/i18n-w5` merge 進 main，已 push personal+railway |
 | 2026-05-05 | W6 落地 | commit `81ab38ebc`：admin 4 頁 + 新 admin.json namespace（19 → 20 namespaces）；Python batch 53/55 hits + 2 手動補；typecheck pass；branch `feat/i18n-w6` merge 進 main，已 push personal+railway |
 | 2026-05-05 | W7 落地 | commit `e4046f22d`：3 個 sub-agent 平行執行（i18n-guide 寫作 / eslint-plugin-i18next 接入 / locale audit）；新增 eslint.config.mjs（flat config）+ 2 份 docs；audit 發現 0 個 P0 blocker；修 1 個 key 命名 bug（renalAbn → hepaticAbn）；branch `feat/i18n-w7` merge 進 main，已 push personal+railway |
+| 2026-05-05 | W7 followup 全清 | commit `cb982a4dc`：6 個 sub-agent 平行清 239 → 0 lint warning；新建 `soap-editor` namespace（21 個 namespace 為止）；補 P1 audit（plural-form 對稱、Attending Physician、notIntubated → None、tooltipCount 補單位）；i18next/no-literal-string rule 升級為 error；branch `feat/i18n-w7-followup` merge 進 main，已 push personal+railway |
 
 ---
 
