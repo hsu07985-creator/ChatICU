@@ -10,6 +10,7 @@
     "missedSection": "疑似遺漏停藥（{{count}}）",
     "duplicateSection": "出院用藥重複（{{count}}）",
     "inpatientStartLabel": "住院開立：{{date}}",
+    "atcCode": "（{{code}}）",
     "categories": {
       "sup_ppi": "住院 SUP PPI 未明確停藥",
       "empirical_antibiotic": "住院抗生素未延續至出院 — 確認療程是否結束",
@@ -35,7 +36,12 @@
     "noOriginalSnippet": "未提供原文段落。",
     "dataQualityAria": "資料品質警告",
     "shortDetail": "詳細",
-    "shortCollapse": "收合"
+    "shortCollapse": "收合",
+    "expertReviewWarning": "此回覆包含潛在高風險資訊，建議醫師/藥師覆核。",
+    "relevanceLabel": "相關度",
+    "snippetLabel": "段落 {{index}}",
+    "quotedSnippet": "「{{quote}}」",
+    "scrollToLatest": "跳到最新"
   },
   "chatTab": {
     "manage": "管理",
@@ -53,7 +59,11 @@
     "deleteSessionTitle": "刪除對話",
     "hideList": "隱藏記錄列表",
     "showList": "顯示記錄列表",
-    "inputShortcutHint": "Enter 發送 · Shift+Enter 換行"
+    "inputShortcutHint": "Enter 發送 · Shift+Enter 換行",
+    "headerTitle": "對話記錄",
+    "snapshotKEgfr": "K: {{k}} • eGFR: {{eGFR}}",
+    "systemStatus": "系統狀態：{{status}}",
+    "dataQuality": "資料品質：{{hints}}"
   },
   "messages": {
     "addMessageLabel": "新增留言",
@@ -86,6 +96,30 @@
     "processing": "處理中",
     "expandReplies": "{{count}} 則回覆",
     "collapseReplies": "收起回覆",
-    "defaultUserRole": "使用者"
+    "defaultUserRole": "使用者",
+    "tagSelectorTrigger": "標籤",
+    "pharmacyTagSelectorTrigger": "藥事標籤",
+    "boardTitle": "病患留言板",
+    "boardDescription": "團隊成員的照護溝通與用藥建議，避免重要訊息遺漏",
+    "unreadCountBadge": "{{count}} 則未讀",
+    "markAllRead": "全部標為已讀",
+    "replyingTo": "回覆 <author>{{name}}</author> 的留言",
+    "replyToPrefix": "回覆",
+    "replyToSuffix": "的留言",
+    "filterTagButton": "篩選標籤",
+    "filterCountSuffix": "· 1",
+    "teamMessagesHeading": "團隊留言 ({{count}})",
+    "filteredHint": "— 篩選「{{tag}}」",
+    "medicationAdviceCount": "{{count}} 用藥建議",
+    "alertCountBadge": "{{count}} 警示",
+    "adviceAccepted": "已接受",
+    "adviceAcceptedBy": "已接受 ({{name}})",
+    "adviceRejected": "未接受",
+    "adviceRejectedBy": "未接受 ({{name}})",
+    "replyAction": "回覆",
+    "groupMessageCount": "{{count}} 則留言",
+    "groupUnreadBadge": "{{count}} 未讀",
+    "groupMedicationAdviceBadge": "{{count}} 用藥建議",
+    "groupAlertBadge": "{{count}} 警示"
   }
 }

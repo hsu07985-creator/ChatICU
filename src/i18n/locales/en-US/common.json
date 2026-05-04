@@ -27,5 +27,17 @@
     "hoursAgo_other": "{{count}} hours ago",
     "daysAgo_one": "{{count}} day ago",
     "daysAgo_other": "{{count}} days ago"
+  },
+  "a11y": {
+    "close": "Close",
+    "more": "More",
+    "morePages": "More pages",
+    "previousSlide": "Previous slide",
+    "nextSlide": "Next slide",
+    "previous": "Previous",
+    "next": "Next",
+    "toggleSidebar": "Toggle Sidebar",
+    "sidebar": "Sidebar",
+    "sidebarMobileDescription": "Displays the mobile sidebar."
   }
 }

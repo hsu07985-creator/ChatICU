@@ -35,6 +35,10 @@
   },
   "badge": {
     "unreadAria": "未讀通知 {{count}}",
-    "newMessages": "{{count}} 則新訊息"
+    "unreadAria_one": "未讀通知 {{count}}",
+    "unreadAria_other": "未讀通知 {{count}}",
+    "newMessages": "{{count}} 則新訊息",
+    "newMessages_one": "{{count}} 則新訊息",
+    "newMessages_other": "{{count}} 則新訊息"
   }
 }

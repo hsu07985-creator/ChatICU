@@ -50,6 +50,8 @@
     "zoomIn": "放大卡片",
     "zoomOut": "縮小卡片",
     "columns": "{{count}}欄",
+    "columns_one": "{{count}}欄",
+    "columns_other": "{{count}}欄",
     "loadFailed": "無法連線至伺服器，請確認後端服務是否正常運行",
     "loadErrorLog": "載入病患列表失敗",
     "empty": "沒有符合條件的病患"
@@ -57,6 +59,8 @@
   "card": {
     "ageYears": "{{age}} 歲",
     "stayDays": "住院 {{days}} 天",
+    "stayDays_one": "住院 {{days}} 天",
+    "stayDays_other": "住院 {{days}} 天",
     "stayShort": "住",
     "diagnosisLabel": "入院診斷",
     "moreItems": "+{{count}} 更多",

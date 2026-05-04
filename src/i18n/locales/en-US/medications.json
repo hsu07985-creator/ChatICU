@@ -151,6 +151,8 @@
       "close": "Close"
     },
     "main": {
+      "painCardTitle": "Pain Score",
+      "rassCardTitle": "RASS Score",
       "trendButton": "Trend",
       "lastRecorded": "Last recorded: {{timestamp}}",
       "painMedsLabel": "Analgesics",

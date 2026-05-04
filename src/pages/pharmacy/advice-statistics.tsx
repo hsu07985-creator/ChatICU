@@ -1111,25 +1111,25 @@ export function PharmacyAdviceStatisticsPage() {
                         <div className="grid gap-2 md:grid-cols-2">
                           {record.subjective && (
                             <div className="rounded border border-slate-200 dark:border-slate-700 p-2">
-                              <div className="text-xs font-semibold text-slate-500 mb-1">S — Subjective</div>
+                              <div className="text-xs font-semibold text-slate-500 mb-1">{t('adviceStats.soapSections.subjective')}</div>
                               <p className="text-sm whitespace-pre-line line-clamp-4">{record.subjective}</p>
                             </div>
                           )}
                           {record.objective && (
                             <div className="rounded border border-slate-200 dark:border-slate-700 p-2">
-                              <div className="text-xs font-semibold text-slate-500 mb-1">O — Objective</div>
+                              <div className="text-xs font-semibold text-slate-500 mb-1">{t('adviceStats.soapSections.objective')}</div>
                               <p className="text-sm whitespace-pre-line line-clamp-4 font-mono">{record.objective}</p>
                             </div>
                           )}
                           {record.assessment && (
                             <div className="rounded border border-sky-200 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-950/20 p-2">
-                              <div className="text-xs font-semibold text-sky-700 dark:text-sky-300 mb-1">A — Assessment</div>
+                              <div className="text-xs font-semibold text-sky-700 dark:text-sky-300 mb-1">{t('adviceStats.soapSections.assessment')}</div>
                               <p className="text-sm whitespace-pre-line line-clamp-4">{record.assessment}</p>
                             </div>
                           )}
                           {record.plan && (
                             <div className="rounded border border-sky-200 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-950/20 p-2">
-                              <div className="text-xs font-semibold text-sky-700 dark:text-sky-300 mb-1">P — Plan</div>
+                              <div className="text-xs font-semibold text-sky-700 dark:text-sky-300 mb-1">{t('adviceStats.soapSections.plan')}</div>
                               <p className="text-sm whitespace-pre-line line-clamp-4 font-mono">{record.plan}</p>
                             </div>
                           )}

@@ -73,6 +73,16 @@
       "removePatientContext": "Remove patient context (switch to general Q&A)",
       "collapseHint": "Collapse hint"
     },
+    "context": {
+      "askingPrefix": "Asking about: ",
+      "bedSeparator": "{{bed}} · ",
+      "dischargedBadge": "Discharged",
+      "dischargedBadgeWithDate": "Discharged · {{date}}",
+      "notFound": "Patient not found (ID: {{id}})",
+      "removeButton": "Remove",
+      "multiPatientNotice": "You selected {{count}} patients, but multi-patient Q&A is in development. Only the first patient is loaded as context.",
+      "disclaimer": "This is a general medical assistant with no patient context; do not enter identifiable PHI (name/MRN)."
+    },
     "session": {
       "collapseList": "Collapse history list",
       "showList": "Show history list",
@@ -80,7 +90,8 @@
       "noSessions": "No chat history yet",
       "newSessionHintTop": "Click \"New chat\" to start",
       "newSessionHintBottom": "asking AI about general medical questions",
-      "deleteTitle": "Delete chat"
+      "deleteTitle": "Delete chat",
+      "headerTitle": "History"
     },
     "mode": {
       "patient": "Patient mode · snapshot loaded",
@@ -128,5 +139,12 @@
     "header": "Pharmacist advice found this turn:",
     "bedFallback": "Bed unspecified",
     "overflow": "+{{count}} more"
+  },
+  "aiMarkdown": {
+    "safetyWarning": "Safety alert"
+  },
+  "mention": {
+    "all": "Everyone",
+    "allHint": "Notify all members"
   }
 }

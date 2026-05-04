@@ -12,6 +12,7 @@ export function ExpertReviewWarning({ show, reason }: ExpertReviewWarningProps) 
 
   return (
     <div className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 px-2.5 py-2 text-xs text-amber-800 dark:text-amber-400">
+      {/* eslint-disable-next-line i18next/no-literal-string -- decorative warning emoji glyph, not translatable text */}
       <span className="shrink-0 font-semibold">⚠️</span>
       <div>
         <span>{t('expertReview.title')}</span>

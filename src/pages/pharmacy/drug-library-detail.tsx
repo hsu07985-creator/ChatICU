@@ -454,12 +454,12 @@ function HistoryDialog({
                 )}
                 {h.before && (
                   <div className="text-[10px] text-muted-foreground">
-                    Before: <code>{JSON.stringify(h.before)}</code>
+                    {t('library.detail.historyDialog.before')} <code>{JSON.stringify(h.before)}</code>
                   </div>
                 )}
                 {h.after && (
                   <div className="text-[10px] text-muted-foreground">
-                    After: <code>{JSON.stringify(h.after)}</code>
+                    {t('library.detail.historyDialog.after')} <code>{JSON.stringify(h.after)}</code>
                   </div>
                 )}
               </CardContent>
@@ -518,7 +518,7 @@ function DdiCard({
               <span className="text-muted-foreground">{t('library.detail.rule.overrideArrow')}</span>
               <span className={`px-1.5 py-0.5 rounded border ${RISK_META[item.risk_rating]?.cls || ''} font-mono text-[11px] font-semibold`}>{item.risk_rating}</span>
               <span className="text-blue-400 ml-auto">
-                by {item.overridden_by_name || item.overridden_by}
+                {t('library.detail.ddiCard.overriddenBy', { name: item.overridden_by_name || item.overridden_by })}
               </span>
             </div>
             {item.override_reason && (

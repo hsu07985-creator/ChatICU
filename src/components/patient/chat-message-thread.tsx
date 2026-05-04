@@ -162,7 +162,7 @@ export function ChatMessageThread({
                               <SafetyWarnings warnings={msg.warnings} />
                               {msg.requiresExpertReview && (
                                 <div className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                                  此回覆包含潛在高風險資訊，建議醫師/藥師覆核。
+                                  {t('thread.expertReviewWarning')}
                                 </div>
                               )}
                             </div>
@@ -172,7 +172,7 @@ export function ChatMessageThread({
                             <div className="mt-2 rounded-md bg-slate-50 dark:bg-slate-800 border border-border p-2.5">
                               {references.length === 0 ? (
                                 <p className="text-xs text-muted-foreground">
-                                  本次回答未擷取到可顯示的文獻段落，可改用更具體關鍵詞再詢問。
+                                  {t('thread.noReferences')}
                                 </p>
                               ) : (
                                 <ul className="space-y-2">
@@ -192,7 +192,7 @@ export function ChatMessageThread({
                                             {' • '}
                                             {formatCitationPageText(ref)}
                                             {' • '}
-                                            相關度{' '}
+                                            {t('thread.relevanceLabel')}{' '}
                                             {Number.isFinite(Number(ref.relevance))
                                               ? Number(ref.relevance).toFixed(3)
                                               : 'N/A'}
@@ -205,7 +205,7 @@ export function ChatMessageThread({
                                               </p>
                                               {ref.keyQuote && (
                                                 <div className="rounded border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1.5 text-xs leading-relaxed text-muted-foreground italic">
-                                                  「{ref.keyQuote}」
+                                                  {t('thread.quotedSnippet', { quote: ref.keyQuote })}
                                                 </div>
                                               )}
                                               {ref.relevanceNote && (
@@ -222,7 +222,7 @@ export function ChatMessageThread({
                                                   className="rounded border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-800 p-2 text-xs leading-relaxed text-[#374151] dark:text-slate-300 whitespace-pre-wrap"
                                                 >
                                                   <span className="inline-block text-xs font-medium mb-0.5 text-muted-foreground">
-                                                    段落 {snippetIndex + 1}
+                                                    {t('thread.snippetLabel', { index: snippetIndex + 1 })}
                                                   </span>
                                                   <div>{compactSnippet(snippet)}</div>
                                                 </div>
@@ -234,7 +234,7 @@ export function ChatMessageThread({
                                             </div>
                                           ) : (
                                             <p className="text-xs text-[#9ca3af] mt-1">
-                                              未提供原文段落。
+                                              {t('thread.noOriginalSnippet')}
                                             </p>
                                           )}
                                         </div>
@@ -260,12 +260,12 @@ export function ChatMessageThread({
                               {isDetailExpanded ? (
                                 <>
                                   <ChevronDown className="h-3 w-3" />
-                                  收合
+                                  {t('thread.shortCollapse')}
                                 </>
                               ) : (
                                 <>
                                   <ChevronRight className="h-3 w-3" />
-                                  詳細
+                                  {t('thread.shortDetail')}
                                 </>
                               )}
                             </button>
@@ -346,7 +346,7 @@ export function ChatMessageThread({
           aria-label={t('thread.scrollToLatestAria')}
         >
           <ArrowDown className="h-3.5 w-3.5" />
-          跳到最新
+          {t('thread.scrollToLatest')}
         </button>
       )}
     </div>

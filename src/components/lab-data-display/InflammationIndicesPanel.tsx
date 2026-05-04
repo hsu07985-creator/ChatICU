@@ -1,4 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { LabData } from '../../lib/api/lab-data';
 import { getLabTrends } from '../../lib/api/lab-data';
 import { LabItem } from './LabItem';
@@ -47,6 +48,7 @@ function formatTimeRange(ts: Record<keyof InflammationInputs, string | null>): s
 }
 
 export function InflammationIndicesPanel({ labData, patientId }: Props) {
+  const { t } = useTranslation('labs');
   const computed = useMemo(() => computeAll(labData), [labData]);
   const timestamps = useMemo(() => extractInputTimestamps(labData), [labData]);
   const panelTs = earliestTimestamp(Object.values(timestamps)) ?? undefined;
@@ -105,9 +107,9 @@ export function InflammationIndicesPanel({ labData, patientId }: Props) {
     <div className="space-y-6">
       <section className="space-y-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100">發炎指數</h3>
+          <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100">{t('inflammation.panelTitle')}</h3>
           {timeRangeLabel && (
-            <span className="text-xs text-slate-500 dark:text-slate-400">採樣時間：{timeRangeLabel}</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">{t('inflammation.samplingTime', { range: timeRangeLabel })}</span>
           )}
         </div>
         <div
@@ -137,7 +139,7 @@ export function InflammationIndicesPanel({ labData, patientId }: Props) {
               if (miss.length === 0) return null;
               return (
                 <li key={key}>
-                  <span className="font-semibold">{key}</span> 無法計算：缺 {miss.join('、')}
+                  <span className="font-semibold">{key}</span> {t('inflammation.missingPrefix', { fields: miss.join('、') })}
                 </li>
               );
             })}
@@ -146,7 +148,7 @@ export function InflammationIndicesPanel({ labData, patientId }: Props) {
       </section>
 
       <section className="space-y-3">
-        <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">原始資料</h4>
+        <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{t('inflammation.rawDataTitle')}</h4>
         <div
           className="grid"
           style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '8px' }}
@@ -164,13 +166,14 @@ export function InflammationIndicesPanel({ labData, patientId }: Props) {
       </section>
 
       <section className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
-        <p className="font-semibold text-slate-700 dark:text-slate-200">計算公式</p>
+        <p className="font-semibold text-slate-700 dark:text-slate-200">{t('inflammation.formulaTitle')}</p>
         <ul className="space-y-0.5">
-          <li>ANC = WBC × Segment% / 100　　ALC = WBC × Lymph% / 100　　AMC = WBC × Mono% / 100</li>
+          <li>{t('inflammation.absoluteCounts')}</li>
           {INDEX_ORDER.map((k) => (
             <li key={k}>
-              <span className="font-semibold">{INFLAMMATION_META[k].label}</span>（{INFLAMMATION_META[k].fullName}）＝ {INFLAMMATION_META[k].formula}
-              {INFLAMMATION_META[k].unit && `，單位 ${INFLAMMATION_META[k].unit}`}
+              <span className="font-semibold">{INFLAMMATION_META[k].label}</span>
+              {t('inflammation.formulaLine', { fullName: INFLAMMATION_META[k].fullName, formula: INFLAMMATION_META[k].formula })}
+              {INFLAMMATION_META[k].unit && t('inflammation.formulaUnitSuffix', { unit: INFLAMMATION_META[k].unit })}
             </li>
           ))}
         </ul>

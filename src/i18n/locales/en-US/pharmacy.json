@@ -6,7 +6,16 @@
     "patientPlaceholderLoading": "Loading...",
     "clearPatient": "Clear patient selection",
     "patientLoadError": "Failed to load patient list",
-    "loadingPatientMeds": "Failed to load patient medications"
+    "loadingPatientMeds": "Failed to load patient medications",
+    "patientOption": "{{bed}} — {{name}} ({{mrn}})"
+  },
+  "combobox": {
+    "defaultPlaceholder": "Select drug...",
+    "searchPlaceholder": "Type to filter drug name...",
+    "promptStart": "Type a drug name to start searching",
+    "noMatch": "No matching drug found",
+    "noData": "No data yet",
+    "truncated": "Showing first {{display}} of {{total}} matches; type more to narrow"
   },
   "duplicates": {
     "header": {
@@ -47,7 +56,15 @@
     },
     "countsBar": {
       "label": "Risk distribution:",
-      "totalSuffix": "{{count}} total"
+      "totalSuffix": "{{count}} total",
+      "critical": "🔴 Critical {{count}}",
+      "high": "🟠 High {{count}}",
+      "moderate": "🟡 Moderate {{count}}",
+      "low": "🔵 Low {{count}}",
+      "info": "⚪ Info {{count}}"
+    },
+    "manualResult": {
+      "noDuplicate": "✓ No duplicate therapy detected"
     }
   },
   "dosage": {
@@ -57,14 +74,17 @@
     },
     "card": {
       "title": "PAD Drug Dosage Calculation",
-      "description": "Select a drug, enter weight and target dose; the system calculates infusion rate (ml/hr)"
+      "description": "Select a drug, enter weight and target dose; the system calculates infusion rate (ml/hr)",
+      "patientDescription": "Calculate PAD infusion rates from the current patient's data; height and weight can be adjusted for this calculation"
     },
     "patient": {
       "label": "Patient (optional)",
       "placeholder": "Select patient to autofill weight/height",
       "placeholderLoading": "Loading...",
       "clear": "Clear patient",
-      "filledFromPatient": "Loaded basic data for {{name}}"
+      "filledFromPatient": "Loaded basic data for {{name}}",
+      "current": "Current patient",
+      "noPatient": "No patient specified"
     },
     "drug": {
       "label": "Drug *",
@@ -73,14 +93,23 @@
     },
     "weight": {
       "label": "Weight (kg) *",
-      "placeholder": "Auto-filled from patient"
+      "placeholder": "Auto-filled from patient",
+      "manualPlaceholder": "Enter weight for this calculation"
+    },
+    "sex": {
+      "label": "Sex",
+      "placeholder": "Select sex",
+      "none": "Not provided",
+      "male": "Male",
+      "female": "Female"
     },
     "info": {
       "rangeLabel": "Recommended range",
       "concAllowedLabel": "Allowed concentration",
       "concDefaultLabel": "Default concentration",
       "obeseBasisLabel": "Obesity weight basis",
-      "thisCalcBasisLabel": "This calculation"
+      "thisCalcBasisLabel": "This calculation",
+      "tbwFallbackHint": "When height or sex is missing, the system uses total body weight (TBW) and cannot apply IBW / AdjBW obesity adjustment."
     },
     "fixedAlert": "{{label}} is a fixed-dose drug (not weight-dependent). Recommended dose: {{range}}. No target dose / concentration needed.",
     "doseMin": {
@@ -98,7 +127,8 @@
     },
     "height": {
       "label": "Height (cm)",
-      "placeholder": "Auto-filled from patient"
+      "placeholder": "Auto-filled from patient",
+      "manualPlaceholder": "Enter height for this calculation"
     },
     "buttons": {
       "calculate": "Calculate infusion rate",
@@ -126,19 +156,43 @@
       "secondaryWeightUnit": "kg",
       "weightObese": "Obese",
       "weightUnderweight": "Underweight",
-      "stepsToggle": "Calculation steps"
+      "stepsToggle": "Calculation steps",
+      "weightWithUnit": "{{value}} kg",
+      "ibwLabel": "IBW",
+      "adjBwLabel": "AdjBW",
+      "pctIbwLabel": "%IBW"
     }
   },
   "interactions": {
     "header": {
       "title": "Drug Interactions",
-      "subtitle": "Look up drug-drug interactions (DDI) sorted by risk level"
+      "subtitle": "Look up drug-drug interactions (DDI) sorted by risk level",
+      "subtitleDetail": "Pairwise drug interaction lookup (duplicate therapy now lives in the sidebar's Duplicate Therapy page)"
     },
     "patientPicker": {
       "placeholder": "Select patient (auto-loads current meds)",
       "placeholderLoading": "Loading...",
       "clear": "Clear patient selection",
-      "noMeds": "Patient has no comparable medications"
+      "noMeds": "Patient has no comparable medications",
+      "option": "{{bed}} — {{name}} ({{mrn}})",
+      "loadingMeds": "Loading patient medications..."
+    },
+    "skipped": {
+      "outpatient": "Skipped {{count}} hospital outpatient prescription(s) (excluded from interaction check)"
+    },
+    "drugRow": {
+      "label": "Drug {{index}}",
+      "placeholder": "Select drug {{index}}...",
+      "removeAria": "Remove drug {{index}}"
+    },
+    "actions": {
+      "addDrug": "Add drug",
+      "search": "Search",
+      "clear": "Clear"
+    },
+    "drugCount": {
+      "selected": "{{count}} drug(s) selected",
+      "willCompare": ", will compare {{count}} pair(s)"
     },
     "drugCard": {
       "title": "Drug Selection",
@@ -154,6 +208,10 @@
       "medium": "Medium Risk",
       "low": "Low Risk"
     },
+    "source": {
+      "aiBadge": "AI Inference",
+      "dbBadge": "DDI Database"
+    },
     "sourceToast": {
       "noLiterature": "This entry has no literature source provided",
       "copySuccess": "Literature source copied to clipboard"
@@ -162,11 +220,19 @@
       "title": "Query Summary",
       "riskDistribution": "Risk distribution",
       "pairLookup": "Pair quick lookup",
+      "queryStats": "Searched {{drugs}} drug(s); found {{count}} interaction(s)",
+      "overallRisk": "Highest overall risk: {{label}}",
+      "riskCount": "{{label}}: {{count}}",
       "tableHeaders": {
         "pair": "Drug pair",
         "highestRisk": "Highest risk",
         "count": "Count"
       }
+    },
+    "detail": {
+      "evidenceLabel": "Evidence: {{rating}}",
+      "membersLabel": "Members: {{members}}",
+      "exceptionsLabel": "Exceptions: {{exceptions}}"
     },
     "results": {
       "noData": "No drug interactions found.",
@@ -206,7 +272,9 @@
         "inFormulary": "In-formulary",
         "hasX": "Has X-level rule",
         "missingAtc": "Missing ATC",
-        "recentlyAdded": "Recently added (Lexicomp)"
+        "recentlyAdded": "Recently added (Lexicomp)",
+        "atcChip": "ATC: {{code}}",
+        "atcChipClearAria": "Clear ATC filter"
       },
       "atcSidebar": {
         "title": "ATC classes",
@@ -268,6 +336,8 @@
       "approveDialog": {
         "title": "Approve Proposal",
         "description": "\"{{a}} × {{b}}\" risk will be overridden from {{from}} to {{to}}",
+        "drugPair": "\"{{a}} × {{b}}\"",
+        "proposerSuffix": "({{role}})",
         "proposer": "Proposer: ",
         "reason": "Reason: ",
         "evidence": "Evidence: ",
@@ -325,7 +395,9 @@
       },
       "historyDialog": {
         "title": "Rule change history",
-        "reason": "Reason: "
+        "reason": "Reason: ",
+        "before": "Before:",
+        "after": "After:"
       },
       "rule": {
         "originalSourceLabel": "Original source: ",
@@ -370,7 +442,8 @@
         "pubmedCount": "{{count}} literature reference(s)",
         "verifiedAt": "✓ Verified {{timestamp}}",
         "verifiedBy": " by {{name}}",
-        "expireAt": "Expires: {{timestamp}}"
+        "expireAt": "Expires: {{timestamp}}",
+        "overriddenBy": "by {{name}}"
       },
       "iv": {
         "noData": "No IV compatibility data recorded for this drug",
@@ -692,7 +765,10 @@
       "defaultPrefix": "Default {{value}}",
       "resetDefaults": "Reset to defaults",
       "weightBasis": "Weight basis: {{basis}} ({{weight}} kg)",
-      "stepsToggle": "Calculation steps"
+      "stepsToggle": "Calculation steps",
+      "rateUnit": "ml/hr",
+      "weightValue": "{{value}} kg",
+      "rateArrow": "→ {{value}} ml/hr"
     }
   },
   "compatibility": {
@@ -708,10 +784,37 @@
       "placeholder": "Select patient to autofill IV meds (optional)",
       "placeholderLoading": "Loading...",
       "clear": "Clear patient selection",
-      "noIVMeds": "Patient has no comparable IV medications"
+      "noIVMeds": "Patient has no comparable IV medications",
+      "option": "{{bed}} — {{name}} ({{mrn}})",
+      "loadingMeds": "Loading patient medications..."
+    },
+    "skipped": {
+      "nonIV": "Skipped {{count}} non-IV medication(s) (PO / INH / SC / IM, etc.)"
+    },
+    "drugRow": {
+      "label": "Drug {{index}}",
+      "placeholder": "Select IV drug {{index}}...",
+      "removeAria": "Remove drug {{index}}"
+    },
+    "actions": {
+      "addDrug": "Add drug",
+      "search": "Search",
+      "clear": "Clear"
+    },
+    "drugCount": {
+      "selected": "{{count}} drug(s) selected",
+      "willCompare": ", will compare {{count}} pair(s)"
     },
     "validation": {
       "needTwo": "Please select at least two different drugs"
+    },
+    "summary": {
+      "headerCount": "{{drugs}} drug(s), {{pairs}} pair(s)",
+      "incompatibleAlertPrefix": "Found ",
+      "incompatibleAlertSuffix": " incompatible pair(s); do not mix or co-infuse — use separate lines."
+    },
+    "matrixCard": {
+      "noYsiteHint": "\"No Y-Site\" = drug not in Y-Site source; no pairing data available"
     },
     "results": {
       "noData": "No matching Y-Site compatibility data found. Recommend separate infusion lines.",
@@ -740,7 +843,7 @@
     "recordCreated": "Pharmacy record created",
     "createFail": "Failed to create record",
     "deepLinkNotFound": "Pharmacist advice not found; please switch month manually or check the URL",
-    "tooltipCount": "{{count}}",
+    "tooltipCount": "{{count}} item(s)",
     "centerSubtitle": "advice items",
     "title": "Pharmacy Statistics",
     "subtitle": "Pharmacist intervention records & category statistics (4 categories, 23 subitems)",
@@ -795,7 +898,7 @@
     "noHistoryTitle": "No history for {{label}}",
     "noHistoryDesc": "Use the form above to add a pharmacist intervention record",
     "soapTitle": "SOAP Records",
-    "soapCount": "{{count}}",
+    "soapCount": "{{count}} item(s)",
     "soapSubtitle": "S/O/A/P drafts saved from the pharmacist SOAP editor (medication advice mode); only your own are shown.",
     "soapSearchPlaceholder": "Search Assessment or Plan content...",
     "clear": "Clear",
@@ -813,6 +916,12 @@
     "cancel": "Cancel",
     "saveChanges": "Save changes",
     "deleteDialogDesc": "This will delete the record \"{{code}} {{label}}\". If it was created from the statistics page or workstation, the corresponding board recommendation is also removed. This action cannot be undone.",
-    "required": "*"
+    "required": "*",
+    "soapSections": {
+      "subjective": "S — Subjective",
+      "objective": "O — Objective",
+      "assessment": "A — Assessment",
+      "plan": "P — Plan"
+    }
   }
 }

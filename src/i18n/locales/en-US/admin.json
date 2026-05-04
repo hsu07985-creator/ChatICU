@@ -179,6 +179,9 @@
     "dictEditorDesc": "Enter a valid JSON object; both keys and values must be strings.",
     "fileLabel": "File: {{path}}",
     "lastModifiedLabel": "Last modified: {{at}}",
+    "versionLabel": "Version",
+    "routeAliasesLabel": "Route aliases (JSON object)",
+    "frequencyAliasesLabel": "Frequency aliases (JSON object)",
     "errors": {
       "loadFail": "Failed to load medication normalization dictionary",
       "jsonInvalid": "{{field}} has invalid JSON",

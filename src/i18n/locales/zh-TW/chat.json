@@ -73,6 +73,16 @@
       "removePatientContext": "移除病人背景，改為通用問答",
       "collapseHint": "收合提示"
     },
+    "context": {
+      "askingPrefix": "正在詢問：",
+      "bedSeparator": "{{bed}} · ",
+      "dischargedBadge": "已出院",
+      "dischargedBadgeWithDate": "已出院 · {{date}}",
+      "notFound": "找不到病人資料（ID: {{id}}）",
+      "removeButton": "移除",
+      "multiPatientNotice": "您選取了 {{count}} 位病人，但多病人同時問答功能開發中。目前僅載入第一位病人作為背景。",
+      "disclaimer": "此為通用醫療問答助手，無病歷背景；請勿輸入可識別個資（姓名／病歷號）。"
+    },
     "session": {
       "collapseList": "收合對話記錄",
       "showList": "顯示對話記錄",
@@ -80,7 +90,8 @@
       "noSessions": "尚無對話記錄",
       "newSessionHintTop": "點擊「新對話」開始",
       "newSessionHintBottom": "向 AI 詢問通用醫療問題",
-      "deleteTitle": "刪除對話"
+      "deleteTitle": "刪除對話",
+      "headerTitle": "對話記錄"
     },
     "mode": {
       "patient": "病歷模式 · 已載入此床快照",
@@ -128,5 +139,12 @@
     "header": "本輪查到藥師建議：",
     "bedFallback": "床號未列",
     "overflow": "+{{count}} 筆"
+  },
+  "aiMarkdown": {
+    "safetyWarning": "安全提醒"
+  },
+  "mention": {
+    "all": "所有人",
+    "allHint": "通知全體成員"
   }
 }

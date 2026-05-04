@@ -117,7 +117,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
           <div className="flex-1 rounded-lg border border-[#ead7e1] bg-[#fdf6fa] px-4 py-3">
             <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">{t('workstation.doseCard.rateRangeLabel')}</p>
             <p className="text-lg font-bold text-brand">
-              {rateMin} ~ {rateMax} <span className="text-sm font-normal">ml/hr</span>
+              {rateMin} ~ {rateMax} <span className="text-sm font-normal">{t('workstation.doseCard.rateUnit')}</span>
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               {dosePerHrMin} ~ {dosePerHrMax} {doseUnitShort}
@@ -125,7 +125,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
           </div>
           <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-center min-w-[80px]">
             <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">{t('workstation.doseCard.weightLabel')}</p>
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{dosingWt} kg</p>
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{t('workstation.doseCard.weightValue', { value: dosingWt })}</p>
             <p className="text-[10px] text-muted-foreground">{dose.weightBasis || 'TBW'}</p>
           </div>
         </div>
@@ -150,7 +150,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
               />
               <div className="flex justify-between text-[10px] text-muted-foreground">
                 <span>{defaultMin}</span>
-                <span>→ {calcRate(dosingWt, minDose, conc)} ml/hr</span>
+                <span>{t('workstation.doseCard.rateArrow', { value: calcRate(dosingWt, minDose, conc) })}</span>
               </div>
             </div>
 
@@ -171,7 +171,7 @@ export const DosageRecommendationCard = memo(function DosageRecommendationCard({
               />
               <div className="flex justify-between text-[10px] text-muted-foreground">
                 <span>{defaultMin}</span>
-                <span>→ {calcRate(dosingWt, maxDose, conc)} ml/hr</span>
+                <span>{t('workstation.doseCard.rateArrow', { value: calcRate(dosingWt, maxDose, conc) })}</span>
               </div>
             </div>
 

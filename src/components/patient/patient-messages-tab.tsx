@@ -120,7 +120,7 @@ function TagSelector({
           className="inline-flex items-center gap-1 rounded-md px-2 h-7 text-xs hover:bg-accent hover:text-accent-foreground transition-colors"
         >
           <Tag className="h-3.5 w-3.5" />
-          標籤
+          {t('messages.tagSelectorTrigger')}
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-64 p-2" align="start">
@@ -247,7 +247,7 @@ function PharmacyTagSelector({
           className="inline-flex items-center gap-1 rounded-md px-2 h-7 text-xs text-green-700 hover:bg-green-50 hover:text-green-800 transition-colors"
         >
           <Pill className="h-3.5 w-3.5" />
-          藥事標籤
+          {t('messages.pharmacyTagSelectorTrigger')}
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-0 max-h-80 overflow-y-auto" align="start">
@@ -459,18 +459,18 @@ export function PatientMessagesTab({
             <div>
               <CardTitle className="flex items-center gap-2 text-base font-semibold text-slate-800 dark:text-slate-200">
                 <MessagesSquare className="h-4 w-4 text-slate-600" />
-                病患留言板
+                {t('messages.boardTitle')}
               </CardTitle>
               <CardDescription className="text-sm">
-                團隊成員的照護溝通與用藥建議，避免重要訊息遺漏
+                {t('messages.boardDescription')}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
               {unreadCount > 0 && (
-                <Badge variant="destructive" className="text-xs">{unreadCount} 則未讀</Badge>
+                <Badge variant="destructive" className="text-xs">{t('messages.unreadCountBadge', { count: unreadCount })}</Badge>
               )}
               <Button variant="outline" size="sm" onClick={onMarkAllRead} disabled={!patientId || unreadCount === 0}>
-                全部標為已讀
+                {t('messages.markAllRead')}
               </Button>
             </div>
           </div>
@@ -488,7 +488,7 @@ export function PatientMessagesTab({
               <div className="flex items-center justify-between rounded-md bg-blue-50 border border-blue-200 px-3 py-1.5">
                 <span className="flex items-center gap-1.5 text-xs text-blue-700">
                   <Reply className="h-3.5 w-3.5" />
-                  回覆 <span className="font-medium">{replyToMessage.authorName}</span> 的留言
+                  {t('messages.replyToPrefix')} <span className="font-medium">{replyToMessage.authorName}</span> {t('messages.replyToSuffix')}
                 </span>
                 <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-blue-500 hover:text-blue-700" onClick={() => setReplyToId(null)}>
                   <X className="h-3 w-3" />
@@ -595,8 +595,8 @@ export function PatientMessagesTab({
                     }`}
                   >
                     <Filter className="h-3.5 w-3.5" />
-                    篩選標籤
-                    {filterTag && <span className="font-medium">· 1</span>}
+                    {t('messages.filterTagButton')}
+                    {filterTag && <span className="font-medium">{t('messages.filterCountSuffix')}</span>}
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-60 p-0" align="start">
@@ -696,21 +696,21 @@ export function PatientMessagesTab({
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                團隊留言 ({filteredMessages.length})
+                {t('messages.teamMessagesHeading', { count: filteredMessages.length })}
                 {filterTag && (
                   <span className="ml-1 font-normal text-xs text-indigo-600">
-                    — 篩選「{filterTag}」
+                    {t('messages.filteredHint', { tag: filterTag })}
                   </span>
                 )}
               </h3>
               <div className="flex gap-1.5">
                 <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
                   <Pill className="h-2.5 w-2.5 mr-0.5" />
-                  {medicationAdviceCount} 用藥建議
+                  {t('messages.medicationAdviceCount', { count: medicationAdviceCount })}
                 </Badge>
                 <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
                   <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
-                  {alertCount} 警示
+                  {t('messages.alertCountBadge', { count: alertCount })}
                 </Badge>
               </div>
             </div>
@@ -756,13 +756,13 @@ export function PatientMessagesTab({
                               {message.messageType === 'medication-advice' && message.adviceRecordId && message.adviceAccepted === true && (
                                 <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs shrink-0 hover:bg-emerald-100">
                                   <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
-                                  已接受{message.adviceRespondedBy ? ` (${message.adviceRespondedBy})` : ''}
+                                  {message.adviceRespondedBy ? t('messages.adviceAcceptedBy', { name: message.adviceRespondedBy }) : t('messages.adviceAccepted')}
                                 </Badge>
                               )}
                               {message.messageType === 'medication-advice' && message.adviceRecordId && message.adviceAccepted === false && (
                                 <Badge className="bg-red-100 text-red-800 border-red-300 text-xs shrink-0 hover:bg-red-100">
                                   <XCircle className="h-2.5 w-2.5 mr-0.5" />
-                                  未接受{message.adviceRespondedBy ? ` (${message.adviceRespondedBy})` : ''}
+                                  {message.adviceRespondedBy ? t('messages.adviceRejectedBy', { name: message.adviceRespondedBy }) : t('messages.adviceRejected')}
                                 </Badge>
                               )}
                               {message.messageType === 'alert' && (
@@ -794,7 +794,7 @@ export function PatientMessagesTab({
                             <div className="flex items-center gap-1 shrink-0">
                               <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setReplyToId(message.id)}>
                                 <Reply className="h-3 w-3 mr-1" />
-                                回覆
+                                {t('messages.replyAction')}
                               </Button>
                               <TagSelector
                                 presetTags={presetTags}
@@ -953,19 +953,19 @@ export function PatientMessagesTab({
                       <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group">
                         <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition-transform group-data-[state=open]:rotate-90" />
                         <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{group.label}</span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400">{group.messages.length} 則留言</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">{t('messages.groupMessageCount', { count: group.messages.length })}</span>
                         <div className="flex items-center gap-1.5 ml-auto">
                           {group.unreadCount > 0 && (
-                            <Badge variant="destructive" className="text-xs">{group.unreadCount} 未讀</Badge>
+                            <Badge variant="destructive" className="text-xs">{t('messages.groupUnreadBadge', { count: group.unreadCount })}</Badge>
                           )}
                           {group.medicationAdviceCount > 0 && (
                             <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                              {group.medicationAdviceCount} 用藥建議
+                              {t('messages.groupMedicationAdviceBadge', { count: group.medicationAdviceCount })}
                             </Badge>
                           )}
                           {group.alertCount > 0 && (
                             <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
-                              {group.alertCount} 警示
+                              {t('messages.groupAlertBadge', { count: group.alertCount })}
                             </Badge>
                           )}
                         </div>

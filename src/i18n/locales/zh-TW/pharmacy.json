@@ -6,7 +6,16 @@
     "patientPlaceholderLoading": "載入中...",
     "clearPatient": "清除病患選擇",
     "patientLoadError": "無法載入病患列表",
-    "loadingPatientMeds": "載入病患用藥失敗"
+    "loadingPatientMeds": "載入病患用藥失敗",
+    "patientOption": "{{bed}} — {{name}}（{{mrn}}）"
+  },
+  "combobox": {
+    "defaultPlaceholder": "選擇藥品...",
+    "searchPlaceholder": "輸入藥品名稱篩選...",
+    "promptStart": "請輸入藥品名稱開始搜尋",
+    "noMatch": "找不到符合的藥品",
+    "noData": "尚未有資料",
+    "truncated": "顯示前 {{display}} 筆，共 {{total}} 筆符合，請輸入更多字元縮小範圍"
   },
   "duplicates": {
     "header": {
@@ -47,7 +56,15 @@
     },
     "countsBar": {
       "label": "風險分佈：",
-      "totalSuffix": "共 {{count}} 筆"
+      "totalSuffix": "共 {{count}} 筆",
+      "critical": "🔴 Critical {{count}}",
+      "high": "🟠 High {{count}}",
+      "moderate": "🟡 Moderate {{count}}",
+      "low": "🔵 Low {{count}}",
+      "info": "⚪ Info {{count}}"
+    },
+    "manualResult": {
+      "noDuplicate": "✓ 未偵測到重複用藥"
     }
   },
   "dosage": {
@@ -57,14 +74,17 @@
     },
     "card": {
       "title": "PAD 藥物劑量計算",
-      "description": "選擇藥品、輸入體重與目標劑量，系統自動計算輸注速率 (ml/hr)"
+      "description": "選擇藥品、輸入體重與目標劑量，系統自動計算輸注速率 (ml/hr)",
+      "patientDescription": "使用目前病人的資料計算 PAD 藥物輸注速率；可修正本次計算用身高體重"
     },
     "patient": {
       "label": "病患（可選）",
       "placeholder": "選擇病患帶入體重/身高",
       "placeholderLoading": "載入...",
       "clear": "清除病患",
-      "filledFromPatient": "已帶入 {{name}} 的基本資料"
+      "filledFromPatient": "已帶入 {{name}} 的基本資料",
+      "current": "目前病患",
+      "noPatient": "未指定病患"
     },
     "drug": {
       "label": "藥品 *",
@@ -73,14 +93,23 @@
     },
     "weight": {
       "label": "體重 (kg) *",
-      "placeholder": "選擇病患自動帶入"
+      "placeholder": "選擇病患自動帶入",
+      "manualPlaceholder": "輸入本次計算體重"
+    },
+    "sex": {
+      "label": "性別",
+      "placeholder": "選擇性別",
+      "none": "未提供",
+      "male": "男",
+      "female": "女"
     },
     "info": {
       "rangeLabel": "建議範圍",
       "concAllowedLabel": "允許濃度",
       "concDefaultLabel": "預設濃度",
       "obeseBasisLabel": "肥胖時基準",
-      "thisCalcBasisLabel": "本次計算"
+      "thisCalcBasisLabel": "本次計算",
+      "tbwFallbackHint": "缺少身高或性別時，系統會使用實際體重 TBW 計算，無法做 IBW / AdjBW 肥胖體重調整。"
     },
     "fixedAlert": "{{label}} 為固定劑量藥物（非體重依賴），建議劑量：{{range}}。不需輸入目標劑量與濃度。",
     "doseMin": {
@@ -98,7 +127,8 @@
     },
     "height": {
       "label": "身高 (cm)",
-      "placeholder": "選擇病患自動帶入"
+      "placeholder": "選擇病患自動帶入",
+      "manualPlaceholder": "輸入本次計算身高"
     },
     "buttons": {
       "calculate": "計算輸注速率",
@@ -126,19 +156,43 @@
       "secondaryWeightUnit": "kg",
       "weightObese": "肥胖",
       "weightUnderweight": "體重偏低",
-      "stepsToggle": "計算步驟"
+      "stepsToggle": "計算步驟",
+      "weightWithUnit": "{{value}} kg",
+      "ibwLabel": "IBW",
+      "adjBwLabel": "AdjBW",
+      "pctIbwLabel": "%IBW"
     }
   },
   "interactions": {
     "header": {
       "title": "用藥交互",
-      "subtitle": "查詢藥物之間的交互作用（DDI）並依風險等級排序"
+      "subtitle": "查詢藥物之間的交互作用（DDI）並依風險等級排序",
+      "subtitleDetail": "查詢藥物兩兩交互作用（重複用藥已獨立於左側欄「重複用藥」頁）"
     },
     "patientPicker": {
       "placeholder": "選擇病患（自動帶入目前用藥）",
       "placeholderLoading": "載入中...",
       "clear": "清除病患選擇",
-      "noMeds": "該病患目前無可比對的用藥"
+      "noMeds": "該病患目前無可比對的用藥",
+      "option": "{{bed}} — {{name}}（{{mrn}}）",
+      "loadingMeds": "載入病患用藥中..."
+    },
+    "skipped": {
+      "outpatient": "已略過 {{count}} 筆院內門診處方（不納入交互作用比對）"
+    },
+    "drugRow": {
+      "label": "藥品 {{index}}",
+      "placeholder": "選擇藥品 {{index}}...",
+      "removeAria": "移除藥品 {{index}}"
+    },
+    "actions": {
+      "addDrug": "新增藥物",
+      "search": "查詢",
+      "clear": "清除"
+    },
+    "drugCount": {
+      "selected": "已選 {{count}} 種藥品",
+      "willCompare": "，將比對 {{count}} 對組合"
     },
     "drugCard": {
       "title": "藥品選擇",
@@ -154,6 +208,10 @@
       "medium": "中風險",
       "low": "低風險"
     },
+    "source": {
+      "aiBadge": "AI 推論",
+      "dbBadge": "DDI 資料庫"
+    },
     "sourceToast": {
       "noLiterature": "此筆資料未提供文獻來源",
       "copySuccess": "已複製文獻來源到剪貼簿"
@@ -162,11 +220,19 @@
       "title": "查詢摘要",
       "riskDistribution": "風險分佈",
       "pairLookup": "配對速查",
+      "queryStats": "查詢 {{drugs}} 種藥品，找到 {{count}} 筆交互作用",
+      "overallRisk": "整體最高風險：{{label}}",
+      "riskCount": "{{label}}：{{count}} 筆",
       "tableHeaders": {
         "pair": "藥物配對",
         "highestRisk": "最高風險",
         "count": "筆數"
       }
+    },
+    "detail": {
+      "evidenceLabel": "證據：{{rating}}",
+      "membersLabel": "成員：{{members}}",
+      "exceptionsLabel": "例外：{{exceptions}}"
     },
     "results": {
       "noData": "未發現藥物交互作用。",
@@ -206,7 +272,9 @@
         "inFormulary": "院內藥",
         "hasX": "含 X 級規則",
         "missingAtc": "缺 ATC",
-        "recentlyAdded": "近期新增 (Lexicomp)"
+        "recentlyAdded": "近期新增 (Lexicomp)",
+        "atcChip": "ATC: {{code}}",
+        "atcChipClearAria": "清除 ATC 篩選"
       },
       "atcSidebar": {
         "title": "ATC 分類",
@@ -268,6 +336,8 @@
       "approveDialog": {
         "title": "核准提議",
         "description": "「{{a}} × {{b}}」 風險將從 {{from}} 覆寫為 {{to}}",
+        "drugPair": "「{{a}} × {{b}}」",
+        "proposerSuffix": "（{{role}}）",
         "proposer": "提議者：",
         "reason": "理由：",
         "evidence": "證據：",
@@ -325,7 +395,9 @@
       },
       "historyDialog": {
         "title": "規則異動歷史",
-        "reason": "理由："
+        "reason": "理由：",
+        "before": "Before:",
+        "after": "After:"
       },
       "rule": {
         "originalSourceLabel": "原始來源：",
@@ -370,7 +442,8 @@
         "pubmedCount": "{{count}} 篇文獻引用",
         "verifiedAt": "✓ 已核對 {{timestamp}}",
         "verifiedBy": " by {{name}}",
-        "expireAt": "到期：{{timestamp}}"
+        "expireAt": "到期：{{timestamp}}",
+        "overriddenBy": "by {{name}}"
       },
       "iv": {
         "noData": "系統未收錄此藥的 IV 相容性資料",
@@ -692,7 +765,10 @@
       "defaultPrefix": "預設 {{value}}",
       "resetDefaults": "重設為預設值",
       "weightBasis": "體重基準：{{basis}}（{{weight}} kg）",
-      "stepsToggle": "計算步驟"
+      "stepsToggle": "計算步驟",
+      "rateUnit": "ml/hr",
+      "weightValue": "{{value}} kg",
+      "rateArrow": "→ {{value}} ml/hr"
     }
   },
   "compatibility": {
@@ -708,10 +784,37 @@
       "placeholder": "選擇病患自動帶入 IV 用藥（可選）",
       "placeholderLoading": "載入中...",
       "clear": "清除病患選擇",
-      "noIVMeds": "該病患目前無可比對的 IV 用藥"
+      "noIVMeds": "該病患目前無可比對的 IV 用藥",
+      "option": "{{bed}} — {{name}}（{{mrn}}）",
+      "loadingMeds": "載入病患用藥中..."
+    },
+    "skipped": {
+      "nonIV": "已略過 {{count}} 筆非 IV 用藥（PO／INH／SC／IM 等）"
+    },
+    "drugRow": {
+      "label": "藥品 {{index}}",
+      "placeholder": "選擇 IV 藥品 {{index}}...",
+      "removeAria": "移除藥品 {{index}}"
+    },
+    "actions": {
+      "addDrug": "新增藥物",
+      "search": "查詢",
+      "clear": "清除"
+    },
+    "drugCount": {
+      "selected": "已選 {{count}} 種藥品",
+      "willCompare": "，將比對 {{count}} 對組合"
     },
     "validation": {
       "needTwo": "請至少選擇兩種不同的藥品"
+    },
+    "summary": {
+      "headerCount": "{{drugs}} 種藥品，{{pairs}} 對組合",
+      "incompatibleAlertPrefix": "發現 ",
+      "incompatibleAlertSuffix": " 對不相容組合，請勿混合或並行輸注，建議使用不同管路。"
+    },
+    "matrixCard": {
+      "noYsiteHint": "「無 Y-Site」= 此藥不在 Y-Site 來源，所有配對均無資料"
     },
     "results": {
       "noData": "未找到相關的 Y-Site 相容性資料。建議使用分開的輸注管路。",
@@ -813,6 +916,12 @@
     "cancel": "取消",
     "saveChanges": "儲存變更",
     "deleteDialogDesc": "這會刪除「{{code}} {{label}}」這筆紀錄。若它是由統計頁或工作站建立，對應的留言板用藥建議也會一併移除。此操作無法復原。",
-    "required": "*"
+    "required": "*",
+    "soapSections": {
+      "subjective": "S — Subjective",
+      "objective": "O — Objective",
+      "assessment": "A — Assessment",
+      "plan": "P — Plan"
+    }
   }
 }

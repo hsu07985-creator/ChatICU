@@ -91,5 +91,15 @@
     "weightSourceVitalSigns": "歷史體重",
     "weightSourceInitialBackfill": "首筆體重回補",
     "weightSourcePatientProfile": "病人主檔體重"
+  },
+  "inflammation": {
+    "panelTitle": "發炎指數",
+    "samplingTime": "採樣時間：{{range}}",
+    "missingPrefix": "無法計算：缺 {{fields}}",
+    "rawDataTitle": "原始資料",
+    "formulaTitle": "計算公式",
+    "absoluteCounts": "ANC = WBC × Segment% / 100　　ALC = WBC × Lymph% / 100　　AMC = WBC × Mono% / 100",
+    "formulaLine": "（{{fullName}}）＝ {{formula}}",
+    "formulaUnitSuffix": "，單位 {{unit}}"
   }
 }

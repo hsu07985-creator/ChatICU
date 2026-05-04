@@ -175,7 +175,7 @@ export function MedicationNormalizationPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="dict-version">version</Label>
+            <Label htmlFor="dict-version">{t('medNorm.versionLabel')}</Label>
             <Input
               id="dict-version"
               value={version}
@@ -185,7 +185,7 @@ export function MedicationNormalizationPage() {
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="route-aliases">routeAliases (JSON object)</Label>
+              <Label htmlFor="route-aliases">{t('medNorm.routeAliasesLabel')}</Label>
               <Textarea
                 id="route-aliases"
                 value={routeAliasesText}
@@ -195,7 +195,7 @@ export function MedicationNormalizationPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="frequency-aliases">frequencyAliases (JSON object)</Label>
+              <Label htmlFor="frequency-aliases">{t('medNorm.frequencyAliasesLabel')}</Label>
               <Textarea
                 id="frequency-aliases"
                 value={frequencyAliasesText}

@@ -83,14 +83,14 @@ function ApproveDialog({
         <DialogHeader>
           <DialogTitle>{t('library.proposals.approveDialog.title')}</DialogTitle>
           <DialogDescription>
-            「{proposal.source_drug1} × {proposal.source_drug2}」
+            {t('library.proposals.approveDialog.drugPair', { a: proposal.source_drug1, b: proposal.source_drug2 })}
             <Badge variant="outline" className={RISK_CLS[proposal.source_risk_rating || '']}>{proposal.source_risk_rating}</Badge>
             {' → '}<Badge variant="outline" className={RISK_CLS[newRisk]}>{newRisk}</Badge>
           </DialogDescription>
         </DialogHeader>
 
         <div className="text-xs space-y-1.5 bg-accent/30 rounded p-2">
-          <div><span className="text-muted-foreground">{t('library.proposals.approveDialog.proposer')}</span>{proposal.proposer_name}（{proposal.proposer_role}）</div>
+          <div><span className="text-muted-foreground">{t('library.proposals.approveDialog.proposer')}</span>{proposal.proposer_name}{t('library.proposals.approveDialog.proposerSuffix', { role: proposal.proposer_role })}</div>
           <div><span className="text-muted-foreground">{t('library.proposals.approveDialog.reason')}</span>{proposal.reason}</div>
           <div><span className="text-muted-foreground">{t('library.proposals.approveDialog.evidence')}</span>{proposal.citation}</div>
           <div><span className="text-muted-foreground">{t('library.proposals.approveDialog.proposedAt')}</span>{formatTaipei(proposal.created_at, i18n.language)}</div>

@@ -356,7 +356,11 @@ export function CompatibilityPage() {
                 <SelectContent>
                   {patients.map(p => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.bedNumber} — {maskPatientName(p.name)}（{p.medicalRecordNumber}）
+                      {t('compatibility.patientPicker.option', {
+                        bed: p.bedNumber,
+                        name: maskPatientName(p.name),
+                        mrn: p.medicalRecordNumber,
+                      })}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -383,7 +387,7 @@ export function CompatibilityPage() {
           {medsLoading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              載入病患用藥中...
+              {t('compatibility.patientPicker.loadingMeds')}
             </div>
           )}
 
@@ -396,7 +400,7 @@ export function CompatibilityPage() {
               >
                 <span className="flex items-center gap-1.5">
                   <Info className="h-3.5 w-3.5 shrink-0" />
-                  已略過 {skippedMeds.length} 筆非 IV 用藥（PO／INH／SC／IM 等）
+                  {t('compatibility.skipped.nonIV', { count: skippedMeds.length })}
                 </span>
                 {skippedExpanded
                   ? <ChevronUp className="h-4 w-4 shrink-0" />
@@ -424,12 +428,12 @@ export function CompatibilityPage() {
           <div className="space-y-3">
             {drugs.map((drug, index) => (
               <div key={index} className="flex items-center gap-2">
-                <label className="text-sm font-medium w-16 shrink-0">藥品 {index + 1}</label>
+                <label className="text-sm font-medium w-16 shrink-0">{t('compatibility.drugRow.label', { index: index + 1 })}</label>
                 <div className="flex-1">
                   <DrugCombobox
                     value={drug}
                     onValueChange={(val) => updateDrug(index, val)}
-                    placeholder={`選擇 IV 藥品 ${index + 1}...`}
+                    placeholder={t('compatibility.drugRow.placeholder', { index: index + 1 })}
                     drugList={IV_DRUG_LIST}
                   />
                 </div>
@@ -438,7 +442,7 @@ export function CompatibilityPage() {
                     variant="ghost" size="icon"
                     className="shrink-0 h-9 w-9 text-muted-foreground hover:text-destructive"
                     onClick={() => removeDrug(index)}
-                    aria-label={`移除藥品 ${index + 1}`}
+                    aria-label={t('compatibility.drugRow.removeAria', { index: index + 1 })}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -450,11 +454,11 @@ export function CompatibilityPage() {
           <div className="flex items-center gap-3">
             <Button variant="outline" size="sm" onClick={addDrug}>
               <Plus className="mr-1.5 h-3.5 w-3.5" />
-              新增藥物
+              {t('compatibility.actions.addDrug')}
             </Button>
             <span className="text-xs text-muted-foreground">
-              已選 {filledCount} 種藥品
-              {pairCount > 0 && `，將比對 ${pairCount} 對組合`}
+              {t('compatibility.drugCount.selected', { count: filledCount })}
+              {pairCount > 0 && t('compatibility.drugCount.willCompare', { count: pairCount })}
             </span>
           </div>
 
@@ -467,7 +471,7 @@ export function CompatibilityPage() {
               ) : (
                 <Search className="mr-2 h-4 w-4" />
               )}
-              查詢
+              {t('compatibility.actions.search')}
             </Button>
             <Button
               variant="outline"
@@ -478,7 +482,7 @@ export function CompatibilityPage() {
                 setSelectedPatientId('');
               }}
             >
-              清除
+              {t('compatibility.actions.clear')}
             </Button>
           </div>
         </CardContent>
@@ -501,7 +505,7 @@ export function CompatibilityPage() {
                     <div className="flex items-center justify-between">
                       <CardTitle>{t('compatibility.results.summaryTitle')}</CardTitle>
                       <span className="text-sm text-muted-foreground">
-                        {filledCount} 種藥品，{matrixResults.length} 對組合
+                        {t('compatibility.summary.headerCount', { drugs: filledCount, pairs: matrixResults.length })}
                       </span>
                     </div>
                   </CardHeader>
@@ -525,7 +529,9 @@ export function CompatibilityPage() {
                       <Alert className="mt-3 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30">
                         <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
                         <AlertDescription className="text-red-800 dark:text-red-200">
-                          發現 <strong>{summary.I}</strong> 對不相容組合，請勿混合或並行輸注，建議使用不同管路。
+                          {t('compatibility.summary.incompatibleAlertPrefix')}
+                          <strong>{summary.I}</strong>
+                          {t('compatibility.summary.incompatibleAlertSuffix')}
                         </AlertDescription>
                       </Alert>
                     )}
@@ -541,7 +547,7 @@ export function CompatibilityPage() {
                     <CardDescription>
                       <CompatibilityMatrixLegend />
                       <span className="block mt-1 text-amber-600 dark:text-amber-400 text-[11px]">
-                        「無 Y-Site」= 此藥不在 Y-Site 來源，所有配對均無資料
+                        {t('compatibility.matrixCard.noYsiteHint')}
                       </span>
                     </CardDescription>
                   </CardHeader>

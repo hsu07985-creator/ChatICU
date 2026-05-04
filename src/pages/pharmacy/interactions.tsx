@@ -435,7 +435,7 @@ export function DrugInteractionsPage() {
       <div>
         <h1 className="text-2xl font-bold">{t('interactions.header.title')}</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          查詢藥物兩兩交互作用（重複用藥已獨立於左側欄「重複用藥」頁）
+          {t('interactions.header.subtitleDetail')}
         </p>
       </div>
 
@@ -455,7 +455,11 @@ export function DrugInteractionsPage() {
                 <SelectContent>
                   {patients.map(p => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.bedNumber} — {maskPatientName(p.name)}（{p.medicalRecordNumber}）
+                      {t('interactions.patientPicker.option', {
+                        bed: p.bedNumber,
+                        name: maskPatientName(p.name),
+                        mrn: p.medicalRecordNumber,
+                      })}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -483,7 +487,7 @@ export function DrugInteractionsPage() {
           {medsLoading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              載入病患用藥中...
+              {t('interactions.patientPicker.loadingMeds')}
             </div>
           )}
         </CardContent>
@@ -507,7 +511,7 @@ export function DrugInteractionsPage() {
               >
                 <span className="flex items-center gap-1.5">
                   <Info className="h-3.5 w-3.5 shrink-0" />
-                  已略過 {skippedMeds.length} 筆院內門診處方（不納入交互作用比對）
+                  {t('interactions.skipped.outpatient', { count: skippedMeds.length })}
                 </span>
                 {skippedExpanded
                   ? <ChevronUp className="h-4 w-4 shrink-0" />
@@ -534,12 +538,12 @@ export function DrugInteractionsPage() {
           <div className="space-y-3">
             {drugs.map((drug, index) => (
               <div key={index} className="flex items-center gap-2">
-                <label className="text-sm font-medium w-16 shrink-0">藥品 {index + 1}</label>
+                <label className="text-sm font-medium w-16 shrink-0">{t('interactions.drugRow.label', { index: index + 1 })}</label>
                 <div className="flex-1">
                   <DrugCombobox
                     value={drug}
                     onValueChange={(val) => updateDrug(index, val)}
-                    placeholder={`選擇藥品 ${index + 1}...`}
+                    placeholder={t('interactions.drugRow.placeholder', { index: index + 1 })}
                     drugList={DRUG_LIST}
                     checkHasData={hasInteractionData}
                   />
@@ -550,7 +554,7 @@ export function DrugInteractionsPage() {
                     size="icon"
                     className="shrink-0 h-9 w-9 text-muted-foreground hover:text-destructive"
                     onClick={() => removeDrug(index)}
-                    aria-label={`移除藥品 ${index + 1}`}
+                    aria-label={t('interactions.drugRow.removeAria', { index: index + 1 })}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -567,11 +571,11 @@ export function DrugInteractionsPage() {
               onClick={addDrug}
             >
               <Plus className="mr-1.5 h-3.5 w-3.5" />
-              新增藥物
+              {t('interactions.actions.addDrug')}
             </Button>
             <span className="text-xs text-muted-foreground">
-              已選 {drugs.length} 種藥品
-              {pairCount > 0 && `，將比對 ${pairCount} 對組合`}
+              {t('interactions.drugCount.selected', { count: drugs.length })}
+              {pairCount > 0 && t('interactions.drugCount.willCompare', { count: pairCount })}
             </span>
           </div>
 
@@ -585,7 +589,7 @@ export function DrugInteractionsPage() {
               ) : (
                 <Search className="mr-2 h-4 w-4" />
               )}
-              查詢
+              {t('interactions.actions.search')}
             </Button>
             <Button
               variant="outline"
@@ -596,7 +600,7 @@ export function DrugInteractionsPage() {
                 setSelectedPatientId('');
               }}
             >
-              清除
+              {t('interactions.actions.clear')}
             </Button>
           </div>
         </CardContent>
@@ -623,10 +627,10 @@ export function DrugInteractionsPage() {
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2">
                         <ShieldAlert className="h-5 w-5" />
-                        查詢摘要
+                        {t('interactions.summary.title')}
                       </CardTitle>
                       <span className="text-sm text-muted-foreground">
-                        查詢 {filledCount} 種藥品，找到 {searchResults.length} 筆交互作用
+                        {t('interactions.summary.queryStats', { drugs: filledCount, count: searchResults.length })}
                       </span>
                     </div>
                   </CardHeader>
@@ -636,7 +640,7 @@ export function DrugInteractionsPage() {
                       <Alert className={`border ${RISK_RATING_CONFIG[summary.highestRisk].bgColor}`}>
                         <ShieldAlert className={`h-4 w-4 ${RISK_RATING_CONFIG[summary.highestRisk].color}`} />
                         <AlertDescription className={RISK_RATING_CONFIG[summary.highestRisk].color}>
-                          <span className="font-semibold">整體最高風險：{RISK_RATING_CONFIG[summary.highestRisk].label}</span>
+                          <span className="font-semibold">{t('interactions.summary.overallRisk', { label: RISK_RATING_CONFIG[summary.highestRisk].label })}</span>
                         </AlertDescription>
                       </Alert>
                     )}
@@ -651,7 +655,7 @@ export function DrugInteractionsPage() {
                           const cfg = RISK_RATING_CONFIG[r];
                           return (
                             <span key={r} className={cfg?.color || ''}>
-                              {cfg?.label || `Risk ${r}`}：{count} 筆
+                              {t('interactions.summary.riskCount', { label: cfg?.label || `Risk ${r}`, count })}
                             </span>
                           );
                         })}
@@ -702,14 +706,14 @@ export function DrugInteractionsPage() {
                 {resultSource === 'ai' ? (
                   <>
                     <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-2 py-0.5 font-medium border border-purple-200 dark:border-purple-700">
-                      AI 推論
+                      {t('interactions.source.aiBadge')}
                     </span>
                     <span>{t('interactions.results.aiNote')}</span>
                   </>
                 ) : (
                   <>
                     <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 font-medium border border-blue-200 dark:border-blue-700">
-                      DDI 資料庫
+                      {t('interactions.source.dbBadge')}
                     </span>
                     <span>{t('interactions.results.dbNote')}</span>
                   </>
@@ -731,7 +735,7 @@ export function DrugInteractionsPage() {
                             {getRiskRatingBadge(interaction)}
                             {interaction.reliabilityRating && (
                               <span className="text-xs text-muted-foreground border rounded px-1.5 py-0.5">
-                                證據：{interaction.reliabilityRating}
+                                {t('interactions.detail.evidenceLabel', { rating: interaction.reliabilityRating })}
                               </span>
                             )}
                           </div>
@@ -781,12 +785,12 @@ export function DrugInteractionsPage() {
                                 <span className="font-medium text-foreground/90">{group.group_name}</span>
                                 {group.members.length > 0 && (
                                   <p className="text-xs text-muted-foreground mt-1">
-                                    成員：{group.members.join('、')}
+                                    {t('interactions.detail.membersLabel', { members: group.members.join('、') })}
                                   </p>
                                 )}
                                 {group.exceptions.length > 0 && (
                                   <p className="text-xs text-orange-600 mt-1">
-                                    例外：{group.exceptions.join('、')}
+                                    {t('interactions.detail.exceptionsLabel', { exceptions: group.exceptions.join('、') })}
                                     {group.exceptions_note && ` (${group.exceptions_note})`}
                                   </p>
                                 )}

@@ -208,7 +208,7 @@ export function PatientChatTab({
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1 text-xs font-semibold text-[#374151]">
                     <History className="h-3.5 w-3.5 text-muted-foreground" />
-                    對話記錄
+                    {t('chatTab.headerTitle')}
                   </span>
                   <div className="flex items-center gap-1">
                     {chatSessions.length > 0 && (
@@ -314,7 +314,10 @@ export function PatientChatTab({
                               </span>
                               {session.labDataSnapshot && (
                                 <div className="mt-1 text-xs text-muted-foreground">
-                                  K: {formatSnapshotValue(session.labDataSnapshot.K)} • eGFR: {formatSnapshotValue(session.labDataSnapshot.eGFR)}
+                                  {t('chatTab.snapshotKEgfr', {
+                                    k: formatSnapshotValue(session.labDataSnapshot.K),
+                                    eGFR: formatSnapshotValue(session.labDataSnapshot.eGFR),
+                                  })}
                                 </div>
                               )}
                             </div>
@@ -446,7 +449,7 @@ export function PatientChatTab({
                                         <SafetyWarnings warnings={msg.warnings} />
                                         {msg.requiresExpertReview && (
                                           <div className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700">
-                                            此回覆包含潛在高風險資訊，建議醫師/藥師覆核。
+                                            {t('thread.expertReviewWarning')}
                                           </div>
                                         )}
                                       </div>
@@ -470,7 +473,7 @@ export function PatientChatTab({
                                                       {' • '}
                                                       {formatCitationPageText(ref)}
                                                       {' • '}
-                                                      相關度 {Number.isFinite(Number(ref.relevance)) ? Number(ref.relevance).toFixed(3) : 'N/A'}
+                                                      {t('thread.relevanceLabel')} {Number.isFinite(Number(ref.relevance)) ? Number(ref.relevance).toFixed(3) : 'N/A'}
                                                     </p>
                                                     {ref.summary ? (
                                                       <div className="mt-1 space-y-1">
@@ -479,7 +482,7 @@ export function PatientChatTab({
                                                         </p>
                                                         {ref.keyQuote && (
                                                           <div className="rounded border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs leading-relaxed text-muted-foreground italic">
-                                                            「{ref.keyQuote}」
+                                                            {t('thread.quotedSnippet', { quote: ref.keyQuote })}
                                                           </div>
                                                         )}
                                                         {ref.relevanceNote && (
@@ -490,7 +493,7 @@ export function PatientChatTab({
                                                       <div className="mt-1 space-y-1.5">
                                                         {ref.snippets.map((s, si) => (
                                                           <div key={si} className="rounded border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 p-2 text-xs leading-relaxed text-[#374151] dark:text-slate-200 whitespace-pre-wrap">
-                                                            <span className="inline-block text-xs font-medium mb-0.5 text-muted-foreground">段落 {si + 1}</span>
+                                                            <span className="inline-block text-xs font-medium mb-0.5 text-muted-foreground">{t('thread.snippetLabel', { index: si + 1 })}</span>
                                                             <div>{compactSnippet(s)}</div>
                                                           </div>
                                                         ))}
@@ -516,8 +519,8 @@ export function PatientChatTab({
                                       <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 px-2.5 py-2 text-xs text-amber-700 flex items-start gap-1.5 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300">
                                         <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                                         <div className="space-y-0.5">
-                                          {msg.degraded && <p>系統狀態：{formatAiDegradedReason(msg.degradedReason, msg.upstreamStatus)}</p>}
-                                          {freshnessHints.length > 0 && <p>資料品質：{freshnessHints.join(' ')}</p>}
+                                          {msg.degraded && <p>{t('chatTab.systemStatus', { status: formatAiDegradedReason(msg.degradedReason, msg.upstreamStatus) })}</p>}
+                                          {freshnessHints.length > 0 && <p>{t('chatTab.dataQuality', { hints: freshnessHints.join(' ') })}</p>}
                                         </div>
                                       </div>
                                     )}
@@ -627,7 +630,7 @@ export function PatientChatTab({
                       aria-label={t('thread.scrollToLatestAria')}
                     >
                       <ArrowDown className="h-3.5 w-3.5" />
-                      跳到最新
+                      {t('thread.scrollToLatest')}
                     </button>
                   )}
                 </div>

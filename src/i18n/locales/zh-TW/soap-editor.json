@@ -1,0 +1,72 @@
+{
+  "section": {
+    "sLabel": "S — Subjective",
+    "oLabel": "O — Objective",
+    "aLabel": "A — Assessment",
+    "pLabel": "P — Plan（用藥建議）",
+    "sSubtitle": "從 HIS 貼上",
+    "oSubtitle": "從 HIS 貼上（Labs / Vitals / Meds）",
+    "aSubtitle": "評估 / guideline / 分析",
+    "pSubtitle": "條列建議，AI 會套藥師格式",
+    "sHint": "AI 不會動這段",
+    "oHint": "AI 不會動這段",
+    "aHint": "AI 只修文法（grammar_only）",
+    "pHint": "AI 套 bullet + 藥物格式 + Monitor"
+  },
+  "placeholder": {
+    "s": "例：Patient c/o dyspnea, denied chest pain.",
+    "o": "例：\nDx: ARDS, CRE pneumonia\nAllergy: NKDA\nLabs: Cr 1.8 (0.6-1.2), K 5.8 (3.5-5.0)\nCurrent meds: Meropenem 1g IV q8h",
+    "a": "例：CRE coverage inadequate given worsening infiltrate... (可貼 IDSA guideline)",
+    "p": "例：\nsug add ceftazidime-avibactam 2.5g IV q8h d/t MIC profile.\nmonitor: CRP, procalcitonin q48h, renal fx.",
+    "refinementA": "想怎麼調整？例：語氣再中性一點 / 翻譯成英文",
+    "refinementP": "想怎麼調整？例：再簡短一點 / 把劑量細節拿掉 / 用條列式"
+  },
+  "insertToolbar": {
+    "preLabel": "一鍵帶入到",
+    "postLabel": "段：",
+    "labWindow6h": "Labs 6h",
+    "labWindow24h": "Labs 24h",
+    "labWindowAll": "Labs 全部",
+    "labWindowTitle": "調整下一次插入的時間範圍",
+    "insertLabs": "插入 Labs",
+    "insertMeds": "插入用藥"
+  },
+  "actions": {
+    "stop": "停止",
+    "grammarOnly": "只修文法",
+    "applyPharmacistFormat": "套藥師格式",
+    "refineAgainHeading": "再修一次",
+    "refineShortcut": "⌘/Ctrl + Enter 送出",
+    "refining": "修改中...",
+    "refineButton": "再修一次",
+    "polishAandP": "潤飾 A + P",
+    "saveAndCopy": "儲存並複製貼到 HIS",
+    "saving": "儲存中..."
+  },
+  "polish": {
+    "writingInProgress": "AI 寫入中…完成後即可編輯",
+    "polishedEditable": "AI 修飾結果（可直接修改）"
+  },
+  "compose": {
+    "title": "最終輸出（自動拼接 S + O + A + P）",
+    "description": "A / P 若已按 AI 修飾，會優先使用修飾後版本；S / O 逐字保留。",
+    "staleBadge": "{{section}} 段已編輯，潤飾結果可能過時",
+    "empty": "（尚未輸入內容）",
+    "charCount": "共 {{count}} 字"
+  },
+  "toast": {
+    "noLabsToInsert": "無可貼上的檢驗資料",
+    "noMedsToInsert": "無可貼上的用藥資料",
+    "noContentForPolish": "此段沒有內容，請先輸入草稿",
+    "noContentForAandP": "A 與 P 段都沒有內容，請先輸入草稿",
+    "polishFailed": "AI 修飾失敗，請稍後再試",
+    "refinementSuccess": "已依指示重新修飾",
+    "saveAndCopySuccess": "已儲存並複製到剪貼簿",
+    "saveFailedCopiedOnly": "儲存失敗，已複製到剪貼簿（HIS 仍可貼上）",
+    "savedCopyFailed": "已儲存（但複製失敗，請手動複製）",
+    "saveAndCopyAllFailed": "儲存與複製皆失敗，請稍後再試"
+  },
+  "confirm": {
+    "replaceBlock": "{{section}} 段已有「{{label}}」區塊。\n按「確定」替換為最新版本，按「取消」追加新的一份。"
+  }
+}

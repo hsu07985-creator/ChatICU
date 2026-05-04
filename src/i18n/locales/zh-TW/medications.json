@@ -151,6 +151,8 @@
       "close": "關閉"
     },
     "main": {
+      "painCardTitle": "Pain Score",
+      "rassCardTitle": "RASS Score",
       "trendButton": "趨勢",
       "lastRecorded": "最後紀錄：{{timestamp}}",
       "painMedsLabel": "止痛藥物",

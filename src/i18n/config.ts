@@ -22,6 +22,7 @@ import zhTWPatientChat from './locales/zh-TW/patient-chat.json';
 import zhTWChat from './locales/zh-TW/chat.json';
 import zhTWPharmacy from './locales/zh-TW/pharmacy.json';
 import zhTWAdmin from './locales/zh-TW/admin.json';
+import zhTWSoapEditor from './locales/zh-TW/soap-editor.json';
 
 import enUSCommon from './locales/en-US/common.json';
 import enUSSidebar from './locales/en-US/sidebar.json';
@@ -43,13 +44,14 @@ import enUSPatientChat from './locales/en-US/patient-chat.json';
 import enUSChat from './locales/en-US/chat.json';
 import enUSPharmacy from './locales/en-US/pharmacy.json';
 import enUSAdmin from './locales/en-US/admin.json';
+import enUSSoapEditor from './locales/en-US/soap-editor.json';
 
 export const SUPPORTED_LANGUAGES = ['zh-TW', 'en-US'] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 export const DEFAULT_LANGUAGE: SupportedLanguage = 'zh-TW';
 export const STORAGE_KEY = 'chaticu.lang';
 
-export const NAMESPACES = ['common', 'sidebar', 'errors', 'roles', 'notifications', 'auth', 'dashboard', 'patients', 'patient-detail', 'medical-records', 'labs', 'score-trend', 'patient-tabs', 'medications', 'microbiology', 'diagnostic-reports', 'patient-chat', 'chat', 'pharmacy', 'admin'] as const;
+export const NAMESPACES = ['common', 'sidebar', 'errors', 'roles', 'notifications', 'auth', 'dashboard', 'patients', 'patient-detail', 'medical-records', 'labs', 'score-trend', 'patient-tabs', 'medications', 'microbiology', 'diagnostic-reports', 'patient-chat', 'chat', 'pharmacy', 'admin', 'soap-editor'] as const;
 
 void i18n
   .use(LanguageDetector)
@@ -89,6 +91,7 @@ void i18n
         chat: zhTWChat,
         pharmacy: zhTWPharmacy,
         admin: zhTWAdmin,
+        'soap-editor': zhTWSoapEditor,
       },
       'en-US': {
         common: enUSCommon,
@@ -111,6 +114,7 @@ void i18n
         chat: enUSChat,
         pharmacy: enUSPharmacy,
         admin: enUSAdmin,
+        'soap-editor': enUSSoapEditor,
       },
     },
   });

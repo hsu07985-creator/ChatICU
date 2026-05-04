@@ -406,7 +406,7 @@ export function PatientLabsTab({
                     <div className="text-center">
                       <p className="text-sm text-muted-foreground">{t('labs.weaning.nif')}</p>
                       <p className={`text-2xl font-bold ${weaningAssessment.nif > -25 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                        {weaningAssessment.nif} cmH₂O
+                        {t('labs.weaning.nifValue', { value: weaningAssessment.nif })}
                       </p>
                     </div>
                     <div className="text-center">
@@ -544,7 +544,7 @@ export function PatientLabsTab({
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3 py-2">
             <div className="col-span-2 space-y-1">
-              <Label className="text-xs">Mode</Label>
+              <Label className="text-xs">{t('labs.ventDialog.modeLabel')}</Label>
               <Input
                 placeholder="AC / SIMV / PC / PS / CPAP"
                 value={ventForm.mode ?? ''}
@@ -574,7 +574,7 @@ export function PatientLabsTab({
               </div>
             ))}
             <div className="space-y-1">
-              <Label className="text-xs">I:E Ratio</Label>
+              <Label className="text-xs">{t('labs.ventDialog.ieRatioLabel')}</Label>
               <Input
                 placeholder="1:2"
                 value={ventForm.ie_ratio ?? ''}

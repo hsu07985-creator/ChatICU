@@ -1,5 +1,6 @@
 import { forwardRef, useMemo, useState } from 'react';
 import { Check, ChevronsUpDown, X, Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from './utils';
 import { buttonVariants } from './button';
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
@@ -37,11 +38,13 @@ TriggerButton.displayName = 'TriggerButton';
 export function DrugCombobox({
   value,
   onValueChange,
-  placeholder = '選擇藥品...',
+  placeholder,
   drugList,
   disabled,
   checkHasData,
 }: DrugComboboxProps) {
+  const { t } = useTranslation('pharmacy');
+  const resolvedPlaceholder = placeholder ?? t('combobox.defaultPlaceholder');
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -81,7 +84,7 @@ export function DrugCombobox({
           disabled={disabled}
           hasValue={!!value}
         >
-          <span className="truncate">{value || placeholder}</span>
+          <span className="truncate">{value || resolvedPlaceholder}</span>
           <div className="flex items-center gap-1 ml-2 shrink-0">
             {value && (
               <X
@@ -108,7 +111,7 @@ export function DrugCombobox({
           <Search className="size-4 shrink-0 opacity-50" />
           <input
             className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-            placeholder="輸入藥品名稱篩選..."
+            placeholder={t('combobox.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             autoFocus
@@ -125,11 +128,11 @@ export function DrugCombobox({
         <div className="max-h-[260px] overflow-y-auto scroll-py-1 p-1">
           {!search.trim() ? (
             <p className="py-4 text-center text-sm text-muted-foreground">
-              請輸入藥品名稱開始搜尋
+              {t('combobox.promptStart')}
             </p>
           ) : filtered.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">
-              找不到符合的藥品
+              {t('combobox.noMatch')}
             </p>
           ) : (
             <>
@@ -162,7 +165,7 @@ export function DrugCombobox({
                     <HighlightMatch text={drug} query={search.trim()} />
                     {noData && (
                       <span className="ml-auto shrink-0 text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                        尚未有資料
+                        {t('combobox.noData')}
                       </span>
                     )}
                   </button>
@@ -170,7 +173,7 @@ export function DrugCombobox({
               })}
               {totalMatches > MAX_DISPLAY && (
                 <p className="py-2 text-center text-xs text-muted-foreground">
-                  顯示前 {MAX_DISPLAY} 筆，共 {totalMatches} 筆符合，請輸入更多字元縮小範圍
+                  {t('combobox.truncated', { display: MAX_DISPLAY, total: totalMatches })}
                 </p>
               )}
             </>

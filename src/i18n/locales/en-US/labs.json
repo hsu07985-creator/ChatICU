@@ -91,5 +91,15 @@
     "weightSourceVitalSigns": "Historical weight",
     "weightSourceInitialBackfill": "Initial backfill",
     "weightSourcePatientProfile": "Patient profile"
+  },
+  "inflammation": {
+    "panelTitle": "Inflammation Indices",
+    "samplingTime": "Sampling time: {{range}}",
+    "missingPrefix": "Cannot compute: missing {{fields}}",
+    "rawDataTitle": "Raw Data",
+    "formulaTitle": "Formulas",
+    "absoluteCounts": "ANC = WBC × Segment% / 100　　ALC = WBC × Lymph% / 100　　AMC = WBC × Mono% / 100",
+    "formulaLine": "({{fullName}}) = {{formula}}",
+    "formulaUnitSuffix": ", unit {{unit}}"
   }
 }

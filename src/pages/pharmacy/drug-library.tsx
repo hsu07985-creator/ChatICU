@@ -308,8 +308,15 @@ export function DrugLibraryPage() {
             </label>
             {atc && (
               <Badge variant="outline" className="gap-1">
-                ATC: {atc}
-                <button onClick={() => updateParam('atc', null)} className="ml-1 hover:text-destructive">×</button>
+                {t('library.list.filters.atcChip', { code: atc })}
+                <button
+                  onClick={() => updateParam('atc', null)}
+                  className="ml-1 hover:text-destructive"
+                  aria-label={t('library.list.filters.atcChipClearAria')}
+                >
+                  {/* eslint-disable-next-line i18next/no-literal-string -- decorative close glyph (×); aria-label is localized */}
+                  ×
+                </button>
               </Badge>
             )}
           </div>

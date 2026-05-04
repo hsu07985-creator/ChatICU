@@ -21,5 +21,9 @@
     "none": "No culture data"
   },
   "loading": "Loading...",
-  "coloniesLabel": "Colonies: {{value}}"
+  "coloniesLabel": "Colonies: {{value}}",
+  "labels": {
+    "normalFlora": "Normal flora",
+    "negative": "Negative"
+  }
 }

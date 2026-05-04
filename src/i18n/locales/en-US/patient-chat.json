@@ -10,6 +10,7 @@
     "missedSection": "Suspected missed discontinuations ({{count}})",
     "duplicateSection": "Discharge medication duplicates ({{count}})",
     "inpatientStartLabel": "Inpatient start: {{date}}",
+    "atcCode": "({{code}})",
     "categories": {
       "sup_ppi": "Inpatient SUP PPI not explicitly stopped",
       "empirical_antibiotic": "Inpatient antibiotic not continued to discharge — verify course completion",
@@ -35,7 +36,12 @@
     "noOriginalSnippet": "No source snippet provided.",
     "dataQualityAria": "Data quality warning",
     "shortDetail": "Details",
-    "shortCollapse": "Collapse"
+    "shortCollapse": "Collapse",
+    "expertReviewWarning": "This response contains potentially high-risk information; physician/pharmacist review is recommended.",
+    "relevanceLabel": "Relevance",
+    "snippetLabel": "Section {{index}}",
+    "quotedSnippet": "\"{{quote}}\"",
+    "scrollToLatest": "Jump to latest"
   },
   "chatTab": {
     "manage": "Manage",
@@ -53,7 +59,11 @@
     "deleteSessionTitle": "Delete chat",
     "hideList": "Hide history list",
     "showList": "Show history list",
-    "inputShortcutHint": "Enter to send · Shift+Enter for newline"
+    "inputShortcutHint": "Enter to send · Shift+Enter for newline",
+    "headerTitle": "History",
+    "snapshotKEgfr": "K: {{k}} • eGFR: {{eGFR}}",
+    "systemStatus": "System status: {{status}}",
+    "dataQuality": "Data quality: {{hints}}"
   },
   "messages": {
     "addMessageLabel": "Add message",
@@ -86,6 +96,30 @@
     "processing": "Processing",
     "expandReplies": "{{count}} reply(ies)",
     "collapseReplies": "Hide replies",
-    "defaultUserRole": "User"
+    "defaultUserRole": "User",
+    "tagSelectorTrigger": "Tags",
+    "pharmacyTagSelectorTrigger": "Pharmacy tag",
+    "boardTitle": "Patient message board",
+    "boardDescription": "Team care communication and medication advice — avoid missing important messages",
+    "unreadCountBadge": "{{count}} unread",
+    "markAllRead": "Mark all read",
+    "replyingTo": "Replying to <author>{{name}}</author>",
+    "replyToPrefix": "Replying to",
+    "replyToSuffix": "",
+    "filterTagButton": "Filter tags",
+    "filterCountSuffix": "· 1",
+    "teamMessagesHeading": "Team messages ({{count}})",
+    "filteredHint": "— filtered \"{{tag}}\"",
+    "medicationAdviceCount": "{{count}} med advice",
+    "alertCountBadge": "{{count}} alerts",
+    "adviceAccepted": "Accepted",
+    "adviceAcceptedBy": "Accepted ({{name}})",
+    "adviceRejected": "Rejected",
+    "adviceRejectedBy": "Rejected ({{name}})",
+    "replyAction": "Reply",
+    "groupMessageCount": "{{count}} messages",
+    "groupUnreadBadge": "{{count}} unread",
+    "groupMedicationAdviceBadge": "{{count}} med advice",
+    "groupAlertBadge": "{{count}} alerts"
   }
 }

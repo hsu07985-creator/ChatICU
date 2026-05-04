@@ -187,7 +187,7 @@ function DischargeCheckBody({ data }: { data: DischargeCheckResponse }) {
                     <span className={cn('font-semibold', cfg.text)}>
                       {m.genericName || '—'}
                       {m.atcCode && (
-                        <span className="opacity-75 font-normal">（{m.atcCode}）</span>
+                        <span className="opacity-75 font-normal">{t('discharge.atcCode', { code: m.atcCode })}</span>
                       )}
                     </span>
                     <span className={cn('opacity-90', cfg.text)}>

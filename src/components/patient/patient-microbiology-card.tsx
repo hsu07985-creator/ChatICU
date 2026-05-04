@@ -385,7 +385,7 @@ function CategorySection({
                   const p = item.panel;
                   return (
                     <div key={idx} className="text-sm text-slate-600 dark:text-slate-300 py-1.5 px-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
-                      <span className="font-medium italic">Normal flora</span>
+                      <span className="font-medium italic">{t('labels.normalFlora')}</span>
                       {p.qScore != null && (
                         <span className={`inline-flex items-center rounded border px-1 text-xs font-medium leading-tight ${qScoreBg(p.qScore)}`}>
                           Q{p.qScore}
@@ -399,7 +399,7 @@ function CategorySection({
                 const p = item.panel;
                 return (
                   <div key={idx} className="text-sm text-slate-600 dark:text-slate-300 py-1.5 px-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
-                    <span className="font-medium">Negative</span>
+                    <span className="font-medium">{t('labels.negative')}</span>
                     {p.qScore != null && (
                       <span className={`inline-flex items-center rounded border px-1 text-xs font-medium leading-tight ${qScoreBg(p.qScore)}`}>
                         Q{p.qScore}

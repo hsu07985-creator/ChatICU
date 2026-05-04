@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Textarea } from './textarea';
 import type { TeamUser } from '../../lib/api/team-chat';
@@ -52,6 +53,7 @@ export function MentionTextarea({
   className,
   onKeyDown,
 }: MentionTextareaProps) {
+  const { t } = useTranslation('chat');
   const taRef = useRef<HTMLTextAreaElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -221,9 +223,9 @@ export function MentionTextarea({
                 }}
                 onMouseEnter={() => setActiveIdx(0)}
               >
-                <span className="font-medium">所有人</span>
+                <span className="font-medium">{t('mention.all')}</span>
                 <span className={`text-xs ${isActive ? 'text-white/80' : 'text-rose-600/80 dark:text-rose-400/80'}`}>
-                  通知全體成員
+                  {t('mention.allHint')}
                 </span>
               </button>
             );

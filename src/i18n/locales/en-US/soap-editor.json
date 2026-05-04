@@ -1,0 +1,72 @@
+{
+  "section": {
+    "sLabel": "S — Subjective",
+    "oLabel": "O — Objective",
+    "aLabel": "A — Assessment",
+    "pLabel": "P — Plan (medication advice)",
+    "sSubtitle": "Paste from HIS",
+    "oSubtitle": "Paste from HIS (Labs / Vitals / Meds)",
+    "aSubtitle": "Assessment / guideline / analysis",
+    "pSubtitle": "Bullet recommendations — AI applies pharmacist format",
+    "sHint": "AI will not edit this section",
+    "oHint": "AI will not edit this section",
+    "aHint": "AI grammar-only fixes",
+    "pHint": "AI applies bullets + drug format + Monitor"
+  },
+  "placeholder": {
+    "s": "e.g. Patient c/o dyspnea, denied chest pain.",
+    "o": "e.g.\nDx: ARDS, CRE pneumonia\nAllergy: NKDA\nLabs: Cr 1.8 (0.6-1.2), K 5.8 (3.5-5.0)\nCurrent meds: Meropenem 1g IV q8h",
+    "a": "e.g. CRE coverage inadequate given worsening infiltrate... (paste IDSA guideline)",
+    "p": "e.g.\nsug add ceftazidime-avibactam 2.5g IV q8h d/t MIC profile.\nmonitor: CRP, procalcitonin q48h, renal fx.",
+    "refinementA": "How to adjust? e.g. tone more neutral / translate to English",
+    "refinementP": "How to adjust? e.g. shorter / drop dose details / use bullets"
+  },
+  "insertToolbar": {
+    "preLabel": "Insert into",
+    "postLabel": "section:",
+    "labWindow6h": "Labs 6h",
+    "labWindow24h": "Labs 24h",
+    "labWindowAll": "Labs all",
+    "labWindowTitle": "Adjust the time window for the next insertion",
+    "insertLabs": "Insert Labs",
+    "insertMeds": "Insert meds"
+  },
+  "actions": {
+    "stop": "Stop",
+    "grammarOnly": "Grammar only",
+    "applyPharmacistFormat": "Apply pharmacist format",
+    "refineAgainHeading": "Refine again",
+    "refineShortcut": "⌘/Ctrl + Enter to send",
+    "refining": "Refining...",
+    "refineButton": "Refine again",
+    "polishAandP": "Polish A + P",
+    "saveAndCopy": "Save & copy to HIS",
+    "saving": "Saving..."
+  },
+  "polish": {
+    "writingInProgress": "AI writing… you can edit when it finishes",
+    "polishedEditable": "AI polished result (editable)"
+  },
+  "compose": {
+    "title": "Final output (auto-joined S + O + A + P)",
+    "description": "If A / P were AI-polished, polished versions are used; S / O kept verbatim.",
+    "staleBadge": "{{section}} section edited — polished result may be stale",
+    "empty": "(No content yet)",
+    "charCount": "{{count}} chars"
+  },
+  "toast": {
+    "noLabsToInsert": "No labs available to paste",
+    "noMedsToInsert": "No medications available to paste",
+    "noContentForPolish": "This section is empty — please draft something first",
+    "noContentForAandP": "A and P are both empty — please draft something first",
+    "polishFailed": "AI polish failed, please retry later",
+    "refinementSuccess": "Refined per your instructions",
+    "saveAndCopySuccess": "Saved and copied to clipboard",
+    "saveFailedCopiedOnly": "Save failed, copied to clipboard (you can still paste into HIS)",
+    "savedCopyFailed": "Saved (but copy failed — please copy manually)",
+    "saveAndCopyAllFailed": "Save and copy both failed, please retry later"
+  },
+  "confirm": {
+    "replaceBlock": "Section {{section}} already has a \"{{label}}\" block.\nClick OK to replace with the latest version; Cancel to append a new one."
+  }
+}

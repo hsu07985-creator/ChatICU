@@ -609,13 +609,15 @@ export function AiChatPage() {
             ) : contextPatient ? (
               <>
                 <span className="font-medium">
-                  正在詢問：{contextPatient.bedNumber ? `${contextPatient.bedNumber} · ` : ''}
+                  {t('ai.context.askingPrefix')}{contextPatient.bedNumber ? t('ai.context.bedSeparator', { bed: contextPatient.bedNumber }) : ''}
                   {maskPatientName(contextPatient.name)}
                 </span>
                 {contextPatient.archived && (
                   <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700">
                     <Archive className="h-3 w-3 mr-1" />
-                    已出院{contextPatient.dischargeDate ? ` · ${contextPatient.dischargeDate}` : ''}
+                    {contextPatient.dischargeDate
+                      ? t('ai.context.dischargedBadgeWithDate', { date: contextPatient.dischargeDate })
+                      : t('ai.context.dischargedBadge')}
                   </Badge>
                 )}
                 {contextPatient.diagnosis && (
@@ -623,7 +625,7 @@ export function AiChatPage() {
                 )}
               </>
             ) : (
-              <span>找不到病人資料（ID: {effectivePatientId}）</span>
+              <span>{t('ai.context.notFound', { id: effectivePatientId })}</span>
             )}
           </div>
           <button
@@ -632,7 +634,7 @@ export function AiChatPage() {
             className="shrink-0 text-sky-700 hover:text-sky-900 underline text-xs"
             title={t('ai.header.removePatientContext')}
           >
-            移除
+            {t('ai.context.removeButton')}
           </button>
         </div>
       )}
@@ -642,7 +644,7 @@ export function AiChatPage() {
         <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />
           <span className="flex-1">
-            您選取了 {urlPatientIds.length} 位病人，但多病人同時問答功能開發中。目前僅載入第一位病人作為背景。
+            {t('ai.context.multiPatientNotice', { count: urlPatientIds.length })}
           </span>
         </div>
       )}
@@ -651,7 +653,7 @@ export function AiChatPage() {
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
           <Info className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
           <span className="flex-1">
-            此為通用醫療問答助手，無病歷背景；請勿輸入可識別個資（姓名／病歷號）。
+            {t('ai.context.disclaimer')}
           </span>
           <button
             type="button"
@@ -672,7 +674,7 @@ export function AiChatPage() {
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5 text-sm font-semibold text-[#374151] dark:text-slate-300">
                     <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-                    對話記錄
+                    {t('ai.session.headerTitle')}
                   </span>
                   <div className="flex items-center gap-1.5">
                     <Button
@@ -767,7 +769,7 @@ export function AiChatPage() {
                     title={t('ai.session.showList')}
                   >
                     <ChevronRight className="mr-1 h-3.5 w-3.5" />
-                    對話記錄
+                    {t('ai.session.headerTitle')}
                   </Button>
                 )}
                 {effectivePatientId ? (

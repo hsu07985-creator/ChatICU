@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   streamPolishClinicalText,
   PolishStreamError,
@@ -74,11 +75,14 @@ const INITIAL_STATE: PerSectionState = {
 // so the frontend no longer parses the JSON stream. The fallback is the
 // authoritative `polished_sections` payload on the `done` event.
 
-const SECTION_META: Record<SoapSection, { label: string; subtitle: string; hint: string; aiEditable: boolean; defaultMode: PolishMode }> = {
-  s: { label: 'S — Subjective', subtitle: '從 HIS 貼上', hint: 'AI 不會動這段', aiEditable: false, defaultMode: 'full' },
-  o: { label: 'O — Objective', subtitle: '從 HIS 貼上（Labs / Vitals / Meds）', hint: 'AI 不會動這段', aiEditable: false, defaultMode: 'full' },
-  a: { label: 'A — Assessment', subtitle: '評估 / guideline / 分析', hint: 'AI 只修文法（grammar_only）', aiEditable: true, defaultMode: 'grammar_only' },
-  p: { label: 'P — Plan（用藥建議）', subtitle: '條列建議，AI 會套藥師格式', hint: 'AI 套 bullet + 藥物格式 + Monitor', aiEditable: true, defaultMode: 'full' },
+// SECTION_META holds non-localised structural attributes (aiEditable, defaultMode).
+// User-facing strings (label / subtitle / hint) are resolved at render time via
+// `t('soap-editor:section.{key}')` so they follow language switching.
+const SECTION_META: Record<SoapSection, { aiEditable: boolean; defaultMode: PolishMode }> = {
+  s: { aiEditable: false, defaultMode: 'full' },
+  o: { aiEditable: false, defaultMode: 'full' },
+  a: { aiEditable: true, defaultMode: 'grammar_only' },
+  p: { aiEditable: true, defaultMode: 'full' },
 };
 
 export function PharmacistSoapEditor({
@@ -93,6 +97,7 @@ export function PharmacistSoapEditor({
   labData = null,
   medications = null,
 }: PharmacistSoapEditorProps) {
+  const { t } = useTranslation('soap-editor');
   const [sectionState, setSectionState] = useState<Record<SoapSection, PerSectionState>>({
     s: { ...INITIAL_STATE },
     o: { ...INITIAL_STATE },
@@ -173,7 +178,7 @@ export function PharmacistSoapEditor({
       const wrapped = wrapInsertion(label, body);
       if (blockRegex.test(current)) {
         const replace = window.confirm(
-          `${key.toUpperCase()} 段已有「${label.split(' ')[0]}」區塊。\n按「確定」替換為最新版本，按「取消」追加新的一份。`,
+          t('confirm.replaceBlock', { section: key.toUpperCase(), label: label.split(' ')[0] }),
         );
         if (replace) {
           const next = current.replace(blockRegex, wrapped);
@@ -183,26 +188,26 @@ export function PharmacistSoapEditor({
       }
       insertAtCursor(key, wrapped);
     },
-    [soap, onSoapChange, insertAtCursor],
+    [soap, onSoapChange, insertAtCursor, t],
   );
 
   const handleInsertLabs = useCallback(() => {
     const formatted = formatLabsForPaste(labData, labWindow);
     if (!formatted) {
-      toast.error('無可貼上的檢驗資料');
+      toast.error(t('toast.noLabsToInsert'));
       return;
     }
     insertWithDedup(lastFocusedSection, `Labs ${labWindow}`, formatted);
-  }, [labData, labWindow, insertWithDedup, lastFocusedSection]);
+  }, [labData, labWindow, insertWithDedup, lastFocusedSection, t]);
 
   const handleInsertMedications = useCallback(() => {
     const formatted = formatMedicationsForPaste(medications);
     if (!formatted) {
-      toast.error('無可貼上的用藥資料');
+      toast.error(t('toast.noMedsToInsert'));
       return;
     }
     insertWithDedup(lastFocusedSection, 'Meds', formatted);
-  }, [medications, insertWithDedup, lastFocusedSection]);
+  }, [medications, insertWithDedup, lastFocusedSection, t]);
 
   const setPolishedValue = useCallback(
     (key: SoapSection, value: string) => {
@@ -219,7 +224,7 @@ export function PharmacistSoapEditor({
       }
       const input = (soap[key] || '').trim();
       if (!input && mode !== 'refinement') {
-        toast.error('此段沒有內容，請先輸入草稿');
+        toast.error(t('toast.noContentForPolish'));
         return;
       }
       const isRefinement = mode === 'refinement';
@@ -264,7 +269,7 @@ export function PharmacistSoapEditor({
         setPolishedFromSoap((prev) => ({ ...prev, [key]: soap[key] }));
         if (isRefinement) {
           patchSectionState(key, { refining: false, refinementInstruction: '' });
-          toast.success('已依指示重新修飾');
+          toast.success(t('toast.refinementSuccess'));
         } else {
           patchSectionState(key, { polishing: false });
         }
@@ -278,14 +283,14 @@ export function PharmacistSoapEditor({
           setPolishedValue(key, '');
         }
         const reason = err instanceof PolishStreamError ? err.reason : 'network';
-        const message = err instanceof PolishStreamError ? err.message : 'AI 修飾失敗，請稍後再試';
+        const message = err instanceof PolishStreamError ? err.message : t('toast.polishFailed');
         if (reason === 'aborted') toast.message(message);
         else toast.error(message);
       } finally {
         if (abortRefs.current[key] === controller) abortRefs.current[key] = null;
       }
     },
-    [canPolish, patchSectionState, patientId, polishReason, setPolishedValue, soap],
+    [canPolish, patchSectionState, patientId, polishReason, setPolishedValue, soap, t],
   );
 
   const abortSection = useCallback((key: SoapSection) => {
@@ -301,11 +306,11 @@ export function PharmacistSoapEditor({
     if ((soap.a || '').trim()) tasks.push(runPolish('a', SECTION_META.a.defaultMode));
     if ((soap.p || '').trim()) tasks.push(runPolish('p', SECTION_META.p.defaultMode));
     if (!tasks.length) {
-      toast.error('A 與 P 段都沒有內容，請先輸入草稿');
+      toast.error(t('toast.noContentForAandP'));
       return;
     }
     await Promise.allSettled(tasks);
-  }, [runPolish, soap.a, soap.p]);
+  }, [runPolish, soap.a, soap.p, t]);
 
   const isAnyPolishing =
     sectionState.a.polishing || sectionState.a.refining
@@ -356,16 +361,16 @@ export function PharmacistSoapEditor({
     const copied = await copyToClipboard(composed);
     setSubmitting(false);
     if (saved && copied) {
-      toast.success('已儲存並複製到剪貼簿');
+      toast.success(t('toast.saveAndCopySuccess'));
       onSubmitted?.();
     } else if (!saved && copied) {
-      toast.error('儲存失敗，已複製到剪貼簿（HIS 仍可貼上）');
+      toast.error(t('toast.saveFailedCopiedOnly'));
       onSubmitted?.();
     } else if (saved && !copied) {
-      toast.success('已儲存（但複製失敗，請手動複製）');
+      toast.success(t('toast.savedCopyFailed'));
       onSubmitted?.();
     } else {
-      toast.error('儲存與複製皆失敗，請稍後再試');
+      toast.error(t('toast.saveAndCopyAllFailed'));
     }
   };
 
@@ -386,7 +391,7 @@ export function PharmacistSoapEditor({
           data-testid="pharmacist-soap-insert-toolbar"
         >
           <span className="text-xs text-slate-500 dark:text-slate-400">
-            一鍵帶入到 <span className="font-mono font-semibold">{lastFocusedSection.toUpperCase()}</span> 段：
+            {t('insertToolbar.preLabel')} <span className="font-mono font-semibold">{lastFocusedSection.toUpperCase()}</span> {t('insertToolbar.postLabel')}
           </span>
           {labData && (
             <>
@@ -395,11 +400,11 @@ export function PharmacistSoapEditor({
                 onChange={(e) => setLabWindow(e.target.value as LabWindow)}
                 className="h-7 rounded border border-slate-300 bg-white px-1.5 text-xs dark:border-slate-600 dark:bg-slate-900"
                 data-testid="pharmacist-soap-lab-window"
-                title="調整下一次插入的時間範圍"
+                title={t('insertToolbar.labWindowTitle')}
               >
-                <option value="6h">Labs 6h</option>
-                <option value="24h">Labs 24h</option>
-                <option value="all">Labs 全部</option>
+                <option value="6h">{t('insertToolbar.labWindow6h')}</option>
+                <option value="24h">{t('insertToolbar.labWindow24h')}</option>
+                <option value="all">{t('insertToolbar.labWindowAll')}</option>
               </select>
               <Button
                 type="button"
@@ -410,7 +415,7 @@ export function PharmacistSoapEditor({
                 data-testid="pharmacist-soap-insert-labs"
               >
                 <FlaskConical className="mr-1 h-3 w-3" />
-                插入 Labs
+                {t('insertToolbar.insertLabs')}
               </Button>
             </>
           )}
@@ -424,7 +429,7 @@ export function PharmacistSoapEditor({
               data-testid="pharmacist-soap-insert-meds"
             >
               <Syringe className="mr-1 h-3 w-3" />
-              插入用藥
+              {t('insertToolbar.insertMeds')}
             </Button>
           )}
         </div>
@@ -454,7 +459,7 @@ export function PharmacistSoapEditor({
                 }
               >
                 <CardTitle className="flex flex-wrap items-center gap-2 text-base">
-                  {meta.label}
+                  {t(`section.${key}Label`)}
                   <Badge
                     variant="secondary"
                     className={
@@ -463,10 +468,10 @@ export function PharmacistSoapEditor({
                         : 'bg-slate-200 text-[10px] text-slate-700 dark:bg-slate-700 dark:text-slate-200'
                     }
                   >
-                    {meta.hint}
+                    {t(`section.${key}Hint`)}
                   </Badge>
                 </CardTitle>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{meta.subtitle}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{t(`section.${key}Subtitle`)}</p>
               </CardHeader>
               <CardContent className="space-y-3 pt-4">
                 <Textarea
@@ -476,15 +481,7 @@ export function PharmacistSoapEditor({
                   value={soap[key]}
                   onChange={(e) => setInputValue(key, e.target.value)}
                   onFocus={() => setLastFocusedSection(key)}
-                  placeholder={
-                    key === 's'
-                      ? '例：Patient c/o dyspnea, denied chest pain.'
-                      : key === 'o'
-                        ? '例：\nDx: ARDS, CRE pneumonia\nAllergy: NKDA\nLabs: Cr 1.8 (0.6-1.2), K 5.8 (3.5-5.0)\nCurrent meds: Meropenem 1g IV q8h'
-                        : key === 'a'
-                          ? '例：CRE coverage inadequate given worsening infiltrate... (可貼 IDSA guideline)'
-                          : '例：\nsug add ceftazidime-avibactam 2.5g IV q8h d/t MIC profile.\nmonitor: CRP, procalcitonin q48h, renal fx.'
-                  }
+                  placeholder={t(`placeholder.${key}`)}
                   className={`resize-y ${meta.aiEditable ? 'min-h-[100px]' : 'min-h-[80px] font-mono bg-slate-50 dark:bg-slate-900/40'}`}
                   data-testid={`pharmacist-soap-input-${key}`}
                 />
@@ -499,7 +496,7 @@ export function PharmacistSoapEditor({
                         className="border-amber-500 text-amber-700 hover:bg-amber-50 dark:text-amber-300"
                       >
                         <X className="mr-1.5 h-4 w-4" />
-                        停止
+                        {t('actions.stop')}
                       </Button>
                     ) : (
                       <>
@@ -509,7 +506,7 @@ export function PharmacistSoapEditor({
                           size="sm"
                           style={{ backgroundColor: '#1e293b' }}
                         >
-                          {meta.defaultMode === 'grammar_only' ? '只修文法' : '套藥師格式'}
+                          {meta.defaultMode === 'grammar_only' ? t('actions.grammarOnly') : t('actions.applyPharmacistFormat')}
                         </Button>
                         {key === 'p' && (
                           <Button
@@ -518,7 +515,7 @@ export function PharmacistSoapEditor({
                             size="sm"
                             variant="outline"
                           >
-                            只修文法
+                            {t('actions.grammarOnly')}
                           </Button>
                         )}
                       </>
@@ -530,8 +527,8 @@ export function PharmacistSoapEditor({
                   <div className="space-y-2 rounded-md border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-800 dark:bg-sky-950/20">
                     <div className="text-xs font-medium text-sky-700 dark:text-sky-300">
                       {st.polishing || st.refining
-                        ? 'AI 寫入中…完成後即可編輯'
-                        : 'AI 修飾結果（可直接修改）'}
+                        ? t('polish.writingInProgress')
+                        : t('polish.polishedEditable')}
                     </div>
                     <Textarea
                       value={polished}
@@ -551,9 +548,9 @@ export function PharmacistSoapEditor({
                     <div className="space-y-2 rounded border-2 border-sky-300 bg-white p-2 dark:border-sky-700 dark:bg-slate-900/40">
                       <div className="flex items-center justify-between">
                         <h5 className="text-xs font-semibold text-sky-800 dark:text-sky-200">
-                          再修一次
+                          {t('actions.refineAgainHeading')}
                         </h5>
-                        <p className="text-[11px] text-slate-400">⌘/Ctrl + Enter 送出</p>
+                        <p className="text-[11px] text-slate-400">{t('actions.refineShortcut')}</p>
                       </div>
                       <Textarea
                         value={st.refinementInstruction}
@@ -562,8 +559,8 @@ export function PharmacistSoapEditor({
                         }
                         placeholder={
                           key === 'p'
-                            ? '想怎麼調整？例：再簡短一點 / 把劑量細節拿掉 / 用條列式'
-                            : '想怎麼調整？例：語氣再中性一點 / 翻譯成英文'
+                            ? t('placeholder.refinementP')
+                            : t('placeholder.refinementA')
                         }
                         className="min-h-[36px] resize-none border-sky-300 text-sm transition-[min-height] duration-150 focus:min-h-[72px] dark:border-sky-700"
                         disabled={st.refining}
@@ -597,7 +594,7 @@ export function PharmacistSoapEditor({
                         style={{ backgroundColor: '#1e293b' }}
                         className="w-full"
                       >
-                        {st.refining ? '修改中...' : '再修一次'}
+                        {st.refining ? t('actions.refining') : t('actions.refineButton')}
                         {st.refining ? <ButtonLoadingIndicator /> : null}
                       </Button>
                     </div>
@@ -614,9 +611,9 @@ export function PharmacistSoapEditor({
           pharmacist never needs to scroll to the bottom to paste into HIS. */}
       <Card className="border-emerald-300 dark:border-emerald-700">
         <CardHeader className="bg-emerald-50 py-3 dark:bg-emerald-950/30">
-          <CardTitle className="text-base">最終輸出（自動拼接 S + O + A + P）</CardTitle>
+          <CardTitle className="text-base">{t('compose.title')}</CardTitle>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            A / P 若已按 AI 修飾，會優先使用修飾後版本；S / O 逐字保留。
+            {t('compose.description')}
           </p>
         </CardHeader>
         <CardContent className="space-y-3 pt-4">
@@ -630,14 +627,14 @@ export function PharmacistSoapEditor({
                 variant="secondary"
                 className="bg-amber-100 text-[11px] text-amber-800 dark:bg-amber-950 dark:text-amber-300"
               >
-                {k.toUpperCase()} 段已編輯，潤飾結果可能過時
+                {t('compose.staleBadge', { section: k.toUpperCase() })}
               </Badge>
             ))}
           <pre
             className="max-h-[280px] overflow-auto whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-50 p-3 font-mono text-sm dark:border-slate-700 dark:bg-slate-900"
             data-testid="pharmacist-soap-composed"
           >
-            {composed || '（尚未輸入內容）'}
+            {composed || t('compose.empty')}
           </pre>
         </CardContent>
       </Card>
@@ -651,7 +648,7 @@ export function PharmacistSoapEditor({
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-300">
-            <span>共 {composed.length} 字</span>
+            <span>{t('compose.charCount', { count: composed.length })}</span>
             <span className="font-mono">{polishStatusLabel}</span>
           </div>
           <div className="flex items-center gap-2">
@@ -661,7 +658,7 @@ export function PharmacistSoapEditor({
               size="sm"
               variant="outline"
             >
-              潤飾 A + P
+              {t('actions.polishAandP')}
             </Button>
             <Button
               onClick={handleCopy}
@@ -670,7 +667,7 @@ export function PharmacistSoapEditor({
               className="bg-brand hover:bg-brand-hover"
             >
               <Copy className="mr-2 h-4 w-4" />
-              {submitting ? '儲存中...' : '儲存並複製貼到 HIS'}
+              {submitting ? t('actions.saving') : t('actions.saveAndCopy')}
               {submitting ? <ButtonLoadingIndicator /> : null}
             </Button>
           </div>

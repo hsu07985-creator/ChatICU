@@ -179,6 +179,9 @@
     "dictEditorDesc": "請輸入合法 JSON object，key/value 皆為字串。",
     "fileLabel": "檔案：{{path}}",
     "lastModifiedLabel": "最後更新：{{at}}",
+    "versionLabel": "版本",
+    "routeAliasesLabel": "Route 別名（JSON 物件）",
+    "frequencyAliasesLabel": "Frequency 別名（JSON 物件）",
     "errors": {
       "loadFail": "載入用藥標準化字典失敗",
       "jsonInvalid": "{{field}} JSON 格式錯誤",

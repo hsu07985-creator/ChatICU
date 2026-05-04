@@ -192,6 +192,7 @@ export function AppSidebar() {
             <div className="flex items-center gap-3 p-4">
               <img src={logoImage} alt="ChatICU" className="h-12 w-12 rounded-full shadow-lg flex-shrink-0 object-cover" />
               <div className="min-w-0 flex-1 text-left">
+                {/* eslint-disable-next-line i18next/no-literal-string -- product brand name, intentionally not translated */}
                 <h2 className="font-bold text-lg text-foreground">ChatICU</h2>
                 <p className="text-xs text-muted-foreground truncate">{user?.name} · {user?.unit}</p>
               </div>

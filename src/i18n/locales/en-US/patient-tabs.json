@@ -11,7 +11,7 @@
         "weight": "Weight",
         "bmi": "BMI",
         "mrn": "MRN",
-        "physician": "Attending"
+        "physician": "Attending Physician"
       }
     },
     "flags": {
@@ -70,6 +70,7 @@
       "evaluatedAt": "Evaluated at: {{timestamp}}",
       "rsbi": "RSBI",
       "nif": "NIF",
+      "nifValue": "{{value}} cmH₂O",
       "readiness": "Readiness Score",
       "recommendation": "Recommendation"
     },
@@ -93,7 +94,9 @@
       "saveError": "Save failed. Please verify the values.",
       "saving": "Saving...",
       "save": "Save",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "modeLabel": "Mode",
+      "ieRatioLabel": "I:E Ratio"
     }
   }
 }

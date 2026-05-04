@@ -21,5 +21,9 @@
     "none": "無培養資料"
   },
   "loading": "Loading...",
-  "coloniesLabel": "Colonies: {{value}}"
+  "coloniesLabel": "Colonies: {{value}}",
+  "labels": {
+    "normalFlora": "Normal flora",
+    "negative": "Negative"
+  }
 }

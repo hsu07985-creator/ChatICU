@@ -223,14 +223,14 @@ export function MedicationDuplicatesPage() {
   const countsBar = (counts: Record<string, number>, total: number) => (
     <div className="flex flex-wrap items-center gap-3 text-sm">
       <span className="font-medium text-muted-foreground">{t('duplicates.countsBar.label')}</span>
-      <span className="inline-flex items-center gap-1 text-red-700 dark:text-red-400">🔴 Critical {counts.critical ?? 0}</span>
-      <span className="inline-flex items-center gap-1 text-orange-700 dark:text-orange-400">🟠 High {counts.high ?? 0}</span>
-      <span className="inline-flex items-center gap-1 text-yellow-700 dark:text-yellow-500">🟡 Moderate {counts.moderate ?? 0}</span>
+      <span className="inline-flex items-center gap-1 text-red-700 dark:text-red-400">{t('duplicates.countsBar.critical', { count: counts.critical ?? 0 })}</span>
+      <span className="inline-flex items-center gap-1 text-orange-700 dark:text-orange-400">{t('duplicates.countsBar.high', { count: counts.high ?? 0 })}</span>
+      <span className="inline-flex items-center gap-1 text-yellow-700 dark:text-yellow-500">{t('duplicates.countsBar.moderate', { count: counts.moderate ?? 0 })}</span>
       {(counts.low ?? 0) > 0 && (
-        <span className="inline-flex items-center gap-1 text-blue-700 dark:text-blue-400">🔵 Low {counts.low}</span>
+        <span className="inline-flex items-center gap-1 text-blue-700 dark:text-blue-400">{t('duplicates.countsBar.low', { count: counts.low })}</span>
       )}
       {(counts.info ?? 0) > 0 && (
-        <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-400">⚪ Info {counts.info}</span>
+        <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-400">{t('duplicates.countsBar.info', { count: counts.info })}</span>
       )}
       <span className="ml-auto text-xs text-muted-foreground">{t('duplicates.countsBar.totalSuffix', { count: total })}</span>
     </div>
@@ -261,7 +261,7 @@ export function MedicationDuplicatesPage() {
                 <SelectContent>
                   {patients.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.bedNumber} — {maskPatientName(p.name)}（{p.medicalRecordNumber}）
+                      {t('common.patientOption', { bed: p.bedNumber, name: maskPatientName(p.name), mrn: p.medicalRecordNumber })}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -419,7 +419,7 @@ export function MedicationDuplicatesPage() {
                 <Alert className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/30">
                   <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
                   <AlertDescription className="text-sm text-green-800 dark:text-green-200 font-medium">
-                    ✓ 未偵測到重複用藥
+                    {t('duplicates.manualResult.noDuplicate')}
                   </AlertDescription>
                 </Alert>
               ) : (

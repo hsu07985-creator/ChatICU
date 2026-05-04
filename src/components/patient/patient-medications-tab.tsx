@@ -1,8 +1,10 @@
 import { lazy, Suspense, useState, useMemo, useCallback } from 'react';
-import type { Medication } from '../../lib/api';
+import type { Medication, Patient } from '../../lib/api';
 import type { UserRole } from '../../lib/auth-context';
 import { isAntibiotic } from '../../lib/antibiotic-codes';
 import { updateMedication } from '../../lib/api/medications';
+import { canAccessPharmacy } from '../../lib/permissions';
+import { PadDosageCalculator } from '../pharmacy/pad-dosage-calculator';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
@@ -555,6 +557,7 @@ function detectDuplicates(
 
 interface PatientMedicationsTabProps {
   patientId?: string;
+  patient?: Patient;
   userRole?: UserRole;
   medicationsLoading: boolean;
   nmbIndication?: string;
@@ -582,6 +585,7 @@ interface PatientMedicationsTabProps {
 
 export function PatientMedicationsTab({
   patientId,
+  patient,
   userRole,
   medicationsLoading,
   nmbIndication,
@@ -624,6 +628,7 @@ export function PatientMedicationsTab({
     indication: '',
   });
   const [isSavingMedication, setIsSavingMedication] = useState(false);
+  const showPadDosageCalculator = canAccessPharmacy(userRole) && !!patient;
 
   const isDiscontinued = (med: Medication) =>
     med.status === 'discontinued' || med.status === 'completed' || med.status === 'on-hold';
@@ -761,6 +766,14 @@ export function PatientMedicationsTab({
         <MedicationsSkeleton />
       ) : (
         <>
+          {showPadDosageCalculator && (
+            <PadDosageCalculator
+              mode="patient"
+              patient={patient}
+              allowManualAnthropometrics
+            />
+          )}
+
           {/* S/A/N 藥物 */}
           <div className="grid gap-3 md:grid-cols-3">
             {/* Pain (A) */}
@@ -768,7 +781,7 @@ export function PatientMedicationsTab({
               <CardHeader className="pb-2 space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-baseline gap-2">
-                    <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">Pain Score</CardTitle>
+                    <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">{t('tab.main.painCardTitle')}</CardTitle>
                     {(painPending ?? painScoreValue) !== null && (
                       <span className="text-2xl font-bold tabular-nums leading-none text-slate-900 dark:text-slate-100">
                         {painPending ?? painScoreValue}
@@ -819,7 +832,7 @@ export function PatientMedicationsTab({
               <CardHeader className="pb-2 space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-baseline gap-2">
-                    <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">RASS Score</CardTitle>
+                    <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">{t('tab.main.rassCardTitle')}</CardTitle>
                     {(() => {
                       const display = rassPending ?? rassScoreValue;
                       if (display === null) return null;

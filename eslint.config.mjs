@@ -118,7 +118,7 @@ export default [
       // intentionally NOT excluded — those are user-visible and should
       // be translated.
       'i18next/no-literal-string': [
-        'warn',
+        'error',
         {
           mode: 'jsx-text-only',
           'jsx-attributes': {

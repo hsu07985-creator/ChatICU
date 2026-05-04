@@ -1,4 +1,5 @@
 import { Archive, Edit2, Search, Users } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { maskPatientName } from '../../lib/utils/patient-name';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { Input } from '../ui/input';
@@ -53,6 +54,7 @@ export function PatientsListCard({
   getDepartmentBgColor,
   getDepartmentBadgeColor,
 }: PatientsListCardProps) {
+  const { t } = useTranslation('patients');
   return (
     <Card>
       <CardHeader>
@@ -60,7 +62,7 @@ export function PatientsListCard({
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="搜尋姓名或床號..."
+              placeholder={t('list.searchPlaceholder')}
               value={searchTerm}
               onChange={(event) => onSearchTermChange(event.target.value)}
               className="pl-10"
@@ -68,12 +70,12 @@ export function PatientsListCard({
           </div>
           <Select value={filterStatus} onValueChange={onFilterStatusChange}>
             <SelectTrigger className="w-full md:w-[200px]">
-              <SelectValue placeholder="篩選條件" />
+              <SelectValue placeholder={t('list.filterPlaceholder')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">全部病患</SelectItem>
-              <SelectItem value="intubated">插管中</SelectItem>
-              <SelectItem value="san">使用 S/A/N</SelectItem>
+              <SelectItem value="all">{t('list.filters.all')}</SelectItem>
+              <SelectItem value="intubated">{t('list.filters.intubated')}</SelectItem>
+              <SelectItem value="san">{t('list.filters.san')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -82,14 +84,14 @@ export function PatientsListCard({
         {loading && <TableSkeleton rows={8} columns={12} />}
 
         {error && !loading && (
-          <ErrorDisplay type="server" title="載入失敗" message={error} onRetry={onRetry} />
+          <ErrorDisplay type="server" title={t('list.loadErrorTitle')} message={error} onRetry={onRetry} />
         )}
 
         {!loading && !error && filteredPatients.length === 0 && (
           <EmptyState
             icon={Users}
-            title={searchTerm || filterStatus !== 'all' ? '找不到符合條件的病人' : '目前沒有病人'}
-            description={searchTerm || filterStatus !== 'all' ? '請嘗試調整搜尋條件' : '開始新增第一位病人'}
+            title={searchTerm || filterStatus !== 'all' ? t('list.emptyNoMatch') : t('list.emptyNone')}
+            description={searchTerm || filterStatus !== 'all' ? t('list.emptyHintFiltered') : t('list.emptyHintNew')}
           />
         )}
 
@@ -97,20 +99,20 @@ export function PatientsListCard({
           <Table className="compact-table">
             <TableHeader>
               <TableRow>
-                <TableHead>床號</TableHead>
-                <TableHead>病例號碼</TableHead>
-                <TableHead>姓名</TableHead>
-                <TableHead>性別</TableHead>
-                <TableHead>年齡</TableHead>
-                <TableHead>主治醫師</TableHead>
-                <TableHead>入院診斷</TableHead>
-                <TableHead>入ICU日期（住院天數）</TableHead>
-                <TableHead>呼吸器天數</TableHead>
-                <TableHead>DNR</TableHead>
-                <TableHead>隔離</TableHead>
-                <TableHead>插管</TableHead>
-                <TableHead className="text-center w-8">留言</TableHead>
-                <TableHead className="text-right">操作</TableHead>
+                <TableHead>{t('list.table.bed')}</TableHead>
+                <TableHead>{t('list.table.mrn')}</TableHead>
+                <TableHead>{t('list.table.name')}</TableHead>
+                <TableHead>{t('list.table.gender')}</TableHead>
+                <TableHead>{t('list.table.age')}</TableHead>
+                <TableHead>{t('list.table.physician')}</TableHead>
+                <TableHead>{t('list.table.diagnosis')}</TableHead>
+                <TableHead>{t('list.table.icuAdmissionWithStay')}</TableHead>
+                <TableHead>{t('list.table.ventilatorDays')}</TableHead>
+                <TableHead>{t('list.table.dnr')}</TableHead>
+                <TableHead>{t('list.table.isolation')}</TableHead>
+                <TableHead>{t('list.table.intubation')}</TableHead>
+                <TableHead className="text-center w-8">{t('list.table.messages')}</TableHead>
+                <TableHead className="text-right">{t('list.table.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -130,7 +132,7 @@ export function PatientsListCard({
                   </TableCell>
                   <TableCell className="font-medium">{maskPatientName(patient.name)}</TableCell>
                   <TableCell>{patient.gender}</TableCell>
-                  <TableCell>{patient.age} 歲</TableCell>
+                  <TableCell>{t('list.ageSuffix', { age: patient.age })}</TableCell>
                   <TableCell>
                     <Badge className={getDepartmentBadgeColor(patient.department)}>
                       {patient.attendingPhysician}
@@ -141,30 +143,30 @@ export function PatientsListCard({
                     <div className="flex flex-col gap-1">
                       <span className="text-sm">{patient.icuAdmissionDate}</span>
                       <span className="text-xs text-muted-foreground">
-                        ({getICUDays(patient.icuAdmissionDate)} 天)
+                        {t('list.icuDaysSuffix', { days: getICUDays(patient.icuAdmissionDate) })}
                       </span>
                     </div>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/30 dark:border-purple-700 dark:text-purple-300">
-                      {patient.ventilatorDays} 天
+                      {t('list.ventilatorDaysSuffix', { days: patient.ventilatorDays })}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     {patient.hasDNR ? (
-                      <Badge className="bg-brand hover:bg-brand/90">有</Badge>
+                      <Badge className="bg-brand hover:bg-brand/90">{t('list.yes')}</Badge>
                     ) : (
                       <Badge variant="outline" className="text-muted-foreground">
-                        無
+                        {t('list.no')}
                       </Badge>
                     )}
                   </TableCell>
                   <TableCell>
                     {patient.isIsolated ? (
-                      <Badge className="bg-[#f59e0b] hover:bg-[#f59e0b]/90">隔離</Badge>
+                      <Badge className="bg-[#f59e0b] hover:bg-[#f59e0b]/90">{t('list.isolating')}</Badge>
                     ) : (
                       <Badge variant="outline" className="text-muted-foreground">
-                        無
+                        {t('list.no')}
                       </Badge>
                     )}
                   </TableCell>
@@ -172,12 +174,12 @@ export function PatientsListCard({
                     {patient.intubated ? (
                       <Badge variant="secondary">{getAirwayStatusLabel(patient)}</Badge>
                     ) : (
-                      <Badge variant="outline">未插管</Badge>
+                      <Badge variant="outline">{t('list.notIntubated')}</Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-center">
                     {patient.hasUnreadMessages ? (
-                      <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#ff3975]" title="有未讀留言" />
+                      <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#ff3975]" title={t('list.unreadMessagesTooltip')} />
                     ) : (
                       <span className="text-muted-foreground">-</span>
                     )}
@@ -192,7 +194,7 @@ export function PatientsListCard({
                           onOpenPatient(patient.id);
                         }}
                       >
-                        檢視
+                        {t('list.viewAction')}
                       </Button>
                       {isAdmin && (
                         <>
@@ -204,7 +206,7 @@ export function PatientsListCard({
                               onEditPatient(patient);
                             }}
                             className="text-brand hover:text-brand hover:bg-slate-50 dark:hover:bg-slate-800"
-                            title="編輯"
+                            title={t('list.editTooltip')}
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
@@ -216,7 +218,7 @@ export function PatientsListCard({
                               onArchivePatient(patient.id);
                             }}
                             className="text-muted-foreground hover:text-brand hover:bg-slate-50 dark:hover:bg-slate-800"
-                            title="封存"
+                            title={t('list.archiveTooltip')}
                           >
                             <Archive className="h-4 w-4" />
                           </Button>
@@ -232,7 +234,7 @@ export function PatientsListCard({
 
         {!loading && !error && filteredPatients.length === 0 && (
           <div className="text-center py-12 text-muted-foreground">
-            <p>沒有符合條件的病患</p>
+            <p>{t('list.emptyShort')}</p>
           </div>
         )}
       </CardContent>

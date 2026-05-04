@@ -83,9 +83,11 @@ export function LoginPage() {
             <ChatICURobot />
           </div>
 
-          {/* Tagline */}
+          {/* Tagline — wordplay highlighting I/C/U letters of "Intelligent Care for yoU"; not localized */}
           <p className="text-brand text-2xl font-semibold">
+            {/* eslint-disable-next-line i18next/no-literal-string -- I-C-U brand tagline wordplay, intentionally not translated */}
             <span className="font-black">I</span>ntelligent{' '}
+            {/* eslint-disable-next-line i18next/no-literal-string -- I-C-U brand tagline wordplay, intentionally not translated */}
             <span className="font-black">C</span>are for yo
             <span className="font-black">U</span>
           </p>
