@@ -12,40 +12,36 @@ import { FileText, User, Clock, AlertCircle, RefreshCw, ShieldCheck, Shield } fr
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '../../i18n/config';
 import { getAuditLogs, AuditLog, AuditLogsResponse } from '../../lib/api/admin';
 import { getApiErrorMessage } from '../../lib/api-client';
 
 // ── helpers ───────────────────────────────────────────────────────────
 // DB 存 UTC，顯示一律台北時間 (UTC+8)
-const TAIPEI_DATE_FMT = new Intl.DateTimeFormat('zh-TW', {
-  timeZone: 'Asia/Taipei',
-  year: 'numeric', month: '2-digit', day: '2-digit',
-});
-const TAIPEI_TIME_FMT = new Intl.DateTimeFormat('zh-TW', {
-  timeZone: 'Asia/Taipei',
-  hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
-});
 function formatTaipei(iso: string): { date: string; time: string } {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return { date: iso, time: '' };
+  const dateFmt = new Intl.DateTimeFormat(i18n.language, {
+    timeZone: 'Asia/Taipei',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  });
+  const timeFmt = new Intl.DateTimeFormat(i18n.language, {
+    timeZone: 'Asia/Taipei',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  });
   return {
-    date: TAIPEI_DATE_FMT.format(d).replace(/\//g, '-'),
-    time: TAIPEI_TIME_FMT.format(d),
+    date: dateFmt.format(d).replace(/\//g, '-'),
+    time: timeFmt.format(d),
   };
 }
 
-// 後端回傳的 role 是英文 key，這裡做顯示對應
-const ROLE_LABEL: Record<string, string> = {
-  admin: '系統管理員',
-  doctor: '醫師',
-  nurse: '護理師',
-  np: '專科護理師',
-  pharmacist: '藥師',
-  // 兼容舊資料的中文 key
-  管理者: '系統管理員',
-  醫師: '醫師',
-  護理師: '護理師',
-  藥師: '藥師',
+// 後端回傳的 role 是英文 key；中文 key 對應到對應英文 key 後再走 t() 查表
+const LEGACY_ROLE_KEY: Record<string, string> = {
+  管理者: 'admin',
+  醫師: 'doctor',
+  護理師: 'nurse',
+  藥師: 'pharmacist',
 };
 const ROLE_COLOR: Record<string, string> = {
   admin: 'bg-brand text-white',
@@ -66,6 +62,7 @@ function isIdLike(target: string): boolean {
 
 // 稽核紀錄頁面
 export function AuditPage() {
+  const { t } = useTranslation('admin');
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
@@ -82,8 +79,8 @@ export function AuditPage() {
       const data = await getAuditLogs({ limit: 50 });
       setApiData(data);
     } catch (err: unknown) {
-      console.error('載入稽核紀錄失敗:', err);
-      setError(getApiErrorMessage(err, '載入稽核紀錄失敗，請稍後重試'));
+      console.error('audit load failed:', err);
+      setError(getApiErrorMessage(err, t('audit.list.loadFail')));
     } finally {
       setLoading(false);
     }
@@ -112,15 +109,16 @@ export function AuditPage() {
 
   const getStatusBadge = (status: 'success' | 'failed') => {
     if (status === 'success') {
-      return <Badge className="bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800">成功</Badge>;
+      return <Badge className="bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800">{t('audit.status.success')}</Badge>;
     }
-    return <Badge className="bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800">失敗</Badge>;
+    return <Badge className="bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800">{t('audit.status.failed')}</Badge>;
   };
 
   const getRoleBadge = (role: string) => {
-    const label = ROLE_LABEL[role] ?? role;
-    const color = ROLE_COLOR[role] ?? 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-200';
-    const Icon = role === 'admin' || role === '管理者' ? ShieldCheck : Shield;
+    const normalized = LEGACY_ROLE_KEY[role] ?? role;
+    const label = t(`audit.roleLabel.${normalized}`, { defaultValue: role });
+    const color = ROLE_COLOR[role] ?? ROLE_COLOR[normalized] ?? 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-200';
+    const Icon = normalized === 'admin' ? ShieldCheck : Shield;
     return (
       <Badge className={color}>
         <Icon className="h-3.5 w-3.5 mr-1" />
@@ -133,8 +131,8 @@ export function AuditPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">稽核紀錄</h1>
-          <p className="text-muted-foreground text-sm mt-1">系統操作與存取記錄查詢</p>
+          <h1 className="text-2xl font-bold">{t('audit.title')}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t('audit.subtitle')}</p>
         </div>
         <Button
           variant="outline"
@@ -143,7 +141,7 @@ export function AuditPage() {
           className="border-brand text-brand hover:bg-brand hover:text-white"
         >
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          重新整理
+          {t('audit.refresh')}
         </Button>
       </div>
 
@@ -151,7 +149,7 @@ export function AuditPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base text-muted-foreground">今日總操作</CardTitle>
+            <CardTitle className="text-base text-muted-foreground">{t('audit.stats.todayTotal')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-brand">{stats.total}</div>
@@ -159,7 +157,7 @@ export function AuditPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base text-muted-foreground">成功操作</CardTitle>
+            <CardTitle className="text-base text-muted-foreground">{t('audit.stats.successful')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-600">{stats.success}</div>
@@ -167,7 +165,7 @@ export function AuditPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base text-muted-foreground">失敗操作</CardTitle>
+            <CardTitle className="text-base text-muted-foreground">{t('audit.stats.failed')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-red-600">{stats.failed}</div>
@@ -175,7 +173,7 @@ export function AuditPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base text-muted-foreground">活躍用戶</CardTitle>
+            <CardTitle className="text-base text-muted-foreground">{t('audit.stats.activeUsers')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-blue-600">
@@ -192,15 +190,15 @@ export function AuditPage() {
             <div>
               <CardTitle className="flex items-center gap-2 text-xl">
                 <FileText className="h-6 w-6 text-brand" />
-                稽核記錄列表
+                {t('audit.list.title')}
               </CardTitle>
               <CardDescription className="text-sm mt-2">
-                所有系統操作與存取的詳細記錄
+                {t('audit.list.description')}
               </CardDescription>
             </div>
             <div className="w-[300px]">
               <Input
-                placeholder="搜尋用戶、操作或目標..."
+                placeholder={t('audit.list.searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
                 className="border"
@@ -215,31 +213,31 @@ export function AuditPage() {
                 <TableHead className="w-[180px]">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    時間
+                    {t('audit.list.colTime')}
                   </div>
                 </TableHead>
                 <TableHead>
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4" />
-                    用戶
+                    {t('audit.list.colUser')}
                   </div>
                 </TableHead>
-                <TableHead>角色</TableHead>
-                <TableHead>操作</TableHead>
-                <TableHead>目標</TableHead>
-                <TableHead>狀態</TableHead>
-                <TableHead>IP 位址</TableHead>
+                <TableHead>{t('audit.list.colRole')}</TableHead>
+                <TableHead>{t('audit.list.colAction')}</TableHead>
+                <TableHead>{t('audit.list.colTarget')}</TableHead>
+                <TableHead>{t('audit.list.colStatus')}</TableHead>
+                <TableHead>{t('audit.list.colIp')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedLogs.map((log) => {
-                const t = formatTaipei(log.timestamp);
+                const ts = formatTaipei(log.timestamp);
                 const isSystemTarget = !log.target || log.target === '系統' || log.target === 'system';
                 return (
                   <TableRow key={log.id}>
                     <TableCell className="whitespace-nowrap font-mono text-sm leading-tight">
-                      <div>{t.date}</div>
-                      <div className="text-muted-foreground">{t.time}</div>
+                      <div>{ts.date}</div>
+                      <div className="text-muted-foreground">{ts.time}</div>
                     </TableCell>
                     <TableCell className="font-medium whitespace-nowrap">{log.user}</TableCell>
                     <TableCell className="whitespace-nowrap">{getRoleBadge(log.role)}</TableCell>
@@ -263,10 +261,10 @@ export function AuditPage() {
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
               >
-                上一頁
+                {t('audit.list.prevPage')}
               </Button>
               <span className="text-sm text-muted-foreground">
-                第 {page} / {totalPages} 頁
+                {t('audit.list.pageOf', { page, total: totalPages })}
               </span>
               <Button
                 variant="outline"
@@ -274,7 +272,7 @@ export function AuditPage() {
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
               >
-                下一頁
+                {t('audit.list.nextPage')}
               </Button>
             </div>
           )}
@@ -282,7 +280,7 @@ export function AuditPage() {
           {loading && (
             <div className="text-center py-12 text-muted-foreground">
               <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3" />
-              <p>載入中...</p>
+              <p>{t('audit.list.loading')}</p>
             </div>
           )}
 
@@ -291,7 +289,7 @@ export function AuditPage() {
               <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-400" />
               <p className="text-red-600 font-medium">{error}</p>
               <Button variant="outline" className="mt-4" onClick={loadData}>
-                重新載入
+                {t('audit.list.reload')}
               </Button>
             </div>
           )}
@@ -299,7 +297,7 @@ export function AuditPage() {
           {!loading && !error && filteredLogs.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <AlertCircle className="h-12 w-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
-              <p>沒有符合條件的稽核記錄</p>
+              <p>{t('audit.list.empty')}</p>
             </div>
           )}
         </CardContent>

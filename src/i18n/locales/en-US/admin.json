@@ -1,0 +1,194 @@
+{
+  "users": {
+    "title": "User & Permission Management",
+    "subtitle": "Manage system user accounts, roles, and permissions",
+    "addUser": "Add User",
+    "stats": {
+      "total": "Total Accounts",
+      "active": "Active",
+      "doctorCount": "Physician Accounts",
+      "pharmacistCount": "Pharmacist Accounts"
+    },
+    "roleLabel": {
+      "admin": "System Admin",
+      "doctor": "Physician",
+      "np": "Nurse Practitioner",
+      "nurse": "Nurse",
+      "pharmacist": "Pharmacist"
+    },
+    "active": "Active",
+    "inactive": "Inactive",
+    "list": {
+      "title": "User List",
+      "description": "Detailed information for all user accounts",
+      "filterAll": "All ({{count}})",
+      "filterActive": "Active ({{count}})",
+      "filterInactive": "Inactive ({{count}})",
+      "searchPlaceholder": "Search username, name, unit...",
+      "colUsername": "Username",
+      "colName": "Name",
+      "colRole": "Role",
+      "colUnit": "Unit",
+      "colEmail": "Email",
+      "colStatus": "Status",
+      "colLastLogin": "Last Login",
+      "colActions": "Actions",
+      "loading": "Loading...",
+      "reload": "Reload",
+      "empty": "No accounts match the criteria"
+    },
+    "actions": {
+      "cannotDisableSelf": "Cannot disable your own account",
+      "disableThis": "Disable this account",
+      "enableThis": "Enable this account",
+      "cannotDeleteSelf": "Cannot delete your own account",
+      "deleteThis": "Delete this account (permanent if no history; otherwise auto-disabled)"
+    },
+    "addDialog": {
+      "title": "Add User",
+      "description": "Create a new system user account; please fill in the information below",
+      "usernameLabel": "Username *",
+      "usernamePlaceholder": "e.g., nurse.wang",
+      "nameLabel": "Name *",
+      "namePlaceholder": "e.g., Wang Mei-ling",
+      "passwordLabel": "Password *",
+      "passwordPlaceholder": "Enter password",
+      "passwordHint": "At least 12 characters; must include uppercase, lowercase, digits, and special characters",
+      "roleLabel": "Role *",
+      "unitLabel": "Unit",
+      "unitPlaceholder": "e.g., Medical ICU",
+      "emailLabel": "Email",
+      "emailPlaceholder": "e.g., wang@hospital.com",
+      "cancel": "Cancel",
+      "creating": "Creating...",
+      "create": "Create Account"
+    },
+    "editDialog": {
+      "title": "Edit Account",
+      "description": "Edit information for account {{username}}",
+      "nameLabel": "Name",
+      "roleLabel": "Role",
+      "unitLabel": "Unit",
+      "emailLabel": "Email",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "save": "Save changes"
+    },
+    "toast": {
+      "requireFields": "Please fill in all required fields",
+      "createdWith": "Account {{username}} created",
+      "createFail": "Failed to create account",
+      "updated": "Account information updated",
+      "updateFail": "Failed to update account",
+      "toggledEnabled": "Enabled account {{username}}",
+      "toggledDisabled": "Disabled account {{username}}",
+      "toggleFail": "Failed to update status",
+      "deletedWith": "Deleted account {{username}}",
+      "deletedSoftWith": "{{username}} has history records and was disabled instead",
+      "deleteFail": "Failed to delete account",
+      "loadFail": "Failed to load user list; please retry"
+    },
+    "deleteConfirm": {
+      "prompt": "Delete account \"{{name}} ({{username}})\"?\n\nThe system will attempt permanent deletion; if the account has history (audit logs, messages, pharmacy records, etc.), it will be auto-disabled to preserve the audit trail.",
+      "adminWarning": "\n\n⚠️ This is an admin account."
+    }
+  },
+  "audit": {
+    "title": "Audit Log",
+    "subtitle": "Query system operations and access records",
+    "refresh": "Refresh",
+    "stats": {
+      "todayTotal": "Today's Operations",
+      "successful": "Successful",
+      "failed": "Failed",
+      "activeUsers": "Active Users"
+    },
+    "list": {
+      "title": "Audit Log List",
+      "description": "Detailed records of all system operations and access",
+      "searchPlaceholder": "Search user, action, or target...",
+      "colTime": "Time",
+      "colUser": "User",
+      "colRole": "Role",
+      "colAction": "Action",
+      "colTarget": "Target",
+      "colStatus": "Status",
+      "colIp": "IP Address",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "pageOf": "Page {{page}} of {{total}}",
+      "loading": "Loading...",
+      "reload": "Reload",
+      "empty": "No audit records match the criteria",
+      "loadFail": "Failed to load audit log; please retry"
+    },
+    "status": {
+      "success": "Success",
+      "failed": "Failed"
+    },
+    "roleLabel": {
+      "admin": "System Admin",
+      "doctor": "Physician",
+      "np": "Nurse Practitioner",
+      "nurse": "Nurse",
+      "pharmacist": "Pharmacist"
+    }
+  },
+  "stats": {
+    "title": "Pharmacy Statistics (Admin)",
+    "subtitle": "Medication advice intervention records and statistics (by month)",
+    "selectMonth": "Select Month",
+    "monthLabel": "{{year}}-{{month}}",
+    "loading": "Loading statistics...",
+    "errorTitle": "Load failed",
+    "errorMessage": "Could not load statistics; please verify the backend service is running",
+    "loadFail": "Failed to load statistics:",
+    "emptyTitle": "No medication advice interventions this month",
+    "emptyDesc": "Once pharmacists submit and categorize advice, statistics will be aggregated here automatically.",
+    "totalCard": "Total Interventions",
+    "monthlyTotal": "Monthly cumulative",
+    "subitemCount": "{{count}} subitem(s)",
+    "categoryDistribution": "Category Distribution",
+    "categoryDistributionDesc": "Counts across the four categories",
+    "doctorResponse": "Physician Response",
+    "monthlyAcceptRate": "This month's acceptance rate",
+    "acceptRate": "Accept rate",
+    "accepted": "Accepted",
+    "rejected": "Rejected",
+    "pending": "Pending",
+    "topCodes": "Top 10 Codes",
+    "topCodesDesc": "Sorted by this month's count",
+    "noCodesTitle": "No code statistics",
+    "noCodesDesc": "Statistics will be auto-aggregated once intervention records exist.",
+    "topPharmacists": "Top 10 Pharmacists",
+    "topPharmacistsDesc": "Sorted by this month's intervention count",
+    "noPharmacistTitle": "No pharmacist statistics",
+    "monthlyIntervention": "Monthly intervention",
+    "tooltipCount": "{{count}}"
+  },
+  "medNorm": {
+    "title": "Medication Normalization Dictionary",
+    "subtitle": "Manage route/frequency normalization rules (used by Layer2 builds)",
+    "reload": "Reload",
+    "save": "Save",
+    "routeAlias": "Route Alias",
+    "frequencyAlias": "Frequency Alias",
+    "version": "Version",
+    "rowCount": "{{count}} entries",
+    "dictEditor": "Dictionary Editor",
+    "dictEditorDesc": "Enter a valid JSON object; both keys and values must be strings.",
+    "fileLabel": "File: {{path}}",
+    "lastModifiedLabel": "Last modified: {{at}}",
+    "errors": {
+      "loadFail": "Failed to load medication normalization dictionary",
+      "jsonInvalid": "{{field}} has invalid JSON",
+      "mustBeObject": "{{field}} must be a JSON object",
+      "kvEmpty": "{{field}} key/value cannot be empty",
+      "versionEmpty": "Version cannot be empty",
+      "updateFail": "Update failed"
+    },
+    "toast": {
+      "updated": "Medication normalization dictionary updated"
+    }
+  }
+}

@@ -1,0 +1,194 @@
+{
+  "users": {
+    "title": "帳號與權限管理",
+    "subtitle": "管理系統使用者帳號、角色與權限設定",
+    "addUser": "新增帳號",
+    "stats": {
+      "total": "總帳號數",
+      "active": "啟用中",
+      "doctorCount": "醫師帳號",
+      "pharmacistCount": "藥師帳號"
+    },
+    "roleLabel": {
+      "admin": "系統管理員",
+      "doctor": "醫師",
+      "np": "專科護理師",
+      "nurse": "護理師",
+      "pharmacist": "藥師"
+    },
+    "active": "啟用中",
+    "inactive": "停用",
+    "list": {
+      "title": "帳號清單",
+      "description": "系統中所有使用者帳號的詳細資訊",
+      "filterAll": "全部 ({{count}})",
+      "filterActive": "啟用中 ({{count}})",
+      "filterInactive": "已停用 ({{count}})",
+      "searchPlaceholder": "搜尋帳號、姓名、單位...",
+      "colUsername": "帳號",
+      "colName": "姓名",
+      "colRole": "角色",
+      "colUnit": "單位",
+      "colEmail": "電子郵件",
+      "colStatus": "狀態",
+      "colLastLogin": "最後登入",
+      "colActions": "操作",
+      "loading": "載入中...",
+      "reload": "重新載入",
+      "empty": "沒有符合條件的帳號"
+    },
+    "actions": {
+      "cannotDisableSelf": "無法停用自己的帳號",
+      "disableThis": "停用此帳號",
+      "enableThis": "啟用此帳號",
+      "cannotDeleteSelf": "無法刪除自己的帳號",
+      "deleteThis": "刪除此帳號（無歷史紀錄則永久刪除，否則自動改為停用）"
+    },
+    "addDialog": {
+      "title": "新增帳號",
+      "description": "建立新的系統使用者帳號，請填寫以下資訊",
+      "usernameLabel": "帳號 *",
+      "usernamePlaceholder": "例如：nurse.wang",
+      "nameLabel": "姓名 *",
+      "namePlaceholder": "例如：王美玲",
+      "passwordLabel": "密碼 *",
+      "passwordPlaceholder": "請輸入密碼",
+      "passwordHint": "至少 12 字元，須包含大寫、小寫、數字及特殊字元",
+      "roleLabel": "角色 *",
+      "unitLabel": "單位",
+      "unitPlaceholder": "例如：內科加護病房",
+      "emailLabel": "電子郵件",
+      "emailPlaceholder": "例如：wang@hospital.com",
+      "cancel": "取消",
+      "creating": "建立中...",
+      "create": "建立帳號"
+    },
+    "editDialog": {
+      "title": "編輯帳號",
+      "description": "修改帳號 {{username}} 的資訊",
+      "nameLabel": "姓名",
+      "roleLabel": "角色",
+      "unitLabel": "單位",
+      "emailLabel": "電子郵件",
+      "cancel": "取消",
+      "saving": "儲存中...",
+      "save": "儲存變更"
+    },
+    "toast": {
+      "requireFields": "請填寫所有必填欄位",
+      "createdWith": "帳號 {{username}} 已建立",
+      "createFail": "建立帳號失敗",
+      "updated": "帳號資料已更新",
+      "updateFail": "更新帳號失敗",
+      "toggledEnabled": "已啟用帳號 {{username}}",
+      "toggledDisabled": "已停用帳號 {{username}}",
+      "toggleFail": "更新狀態失敗",
+      "deletedWith": "已刪除帳號 {{username}}",
+      "deletedSoftWith": "{{username}} 有歷史紀錄，已改為停用",
+      "deleteFail": "刪除帳號失敗",
+      "loadFail": "載入用戶列表失敗，請稍後重試"
+    },
+    "deleteConfirm": {
+      "prompt": "確定要刪除帳號「{{name}}（{{username}}）」嗎？\n\n系統會嘗試永久刪除；若帳號有歷史紀錄（稽核日誌、訊息、藥事建議等），會自動改為停用以保留稽核軌跡。",
+      "adminWarning": "\n\n⚠️ 這是管理員帳號。"
+    }
+  },
+  "audit": {
+    "title": "稽核紀錄",
+    "subtitle": "系統操作與存取記錄查詢",
+    "refresh": "重新整理",
+    "stats": {
+      "todayTotal": "今日總操作",
+      "successful": "成功操作",
+      "failed": "失敗操作",
+      "activeUsers": "活躍用戶"
+    },
+    "list": {
+      "title": "稽核記錄列表",
+      "description": "所有系統操作與存取的詳細記錄",
+      "searchPlaceholder": "搜尋用戶、操作或目標...",
+      "colTime": "時間",
+      "colUser": "用戶",
+      "colRole": "角色",
+      "colAction": "操作",
+      "colTarget": "目標",
+      "colStatus": "狀態",
+      "colIp": "IP 位址",
+      "prevPage": "上一頁",
+      "nextPage": "下一頁",
+      "pageOf": "第 {{page}} / {{total}} 頁",
+      "loading": "載入中...",
+      "reload": "重新載入",
+      "empty": "沒有符合條件的稽核記錄",
+      "loadFail": "載入稽核紀錄失敗，請稍後重試"
+    },
+    "status": {
+      "success": "成功",
+      "failed": "失敗"
+    },
+    "roleLabel": {
+      "admin": "系統管理員",
+      "doctor": "醫師",
+      "np": "專科護理師",
+      "nurse": "護理師",
+      "pharmacist": "藥師"
+    }
+  },
+  "stats": {
+    "title": "藥事統計（管理者）",
+    "subtitle": "用藥建議介入紀錄與統計（依月份）",
+    "selectMonth": "選擇月份",
+    "monthLabel": "{{year}} 年 {{month}} 月",
+    "loading": "載入統計資料中...",
+    "errorTitle": "載入失敗",
+    "errorMessage": "無法載入統計資料，請確認後端服務是否正常運行",
+    "loadFail": "載入統計資料失敗:",
+    "emptyTitle": "本月尚無用藥建議介入記錄",
+    "emptyDesc": "當藥師送出用藥建議並完成分類後，這裡會自動彙總統計。",
+    "totalCard": "總介入數",
+    "monthlyTotal": "本月累計",
+    "subitemCount": "{{count}} 細項",
+    "categoryDistribution": "類別分佈",
+    "categoryDistributionDesc": "四大類介入數量",
+    "doctorResponse": "醫師回應統計",
+    "monthlyAcceptRate": "本月建議接受率",
+    "acceptRate": "接受率",
+    "accepted": "已接受",
+    "rejected": "未接受",
+    "pending": "未填",
+    "topCodes": "Top 10 介入代碼",
+    "topCodesDesc": "依本月數量排序",
+    "noCodesTitle": "尚無代碼統計",
+    "noCodesDesc": "建立用藥建議介入記錄後會自動統計。",
+    "topPharmacists": "Top 10 藥師",
+    "topPharmacistsDesc": "依本月介入數量排序",
+    "noPharmacistTitle": "尚無藥師統計",
+    "monthlyIntervention": "本月介入",
+    "tooltipCount": "{{count}} 筆"
+  },
+  "medNorm": {
+    "title": "用藥標準化字典",
+    "subtitle": "管理 route/frequency 正規化規則（Layer2 建置使用）",
+    "reload": "重新載入",
+    "save": "儲存",
+    "routeAlias": "Route Alias",
+    "frequencyAlias": "Frequency Alias",
+    "version": "版本",
+    "rowCount": "{{count}} 條",
+    "dictEditor": "字典編輯",
+    "dictEditorDesc": "請輸入合法 JSON object，key/value 皆為字串。",
+    "fileLabel": "檔案：{{path}}",
+    "lastModifiedLabel": "最後更新：{{at}}",
+    "errors": {
+      "loadFail": "載入用藥標準化字典失敗",
+      "jsonInvalid": "{{field}} JSON 格式錯誤",
+      "mustBeObject": "{{field}} 必須是 JSON 物件",
+      "kvEmpty": "{{field}} key/value 不可為空",
+      "versionEmpty": "version 不可為空",
+      "updateFail": "更新失敗"
+    },
+    "toast": {
+      "updated": "用藥標準化字典已更新"
+    }
+  }
+}

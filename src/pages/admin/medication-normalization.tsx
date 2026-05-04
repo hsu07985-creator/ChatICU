@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '../../i18n/config';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -24,11 +26,11 @@ function parseAliasJson(raw: string, fieldName: string): Record<string, string> 
   try {
     parsed = JSON.parse(raw);
   } catch (error) {
-    throw new Error(`${fieldName} JSON 格式錯誤`);
+    throw new Error(i18n.t('admin:medNorm.errors.jsonInvalid', { field: fieldName }));
   }
 
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error(`${fieldName} 必須是 JSON 物件`);
+    throw new Error(i18n.t('admin:medNorm.errors.mustBeObject', { field: fieldName }));
   }
 
   const out: Record<string, string> = {};
@@ -36,7 +38,7 @@ function parseAliasJson(raw: string, fieldName: string): Record<string, string> 
     const key = String(k || '').trim();
     const value = String(v ?? '').trim();
     if (!key || !value) {
-      throw new Error(`${fieldName} key/value 不可為空`);
+      throw new Error(i18n.t('admin:medNorm.errors.kvEmpty', { field: fieldName }));
     }
     out[key] = value;
   }
@@ -44,6 +46,7 @@ function parseAliasJson(raw: string, fieldName: string): Record<string, string> 
 }
 
 export function MedicationNormalizationPage() {
+  const { t } = useTranslation('admin');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +65,7 @@ export function MedicationNormalizationPage() {
       setRouteAliasesText(toPrettyJson(data.routeAliases));
       setFrequencyAliasesText(toPrettyJson(data.frequencyAliases));
     } catch (err) {
-      setError(getApiErrorMessage(err, '載入用藥標準化字典失敗'));
+      setError(getApiErrorMessage(err, t('medNorm.errors.loadFail')));
     } finally {
       setLoading(false);
     }
@@ -87,7 +90,7 @@ export function MedicationNormalizationPage() {
       const frequencyAliases = parseAliasJson(frequencyAliasesText, 'frequencyAliases');
       const normalizedVersion = version.trim();
       if (!normalizedVersion) {
-        toast.error('version 不可為空');
+        toast.error(t('medNorm.errors.versionEmpty'));
         return;
       }
 
@@ -101,9 +104,9 @@ export function MedicationNormalizationPage() {
       setVersion(data.version);
       setRouteAliasesText(toPrettyJson(data.routeAliases));
       setFrequencyAliasesText(toPrettyJson(data.frequencyAliases));
-      toast.success('用藥標準化字典已更新');
+      toast.success(t('medNorm.toast.updated'));
     } catch (err) {
-      const message = err instanceof Error ? err.message : getApiErrorMessage(err, '更新失敗');
+      const message = err instanceof Error ? err.message : getApiErrorMessage(err, t('medNorm.errors.updateFail'));
       toast.error(message);
     } finally {
       setSaving(false);
@@ -114,17 +117,17 @@ export function MedicationNormalizationPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">用藥標準化字典</h1>
-          <p className="text-muted-foreground text-sm mt-1">管理 route/frequency 正規化規則（Layer2 建置使用）</p>
+          <h1 className="text-2xl font-bold">{t('medNorm.title')}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t('medNorm.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={loadConfig} disabled={loading || saving}>
             <RefreshCw className="mr-2 h-4 w-4" />
-            重新載入
+            {t('medNorm.reload')}
           </Button>
           <Button onClick={handleSave} disabled={loading || saving || !hasLocalChange} className="bg-brand hover:bg-brand-hover">
             <Save className="mr-2 h-4 w-4" />
-            儲存
+            {t('medNorm.save')}
           </Button>
         </div>
       </div>
@@ -138,23 +141,23 @@ export function MedicationNormalizationPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Route Alias</CardTitle>
+            <CardTitle className="text-base">{t('medNorm.routeAlias')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <Badge variant="outline">{config?.routeAliasCount ?? 0} 條</Badge>
+            <Badge variant="outline">{t('medNorm.rowCount', { count: config?.routeAliasCount ?? 0 })}</Badge>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Frequency Alias</CardTitle>
+            <CardTitle className="text-base">{t('medNorm.frequencyAlias')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <Badge variant="outline">{config?.frequencyAliasCount ?? 0} 條</Badge>
+            <Badge variant="outline">{t('medNorm.rowCount', { count: config?.frequencyAliasCount ?? 0 })}</Badge>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">版本</CardTitle>
+            <CardTitle className="text-base">{t('medNorm.version')}</CardTitle>
           </CardHeader>
           <CardContent>
             <Badge className="bg-brand text-white">{config?.version || '-'}</Badge>
@@ -166,9 +169,9 @@ export function MedicationNormalizationPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <FileJson className="h-5 w-5 text-brand" />
-            字典編輯
+            {t('medNorm.dictEditor')}
           </CardTitle>
-          <CardDescription>請輸入合法 JSON object，key/value 皆為字串。</CardDescription>
+          <CardDescription>{t('medNorm.dictEditorDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -203,8 +206,8 @@ export function MedicationNormalizationPage() {
             </div>
           </div>
           <div className="text-xs text-muted-foreground">
-            <div>檔案：{config?.filePath || '-'}</div>
-            <div>最後更新：{config?.modifiedAt || '-'}</div>
+            <div>{t('medNorm.fileLabel', { path: config?.filePath || '-' })}</div>
+            <div>{t('medNorm.lastModifiedLabel', { at: config?.modifiedAt || '-' })}</div>
           </div>
         </CardContent>
       </Card>

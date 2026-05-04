@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '../../i18n/config';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { getUsers, createUser, updateUser as updateUserApi, deleteUser as deleteUserApi, UsersResponse, User as ApiUser } from '../../lib/api/admin';
 import { useAuth } from '../../lib/auth-context';
@@ -62,6 +64,7 @@ type StatusFilter = 'all' | 'active' | 'inactive';
 export function UsersPage() {
   const { user: currentUser } = useAuth();
   const currentUserId = currentUser?.id;
+  const { t } = useTranslation('admin');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -88,8 +91,8 @@ export function UsersPage() {
       const data = await getUsers();
       setApiData(data);
     } catch (err: unknown) {
-      console.error('載入用戶列表失敗:', err);
-      setError(getApiErrorMessage(err, '載入用戶列表失敗，請稍後重試'));
+      console.error('users load failed:', err);
+      setError(getApiErrorMessage(err, t('users.toast.loadFail')));
     } finally {
       setLoading(false);
     }
@@ -127,14 +130,15 @@ export function UsersPage() {
 
   const getRoleBadge = (role: User['role']) => {
     const config = {
-      admin: { label: '系統管理員', color: 'bg-brand text-white', icon: ShieldCheck },
-      doctor: { label: '醫師', color: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200', icon: Shield },
-      np: { label: '專科護理師', color: 'bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200', icon: Shield },
-      nurse: { label: '護理師', color: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200', icon: Shield },
-      pharmacist: { label: '藥師', color: 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200', icon: Shield }
+      admin: { color: 'bg-brand text-white', icon: ShieldCheck },
+      doctor: { color: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200', icon: Shield },
+      np: { color: 'bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200', icon: Shield },
+      nurse: { color: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200', icon: Shield },
+      pharmacist: { color: 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200', icon: Shield }
     };
 
-    const { label, color, icon: Icon } = config[role];
+    const { color, icon: Icon } = config[role];
+    const label = t(`users.roleLabel.${role}`);
     return (
       <Badge className={color}>
         <Icon className="h-3.5 w-3.5 mr-1" />
@@ -148,14 +152,14 @@ export function UsersPage() {
       return (
         <Badge variant="outline" className="bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800">
           <Unlock className="h-3.5 w-3.5 mr-1" />
-          啟用中
+          {t('users.active')}
         </Badge>
       );
     }
     return (
       <Badge variant="outline" className="bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-slate-700">
         <Lock className="h-3.5 w-3.5 mr-1" />
-        停用
+        {t('users.inactive')}
       </Badge>
     );
   };
@@ -166,7 +170,7 @@ export function UsersPage() {
 
   const handleAddUser = async () => {
     if (!newUser.username || !newUser.name || !newUser.password) {
-      toast.error('請填寫所有必填欄位');
+      toast.error(t('users.toast.requireFields'));
       return;
     }
 
@@ -181,7 +185,7 @@ export function UsersPage() {
         email: newUser.email
       });
 
-      toast.success(`帳號 ${result.username} 已建立`);
+      toast.success(t('users.toast.createdWith', { username: result.username }));
       setIsAddDialogOpen(false);
       setNewUser({
         username: '',
@@ -194,7 +198,7 @@ export function UsersPage() {
       // 重新載入數據
       await loadData();
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, '建立帳號失敗'));
+      toast.error(getApiErrorMessage(error, t('users.toast.createFail')));
     } finally {
       setSubmitting(false);
     }
@@ -212,13 +216,13 @@ export function UsersPage() {
         email: selectedUser.email
       });
 
-      toast.success('帳號資料已更新');
+      toast.success(t('users.toast.updated'));
       setIsEditDialogOpen(false);
       setSelectedUser(null);
       // 重新載入數據
       await loadData();
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, '更新帳號失敗'));
+      toast.error(getApiErrorMessage(error, t('users.toast.updateFail')));
     } finally {
       setSubmitting(false);
     }
@@ -233,10 +237,10 @@ export function UsersPage() {
     setTogglingUserId(userId);
     try {
       await updateUserApi(userId, { active: newActive });
-      toast.success(`已${newActive ? '啟用' : '停用'}帳號 ${user.username}`);
+      toast.success(newActive ? t('users.toast.toggledEnabled', { username: user.username }) : t('users.toast.toggledDisabled', { username: user.username }));
       await loadData();
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, '更新狀態失敗'));
+      toast.error(getApiErrorMessage(error, t('users.toast.toggleFail')));
     } finally {
       setTogglingUserId(null);
     }
@@ -246,24 +250,20 @@ export function UsersPage() {
     const user = users.find(u => u.id === userId);
     if (!user) return;
 
-    const adminWarning = user.role === 'admin' ? '\n\n⚠️ 這是管理員帳號。' : '';
-    if (!confirm(
-      `確定要刪除帳號「${user.name}（${user.username}）」嗎？\n\n` +
-      '系統會嘗試永久刪除；若帳號有歷史紀錄（稽核日誌、訊息、藥事建議等），' +
-      '會自動改為停用以保留稽核軌跡。' + adminWarning
-    )) return;
+    const adminWarning = user.role === 'admin' ? t('users.deleteConfirm.adminWarning') : '';
+    if (!confirm(t('users.deleteConfirm.prompt', { name: user.name, username: user.username }) + adminWarning)) return;
 
     setDeletingUserId(userId);
     try {
       const result = await deleteUserApi(userId);
       if (result.hardDeleted) {
-        toast.success(`已刪除帳號 ${user.username}`);
+        toast.success(t('users.toast.deletedWith', { username: user.username }));
       } else {
-        toast.success(result.message || `${user.username} 有歷史紀錄，已改為停用`);
+        toast.success(result.message || t('users.toast.deletedSoftWith', { username: user.username }));
       }
       await loadData();
     } catch (error: unknown) {
-      toast.error(getApiErrorMessage(error, '刪除帳號失敗'));
+      toast.error(getApiErrorMessage(error, t('users.toast.deleteFail')));
     } finally {
       setDeletingUserId(null);
     }
@@ -273,15 +273,15 @@ export function UsersPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">帳號與權限管理</h1>
-          <p className="text-muted-foreground text-sm mt-1">管理系統使用者帳號、角色與權限設定</p>
+          <h1 className="text-2xl font-bold">{t('users.title')}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t('users.subtitle')}</p>
         </div>
         <Button
           onClick={() => setIsAddDialogOpen(true)}
           className="bg-brand hover:bg-brand-hover"
         >
           <Plus className="mr-2 h-4 w-4" />
-          新增帳號
+          {t('users.addUser')}
         </Button>
       </div>
 
@@ -289,7 +289,7 @@ export function UsersPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base text-muted-foreground">總帳號數</CardTitle>
+            <CardTitle className="text-base text-muted-foreground">{t('users.stats.total')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-brand">{userStats.total}</div>
@@ -297,7 +297,7 @@ export function UsersPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base text-muted-foreground">啟用中</CardTitle>
+            <CardTitle className="text-base text-muted-foreground">{t('users.stats.active')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-600">{userStats.active}</div>
@@ -305,7 +305,7 @@ export function UsersPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base text-muted-foreground">醫師帳號</CardTitle>
+            <CardTitle className="text-base text-muted-foreground">{t('users.stats.doctorCount')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-blue-600">{userStats.byRole.doctor}</div>
@@ -313,7 +313,7 @@ export function UsersPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base text-muted-foreground">藥師帳號</CardTitle>
+            <CardTitle className="text-base text-muted-foreground">{t('users.stats.pharmacistCount')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-purple-600">{userStats.byRole.pharmacist}</div>
@@ -328,18 +328,18 @@ export function UsersPage() {
             <div>
               <CardTitle className="flex items-center gap-2 text-xl">
                 <UserCog className="h-6 w-6 text-brand" />
-                帳號清單
+                {t('users.list.title')}
               </CardTitle>
               <CardDescription className="text-sm mt-2">
-                系統中所有使用者帳號的詳細資訊
+                {t('users.list.description')}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <div className="inline-flex rounded-md border border-slate-200 dark:border-slate-700 overflow-hidden text-xs">
                 {([
-                  { key: 'all', label: `全部 (${users.length})` },
-                  { key: 'active', label: `啟用中 (${users.filter(u => u.active).length})` },
-                  { key: 'inactive', label: `已停用 (${users.filter(u => !u.active).length})` },
+                  { key: 'all', label: t('users.list.filterAll', { count: users.length }) },
+                  { key: 'active', label: t('users.list.filterActive', { count: users.filter(u => u.active).length }) },
+                  { key: 'inactive', label: t('users.list.filterInactive', { count: users.filter(u => !u.active).length }) },
                 ] as const).map(({ key, label }) => (
                   <button
                     key={key}
@@ -359,7 +359,7 @@ export function UsersPage() {
               <div className="w-[300px] relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="搜尋帳號、姓名、單位..."
+                  placeholder={t('users.list.searchPlaceholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -372,14 +372,14 @@ export function UsersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>帳號</TableHead>
-                <TableHead>姓名</TableHead>
-                <TableHead>角色</TableHead>
-                <TableHead>單位</TableHead>
-                <TableHead>電子郵件</TableHead>
-                <TableHead>狀態</TableHead>
-                <TableHead>最後登入</TableHead>
-                <TableHead className="text-right">操作</TableHead>
+                <TableHead>{t('users.list.colUsername')}</TableHead>
+                <TableHead>{t('users.list.colName')}</TableHead>
+                <TableHead>{t('users.list.colRole')}</TableHead>
+                <TableHead>{t('users.list.colUnit')}</TableHead>
+                <TableHead>{t('users.list.colEmail')}</TableHead>
+                <TableHead>{t('users.list.colStatus')}</TableHead>
+                <TableHead>{t('users.list.colLastLogin')}</TableHead>
+                <TableHead className="text-right">{t('users.list.colActions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -391,7 +391,7 @@ export function UsersPage() {
                   <TableCell className="text-sm text-muted-foreground">{user.unit}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
                   <TableCell>{getStatusBadge(user.active)}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{user.lastLogin ? new Date(user.lastLogin).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{user.lastLogin ? new Date(user.lastLogin).toLocaleString(i18n.language, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-1 justify-end">
                       <Button
@@ -411,7 +411,7 @@ export function UsersPage() {
                           size="sm"
                           onClick={() => void handleToggleStatus(user.id)}
                           disabled={user.id === currentUserId || togglingUserId === user.id}
-                          title={user.id === currentUserId ? '無法停用自己的帳號' : (user.active ? '停用此帳號' : '啟用此帳號')}
+                          title={user.id === currentUserId ? t('users.actions.cannotDisableSelf') : (user.active ? t('users.actions.disableThis') : t('users.actions.enableThis'))}
                         >
                           {user.active ? (
                             <Lock className="h-4 w-4" />
@@ -427,7 +427,7 @@ export function UsersPage() {
                           size="sm"
                           onClick={() => void handleDeleteUser(user.id)}
                           disabled={user.id === currentUserId || deletingUserId === user.id}
-                          title={user.id === currentUserId ? '無法刪除自己的帳號' : '刪除此帳號（無歷史紀錄則永久刪除，否則自動改為停用）'}
+                          title={user.id === currentUserId ? t('users.actions.cannotDeleteSelf') : t('users.actions.deleteThis')}
                           className="text-red-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -443,7 +443,7 @@ export function UsersPage() {
 
           {loading && (
             <div className="text-center py-12 text-muted-foreground">
-              <p>載入中...</p>
+              <p>{t('users.list.loading')}</p>
             </div>
           )}
 
@@ -452,14 +452,14 @@ export function UsersPage() {
               <ShieldAlert className="h-12 w-12 mx-auto mb-4 text-red-400" />
               <p className="text-red-600 font-medium">{error}</p>
               <Button variant="outline" className="mt-4" onClick={loadData}>
-                重新載入
+                {t('users.list.reload')}
               </Button>
             </div>
           )}
 
           {!loading && !error && filteredUsers.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
-              <p>沒有符合條件的帳號</p>
+              <p>{t('users.list.empty')}</p>
             </div>
           )}
         </CardContent>
@@ -471,83 +471,83 @@ export function UsersPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5 text-brand" />
-              新增帳號
+              {t('users.addDialog.title')}
             </DialogTitle>
             <DialogDescription>
-              建立新的系統使用者帳號，請填寫以下資訊
+              {t('users.addDialog.description')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="new-username">帳號 *</Label>
+              <Label htmlFor="new-username">{t('users.addDialog.usernameLabel')}</Label>
               <Input
                 id="new-username"
                 value={newUser.username}
                 onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                placeholder="例如：nurse.wang"
+                placeholder={t('users.addDialog.usernamePlaceholder')}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="new-name">姓名 *</Label>
+              <Label htmlFor="new-name">{t('users.addDialog.nameLabel')}</Label>
               <Input
                 id="new-name"
                 value={newUser.name}
                 onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                placeholder="例如：王美玲"
+                placeholder={t('users.addDialog.namePlaceholder')}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="new-password">密碼 *</Label>
+              <Label htmlFor="new-password">{t('users.addDialog.passwordLabel')}</Label>
               <Input
                 id="new-password"
                 type="password"
                 value={newUser.password}
                 onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                placeholder="請輸入密碼"
+                placeholder={t('users.addDialog.passwordPlaceholder')}
               />
-              <p className="text-xs text-muted-foreground">至少 12 字元，須包含大寫、小寫、數字及特殊字元</p>
+              <p className="text-xs text-muted-foreground">{t('users.addDialog.passwordHint')}</p>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="new-role">角色 *</Label>
+              <Label htmlFor="new-role">{t('users.addDialog.roleLabel')}</Label>
               <Select value={newUser.role} onValueChange={(value: any) => setNewUser({ ...newUser, role: value })}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="doctor">醫師</SelectItem>
-                  <SelectItem value="np">專科護理師</SelectItem>
-                  <SelectItem value="nurse">護理師</SelectItem>
-                  <SelectItem value="pharmacist">藥師</SelectItem>
-                  <SelectItem value="admin">系統管理員</SelectItem>
+                  <SelectItem value="doctor">{t('users.roleLabel.doctor')}</SelectItem>
+                  <SelectItem value="np">{t('users.roleLabel.np')}</SelectItem>
+                  <SelectItem value="nurse">{t('users.roleLabel.nurse')}</SelectItem>
+                  <SelectItem value="pharmacist">{t('users.roleLabel.pharmacist')}</SelectItem>
+                  <SelectItem value="admin">{t('users.roleLabel.admin')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="new-unit">單位</Label>
+              <Label htmlFor="new-unit">{t('users.addDialog.unitLabel')}</Label>
               <Input
                 id="new-unit"
                 value={newUser.unit}
                 onChange={(e) => setNewUser({ ...newUser, unit: e.target.value })}
-                placeholder="例如：內科加護病房"
+                placeholder={t('users.addDialog.unitPlaceholder')}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="new-email">電子郵件</Label>
+              <Label htmlFor="new-email">{t('users.addDialog.emailLabel')}</Label>
               <Input
                 id="new-email"
                 type="email"
                 value={newUser.email}
                 onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                placeholder="例如：wang@hospital.com"
+                placeholder={t('users.addDialog.emailPlaceholder')}
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={submitting}>
-              取消
+              {t('users.addDialog.cancel')}
             </Button>
             <Button onClick={handleAddUser} className="bg-brand hover:bg-brand-hover" disabled={submitting}>
-              {submitting ? '建立中...' : '建立帳號'}
+              {submitting ? t('users.addDialog.creating') : t('users.addDialog.create')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -560,15 +560,15 @@ export function UsersPage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Edit2 className="h-5 w-5 text-brand" />
-                編輯帳號
+                {t('users.editDialog.title')}
               </DialogTitle>
               <DialogDescription>
-                修改帳號 {selectedUser.username} 的資訊
+                {t('users.editDialog.description', { username: selectedUser.username })}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="edit-name">姓名</Label>
+                <Label htmlFor="edit-name">{t('users.editDialog.nameLabel')}</Label>
                 <Input
                   id="edit-name"
                   value={selectedUser.name}
@@ -576,7 +576,7 @@ export function UsersPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="edit-role">角色</Label>
+                <Label htmlFor="edit-role">{t('users.editDialog.roleLabel')}</Label>
                 <Select
                   value={selectedUser.role}
                   onValueChange={(value: any) => setSelectedUser({ ...selectedUser, role: value })}
@@ -586,16 +586,16 @@ export function UsersPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="doctor">醫師</SelectItem>
-                    <SelectItem value="np">專科護理師</SelectItem>
-                    <SelectItem value="nurse">護理師</SelectItem>
-                    <SelectItem value="pharmacist">藥師</SelectItem>
-                    <SelectItem value="admin">系統管理員</SelectItem>
+                    <SelectItem value="doctor">{t('users.roleLabel.doctor')}</SelectItem>
+                    <SelectItem value="np">{t('users.roleLabel.np')}</SelectItem>
+                    <SelectItem value="nurse">{t('users.roleLabel.nurse')}</SelectItem>
+                    <SelectItem value="pharmacist">{t('users.roleLabel.pharmacist')}</SelectItem>
+                    <SelectItem value="admin">{t('users.roleLabel.admin')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="edit-unit">單位</Label>
+                <Label htmlFor="edit-unit">{t('users.editDialog.unitLabel')}</Label>
                 <Input
                   id="edit-unit"
                   value={selectedUser.unit}
@@ -603,7 +603,7 @@ export function UsersPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="edit-email">電子郵件</Label>
+                <Label htmlFor="edit-email">{t('users.editDialog.emailLabel')}</Label>
                 <Input
                   id="edit-email"
                   type="email"
@@ -614,10 +614,10 @@ export function UsersPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={submitting}>
-                取消
+                {t('users.editDialog.cancel')}
               </Button>
               <Button onClick={handleEditUser} className="bg-brand hover:bg-brand-hover" disabled={submitting}>
-                {submitting ? '儲存中...' : '儲存變更'}
+                {submitting ? t('users.editDialog.saving') : t('users.editDialog.save')}
               </Button>
             </DialogFooter>
           </DialogContent>

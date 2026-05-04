@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Badge } from '../../components/ui/badge';
@@ -9,6 +10,7 @@ import { getAdviceRecordStats, type AdviceRecordStats } from '../../lib/api/phar
 import { PHARMACY_ADVICE_CATEGORIES, PHARMACY_ADVICE_CATEGORY_COLORS } from '../../lib/pharmacy-master-data';
 
 export function AdminStatisticsPage() {
+  const { t } = useTranslation('admin');
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState<string>(
     `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
@@ -22,12 +24,12 @@ export function AdminStatisticsPage() {
     for (let i = 0; i < 12; i++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
       const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const label = `${date.getFullYear()} 年 ${date.getMonth() + 1} 月`;
+      const label = t('stats.monthLabel', { year: date.getFullYear(), month: date.getMonth() + 1 });
       options.push({ value, label });
     }
     return options;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [t]);
 
   const loadStats = useCallback(async () => {
     try {
@@ -36,8 +38,8 @@ export function AdminStatisticsPage() {
       const resp = await getAdviceRecordStats({ month: selectedMonth });
       setStats(resp);
     } catch (err) {
-      console.error('載入統計資料失敗:', err);
-      setError('無法載入統計資料，請確認後端服務是否正常運行');
+      console.error(t('stats.loadFail'), err);
+      setError(t('stats.errorMessage'));
       setStats(null);
     } finally {
       setLoading(false);
@@ -82,8 +84,8 @@ export function AdminStatisticsPage() {
   if (loading) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold">藥事統計（管理者）</h1>
-        <LoadingSpinner text="載入統計資料中..." />
+        <h1 className="text-2xl font-bold">{t('stats.title')}</h1>
+        <LoadingSpinner text={t('stats.loading')} />
       </div>
     );
   }
@@ -91,10 +93,10 @@ export function AdminStatisticsPage() {
   if (error) {
     return (
       <div className="p-6">
-        <h1 className="text-2xl font-bold">藥事統計（管理者）</h1>
+        <h1 className="text-2xl font-bold">{t('stats.title')}</h1>
         <ErrorDisplay
           type="server"
-          title="載入失敗"
+          title={t('stats.errorTitle')}
           message={error}
           onRetry={loadStats}
         />
@@ -106,16 +108,16 @@ export function AdminStatisticsPage() {
     return (
       <div className="p-6 space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">藥事統計（管理者）</h1>
-          <p className="text-muted-foreground text-sm mt-1">用藥建議介入紀錄與統計（依月份）</p>
+          <h1 className="text-2xl font-bold">{t('stats.title')}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t('stats.subtitle')}</p>
         </div>
 
         <Card>
           <CardContent className="pt-4">
-            <label className="text-sm font-medium mb-2 block">選擇月份</label>
+            <label className="text-sm font-medium mb-2 block">{t('stats.selectMonth')}</label>
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
               <SelectTrigger>
-                <SelectValue placeholder="選擇月份" />
+                <SelectValue placeholder={t('stats.selectMonth')} />
               </SelectTrigger>
               <SelectContent>
                 {monthOptions.map((opt) => (
@@ -128,8 +130,8 @@ export function AdminStatisticsPage() {
 
         <EmptyState
           icon={BarChart3}
-          title="本月尚無用藥建議介入記錄"
-          description="當藥師送出用藥建議並完成分類後，這裡會自動彙總統計。"
+          title={t('stats.emptyTitle')}
+          description={t('stats.emptyDesc')}
         />
       </div>
     );
@@ -139,14 +141,14 @@ export function AdminStatisticsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">藥事統計（管理者）</h1>
-          <p className="text-muted-foreground text-sm mt-1">用藥建議介入紀錄與統計（依月份）</p>
+          <h1 className="text-2xl font-bold">{t('stats.title')}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t('stats.subtitle')}</p>
         </div>
         <div className="w-full max-w-[260px]">
-          <label className="text-sm font-medium mb-2 block">選擇月份</label>
+          <label className="text-sm font-medium mb-2 block">{t('stats.selectMonth')}</label>
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
             <SelectTrigger>
-              <SelectValue placeholder="選擇月份" />
+              <SelectValue placeholder={t('stats.selectMonth')} />
             </SelectTrigger>
             <SelectContent>
               {monthOptions.map((opt) => (
@@ -161,12 +163,12 @@ export function AdminStatisticsPage() {
       <div className="grid gap-4 md:grid-cols-5">
         <Card className="border-brand">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">總介入數</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('stats.totalCard')}</CardTitle>
             <TrendingUp className="h-5 w-5 text-brand" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-brand">{stats.total}</div>
-            <p className="text-xs text-muted-foreground mt-1">本月累計</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('stats.monthlyTotal')}</p>
           </CardContent>
         </Card>
 
@@ -175,14 +177,14 @@ export function AdminStatisticsPage() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{cat.label}</CardTitle>
               <Badge variant="outline" className="text-xs">
-                {(cat.codes || []).length} 細項
+                {t('stats.subitemCount', { count: (cat.codes || []).length })}
               </Badge>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold" style={{ color: PHARMACY_ADVICE_CATEGORY_COLORS[cat.label] || '#111' }}>
                 {categoryCountMap[cat.label] || 0}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">本月累計</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('stats.monthlyTotal')}</p>
             </CardContent>
           </Card>
         ))}
@@ -194,9 +196,9 @@ export function AdminStatisticsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-brand" />
-              類別分佈
+              {t('stats.categoryDistribution')}
             </CardTitle>
-            <CardDescription>四大類介入數量</CardDescription>
+            <CardDescription>{t('stats.categoryDistributionDesc')}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
@@ -220,9 +222,9 @@ export function AdminStatisticsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CircleDot className="h-5 w-5 text-brand" />
-              醫師回應統計
+              {t('stats.doctorResponse')}
             </CardTitle>
-            <CardDescription>本月建議接受率</CardDescription>
+            <CardDescription>{t('stats.monthlyAcceptRate')}</CardDescription>
           </CardHeader>
           <CardContent>
             {(() => {
@@ -239,21 +241,21 @@ export function AdminStatisticsPage() {
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <span className="text-3xl font-bold text-[#16a34a]">{rate}%</span>
-                      <span className="text-xs text-muted-foreground">接受率</span>
+                      <span className="text-xs text-muted-foreground">{t('stats.acceptRate')}</span>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-3 w-full text-center">
                     <div className="rounded-lg bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 py-2">
                       <div className="text-lg font-bold text-green-700 dark:text-green-300">{acc.accepted}</div>
-                      <div className="text-xs text-green-600 dark:text-green-400">已接受</div>
+                      <div className="text-xs text-green-600 dark:text-green-400">{t('stats.accepted')}</div>
                     </div>
                     <div className="rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 py-2">
                       <div className="text-lg font-bold text-red-700 dark:text-red-300">{acc.rejected}</div>
-                      <div className="text-xs text-red-600 dark:text-red-400">未接受</div>
+                      <div className="text-xs text-red-600 dark:text-red-400">{t('stats.rejected')}</div>
                     </div>
                     <div className="rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 py-2">
                       <div className="text-lg font-bold text-gray-600 dark:text-gray-400">{acc.pending}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">未填</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{t('stats.pending')}</div>
                     </div>
                   </div>
                 </div>
@@ -269,13 +271,13 @@ export function AdminStatisticsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Tag className="h-5 w-5 text-brand" />
-              Top 10 介入代碼
+              {t('stats.topCodes')}
             </CardTitle>
-            <CardDescription>依本月數量排序</CardDescription>
+            <CardDescription>{t('stats.topCodesDesc')}</CardDescription>
           </CardHeader>
           <CardContent>
             {topCodes.length === 0 ? (
-              <EmptyState icon={Tag} title="尚無代碼統計" description="建立用藥建議介入記錄後會自動統計。" />
+              <EmptyState icon={Tag} title={t('stats.noCodesTitle')} description={t('stats.noCodesDesc')} />
             ) : (
               <ResponsiveContainer width="100%" height={320}>
                 <BarChart data={topCodes} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
@@ -289,7 +291,7 @@ export function AdminStatisticsPage() {
                       return (
                         <div className="bg-white dark:bg-slate-900 border dark:border-slate-700 rounded-lg shadow-lg p-3 text-sm">
                           <p className="font-semibold">{d.name}</p>
-                          <p className="font-bold mt-1">{d.count} 筆</p>
+                          <p className="font-bold mt-1">{t('stats.tooltipCount', { count: d.count })}</p>
                         </div>
                       );
                     }}
@@ -310,13 +312,13 @@ export function AdminStatisticsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <UserIcon className="h-5 w-5 text-brand" />
-              Top 10 藥師
+              {t('stats.topPharmacists')}
             </CardTitle>
-            <CardDescription>依本月介入數量排序</CardDescription>
+            <CardDescription>{t('stats.topPharmacistsDesc')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {topPharmacists.length === 0 ? (
-              <EmptyState icon={UserIcon} title="尚無藥師統計" description="建立用藥建議介入記錄後會自動統計。" />
+              <EmptyState icon={UserIcon} title={t('stats.noPharmacistTitle')} description={t('stats.noCodesDesc')} />
             ) : (
               <div className="space-y-2">
                 {topPharmacists.map((p, idx) => (
@@ -325,7 +327,7 @@ export function AdminStatisticsPage() {
                       <Badge className="bg-brand text-white">{idx + 1}</Badge>
                       <div>
                         <div className="font-medium">{p.pharmacistName}</div>
-                        <div className="text-xs text-muted-foreground">本月介入</div>
+                        <div className="text-xs text-muted-foreground">{t('stats.monthlyIntervention')}</div>
                       </div>
                     </div>
                     <div className="text-2xl font-bold text-brand">{p.count}</div>
