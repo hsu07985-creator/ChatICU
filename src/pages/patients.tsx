@@ -424,7 +424,7 @@ export function PatientsPage() {
               <col style={{ width: '50px' }} />    {/* 隔離 */}
               <col style={{ width: '72px' }} />    {/* 插管 */}
               <col style={{ width: '50px' }} />    {/* 編輯 */}
-              <col style={{ width: '50px' }} />    {/* 出院 */}
+              <col style={{ width: '50px' }} />    {/* 轉出 */}
             </colgroup>
             <TableHeader>
               <TableRow>
@@ -441,7 +441,7 @@ export function PatientsPage() {
                 <TableHead className="text-center">{t('patients:list.table.isolation')}</TableHead>
                 <TableHead className="text-center">{t('patients:list.table.intubation')}</TableHead>
                 <TableHead className="text-center">{t('patients:list.table.edit')}</TableHead>
-                <TableHead className="text-center">{t('patients:list.table.discharge')}</TableHead>
+                <TableHead className="text-center">{t('patients:list.table.transferOut')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -527,7 +527,7 @@ export function PatientsPage() {
                           onClick={(e) => { e.stopPropagation(); handleOpenDischargeDialog(patient); }}
                           disabled={dischargingArchiveId === patient.id}
                           className="text-muted-foreground hover:text-brand hover:bg-slate-50 dark:hover:bg-slate-800"
-                          title={t('patients:list.dischargeTooltip')}
+                          title={t('patients:list.transferOutTooltip')}
                         >
                           <LogOut className="h-4 w-4" />
                         </Button>
@@ -559,7 +559,7 @@ export function PatientsPage() {
         isSaving={savingPatient}
       />
 
-      {/* 辦理出院對話框（per-row, soft discharge） */}
+      {/* 辦理轉出對話框（per-row, soft discharge） */}
       <PatientArchiveDialog
         open={dischargeDialogOpen}
         archivingPatient={!!dischargingArchiveId}

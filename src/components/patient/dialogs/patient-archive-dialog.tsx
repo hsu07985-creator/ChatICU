@@ -83,10 +83,10 @@ export function PatientArchiveDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Archive className="h-5 w-5 text-brand" />
-            {t('patients:archive.title')}
+            {t('patients:archive.transferOutTitle')}
           </DialogTitle>
           <DialogDescription>
-            {t('patients:archive.description')}
+            {t('patients:archive.transferOutDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -116,7 +116,7 @@ export function PatientArchiveDialog({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>{t('patients:archive.dischargeTypeLabel')}</Label>
+              <Label>{t('patients:archive.transferOutTypeLabel')}</Label>
               <Select value={dischargeType} onValueChange={(v) => setDischargeType(v as DischargeType)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -131,7 +131,7 @@ export function PatientArchiveDialog({
             </div>
 
             <div className="space-y-2">
-              <Label>{t('patients:archive.dischargeDateLabel')}</Label>
+              <Label>{t('patients:archive.transferOutDateLabel')}</Label>
               <Input
                 type="date"
                 value={dischargeDate}
@@ -167,7 +167,7 @@ export function PatientArchiveDialog({
             disabled={!canConfirm}
             className="bg-brand hover:bg-brand-hover"
           >
-            {archivingPatient ? t('patients:archive.submitting') : t('patients:archive.submit')}
+            {archivingPatient ? t('patients:archive.transferOutSubmitting') : t('patients:archive.transferOutSubmit')}
           </Button>
         </DialogFooter>
       </DialogContent>
