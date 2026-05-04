@@ -427,7 +427,7 @@ def call_llm(task: str, input_data: dict[str, Any], **kwargs) -> dict[str, Any]:
         return {"status": "error", "content": f"Unknown task: {task}", "metadata": {}}
 
     system_prompt = TASK_PROMPTS[task]
-    temperature = kwargs.get("temperature", settings.LLM_TEMPERATURE)
+    temperature = kwargs.get("temperature", 0.3)
     max_tokens = kwargs.get("max_tokens", settings.LLM_MAX_TOKENS)
     request_id = _normalize_trace_value(kwargs.get("request_id"))
     trace_id = _normalize_trace_value(kwargs.get("trace_id"))
@@ -487,7 +487,7 @@ def call_llm_multi_turn(
         return {"status": "error", "content": f"Unknown task: {task}", "metadata": {}}
 
     system_prompt = TASK_PROMPTS[task]
-    temperature = kwargs.get("temperature", settings.LLM_TEMPERATURE)
+    temperature = kwargs.get("temperature", 0.3)
     max_tokens = kwargs.get("max_tokens", settings.LLM_MAX_TOKENS)
     request_id = _normalize_trace_value(kwargs.get("request_id"))
     trace_id = _normalize_trace_value(kwargs.get("trace_id"))
@@ -643,7 +643,7 @@ async def _stream_openai(
     )
     create_kwargs.update(_build_openai_reasoning_param_block(
         task=task,
-        temperature=settings.LLM_TEMPERATURE,
+        temperature=0.3,
         disable_reasoning=disable_reasoning,
         icu_chat_skips_reasoning=True,
     ))
@@ -691,7 +691,7 @@ async def _stream_anthropic(
 
     async with client.messages.stream(
         model=settings.LLM_MODEL,
-        temperature=settings.LLM_TEMPERATURE,
+        temperature=0.3,
         max_tokens=max_tokens,
         system=system_prompt,
         messages=messages,
