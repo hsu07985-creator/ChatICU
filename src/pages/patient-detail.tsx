@@ -1706,6 +1706,7 @@ export function PatientDetailPage() {
           <Suspense fallback={<TabsContent value="meds" className="py-12"><LoadingSpinner size="lg" text={t('tabs.loading')} /></TabsContent>}>
             <PatientMedicationsTab
               patientId={id}
+              patient={patient}
               userRole={user?.role}
               medicationsLoading={medicationsLoading}
               nmbIndication={nmbIndication}

@@ -11,7 +11,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from app.middleware.auth import get_current_user
+from app.middleware.auth import require_roles
 from app.models.user import User
 
 router = APIRouter()
@@ -267,7 +267,7 @@ def _pad_calculate(req: PadCalculateRequest) -> PadCalculateResponse:
 # ── Endpoints ────────────────────────────────────────────────────────────
 
 @router.get("/pad-drugs")
-async def list_pad_drugs(user: User = Depends(get_current_user)):
+async def list_pad_drugs(user: User = Depends(require_roles("pharmacist", "admin"))):
     """List all 9 PAD drugs with default parameters."""
     return {
         "success": True,
@@ -290,7 +290,7 @@ async def list_pad_drugs(user: User = Depends(get_current_user)):
 
 
 @router.post("/pad-calculate")
-async def pad_calculate(req: PadCalculateRequest, user: User = Depends(get_current_user)):
+async def pad_calculate(req: PadCalculateRequest, user: User = Depends(require_roles("pharmacist", "admin"))):
     """Calculate PAD drug infusion rate (deterministic, no external service)."""
     result = _pad_calculate(req)
     return {
