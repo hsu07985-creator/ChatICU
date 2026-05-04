@@ -4,7 +4,7 @@
 > **配對術語表**：[`docs/i18n-medical-glossary.md`](i18n-medical-glossary.md)
 > **負責人**：Chun + Claude
 > **啟動日**：2026-05-04
-> **總進度**：🟢 7 / 8 Waves（W0+...+W6 全部完成 2026-05-05；W7 待開工）
+> **總進度**：🟢 8 / 8 Waves 全部完成（W0+...+W7 已上線 2026-05-05）
 
 ---
 
@@ -28,7 +28,7 @@
 | 5c | workstation + 2 子元件（assessment-results-panel + pharmacy-report-view） | 🟢 完成 | `feat/i18n-w5` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 5d | advice-statistics（含 SOAP tab + edit/delete dialog） | 🟢 完成 | `feat/i18n-w5` | 2026-05-04 | 🚀 personal+railway 已推 |
 | 6 | admin 4 頁（users + audit + statistics + medication-normalization） | 🟢 完成 | `feat/i18n-w6` | 2026-05-05 | 🚀 personal+railway 已推 |
-| 7 | lint 規則 + i18n-guide 文件 + 走查 | ⬜ 待開工 | — | — |
+| 7 | eslint-plugin-i18next + i18n-guide + locale audit | 🟢 完成 | `feat/i18n-w7` | 2026-05-05 | 🚀 personal+railway 已推 |
 
 > 狀態圖示：⬜ 待開工　🟡 進行中　🟢 完成　🔴 阻塞
 
@@ -262,11 +262,43 @@
 - **`toLocaleString('zh-TW')` → `i18n.language`**：users.tsx 最後登入時間、placeholder.tsx Intl.DateTimeFormat（含台北時區）改為跟隨當前語言
 - **JSON parse error message i18n**：medication-normalization.tsx 的 `throw new Error(...)` 用 `i18n.t()`（module-scope helper 不能用 hook）
 
-### Wave 7｜收尾
-- 安裝 `eslint-plugin-i18next`，設 `no-literal-string` rule
-- 寫 `docs/frontend/i18n-guide.md`（新增字串該放哪、複數寫法、插值範例）
-- 全站 EN 走查補漏字
-- 校稿後的醫療術語回填字典
+### Wave 7｜收尾（🟢 完成 2026-05-05）
+
+#### 已完成項目
+1. **`eslint-plugin-i18next` 接入** — 新增 `eslint.config.mjs`（flat config / ESLint v9）
+   - `i18next/no-literal-string` rule 設為 `warn`（不擋 CI）
+   - 排除 `src/i18n/locales/**`、`backend/**`、tests、`src/lib/api/**`
+   - 屬性 ignore：`className`、`style`、`type`、`id`、`role`、`href`、`data-*`、`aria-*`（部分）
+   - **`aria-label`/`placeholder`/`title` 故意不 ignore**（這些是真要翻的）
+   - npm scripts: `lint` / `lint:ci`（後者 max-warnings 9999）
+   - 目前狀態：247 messages → **239 warnings, 0 errors**
+
+2. **`docs/frontend/i18n-guide.md`**（254L / 1089 字）
+   - namespace 決策樹 + 命名慣例（`<ns>:<section>.<key>`、camelCase）
+   - hook vs `i18n.t()` 用法（含 W5c 子元件踩雷）
+   - 9 條常見錯誤對照表（從 W3-W6 踩雷紀錄萃取）
+   - 新增字串 / 新增 namespace 的 checklist
+
+3. **`docs/i18n-audit-2026-05-05.md`**（372L / 21.7KB）
+   - 20 namespace 中英對照 audit
+   - 結構：17/20 完全對稱；3 個 plural-form 不對稱（不擋）
+   - 翻譯品質：**0 個 P0 blocker**；~15 個 P1 建議（plural symmetry / 跨 ns 術語對齊）
+
+4. **修補 audit 找出的 key 命名 bug**
+   - `pharmacy.workstation.assess.advice.renalAbn` → `hepaticAbn`
+     （內容是肝功能異常，但 key 名稱錯寫成 renalAbn — W5d 引入的 bug）
+
+#### 未完成 / Followup（不擋 W7 收尾，待後續處理）
+- **239 lint warning 修補**：top 6 熱點檔吃掉 50%+
+  - `patient/dialogs/patient-create-dialog.tsx` (28)
+  - `patient/patients-list-card.tsx` (26)
+  - `pharmacy/interactions.tsx` (23)
+  - `patient/patient-messages-tab.tsx` (22)
+  - `pharmacist-soap-editor.tsx` (17)
+  - `pharmacy/compatibility.tsx` (15)
+- **15 個 P1 audit 建議**：plural-form 對稱、跨 namespace 術語統一（Attending、Admission Dx、age suffix `y/o` vs `y` 等）
+- **lint rule 升級為 error**：等 warning 清完 + 觀察一陣子穩定後再切換
+- **react-hooks plugin 啟用**：目前只裝了 stub（避免 disable directive 報 unknown rule），實際規則沒開
 
 ---
 
@@ -288,6 +320,7 @@
 | 2026-05-04 | W3a 部署 | commit `6889772c2`、`git push personal main` + `git push railway main` 兩邊都通 |
 | 2026-05-04 | W5c+W5d 落地 | commit `b85e1089a`：workstation 全套 + advice-statistics + ~75 strings via Python batch；typecheck pass；branch `feat/i18n-w5` merge 進 main，已 push personal+railway |
 | 2026-05-05 | W6 落地 | commit `81ab38ebc`：admin 4 頁 + 新 admin.json namespace（19 → 20 namespaces）；Python batch 53/55 hits + 2 手動補；typecheck pass；branch `feat/i18n-w6` merge 進 main，已 push personal+railway |
+| 2026-05-05 | W7 落地 | commit `e4046f22d`：3 個 sub-agent 平行執行（i18n-guide 寫作 / eslint-plugin-i18next 接入 / locale audit）；新增 eslint.config.mjs（flat config）+ 2 份 docs；audit 發現 0 個 P0 blocker；修 1 個 key 命名 bug（renalAbn → hepaticAbn）；branch `feat/i18n-w7` merge 進 main，已 push personal+railway |
 
 ---
 
