@@ -636,23 +636,31 @@ async def _stream_openai(
     api_messages = [{"role": "system", "content": system_prompt}]
     api_messages.extend(messages)
 
+    # Web-search PoC: only icu_chat reroutes to the search-capable model.
+    # Search model rejects reasoning_effort, so we skip the param block
+    # entirely on that path.
+    use_web_search = settings.LLM_WEB_SEARCH_ENABLED and task == "icu_chat"
+    effective_model = settings.LLM_WEB_SEARCH_MODEL if use_web_search else settings.LLM_MODEL
+
     create_kwargs: dict = dict(
-        model=settings.LLM_MODEL,
+        model=effective_model,
         max_completion_tokens=max_tokens,
         messages=api_messages,
         stream=True,
         stream_options={"include_usage": True},
     )
-    create_kwargs.update(_build_openai_reasoning_param_block(
-        task=task,
-        temperature=0.3,
-        disable_reasoning=disable_reasoning,
-        icu_chat_skips_reasoning=True,
-    ))
+    if not use_web_search:
+        create_kwargs.update(_build_openai_reasoning_param_block(
+            task=task,
+            temperature=0.3,
+            disable_reasoning=disable_reasoning,
+            icu_chat_skips_reasoning=True,
+        ))
     stream = await client.chat.completions.create(**create_kwargs)
 
     full_content = ""
     usage_meta = {}
+    annotations: list[dict] = []
     async for chunk in stream:
         if chunk.usage:
             cached_tokens = 0
@@ -664,17 +672,25 @@ async def _stream_openai(
                 "completion_tokens": chunk.usage.completion_tokens,
                 "cached_tokens": cached_tokens,
             }
-        if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-            text = chunk.choices[0].delta.content
-            full_content += text
-            yield text
+        if chunk.choices and chunk.choices[0].delta:
+            delta = chunk.choices[0].delta
+            if delta.content:
+                full_content += delta.content
+                yield delta.content
+            delta_anns = getattr(delta, "annotations", None)
+            if delta_anns:
+                for a in delta_anns:
+                    annotations.append(a.model_dump() if hasattr(a, "model_dump") else dict(a))
 
     _maybe_capture_provider_raw(
-        provider="openai", task=task, model=settings.LLM_MODEL,
+        provider="openai", task=task, model=effective_model,
         request_id=request_id, trace_id=trace_id,
         input_payload=messages, response_payload={"content": full_content[:500], "usage": usage_meta},
     )
-    yield json.dumps({"__done__": True, "model": settings.LLM_MODEL, "usage": usage_meta})
+    done_payload: dict = {"__done__": True, "model": effective_model, "usage": usage_meta}
+    if annotations:
+        done_payload["annotations"] = annotations
+    yield json.dumps(done_payload)
 
 
 async def _stream_anthropic(

@@ -88,6 +88,11 @@ class Settings(BaseSettings):
     # Off by default; flip to true in Railway env to canary the optimization.
     # See docs/b15-snapshot-latency-plan-2026-04-30.md.
     SNAPSHOT_DEFERRED_ENABLED: bool = False
+    # PoC: route icu_chat through OpenAI's search-capable model when enabled.
+    # Default off; flip locally in backend/.env to dev-test. Strategy doc:
+    # docs/ai-tool-strategy-2026-05-05.md (web_search section).
+    LLM_WEB_SEARCH_ENABLED: bool = False
+    LLM_WEB_SEARCH_MODEL: str = "gpt-5-search-api"
     OPENAI_API_KEY: str = ""
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-large"
     ANTHROPIC_API_KEY: str = ""
