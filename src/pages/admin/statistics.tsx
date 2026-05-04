@@ -7,10 +7,11 @@ import { LoadingSpinner, ErrorDisplay, EmptyState } from '../../components/ui/st
 import { BarChart3, TrendingUp, Tag, User as UserIcon, CircleDot, CheckCircle2, XCircle } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
 import { getAdviceRecordStats, type AdviceRecordStats } from '../../lib/api/pharmacy';
-import { PHARMACY_ADVICE_CATEGORIES, PHARMACY_ADVICE_CATEGORY_COLORS } from '../../lib/pharmacy-master-data';
+import { PHARMACY_ADVICE_CATEGORIES, getAdviceCategoryColor } from '../../lib/pharmacy-master-data';
 
 export function AdminStatisticsPage() {
   const { t } = useTranslation('admin');
+  const { t: tp } = useTranslation('pharmacy');
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState<string>(
     `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
@@ -60,22 +61,22 @@ export function AdminStatisticsPage() {
 
   const categoryChartData = useMemo(() => {
     return Object.values(PHARMACY_ADVICE_CATEGORIES).map((cat) => ({
-      category: cat.label,
+      category: tp(cat.labelKey ?? cat.label),
       count: categoryCountMap[cat.label] || 0,
-      color: PHARMACY_ADVICE_CATEGORY_COLORS[cat.label] || '#999',
+      color: getAdviceCategoryColor(cat.key),
     }));
-  }, [categoryCountMap]);
+  }, [categoryCountMap, tp]);
 
   const topCodes = useMemo(() => {
     const rows = [...(stats?.byCode || [])];
     rows.sort((a, b) => b.count - a.count);
     return rows.slice(0, 10).map((r) => ({
       code: r.code,
-      name: `${r.code} ${r.label}`,
+      name: `${r.code} ${tp(`adviceCodes.${r.code}`, { defaultValue: r.label })}`,
       count: r.count,
-      color: PHARMACY_ADVICE_CATEGORY_COLORS[r.category] || '#999',
+      color: getAdviceCategoryColor(r.category),
     }));
-  }, [stats?.byCode]);
+  }, [stats?.byCode, tp]);
 
   const topPharmacists = useMemo(() => {
     return (stats?.byPharmacist || []).slice(0, 10);
@@ -173,15 +174,15 @@ export function AdminStatisticsPage() {
         </Card>
 
         {Object.values(PHARMACY_ADVICE_CATEGORIES).map((cat) => (
-          <Card key={cat.key} className="border-l-4" style={{ borderLeftColor: PHARMACY_ADVICE_CATEGORY_COLORS[cat.label] || '#999' }}>
+          <Card key={cat.key} className="border-l-4" style={{ borderLeftColor: getAdviceCategoryColor(cat.key) }}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{cat.label}</CardTitle>
+              <CardTitle className="text-sm font-medium">{tp(cat.labelKey ?? cat.label)}</CardTitle>
               <Badge variant="outline" className="text-xs">
                 {t('stats.subitemCount', { count: (cat.codes || []).length })}
               </Badge>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold" style={{ color: PHARMACY_ADVICE_CATEGORY_COLORS[cat.label] || '#111' }}>
+              <div className="text-3xl font-bold" style={{ color: getAdviceCategoryColor(cat.key) }}>
                 {categoryCountMap[cat.label] || 0}
               </div>
               <p className="text-xs text-muted-foreground mt-1">{t('stats.monthlyTotal')}</p>

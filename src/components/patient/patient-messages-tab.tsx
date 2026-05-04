@@ -19,6 +19,7 @@ import { Textarea } from '../ui/textarea';
 import { groupMessagesByWeek } from '../../pages/patient-detail-utils';
 import { useTranslation } from 'react-i18next';
 import { useRoleLabel } from '../../lib/utils/user-role';
+import { getAdviceCategoryKeyByLabel } from '../../lib/pharmacy-master-data';
 
 interface PharmacyTagCategory {
   category: string;
@@ -216,9 +217,14 @@ function PharmacyTagSelector({
   onAdd: (tags: string[]) => void;
 }) {
   const { t } = useTranslation('patient-chat');
+  const { t: tp } = useTranslation('pharmacy');
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const existingSet = new Set(existingTags);
+  const renderCatLabel = (chineseLabel: string) => {
+    const key = getAdviceCategoryKeyByLabel(chineseLabel);
+    return key ? tp(`adviceCategories.${key}`) : chineseLabel;
+  };
 
   const toggleExpand = (cat: string) => {
     setExpanded((prev) => {
@@ -263,7 +269,7 @@ function PharmacyTagSelector({
                 onClick={() => toggleExpand(cat.category)}
               >
                 <span className="flex items-center gap-1.5">
-                  {cat.category}
+                  {renderCatLabel(cat.category)}
                   <span className="text-[10px] opacity-60">({cat.tags.length})</span>
                 </span>
                 <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />

@@ -2,14 +2,30 @@ import type { LucideIcon } from 'lucide-react';
 
 export interface AdviceCodeItem {
   code: string;
+  /** Source-of-truth Chinese label. Stored in DB as `record.adviceLabel`. Use t(labelKey) for display when available. */
   label: string;
+  /**
+   * i18n key for display. Format: `pharmacy:adviceCodes.<code>` (e.g. `1-A`).
+   * Optional because response-code lists do not have i18n yet.
+   */
+  labelKey?: string;
 }
 
 export interface AdviceCategoryItem {
   key: string;
+  /** Source-of-truth Chinese label. Stored in DB as `record.category`. Use t(labelKey) for display when available. */
   label: string;
+  /** i18n key for display. Format: `pharmacy:adviceCategories.<key>`. Optional for legacy categories. */
+  labelKey?: string;
   codes: AdviceCodeItem[];
 }
+
+// Helper to keep code definitions terse: builds the labelKey from the code.
+const c = (code: string, label: string): AdviceCodeItem => ({
+  code,
+  label,
+  labelKey: `pharmacy:adviceCodes.${code}`,
+});
 
 // 臨床藥事照護介入類別（4大類 23小項）— 依健保 VPN 登錄附件4。
 // 項目 10-13 同時屬於「建議處方」和「主動建議」。
@@ -17,67 +33,93 @@ export const PHARMACY_ADVICE_CATEGORIES: Record<string, AdviceCategoryItem> = {
   prescription: {
     key: 'prescription',
     label: '1. 建議處方',
+    labelKey: 'pharmacy:adviceCategories.prescription',
     codes: [
-      { code: '1-A', label: '給藥問題(速率、輸注方式、濃度或稀釋液)' },
-      { code: '1-B', label: '適應症問題' },
-      { code: '1-C', label: '用藥禁忌問題(包括過敏史)' },
-      { code: '1-D', label: '藥品併用問題' },
-      { code: '1-E', label: '藥品交互作用' },
-      { code: '1-F', label: '疑似藥品不良反應' },
-      { code: '1-G', label: '藥品相容性問題' },
-      { code: '1-H', label: '其他' },
-      { code: '1-I', label: '不符健保給付規定' },
-      { code: '1-J', label: '用藥劑量/頻次問題' },
-      { code: '1-K', label: '用藥期間/數量問題(包含停藥)' },
-      { code: '1-L', label: '用藥途徑或劑型問題' },
-      { code: '1-M', label: '建議更適當用藥/配方組成' },
+      c('1-A', '給藥問題(速率、輸注方式、濃度或稀釋液)'),
+      c('1-B', '適應症問題'),
+      c('1-C', '用藥禁忌問題(包括過敏史)'),
+      c('1-D', '藥品併用問題'),
+      c('1-E', '藥品交互作用'),
+      c('1-F', '疑似藥品不良反應'),
+      c('1-G', '藥品相容性問題'),
+      c('1-H', '其他'),
+      c('1-I', '不符健保給付規定'),
+      c('1-J', '用藥劑量/頻次問題'),
+      c('1-K', '用藥期間/數量問題(包含停藥)'),
+      c('1-L', '用藥途徑或劑型問題'),
+      c('1-M', '建議更適當用藥/配方組成'),
     ],
   },
   proactive: {
     key: 'proactive',
     label: '2. 主動建議',
+    labelKey: 'pharmacy:adviceCategories.proactive',
     codes: [
-      { code: '2-J', label: '用藥劑量/頻次問題' },
-      { code: '2-K', label: '用藥期間/數量問題(包含停藥)' },
-      { code: '2-L', label: '用藥途徑或劑型問題' },
-      { code: '2-M', label: '建議更適當用藥/配方組成' },
-      { code: '2-N', label: '藥品不良反應評估' },
-      { code: '2-O', label: '建議用藥/建議增加用藥' },
-      { code: '2-P', label: '建議藥物治療療程' },
-      { code: '2-Q', label: '建議靜脈營養配方' },
+      c('2-J', '用藥劑量/頻次問題'),
+      c('2-K', '用藥期間/數量問題(包含停藥)'),
+      c('2-L', '用藥途徑或劑型問題'),
+      c('2-M', '建議更適當用藥/配方組成'),
+      c('2-N', '藥品不良反應評估'),
+      c('2-O', '建議用藥/建議增加用藥'),
+      c('2-P', '建議藥物治療療程'),
+      c('2-Q', '建議靜脈營養配方'),
     ],
   },
   monitoring: {
     key: 'monitoring',
     label: '3. 建議監測',
+    labelKey: 'pharmacy:adviceCategories.monitoring',
     codes: [
-      { code: '3-R', label: '建議藥品療效監測' },
-      { code: '3-S', label: '建議藥品不良反應監測' },
-      { code: '3-T', label: '建議藥品血中濃度監測' },
+      c('3-R', '建議藥品療效監測'),
+      c('3-S', '建議藥品不良反應監測'),
+      c('3-T', '建議藥品血中濃度監測'),
     ],
   },
   continuity: {
     key: 'continuity',
     label: '4. 用藥連貫性',
+    labelKey: 'pharmacy:adviceCategories.continuity',
     codes: [
-      { code: '4-U', label: '藥歷審核與整合' },
-      { code: '4-V', label: '藥品辨識/自備藥辨識' },
-      { code: '4-W', label: '病人用藥遵從性問題' },
+      c('4-U', '藥歷審核與整合'),
+      c('4-V', '藥品辨識/自備藥辨識'),
+      c('4-W', '病人用藥遵從性問題'),
     ],
   },
 };
 
+// Colour map keyed by category.key (English ID) — was previously keyed by Chinese label,
+// which broke i18n by leaking display strings into lookups. Use getAdviceCategoryColor()
+// when you only have the Chinese label coming back from the API.
 export const PHARMACY_ADVICE_CATEGORY_COLORS: Record<string, string> = {
-  '1. 建議處方': 'var(--color-brand)',
-  '2. 主動建議': '#f59e0b',
-  '3. 建議監測': '#1a1a1a',
-  '4. 用藥連貫性': '#3b82f6',
+  prescription: 'var(--color-brand)',
+  proactive: '#f59e0b',
+  monitoring: '#1a1a1a',
+  continuity: '#3b82f6',
 };
 
-export function getAdviceCodeInfo(code: string): { category: string; label: string } | null {
+/** Look up category.key from a Chinese label (back from API responses). */
+export function getAdviceCategoryKeyByLabel(label: string): string | undefined {
+  return Object.values(PHARMACY_ADVICE_CATEGORIES).find((c) => c.label === label)?.key;
+}
+
+/** Get color by Chinese label (from API record.category). Falls back to brand color. */
+export function getAdviceCategoryColor(labelOrKey: string): string {
+  // If passed a key directly, use it; otherwise resolve key from Chinese label.
+  if (PHARMACY_ADVICE_CATEGORY_COLORS[labelOrKey]) return PHARMACY_ADVICE_CATEGORY_COLORS[labelOrKey];
+  const key = getAdviceCategoryKeyByLabel(labelOrKey);
+  return (key && PHARMACY_ADVICE_CATEGORY_COLORS[key]) || 'var(--color-brand)';
+}
+
+export function getAdviceCodeInfo(code: string): { category: string; categoryKey: string; categoryLabelKey?: string; label: string; labelKey?: string } | null {
   for (const cat of Object.values(PHARMACY_ADVICE_CATEGORIES)) {
-    const found = cat.codes.find((c) => c.code === code);
-    if (found) return { category: cat.label, label: found.label };
+    const found = cat.codes.find((it) => it.code === code);
+    if (found) return {
+      category: cat.label,
+      categoryKey: cat.key,
+      categoryLabelKey: cat.labelKey,
+      label: found.label,
+      labelKey: found.labelKey,
+    };
   }
   return null;
 }

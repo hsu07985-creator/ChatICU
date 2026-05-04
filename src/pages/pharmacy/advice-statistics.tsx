@@ -42,13 +42,15 @@ import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from
 import {
   PHARMACY_ADVICE_CATEGORIES,
   PHARMACY_ADVICE_CATEGORY_COLORS,
+  getAdviceCategoryColor,
+  getAdviceCategoryKeyByLabel as masterGetCategoryKeyByLabel,
 } from '../../lib/pharmacy-master-data';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Label } from 'recharts';
 
 type EditAcceptedValue = 'yes' | 'no' | 'pending';
 
 function getCategoryKeyByLabel(label: string): string {
-  return Object.entries(PHARMACY_ADVICE_CATEGORIES).find(([, cat]) => cat.label === label)?.[0] || '';
+  return masterGetCategoryKeyByLabel(label) || '';
 }
 
 function splitLinkedMedications(value: string): string[] {
@@ -436,7 +438,7 @@ export function PharmacyAdviceStatisticsPage() {
     .map(([name, value]) => ({
       name,
       value,
-      color: PHARMACY_ADVICE_CATEGORY_COLORS[name] || '#999',
+      color: getAdviceCategoryColor(name),
     }));
 
   // 接受率統計
@@ -457,7 +459,7 @@ export function PharmacyAdviceStatisticsPage() {
         label: rec?.adviceLabel || code,
         category: rec?.category || '',
         count,
-        color: PHARMACY_ADVICE_CATEGORY_COLORS[rec?.category || ''] || 'var(--color-brand)',
+        color: getAdviceCategoryColor(rec?.category || ''),
       };
     })
     .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
@@ -583,7 +585,7 @@ export function PharmacyAdviceStatisticsPage() {
                 <SelectContent>
                   {Object.entries(PHARMACY_ADVICE_CATEGORIES).map(([key, cat]) => (
                     <SelectItem key={key} value={key}>
-                      {cat.label}
+                      {t(cat.labelKey ?? cat.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -604,7 +606,7 @@ export function PharmacyAdviceStatisticsPage() {
                 <SelectContent>
                   {selectedCategory?.codes.map((c) => (
                     <SelectItem key={c.code} value={c.code}>
-                      {c.code} {c.label}
+                      {c.code} {t(c.labelKey ?? c.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -666,11 +668,11 @@ export function PharmacyAdviceStatisticsPage() {
         </Card>
 
         {Object.entries(PHARMACY_ADVICE_CATEGORIES).map(([key, cat]) => {
-          const color = PHARMACY_ADVICE_CATEGORY_COLORS[cat.label] || '#999';
+          const color = PHARMACY_ADVICE_CATEGORY_COLORS[cat.key] || '#999';
           return (
             <Card key={key} className="border-l-4" style={{ borderLeftColor: color }}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{cat.label}</CardTitle>
+                <CardTitle className="text-sm font-medium">{t(cat.labelKey ?? cat.label)}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold" style={{ color }}>
@@ -776,11 +778,11 @@ export function PharmacyAdviceStatisticsPage() {
                     const catTotal = catRecords.length;
                     const catAccepted = catRecords.filter((r) => r.accepted === true).length;
                     const catRate = catTotal > 0 ? Math.round((catAccepted / catTotal) * 100) : 0;
-                    const color = PHARMACY_ADVICE_CATEGORY_COLORS[cat.label] || '#999';
+                    const color = PHARMACY_ADVICE_CATEGORY_COLORS[cat.key] || '#999';
                     return (
                       <div key={cat.key}>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium truncate pr-2">{cat.label}</span>
+                          <span className="text-xs font-medium truncate pr-2">{t(cat.labelKey ?? cat.label)}</span>
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
                             {catTotal > 0 ? `${catAccepted}/${catTotal}` : '—'}
                           </span>
@@ -942,17 +944,17 @@ export function PharmacyAdviceStatisticsPage() {
                       className={`border-l-4 rounded-lg p-3 hover:shadow-md transition-shadow ${cardBg}${
                         isHighlighted ? ' ring-2 ring-amber-400 ring-offset-2 dark:ring-offset-slate-900' : ''
                       }`}
-                      style={{ borderLeftColor: PHARMACY_ADVICE_CATEGORY_COLORS[record.category] || '#999' }}
+                      style={{ borderLeftColor: getAdviceCategoryColor(record.category) }}
                     >
                       <div className="flex items-start justify-between mb-1.5 gap-2">
                         <div className="flex items-center gap-2 flex-wrap">
                           <Badge
                             className="text-white"
-                            style={{ backgroundColor: PHARMACY_ADVICE_CATEGORY_COLORS[record.category] || '#999' }}
+                            style={{ backgroundColor: getAdviceCategoryColor(record.category) }}
                           >
                             {record.adviceCode}
                           </Badge>
-                          <span className="font-medium text-sm">{record.adviceLabel}</span>
+                          <span className="font-medium text-sm">{t(`adviceCodes.${record.adviceCode}`, { defaultValue: record.adviceLabel })}</span>
                         </div>
                         <div className="flex items-center gap-2 ml-2 flex-wrap justify-end">
                           {isAccepted && (
@@ -1006,7 +1008,7 @@ export function PharmacyAdviceStatisticsPage() {
                           <Tag className="h-3.5 w-3.5 text-muted-foreground" />
                           <span className="font-medium">{record.pharmacistName}</span>
                         </div>
-                        <Badge variant="outline" className="text-xs">{record.category}</Badge>
+                        <Badge variant="outline" className="text-xs">{t(`adviceCategories.${getCategoryKeyByLabel(record.category)}`, { defaultValue: record.category })}</Badge>
                       </div>
 
                       <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
@@ -1179,7 +1181,7 @@ export function PharmacyAdviceStatisticsPage() {
                   <SelectContent>
                     {Object.entries(PHARMACY_ADVICE_CATEGORIES).map(([key, cat]) => (
                       <SelectItem key={key} value={key}>
-                        {cat.label}
+                        {t(cat.labelKey ?? cat.label)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1195,7 +1197,7 @@ export function PharmacyAdviceStatisticsPage() {
                   <SelectContent>
                     {editSelectedCategory?.codes.map((item) => (
                       <SelectItem key={item.code} value={item.code}>
-                        {item.code} {item.label}
+                        {item.code} {t(item.labelKey ?? item.label)}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -46,7 +46,7 @@ export function AdviceSubmitDialog({
               <SelectContent>
                 {Object.entries(adviceCategories).map(([key, category]) => (
                   <SelectItem key={key} value={key}>
-                    {category.label}
+                    {t(category.labelKey ?? category.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -63,7 +63,7 @@ export function AdviceSubmitDialog({
                 <SelectContent>
                   {adviceCategories[selectedCategory as keyof typeof adviceCategories].codes.map((item) => (
                     <SelectItem key={item.code} value={item.code}>
-                      {item.label}
+                      {t(item.labelKey ?? item.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -923,5 +923,40 @@
       "assessment": "A — Assessment",
       "plan": "P — Plan"
     }
+  },
+  "adviceCategories": {
+    "prescription": "1. Prescription Recommendation",
+    "proactive": "2. Proactive Suggestion",
+    "monitoring": "3. Monitoring Recommendation",
+    "continuity": "4. Medication Continuity"
+  },
+  "adviceCodes": {
+    "1-A": "Administration issue (rate, infusion mode, concentration, or diluent)",
+    "1-B": "Indication issue",
+    "1-C": "Contraindication issue (incl. allergy history)",
+    "1-D": "Drug combination issue",
+    "1-E": "Drug interaction",
+    "1-F": "Suspected adverse drug reaction",
+    "1-G": "Drug compatibility issue",
+    "1-H": "Other",
+    "1-I": "Does not meet NHI reimbursement criteria",
+    "1-J": "Dose / frequency issue",
+    "1-K": "Duration / quantity issue (incl. discontinuation)",
+    "1-L": "Route or dosage form issue",
+    "1-M": "Suggest more appropriate drug / formulation",
+    "2-J": "Dose / frequency issue",
+    "2-K": "Duration / quantity issue (incl. discontinuation)",
+    "2-L": "Route or dosage form issue",
+    "2-M": "Suggest more appropriate drug / formulation",
+    "2-N": "Adverse drug reaction assessment",
+    "2-O": "Recommend / add drug therapy",
+    "2-P": "Recommend therapy duration",
+    "2-Q": "Recommend parenteral nutrition formula",
+    "3-R": "Recommend efficacy monitoring",
+    "3-S": "Recommend ADR monitoring",
+    "3-T": "Recommend therapeutic drug monitoring (TDM)",
+    "4-U": "Medication reconciliation & review",
+    "4-V": "Medication identification (incl. self-supplied)",
+    "4-W": "Patient adherence issue"
   }
 }
