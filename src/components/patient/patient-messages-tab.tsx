@@ -552,9 +552,8 @@ export function PatientMessagesTab({
             {/* 角色提及 */}
             <div className="flex flex-wrap items-center gap-1">
               <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{t('messages.mentionsLabel')}</span>
-              {(['doctor', 'np', 'nurse', 'pharmacist', 'all'] as const).map((role) => {
+              {(['doctor', 'pharmacist', 'nurse', 'np', 'all'] as const).map((role) => {
                 const selected = composeMentionedRoles.includes(role);
-                const cfg = ROLE_CONFIG[role];
                 return (
                   <button
                     key={role}
@@ -566,7 +565,7 @@ export function PatientMessagesTab({
                         : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
                     }`}
                   >
-                    @{cfg.label}
+                    @{roleLabel(role)}
                   </button>
                 );
               })}
@@ -779,7 +778,7 @@ export function PatientMessagesTab({
                               )}
                               {(message.mentionedRoles?.length ?? 0) > 0 && message.mentionedRoles!.map((role) => (
                                 <Badge key={role} className="bg-orange-100 text-orange-800 border-orange-300 text-xs shrink-0 hover:bg-orange-100">
-                                  @{ROLE_CONFIG[role]?.label ?? role}
+                                  @{roleLabel(role)}
                                 </Badge>
                               ))}
                               {(message.mentionedUserIds?.length ?? 0) > 0 && message.mentionedUserIds!.map((uid) => {
