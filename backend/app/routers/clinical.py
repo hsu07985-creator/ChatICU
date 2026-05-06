@@ -829,7 +829,7 @@ async def interaction_check(
     from sqlalchemy import cast, or_
     from sqlalchemy import String as SAString
     from app.models.drug_interaction import DrugInteraction
-    from app.utils.response import escape_like
+    from app.utils.drug_match import word_boundary_pattern, word_match
 
     drugs = req.drug_list[:10]
     db_findings: list = []
@@ -838,12 +838,17 @@ async def interaction_check(
     seen_ids: set = set()
 
     def _drug_match_clause(drug_name: str):
-        # interacting_members is JSONB — cast to text before ilike.
-        escaped = escape_like(drug_name)
+        # interacting_members is JSONB — cast to text before regex.
+        # Use POSIX regex with conditional word boundaries so e.g.
+        # "prednisolone" no longer matches "methylprednisolone".
+        # ``regexp_match`` is dialect-aware: Postgres -> ``~*`` (case-insensitive
+        # POSIX regex with \m/\M); SQLite -> ``REGEXP`` (resolved by a UDF
+        # registered in tests/conftest.py that maps \m/\M to \b).
+        pattern = word_boundary_pattern(drug_name)
         return or_(
-            DrugInteraction.drug1.ilike(f"%{escaped}%"),
-            DrugInteraction.drug2.ilike(f"%{escaped}%"),
-            cast(DrugInteraction.interacting_members, SAString).ilike(f"%{escaped}%"),
+            DrugInteraction.drug1.regexp_match(pattern, flags="i"),
+            DrugInteraction.drug2.regexp_match(pattern, flags="i"),
+            cast(DrugInteraction.interacting_members, SAString).regexp_match(pattern, flags="i"),
         )
 
     def _pair_on_different_sides(row, da: str, db_: str) -> bool:
@@ -861,10 +866,12 @@ async def interaction_check(
             elif gn == d2_l:
                 side2.update(member_set)
         da_l, db_l = da.lower(), db_.lower()
-        da_s1 = any(da_l in n or n in da_l for n in side1)
-        da_s2 = any(da_l in n or n in da_l for n in side2)
-        db_s1 = any(db_l in n or n in db_l for n in side1)
-        db_s2 = any(db_l in n or n in db_l for n in side2)
+        # Word-boundary aware bidirectional match (replaces raw `in` substring
+        # check that leaked superstring drug names like methylprednisolone).
+        da_s1 = any(word_match(da_l, n) for n in side1)
+        da_s2 = any(word_match(da_l, n) for n in side2)
+        db_s1 = any(word_match(db_l, n) for n in side1)
+        db_s2 = any(word_match(db_l, n) for n in side2)
         return (da_s1 and db_s2) or (da_s2 and db_s1)
 
     for i in range(len(drugs)):

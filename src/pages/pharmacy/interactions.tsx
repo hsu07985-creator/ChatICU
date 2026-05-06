@@ -388,6 +388,28 @@ export function DrugInteractionsPage() {
     const highestRisk = riskOrder.find(r => riskCounts[r]) || '?';
 
     // 配對速查 — 用輸入的藥物名合併同對、取最高風險
+    // Word-boundary matching helpers — replaces previous bidirectional `includes`
+    // pollution where `prednisolone` ⊂ `methylprednisolone` collapsed two distinct
+    // rows into one summary key. See docs/drug-interactions-substring-bug-and-fix.md §4.1.
+    const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    const isWord = (ch: string) => /[A-Za-z0-9_]/.test(ch);
+
+    const wordPattern = (name: string): RegExp | null => {
+      if (!name) return null;
+      const head = isWord(name[0]) ? '\\b' : '';
+      const tail = isWord(name[name.length - 1]) ? '\\b' : '';
+      return new RegExp(`${head}${escapeRe(name)}${tail}`, 'i');
+    };
+
+    const wordMatch = (a: string, b: string): boolean => {
+      if (!a || !b) return false;
+      if (a === b) return true;
+      const pa = wordPattern(a);
+      const pb = wordPattern(b);
+      return (pa !== null && pa.test(b)) || (pb !== null && pb.test(a));
+    };
+
     const pairMap = new Map<string, { a: string; b: string; risk: string; count: number }>();
     for (const item of searchResults) {
       const d1l = (item.drug1 || '').toLowerCase();
@@ -406,8 +428,8 @@ export function DrugInteractionsPage() {
       let matchB = '';
       for (const drug of validDrugs) {
         const dl = drug.toLowerCase();
-        if (!matchA && side1.some(n => n.includes(dl) || dl.includes(n))) matchA = drug;
-        if (!matchB && side2.some(n => n.includes(dl) || dl.includes(n))) matchB = drug;
+        if (!matchA && side1.some(n => wordMatch(dl, n))) matchA = drug;
+        if (!matchB && side2.some(n => wordMatch(dl, n))) matchB = drug;
       }
       if (!matchA || !matchB || matchA.toLowerCase() === matchB.toLowerCase()) continue;
       const [sortedA, sortedB] = [matchA, matchB].sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase()));

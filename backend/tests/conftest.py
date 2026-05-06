@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import re
+
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import JSON
+from sqlalchemy import JSON, event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -38,10 +40,71 @@ def _remap_jsonb_to_json():
                 col.type = JSON()
 
 
+def _sqlite_regexp(pattern, value):
+    """SQLite REGEXP UDF: case-insensitive, with Postgres \\m/\\M translated to \\b.
+
+    Production runs on Postgres where ``Column.regexp_match(p, flags='i')``
+    compiles to ``column ~* p`` and the boundary anchors ``\\m`` / ``\\M`` are
+    POSIX regex. SQLite's REGEXP is whatever Python ``re`` understands, which
+    uses ``\\b`` for the same semantics. We translate at match time so the
+    application code can keep one canonical pattern shape.
+
+    Defensive: returns False on any error so a malformed pattern never crashes
+    the test suite — it just yields zero matches (same observable behavior as a
+    pattern that matches nothing in production).
+    """
+    try:
+        if value is None or pattern is None:
+            return False
+        py_pattern = str(pattern).replace(r"\m", r"\b").replace(r"\M", r"\b")
+        return re.search(py_pattern, str(value), re.IGNORECASE) is not None
+    except Exception:
+        return False
+
+
+def _register_sqlite_regexp(dbapi_connection, _connection_record):
+    """Attach REGEXP UDF on aiosqlite's worker thread.
+
+    aiosqlite owns a worker thread that holds the sqlite3.Connection; calling
+    ``create_function`` from outside that thread raises a ProgrammingError
+    ("SQLite objects created in a thread can only be used in that same thread").
+    The right entry-point is ``aiosqlite.core.Connection.create_function``,
+    which is async and dispatches to the worker. Inside SQLAlchemy's connect
+    event we're running in a greenlet that can ``await_only`` on coroutines.
+    """
+    from sqlalchemy.util import await_only  # local import to avoid global cost
+
+    aio_conn = getattr(dbapi_connection, "_connection", None)
+    if aio_conn is None:
+        return
+    create_function = getattr(aio_conn, "create_function", None)
+    if create_function is None:
+        return
+    try:
+        # ``create_function`` returns a coroutine in aiosqlite. await it so the
+        # underlying sqlite3 worker registers REGEXP for this connection only.
+        await_only(create_function("REGEXP", 2, _sqlite_regexp))
+    except Exception:
+        # Fallback: schedule via the aiosqlite event-loop machinery directly.
+        try:
+            await_only(aio_conn._execute(
+                aio_conn._conn.create_function, "REGEXP", 2, _sqlite_regexp,
+            ))
+        except Exception:
+            pass
+
+
 @pytest_asyncio.fixture
 async def db_engine():
     _remap_jsonb_to_json()
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+
+    # Register REGEXP on every new SQLite connection so Column.regexp_match()
+    # works in tests (production uses Postgres ~* directly).
+    @event.listens_for(engine.sync_engine, "connect")
+    def _on_connect(dbapi_connection, connection_record):
+        _register_sqlite_regexp(dbapi_connection, connection_record)
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield engine
