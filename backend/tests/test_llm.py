@@ -74,15 +74,25 @@ def test_clinical_polish_strict_fact_rule():
     assert "never substitute a number from patient.vital_signs" in prompt
 
 
-def test_clinical_polish_drug_name_verification():
-    """When draft mentions a drug name not matching active list, prompt must require
-    a `⚠️ 藥名待確認` or `⚠️ 用藥未在病人現用清單` warning. Earlier C4 incident:
-    'Cefazoline' typo carried through 4 times verbatim with no warning."""
+def test_clinical_polish_no_safety_warning_injection():
+    """Polish is text formatting only. Earlier additions (drug-name verification
+    warnings, Beers geriatric warnings, Cockcroft-Gault auto-annotation) violated
+    the feature's stated contract ('AI 只修文法不增減你寫的內容') and would
+    contaminate HIS records when copy-pasted. Clinical second-opinion belongs
+    in the AI chat feature, not here."""
     prompt = TASK_PROMPTS["clinical_polish"]
-    assert "DRUG NAME VERIFICATION" in prompt
-    assert "藥名待確認" in prompt
-    assert "用藥未在病人現用清單" in prompt
-    assert "Cefazoline" in prompt  # few-shot anchor for fuzzy match
+    assert "Polish is text formatting only" in prompt
+    assert "clinical second-opinion belongs in the AI clinical-chat feature" in prompt
+    # The rolled-back rule HEADERS (instruction-level) must be gone — the prompt
+    # may still mention "Beers" / "Cockcroft-Gault" inside the negative rule that
+    # explicitly forbids injecting those, which is intentional.
+    assert "DRUG NAME VERIFICATION" not in prompt
+    assert "GERIATRIC SAFETY CHECK" not in prompt
+    assert "RENAL DOSE HELPER" not in prompt
+    # No instruction to actually compute or emit Beers/Cockcroft-Gault content
+    assert "高齡用藥提醒" not in prompt
+    assert "藥名待確認" not in prompt
+    assert "Cockcroft-Gault 估算" not in prompt
 
 
 def test_clinical_polish_no_placeholder_fallbacks():
@@ -100,25 +110,6 @@ def test_clinical_polish_punctuation_consistency():
     prompt = TASK_PROMPTS["clinical_polish"]
     assert "PUNCTUATION CONSISTENCY" in prompt
     assert "「，。：；」" in prompt
-
-
-def test_clinical_polish_geriatric_beers_warning():
-    """For age ≥65 polypharmacy patients, prompt must require a Beers-class
-    warning when relevant drug classes appear (NSAIDs, long-acting BZD,
-    1st-gen antihistamines, dual antiplatelet, muscle relaxants)."""
-    prompt = TASK_PROMPTS["clinical_polish"]
-    assert "GERIATRIC SAFETY CHECK" in prompt
-    assert "patient.age >= 65" in prompt
-    assert "高齡用藥提醒" in prompt
-    assert "Beers" in prompt
-
-
-def test_clinical_polish_renal_dose_helper():
-    """Cockcroft-Gault auto-annotation when draft mentions renal dose adjust."""
-    prompt = TASK_PROMPTS["clinical_polish"]
-    assert "RENAL DOSE HELPER" in prompt
-    assert "Cockcroft-Gault" in prompt
-    assert "0.85 if female" in prompt
 
 
 def test_clinical_polish_language_follows_draft():
