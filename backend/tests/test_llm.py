@@ -64,6 +64,75 @@ def test_medication_advice_route_fidelity():
     assert "do NOT infer IV/PO" in prompt
 
 
+def test_clinical_polish_strict_fact_rule():
+    """Active medications in patient JSON must NOT leak into the polished output
+    unless the draft explicitly mentions them. Earlier C2 incident: nursing draft
+    silent on sedation → AI auto-filled `Fresofol` from patient.medications."""
+    prompt = TASK_PROMPTS["clinical_polish"]
+    assert "STRICT FACT-RULE" in prompt
+    assert "active medication list is for cross-checking, not auto-fill" in prompt
+    assert "never substitute a number from patient.vital_signs" in prompt
+
+
+def test_clinical_polish_drug_name_verification():
+    """When draft mentions a drug name not matching active list, prompt must require
+    a `⚠️ 藥名待確認` or `⚠️ 用藥未在病人現用清單` warning. Earlier C4 incident:
+    'Cefazoline' typo carried through 4 times verbatim with no warning."""
+    prompt = TASK_PROMPTS["clinical_polish"]
+    assert "DRUG NAME VERIFICATION" in prompt
+    assert "藥名待確認" in prompt
+    assert "用藥未在病人現用清單" in prompt
+    assert "Cefazoline" in prompt  # few-shot anchor for fuzzy match
+
+
+def test_clinical_polish_no_placeholder_fallbacks():
+    """Earlier '(no numeric values available)' placeholder leaked into polished
+    output. Prompt must explicitly forbid these fallback phrases."""
+    prompt = TASK_PROMPTS["clinical_polish"]
+    assert "NO PLACEHOLDER FALLBACKS" in prompt
+    assert "(no numeric values available)" in prompt
+    assert "(尚未量測)" in prompt
+    assert "Empty is fine; placeholder is not" in prompt
+
+
+def test_clinical_polish_punctuation_consistency():
+    """Mixed full-width + half-width punctuation in same sentence is unprofessional."""
+    prompt = TASK_PROMPTS["clinical_polish"]
+    assert "PUNCTUATION CONSISTENCY" in prompt
+    assert "「，。：；」" in prompt
+
+
+def test_clinical_polish_geriatric_beers_warning():
+    """For age ≥65 polypharmacy patients, prompt must require a Beers-class
+    warning when relevant drug classes appear (NSAIDs, long-acting BZD,
+    1st-gen antihistamines, dual antiplatelet, muscle relaxants)."""
+    prompt = TASK_PROMPTS["clinical_polish"]
+    assert "GERIATRIC SAFETY CHECK" in prompt
+    assert "patient.age >= 65" in prompt
+    assert "高齡用藥提醒" in prompt
+    assert "Beers" in prompt
+
+
+def test_clinical_polish_renal_dose_helper():
+    """Cockcroft-Gault auto-annotation when draft mentions renal dose adjust."""
+    prompt = TASK_PROMPTS["clinical_polish"]
+    assert "RENAL DOSE HELPER" in prompt
+    assert "Cockcroft-Gault" in prompt
+    assert "0.85 if female" in prompt
+
+
+def test_clinical_polish_language_follows_draft():
+    """SOAP / medication_advice must NOT force English regardless of draft language.
+    Earlier: Chinese draft + SOAP template → forced English output, unsuitable for
+    Taiwan HIS where mixed Chinese/English is normal."""
+    prompt = TASK_PROMPTS["clinical_polish"]
+    assert "match the dominant language of the draft" in prompt
+    # nursing_record stays Chinese (intentional)
+    assert "nursing_record → Traditional Chinese" in prompt
+    # progress_note must NOT be unconditionally English anymore
+    assert "progress_note → clean professional English (the style" not in prompt
+
+
 def test_pharmacist_polish_preserves_reason_clause():
     """Regression: pharmacist_polish (used by PharmacistSoapEditor) must keep
     the pharmacist's stated rationale/reason. Earlier the PRESERVATION rule
