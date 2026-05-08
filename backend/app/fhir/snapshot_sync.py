@@ -490,6 +490,11 @@ async def sync_snapshot_into_session(session: Any, snapshot: SnapshotInfo) -> di
     patient_id = incoming_patient["id"]
     existing_patient = await fetch_existing_patient(session, patient_id)
     merged_patient = merge_patient_payload(existing_patient, incoming_patient)
+    # HIS sync is the canonical "data refreshed" event for this patient — bump
+    # last_update so the patient-list card reflects the latest snapshot, not the
+    # last manual edit. (PRESERVE_EXISTING_FIELDS keeps last_update untouched
+    # during merge; we override it here so this remains a sync-only behavior.)
+    merged_patient["last_update"] = datetime.now(timezone.utc)
     await upsert_patient(session, merged_patient)
 
     replace_counts = {}
