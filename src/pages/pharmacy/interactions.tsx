@@ -371,14 +371,30 @@ export function DrugInteractionsPage() {
   const filledCount = drugs.filter(d => d.trim()).length;
   const pairCount = filledCount >= 2 ? (filledCount * (filledCount - 1)) / 2 : 0;
 
+  // Dedup searchResults by rule id. Backend returns the same class rule from
+  // multiple per-pair queries (e.g. "BB↔Antidiabetic" comes back from both
+  // Carvedilol+Linagliptin and Carvedilol+Metformin), so the raw array can
+  // contain the same rule_id multiple times. Both the summary stats and the
+  // detail rendering must operate on the deduped list.
+  const dedupedResults = useMemo(() => {
+    const seen = new Set<string>();
+    const out: DisplayInteraction[] = [];
+    for (const it of searchResults) {
+      if (!it.id || seen.has(it.id)) continue;
+      seen.add(it.id);
+      out.push(it);
+    }
+    return out;
+  }, [searchResults]);
+
   // ── 摘要計算 ──
   const summary = useMemo(() => {
-    if (searchResults.length === 0) return null;
+    if (dedupedResults.length === 0) return null;
     const validDrugs = drugs.map(d => d.trim()).filter(Boolean);
 
     // 風險分佈
     const riskCounts: Record<string, number> = {};
-    for (const r of searchResults) {
+    for (const r of dedupedResults) {
       const rr = r.riskRating || '?';
       riskCounts[rr] = (riskCounts[rr] || 0) + 1;
     }
@@ -395,11 +411,18 @@ export function DrugInteractionsPage() {
 
     const isWord = (ch: string) => /[A-Za-z0-9_]/.test(ch);
 
+    // Memo cache: same drug/member name appears across many rules, so building
+    // a fresh RegExp per (rule × drug × member) is ~7M ops for 17 ICU drugs ×
+    // 4000+ class rules. Cache by lowercased name.
+    const patternCache = new Map<string, RegExp | null>();
     const wordPattern = (name: string): RegExp | null => {
       if (!name) return null;
+      if (patternCache.has(name)) return patternCache.get(name)!;
       const head = isWord(name[0]) ? '\\b' : '';
       const tail = isWord(name[name.length - 1]) ? '\\b' : '';
-      return new RegExp(`${head}${escapeRe(name)}${tail}`, 'i');
+      const p = new RegExp(`${head}${escapeRe(name)}${tail}`, 'i');
+      patternCache.set(name, p);
+      return p;
     };
 
     const wordMatch = (a: string, b: string): boolean => {
@@ -410,8 +433,20 @@ export function DrugInteractionsPage() {
       return (pa !== null && pa.test(b)) || (pb !== null && pb.test(a));
     };
 
+    // Cartesian-product pair attribution: a class rule whose side1/side2
+    // covers multiple input drugs must produce one pair per (sideA × sideB)
+    // hit, not just the first match. Without this, e.g. "Beta-Blockers ↔
+    // Antidiabetic Agents" with input [Carvedilol, Linagliptin, Metformin]
+    // only attributes Carvedilol↔Linagliptin and silently drops
+    // Carvedilol↔Metformin. See docs/drug-interactions-class-rule-pair-
+    // attribution-fix-2026-05-08.md §3.
     const pairMap = new Map<string, { a: string; b: string; risk: string; count: number }>();
-    for (const item of searchResults) {
+    const ro: Record<string, number> = { X: 0, D: 1, C: 2, B: 3, A: 4 };
+    // Track which (rule_id → input pair list) so detail cards can show
+    // "Applies to: Carvedilol ↔ Linagliptin、Carvedilol ↔ Metformin".
+    const applicablePairsByRuleId = new Map<string, Array<[string, string]>>();
+
+    for (const item of dedupedResults) {
       const d1l = (item.drug1 || '').toLowerCase();
       const d2l = (item.drug2 || '').toLowerCase();
       // 建 side1 / side2 名稱集合
@@ -423,34 +458,43 @@ export function DrugInteractionsPage() {
         if (gn === d1l) side1.push(...ms);
         else if (gn === d2l) side2.push(...ms);
       }
-      // 找出匹配的輸入藥物
-      let matchA = '';
-      let matchB = '';
-      for (const drug of validDrugs) {
-        const dl = drug.toLowerCase();
-        if (!matchA && side1.some(n => wordMatch(dl, n))) matchA = drug;
-        if (!matchB && side2.some(n => wordMatch(dl, n))) matchB = drug;
+      // 取 side1 / side2 全部命中的輸入藥物
+      const sideAHits = validDrugs.filter(d => side1.some(n => wordMatch(d.toLowerCase(), n)));
+      const sideBHits = validDrugs.filter(d => side2.some(n => wordMatch(d.toLowerCase(), n)));
+      if (sideAHits.length === 0 || sideBHits.length === 0) continue;
+
+      // Cartesian product; same pair within one rule counted once
+      // (handles same-class rules like Anticoagulants ↔ Anticoagulants where
+      // sideA and sideB overlap and (a,b) and (b,a) collapse to one key).
+      const seenInThisRule = new Set<string>();
+      const pairsForThisRule: Array<[string, string]> = [];
+      for (const a of sideAHits) {
+        for (const b of sideBHits) {
+          if (a.toLowerCase() === b.toLowerCase()) continue;
+          const [sortedA, sortedB] = [a, b].sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase()));
+          const key = `${sortedA.toLowerCase()}|${sortedB.toLowerCase()}`;
+          if (seenInThisRule.has(key)) continue;
+          seenInThisRule.add(key);
+          pairsForThisRule.push([sortedA, sortedB]);
+
+          const existing = pairMap.get(key);
+          const curRisk = ro[item.riskRating] ?? 5;
+          if (!existing) {
+            pairMap.set(key, { a: sortedA, b: sortedB, risk: item.riskRating || '?', count: 1 });
+          } else {
+            existing.count++;
+            if (curRisk < (ro[existing.risk] ?? 5)) existing.risk = item.riskRating;
+          }
+        }
       }
-      if (!matchA || !matchB || matchA.toLowerCase() === matchB.toLowerCase()) continue;
-      const [sortedA, sortedB] = [matchA, matchB].sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase()));
-      const key = `${sortedA.toLowerCase()}|${sortedB.toLowerCase()}`;
-      const existing = pairMap.get(key);
-      const ro: Record<string, number> = { X: 0, D: 1, C: 2, B: 3, A: 4 };
-      const curRisk = ro[item.riskRating] ?? 5;
-      if (!existing) {
-        pairMap.set(key, { a: sortedA, b: sortedB, risk: item.riskRating || '?', count: 1 });
-      } else {
-        existing.count++;
-        if (curRisk < (ro[existing.risk] ?? 5)) existing.risk = item.riskRating;
+      if (pairsForThisRule.length > 0) {
+        applicablePairsByRuleId.set(item.id, pairsForThisRule);
       }
     }
-    const pairs = [...pairMap.values()].sort((a, b) => {
-      const ro: Record<string, number> = { X: 0, D: 1, C: 2, B: 3, A: 4 };
-      return (ro[a.risk] ?? 5) - (ro[b.risk] ?? 5);
-    });
+    const pairs = [...pairMap.values()].sort((a, b) => (ro[a.risk] ?? 5) - (ro[b.risk] ?? 5));
 
-    return { riskCounts, highestRisk, pairs };
-  }, [searchResults, drugs]);
+    return { riskCounts, highestRisk, pairs, applicablePairsByRuleId };
+  }, [dedupedResults, drugs]);
 
   return (
     <div className="p-6 space-y-6">
@@ -631,7 +675,7 @@ export function DrugInteractionsPage() {
       {/* 查詢結果 */}
       {hasSearched && !loading && (
         <div className="space-y-4">
-          {searchResults.length === 0 ? (
+          {dedupedResults.length === 0 ? (
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
@@ -652,7 +696,7 @@ export function DrugInteractionsPage() {
                         {t('interactions.summary.title')}
                       </CardTitle>
                       <span className="text-sm text-muted-foreground">
-                        {t('interactions.summary.queryStats', { drugs: filledCount, count: searchResults.length })}
+                        {t('interactions.summary.queryStats', { drugs: filledCount, count: dedupedResults.length })}
                       </span>
                     </div>
                   </CardHeader>
@@ -717,6 +761,9 @@ export function DrugInteractionsPage() {
                             </tbody>
                           </table>
                         </div>
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          {t('interactions.summary.pairLookupNote')}
+                        </p>
                       </div>
                     )}
                   </CardContent>
@@ -745,14 +792,29 @@ export function DrugInteractionsPage() {
               <h2>{t('interactions.results.detailHeading')}</h2>
 
               <div className="grid gap-4">
-                {searchResults.map((interaction) => (
+                {dedupedResults.map((interaction) => {
+                  // Pairs from user's input that this rule actually applies to.
+                  // Only set when the rule is class-level and matches ≥1 input pair —
+                  // otherwise fall back to the rule's raw drug1/drug2.
+                  const applicablePairs = summary?.applicablePairsByRuleId.get(interaction.id) ?? [];
+                  const isClassRule = applicablePairs.length > 0 &&
+                    (interaction.interactingMembers.length > 0);
+                  return (
                   <Card key={interaction.id}>
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="space-y-2">
-                          <CardTitle className="flex items-center gap-2">
-                            {interaction.drug1} + {interaction.drug2}
+                          <CardTitle className="flex items-center gap-2 flex-wrap">
+                            {applicablePairs.length > 0
+                              ? applicablePairs.map(([a, b]) => `${a} ↔ ${b}`).join('、')
+                              : `${interaction.drug1} + ${interaction.drug2}`}
                           </CardTitle>
+                          {isClassRule && (
+                            <p className="text-xs text-muted-foreground">
+                              {interaction.drug1} ↔ {interaction.drug2}
+                              {t('interactions.detail.classRuleSuffix')}
+                            </p>
+                          )}
                           <div className="flex flex-wrap items-center gap-2">
                             {getRiskRatingBadge(interaction)}
                             {interaction.reliabilityRating && (
@@ -846,7 +908,8 @@ export function DrugInteractionsPage() {
 
                     </CardContent>
                   </Card>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}

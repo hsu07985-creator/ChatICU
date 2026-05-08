@@ -220,19 +220,21 @@
       "title": "Query Summary",
       "riskDistribution": "Risk distribution",
       "pairLookup": "Pair quick lookup",
-      "queryStats": "Searched {{drugs}} drug(s); found {{count}} interaction(s)",
+      "queryStats": "Searched {{drugs}} drug(s); found {{count}} rule(s)",
       "overallRisk": "Highest overall risk: {{label}}",
-      "riskCount": "{{label}}: {{count}}",
+      "riskCount": "{{label}}: {{count}} rule(s)",
+      "pairLookupNote": "※ A single class rule may cover multiple drug pairs, so the per-pair counts may sum higher than the total rule count above.",
       "tableHeaders": {
         "pair": "Drug pair",
         "highestRisk": "Highest risk",
-        "count": "Count"
+        "count": "Rules involved"
       }
     },
     "detail": {
       "evidenceLabel": "Evidence: {{rating}}",
       "membersLabel": "Members: {{members}}",
-      "exceptionsLabel": "Exceptions: {{exceptions}}"
+      "exceptionsLabel": "Exceptions: {{exceptions}}",
+      "classRuleSuffix": " (class rule)"
     },
     "results": {
       "noData": "No drug interactions found.",

@@ -220,19 +220,21 @@
       "title": "查詢摘要",
       "riskDistribution": "風險分佈",
       "pairLookup": "配對速查",
-      "queryStats": "查詢 {{drugs}} 種藥品，找到 {{count}} 筆交互作用",
+      "queryStats": "查詢 {{drugs}} 種藥品，找到 {{count}} 條規則",
       "overallRisk": "整體最高風險：{{label}}",
-      "riskCount": "{{label}}：{{count}} 筆",
+      "riskCount": "{{label}}：{{count}} 條規則",
+      "pairLookupNote": "※ 同一條 class rule 可能涵蓋多對藥品，因此「相關規則數」加總可能大於上方「條規則」總數。",
       "tableHeaders": {
         "pair": "藥物配對",
         "highestRisk": "最高風險",
-        "count": "筆數"
+        "count": "相關規則數"
       }
     },
     "detail": {
       "evidenceLabel": "證據：{{rating}}",
       "membersLabel": "成員：{{members}}",
-      "exceptionsLabel": "例外：{{exceptions}}"
+      "exceptionsLabel": "例外：{{exceptions}}",
+      "classRuleSuffix": "（class rule）"
     },
     "results": {
       "noData": "未發現藥物交互作用。",
