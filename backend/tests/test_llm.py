@@ -95,6 +95,23 @@ def test_clinical_polish_no_safety_warning_injection():
     assert "Cockcroft-Gault 估算" not in prompt
 
 
+def test_clinical_polish_drug_names_are_proper_nouns():
+    """Lane B regression (B4 case): pharmacist wrote 'Targocidal 200mg q12h',
+    AI silently corrected to 'Targocid' AND injected '(註：此病人目前使用 Targocid
+    200 mg qod。)' from patient.medications. Both behaviors violate the polish
+    contract — drug names must be preserved verbatim, and parenthetical regimen
+    annotations from patient JSON must not leak into the polished output."""
+    prompt = TASK_PROMPTS["clinical_polish"]
+    assert "DRUG NAMES ARE PROPER NOUNS" in prompt
+    assert "Targocidal" in prompt  # few-shot anchor
+    assert "Cefazoline" in prompt
+    assert "preserve the user's exact spelling" in prompt
+    # Parenthetical annotation prohibition
+    assert "do NOT add a parenthetical" in prompt.lower() or "DO NOT add a parenthetical" in prompt
+    assert "目前使用" in prompt  # negative example for parenthetical leak
+    assert "never inject patient.medications data as side-notes" in prompt
+
+
 def test_clinical_polish_no_placeholder_fallbacks():
     """Earlier '(no numeric values available)' placeholder leaked into polished
     output. Prompt must explicitly forbid these fallback phrases."""
