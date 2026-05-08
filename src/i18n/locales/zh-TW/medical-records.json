@@ -16,7 +16,7 @@
       "label": "護理記錄",
       "description": "使用模板快速建立，AI 協助檢查錯字與格式",
       "placeholder": "填寫護理記錄或套用模板...",
-      "polishLabel": "AI 檢查"
+      "polishLabel": "AI 修飾"
     }
   },
   "draftSection": {

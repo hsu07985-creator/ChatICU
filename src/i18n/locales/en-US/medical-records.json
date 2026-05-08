@@ -16,7 +16,7 @@
       "label": "Nursing Record",
       "description": "Use templates for quick entry; AI helps catch typos and formatting.",
       "placeholder": "Write a nursing record or apply a template...",
-      "polishLabel": "AI Check"
+      "polishLabel": "AI Polish"
     }
   },
   "draftSection": {
