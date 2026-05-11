@@ -48,28 +48,34 @@ export function AiMarkdown({ content, className = '' }: { content: string; class
             </blockquote>
           ),
           table: ({ children }) => (
-            <div className="my-3 overflow-x-auto">
-              <table className="min-w-full border-collapse text-sm border border-gray-300 dark:border-slate-600">
+            <div className="my-3 overflow-x-auto rounded-lg border border-gray-200 dark:border-slate-700">
+              <table className="min-w-full border-collapse text-sm">
                 {children}
               </table>
             </div>
           ),
           thead: ({ children }) => (
-            <thead className="bg-gray-100 dark:bg-slate-800">{children}</thead>
+            <thead className="bg-amber-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
+              {children}
+            </thead>
           ),
-          tbody: ({ children }) => <tbody>{children}</tbody>,
+          tbody: ({ children }) => (
+            <tbody className="[&>tr:nth-child(even)]:bg-gray-50 dark:[&>tr:nth-child(even)]:bg-slate-800/40">
+              {children}
+            </tbody>
+          ),
           tr: ({ children }) => (
-            <tr className="border-b border-gray-200 dark:border-slate-700 last:border-b-0">
+            <tr className="border-b border-gray-100 dark:border-slate-700/60 last:border-b-0">
               {children}
             </tr>
           ),
           th: ({ children }) => (
-            <th className="px-3 py-2 text-left font-semibold border-r border-gray-300 dark:border-slate-600 last:border-r-0 align-top">
+            <th className="px-4 py-2.5 text-left font-semibold text-gray-900 dark:text-slate-100 align-top">
               {children}
             </th>
           ),
           td: ({ children }) => (
-            <td className="px-3 py-2 border-r border-gray-200 dark:border-slate-700 last:border-r-0 align-top leading-relaxed">
+            <td className="px-4 py-2.5 align-top leading-relaxed text-gray-800 dark:text-slate-200 break-words">
               {children}
             </td>
           ),
