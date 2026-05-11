@@ -1,4 +1,5 @@
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -31,6 +32,7 @@ export function AiMarkdown({ content, className = '' }: { content: string; class
   return (
     <div className={`ai-markdown ${className}`}>
       <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
         components={{
           h1: ({ children }) => <h2 className="text-lg font-bold mt-3 mb-1">{children}</h2>,
           h2: ({ children }) => <h3 className="text-base font-bold mt-3 mb-1">{children}</h3>,
@@ -44,6 +46,32 @@ export function AiMarkdown({ content, className = '' }: { content: string; class
             <blockquote className="border-l-4 border-amber-400 bg-amber-50 dark:bg-amber-950 dark:border-amber-600 pl-3 py-1 my-2 text-sm">
               {children}
             </blockquote>
+          ),
+          table: ({ children }) => (
+            <div className="my-3 overflow-x-auto">
+              <table className="min-w-full border-collapse text-sm border border-gray-300 dark:border-slate-600">
+                {children}
+              </table>
+            </div>
+          ),
+          thead: ({ children }) => (
+            <thead className="bg-gray-100 dark:bg-slate-800">{children}</thead>
+          ),
+          tbody: ({ children }) => <tbody>{children}</tbody>,
+          tr: ({ children }) => (
+            <tr className="border-b border-gray-200 dark:border-slate-700 last:border-b-0">
+              {children}
+            </tr>
+          ),
+          th: ({ children }) => (
+            <th className="px-3 py-2 text-left font-semibold border-r border-gray-300 dark:border-slate-600 last:border-r-0 align-top">
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td className="px-3 py-2 border-r border-gray-200 dark:border-slate-700 last:border-r-0 align-top leading-relaxed">
+              {children}
+            </td>
           ),
           code: ({ children, className: codeClassName }) => {
             const isBlock = codeClassName?.includes('language-');
