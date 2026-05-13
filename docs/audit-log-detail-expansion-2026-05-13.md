@@ -127,7 +127,8 @@ snapshot_fields(obj, fields) -> dict
 - [x] W1：diff_dict + 4 個 update 端點接 diff + ventilator create 深化
 - [x] W2：scores POST/DELETE + symptom_records POST 新埋點
 - [x] W3：文件
-- [ ] B1：AI chat 埋點（等 granularity 決策）
+- [x] B1：AI chat 埋點（粗粒度 — 2026-05-13）  
+      _4 個 critical-action 端點：session create（在 chat_stream 內偵測 `was_created`）、session DELETE（含 `message_count` 快照）、session PATCH（title diff）、message feedback PATCH（含 previous_feedback）。`POST /chat/stream` 每訊息**不**埋，遵守粗粒度核心決策。`_get_or_create_session` 簽名改為 `Tuple[AISession, bool]`。_
 - [ ] B2：correlation_id middleware
 - [ ] B3：X-Forwarded-For 真實 IP
 - [ ] B4：notifications mark-read

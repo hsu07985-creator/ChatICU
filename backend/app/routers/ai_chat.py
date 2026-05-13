@@ -16,17 +16,18 @@ import logging
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import AsyncGenerator, List, Optional
+from typing import AsyncGenerator, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select, desc
+from sqlalchemy import func, select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import async_session, get_db
 from app.llm import call_llm_stream, TASK_PROMPTS
+from app.middleware.audit import create_audit_log, diff_dict, snapshot_fields
 from app.middleware.auth import get_current_user
 from app.models.ai_session import AISession, AIMessage
 from app.models.user import User
@@ -80,7 +81,10 @@ async def _get_or_create_session(
     user_id: str,
     patient_id: Optional[str],
     session_id: Optional[str],
-) -> AISession:
+) -> Tuple[AISession, bool]:
+    """Return (session, was_created). was_created lets the caller audit
+    session creation as a coarse-grained event (per-stream messages are
+    intentionally NOT audited — too noisy)."""
     if session_id:
         result = await db.execute(
             select(AISession).where(
@@ -90,7 +94,7 @@ async def _get_or_create_session(
         )
         session = result.scalar_one_or_none()
         if session:
-            return session
+            return session, False
 
     new_session = AISession(
         id=f"sess_{uuid.uuid4().hex[:16]}",
@@ -103,7 +107,7 @@ async def _get_or_create_session(
     )
     db.add(new_session)
     await db.flush()
-    return new_session
+    return new_session, True
 
 
 async def _load_messages(
@@ -678,10 +682,27 @@ async def chat_stream(
         body.patient_id,
         ip=request.client.host if request.client else None,
     )
-    session = await _get_or_create_session(
+    session, session_was_created = await _get_or_create_session(
         db, current_user.id, body.patient_id, body.session_id
     )
     t_session = time.perf_counter()
+
+    # Audit session creation (coarse-grained — per-message audit intentionally
+    # skipped to keep audit_logs from being flooded by chat traffic).
+    if session_was_created:
+        await create_audit_log(
+            db,
+            user_id=current_user.id,
+            user_name=current_user.name,
+            role=current_user.role,
+            action="建立 AI 對話 session",
+            target=session.id,
+            ip=request.client.host if request.client else None,
+            details={
+                "session_id": session.id,
+                "patient_id": body.patient_id,
+            },
+        )
 
     patient_id = body.patient_id or session.patient_id
     is_first_turn = session.snapshot_metadata is None
@@ -976,6 +997,7 @@ async def get_session(
 @router.delete("/sessions/{session_id}")
 async def delete_session(
     session_id: str,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -989,7 +1011,32 @@ async def delete_session(
     session = session_result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    # Snapshot details before delete so audit log captures what was destroyed.
+    msg_count = (await db.execute(
+        select(func.count()).select_from(AIMessage).where(AIMessage.session_id == session_id)
+    )).scalar() or 0
+    audit_details = {
+        "session_id": session.id,
+        "patient_id": session.patient_id,
+        "title": session.title,
+        "message_count": msg_count,
+    }
+
     await db.delete(session)
+    await db.flush()
+
+    await create_audit_log(
+        db,
+        user_id=current_user.id,
+        user_name=current_user.name,
+        role=current_user.role,
+        action="刪除 AI 對話 session",
+        target=session_id,
+        ip=request.client.host if request.client else None,
+        details=audit_details,
+    )
+
     await db.commit()
     return {"success": True, "data": None}
 
@@ -998,6 +1045,7 @@ async def delete_session(
 async def update_session(
     session_id: str,
     body: dict,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1011,8 +1059,29 @@ async def update_session(
     session = session_result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    before_state = snapshot_fields(session, ["title"])
     if "title" in body:
         session.title = body["title"]
+    after_state = snapshot_fields(session, ["title"])
+    audit_details = diff_dict(before_state, after_state)
+    audit_details["session_id"] = session_id
+
+    await db.flush()
+    # Only audit if something actually changed (title rename is the only
+    # supported field today — guard against no-op PATCH).
+    if audit_details["fields_changed"]:
+        await create_audit_log(
+            db,
+            user_id=current_user.id,
+            user_name=current_user.name,
+            role=current_user.role,
+            action="更新 AI 對話 session",
+            target=session_id,
+            ip=request.client.host if request.client else None,
+            details=audit_details,
+        )
+
     await db.commit()
     await db.refresh(session)
     return {"success": True, "data": _session_to_dict(session)}
@@ -1117,6 +1186,7 @@ async def refresh_session_snapshot(
 async def update_message_feedback(
     message_id: str,
     body: MessageFeedbackRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -1152,7 +1222,28 @@ async def update_message_feedback(
             detail="Only assistant messages can receive feedback",
         )
 
+    previous_feedback = message.feedback
     message.feedback = body.feedback
+    await db.flush()
+
+    # Feedback is low-volume critical signal — keep per-event audit.
+    if previous_feedback != body.feedback:
+        await create_audit_log(
+            db,
+            user_id=current_user.id,
+            user_name=current_user.name,
+            role=current_user.role,
+            action="AI 訊息反饋",
+            target=message_id,
+            ip=request.client.host if request.client else None,
+            details={
+                "message_id": message_id,
+                "session_id": message.session_id,
+                "previous_feedback": previous_feedback,
+                "feedback": body.feedback,
+            },
+        )
+
     await db.commit()
     await db.refresh(message)
 
