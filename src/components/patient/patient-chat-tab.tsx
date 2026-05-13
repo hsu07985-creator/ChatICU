@@ -211,7 +211,7 @@ export function PatientChatTab({
             <Card className="border">
               <CardHeader className="bg-slate-50 dark:bg-slate-800 border-b py-1.5 px-3" style={{ paddingBottom: '6px' }}>
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1 text-xs font-semibold text-[#374151]">
+                  <span className="flex items-center gap-1 text-xs font-semibold text-[#374151] dark:text-slate-300">
                     <History className="h-3.5 w-3.5 text-muted-foreground" />
                     {t('chatTab.headerTitle')}
                   </span>
@@ -410,7 +410,7 @@ export function PatientChatTab({
                         <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}${isFirstOfRound ? ' mt-3' : ''}`}>
                           {msg.role === 'user' ? (
                             <div className="max-w-[65%] w-fit rounded-2xl px-4 py-2.5 bg-white dark:bg-slate-900 border border-border">
-                              <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1F2937]">{msg.content}</p>
+                              <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1F2937] dark:text-slate-200">{msg.content}</p>
                               {msg.timestamp && (
                                 <p className="text-xs text-[#9ca3af] mt-1.5 text-right">{msg.timestamp}</p>
                               )}
@@ -435,9 +435,9 @@ export function PatientChatTab({
                                     // During streaming render as plain whitespace-pre-wrap <p> so we
                                     // avoid re-parsing markdown on every delta — huge win for long answers.
                                     // Swaps to <AiMarkdown> automatically once isStreamingThis becomes false.
-                                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1F2937]">{displayContent}</p>
+                                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1F2937] dark:text-slate-200">{displayContent}</p>
                                   ) : (
-                                    <AiMarkdown content={displayContent} className="text-sm text-[#1F2937]" />
+                                    <AiMarkdown content={displayContent} className="text-sm text-[#1F2937] dark:text-slate-200" />
                                   )}
 
                                   {/* F-PARITY (2026-05-03): F3 advice chip group below the bubble. */}
@@ -449,7 +449,7 @@ export function PatientChatTab({
                                   {!isStreamingThis && (<>
                                     {/* Detail / explanation panel */}
                                     {isDetailExpanded && msg.explanation && msg.explanation.trim().length > 0 && (
-                                      <div className="mt-2 rounded-md bg-[#F7F8F9] border border-[#E5E7EB] px-3 py-2.5">
+                                      <div className="mt-2 rounded-md bg-[#F7F8F9] dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 px-3 py-2.5">
                                         <AiMarkdown content={msg.explanation} className="text-xs" />
                                         <SafetyWarnings warnings={msg.warnings} />
                                         {msg.requiresExpertReview && (
@@ -472,7 +472,7 @@ export function PatientChatTab({
                                                 <div className="flex items-start gap-1">
                                                   <span className="mt-0.5 text-muted-foreground">•</span>
                                                   <div className="flex-1">
-                                                    <p className="font-medium text-[#374151]">{ref.title || ref.sourceFile || 'unknown'}</p>
+                                                    <p className="font-medium text-[#374151] dark:text-slate-300">{ref.title || ref.sourceFile || 'unknown'}</p>
                                                     <p className="text-xs text-muted-foreground mt-0.5">
                                                       {(ref.sourceFile || ref.source || 'unknown')}
                                                       {' • '}
@@ -482,8 +482,8 @@ export function PatientChatTab({
                                                     </p>
                                                     {ref.summary ? (
                                                       <div className="mt-1 space-y-1">
-                                                        <p className="text-xs text-[#374151] leading-relaxed">
-                                                          <span className="font-medium text-[#374151]">{t('thread.highlightLabel')}</span>{ref.summary}
+                                                        <p className="text-xs text-[#374151] dark:text-slate-300 leading-relaxed">
+                                                          <span className="font-medium text-[#374151] dark:text-slate-300">{t('thread.highlightLabel')}</span>{ref.summary}
                                                         </p>
                                                         {ref.keyQuote && (
                                                           <div className="rounded border border-[#d1d5db] dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs leading-relaxed text-muted-foreground italic">
