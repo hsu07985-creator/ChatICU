@@ -60,6 +60,11 @@ import { Textarea } from '../components/ui/textarea';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n/config';
 
+// Must match backend `_MAX_MESSAGE_LENGTH` in ai_chat.py. Bumped from 4000
+// → 8000 on 2026-05-13 after users hit HTTP 422 pasting ~4200-char drafts.
+const MAX_MESSAGE_LENGTH = 8000;
+const MESSAGE_WARN_THRESHOLD = Math.floor(MAX_MESSAGE_LENGTH * 0.9);
+
 interface SessionItem {
   id: string;
   title: string;
@@ -841,6 +846,7 @@ export function AiChatPage() {
                           void sendMessage();
                         }
                       }}
+                      maxLength={MAX_MESSAGE_LENGTH}
                       className="min-h-[120px] border border-border text-sm transition-colors rounded-xl"
                     />
                     {isSending ? (
@@ -863,7 +869,25 @@ export function AiChatPage() {
                       </Button>
                     )}
                   </div>
-                  <p className="text-[9px] text-[#d0d0d0] mt-1">{t('ai.input.shortcutHint')}</p>
+                  <div className="flex items-center justify-between mt-1 gap-2">
+                    <p className="text-[9px] text-[#d0d0d0]">{t('ai.input.shortcutHint')}</p>
+                    <span
+                      className={`text-[10px] tabular-nums shrink-0 ${
+                        chatInput.length >= MAX_MESSAGE_LENGTH
+                          ? 'text-red-600 font-medium'
+                          : chatInput.length >= MESSAGE_WARN_THRESHOLD
+                          ? 'text-amber-600'
+                          : 'text-muted-foreground'
+                      }`}
+                      title={
+                        chatInput.length >= MAX_MESSAGE_LENGTH
+                          ? t('ai.input.charLimitReached')
+                          : undefined
+                      }
+                    >
+                      {t('ai.input.charCount', { count: chatInput.length, max: MAX_MESSAGE_LENGTH })}
+                    </span>
+                  </div>
                 </div>
               </div>
             </CardContent>

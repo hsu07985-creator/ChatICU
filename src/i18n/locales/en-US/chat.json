@@ -101,7 +101,9 @@
     "input": {
       "placeholder": "e.g. SGLT2 inhibitor recommendations in heart failure?",
       "stopGeneration": "Stop generation",
-      "shortcutHint": "Enter to send · Shift+Enter for newline · Press Stop while generating"
+      "shortcutHint": "Enter to send · Shift+Enter for newline · Press Stop while generating",
+      "charCount": "{{count}} / {{max}}",
+      "charLimitReached": "Character limit reached — pasted content will be truncated"
     },
     "deleteDialog": {
       "title": "Delete chat session",

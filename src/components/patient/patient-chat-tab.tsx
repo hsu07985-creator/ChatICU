@@ -35,6 +35,11 @@ import { LoadingSpinner } from '../ui/state-display';
 import { copyToClipboard } from '../../lib/clipboard-utils';
 import { useTranslation } from 'react-i18next';
 
+// Must match backend `_MAX_MESSAGE_LENGTH` in ai_chat.py (mirrored in
+// src/pages/ai-chat.tsx). 2026-05-13: 4000 → 8000 to cover paste-in drafts.
+const MAX_MESSAGE_LENGTH = 8000;
+const MESSAGE_WARN_THRESHOLD = Math.floor(MAX_MESSAGE_LENGTH * 0.9);
+
 // Local mirrors of the parent's `ChatSession` / `ChatMessage` shapes. Kept as
 // generic structural interfaces so the parent can keep its own types without
 // forcing a shared `types.ts` move (out of scope for 3.2).
@@ -651,6 +656,7 @@ export function PatientChatTab({
                           void onSendMessage();
                         }
                       }}
+                      maxLength={MAX_MESSAGE_LENGTH}
                       className={`min-h-[36px] border text-xs transition-colors rounded-xl ${
                         canSendAiChat
                           ? 'border-border'
@@ -670,7 +676,25 @@ export function PatientChatTab({
                       <Send className={`h-4.5 w-4.5 ${isSending ? 'opacity-40' : ''}`} />
                     </Button>
                   </div>
-                  <p className="text-xs text-[#d0d0d0] mt-1">{t('chatTab.inputShortcutHint')}</p>
+                  <div className="flex items-center justify-between mt-1 gap-2">
+                    <p className="text-xs text-[#d0d0d0]">{t('chatTab.inputShortcutHint')}</p>
+                    <span
+                      className={`text-[10px] tabular-nums shrink-0 ${
+                        chatInput.length >= MAX_MESSAGE_LENGTH
+                          ? 'text-red-600 font-medium'
+                          : chatInput.length >= MESSAGE_WARN_THRESHOLD
+                          ? 'text-amber-600'
+                          : 'text-muted-foreground'
+                      }`}
+                      title={
+                        chatInput.length >= MAX_MESSAGE_LENGTH
+                          ? t('chatTab.charLimitReached')
+                          : undefined
+                      }
+                    >
+                      {t('chatTab.charCount', { count: chatInput.length, max: MAX_MESSAGE_LENGTH })}
+                    </span>
+                  </div>
                 </div>
               </div>{/* end flex column */}
             </CardContent>

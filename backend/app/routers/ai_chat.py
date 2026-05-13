@@ -49,13 +49,21 @@ router = APIRouter(prefix="/ai", tags=["AI Chat"])
 # Keep last N conversation pairs in the context window
 _CONTEXT_WINDOW = 10
 
+# Upper bound on a single user message. Bumped from 4000 → 8000 (2026-05-13)
+# after users hit HTTP 422 when pasting ~4200-char clinical drafts. The
+# frontend mirrors this in its char-counter + textarea maxLength; this check
+# is the server-side belt-and-suspenders for non-browser callers.
+_MAX_MESSAGE_LENGTH = 8000
+
 
 # ── Request / Response schemas ─────────────────────────────────────────────────
 
 class ChatRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    message: str = Field(..., min_length=1, max_length=4000)
+    # max_length kept loose here so we can return a friendly Chinese error
+    # from the endpoint rather than the generic Pydantic "string_too_long".
+    message: str = Field(..., min_length=1)
     patient_id: Optional[str] = Field(None, alias="patientId")
     session_id: Optional[str] = Field(None, alias="sessionId")
 
@@ -650,6 +658,18 @@ async def chat_stream(
     Subsequent turns: checks for data updates (delta) if snapshot > 30 min old.
     """
     t0 = time.perf_counter()
+    # Length gate — see _MAX_MESSAGE_LENGTH note. Friendly Chinese reply
+    # via the global HTTPException handler in main.py (returns
+    # {success: false, message: "..."} which the frontend renders verbatim).
+    msg_len = len(body.message)
+    if msg_len > _MAX_MESSAGE_LENGTH:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"訊息過長：目前 {msg_len} 字,上限 {_MAX_MESSAGE_LENGTH} 字。"
+                "請縮短內容或拆成多次提問。"
+            ),
+        )
     # W1-T1 ACL: verify patient exists + role gate + audit log.
     # No-op when body.patient_id is None (general chat).
     await assert_patient_chat_access(

@@ -101,7 +101,9 @@
     "input": {
       "placeholder": "例如：SGLT2 抑制劑在心衰竭患者的應用建議？",
       "stopGeneration": "停止生成",
-      "shortcutHint": "Enter 發送 · Shift+Enter 換行 · 生成中可按停止"
+      "shortcutHint": "Enter 發送 · Shift+Enter 換行 · 生成中可按停止",
+      "charCount": "{{count}} / {{max}}",
+      "charLimitReached": "已達字數上限，貼上內容會被截斷"
     },
     "deleteDialog": {
       "title": "刪除對話記錄",

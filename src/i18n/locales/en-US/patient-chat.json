@@ -60,6 +60,8 @@
     "hideList": "Hide history list",
     "showList": "Show history list",
     "inputShortcutHint": "Enter to send · Shift+Enter for newline",
+    "charCount": "{{count}} / {{max}}",
+    "charLimitReached": "Character limit reached — pasted content will be truncated",
     "headerTitle": "History",
     "snapshotKEgfr": "K: {{k}} • eGFR: {{eGFR}}",
     "systemStatus": "System status: {{status}}",

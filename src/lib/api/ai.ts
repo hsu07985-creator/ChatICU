@@ -351,7 +351,31 @@ export async function streamChatMessage(options: StreamChatOptions): Promise<voi
       clearTimeout(initialTimer);
     }
     if (!response.ok) {
-      throw new Error(`AI 串流請求失敗（HTTP ${response.status}）`);
+      // Try to surface the backend's friendly message (e.g. "訊息過長：...").
+      // Backend wraps HTTPException in `{success:false, message:"..."}` —
+      // RequestValidationError uses the same envelope. Falls back to a
+      // generic HTTP code string only when the body is unreadable.
+      let serverMessage: string | null = null;
+      try {
+        const text = await response.text();
+        if (text) {
+          try {
+            const json = JSON.parse(text) as { message?: unknown; detail?: unknown };
+            if (typeof json.message === 'string' && json.message.trim()) {
+              serverMessage = json.message.trim();
+            } else if (typeof json.detail === 'string' && json.detail.trim()) {
+              serverMessage = json.detail.trim();
+            }
+          } catch {
+            /* not JSON — leave serverMessage null */
+          }
+        }
+      } catch {
+        /* body already consumed or network glitch — leave serverMessage null */
+      }
+      throw new Error(
+        serverMessage ?? `AI 串流請求失敗（HTTP ${response.status}）`,
+      );
     }
     if (!response.body) {
       throw new Error('AI 串流連線失敗：無可讀取內容。');
