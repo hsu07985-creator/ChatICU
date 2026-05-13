@@ -61,6 +61,7 @@
     "showList": "顯示記錄列表",
     "inputShortcutHint": "Enter 發送 · Shift+Enter 換行",
     "charCount": "{{count}} / {{max}}",
+    "charNearLimit": "接近字數上限",
     "charLimitReached": "已達字數上限，貼上內容會被截斷",
     "headerTitle": "對話記錄",
     "snapshotKEgfr": "K: {{k}} • eGFR: {{eGFR}}",

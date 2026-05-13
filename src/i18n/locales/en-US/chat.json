@@ -103,6 +103,7 @@
       "stopGeneration": "Stop generation",
       "shortcutHint": "Enter to send · Shift+Enter for newline · Press Stop while generating",
       "charCount": "{{count}} / {{max}}",
+      "charNearLimit": "Approaching character limit",
       "charLimitReached": "Character limit reached — pasted content will be truncated"
     },
     "deleteDialog": {

@@ -859,14 +859,28 @@ export function AiChatPage() {
                         <Square className="h-4.5 w-4.5 fill-white text-white" />
                       </Button>
                     ) : (
-                      <Button
-                        onClick={() => void sendMessage()}
-                        size="icon"
-                        className="h-[120px] w-[36px] shrink-0 transition-colors rounded-xl bg-gray-700 hover:bg-gray-700"
-                        disabled={!chatInput.trim()}
-                      >
-                        <Send className="h-4.5 w-4.5" />
-                      </Button>
+                      <div className="relative shrink-0">
+                        <Button
+                          onClick={() => void sendMessage()}
+                          size="icon"
+                          className="h-[120px] w-[36px] transition-colors rounded-xl bg-gray-700 hover:bg-gray-700"
+                          disabled={!chatInput.trim()}
+                        >
+                          <Send className="h-4.5 w-4.5" />
+                        </Button>
+                        {chatInput.length >= MESSAGE_WARN_THRESHOLD && (
+                          <span
+                            className="absolute -top-1 -right-1 rounded-full bg-white dark:bg-slate-900 p-[1px] leading-none"
+                            title={
+                              chatInput.length >= MAX_MESSAGE_LENGTH
+                                ? t('ai.input.charLimitReached')
+                                : t('ai.input.charNearLimit')
+                            }
+                          >
+                            <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                   <div className="flex items-center justify-between mt-1 gap-2">

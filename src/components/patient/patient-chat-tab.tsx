@@ -664,17 +664,31 @@ export function PatientChatTab({
                       }`}
                       disabled={!canSendAiChat}
                     />
-                    <Button
-                      onClick={() => void onSendMessage()}
-                      size="icon"
-                      className={`h-[36px] w-[36px] shrink-0 transition-colors rounded-xl ${
-                        canSendAiChat
-                          ? 'bg-gray-700 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500'
-                          : 'bg-[#d1d5db] dark:bg-gray-600 cursor-not-allowed'
-                      }`}
-                      disabled={isSending || !chatInput.trim() || !canSendAiChat}>
-                      <Send className={`h-4.5 w-4.5 ${isSending ? 'opacity-40' : ''}`} />
-                    </Button>
+                    <div className="relative shrink-0">
+                      <Button
+                        onClick={() => void onSendMessage()}
+                        size="icon"
+                        className={`h-[36px] w-[36px] transition-colors rounded-xl ${
+                          canSendAiChat
+                            ? 'bg-gray-700 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500'
+                            : 'bg-[#d1d5db] dark:bg-gray-600 cursor-not-allowed'
+                        }`}
+                        disabled={isSending || !chatInput.trim() || !canSendAiChat}>
+                        <Send className={`h-4.5 w-4.5 ${isSending ? 'opacity-40' : ''}`} />
+                      </Button>
+                      {!isSending && chatInput.length >= MESSAGE_WARN_THRESHOLD && (
+                        <span
+                          className="absolute -top-1 -right-1 rounded-full bg-white dark:bg-slate-900 p-[1px] leading-none"
+                          title={
+                            chatInput.length >= MAX_MESSAGE_LENGTH
+                              ? t('chatTab.charLimitReached')
+                              : t('chatTab.charNearLimit')
+                          }
+                        >
+                          <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center justify-between mt-1 gap-2">
                     <p className="text-xs text-[#d0d0d0]">{t('chatTab.inputShortcutHint')}</p>

@@ -61,6 +61,7 @@
     "showList": "Show history list",
     "inputShortcutHint": "Enter to send · Shift+Enter for newline",
     "charCount": "{{count}} / {{max}}",
+    "charNearLimit": "Approaching character limit",
     "charLimitReached": "Character limit reached — pasted content will be truncated",
     "headerTitle": "History",
     "snapshotKEgfr": "K: {{k}} • eGFR: {{eGFR}}",
