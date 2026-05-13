@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.auth import get_current_user, require_roles
-from app.middleware.audit import create_audit_log
+from app.middleware.audit import create_audit_log, diff_dict, snapshot_fields
 from app.models.medication import Medication
 from app.models.medication_administration import MedicationAdministration
 from app.models.user import User
@@ -417,17 +417,24 @@ async def update_medication(
         "sanCategory": "san_category",
         "concentrationUnit": "concentration_unit",
     }
+    # Snapshot before-state on mapped column names for audit diff
+    mapped_keys = [field_map.get(k, k) for k in update_data.keys()]
+    before_state = snapshot_fields(med, mapped_keys)
+
     for field_name, value in update_data.items():
         mapped_field = field_map.get(field_name, field_name)
         if mapped_field == "san_category":
             value = normalize_san_category(value)
         setattr(med, mapped_field, value)
 
+    after_state = snapshot_fields(med, mapped_keys)
+    audit_details = diff_dict(before_state, after_state)
+
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="更新藥物", target=medication_id, status="success",
         ip=request.client.host if request.client else None,
-        details={"fields_changed": list(update_data.keys())},
+        details=audit_details,
     )
 
     return success_response(data=med_to_dict(med), message="藥物已更新")

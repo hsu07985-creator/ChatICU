@@ -211,7 +211,24 @@ async def create_ventilator_settings(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="手動輸入呼吸器設定", target=pid, status="success",
         ip=request.client.host if request.client else None,
-        details={"ventilator_id": v.id},
+        details={
+            "ventilator_id": v.id,
+            # Full parameter snapshot — incident review needs every dial.
+            "settings": {
+                "mode": body.mode,
+                "fio2": body.fio2,
+                "peep": body.peep,
+                "tidal_volume": body.tidal_volume,
+                "respiratory_rate": body.respiratory_rate,
+                "inspiratory_pressure": body.inspiratory_pressure,
+                "pressure_support": body.pressure_support,
+                "ie_ratio": body.ie_ratio,
+                "pip": body.pip,
+                "plateau": body.plateau,
+                "compliance": body.compliance,
+                "resistance": body.resistance,
+            },
+        },
     )
     await db.flush()
 

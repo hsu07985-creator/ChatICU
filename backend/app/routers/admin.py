@@ -15,7 +15,7 @@ from fastapi import Request as StarletteRequest
 
 from app.database import get_db
 from app.middleware.auth import require_roles
-from app.middleware.audit import create_audit_log
+from app.middleware.audit import create_audit_log, diff_dict, snapshot_fields
 from app.models.audit_log import AuditLog
 from app.models.user import User, PasswordHistory
 from app.schemas.admin import UserCreate, UserUpdate, UserListResponse
@@ -330,6 +330,15 @@ async def update_user(
     # Prevent admin from disabling their own account (would lock themselves out)
     if update_data.get("active") is False and target_user.id == user.id:
         raise HTTPException(status_code=400, detail="無法停用自己的帳號")
+
+    # Snapshot before-state for audit diff. `password` is tracked so the
+    # diff records "password changed" without leaking either hash; the
+    # downstream mask helper handles the actual redaction.
+    diff_keys = list(update_data.keys())
+    before_state = snapshot_fields(target_user, [k for k in diff_keys if k != "password"])
+    if "password" in diff_keys:
+        before_state["password"] = "<old>"  # masked downstream
+
     if "password" in update_data:
         new_password = update_data.pop("password")
         # Record old hash in password history
@@ -346,11 +355,17 @@ async def update_user(
     for key, value in update_data.items():
         setattr(target_user, key, value)
 
+    after_state = snapshot_fields(target_user, [k for k in diff_keys if k != "password"])
+    if "password" in diff_keys:
+        after_state["password"] = "<new>"  # masked downstream
+    audit_details = diff_dict(before_state, after_state)
+    audit_details["target_user_id"] = user_id
+
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="更新使用者", target=target_user.username, status="success",
         ip=request.client.host if request.client else None,
-        details={"target_user_id": user_id, "fields_changed": list(body.model_dump(exclude_unset=True).keys())},
+        details=audit_details,
     )
 
     return success_response(data={

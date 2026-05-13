@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 from app.database import get_db
 from app.middleware.auth import get_current_user, require_roles
-from app.middleware.audit import create_audit_log
+from app.middleware.audit import create_audit_log, diff_dict, snapshot_fields
 from app.models.patient import Patient
 from app.models.culture_result import CultureResult
 from app.models.message import PatientMessage
@@ -561,6 +561,16 @@ async def update_patient(
     intub_date_val = update_data.pop("intubation_date", None)
     trach_date_val = update_data.pop("tracheostomy_date", None)
 
+    # Snapshot before-state for audit diff. Mapped column names so consumers
+    # see real DB field names; bmi/intubated/tracheostomy added because the
+    # block below derives them from height/weight/trach inputs.
+    diff_keys = [field_mapping.get(k, k) for k in update_data.keys()]
+    for derived in ("bmi", "intubated", "tracheostomy"):
+        if derived not in diff_keys:
+            diff_keys.append(derived)
+    before_state = snapshot_fields(patient, diff_keys)
+    airway_before = (await _fetch_airway_dates(db, [pid])).get(pid, {}) or {}
+
     if trach_date_val is not None:
         update_data["tracheostomy"] = True
     if update_data.get("tracheostomy") is True:
@@ -624,15 +634,33 @@ async def update_patient(
         logger.error("update_patient flush failed for %s: %s", pid, exc, exc_info=True)
         raise
 
+    # Compute audit diff: before snapshot was captured above; build after
+    # snapshot now (post-flush, so ORM-side derived values like bmi /
+    # intubated / tracheostomy are settled).
+    after_state = snapshot_fields(patient, diff_keys)
+    audit_details = diff_dict(before_state, after_state)
+
+    # Airway dates live outside the Patient ORM — fold their diffs in by hand.
+    for col_key, payload_val, was_set in (
+        ("intubation_date", intub_date_val, "intubation_date" in body.model_fields_set),
+        ("tracheostomy_date", trach_date_val, "tracheostomy_date" in body.model_fields_set),
+    ):
+        if not was_set:
+            continue
+        new_val = _coerce_date(payload_val) if payload_val is not None else None
+        old_val = airway_before.get(col_key)
+        if old_val != new_val:
+            audit_details["changes"][col_key] = {
+                "from": old_val.isoformat() if old_val else None,
+                "to": new_val.isoformat() if new_val else None,
+            }
+            audit_details["fields_changed"].append(col_key)
+
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="更新病患資料", target=pid, status="success",
         ip=request.client.host if request.client else None,
-        details={
-            "fields_changed": list(update_data.keys())
-            + (["intubation_date"] if ("intubation_date" in body.model_fields_set) else [])
-            + (["tracheostomy_date"] if ("tracheostomy_date" in body.model_fields_set) else []),
-        },
+        details=audit_details,
     )
 
     return success_response(
