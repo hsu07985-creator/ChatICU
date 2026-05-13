@@ -11,10 +11,22 @@ import {
 import { FileText, User, Clock, AlertCircle, RefreshCw, ShieldCheck, Shield } from 'lucide-react';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
-import { useState, useEffect } from 'react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n/config';
-import { getAuditLogs, AuditLog, AuditLogsResponse } from '../../lib/api/admin';
+import {
+  getAuditLogs,
+  AuditLogsResponse,
+  AuditLogsParams,
+  AuditLogStatus,
+} from '../../lib/api/admin';
 import { getApiErrorMessage } from '../../lib/api-client';
 
 // ── helpers ───────────────────────────────────────────────────────────
@@ -60,10 +72,41 @@ function isIdLike(target: string): boolean {
   return /^(pat|med|pmsg|usr|sess|pi|ord)_/.test(target);
 }
 
+// Sentinel for "all" in Radix Select — Radix disallows empty-string item values.
+const ANY = '__any__';
+
+interface FilterState {
+  startDate: string;
+  endDate: string;
+  action: string;
+  user: string;
+  role: string;
+  status: string;
+}
+
+const EMPTY_FILTERS: FilterState = {
+  startDate: '',
+  endDate: '',
+  action: '',
+  user: '',
+  role: ANY,
+  status: ANY,
+};
+
+function buildParams(f: FilterState): AuditLogsParams {
+  const params: AuditLogsParams = { limit: 50 };
+  if (f.startDate) params.startDate = f.startDate;
+  if (f.endDate) params.endDate = f.endDate;
+  if (f.action.trim()) params.action = f.action.trim();
+  if (f.user.trim()) params.user = f.user.trim();
+  if (f.role !== ANY) params.role = f.role;
+  if (f.status !== ANY) params.status = f.status as AuditLogStatus;
+  return params;
+}
+
 // 稽核紀錄頁面
 export function AuditPage() {
   const { t } = useTranslation('admin');
-  const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
   const [apiData, setApiData] = useState<AuditLogsResponse | null>(null);
@@ -71,12 +114,16 @@ export function AuditPage() {
 
   const [error, setError] = useState<string | null>(null);
 
-  // 從 API 載入數據
-  const loadData = async () => {
+  // 篩選：draft 是 UI 上正在編輯的值；applied 是真正送到後端的值
+  const [draft, setDraft] = useState<FilterState>(EMPTY_FILTERS);
+  const [applied, setApplied] = useState<FilterState>(EMPTY_FILTERS);
+
+  // 從 API 載入數據（後端篩選）
+  const loadData = useCallback(async (filters: FilterState) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getAuditLogs({ limit: 50 });
+      const data = await getAuditLogs(buildParams(filters));
       setApiData(data);
     } catch (err: unknown) {
       console.error('audit load failed:', err);
@@ -84,13 +131,24 @@ export function AuditPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(applied);
+  }, [applied, loadData]);
 
-  // 使用 API 數據
+  const applyFilters = () => {
+    setPage(1);
+    setApplied(draft);
+  };
+
+  const resetFilters = () => {
+    setPage(1);
+    setDraft(EMPTY_FILTERS);
+    setApplied(EMPTY_FILTERS);
+  };
+
+  // 使用 API 數據（已是後端篩選後的結果）
   const auditLogs = apiData?.logs || [];
   const stats = apiData?.stats || {
     total: auditLogs.length,
@@ -98,20 +156,19 @@ export function AuditPage() {
     failed: auditLogs.filter(log => log.status === 'failed').length,
   };
 
-  const filteredLogs = auditLogs.filter(log =>
-    log.user.includes(searchTerm) ||
-    log.action.includes(searchTerm) ||
-    log.target.includes(searchTerm)
-  );
+  const totalPages = Math.max(1, Math.ceil(auditLogs.length / PAGE_SIZE));
+  const paginatedLogs = auditLogs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / PAGE_SIZE));
-  const paginatedLogs = filteredLogs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  const getStatusBadge = (status: 'success' | 'failed') => {
-    if (status === 'success') {
-      return <Badge className="bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800">{t('audit.status.success')}</Badge>;
-    }
-    return <Badge className="bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800">{t('audit.status.failed')}</Badge>;
+  const getStatusBadge = (status: AuditLogStatus | string) => {
+    const map: Record<string, string> = {
+      success: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800',
+      failed: 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800',
+      error: 'bg-rose-100 dark:bg-rose-900/40 text-rose-900 dark:text-rose-200 border-rose-200 dark:border-rose-800',
+      degraded: 'bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 border-amber-200 dark:border-amber-800',
+    };
+    const cls = map[status] ?? 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-200';
+    const label = t(`audit.status.${status}`, { defaultValue: status });
+    return <Badge className={cls}>{label}</Badge>;
   };
 
   const getRoleBadge = (role: string) => {
@@ -136,7 +193,7 @@ export function AuditPage() {
         </div>
         <Button
           variant="outline"
-          onClick={loadData}
+          onClick={() => loadData(applied)}
           disabled={loading}
           className="border-brand text-brand hover:bg-brand hover:text-white"
         >
@@ -183,27 +240,111 @@ export function AuditPage() {
         </Card>
       </div>
 
+      {/* 篩選條件 */}
+      <Card>
+        <CardHeader className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
+          <CardTitle className="text-base">{t('audit.filters.title')}</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <div className="grid gap-3 md:grid-cols-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-muted-foreground">{t('audit.filters.startDate')}</label>
+              <Input
+                type="date"
+                value={draft.startDate}
+                onChange={(e) => setDraft({ ...draft, startDate: e.target.value })}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-muted-foreground">{t('audit.filters.endDate')}</label>
+              <Input
+                type="date"
+                value={draft.endDate}
+                onChange={(e) => setDraft({ ...draft, endDate: e.target.value })}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-muted-foreground">{t('audit.filters.status')}</label>
+              <Select
+                value={draft.status}
+                onValueChange={(v) => setDraft({ ...draft, status: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ANY}>{t('audit.filters.anyStatus')}</SelectItem>
+                  <SelectItem value="success">{t('audit.status.success')}</SelectItem>
+                  <SelectItem value="failed">{t('audit.status.failed')}</SelectItem>
+                  <SelectItem value="error">{t('audit.status.error')}</SelectItem>
+                  <SelectItem value="degraded">{t('audit.status.degraded')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-muted-foreground">{t('audit.filters.role')}</label>
+              <Select
+                value={draft.role}
+                onValueChange={(v) => setDraft({ ...draft, role: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ANY}>{t('audit.filters.anyRole')}</SelectItem>
+                  <SelectItem value="admin">{t('audit.roleLabel.admin')}</SelectItem>
+                  <SelectItem value="doctor">{t('audit.roleLabel.doctor')}</SelectItem>
+                  <SelectItem value="np">{t('audit.roleLabel.np')}</SelectItem>
+                  <SelectItem value="nurse">{t('audit.roleLabel.nurse')}</SelectItem>
+                  <SelectItem value="pharmacist">{t('audit.roleLabel.pharmacist')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-muted-foreground">{t('audit.filters.action')}</label>
+              <Input
+                placeholder={t('audit.filters.actionPlaceholder')}
+                value={draft.action}
+                onChange={(e) => setDraft({ ...draft, action: e.target.value })}
+                onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-muted-foreground">{t('audit.filters.user')}</label>
+              <Input
+                placeholder={t('audit.filters.userPlaceholder')}
+                value={draft.user}
+                onChange={(e) => setDraft({ ...draft, user: e.target.value })}
+                onKeyDown={(e) => { if (e.key === 'Enter') applyFilters(); }}
+              />
+            </div>
+            <div className="md:col-span-2 flex items-end justify-end gap-2">
+              <Button variant="ghost" onClick={resetFilters} disabled={loading}>
+                {t('audit.filters.reset')}
+              </Button>
+              <Button
+                onClick={applyFilters}
+                disabled={loading}
+                className="bg-brand text-white hover:bg-brand/90"
+              >
+                {t('audit.filters.apply')}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* 稽核記錄列表 */}
       <Card>
         <CardHeader className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <FileText className="h-6 w-6 text-brand" />
-                {t('audit.list.title')}
-              </CardTitle>
-              <CardDescription className="text-sm mt-2">
-                {t('audit.list.description')}
-              </CardDescription>
-            </div>
-            <div className="w-[300px]">
-              <Input
-                placeholder={t('audit.list.searchPlaceholder')}
-                value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-                className="border"
-              />
-            </div>
+          <div>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <FileText className="h-6 w-6 text-brand" />
+              {t('audit.list.title')}
+            </CardTitle>
+            <CardDescription className="text-sm mt-2">
+              {t('audit.list.description')}
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -253,7 +394,7 @@ export function AuditPage() {
             </TableBody>
           </Table>
 
-          {!loading && !error && filteredLogs.length > PAGE_SIZE && (
+          {!loading && !error && auditLogs.length > PAGE_SIZE && (
             <div className="flex items-center justify-between px-4 py-3 border-t">
               <Button
                 variant="outline"
@@ -288,13 +429,13 @@ export function AuditPage() {
             <div className="text-center py-12">
               <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-400" />
               <p className="text-red-600 font-medium">{error}</p>
-              <Button variant="outline" className="mt-4" onClick={loadData}>
+              <Button variant="outline" className="mt-4" onClick={() => loadData(applied)}>
                 {t('audit.list.reload')}
               </Button>
             </div>
           )}
 
-          {!loading && !error && filteredLogs.length === 0 && (
+          {!loading && !error && auditLogs.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <AlertCircle className="h-12 w-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
               <p>{t('audit.list.empty')}</p>

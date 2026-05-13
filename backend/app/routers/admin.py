@@ -88,6 +88,7 @@ async def list_audit_logs(
     action: str = Query(None),
     user_name_filter: str = Query(None, alias="user"),
     user_id_filter: str = Query(None, alias="userId"),
+    role_filter: str = Query(None, alias="role"),
     status_filter: str = Query(None, alias="status"),
     start_date: str = Query(None, alias="startDate"),
     end_date: str = Query(None, alias="endDate"),
@@ -102,6 +103,8 @@ async def list_audit_logs(
         query = query.where(AuditLog.user_name.ilike(f"%{escape_like(user_name_filter)}%"))
     if user_id_filter:
         query = query.where(AuditLog.user_id == user_id_filter)
+    if role_filter:
+        query = query.where(AuditLog.role == role_filter)
     if status_filter:
         query = query.where(AuditLog.status == status_filter)
     if start_date:
@@ -114,10 +117,11 @@ async def list_audit_logs(
         query = query.where(AuditLog.timestamp <= end_dt)
 
     logger.info(
-        "[INTG][API][DB] list_audit_logs filters action=%s user=%s userId=%s status=%s startDate=%s endDate=%s",
+        "[INTG][API][DB] list_audit_logs filters action=%s user=%s userId=%s role=%s status=%s startDate=%s endDate=%s",
         action,
         user_name_filter,
         user_id_filter,
+        role_filter,
         status_filter,
         start_date,
         end_date,

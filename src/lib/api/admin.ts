@@ -8,6 +8,8 @@ interface ApiResponse<T> {
 
 // ========== 稽核日誌 ==========
 
+export type AuditLogStatus = 'success' | 'failed' | 'error' | 'degraded';
+
 export interface AuditLog {
   id: string;
   timestamp: string;
@@ -16,7 +18,7 @@ export interface AuditLog {
   role: string;
   action: string;
   target: string;
-  status: 'success' | 'failed';
+  status: AuditLogStatus;
   ip: string;
   details?: Record<string, unknown>;
 }
@@ -41,7 +43,9 @@ export interface AuditLogsParams {
   limit?: number;
   action?: string;
   user?: string;
-  status?: 'success' | 'failed';
+  userId?: string;
+  role?: string;
+  status?: AuditLogStatus;
   startDate?: string;
   endDate?: string;
 }

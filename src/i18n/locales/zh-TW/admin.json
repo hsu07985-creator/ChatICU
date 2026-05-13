@@ -106,7 +106,7 @@
     "list": {
       "title": "稽核記錄列表",
       "description": "所有系統操作與存取的詳細記錄",
-      "searchPlaceholder": "搜尋用戶、操作或目標...",
+      "searchPlaceholder": "搜尋用戶或操作（送至後端查詢）...",
       "colTime": "時間",
       "colUser": "用戶",
       "colRole": "角色",
@@ -122,9 +122,26 @@
       "empty": "沒有符合條件的稽核記錄",
       "loadFail": "載入稽核紀錄失敗，請稍後重試"
     },
+    "filters": {
+      "title": "篩選條件",
+      "startDate": "起始日期",
+      "endDate": "結束日期",
+      "action": "操作關鍵字",
+      "actionPlaceholder": "如：login、update_patient",
+      "user": "用戶關鍵字",
+      "userPlaceholder": "姓名或帳號",
+      "role": "角色",
+      "status": "狀態",
+      "anyRole": "全部角色",
+      "anyStatus": "全部狀態",
+      "apply": "套用篩選",
+      "reset": "清除"
+    },
     "status": {
       "success": "成功",
-      "failed": "失敗"
+      "failed": "失敗",
+      "error": "錯誤",
+      "degraded": "降級"
     },
     "roleLabel": {
       "admin": "系統管理員",

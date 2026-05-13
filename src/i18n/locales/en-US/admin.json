@@ -106,7 +106,7 @@
     "list": {
       "title": "Audit Log List",
       "description": "Detailed records of all system operations and access",
-      "searchPlaceholder": "Search user, action, or target...",
+      "searchPlaceholder": "Search user or action (server-side query)...",
       "colTime": "Time",
       "colUser": "User",
       "colRole": "Role",
@@ -122,9 +122,26 @@
       "empty": "No audit records match the criteria",
       "loadFail": "Failed to load audit log; please retry"
     },
+    "filters": {
+      "title": "Filters",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "action": "Action",
+      "actionPlaceholder": "e.g., login, update_patient",
+      "user": "User",
+      "userPlaceholder": "Name or username",
+      "role": "Role",
+      "status": "Status",
+      "anyRole": "Any role",
+      "anyStatus": "Any status",
+      "apply": "Apply",
+      "reset": "Reset"
+    },
     "status": {
       "success": "Success",
-      "failed": "Failed"
+      "failed": "Failed",
+      "error": "Error",
+      "degraded": "Degraded"
     },
     "roleLabel": {
       "admin": "System Admin",
