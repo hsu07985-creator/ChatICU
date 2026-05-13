@@ -2,11 +2,12 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.middleware.audit import create_audit_log
 from app.middleware.auth import get_current_user
 from app.models.clinical_score import ClinicalScore
 from app.models.patient import Patient
@@ -100,6 +101,7 @@ async def get_latest_scores(
 async def record_score(
     patient_id: str,
     body: ScoreCreate,
+    request: Request,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -115,6 +117,22 @@ async def record_score(
         notes=body.notes,
     )
     db.add(score)
+    await db.flush()
+
+    # Audit: clinical scores drive sedation/analgesia decisions — record full
+    # payload (score_type + value + notes) for incident review.
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="記錄臨床評分", target=pid, status="success",
+        ip=request.client.host if request.client else None,
+        details={
+            "score_id": score.id,
+            "score_type": body.score_type,
+            "value": body.value,
+            "notes": body.notes,
+        },
+    )
+
     await db.commit()
     await db.refresh(score)
 
@@ -125,6 +143,7 @@ async def record_score(
 async def delete_score(
     patient_id: str,
     score_id: str,
+    request: Request,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -140,7 +159,20 @@ async def delete_score(
     if not score:
         raise HTTPException(status_code=404, detail="Score not found")
 
+    # Audit: snapshot the full row before deletion so the audit log is the
+    # only record of what existed (clinical scores affect sedation decisions).
+    deleted_snapshot = score_to_dict(score)
+
     await db.delete(score)
+    await db.flush()
+
+    await create_audit_log(
+        db, user_id=user.id, user_name=user.name, role=user.role,
+        action="刪除臨床評分", target=pid, status="success",
+        ip=request.client.host if request.client else None,
+        details={"score": deleted_snapshot},
+    )
+
     await db.commit()
 
     return success_response(data={"deleted": score_id})
