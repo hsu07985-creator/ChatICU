@@ -101,7 +101,7 @@
       "todayTotal": "今日總操作",
       "successful": "成功操作",
       "failed": "失敗操作",
-      "activeUsers": "活躍用戶"
+      "activeUsers": "篩選範圍用戶數"
     },
     "list": {
       "title": "稽核記錄列表",
@@ -142,6 +142,19 @@
       "failed": "失敗",
       "error": "錯誤",
       "degraded": "降級"
+    },
+    "detail": {
+      "title": "稽核紀錄詳細",
+      "subtitle": "點 ESC 或外部區域關閉",
+      "time": "時間",
+      "user": "用戶",
+      "role": "角色",
+      "action": "操作",
+      "target": "目標",
+      "status": "狀態",
+      "ip": "IP 位址",
+      "detailsJson": "附加資訊（details）",
+      "noDetails": "無附加資訊"
     },
     "roleLabel": {
       "admin": "系統管理員",

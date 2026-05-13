@@ -20,11 +20,11 @@
 |---|------|--------|--------|--------|
 | G1 | 後端篩選參數沒接上 UI（日期區間、狀態、操作、角色、用戶下拉/輸入） | 🔴 | `src/pages/admin/placeholder.tsx` | 中 |
 | G2 | 分頁是「前端切片 50 筆」，不是真分頁；資料量一多就只看得到最新 50 筆 | 🔴 | 同上 + `src/lib/api/admin.ts` | 中 |
-| G3 | 沒有 `details` JSONB 詳細檢視（後端有回，UI 完全不顯示） | 🟡 | 同上（需要 Modal/Drawer 元件） | 中 |
+| ~~G3~~ | ~~沒有 `details` JSONB 詳細檢視~~ — T03 已完成 | 🟡 | — | — |
 | G4 | 狀態 Badge 只認 `success/failed`；後端 schema 還允許 `error / degraded`，遇到會 fallback 成紅 Badge 但文字仍寫「失敗」 | 🟡 | `placeholder.tsx:110-115` + i18n | 小 |
-| ~~G5~~ | ~~「活躍用戶」統計卡片是 client-side 算當頁 50 筆的 `Set(user)`~~ — T05 已修 | 🟡 | — | — |
+| G5 | 「活躍用戶」統計卡片是 client-side 算當頁 50 筆的 `Set(user)`，不是真實值；換頁/篩選後會跳動 | 🟡 | `placeholder.tsx:179-181` + 後端 stats | 小（需後端補回值） |
 | G6 | 沒有 匯出 CSV / Excel | 🟡 | 新增後端 endpoint + UI 按鈕 | 中 |
-| G7 | 角色 Badge 仍保留中文舊 key fallback（`LEGACY_ROLE_KEY`），代表後端歷史資料 `role` 欄位中英混存 | 🟡 | `placeholder.tsx:40-56` + 後端寫入端 | 小（資料面） |
+| ~~G7~~ | ~~角色 Badge 仍保留中文舊 key fallback~~ — T06 已刪 dead code（DB 100% 英文） | 🟡 | — | — |
 | G8 | 搜尋框是 client-side 過濾當頁 50 筆 — 跟 G1 重疊，但建議至少把搜尋串到後端 `?user / ?action` | 🟡 | 同上 | 小 |
 | G9 | `AuditPage` 仍寄生在 `src/pages/admin/placeholder.tsx`，名稱誤導，難找 | 🟢 | 拆檔 → `src/pages/admin/audit.tsx` | 小 |
 | G10 | 沒有 e2e/integration 測試覆蓋（篩選/分頁/權限 403） | 🟢 | `e2e/` | 小 |
@@ -128,6 +128,38 @@
 
 ---
 
+## 3.5 已知觀察（不擋現在，未來處理）
+
+### O1：每次 list 跑 4 個 query（perf debt）
+- 目前 `list_audit_logs` 對 `audit_logs` 連跑：(1) `SELECT logs` (2) `COUNT(*) filtered` (3) `COUNT(*) WHERE status='success'` (4) `COUNT(DISTINCT user_id) filtered`。每個都是 filtered subquery，PG 會重評 `ilike(...)`。
+- 量上來（> 100k 筆）會明顯。**現在不動**。
+- 修法（Wave 5 perf）：合併成一個 query，用 conditional aggregation：
+  ```sql
+  SELECT
+    COUNT(*) AS total,
+    COUNT(*) FILTER (WHERE status='success') AS success,
+    COUNT(DISTINCT user_id) AS active_users
+  FROM (filtered);
+  ```
+
+### ~~O2~~：「活躍用戶」label 誤導 — 已修（2026-05-13）
+- ~~卡片現在的數字是「**篩選範圍內** distinct user_id」。~~
+- 採方案 (a)：label 改成「篩選範圍用戶數」/「Distinct users in view」。
+- 理由：別用 default `startDate=7d` 騙人；admin 工具裡讓資料完整可見比較重要，label 改字最便宜。
+- i18n key（`audit.stats.activeUsers`）暫不改名，留待下次 i18n 整理。
+
+### O3：A11y debt — 稽核 row 不可鍵盤抵達
+- `TableRow + onClick` 沒 `tabIndex={0}` / `role="button"` / Enter handler。Tab 鍵走不到、screen reader 不知道可點。
+- 內部 admin 工具，**不擋現在**。
+- 修法：把 row 改成 `<TableRow tabIndex={0} role="button" onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveLog(log); } }} ...>`。
+
+### O4：後端遮罩信任邊界
+- T03 把 `details` 整包 JSON 攤給 admin 看，預設「後端寫 audit 時都過了遮罩」（`backend/app/middleware/audit.py`）。
+- 風險：新加 endpoint 時忘記過 mask helper → admin drawer 看到 password/token。
+- **不在本輪**。修法：寫個小後端 test，grep `create_audit_log` 所有呼叫點，斷言敏感欄位 key 不出現在 `details` payload。
+
+---
+
 ## 4. 不在本輪範圍
 
 - 「**哪些 action 該記錄但目前沒記**」 — 屬於後端 instrumentation 盤點，另開 doc。
@@ -162,12 +194,15 @@
 - [x] T02 — 真分頁  
       _2026-05-13: 移除 client-side `auditLogs.slice((page-1)*20, page*20)` 切片；`buildParams(filters, page, limit)` 改帶 `page/limit` 給後端；`useEffect` deps 加 `page`；`totalPages` 改讀 `apiData.pagination.totalPages`；分頁列顯示條件改 `totalPages > 1`；refresh/reload 按鈕帶 page。後端原本就支援 `page/limit/total/totalPages`，無需改後端。tsc 0 錯。_
       _**遺留**：~~`activeUsers` 卡片仍是 `Set(當頁 user)`~~ — 已由 T05 修掉。_
-- [ ] T03 — Details Drawer
+- [x] T03 — Details Drawer  
+      _2026-05-13: 點 row 開右側 Sheet（`components/ui/sheet.tsx`，`sm:max-w-lg`）；整 row clickable + hover；DetailRow 元件 7 個欄位（時間/用戶/角色/操作/目標/狀態/IP）；`details` JSONB 三態（空 → 「無附加資訊」i18n；有 → `<pre>` + `max-h-[60vh]` + `overflow-auto` + `whitespace-pre-wrap`）；不重做敏感欄位遮罩（後端已做）。i18n `audit.detail.*` 雙語齊備。ESC + click outside 走 Radix 內建。**不寫 query string**（稽核 ID 無記憶價值，無分享需求）。tsc 0 錯。_  
+      _**後續修補（同輪）**：(1) row onClick 加 `window.getSelection()?.toString()` 檢查，admin 複製 IP/user 時不會誤觸開 drawer；(2) drawer 內 IIFE 收成 const `ts = formatTaipei(...)` + `targetIsSystem`，可讀性 +。_
 - [x] T04 — status Badge 完整化（含 error/degraded）  
       _2026-05-13: 隨 T01 一併完成。`getStatusBadge` 改為 map 查表，含 success/failed/error/degraded 配色 + 未知狀態灰色 fallback；i18n `audit.status.{error,degraded}` 雙語齊備（`placeholder.tsx:161-171`）。_
 - [x] T05 — 活躍用戶卡片改後端值  
       _2026-05-13: 後端 `admin.py` stats 加 `activeUsers`（`COUNT(DISTINCT user_id)` 跨**篩選後**全集，非當頁）；NULL user_id 自然排除（postgres COUNT DISTINCT 行為）。前端 `AuditLogsResponse.stats.activeUsers` 補欄位；卡片改讀 `stats.activeUsers`，移除 client-side `new Set(auditLogs.map(...))`. tsc 0 錯。_
-- [ ] T06 — `role` 中英混存清理
+- [x] T06 — `role` 中英混存清理  
+      _2026-05-13: DB 盤點確認 `audit_logs.role` 100% 英文 key（admin 1373 / pharmacist 85 / doctor 30 / nurse 24 / np 3，0 筆中文）。刪 `LEGACY_ROLE_KEY` const、`ROLE_COLOR` 4 個中文 keys、`getRoleBadge` 內 fallback 邏輯 → `role` 直接餵 `t()` + `ROLE_COLOR[role] ?? gray`。順手附 1 行 comment 記錄盤點時點。_
 - [ ] T07 — CSV 匯出（含自我稽核）
 - [ ] T08 — `AuditPage` 拆檔
 - [ ] T09 — e2e / integration 測試

@@ -101,7 +101,7 @@
       "todayTotal": "Today's Operations",
       "successful": "Successful",
       "failed": "Failed",
-      "activeUsers": "Active Users"
+      "activeUsers": "Distinct users in view"
     },
     "list": {
       "title": "Audit Log List",
@@ -142,6 +142,19 @@
       "failed": "Failed",
       "error": "Error",
       "degraded": "Degraded"
+    },
+    "detail": {
+      "title": "Audit Log Detail",
+      "subtitle": "Press ESC or click outside to close",
+      "time": "Time",
+      "user": "User",
+      "role": "Role",
+      "action": "Action",
+      "target": "Target",
+      "status": "Status",
+      "ip": "IP Address",
+      "detailsJson": "Additional info (details)",
+      "noDetails": "No additional information"
     },
     "roleLabel": {
       "admin": "System Admin",

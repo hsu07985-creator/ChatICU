@@ -18,11 +18,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
-import { useState, useEffect, useCallback } from 'react';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '../../components/ui/sheet';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n/config';
 import {
   getAuditLogs,
+  AuditLog,
   AuditLogsResponse,
   AuditLogsParams,
   AuditLogStatus,
@@ -48,23 +56,13 @@ function formatTaipei(iso: string): { date: string; time: string } {
   };
 }
 
-// 後端回傳的 role 是英文 key；中文 key 對應到對應英文 key 後再走 t() 查表
-const LEGACY_ROLE_KEY: Record<string, string> = {
-  管理者: 'admin',
-  醫師: 'doctor',
-  護理師: 'nurse',
-  藥師: 'pharmacist',
-};
+// 2026-05-13 DB 確認 audit_logs.role 100% 英文 key（T06）。
 const ROLE_COLOR: Record<string, string> = {
   admin: 'bg-brand text-white',
   doctor: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200',
   nurse: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200',
   np: 'bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200',
   pharmacist: 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200',
-  管理者: 'bg-brand text-white',
-  醫師: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200',
-  護理師: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200',
-  藥師: 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200',
 };
 
 // 系統類 target 顯示 dash 比較好掃；ID 類 (pat_/med_/pmsg_) 用 mono
@@ -117,6 +115,9 @@ export function AuditPage() {
   // 篩選：draft 是 UI 上正在編輯的值；applied 是真正送到後端的值
   const [draft, setDraft] = useState<FilterState>(EMPTY_FILTERS);
   const [applied, setApplied] = useState<FilterState>(EMPTY_FILTERS);
+
+  // 詳細檢視（點 row 開 Sheet）
+  const [activeLog, setActiveLog] = useState<AuditLog | null>(null);
 
   // 從 API 載入數據（後端篩選 + 後端分頁）
   const loadData = useCallback(async (filters: FilterState, currentPage: number) => {
@@ -172,10 +173,9 @@ export function AuditPage() {
   };
 
   const getRoleBadge = (role: string) => {
-    const normalized = LEGACY_ROLE_KEY[role] ?? role;
-    const label = t(`audit.roleLabel.${normalized}`, { defaultValue: role });
-    const color = ROLE_COLOR[role] ?? ROLE_COLOR[normalized] ?? 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-200';
-    const Icon = normalized === 'admin' ? ShieldCheck : Shield;
+    const label = t(`audit.roleLabel.${role}`, { defaultValue: role });
+    const color = ROLE_COLOR[role] ?? 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-200';
+    const Icon = role === 'admin' ? ShieldCheck : Shield;
     return (
       <Badge className={color}>
         <Icon className="h-3.5 w-3.5 mr-1" />
@@ -234,7 +234,7 @@ export function AuditPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-blue-600">
-              {stats.activeUsers}
+              {stats.activeUsers ?? 0}
             </div>
           </CardContent>
         </Card>
@@ -375,7 +375,15 @@ export function AuditPage() {
                 const ts = formatTaipei(log.timestamp);
                 const isSystemTarget = !log.target || log.target === '系統' || log.target === 'system';
                 return (
-                  <TableRow key={log.id}>
+                  <TableRow
+                    key={log.id}
+                    onClick={() => {
+                      // 讓使用者可以正常複製 IP / user / target — 有選取中就不開 drawer
+                      if (window.getSelection()?.toString()) return;
+                      setActiveLog(log);
+                    }}
+                    className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                  >
                     <TableCell className="whitespace-nowrap font-mono text-sm leading-tight">
                       <div>{ts.date}</div>
                       <div className="text-muted-foreground">{ts.time}</div>
@@ -443,6 +451,77 @@ export function AuditPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* 詳細檢視 Drawer */}
+      <Sheet open={!!activeLog} onOpenChange={(o) => { if (!o) setActiveLog(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          {activeLog && (() => {
+            const ts = formatTaipei(activeLog.timestamp);
+            const targetIsSystem = !activeLog.target || activeLog.target === '系統' || activeLog.target === 'system';
+            return (
+            <>
+              <SheetHeader>
+                <SheetTitle>{t('audit.detail.title')}</SheetTitle>
+                <SheetDescription>{t('audit.detail.subtitle')}</SheetDescription>
+              </SheetHeader>
+              <div className="px-4 pb-6 space-y-4">
+                <DetailRow label={t('audit.detail.time')}>
+                  <span className="font-mono text-sm">{ts.date} {ts.time}</span>
+                </DetailRow>
+                <DetailRow label={t('audit.detail.user')}>
+                  <span className="font-medium">{activeLog.user}</span>
+                  {activeLog.userId && (
+                    <span className="ml-2 font-mono text-xs text-muted-foreground">
+                      ({activeLog.userId})
+                    </span>
+                  )}
+                </DetailRow>
+                <DetailRow label={t('audit.detail.role')}>
+                  {getRoleBadge(activeLog.role)}
+                </DetailRow>
+                <DetailRow label={t('audit.detail.action')}>
+                  <span className="font-mono text-sm">{activeLog.action}</span>
+                </DetailRow>
+                <DetailRow label={t('audit.detail.target')}>
+                  {targetIsSystem
+                    ? <span className="text-muted-foreground">—</span>
+                    : <span className={isIdLike(activeLog.target) ? 'font-mono text-sm' : 'text-sm'}>{activeLog.target}</span>}
+                </DetailRow>
+                <DetailRow label={t('audit.detail.status')}>
+                  {getStatusBadge(activeLog.status)}
+                </DetailRow>
+                <DetailRow label={t('audit.detail.ip')}>
+                  <span className="font-mono text-sm">{activeLog.ip || '—'}</span>
+                </DetailRow>
+                <div className="pt-2">
+                  <div className="text-xs text-muted-foreground mb-1.5">
+                    {t('audit.detail.detailsJson')}
+                  </div>
+                  {activeLog.details && Object.keys(activeLog.details).length > 0 ? (
+                    <pre className="text-xs bg-slate-50 dark:bg-slate-900 border rounded p-3 max-h-[60vh] overflow-auto whitespace-pre-wrap break-words">
+                      {JSON.stringify(activeLog.details, null, 2)}
+                    </pre>
+                  ) : (
+                    <div className="text-sm text-muted-foreground italic">
+                      {t('audit.detail.noDetails')}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+function DetailRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="grid grid-cols-[110px_1fr] gap-3 items-start">
+      <div className="text-xs text-muted-foreground pt-0.5">{label}</div>
+      <div>{children}</div>
     </div>
   );
 }
