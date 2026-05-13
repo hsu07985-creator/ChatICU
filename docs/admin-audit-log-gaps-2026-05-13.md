@@ -159,7 +159,9 @@
 
 - [x] T01 — 後端篩選參數接上 UI（+ 後端 role 篩選）  
       _2026-05-13: `backend/app/routers/admin.py` 加 `role` 參數；`src/pages/admin/placeholder.tsx` 加篩選 Card（日期/狀態/角色/操作/用戶）+ draft/applied 模式，移除 client-side `filteredLogs.filter`；i18n `audit.filters.*` + `audit.status.{error,degraded}` 雙語齊備；順手把 status Badge map 化（T04 部分）。tsc 0 錯。_
-- [ ] T02 — 真分頁
+- [x] T02 — 真分頁  
+      _2026-05-13: 移除 client-side `auditLogs.slice((page-1)*20, page*20)` 切片；`buildParams(filters, page, limit)` 改帶 `page/limit` 給後端；`useEffect` deps 加 `page`；`totalPages` 改讀 `apiData.pagination.totalPages`；分頁列顯示條件改 `totalPages > 1`；refresh/reload 按鈕帶 page。後端原本就支援 `page/limit/total/totalPages`，無需改後端。tsc 0 錯。_
+      _**遺留**：`activeUsers` 卡片仍是 `Set(當頁 user)`，T02 後每頁只剩 ≤20 筆會更失真 — G5/T05 要處理。_
 - [ ] T03 — Details Drawer
 - [ ] T04 — status Badge 完整化（含 error/degraded）
 - [ ] T05 — 活躍用戶卡片改後端值

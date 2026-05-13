@@ -93,8 +93,8 @@ const EMPTY_FILTERS: FilterState = {
   status: ANY,
 };
 
-function buildParams(f: FilterState): AuditLogsParams {
-  const params: AuditLogsParams = { limit: 50 };
+function buildParams(f: FilterState, page: number, limit: number): AuditLogsParams {
+  const params: AuditLogsParams = { page, limit };
   if (f.startDate) params.startDate = f.startDate;
   if (f.endDate) params.endDate = f.endDate;
   if (f.action.trim()) params.action = f.action.trim();
@@ -118,12 +118,12 @@ export function AuditPage() {
   const [draft, setDraft] = useState<FilterState>(EMPTY_FILTERS);
   const [applied, setApplied] = useState<FilterState>(EMPTY_FILTERS);
 
-  // 從 API 載入數據（後端篩選）
-  const loadData = useCallback(async (filters: FilterState) => {
+  // 從 API 載入數據（後端篩選 + 後端分頁）
+  const loadData = useCallback(async (filters: FilterState, currentPage: number) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getAuditLogs(buildParams(filters));
+      const data = await getAuditLogs(buildParams(filters, currentPage, PAGE_SIZE));
       setApiData(data);
     } catch (err: unknown) {
       console.error('audit load failed:', err);
@@ -134,8 +134,8 @@ export function AuditPage() {
   }, [t]);
 
   useEffect(() => {
-    loadData(applied);
-  }, [applied, loadData]);
+    loadData(applied, page);
+  }, [applied, page, loadData]);
 
   const applyFilters = () => {
     setPage(1);
@@ -148,7 +148,7 @@ export function AuditPage() {
     setApplied(EMPTY_FILTERS);
   };
 
-  // 使用 API 數據（已是後端篩選後的結果）
+  // 使用 API 數據（後端已套用篩選 + 分頁）
   const auditLogs = apiData?.logs || [];
   const stats = apiData?.stats || {
     total: auditLogs.length,
@@ -156,8 +156,7 @@ export function AuditPage() {
     failed: auditLogs.filter(log => log.status === 'failed').length,
   };
 
-  const totalPages = Math.max(1, Math.ceil(auditLogs.length / PAGE_SIZE));
-  const paginatedLogs = auditLogs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const totalPages = Math.max(1, apiData?.pagination?.totalPages ?? 1);
 
   const getStatusBadge = (status: AuditLogStatus | string) => {
     const map: Record<string, string> = {
@@ -193,7 +192,7 @@ export function AuditPage() {
         </div>
         <Button
           variant="outline"
-          onClick={() => loadData(applied)}
+          onClick={() => loadData(applied, page)}
           disabled={loading}
           className="border-brand text-brand hover:bg-brand hover:text-white"
         >
@@ -371,7 +370,7 @@ export function AuditPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedLogs.map((log) => {
+              {auditLogs.map((log) => {
                 const ts = formatTaipei(log.timestamp);
                 const isSystemTarget = !log.target || log.target === '系統' || log.target === 'system';
                 return (
@@ -394,7 +393,7 @@ export function AuditPage() {
             </TableBody>
           </Table>
 
-          {!loading && !error && auditLogs.length > PAGE_SIZE && (
+          {!loading && !error && totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t">
               <Button
                 variant="outline"
@@ -429,7 +428,7 @@ export function AuditPage() {
             <div className="text-center py-12">
               <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-400" />
               <p className="text-red-600 font-medium">{error}</p>
-              <Button variant="outline" className="mt-4" onClick={() => loadData(applied)}>
+              <Button variant="outline" className="mt-4" onClick={() => loadData(applied, page)}>
                 {t('audit.list.reload')}
               </Button>
             </div>
