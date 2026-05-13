@@ -154,6 +154,7 @@ export function AuditPage() {
     total: auditLogs.length,
     success: auditLogs.filter(log => log.status === 'success').length,
     failed: auditLogs.filter(log => log.status === 'failed').length,
+    activeUsers: 0,
   };
 
   const totalPages = Math.max(1, apiData?.pagination?.totalPages ?? 1);
@@ -233,7 +234,7 @@ export function AuditPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-blue-600">
-              {new Set(auditLogs.map(log => log.user)).size}
+              {stats.activeUsers}
             </div>
           </CardContent>
         </Card>

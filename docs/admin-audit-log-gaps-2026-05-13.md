@@ -22,7 +22,7 @@
 | G2 | 分頁是「前端切片 50 筆」，不是真分頁；資料量一多就只看得到最新 50 筆 | 🔴 | 同上 + `src/lib/api/admin.ts` | 中 |
 | G3 | 沒有 `details` JSONB 詳細檢視（後端有回，UI 完全不顯示） | 🟡 | 同上（需要 Modal/Drawer 元件） | 中 |
 | G4 | 狀態 Badge 只認 `success/failed`；後端 schema 還允許 `error / degraded`，遇到會 fallback 成紅 Badge 但文字仍寫「失敗」 | 🟡 | `placeholder.tsx:110-115` + i18n | 小 |
-| G5 | 「活躍用戶」統計卡片是 client-side 算當頁 50 筆的 `Set(user)`，不是真實值；換頁/篩選後會跳動 | 🟡 | `placeholder.tsx:179-181` + 後端 stats | 小（需後端補回值） |
+| ~~G5~~ | ~~「活躍用戶」統計卡片是 client-side 算當頁 50 筆的 `Set(user)`~~ — T05 已修 | 🟡 | — | — |
 | G6 | 沒有 匯出 CSV / Excel | 🟡 | 新增後端 endpoint + UI 按鈕 | 中 |
 | G7 | 角色 Badge 仍保留中文舊 key fallback（`LEGACY_ROLE_KEY`），代表後端歷史資料 `role` 欄位中英混存 | 🟡 | `placeholder.tsx:40-56` + 後端寫入端 | 小（資料面） |
 | G8 | 搜尋框是 client-side 過濾當頁 50 筆 — 跟 G1 重疊，但建議至少把搜尋串到後端 `?user / ?action` | 🟡 | 同上 | 小 |
@@ -161,10 +161,12 @@
       _2026-05-13: `backend/app/routers/admin.py` 加 `role` 參數；`src/pages/admin/placeholder.tsx` 加篩選 Card（日期/狀態/角色/操作/用戶）+ draft/applied 模式，移除 client-side `filteredLogs.filter`；i18n `audit.filters.*` + `audit.status.{error,degraded}` 雙語齊備；順手把 status Badge map 化（T04 部分）。tsc 0 錯。_
 - [x] T02 — 真分頁  
       _2026-05-13: 移除 client-side `auditLogs.slice((page-1)*20, page*20)` 切片；`buildParams(filters, page, limit)` 改帶 `page/limit` 給後端；`useEffect` deps 加 `page`；`totalPages` 改讀 `apiData.pagination.totalPages`；分頁列顯示條件改 `totalPages > 1`；refresh/reload 按鈕帶 page。後端原本就支援 `page/limit/total/totalPages`，無需改後端。tsc 0 錯。_
-      _**遺留**：`activeUsers` 卡片仍是 `Set(當頁 user)`，T02 後每頁只剩 ≤20 筆會更失真 — G5/T05 要處理。_
+      _**遺留**：~~`activeUsers` 卡片仍是 `Set(當頁 user)`~~ — 已由 T05 修掉。_
 - [ ] T03 — Details Drawer
-- [ ] T04 — status Badge 完整化（含 error/degraded）
-- [ ] T05 — 活躍用戶卡片改後端值
+- [x] T04 — status Badge 完整化（含 error/degraded）  
+      _2026-05-13: 隨 T01 一併完成。`getStatusBadge` 改為 map 查表，含 success/failed/error/degraded 配色 + 未知狀態灰色 fallback；i18n `audit.status.{error,degraded}` 雙語齊備（`placeholder.tsx:161-171`）。_
+- [x] T05 — 活躍用戶卡片改後端值  
+      _2026-05-13: 後端 `admin.py` stats 加 `activeUsers`（`COUNT(DISTINCT user_id)` 跨**篩選後**全集，非當頁）；NULL user_id 自然排除（postgres COUNT DISTINCT 行為）。前端 `AuditLogsResponse.stats.activeUsers` 補欄位；卡片改讀 `stats.activeUsers`，移除 client-side `new Set(auditLogs.map(...))`. tsc 0 錯。_
 - [ ] T06 — `role` 中英混存清理
 - [ ] T07 — CSV 匯出（含自我稽核）
 - [ ] T08 — `AuditPage` 拆檔

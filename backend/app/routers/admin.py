@@ -143,6 +143,12 @@ async def list_audit_logs(
     success_count = (await db.execute(success_q)).scalar() or 0
     failed_count = total - success_count
 
+    # Active users: distinct user_id across the *filtered* set (not just current page)
+    active_users_q = select(func.count(func.distinct(AuditLog.user_id))).select_from(
+        query.subquery()
+    )
+    active_users_count = (await db.execute(active_users_q)).scalar() or 0
+
     return success_response(data={
         "logs": [
             {
@@ -169,6 +175,7 @@ async def list_audit_logs(
             "total": total,
             "success": success_count,
             "failed": failed_count,
+            "activeUsers": active_users_count,
         },
     })
 

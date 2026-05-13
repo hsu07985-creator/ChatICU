@@ -35,6 +35,7 @@ export interface AuditLogsResponse {
     total: number;
     success: number;
     failed: number;
+    activeUsers: number;
   };
 }
 
