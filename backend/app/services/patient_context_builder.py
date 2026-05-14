@@ -94,6 +94,57 @@ def _format_trend(
 
 # ── DB queries ────────────────────────────────────────────────────────────────
 
+_LAB_CATEGORY_ATTRS = (
+    "biochemistry",
+    "hematology",
+    "blood_gas",
+    "venous_blood_gas",
+    "inflammatory",
+    "coagulation",
+    "cardiac",
+    "thyroid",
+    "hormone",
+    "lipid",
+    "other",
+)
+_LAB_MERGE_LIMIT = 50
+
+
+def _merge_lab_rows(labs: List[LabData]) -> Optional[LabData]:
+    """Merge the latest available item values across recent lab rows.
+
+    HIS imports often split chemistry/CBC/inflammation items into separate
+    timestamps. A single latest row may contain only ALP/GGT, which is not
+    enough context for AI chat. Keep the newest row's timestamp, but fill each
+    JSONB item from the most recent row that contains it.
+    """
+    if not labs:
+        return None
+    if len(labs) == 1:
+        return labs[0]
+
+    latest = labs[0]
+    merged_categories: Dict[str, Optional[dict]] = {}
+    for attr in _LAB_CATEGORY_ATTRS:
+        merged: dict = {}
+        for lab in labs:
+            data = getattr(lab, attr, None)
+            if not isinstance(data, dict):
+                continue
+            for key, value in data.items():
+                if key not in merged:
+                    merged[key] = value
+        merged_categories[attr] = merged or None
+
+    return LabData(
+        id=getattr(latest, "id", "lab_merged"),
+        patient_id=getattr(latest, "patient_id", ""),
+        timestamp=getattr(latest, "timestamp", None),
+        corrections=getattr(latest, "corrections", None),
+        **merged_categories,
+    )
+
+
 async def _get_patient(db: AsyncSession, patient_id: str) -> Optional[Patient]:
     result = await db.execute(
         select(Patient).where(Patient.id == patient_id)
@@ -106,9 +157,9 @@ async def _get_latest_lab(db: AsyncSession, patient_id: str) -> Optional[LabData
         select(LabData)
         .where(LabData.patient_id == patient_id)
         .order_by(desc(LabData.timestamp))
-        .limit(1)
+        .limit(_LAB_MERGE_LIMIT)
     )
-    return result.scalar_one_or_none()
+    return _merge_lab_rows(list(result.scalars().all()))
 
 
 async def _get_lab_before_24h(db: AsyncSession, patient_id: str, reference_ts: datetime) -> Optional[LabData]:
@@ -118,9 +169,9 @@ async def _get_lab_before_24h(db: AsyncSession, patient_id: str, reference_ts: d
         select(LabData)
         .where(LabData.patient_id == patient_id, LabData.timestamp <= cutoff)
         .order_by(desc(LabData.timestamp))
-        .limit(1)
+        .limit(_LAB_MERGE_LIMIT)
     )
-    return result.scalar_one_or_none()
+    return _merge_lab_rows(list(result.scalars().all()))
 
 
 async def _get_active_medications(db: AsyncSession, patient_id: str) -> List[Medication]:
@@ -255,7 +306,10 @@ _LAB_KEY_ALIASES: Dict[tuple, List[str]] = {
     ("biochemistry", "chloride"):        ["Cl", "chloride"],
     ("biochemistry", "ast"):             ["AST", "ast"],
     ("biochemistry", "alt"):             ["ALT", "alt"],
-    ("biochemistry", "total_bilirubin"): ["TBil", "TBIL", "T-Bil", "total_bilirubin", "bilirubin"],
+    ("biochemistry", "total_bilirubin"): ["TBil", "TBIL", "T-Bil", "T. Bili", "total_bilirubin", "bilirubin"],
+    ("biochemistry", "direct_bilirubin"): ["DBil", "DBIL", "D-Bil", "Direct Bilirubin", "direct_bilirubin"],
+    ("biochemistry", "alkaline_phosphatase"): ["AlkP", "ALP", "alkaline_phosphatase", "Alkaline Phosphatase"],
+    ("biochemistry", "gamma_gt"):        ["rGT", "GGT", "r-GT", "gamma_gt"],
     ("biochemistry", "albumin"):         ["Alb", "albumin"],
     # hematology
     ("hematology", "wbc"):               ["WBC", "wbc"],
@@ -730,6 +784,9 @@ def _fmt_lab_section(
     ast = v("biochemistry", "ast")
     alt = v("biochemistry", "alt")
     tbil = v("biochemistry", "total_bilirubin")
+    dbil = v("biochemistry", "direct_bilirubin")
+    alp = v("biochemistry", "alkaline_phosphatase")
+    ggt = v("biochemistry", "gamma_gt")
     alb = v("biochemistry", "albumin")
     parts = []
     if ast is not None:
@@ -738,6 +795,12 @@ def _fmt_lab_section(
         parts.append(f"ALT {alt}{flag_only(alt, LAB_THRESHOLDS['ALT'])}")
     if tbil is not None:
         parts.append(f"T-Bil {tbil}{flag_only(tbil, LAB_THRESHOLDS['T-Bil'])}")
+    if dbil is not None:
+        parts.append(f"D-Bil {dbil}")
+    if alp is not None:
+        parts.append(f"ALP {alp}")
+    if ggt is not None:
+        parts.append(f"GGT {ggt}")
     if alb is not None:
         parts.append(f"Albumin {alb}{flag_only(alb, LAB_THRESHOLDS['Albumin'])}")
     if parts:
@@ -1519,10 +1582,11 @@ async def build_delta(
         except Exception:
             pass
 
-    lab, meds = await asyncio.gather(
-        _get_latest_lab(db, patient_id),
-        _get_active_medications(db, patient_id),
-    )
+    # Keep this sequential on the request AsyncSession. This path runs only for
+    # stale sessions (>30 min), and concurrent operations on one AsyncSession
+    # can raise InvalidRequestError before SSE starts.
+    lab = await _get_latest_lab(db, patient_id)
+    meds = await _get_active_medications(db, patient_id)
 
     current = extract_snapshot_key_values(lab, meds)
     changes = []

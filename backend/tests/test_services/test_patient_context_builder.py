@@ -7,13 +7,19 @@ keys like `creatinine`/`wbc`/`ph`. These tests lock in the alias table
 and value-unwrap behavior so both legacy flat seeds and HIS-imported rows
 produce a real snapshot.
 """
+import asyncio
 from datetime import datetime, timezone
 
+import pytest
+
+import app.services.patient_context_builder as pcb
 from app.services.patient_context_builder import (
     _fmt_data_freshness_section,
+    _fmt_lab_section,
     _fmt_medication_safety_section,
     _fmt_renal_dosing_section,
     _get_lab_val,
+    _merge_lab_rows,
     extract_snapshot_key_values,
 )
 
@@ -87,6 +93,9 @@ def test_get_lab_val_his_wrapped_format():
             "Na":  {"value": 138, "unit": "mEq/L"},
             "ALT": {"value": 55,  "unit": "U/L"},
             "AST": {"value": 62,  "unit": "U/L"},
+            "DBil": {"value": 0.31, "unit": "mg/dL"},
+            "AlkP": {"value": 365, "unit": "U/L"},
+            "rGT": {"value": 49, "unit": "U/L"},
             "Alb": {"value": 2.8, "unit": "g/dL"},
             "eGFR": {"value": 29, "unit": "mL/min/1.73m²"},
         },
@@ -120,6 +129,9 @@ def test_get_lab_val_his_wrapped_format():
     assert _get_lab_val(lab, "biochemistry", "sodium") == 138.0
     assert _get_lab_val(lab, "biochemistry", "alt") == 55.0
     assert _get_lab_val(lab, "biochemistry", "ast") == 62.0
+    assert _get_lab_val(lab, "biochemistry", "direct_bilirubin") == 0.31
+    assert _get_lab_val(lab, "biochemistry", "alkaline_phosphatase") == 365.0
+    assert _get_lab_val(lab, "biochemistry", "gamma_gt") == 49.0
     assert _get_lab_val(lab, "biochemistry", "albumin") == 2.8
     assert _get_lab_val(lab, "biochemistry", "egfr") == 29.0
 
@@ -184,6 +196,47 @@ def test_get_lab_val_unwraps_missing_value_key():
     assert _get_lab_val(lab, "biochemistry", "creatinine") is None
 
 
+def test_merge_lab_rows_keeps_latest_items_across_split_his_draws():
+    latest = _FakeLab(
+        id="lab_latest",
+        patient_id="pat_001",
+        timestamp=datetime(2026, 5, 12, 3, 47, tzinfo=timezone.utc),
+        biochemistry={"AlkP": {"value": 365}, "rGT": {"value": 49}},
+    )
+    older_bili = _FakeLab(
+        id="lab_bili",
+        patient_id="pat_001",
+        timestamp=datetime(2026, 5, 11, 21, 47, tzinfo=timezone.utc),
+        biochemistry={
+            "TBil": {"value": 0.81},
+            "DBil": {"value": 0.31},
+            "AST": {"value": 270},
+        },
+    )
+    older_cbc = _FakeLab(
+        id="lab_cbc",
+        patient_id="pat_001",
+        timestamp=datetime(2026, 5, 10, 22, 38, tzinfo=timezone.utc),
+        hematology={"WBC": {"value": 2.67}, "PLT": {"value": 61}},
+    )
+
+    merged = _merge_lab_rows([latest, older_bili, older_cbc])
+
+    assert merged is not None
+    assert merged.timestamp == latest.timestamp
+    assert _get_lab_val(merged, "biochemistry", "total_bilirubin") == 0.81
+    assert _get_lab_val(merged, "biochemistry", "direct_bilirubin") == 0.31
+    assert _get_lab_val(merged, "biochemistry", "alkaline_phosphatase") == 365
+    assert _get_lab_val(merged, "hematology", "platelet") == 61
+
+    text = _fmt_lab_section(merged, None)
+    assert "T-Bil 0.81" in text
+    assert "D-Bil 0.31" in text
+    assert "ALP 365.0" in text
+    assert "GGT 49.0" in text
+    assert "PLT 61.0" in text
+
+
 # ── extract_snapshot_key_values ───────────────────────────────────────────────
 
 
@@ -217,6 +270,37 @@ def test_extract_snapshot_key_values_all_missing():
         "plt": None,
         "vasopressor_ne_dose": None,
     }
+
+
+@pytest.mark.asyncio
+async def test_build_delta_keeps_request_session_queries_sequential(monkeypatch):
+    calls = []
+
+    async def fake_latest_lab(db, patient_id):  # noqa: ARG001
+        calls.append("lab:start")
+        await asyncio.sleep(0)
+        calls.append("lab:end")
+        return _FakeLab(biochemistry={"Scr": {"value": 2.0}})
+
+    async def fake_active_meds(db, patient_id):  # noqa: ARG001
+        calls.append("meds:start")
+        await asyncio.sleep(0)
+        calls.append("meds:end")
+        return []
+
+    monkeypatch.setattr(pcb, "_get_latest_lab", fake_latest_lab)
+    monkeypatch.setattr(pcb, "_get_active_medications", fake_active_meds)
+
+    text = await pcb.build_delta(
+        "pat_001",
+        object(),
+        {"cr": 1.0},
+        "2026-01-01T00:00:00+00:00",
+    )
+
+    assert calls == ["lab:start", "lab:end", "meds:start", "meds:end"]
+    assert text is not None
+    assert "Cr 2.0↑" in text
 
 
 # ── Phase 1 snapshot additions ───────────────────────────────────────────────

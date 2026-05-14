@@ -737,16 +737,12 @@ async def chat_stream(
                 )
             )
         else:
-            # Existing v1 path (full snapshot up front). Run snapshot build
-            # + key-value lab/med fetch in parallel so we don't pay two
-            # sequential round-trips on the first turn.
-            snapshot, (lab, meds) = await asyncio.gather(
-                build_clinical_snapshot(patient_id, db),
-                asyncio.gather(
-                    _get_latest_lab(db, patient_id),
-                    _get_active_medications(db, patient_id),
-                ),
-            )
+            # Existing v1 path (full snapshot up front). Keep request-session
+            # DB work sequential; AsyncSession does not support concurrent
+            # operations and failures here happen before SSE starts.
+            snapshot = await build_clinical_snapshot(patient_id, db)
+            lab = await _get_latest_lab(db, patient_id)
+            meds = await _get_active_medications(db, patient_id)
             key_vals = extract_snapshot_key_values(lab, meds)
             session.snapshot_metadata = {
                 "snapshot_taken_at": datetime.now(timezone.utc).isoformat(),
@@ -1150,13 +1146,9 @@ async def refresh_session_snapshot(
             )
         )
     else:
-        snapshot, (lab, meds) = await asyncio.gather(
-            build_clinical_snapshot(patient_id, db),
-            asyncio.gather(
-                _get_latest_lab(db, patient_id),
-                _get_active_medications(db, patient_id),
-            ),
-        )
+        snapshot = await build_clinical_snapshot(patient_id, db)
+        lab = await _get_latest_lab(db, patient_id)
+        meds = await _get_active_medications(db, patient_id)
         key_vals = extract_snapshot_key_values(lab, meds)
         new_meta = {
             "snapshot_taken_at": datetime.now(timezone.utc).isoformat(),

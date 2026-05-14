@@ -228,6 +228,17 @@ def _trace_id_from_request(request: Request) -> str:
     return getattr(request.state, "trace_id", None) or request.headers.get("X-Trace-ID") or _request_id_from_request(request)
 
 
+def _safe_internal_error_message(request: Request, exc: Exception, request_id: str) -> str:
+    if settings.DEBUG:
+        return str(exc)
+    if request.url.path.endswith("/ai/chat/stream"):
+        return (
+            "AI 臨床夥伴準備病患資料時失敗，請重試或重新整理快照。"
+            f"若持續發生，請提供 request_id={request_id}。"
+        )
+    return "An unexpected error occurred"
+
+
 # ── Global Exception Handlers ─────────────────────────────────────────
 # Ensures ALL error responses follow: {success: false, error: ..., message: ...}
 
@@ -295,7 +306,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
             "errorId": error_id,
             "request_id": request_id,
             "trace_id": trace_id,
-            "message": "An unexpected error occurred" if not settings.DEBUG else str(exc),
+            "message": _safe_internal_error_message(request, exc, request_id),
         },
         headers={"X-Request-ID": request_id, "X-Trace-ID": trace_id},
     )
