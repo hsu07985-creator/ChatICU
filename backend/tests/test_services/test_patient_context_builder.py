@@ -17,6 +17,7 @@ from app.services.patient_context_builder import (
     _fmt_data_freshness_section,
     _fmt_lab_section,
     _fmt_medication_safety_section,
+    _fmt_patient_section,
     _fmt_renal_dosing_section,
     _get_lab_val,
     _merge_lab_rows,
@@ -447,6 +448,29 @@ def test_medication_safety_section_does_not_create_false_warnings():
     assert "自動警示: 無 critical/high/moderate" in text
     assert "QT/心律風險" not in text
     assert "出血風險" not in text
+
+
+def test_patient_section_tolerates_string_allergy_entries():
+    # Prod regression (request_id fe_stream_844b51d2fdf5): some patients have
+    # allergies stored as List[str] instead of List[dict]. The old generator
+    # called `a.get("drug", ...)` unconditionally and crashed with
+    # AttributeError, which bubbled to the global 500 handler and broke
+    # the entire AI 臨床夥伴 reply.
+    patient = _FakePatient(
+        icu_admission_date=None,
+        ventilator_days=None,
+        has_dnr=False,
+        allergies=["Penicillin", {"drug": "Vancomycin"}, "", None],
+        alerts=None,
+        name="王小明",
+        bed_number="A-12",
+        diagnosis="Septic shock",
+    )
+
+    text = _fmt_patient_section(patient)
+
+    assert "Penicillin" in text
+    assert "Vancomycin" in text
 
 
 def test_medication_safety_section_truncates_large_warning_bucket():

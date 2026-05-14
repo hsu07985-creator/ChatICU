@@ -654,7 +654,8 @@ def _fmt_patient_section(p: Patient) -> str:
     if p.allergies:
         if isinstance(p.allergies, list):
             allergies = "、".join(
-                a.get("drug", str(a)) for a in p.allergies if a
+                a.get("drug", str(a)) if isinstance(a, dict) else str(a)
+                for a in p.allergies if a
             )
         else:
             allergies = str(p.allergies)
