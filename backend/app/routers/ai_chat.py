@@ -36,6 +36,7 @@ from app.services.assertion_conflict import (
     detect_med_negation_conflict,
     format_med_conflict_block,
 )
+from app.services.citation_audit import audit_citations, summarize_suspects
 from app.services.patient_acl import assert_patient_chat_access
 from app.services.patient_context_builder import (
     build_clinical_snapshot,
@@ -480,6 +481,9 @@ async def _event_stream(
     prefetch_meta: Optional[dict] = None,
     prefetch_fired: bool = False,
     had_patient_context: bool = False,
+    current_user: Optional[User] = None,
+    patient_id: Optional[str] = None,
+    active_med_aliases: Optional[List[str]] = None,
 ) -> AsyncGenerator[str, None]:
     """
     Generate SSE events from the LLM stream and persist the reply.
@@ -612,6 +616,62 @@ async def _event_stream(
         except Exception as e:
             logger.warning("[AI_CHAT] Failed to persist assistant reply: %s", str(e))
             await db.rollback()
+
+    # Sycophancy step — post-stream citation audit. Scans the assistant
+    # reply for [用藥] citations and flags any that name a drug not in the
+    # patient's active medication list (catches the LLM inventing a
+    # regimen). Read-only: never modifies or blocks the reply. The audit
+    # log is the ROI here — after a week of production we can see how
+    # often the LLM fabricates citations and decide on remediation.
+    if full_reply and current_user is not None:
+        try:
+            cit_audit = audit_citations(full_reply, active_med_aliases or [])
+            if cit_audit["total"] > 0:
+                summary = summarize_suspects(cit_audit["suspects"])
+                logger.info(
+                    "[CHAT][CITATION] session=%s patient=%s total=%d "
+                    "by_section=%s suspects=%s",
+                    session_id,
+                    patient_id or "-",
+                    cit_audit["total"],
+                    cit_audit["by_section"],
+                    summary or "none",
+                )
+                if cit_audit["suspects"]:
+                    await create_audit_log(
+                        db,
+                        user_id=current_user.id,
+                        user_name=current_user.name,
+                        role=current_user.role,
+                        action="ai_chat_citation_fabrication_suspected",
+                        target=patient_id,
+                        status="detected",
+                        ip=request.client.host if request.client else None,
+                        details={
+                            "session_id": session_id,
+                            "total_citations": cit_audit["total"],
+                            "by_section": cit_audit["by_section"],
+                            "suspects": [
+                                {
+                                    "section": s["section"],
+                                    "token": s["token"],
+                                    "reason": s["reason"],
+                                    "content": s["content"][:80],
+                                }
+                                for s in cit_audit["suspects"]
+                            ],
+                        },
+                    )
+                    try:
+                        await db.commit()
+                    except Exception:
+                        await db.rollback()
+        except Exception:  # pragma: no cover — never block the reply
+            logger.warning(
+                "[CHAT][CITATION] audit failed session=%s",
+                session_id,
+                exc_info=True,
+            )
 
     # M1: F4 trigger signal — turns where the LLM hedged AND we had patient
     # context AND no prefetch fired. Aggregating these over time answers
@@ -836,10 +896,21 @@ async def chat_stream(
     # active-med list when patient_id is set; matcher is sub-millisecond.
     # Audited so we can later quantify how often this fires and whether
     # the LLM actually pushed back.
+    #
+    # We also reuse the meds fetch to build `active_med_aliases` for the
+    # post-stream citation audit (sycophancy step "AI citation post-check"):
+    # the LLM's [用藥] citations get validated against the patient's actual
+    # active medications, catching the LLM if it invents a regimen.
+    active_med_aliases: List[str] = []
     if patient_id:
         try:
             conflict_meds = await _get_active_medications(db, patient_id)
             conflict_med_names = [m.name for m in conflict_meds if m and m.name]
+            for m in conflict_meds:
+                if m and m.name:
+                    active_med_aliases.append(m.name)
+                if m and getattr(m, "generic_name", None):
+                    active_med_aliases.append(m.generic_name)
             conflicts = detect_med_negation_conflict(
                 body.message, conflict_med_names
             )
@@ -961,6 +1032,9 @@ async def chat_stream(
             prefetch_meta=prefetch_meta,
             prefetch_fired=prefetch_fired,
             had_patient_context=bool(patient_id),
+            current_user=current_user,
+            patient_id=patient_id,
+            active_med_aliases=active_med_aliases,
         ),
         media_type="text/event-stream",
         headers={
