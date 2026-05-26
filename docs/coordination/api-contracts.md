@@ -304,6 +304,44 @@
 
 ---
 
+### [READY] GET `/ai/chat/sessions/{session_id}` — `snapshot` field added (sycophancy step 3)
+
+> **Status:** Deployed 2026-05-26. Additive field on the single-session GET. No breaking change. Pairs with frontend task **F23**.
+
+**What changed:**
+Response now includes a `snapshot` sibling next to `session` and `messages`. Field is `null` until the first turn lands (no snapshot built yet).
+
+**Response shape (only the new field shown):**
+```json
+{
+  "success": true,
+  "data": {
+    "session": { /* unchanged */ },
+    "messages": [ /* unchanged */ ],
+    "snapshot": {
+      "snapshotText": "=== ICU 病患臨床快照 ===\n時間戳記：…\n\n【患者基本】\n…\n\n【關鍵檢驗】\n…\n\n【用藥】\n…",
+      "snapshotTakenAt": "2026-05-26T07:55:00+00:00",
+      "deferredStatus": "ready",  // "pending" | "ready" | null
+      "deferredText": "【影像/報告 最近3筆】\n…\n\n【臨床評分】\n…"
+    }
+  }
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `snapshot` | object \| null | `null` when `session.snapshot_metadata` is unset (pre-first-turn or non-patient session) |
+| `snapshotText` | string | Same critical snapshot the LLM has in its system prompt. Always safe to render. ~1–2KB typical. |
+| `snapshotTakenAt` | ISO-8601 string \| null | Mirrors the existing `session.snapshotTakenAt` |
+| `deferredStatus` | `"pending" \| "ready" \| null` | When `"ready"`, `deferredText` is non-empty |
+| `deferredText` | string | Vent / reports / scores sections that the LLM also receives once deferred fill completes. Empty string when not yet ready. |
+
+**Use case:** the AI Chat panel can show "what does the AI see right now?" — frontend renders `snapshotText` (plus `deferredText` if ready) as preformatted markdown next to the chat thread. Combined with the existing `refreshChatSessionSnapshot()` mutation, the panel stays in sync with the snapshot's age pill.
+
+**Listing endpoint (`GET /ai/chat/sessions`) is unchanged** — `snapshot` is **not** included there to keep the paginated payload small.
+
+---
+
 ### [READY] POST `/api/v1/clinical/query` — Unified Clinical Query (B07)
 
 > **Status:** Implemented 2026-03-02. Backend endpoint ready for frontend integration.

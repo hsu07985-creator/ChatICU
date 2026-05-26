@@ -1075,11 +1075,28 @@ async def get_session(
         .order_by(AIMessage.created_at)
     )
     messages = msgs_result.scalars().all()
+
+    # Step 3 (sycophancy mitigation): expose the snapshot the LLM saw so the
+    # frontend can show an "AI 看到什麼" panel next to the chat. Only included
+    # on the single-session GET (never the paginated list) so we don't bloat
+    # /sessions list responses by ~1.5KB per row. Frontend renders the text
+    # as preformatted markdown for now; structured extraction can come later.
+    snapshot_view = None
+    if session.snapshot_metadata and isinstance(session.snapshot_metadata, dict):
+        snap_meta = session.snapshot_metadata
+        snapshot_view = {
+            "snapshotText": snap_meta.get("clinical_snapshot") or "",
+            "snapshotTakenAt": snap_meta.get("snapshot_taken_at"),
+            "deferredStatus": snap_meta.get("deferred_status"),
+            "deferredText": snap_meta.get("clinical_snapshot_deferred") or "",
+        }
+
     return {
         "success": True,
         "data": {
             "session": _session_to_dict(session, len(messages)),
             "messages": [_message_to_dict(m) for m in messages],
+            "snapshot": snapshot_view,
         },
     }
 

@@ -677,6 +677,58 @@
 - **Files (when unblocked):** `src/pages/chat.tsx:13` (`getMyMentions` import), `src/components/notification-bell.tsx`, `src/hooks/use-team-chat-unread.ts`, possibly new `useUnifiedUnread` hook
 - **References:** F-06
 
+### F23 [READY] Add "AI 看到什麼" snapshot panel to AI Chat (sycophancy step 3)
+- **Added by:** backend session (AI-chat sycophancy mitigation — step 3 of the 5-step plan)
+- **Date:** 2026-05-26
+- **Priority:** P1 (transparency + the cheapest way to prevent the meropenem-class incident)
+- **Backend dependency:** **already shipped** — `GET /ai/chat/sessions/{id}` now returns a `snapshot` sibling field (see `api-contracts.md` § "GET `/ai/chat/sessions/{session_id}` — `snapshot` field added"). No further backend work required to build the basic panel.
+- **Files:**
+  - `src/components/patient/patient-chat-tab.tsx` (add the panel inside the chat tab)
+  - `src/pages/ai-chat.tsx` (add the same panel to the standalone chat page)
+  - `src/lib/api/ai.ts` — `getChatSession()` response type: extend with the new `snapshot` field
+  - `src/lib/api/types.generated.ts` — may need regen if you use codegen
+  - Optionally: a new `src/components/ai-chat/snapshot-view-panel.tsx` for the shared component
+- **Why this exists (read this before designing):**
+  - Steps 1, 2, 4 of the plan ship backend-side defences against the LLM blindly accepting user claims that contradict the snapshot (e.g. user says "病人沒有 meropenem" while the snapshot lists it as active and the patient's eGFR is 8 mL/min — see the original 2026-05-26 conversation). This panel is the **UX-side** defence: if the pharmacist can see in 1 second that meropenem IS in the active-med list, they will not make the wrong verbal claim in the first place.
+  - Related backend commits: `dee2c35da` (fact-checking prompt), `8a0274c12` (LLM-free conflict detector + audit), `e81251f12` (citation grounding).
+- **What to build:**
+  1. **Read** the new `snapshot` field from `GET /ai/chat/sessions/{id}` (already returned, just consume it). Shape:
+     ```ts
+     interface ChatSessionSnapshot {
+       snapshotText: string;                              // critical sections — always present once first turn lands
+       snapshotTakenAt: string | null;                    // ISO-8601
+       deferredStatus: "pending" | "ready" | null;
+       deferredText: string;                              // vent / reports / scores — appended when ready
+     }
+     ```
+  2. **Show a collapsible panel** next to (or above, depending on layout space) the chat thread. Collapsed by default; remembers state per-session via `localStorage` key like `chaticu.ai-chat.snapshot-panel.open`.
+  3. **Render** `snapshotText` (+ `deferredText` if ready) as preformatted text — the snapshot already uses `【區塊標題】` markers that are easy to scan. Markdown rendering is fine; raw `<pre>` is also fine. Whichever is faster — this is a "view the source-of-truth" panel, not a styled report.
+  4. **Sync with the existing refresh control** (`SnapshotRefreshControl` already lives in `src/components/ai-chat/snapshot-refresh-control.tsx`) — after a successful refresh, re-fetch the session (or update the local `snapshot` state) so the panel content matches the new `snapshotTakenAt`.
+  5. **Empty state:** when `snapshot` is `null` (pre-first-turn or non-patient session), show a hint like "傳出第一則訊息後，會在這裡顯示 AI 目前掌握的病患資料"。
+- **Edge cases:**
+  - `deferredStatus === "pending"`: render `snapshotText` only, plus a small "影像/報告/評分載入中…" inline note so the user knows more is coming. (Polling for "ready" is optional; refresh-snapshot will pick it up.)
+  - **Stale snapshot:** when `snapshotTakenAt` is > 30 min old, the existing `SnapshotRefreshControl` already turns amber. Inside the panel, add a one-line banner "快照已超過 30 分鐘未更新" with a link/button to trigger the refresh.
+  - **Session has no `patient_id`:** snapshot will be `null`. Hide the panel entirely.
+  - **Long snapshot:** typical critical+deferred ≈ 2–3 KB. Use `max-height` with internal scroll, not page scroll.
+- **i18n:** strings should go through the `ai-chat:` namespace per `docs/i18n-rollout-plan-2026-05-04.md`. Suggested keys:
+  - `ai-chat:snapshotPanel.title` = "AI 目前掌握的資料" / "Data the AI has now"
+  - `ai-chat:snapshotPanel.empty` = "傳出第一則訊息後，會在這裡顯示 AI 目前掌握的病患資料"
+  - `ai-chat:snapshotPanel.deferredLoading` = "影像/報告/評分載入中…"
+  - `ai-chat:snapshotPanel.staleHint` = "快照已超過 30 分鐘未更新"
+- **Out of scope (later iterations, do NOT pull in now):**
+  - Structured extraction of meds/labs into rich tables — the text panel is good enough to prevent the meropenem-class incident. If pharmacists later want filter/search, file a follow-up.
+  - Editing or annotating the snapshot — read-only is correct.
+  - Showing the `[系統偵測]` conflict block — that's already injected into the LLM's prompt; it doesn't need a separate UI surface (yet).
+- **Verification when done:**
+  1. Open AI chat for a patient that has active meds. Send any message. Confirm the panel populates with `【用藥】` listing those meds.
+  2. Open the same chat in the standalone `/ai-chat` page — same panel renders.
+  3. Click "重新整理快照" — confirm the panel content updates and `snapshotTakenAt` advances.
+  4. Specifically test the meropenem case: open `pat_a86cb503`'s chat, the panel must show `Meropenem 2.0 瓶 q12h IV infusion` so a pharmacist who typed "病人沒有 meropenem" can immediately see they were wrong.
+- **References:**
+  - This task's backend work: `backend/app/llm.py` (steps 1, 4), `backend/app/services/assertion_conflict.py` (step 2), `backend/app/routers/ai_chat.py` (steps 2, 3).
+  - Existing related component: `src/components/ai-chat/snapshot-refresh-control.tsx`.
+  - 2026 industry context: this is the UX layer of the "transparency / AI assurance" pattern. See the 2026-05-26 conversation for the npj Digital Medicine + arxiv 2512.16189 references that informed the design.
+
 ---
 
 ## Completed Tasks
