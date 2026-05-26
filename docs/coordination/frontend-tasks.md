@@ -710,11 +710,12 @@
   - **Stale snapshot:** when `snapshotTakenAt` is > 30 min old, the existing `SnapshotRefreshControl` already turns amber. Inside the panel, add a one-line banner "快照已超過 30 分鐘未更新" with a link/button to trigger the refresh.
   - **Session has no `patient_id`:** snapshot will be `null`. Hide the panel entirely.
   - **Long snapshot:** typical critical+deferred ≈ 2–3 KB. Use `max-height` with internal scroll, not page scroll.
-- **i18n:** strings should go through the `ai-chat:` namespace per `docs/i18n-rollout-plan-2026-05-04.md`. Suggested keys:
+- **i18n:** strings should go through the `ai-chat:` namespace per `docs/i18n-rollout-plan-2026-05-04.md`. **Avoid the word "快照" in user-facing copy** (台灣臨床語境少用)，改用「目前資料」「最新檢驗值」「目前用藥」等自然說法。Suggested keys:
   - `ai-chat:snapshotPanel.title` = "AI 目前掌握的資料" / "Data the AI has now"
   - `ai-chat:snapshotPanel.empty` = "傳出第一則訊息後，會在這裡顯示 AI 目前掌握的病患資料"
   - `ai-chat:snapshotPanel.deferredLoading` = "影像/報告/評分載入中…"
-  - `ai-chat:snapshotPanel.staleHint` = "快照已超過 30 分鐘未更新"
+  - `ai-chat:snapshotPanel.staleHint` = "病患資料已超過 30 分鐘未更新"
+  - The existing `src/components/ai-chat/snapshot-refresh-control.tsx` uses `snapshot.label` etc. — when this task touches it, please also retire 「快照」 wording in its zh-TW translations (keep the technical key names; just change the strings)。
 - **Out of scope (later iterations, do NOT pull in now):**
   - Structured extraction of meds/labs into rich tables — the text panel is good enough to prevent the meropenem-class incident. If pharmacists later want filter/search, file a follow-up.
   - Editing or annotating the snapshot — read-only is correct.

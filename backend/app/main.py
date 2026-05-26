@@ -233,7 +233,7 @@ def _safe_internal_error_message(request: Request, exc: Exception, request_id: s
         return str(exc)
     if request.url.path.endswith("/ai/chat/stream"):
         return (
-            "AI 臨床夥伴準備病患資料時失敗，請重試或重新整理快照。"
+            "AI 臨床夥伴準備病患資料時失敗，請重試或重新整理病患資料。"
             f"若持續發生，請提供 request_id={request_id}。"
         )
     return "An unexpected error occurred"

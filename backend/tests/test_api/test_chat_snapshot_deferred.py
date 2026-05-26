@@ -25,14 +25,14 @@ from app.routers.ai_chat import (
 
 
 CRITICAL_SNAPSHOT = (
-    "=== ICU 病患臨床快照 ===\n"
+    "=== ICU 病患目前資料 ===\n"
     "時間戳記：2026-04-30 17:00\n\n"
     "【患者基本】\n姓名: 廖○賢 | 年齡: 39歲 | 性別: 男 | 床號: I-01\n"
     "診斷: I61.5非創傷性腦室出血\n\n"
     "【生命徵象】 2026-04-29 14:00\n體溫 37.0°C | HR 88 bpm | RR 14/min\n\n"
     "【最新檢驗】\nCr 1.2 | Na 140 | K 4.0\n\n"
     "【目前用藥】\nVancomycin 1g IV q12h\n"
-    "\n=== 快照結束 ==="
+    "\n=== 資料結束 ==="
 )
 DEFERRED_TEXT = (
     "【影像/報告 最近3筆】\n2026-04-25 CT Brain: post-op changes\n\n"

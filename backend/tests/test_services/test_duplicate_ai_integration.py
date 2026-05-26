@@ -154,7 +154,7 @@ async def test_snapshot_contains_duplicate_block_for_dual_ppi(_stub_snapshot_db)
     assert "重複/其他: high - PPI × PPI: Esomeprazole + Pantoprazole" in snapshot
     # And still shows the patient + med sections around it
     assert "【用藥】" in snapshot
-    assert "=== 快照結束 ===" in snapshot
+    assert "=== 資料結束 ===" in snapshot
 
 
 @pytest.mark.asyncio
@@ -174,7 +174,7 @@ async def test_snapshot_omits_duplicate_block_when_no_warnings(_stub_snapshot_db
     assert "自動警示: 無 critical/high/moderate" in snapshot
     # Snapshot must still render (med section present, not an error payload)
     assert "【用藥】" in snapshot
-    assert "=== 快照結束 ===" in snapshot
+    assert "=== 資料結束 ===" in snapshot
 
 
 @pytest.mark.asyncio
@@ -194,7 +194,7 @@ async def test_snapshot_survives_duplicate_detector_crash(_stub_snapshot_db):
     # No duplicate block, but snapshot is fully intact
     assert "[重複用藥警示（自動偵測）]" not in snapshot
     assert "【用藥】" in snapshot
-    assert "=== 快照結束 ===" in snapshot
+    assert "=== 資料結束 ===" in snapshot
 
 
 @pytest.mark.asyncio

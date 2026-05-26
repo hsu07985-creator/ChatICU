@@ -134,7 +134,7 @@ async def _load_messages(
 
 def _build_system_prompt(snapshot: str) -> str:
     base = TASK_PROMPTS["icu_chat"]
-    return f"{base}\n\n[病患臨床快照]\n{snapshot}"
+    return f"{base}\n\n[目前病患資料]\n{snapshot}"
 
 
 def _maybe_inject_deferred_into_user_message(
@@ -849,8 +849,8 @@ async def chat_stream(
     elif session.snapshot_metadata and session.snapshot_metadata.get("system_prompt"):
         # Backward compat: old sessions that stored full system_prompt
         system_prompt = _build_system_prompt(
-            session.snapshot_metadata["system_prompt"].split("[病患臨床快照]")[-1].strip()
-            if "[病患臨床快照]" in session.snapshot_metadata.get("system_prompt", "")
+            session.snapshot_metadata["system_prompt"].split("[目前病患資料]")[-1].strip()
+            if "[目前病患資料]" in session.snapshot_metadata.get("system_prompt", "")
             else ""
         )
     elif patient_id:

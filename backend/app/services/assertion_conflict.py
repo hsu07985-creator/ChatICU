@@ -142,10 +142,10 @@ def format_med_conflict_block(
         if nm:
             records_by_name[nm] = rec
 
-    lines = ["[系統偵測：使用者聲明與臨床快照衝突]"]
+    lines = ["[系統偵測：使用者聲明與目前資料不一致]"]
     lines.append(
         "使用者本輪訊息含否定字樣，疑似主張病人未在使用以下藥物，"
-        "但快照仍記載為 active："
+        "但目前資料仍記載為 active："
     )
     for c in conflicts:
         med_name = c["med_name"]
@@ -167,7 +167,7 @@ def format_med_conflict_block(
         )
 
     lines.append(
-        "處理原則（依事實核對規則）：必須引用快照記錄、請使用者澄清停藥時間/"
+        "處理原則（依事實核對規則）：必須引用目前資料中的記錄、請使用者澄清停藥時間/"
         "原因或處方異動單號；在使用者明確說明前，不可撤回原本的風險評估。"
     )
     return "\n".join(lines)

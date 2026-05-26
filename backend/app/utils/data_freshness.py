@@ -178,7 +178,7 @@ def build_data_freshness(patient_data: dict[str, Any] | None) -> dict[str, Any] 
     if settings.DATA_SOURCE_MODE == "json":
         hints.append("目前為 JSON 離線模式，資料可能非即時。")
     if as_of:
-        hints.append(f"資料快照時間：{as_of}")
+        hints.append(f"資料更新時間：{as_of}")
     if stale_sections:
         hints.append("資料時間較舊：" + "、".join(stale_sections) + "。")
     if missing_fields:

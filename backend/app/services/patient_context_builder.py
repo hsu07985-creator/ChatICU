@@ -514,7 +514,7 @@ def _fmt_data_freshness_section(
 
     lines = [
         "【資料狀態】",
-        f"快照時間: {snapshot_time}（台北）",
+        f"資料時間: {snapshot_time}（台北）",
         " | ".join(statuses[:5]),
         " | ".join(statuses[5:]),
     ]
@@ -1340,7 +1340,7 @@ async def build_clinical_snapshot(patient_id: str, db: AsyncSession) -> str:
     now_str = _now_taipei().strftime("%Y-%m-%d %H:%M")
 
     sections = [
-        f"=== ICU 病患臨床快照 ===",
+        f"=== ICU 病患目前資料 ===",
         f"時間戳記：{now_str}（台北時間）",
         "",
         _fmt_data_freshness_section(
@@ -1379,7 +1379,7 @@ async def build_clinical_snapshot(patient_id: str, db: AsyncSession) -> str:
     if scores_section:
         sections += ["", scores_section]
 
-    sections.append("\n=== 快照結束 ===")
+    sections.append("\n=== 資料結束 ===")
 
     return "\n".join(sections)
 
@@ -1457,7 +1457,7 @@ async def build_critical_snapshot(
     now_str = _now_taipei().strftime("%Y-%m-%d %H:%M")
 
     sections = [
-        "=== ICU 病患臨床快照 ===",
+        "=== ICU 病患目前資料 ===",
         f"時間戳記：{now_str}（台北時間）",
         "",
         _fmt_data_freshness_section(
@@ -1493,7 +1493,7 @@ async def build_critical_snapshot(
     if duplicate_section:
         sections += ["", duplicate_section]
 
-    sections.append("\n=== 快照結束 ===")
+    sections.append("\n=== 資料結束 ===")
 
     key_values = extract_snapshot_key_values(latest_lab, meds)
     deferred_meta = {"intubated": bool(patient.intubated)}
@@ -1616,7 +1616,7 @@ async def build_delta(
         if abs(pct) >= _TREND_THRESHOLD:
             arrow = "↑" if pct > 0 else "↓"
             unit_str = f" {unit}" if unit else ""
-            changes.append(f"{label} {new_f}{arrow}（快照時{old_f}）{unit_str}")
+            changes.append(f"{label} {new_f}{arrow}（前次{old_f}）{unit_str}")
 
     if not changes:
         return None

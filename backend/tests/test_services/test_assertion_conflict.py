@@ -91,7 +91,7 @@ def test_format_block_includes_record_detail():
     ]
     block = format_med_conflict_block(conflicts, records)
     # The block must surface specifics the LLM can cite back to the user.
-    assert "[系統偵測：使用者聲明與臨床快照衝突]" in block
+    assert "[系統偵測：使用者聲明與目前資料不一致]" in block
     assert "Meropenem" in block
     assert "q12h" in block
     assert "2026-04-27 23:56 UTC" in block
