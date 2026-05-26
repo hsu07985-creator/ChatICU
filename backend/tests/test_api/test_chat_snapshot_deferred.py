@@ -61,8 +61,12 @@ def test_system_prompt_does_not_include_deferred_text():
     appear in it (otherwise the prefix mutates between turns)."""
     sp = _build_system_prompt(CRITICAL_SNAPSHOT)
     assert DEFERRED_TEXT not in sp
-    # Spot-check some unique deferred-only phrases
-    assert "影像/報告" not in sp
+    # Spot-check phrases that appear *only* in DEFERRED_TEXT, never in the
+    # base TASK_PROMPTS["icu_chat"]. ("影像/報告" used to be a usable sentinel
+    # but is now a category name referenced by the step-1 fact-checking
+    # rules block, so we use the section-count marker instead.)
+    assert "最近3筆" not in sp
+    assert "post-op" not in sp
     assert "RASS" not in sp
 
 

@@ -32,6 +32,10 @@ from app.middleware.auth import get_current_user
 from app.models.ai_session import AISession, AIMessage
 from app.models.user import User
 from app.services.ai_question_prefetch import build_question_prefetch_with_metadata
+from app.services.assertion_conflict import (
+    detect_med_negation_conflict,
+    format_med_conflict_block,
+)
 from app.services.patient_acl import assert_patient_chat_access
 from app.services.patient_context_builder import (
     build_clinical_snapshot,
@@ -193,6 +197,25 @@ def _maybe_inject_question_prefetch_into_user_message(
         "[以下為依本輪問題預取的資料，僅供回答本輪問題使用]\n"
         f"{context}"
     )
+    marker = "[使用者提問]\n"
+    if marker in user_message:
+        prefix, question = user_message.rsplit(marker, 1)
+        return f"{prefix.rstrip()}\n\n{block}\n\n{marker}{question}"
+    return f"{block}\n\n{marker}{user_message}"
+
+
+def _maybe_inject_assertion_conflict_into_user_message(
+    user_message: str,
+    conflict_block: str,
+) -> str:
+    """Inject a [系統偵測] block when the user's current message contradicts
+    the snapshot. Same shape as _maybe_inject_question_prefetch_... so the
+    block lands inside the ephemeral user_message — never persisted, never
+    part of the byte-stable system_prompt prefix (so prompt cache stays warm).
+    """
+    block = (conflict_block or "").strip()
+    if not block:
+        return user_message
     marker = "[使用者提問]\n"
     if marker in user_message:
         prefix, question = user_message.rsplit(marker, 1)
@@ -805,6 +828,77 @@ async def chat_stream(
     user_message = _maybe_inject_question_prefetch_into_user_message(
         user_message, prefetch_context
     )
+
+    # Step 2: user-assertion vs snapshot conflict detection.
+    # Surface "user says no X but snapshot still has X active" as a
+    # deterministic [系統偵測] block so the LLM (per step-1 fact-checking
+    # rules) cannot silently agree with the user. Cheap: only fetch the
+    # active-med list when patient_id is set; matcher is sub-millisecond.
+    # Audited so we can later quantify how often this fires and whether
+    # the LLM actually pushed back.
+    if patient_id:
+        try:
+            conflict_meds = await _get_active_medications(db, patient_id)
+            conflict_med_names = [m.name for m in conflict_meds if m and m.name]
+            conflicts = detect_med_negation_conflict(
+                body.message, conflict_med_names
+            )
+            if conflicts:
+                med_records = [
+                    {
+                        "name": m.name,
+                        "dose": m.dose,
+                        "unit": m.unit,
+                        "frequency": m.frequency,
+                        "route": m.route,
+                        "updated_at_str": (
+                            m.updated_at.astimezone(timezone.utc).strftime(
+                                "%Y-%m-%d %H:%M UTC"
+                            )
+                            if m.updated_at
+                            else None
+                        ),
+                    }
+                    for m in conflict_meds
+                ]
+                conflict_block = format_med_conflict_block(conflicts, med_records)
+                user_message = _maybe_inject_assertion_conflict_into_user_message(
+                    user_message, conflict_block
+                )
+                logger.info(
+                    "[CHAT][CONFLICT] session=%s patient=%s conflicts=%s",
+                    session.id,
+                    patient_id,
+                    [c["med_name"] for c in conflicts],
+                )
+                await create_audit_log(
+                    db,
+                    user_id=current_user.id,
+                    user_name=current_user.name,
+                    role=current_user.role,
+                    action="ai_chat_user_assertion_conflict",
+                    target=patient_id,
+                    status="detected",
+                    ip=request.client.host if request.client else None,
+                    details={
+                        "session_id": session.id,
+                        "conflict_count": len(conflicts),
+                        "conflicts": [
+                            {
+                                "med_name": c["med_name"],
+                                "matched_cue": c["matched_cue"],
+                            }
+                            for c in conflicts
+                        ],
+                    },
+                )
+        except Exception as exc:  # pragma: no cover — defensive: never block a reply
+            logger.warning(
+                "[CHAT][CONFLICT] detection failed session=%s patient=%s: %s",
+                session.id,
+                patient_id,
+                exc,
+            )
 
     # M1: structured prefetch metric so prod can answer "is the keyword-based
     # prefetch missing user questions?" without scraping LLM replies. PII-safe
