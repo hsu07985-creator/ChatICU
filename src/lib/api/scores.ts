@@ -1,4 +1,4 @@
-import apiClient, { ensureData, ensureSuccess } from '../api-client';
+import apiClient, { ensureData, ensureSuccess, type ApiResponse } from '../api-client';
 
 export interface ScoreEntry {
   id: string;
@@ -19,12 +19,6 @@ export interface ScoreTrendsResponse {
   trends: ScoreEntry[];
   scoreType: string;
   hours: number;
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
 }
 
 export async function getLatestScores(patientId: string): Promise<LatestScores> {

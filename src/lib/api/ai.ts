@@ -1,4 +1,5 @@
-import apiClient, { ensureData } from '../api-client';
+import apiClient, { ensureData, type ApiResponse } from '../api-client';
+import { readSseEvents } from './sse-reader';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -259,37 +260,11 @@ const STREAM_IDLE_TIMEOUT_MS = 30_000;
 /** Initial fetch timeout — covers connection + headers, NOT the streaming body. */
 const STREAM_INITIAL_TIMEOUT_MS = 60_000;
 
-// API 回應類型
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
-}
-
 function createStreamRequestId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `fe_stream_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
   }
   return `fe_stream_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function parseSseFrame(frame: string): { event: string; data: string } | null {
-  const trimmed = frame.trim();
-  if (!trimmed) return null;
-  const lines = trimmed.split('\n');
-  let event = 'message';
-  let data = '';
-  for (const line of lines) {
-    if (line.startsWith('event:')) {
-      event = line.slice(6).trim();
-      continue;
-    }
-    if (line.startsWith('data:')) {
-      const value = line.slice(5);
-      data += value.startsWith(' ') ? value.slice(1) : value;
-    }
-  }
-  return { event, data };
 }
 
 // 串流聊天訊息（AO-04）— SSE /ai/chat/stream
@@ -381,71 +356,47 @@ export async function streamChatMessage(options: StreamChatOptions): Promise<voi
       throw new Error('AI 串流連線失敗：無可讀取內容。');
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder('utf-8');
-    let buffer = '';
     let completed = false;
     armIdleTimer();
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (value) {
-        buffer += decoder.decode(value, { stream: !done });
-        armIdleTimer();
+    for await (const ev of readSseEvents(response)) {
+      // A frame arrived → the stream is alive; reset the stall timer.
+      armIdleTimer();
+      const payload = ev.payload as {
+        detail?: unknown;
+        chunk?: unknown;
+        message?: unknown;
+        sessionId?: unknown;
+        prefetchRefs?: unknown;
+      } | null;
+
+      if (ev.event === 'thinking' && typeof payload?.detail === 'string') {
+        options.onThinking?.(payload.detail);
+        continue;
       }
-      buffer = buffer.replace(/\r\n/g, '\n');
-      if (done && buffer.trim()) {
-        buffer += '\n\n';
+      if (ev.event === 'delta' && typeof payload?.chunk === 'string') {
+        options.onMessage(payload.chunk);
+        continue;
       }
-
-      let boundaryIndex = buffer.indexOf('\n\n');
-      while (boundaryIndex !== -1) {
-        const frame = buffer.slice(0, boundaryIndex);
-        buffer = buffer.slice(boundaryIndex + 2);
-        boundaryIndex = buffer.indexOf('\n\n');
-
-        const parsed = parseSseFrame(frame);
-        if (!parsed) continue;
-
-        let payload: any = {};
-        if (parsed.data) {
-          try {
-            payload = JSON.parse(parsed.data);
-          } catch {
-            payload = {};
-          }
+      if (ev.event === 'done') {
+        if (!payload?.message || !payload?.sessionId) {
+          throw new Error('AI 串流回應格式錯誤：缺少 message/sessionId');
         }
-
-        if (parsed.event === 'thinking' && typeof payload.detail === 'string') {
-          options.onThinking?.(payload.detail);
-          continue;
-        }
-        if (parsed.event === 'delta' && typeof payload.chunk === 'string') {
-          options.onMessage(payload.chunk);
-          continue;
-        }
-        if (parsed.event === 'done') {
-          if (!payload?.message || !payload?.sessionId) {
-            throw new Error('AI 串流回應格式錯誤：缺少 message/sessionId');
-          }
-          options.onComplete({
-            message: payload.message,
-            sessionId: payload.sessionId,
-            prefetchRefs: payload.prefetchRefs ?? undefined,
-          });
-          completed = true;
-          continue;
-        }
-        if (parsed.event === 'error') {
-          throw new Error(
-            typeof payload?.message === 'string' && payload.message
-              ? payload.message
-              : 'AI 串流服務發生錯誤。'
-          );
-        }
+        options.onComplete({
+          message: payload.message as ChatMessage,
+          sessionId: payload.sessionId as string,
+          prefetchRefs: (payload.prefetchRefs as PrefetchRefs | undefined) ?? undefined,
+        });
+        completed = true;
+        continue;
       }
-
-      if (done) break;
+      if (ev.event === 'error') {
+        throw new Error(
+          typeof payload?.message === 'string' && payload.message
+            ? payload.message
+            : 'AI 串流服務發生錯誤。'
+        );
+      }
     }
 
     if (!completed) {
@@ -606,57 +557,30 @@ async function streamClinicalEndpoint<T>(
     throw new Error('AI 串流連線失敗：無可讀取內容。');
   }
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder('utf-8');
-  let buffer = '';
   let final: T | null = null;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (value) {
-      buffer += decoder.decode(value, { stream: !done });
+  for await (const ev of readSseEvents(response)) {
+    const payload = ev.payload as {
+      chunk?: unknown;
+      data?: unknown;
+      message?: unknown;
+    } | null;
+
+    if (ev.event === 'delta' && typeof payload?.chunk === 'string') {
+      onDelta(payload.chunk);
+      continue;
     }
-    buffer = buffer.replace(/\r\n/g, '\n');
-    if (done && buffer.trim()) {
-      buffer += '\n\n';
+    if (ev.event === 'done' && payload?.data) {
+      final = payload.data as T;
+      continue;
     }
-
-    let boundaryIndex = buffer.indexOf('\n\n');
-    while (boundaryIndex !== -1) {
-      const frame = buffer.slice(0, boundaryIndex);
-      buffer = buffer.slice(boundaryIndex + 2);
-      boundaryIndex = buffer.indexOf('\n\n');
-
-      const parsed = parseSseFrame(frame);
-      if (!parsed) continue;
-
-      let payload: any = {};
-      if (parsed.data) {
-        try {
-          payload = JSON.parse(parsed.data);
-        } catch {
-          payload = {};
-        }
-      }
-
-      if (parsed.event === 'delta' && typeof payload.chunk === 'string') {
-        onDelta(payload.chunk);
-        continue;
-      }
-      if (parsed.event === 'done' && payload?.data) {
-        final = payload.data as T;
-        continue;
-      }
-      if (parsed.event === 'error') {
-        throw new Error(
-          typeof payload?.message === 'string' && payload.message
-            ? payload.message
-            : errorLabel
-        );
-      }
+    if (ev.event === 'error') {
+      throw new Error(
+        typeof payload?.message === 'string' && payload.message
+          ? payload.message
+          : errorLabel
+      );
     }
-
-    if (done) break;
   }
 
   if (!final) {
@@ -849,68 +773,42 @@ export async function streamPolishClinicalText(
     throw new PolishStreamError('protocol', 'AI 修飾串流連線失敗：無可讀取內容。');
   }
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder('utf-8');
-  let buffer = '';
   let final: PolishResponse | null = null;
 
   try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (value) {
-        buffer += decoder.decode(value, { stream: !done });
+    for await (const ev of readSseEvents(response)) {
+      const payload = ev.payload as {
+        chunk?: unknown;
+        key?: unknown;
+        data?: unknown;
+        message?: unknown;
+      } | null;
+
+      if (ev.event === 'delta' && typeof payload?.chunk === 'string') {
+        onDelta(payload.chunk);
+        continue;
       }
-      buffer = buffer.replace(/\r\n/g, '\n');
-      if (done && buffer.trim()) {
-        buffer += '\n\n';
+      if (
+        ev.event === 'section_delta'
+        && typeof payload?.key === 'string'
+        && typeof payload?.chunk === 'string'
+        && onSectionDelta
+      ) {
+        onSectionDelta(payload.key as SoapSection, payload.chunk);
+        continue;
       }
-
-      let boundaryIndex = buffer.indexOf('\n\n');
-      while (boundaryIndex !== -1) {
-        const frame = buffer.slice(0, boundaryIndex);
-        buffer = buffer.slice(boundaryIndex + 2);
-        boundaryIndex = buffer.indexOf('\n\n');
-
-        const parsed = parseSseFrame(frame);
-        if (!parsed) continue;
-
-        let payload: any = {};
-        if (parsed.data) {
-          try {
-            payload = JSON.parse(parsed.data);
-          } catch {
-            payload = {};
-          }
-        }
-
-        if (parsed.event === 'delta' && typeof payload.chunk === 'string') {
-          onDelta(payload.chunk);
-          continue;
-        }
-        if (
-          parsed.event === 'section_delta'
-          && typeof payload.key === 'string'
-          && typeof payload.chunk === 'string'
-          && onSectionDelta
-        ) {
-          onSectionDelta(payload.key as SoapSection, payload.chunk);
-          continue;
-        }
-        if (parsed.event === 'done' && payload?.data) {
-          final = payload.data as PolishResponse;
-          continue;
-        }
-        if (parsed.event === 'error') {
-          throw new PolishStreamError(
-            'protocol',
-            typeof payload?.message === 'string' && payload.message
-              ? payload.message
-              : 'AI 修飾串流服務發生錯誤。',
-          );
-        }
+      if (ev.event === 'done' && payload?.data) {
+        final = payload.data as PolishResponse;
+        continue;
       }
-
-      if (done) break;
+      if (ev.event === 'error') {
+        throw new PolishStreamError(
+          'protocol',
+          typeof payload?.message === 'string' && payload.message
+            ? payload.message
+            : 'AI 修飾串流服務發生錯誤。',
+        );
+      }
     }
   } catch (err) {
     cleanup();

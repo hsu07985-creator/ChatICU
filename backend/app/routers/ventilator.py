@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.utils.request import get_client_ip
 from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log
 from app.models.ventilator import VentilatorSetting, WeaningAssessment
@@ -166,7 +167,7 @@ async def create_weaning_assessment(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="建立脫機評估", target=pid, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"assessment_id": assessment.id},
     )
     await db.flush()
@@ -210,7 +211,7 @@ async def create_ventilator_settings(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="手動輸入呼吸器設定", target=pid, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={
             "ventilator_id": v.id,
             # Full parameter snapshot — incident review needs every dial.

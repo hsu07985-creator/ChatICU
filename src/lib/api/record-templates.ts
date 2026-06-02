@@ -1,4 +1,4 @@
-import apiClient, { ensureData } from '../api-client';
+import apiClient, { ensureData, type ApiResponse } from '../api-client';
 
 export type RecordTemplateType = 'progress-note' | 'medication-advice' | 'nursing-record';
 export type RecordTemplateRoleScope = 'doctor' | 'np' | 'nurse' | 'pharmacist' | 'admin' | 'all';
@@ -21,12 +21,6 @@ export interface RecordTemplate {
   updatedAt: string;
   canEdit: boolean;
   canDelete: boolean;
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
 }
 
 export async function listRecordTemplates(recordType: RecordTemplateType, includeInactive = false): Promise<RecordTemplate[]> {

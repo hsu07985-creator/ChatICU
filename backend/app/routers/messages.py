@@ -18,6 +18,7 @@ from app.models.custom_tag import CustomTag
 from app.schemas.message import MessageCreate, MessageTagUpdate, CustomTagCreate
 from app.utils.jsonb_compat import array_contains_user_receipt
 from app.utils.read_receipt import append_read_receipt
+from app.utils.request import get_client_ip
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/patients/{patient_id}/messages", tags=["messages"])
@@ -166,6 +167,9 @@ async def _sync_advices_from_message(msg, author, db):
     Returns ``(created_ids, deleted_ids)`` for audit purposes. Idempotent:
     calling twice with the same tag state is a no-op.
     """
+    # TODO(auth): cannot use the require_roles dependency here — this is a
+    # helper, not an endpoint, and the role check is a soft skip (return
+    # early) rather than a 403 gate. Roles unchanged: pharmacist/admin only.
     if author.role not in ("pharmacist", "admin"):
         return [], []
 
@@ -300,6 +304,9 @@ async def get_pharmacy_tags(
     user: User = Depends(get_current_user),
 ):
     """Return grouped pharmacy subcode tags for dedicated pharmacy tag picker."""
+    # TODO(auth): cannot use the require_roles dependency — non-pharmacists
+    # are still allowed to call this endpoint; they just receive an empty
+    # list instead of a 403. Roles unchanged: pharmacist/admin get content.
     if user.role not in ("pharmacist", "admin"):
         return success_response(data=[])
 
@@ -384,7 +391,7 @@ async def create_custom_tag(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="建立共用標籤", target=tag.id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"tag_name": name},
     )
 
@@ -413,7 +420,7 @@ async def delete_custom_tag(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="刪除共用標籤", target=tag_id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"tag_name": tag_name},
     )
 
@@ -514,6 +521,10 @@ async def create_message(
 ):
     pid = normalize_patient_id(patient_id)
 
+    # TODO(auth): cannot use the require_roles dependency — the gate is
+    # conditional on the request body (only "medication-advice" messages are
+    # restricted), so it can't move to a static endpoint dependency. Roles
+    # unchanged: pharmacist/admin only for medication-advice.
     if body.messageType == "medication-advice" and user.role not in ("pharmacist", "admin"):
         raise HTTPException(status_code=403, detail="Only pharmacists can send medication advice")
 
@@ -556,6 +567,9 @@ async def create_message(
     # Phase 3: adviceAction — doctor accept/reject via bulletin board reply
     advice_synced = False
     if body.adviceAction and body.replyToId and parent:
+        # TODO(auth): cannot use the require_roles dependency — this gate is
+        # conditional on the request body (adviceAction + reply), not a
+        # blanket endpoint role check. Roles unchanged: doctor/np/admin only.
         if user.role not in ("doctor", "np", "admin"):
             raise HTTPException(status_code=403, detail="只有醫師可以接受或拒絕藥事建議")
         if parent.message_type != "medication-advice":
@@ -584,14 +598,14 @@ async def create_message(
             db, user_id=user.id, user_name=user.name, role=user.role,
             action="回覆藥事建議" if accepted else "拒絕藥事建議",
             target=parent.advice_record_id, status="success",
-            ip=request.client.host if request.client else None,
+            ip=get_client_ip(request),
             details={"accepted": accepted, "via": "bulletin-reply", "message_id": msg.id},
         )
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="建立病患訊息", target=pid, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={
             "message_id": msg.id,
             "message_type": body.messageType,
@@ -634,7 +648,7 @@ async def mark_message_read(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="標記訊息已讀", target=message_id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"patient_id": patient_id},
     )
 
@@ -676,7 +690,7 @@ async def update_message_tags(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="更新訊息標籤", target=message_id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={
             "patient_id": patient_id,
             "tags": current_tags,
@@ -720,7 +734,7 @@ async def delete_patient_message(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="刪除病患留言", target=message_id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={
             "patient_id": patient_id,
             "advice_sync_deleted": deleted_advice_ids,

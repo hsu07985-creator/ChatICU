@@ -14,6 +14,7 @@ from app.schemas.record_template import (
     RecordTemplateResponse,
     RecordTemplateUpdate,
 )
+from app.utils.request import get_client_ip
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/record-templates", tags=["record-templates"])
@@ -96,6 +97,9 @@ async def create_record_template(
 ):
     role_scope = body.role_scope
     is_system = body.is_system
+    # TODO: cannot map to require_roles dependency — this is an in-body
+    # branch (any authenticated user may create, but admins get extra
+    # privileges: arbitrary role_scope + system templates). Access unchanged.
     if user.role != "admin":
         if role_scope != user.role:
             raise HTTPException(status_code=403, detail="只能建立自己角色的模板")
@@ -127,7 +131,7 @@ async def create_record_template(
         action="建立記錄模板",
         target=template.id,
         status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={
             "record_type": template.record_type,
             "role_scope": template.role_scope,
@@ -166,10 +170,14 @@ async def update_record_template(
     if body.is_active is not None:
         template.is_active = body.is_active
     if body.role_scope is not None:
+        # TODO: cannot map to require_roles dependency — in-body branch
+        # guarding a specific field, not the whole endpoint. Access unchanged.
         if user.role != "admin" and body.role_scope != user.role:
             raise HTTPException(status_code=403, detail="只能將模板設為自己角色")
         template.role_scope = body.role_scope
     if body.is_system is not None:
+        # TODO: cannot map to require_roles dependency — in-body branch
+        # guarding a specific field, not the whole endpoint. Access unchanged.
         if user.role != "admin":
             raise HTTPException(status_code=403, detail="只有管理者可以調整系統模板")
         template.is_system = body.is_system
@@ -187,7 +195,7 @@ async def update_record_template(
         action="更新記錄模板",
         target=template.id,
         status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"record_type": template.record_type},
     )
     return success_response(
@@ -221,7 +229,7 @@ async def delete_record_template(
         action="刪除記錄模板",
         target=template_id,
         status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"record_type": template.record_type},
     )
     return success_response(message="模板已刪除")

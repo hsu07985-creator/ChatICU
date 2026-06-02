@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 from app.database import get_db
+from app.utils.request import get_client_ip
 from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log, diff_dict, snapshot_fields
 from app.models.patient import Patient
@@ -396,7 +397,7 @@ async def create_patient(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="建立病患", target=patient_id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"patient_name": body.name, "bed": body.bed_number},
     )
 
@@ -659,7 +660,7 @@ async def update_patient(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="更新病患資料", target=pid, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details=audit_details,
     )
 
@@ -724,7 +725,7 @@ async def archive_patient(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="病患歸檔", target=pid, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={
             "archived": patient.archived,
             "reason": getattr(body, "reason", None),
@@ -793,7 +794,7 @@ async def discharge_patient(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="病患出院刪除", target=pid, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"patient_name": patient_name},
     )
 

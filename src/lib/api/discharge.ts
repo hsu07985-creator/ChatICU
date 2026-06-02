@@ -1,4 +1,4 @@
-import apiClient, { ensureData } from '../api-client';
+import apiClient, { ensureData, type ApiResponse } from '../api-client';
 import type { DuplicateAlert, DuplicateSeverityCounts } from './medications';
 
 // ── Discharge medication reconciliation (Wave 6a) ──────────────────────
@@ -9,12 +9,6 @@ import type { DuplicateAlert, DuplicateSeverityCounts } from './medications';
 //      but not carried on the discharge order (classic SUP-PPI trap).
 //   2) dischargeDuplicates — duplicate-detector alerts run against the
 //      discharge order set itself (DuplicateDetector context="discharge").
-
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
-}
 
 export type DischargeMissedCategory =
   | 'sup_ppi'

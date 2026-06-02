@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.utils.request import get_client_ip
 from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log, diff_dict, snapshot_fields
 from app.models.medication import Medication
@@ -392,7 +393,7 @@ async def create_medication(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="開立藥物處方", target=pid, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"medication_id": med.id, "medication_name": body.name, "dose": body.dose},
     )
 
@@ -433,7 +434,7 @@ async def update_medication(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="更新藥物", target=medication_id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details=audit_details,
     )
 
@@ -486,7 +487,7 @@ async def record_medication_administration(
         action="記錄給藥",
         target=administration_id,
         status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={
             "medication_id": med.id,
             "administration_id": administration_id,
@@ -547,7 +548,7 @@ async def import_outpatient_medications(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="匯入門診用藥", target=pid, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"count": len(created), "names": [m.name for m in created]},
     )
 

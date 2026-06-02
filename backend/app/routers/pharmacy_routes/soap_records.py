@@ -23,6 +23,7 @@ from app.models.patient import Patient
 from app.models.pharmacy_soap_record import PharmacySoapRecord
 from app.models.user import User
 from app.schemas.pharmacy_soap import PharmacySoapRecordCreate
+from app.utils.request import get_client_ip
 from app.utils.response import success_response
 
 router = APIRouter(tags=["pharmacy"])
@@ -97,7 +98,7 @@ async def create_soap_record(
         action="建立 SOAP 紀錄",
         target=record.id,
         status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"patient_id": patient.id},
     )
 

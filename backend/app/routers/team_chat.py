@@ -16,6 +16,7 @@ from app.routers.notifications import MENTION_LOOKBACK_HOURS
 from app.schemas.message import TeamChatCreate
 from app.utils.jsonb_compat import array_contains_user_receipt, array_contains_value, to_utc_aware
 from app.utils.read_receipt import append_read_receipt
+from app.utils.request import get_client_ip
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/team/chat", tags=["team-chat"])
@@ -277,6 +278,9 @@ async def send_team_chat(
     # / pinned-tab and would otherwise be a trivial griefing vector. The
     # equivalent UI affordance ("發布公告" button) is admin-gated, but the
     # raw POST path was open before TC-B01.
+    # TODO(auth): cannot use the require_roles dependency — the gate is
+    # conditional on the request body (only pinned posts are admin-only);
+    # non-pinned posts stay open to all authenticated users. Roles unchanged.
     if body.pinned and user.role != "admin":
         raise HTTPException(
             status_code=403,
@@ -344,7 +348,7 @@ async def send_team_chat(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="發送團隊訊息", target=msg.id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
     )
     await db.commit()
 
@@ -379,6 +383,10 @@ async def mark_read(
         or user.role in mentioned_roles
         or bool(msg.mentions_all)  # @所有人 — every active user is a recipient
     )
+    # TODO(auth): cannot use the require_roles dependency — access depends on
+    # per-message recipient state (author / mentioned user / mentioned role /
+    # @所有人), computed from the loaded row, with admins exempt for
+    # moderation. Roles unchanged: recipients + admin only.
     if not is_recipient and user.role != "admin":
         raise HTTPException(
             status_code=403,
@@ -394,7 +402,7 @@ async def mark_read(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="標記團隊訊息已讀", target=message_id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
     )
     await db.commit()
     await db.refresh(msg)
@@ -430,7 +438,7 @@ async def toggle_pin_message(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action=action_text, target=message_id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
     )
 
     await db.commit()
@@ -475,7 +483,7 @@ async def delete_team_chat_message(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="刪除團隊訊息", target=message_id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={
             "content": content_snapshot,
             "author_id": msg.user_id,

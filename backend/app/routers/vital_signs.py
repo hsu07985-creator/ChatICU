@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.utils.request import get_client_ip
 from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log
 from app.models.vital_sign import VitalSign
@@ -197,7 +198,7 @@ async def create_vital_signs(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="手動輸入生命徵象", target=pid, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"vital_sign_id": vs.id},
     )
     await db.flush()

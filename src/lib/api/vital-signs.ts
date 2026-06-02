@@ -1,4 +1,4 @@
-import apiClient, { ensureData, ensureSuccess } from '../api-client';
+import apiClient, { ensureData, ensureSuccess, type ApiResponse } from '../api-client';
 
 // 類型定義
 export interface VitalSigns {
@@ -34,13 +34,6 @@ export interface VitalSignsHistoryResponse {
     total: number;
     totalPages: number;
   };
-}
-
-// API 回應類型
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
 }
 
 // 取得最新生命徵象

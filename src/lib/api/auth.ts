@@ -1,12 +1,5 @@
-import apiClient, { ensureData, tokenManager } from '../api-client';
+import apiClient, { ensureData, tokenManager, type ApiResponse } from '../api-client';
 import type { User } from '../auth-context';
-
-// API 回應類型
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
-}
 
 interface LoginResponse {
   user: User;

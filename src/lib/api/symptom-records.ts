@@ -1,4 +1,4 @@
-import apiClient, { ensureData } from '../api-client';
+import apiClient, { ensureData, type ApiResponse } from '../api-client';
 
 export interface SymptomRecord {
   id: string;
@@ -8,11 +8,6 @@ export interface SymptomRecord {
   recordedBy: { id: string; name: string } | null;
   notes: string | null;
   createdAt: string;
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
 }
 
 export async function getSymptomRecords(patientId: string): Promise<SymptomRecord[]> {

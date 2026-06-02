@@ -1,4 +1,4 @@
-import apiClient, { ensureData } from '../api-client';
+import apiClient, { ensureData, type ApiResponse } from '../api-client';
 import type { LabData } from './lab-data';
 import type { MedicationsResponse } from './medications';
 import type { VentilatorSettings } from './ventilator';
@@ -71,13 +71,6 @@ export interface PatientFilters {
   criticalStatus?: string;
   department?: string;
   archived?: boolean | 'all';
-}
-
-// API 回應類型
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
 }
 
 // 取得病人列表

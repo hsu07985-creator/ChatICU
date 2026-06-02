@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.utils.request import get_client_ip
 from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log
 from app.models.lab_data import LabData
@@ -447,7 +448,7 @@ async def correct_lab_data(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="校正檢驗數據", target=lab_data_id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"patient_id": patient_id, "category": body.category, "item": body.item},
     )
 

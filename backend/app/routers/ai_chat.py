@@ -8,10 +8,21 @@ Flow:
   3. Load last N message pairs (context compression window)
   4. Stream LLM response via SSE
   5. Persist assistant reply + update session
+
+This router stays a THIN transport/orchestration layer. The heavy lifting
+lives in ``app.services.ai_chat``:
+  - sse                 — heartbeat wrapper + web-citation mapping
+  - prompt_assembly     — CACHE-SENSITIVE prompt / user-message assembly
+  - snapshot_lifecycle  — snapshot build/refresh + background deferred fill
+  - observability       — hedging / citation-audit / assertion-conflict glue
+
+Several symbols are intentionally re-exported at module scope below so that
+existing ``from app.routers.ai_chat import ...`` consumers and
+``monkeypatch.setattr("app.routers.ai_chat.<name>", ...)`` test sites keep
+working unchanged.
 """
 
 import asyncio
-import json
 import logging
 import time
 import uuid
@@ -25,27 +36,47 @@ from sqlalchemy import func, select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database import async_session, get_db
+from app.database import get_db
 from app.llm import call_llm_stream, TASK_PROMPTS
 from app.middleware.audit import create_audit_log, diff_dict, snapshot_fields
 from app.middleware.auth import get_current_user
 from app.models.ai_session import AISession, AIMessage
 from app.models.user import User
 from app.services.ai_question_prefetch import build_question_prefetch_with_metadata
-from app.services.assertion_conflict import (
-    detect_med_negation_conflict,
-    format_med_conflict_block,
-)
-from app.services.citation_audit import audit_citations, summarize_suspects
 from app.services.patient_acl import assert_patient_chat_access
 from app.services.patient_context_builder import (
     build_clinical_snapshot,
     build_critical_snapshot,
-    build_deferred_snapshot,
     build_delta,
     extract_snapshot_key_values,
     _get_latest_lab,
     _get_active_medications,
+)
+from app.utils.request import get_client_ip
+from app.utils.response import success_response
+from app.utils.sse import format_sse, done_frame, SSE_HEADERS, SSE_MEDIA_TYPE
+
+# ── Re-exports (keep original import / monkeypatch paths working) ───────────────
+from app.services.ai_chat.prompt_assembly import (  # noqa: F401
+    _build_system_prompt,
+    _maybe_inject_deferred_into_user_message,
+    _maybe_inject_question_prefetch_into_user_message,
+    _maybe_inject_assertion_conflict_into_user_message,
+)
+from app.services.ai_chat.sse import (  # noqa: F401
+    _with_heartbeat,
+    _web_annotations_to_citations,
+)
+from app.services.ai_chat.snapshot_lifecycle import (  # noqa: F401
+    _fill_deferred_snapshot_bg,
+    build_session_snapshot_meta,
+)
+from app.services.ai_chat.observability import (  # noqa: F401
+    _HEDGING_PATTERNS,
+    _reply_looks_hedged,
+    log_hedging_signal,
+    run_citation_audit,
+    detect_and_inject_assertion_conflict,
 )
 
 logger = logging.getLogger("chaticu")
@@ -132,343 +163,11 @@ async def _load_messages(
     return msgs
 
 
-def _build_system_prompt(snapshot: str) -> str:
-    base = TASK_PROMPTS["icu_chat"]
-    return f"{base}\n\n[目前病患資料]\n{snapshot}"
-
-
-def _maybe_inject_deferred_into_user_message(
-    user_message: str, snapshot_metadata: Optional[dict]
-) -> str:
-    """B15-A1.1: prepend deferred snapshot context to the LLM-facing user
-    message when the background fill has completed, so the deferred bytes
-    are NEVER part of system_prompt or persisted history.
-
-    Why this matters for OpenAI prompt cache:
-      The cache key is the message-array prefix that is byte-identical
-      across requests. system_prompt + persisted history forms the
-      stable prefix; mutating system_prompt mid-session (which the prior
-      _merged_snapshot helper did) busts cache for every subsequent turn
-      in that session — measured in canary at hit_ratio_p50 dropping
-      from 70% to 0%.
-
-      A1.1 keeps system_prompt = TASK_PROMPTS + critical-snapshot-only,
-      byte-stable per session. Deferred context is folded into the
-      ephemeral user_message — it goes to the LLM but is NOT persisted
-      via _event_stream (original_message stays clean for DB history).
-
-    Returns user_message unchanged when:
-      - SNAPSHOT_DEFERRED_ENABLED is false (legacy path)
-      - snapshot_metadata is None (no session context yet)
-      - deferred_status is not "ready" (background fill still pending or failed)
-      - deferred text is empty (e.g. patient has no reports/scores/vent)
-    """
-    if not settings.SNAPSHOT_DEFERRED_ENABLED:
-        return user_message
-    if not snapshot_metadata:
-        return user_message
-    if snapshot_metadata.get("deferred_status") != "ready":
-        return user_message
-    deferred = (snapshot_metadata.get("clinical_snapshot_deferred") or "").strip()
-    if not deferred:
-        return user_message
-    return (
-        "[以下為背景補充資料，僅供回答本輪問題使用]\n"
-        f"{deferred}\n\n"
-        f"[使用者提問]\n{user_message}"
-    )
-
-
-def _maybe_inject_question_prefetch_into_user_message(
-    user_message: str,
-    prefetch_context: str,
-) -> str:
-    """Attach question-triggered context to the current LLM turn only.
-
-    Like deferred snapshot injection, this must not be persisted into
-    ai_messages and must not mutate the session's system prompt. If deferred
-    context is already wrapped around the question, insert the prefetch block
-    before the final [使用者提問] marker to avoid nested question wrappers.
-    """
-    context = (prefetch_context or "").strip()
-    if not context:
-        return user_message
-
-    block = (
-        "[以下為依本輪問題預取的資料，僅供回答本輪問題使用]\n"
-        f"{context}"
-    )
-    marker = "[使用者提問]\n"
-    if marker in user_message:
-        prefix, question = user_message.rsplit(marker, 1)
-        return f"{prefix.rstrip()}\n\n{block}\n\n{marker}{question}"
-    return f"{block}\n\n{marker}{user_message}"
-
-
-def _maybe_inject_assertion_conflict_into_user_message(
-    user_message: str,
-    conflict_block: str,
-) -> str:
-    """Inject a [系統偵測] block when the user's current message contradicts
-    the snapshot. Same shape as _maybe_inject_question_prefetch_... so the
-    block lands inside the ephemeral user_message — never persisted, never
-    part of the byte-stable system_prompt prefix (so prompt cache stays warm).
-    """
-    block = (conflict_block or "").strip()
-    if not block:
-        return user_message
-    marker = "[使用者提問]\n"
-    if marker in user_message:
-        prefix, question = user_message.rsplit(marker, 1)
-        return f"{prefix.rstrip()}\n\n{block}\n\n{marker}{question}"
-    return f"{block}\n\n{marker}{user_message}"
-
-
-async def _fill_deferred_snapshot_bg(
-    session_id: str, patient_id: str, intubated: bool
-) -> None:
-    """Fire-and-forget background task: fetch deferred snapshot sections
-    (vent / reports / scores) and persist into AISession.snapshot_metadata.
-
-    Runs on its own AsyncSession (the request session is already closed
-    by the time this fires). Failures are non-fatal — chat keeps working
-    with critical-only snapshot if this background fill never completes.
-
-    W3-T2: writes via PostgreSQL JSONB ``||`` merge so concurrent writers
-    can't last-write-wins each other. SQLite (tests) falls back to the
-    classic read-modify-write because it has no JSONB merge operator;
-    the test harness has no concurrent writers so the race window is
-    moot anyway.
-    """
-    try:
-        async with async_session() as bg_db:
-            deferred_text = await build_deferred_snapshot(
-                patient_id, bg_db, intubated=intubated
-            )
-            payload = {
-                "clinical_snapshot_deferred": deferred_text,
-                "deferred_status": "ready" if deferred_text else "empty",
-                "deferred_filled_at": datetime.now(timezone.utc).isoformat(),
-            }
-            dialect = bg_db.bind.dialect.name if bg_db.bind is not None else ""
-            if dialect == "postgresql":
-                # Atomic merge — UPDATE ... SET col = COALESCE(col, '{}') || :payload
-                # so we never read-then-write. Returns rowcount; 0 means session
-                # was deleted between create_task() and now.
-                from sqlalchemy import text as sa_text
-                result = await bg_db.execute(
-                    sa_text(
-                        "UPDATE ai_sessions "
-                        "SET snapshot_metadata = COALESCE(snapshot_metadata, '{}'::jsonb) || CAST(:payload AS jsonb) "
-                        "WHERE id = :sid"
-                    ),
-                    {"payload": json.dumps(payload), "sid": session_id},
-                )
-                if result.rowcount == 0:
-                    logger.warning(
-                        "[CHAT][DEFERRED] session=%s gone before deferred fill landed",
-                        session_id,
-                    )
-                    return
-            else:
-                # SQLite test fallback — read-modify-write in one txn.
-                sess = (await bg_db.execute(
-                    select(AISession).where(AISession.id == session_id)
-                )).scalar_one_or_none()
-                if sess is None:
-                    logger.warning(
-                        "[CHAT][DEFERRED] session=%s gone before deferred fill landed",
-                        session_id,
-                    )
-                    return
-                merged = {**(sess.snapshot_metadata or {}), **payload}
-                sess.snapshot_metadata = merged
-            await bg_db.commit()
-            logger.info(
-                "[CHAT][DEFERRED] session=%s deferred_chars=%d status=%s",
-                session_id, len(deferred_text), payload["deferred_status"],
-            )
-    except Exception as exc:  # pragma: no cover - background fault tolerance
-        logger.warning(
-            "[CHAT][DEFERRED] background fill failed session=%s: %s",
-            session_id, exc,
-        )
-
-
 def _messages_to_api_format(messages: List[AIMessage]) -> List[dict]:
     return [{"role": m.role, "content": m.content} for m in messages]
 
 
-# M1: phrases the LLM tends to use when it wants more clinical context than
-# the snapshot+prefetch gave it. Bilingual on purpose — the same model code-
-# switches per question. Conservative list; biased toward false negatives so
-# we don't drown the [MISS_LIKELY] signal in noise. Aggregated against the
-# per-turn [CHAT][PREFETCH] log to estimate "F4 would have helped" rate.
-#
-# M3 (2026-05-03): widened after prod testing showed real prefetch misses
-# whose hedging phrasing didn't intersect the original list. The DAY20
-# test case "最近 72 小時改了什麼藥" had reply "無法判定 ... 目前系統無 ...
-# 需要的資料包括 ..." — none of the original 12 patterns matched, so
-# MISS_LIKELY didn't fire on the strongest F4-trigger candidate. New
-# patterns target Chinese hedging idioms grouped into 4 buckets
-# (uncertainty, missing-data, ask-for-data, conditional) so future
-# additions stay legible.
-_HEDGING_PATTERNS: tuple[str, ...] = (
-    # Uncertainty / inability
-    "缺少",
-    "資料不足",
-    "尚無提及",
-    "尚無",
-    "尚未提供",
-    "無法判定",
-    "無法判斷",
-    "無法確認",
-    "無法判讀",
-    "難以判斷",
-    "暫時無法",
-    "I don't have",
-    "without more",
-    "insufficient information",
-    "cannot determine",
-    "unable to determine",
-    "unable to assess",
-    # Missing-data acknowledgements
-    "未提供",
-    "目前系統無",
-    "目前資料無",
-    "目前沒有相關",
-    "目前沒有看到",
-    "未見",
-    "查無",
-    "no data available",
-    # Ask-for-data
-    "請提供",
-    "請補充",
-    "請補上",
-    "請補登",
-    "建議補充",
-    "需要的資料",
-    "需更多資料",
-    "建議補上",
-    "please provide",
-    # Conditional / hypothetical
-    "若有更多",
-    "如果有",
-    "若無",
-    "若無法",
-    "若臨床",
-    "若進一步",
-)
-
-
-def _reply_looks_hedged(reply: str) -> bool:
-    """True when the assistant reply hints it wished it had more data.
-
-    Used purely for log emission — never affects what the user sees. Match
-    is case-insensitive for the English fragments; Chinese stays literal.
-    """
-    if not reply:
-        return False
-    lowered = reply.lower()
-    for pattern in _HEDGING_PATTERNS:
-        if pattern.lower() in lowered:
-            return True
-    return False
-
-
 # ── SSE event stream ──────────────────────────────────────────────────────────
-
-# O-2: SSE comment-frame heartbeat. Emitted during LLM stalls so Vercel /
-# Railway / nginx-style proxies don't kill an idle-looking connection.
-# The frontend's parseSseFrame in src/lib/api/ai.ts:244 treats lines without
-# `event:`/`data:` prefixes as no-ops, so heartbeat frames flow through
-# transparently without affecting the rendered conversation.
-_HEARTBEAT_INTERVAL_S = 15.0
-
-
-async def _with_heartbeat(stream, interval_s: float = _HEARTBEAT_INTERVAL_S):
-    """Wrap an async iterator so heartbeats fire during stalls.
-
-    Yields:
-      ('chunk', value)      for every item the underlying stream emits
-      ('heartbeat', None)   every ``interval_s`` seconds of inactivity
-
-    A producer coroutine drains the upstream into an internal queue so the
-    consumer can race between real chunks and the heartbeat timer. The
-    upstream task is always cancelled on exit (e.g. client disconnect) so
-    the LLM stream is not leaked.
-    """
-    import asyncio
-    queue: asyncio.Queue = asyncio.Queue()
-    _DONE = object()
-
-    async def producer() -> None:
-        try:
-            async for item in stream:
-                await queue.put(item)
-        finally:
-            await queue.put(_DONE)
-
-    task = asyncio.create_task(producer())
-    try:
-        while True:
-            try:
-                item = await asyncio.wait_for(queue.get(), timeout=interval_s)
-            except asyncio.TimeoutError:
-                yield ("heartbeat", None)
-                continue
-            if item is _DONE:
-                return
-            yield ("chunk", item)
-    finally:
-        if not task.done():
-            task.cancel()
-            try:
-                await task
-            except (asyncio.CancelledError, Exception):
-                pass
-
-
-def _web_annotations_to_citations(
-    annotations: list[dict], reply_text: str
-) -> list[dict]:
-    """Map OpenAI web_search url_citation annotations → frontend Citation shape.
-
-    OpenAI gives `{type: "url_citation", url_citation: {url, title,
-    start_index, end_index}}`; the frontend expects an `id`, `type`, `title`,
-    `source`, `url`, `relevance`, plus optional `keyQuote` (the cited passage
-    from the assistant reply, derived from the index span).
-    """
-    from urllib.parse import urlparse
-    out: list[dict] = []
-    for idx, ann in enumerate(annotations):
-        if (ann or {}).get("type") != "url_citation":
-            continue
-        cit = ann.get("url_citation") or {}
-        url = cit.get("url") or ""
-        host = "web"
-        try:
-            host = (urlparse(url).netloc or "web").replace("www.", "") or "web"
-        except Exception:
-            pass
-        start, end = cit.get("start_index"), cit.get("end_index")
-        quote = ""
-        if (
-            isinstance(start, int) and isinstance(end, int)
-            and 0 <= start < end <= len(reply_text)
-        ):
-            quote = reply_text[start:end].strip()
-        out.append({
-            "id": f"web-{idx}",
-            "type": "literature",
-            "title": cit.get("title") or url or "Untitled",
-            "source": host,
-            "url": url,
-            "relevance": 1.0,
-            "keyQuote": quote or None,
-        })
-    return out
-
 
 async def _event_stream(
     user_message: str,
@@ -528,6 +227,7 @@ async def _event_stream(
                 continue
             if chunk.startswith("{") and "__done__" in chunk:
                 try:
+                    import json
                     meta = json.loads(chunk)
                     usage = meta.get("usage", {}) or {}
                     token_count = (
@@ -543,7 +243,7 @@ async def _event_stream(
                 break
             elif chunk.startswith("[ERROR]"):
                 error_msg = chunk[7:].strip() if len(chunk) > 7 else "AI service error"
-                yield f"event: error\ndata: {json.dumps({'message': error_msg})}\n\n"
+                yield format_sse({"message": error_msg}, event="error")
                 return
             else:
                 if not first_token_logged:
@@ -569,11 +269,11 @@ async def _event_stream(
                             len(system_prompt),
                         )
                 full_reply += chunk
-                yield f"event: delta\ndata: {json.dumps({'chunk': chunk})}\n\n"
+                yield format_sse({"chunk": chunk}, event="delta")
 
     except Exception as e:
         logger.error("[AI_CHAT] Stream error: %s", str(e)[:500])
-        yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+        yield format_sse({"message": str(e)}, event="error")
         return
 
     if prompt_tokens:
@@ -590,8 +290,8 @@ async def _event_stream(
         # subsequent turn we expect hit_ratio ≥50% under normal operation; a
         # value below that with a non-trivial prompt usually means the
         # byte-stable system_prompt boundary was broken (see the
-        # _merged_snapshot incident referenced above where canary dropped
-        # 70% → 0%). Threshold is conservative — adjust if it's noisy.
+        # _merged_snapshot incident referenced in prompt_assembly where canary
+        # dropped 70% → 0%). Threshold is conservative — adjust if it's noisy.
         if prompt_tokens >= 500 and cached_tokens > 0 and cache_ratio < 50:
             logger.warning(
                 "[CHAT][CACHE][LOW_HIT] hit_ratio=%.0f%% prompt_tokens=%d cached_tokens=%d "
@@ -617,87 +317,24 @@ async def _event_stream(
             logger.warning("[AI_CHAT] Failed to persist assistant reply: %s", str(e))
             await db.rollback()
 
-    # Sycophancy step — post-stream citation audit. Scans the assistant
-    # reply for [用藥] citations and flags any that name a drug not in the
-    # patient's active medication list (catches the LLM inventing a
-    # regimen). Read-only: never modifies or blocks the reply. The audit
-    # log is the ROI here — after a week of production we can see how
-    # often the LLM fabricates citations and decide on remediation.
-    if full_reply and current_user is not None:
-        try:
-            cit_audit = audit_citations(full_reply, active_med_aliases or [])
-            if cit_audit["total"] > 0:
-                summary = summarize_suspects(cit_audit["suspects"])
-                logger.info(
-                    "[CHAT][CITATION] session=%s patient=%s total=%d "
-                    "by_section=%s suspects=%s",
-                    session_id,
-                    patient_id or "-",
-                    cit_audit["total"],
-                    cit_audit["by_section"],
-                    summary or "none",
-                )
-                if cit_audit["suspects"]:
-                    await create_audit_log(
-                        db,
-                        user_id=current_user.id,
-                        user_name=current_user.name,
-                        role=current_user.role,
-                        action="ai_chat_citation_fabrication_suspected",
-                        target=patient_id,
-                        status="detected",
-                        ip=request.client.host if request.client else None,
-                        details={
-                            "session_id": session_id,
-                            "total_citations": cit_audit["total"],
-                            "by_section": cit_audit["by_section"],
-                            "suspects": [
-                                {
-                                    "section": s["section"],
-                                    "token": s["token"],
-                                    "reason": s["reason"],
-                                    "content": s["content"][:80],
-                                }
-                                for s in cit_audit["suspects"]
-                            ],
-                        },
-                    )
-                    try:
-                        await db.commit()
-                    except Exception:
-                        await db.rollback()
-        except Exception:  # pragma: no cover — never block the reply
-            logger.warning(
-                "[CHAT][CITATION] audit failed session=%s",
-                session_id,
-                exc_info=True,
-            )
+    # Sycophancy step — post-stream citation audit (read-only, never blocks).
+    await run_citation_audit(
+        db,
+        request,
+        full_reply=full_reply,
+        current_user=current_user,
+        active_med_aliases=active_med_aliases or [],
+        session_id=session_id,
+        patient_id=patient_id,
+    )
 
-    # M1: F4 trigger signal — turns where the LLM hedged AND we had patient
-    # context AND no prefetch fired. Aggregating these over time answers
-    # "would a real LLM tool loop catch questions our keyword prefetch
-    # doesn't?" — see docs/ai-chat-tool-loop-decision-2026-05-03.md §5
-    # signal B. Lower-tier [REPLY][HEDGED] log captures hedging in cases
-    # where prefetch did fire (less actionable for F4 but useful sanity).
-    if full_reply and had_patient_context:
-        hedged = _reply_looks_hedged(full_reply)
-        if hedged and not prefetch_fired:
-            logger.warning(
-                "[CHAT][PREFETCH][MISS_LIKELY] session=%s reply_chars=%d "
-                "— had patient context, no prefetch fired, reply hedged. "
-                "Candidate question for F4 tool-loop coverage.",
-                session_id,
-                len(full_reply),
-            )
-        elif hedged:
-            logger.info(
-                "[CHAT][REPLY][HEDGED] session=%s reply_chars=%d prefetch_fired=%s "
-                "— LLM hedged despite prefetch firing; check whether prefetch "
-                "returned no_data or denied.",
-                session_id,
-                len(full_reply),
-                prefetch_fired,
-            )
+    # M1: F4 trigger signal — hedged reply + patient context + no prefetch.
+    log_hedging_signal(
+        full_reply,
+        had_patient_context=had_patient_context,
+        prefetch_fired=prefetch_fired,
+        session_id=session_id,
+    )
 
     # Send done event — frontend expects ChatResponse shape:
     # { message: ChatMessage, sessionId: string, prefetchRefs?: {...} }
@@ -726,7 +363,7 @@ async def _event_stream(
         "sessionId": session_id,
         "prefetchRefs": prefetch_meta or {},
     }
-    yield f"event: done\ndata: {json.dumps(done_payload, ensure_ascii=False)}\n\n"
+    yield done_frame(done_payload)
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
@@ -763,7 +400,7 @@ async def chat_stream(
         db,
         current_user,
         body.patient_id,
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
     )
     session, session_was_created = await _get_or_create_session(
         db, current_user.id, body.patient_id, body.session_id
@@ -780,7 +417,7 @@ async def chat_stream(
             role=current_user.role,
             action="建立 AI 對話 session",
             target=session.id,
-            ip=request.client.host if request.client else None,
+            ip=get_client_ip(request),
             details={
                 "session_id": session.id,
                 "patient_id": body.patient_id,
@@ -795,20 +432,23 @@ async def chat_stream(
         # First turn: build snapshot and store only the snapshot text.
         # We do NOT store the full system_prompt so that prompt updates in
         # TASK_PROMPTS["icu_chat"] take effect immediately for all sessions.
+        #
+        # Builder callables are passed explicitly (resolved from THIS module's
+        # globals at call time) so tests that monkeypatch
+        # app.routers.ai_chat.build_critical_snapshot stay effective.
+        new_meta, intubated = await build_session_snapshot_meta(
+            patient_id,
+            db,
+            deferred_enabled=settings.SNAPSHOT_DEFERRED_ENABLED,
+            critical_builder=build_critical_snapshot,
+            clinical_builder=build_clinical_snapshot,
+            latest_lab_getter=_get_latest_lab,
+            active_meds_getter=_get_active_medications,
+            key_values_extractor=extract_snapshot_key_values,
+        )
+        session.snapshot_metadata = new_meta
+        await db.flush()
         if settings.SNAPSHOT_DEFERRED_ENABLED:
-            # B15-A1 fast path: critical-only synchronously, deferred in
-            # background. Goal is first-turn snapshot_ms ~3s vs ~6s.
-            critical, key_vals, deferred_meta = await build_critical_snapshot(
-                patient_id, db
-            )
-            session.snapshot_metadata = {
-                "snapshot_taken_at": datetime.now(timezone.utc).isoformat(),
-                "snapshot_key_values": key_vals,
-                "clinical_snapshot": critical,
-                "deferred_status": "pending",
-                "deferred_intubated": deferred_meta.get("intubated", False),
-            }
-            await db.flush()
             # Fire-and-forget. Uses its own AsyncSession (the request one is
             # closed shortly after this handler returns). Failures are logged
             # but never break the chat reply.
@@ -816,23 +456,9 @@ async def chat_stream(
                 _fill_deferred_snapshot_bg(
                     session.id,
                     patient_id,
-                    deferred_meta.get("intubated", False),
+                    intubated or False,
                 )
             )
-        else:
-            # Existing v1 path (full snapshot up front). Keep request-session
-            # DB work sequential; AsyncSession does not support concurrent
-            # operations and failures here happen before SSE starts.
-            snapshot = await build_clinical_snapshot(patient_id, db)
-            lab = await _get_latest_lab(db, patient_id)
-            meds = await _get_active_medications(db, patient_id)
-            key_vals = extract_snapshot_key_values(lab, meds)
-            session.snapshot_metadata = {
-                "snapshot_taken_at": datetime.now(timezone.utc).isoformat(),
-                "snapshot_key_values": key_vals,
-                "clinical_snapshot": snapshot,
-            }
-            await db.flush()
     t_snapshot = time.perf_counter()
 
     if session.snapshot_metadata and session.snapshot_metadata.get("clinical_snapshot"):
@@ -883,86 +509,37 @@ async def chat_stream(
         patient_id,
         body.message,
         user=current_user,
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
     )
     user_message = _maybe_inject_question_prefetch_into_user_message(
         user_message, prefetch_context
     )
 
-    # Step 2: user-assertion vs snapshot conflict detection.
-    # Surface "user says no X but snapshot still has X active" as a
-    # deterministic [系統偵測] block so the LLM (per step-1 fact-checking
-    # rules) cannot silently agree with the user. Cheap: only fetch the
-    # active-med list when patient_id is set; matcher is sub-millisecond.
-    # Audited so we can later quantify how often this fires and whether
-    # the LLM actually pushed back.
-    #
-    # We also reuse the meds fetch to build `active_med_aliases` for the
-    # post-stream citation audit (sycophancy step "AI citation post-check"):
-    # the LLM's [用藥] citations get validated against the patient's actual
-    # active medications, catching the LLM if it invents a regimen.
+    # Step 2: user-assertion vs snapshot conflict detection + reuse of the
+    # active-med fetch to build active_med_aliases for the post-stream
+    # citation audit. Only fetch the active-med list when patient_id is set.
     active_med_aliases: List[str] = []
     if patient_id:
+        # Defensive: a meds-fetch failure must never block a reply. On error
+        # active_med_aliases stays empty and conflict detection is skipped,
+        # matching the original single-try-block behavior.
         try:
             conflict_meds = await _get_active_medications(db, patient_id)
-            conflict_med_names = [m.name for m in conflict_meds if m and m.name]
             for m in conflict_meds:
                 if m and m.name:
                     active_med_aliases.append(m.name)
                 if m and getattr(m, "generic_name", None):
                     active_med_aliases.append(m.generic_name)
-            conflicts = detect_med_negation_conflict(
-                body.message, conflict_med_names
+            user_message = await detect_and_inject_assertion_conflict(
+                db,
+                request,
+                user_message=user_message,
+                original_message=body.message,
+                active_meds=conflict_meds,
+                current_user=current_user,
+                session_id=session.id,
+                patient_id=patient_id,
             )
-            if conflicts:
-                med_records = [
-                    {
-                        "name": m.name,
-                        "dose": m.dose,
-                        "unit": m.unit,
-                        "frequency": m.frequency,
-                        "route": m.route,
-                        "updated_at_str": (
-                            m.updated_at.astimezone(timezone.utc).strftime(
-                                "%Y-%m-%d %H:%M UTC"
-                            )
-                            if m.updated_at
-                            else None
-                        ),
-                    }
-                    for m in conflict_meds
-                ]
-                conflict_block = format_med_conflict_block(conflicts, med_records)
-                user_message = _maybe_inject_assertion_conflict_into_user_message(
-                    user_message, conflict_block
-                )
-                logger.info(
-                    "[CHAT][CONFLICT] session=%s patient=%s conflicts=%s",
-                    session.id,
-                    patient_id,
-                    [c["med_name"] for c in conflicts],
-                )
-                await create_audit_log(
-                    db,
-                    user_id=current_user.id,
-                    user_name=current_user.name,
-                    role=current_user.role,
-                    action="ai_chat_user_assertion_conflict",
-                    target=patient_id,
-                    status="detected",
-                    ip=request.client.host if request.client else None,
-                    details={
-                        "session_id": session.id,
-                        "conflict_count": len(conflicts),
-                        "conflicts": [
-                            {
-                                "med_name": c["med_name"],
-                                "matched_cue": c["matched_cue"],
-                            }
-                            for c in conflicts
-                        ],
-                    },
-                )
         except Exception as exc:  # pragma: no cover — defensive: never block a reply
             logger.warning(
                 "[CHAT][CONFLICT] detection failed session=%s patient=%s: %s",
@@ -1036,11 +613,8 @@ async def chat_stream(
             patient_id=patient_id,
             active_med_aliases=active_med_aliases,
         ),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
+        media_type=SSE_MEDIA_TYPE,
+        headers=SSE_HEADERS,
     )
 
 
@@ -1112,18 +686,15 @@ async def list_sessions(
         )
         counts = {row[0]: row[1] for row in count_rows.all()}
 
-    return {
-        "success": True,
-        "data": {
-            "sessions": [_session_to_dict(s, counts.get(s.id, 0)) for s in sessions],
-            "pagination": {
-                "page": page,
-                "limit": limit,
-                "total": total,
-                "totalPages": max(1, (total + limit - 1) // limit),
-            },
+    return success_response(data={
+        "sessions": [_session_to_dict(s, counts.get(s.id, 0)) for s in sessions],
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "totalPages": max(1, (total + limit - 1) // limit),
         },
-    }
+    })
 
 
 @router.get("/sessions/{session_id}")
@@ -1165,14 +736,11 @@ async def get_session(
             "deferredText": snap_meta.get("clinical_snapshot_deferred") or "",
         }
 
-    return {
-        "success": True,
-        "data": {
-            "session": _session_to_dict(session, len(messages)),
-            "messages": [_message_to_dict(m) for m in messages],
-            "snapshot": snapshot_view,
-        },
-    }
+    return success_response(data={
+        "session": _session_to_dict(session, len(messages)),
+        "messages": [_message_to_dict(m) for m in messages],
+        "snapshot": snapshot_view,
+    })
 
 
 @router.delete("/sessions/{session_id}")
@@ -1214,11 +782,12 @@ async def delete_session(
         role=current_user.role,
         action="刪除 AI 對話 session",
         target=session_id,
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details=audit_details,
     )
 
     await db.commit()
+    # Explicit None payload preserved (success_response omits a None `data`).
     return {"success": True, "data": None}
 
 
@@ -1259,13 +828,13 @@ async def update_session(
             role=current_user.role,
             action="更新 AI 對話 session",
             target=session_id,
-            ip=request.client.host if request.client else None,
+            ip=get_client_ip(request),
             details=audit_details,
         )
 
     await db.commit()
     await db.refresh(session)
-    return {"success": True, "data": _session_to_dict(session)}
+    return success_response(data=_session_to_dict(session))
 
 
 @router.post("/chat/sessions/{session_id}/refresh-snapshot")
@@ -1305,58 +874,45 @@ async def refresh_session_snapshot(
         db,
         current_user,
         session.patient_id,
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
     )
 
     patient_id = session.patient_id
+    # Builder callables passed explicitly so monkeypatches on
+    # app.routers.ai_chat.build_critical_snapshot stay effective.
+    new_meta, intubated = await build_session_snapshot_meta(
+        patient_id,
+        db,
+        deferred_enabled=settings.SNAPSHOT_DEFERRED_ENABLED,
+        critical_builder=build_critical_snapshot,
+        clinical_builder=build_clinical_snapshot,
+        latest_lab_getter=_get_latest_lab,
+        active_meds_getter=_get_active_medications,
+        key_values_extractor=extract_snapshot_key_values,
+    )
+    session.snapshot_metadata = new_meta
+    await db.commit()
     if settings.SNAPSHOT_DEFERRED_ENABLED:
-        critical, key_vals, deferred_meta = await build_critical_snapshot(
-            patient_id, db
-        )
-        new_meta = {
-            "snapshot_taken_at": datetime.now(timezone.utc).isoformat(),
-            "snapshot_key_values": key_vals,
-            "clinical_snapshot": critical,
-            "deferred_status": "pending",
-            "deferred_intubated": deferred_meta.get("intubated", False),
-        }
-        session.snapshot_metadata = new_meta
-        await db.commit()
         # Fire-and-forget background fill (own AsyncSession, never blocks).
         asyncio.create_task(
             _fill_deferred_snapshot_bg(
                 session.id,
                 patient_id,
-                deferred_meta.get("intubated", False),
+                intubated or False,
             )
         )
-    else:
-        snapshot = await build_clinical_snapshot(patient_id, db)
-        lab = await _get_latest_lab(db, patient_id)
-        meds = await _get_active_medications(db, patient_id)
-        key_vals = extract_snapshot_key_values(lab, meds)
-        new_meta = {
-            "snapshot_taken_at": datetime.now(timezone.utc).isoformat(),
-            "snapshot_key_values": key_vals,
-            "clinical_snapshot": snapshot,
-        }
-        session.snapshot_metadata = new_meta
-        await db.commit()
 
     logger.info(
         "[CHAT][REFRESH_SNAPSHOT] session=%s patient=%s user=%s",
         session.id, patient_id, current_user.id,
     )
 
-    return {
-        "success": True,
-        "data": {
-            "sessionId": session.id,
-            "patientId": patient_id,
-            "snapshotTakenAt": new_meta["snapshot_taken_at"],
-            "deferredStatus": new_meta.get("deferred_status", "n/a"),
-        },
-    }
+    return success_response(data={
+        "sessionId": session.id,
+        "patientId": patient_id,
+        "snapshotTakenAt": new_meta["snapshot_taken_at"],
+        "deferredStatus": new_meta.get("deferred_status", "n/a"),
+    })
 
 
 @router.patch("/chat/messages/{message_id}/feedback")
@@ -1412,7 +968,7 @@ async def update_message_feedback(
             role=current_user.role,
             action="AI 訊息反饋",
             target=message_id,
-            ip=request.client.host if request.client else None,
+            ip=get_client_ip(request),
             details={
                 "message_id": message_id,
                 "session_id": message.session_id,
@@ -1424,10 +980,7 @@ async def update_message_feedback(
     await db.commit()
     await db.refresh(message)
 
-    return {
-        "success": True,
-        "data": {
-            "id": message.id,
-            "feedback": message.feedback,
-        },
-    }
+    return success_response(data={
+        "id": message.id,
+        "feedback": message.feedback,
+    })

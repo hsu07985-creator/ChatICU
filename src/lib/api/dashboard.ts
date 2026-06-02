@@ -1,10 +1,4 @@
-import apiClient from '../api-client';
-
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
-}
+import apiClient, { type ApiResponse } from '../api-client';
 
 export interface DashboardStats {
   patients: {

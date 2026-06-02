@@ -1,4 +1,4 @@
-import apiClient, { ensureData } from '../api-client';
+import apiClient, { ensureData, type ApiResponse } from '../api-client';
 
 export interface CultureIsolate {
   code: string;
@@ -29,12 +29,6 @@ export interface CultureSusceptibilityData {
   patientId: string;
   cultureCount: number;
   cultures: CulturePanel[];
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
 }
 
 export async function getCultureSusceptibility(patientId: string): Promise<CultureSusceptibilityData> {

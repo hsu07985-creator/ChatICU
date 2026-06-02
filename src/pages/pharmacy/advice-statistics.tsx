@@ -5,24 +5,12 @@ import i18n from '../../i18n/config';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { Textarea } from '../../components/ui/textarea';
 import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { ScrollArea } from '../../components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '../../components/ui/alert-dialog';
 import { LoadingSpinner, EmptyState } from '../../components/ui/state-display';
-import { FileText, Loader2, User, Tag, Pill, Send, CheckCircle2, XCircle, CircleDot, ChevronLeft, ChevronRight, NotebookPen, Search, X, Edit2, Trash2 } from 'lucide-react';
+import { FileText, User, Tag, Pill, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Search, X, Edit2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { maskPatientName } from '../../lib/utils/patient-name';
 import { useAuth } from '../../lib/auth-context';
@@ -45,9 +33,13 @@ import {
   getAdviceCategoryColor,
   getAdviceCategoryKeyByLabel as masterGetCategoryKeyByLabel,
 } from '../../lib/pharmacy-master-data';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Label } from 'recharts';
-
-type EditAcceptedValue = 'yes' | 'no' | 'pending';
+import { computeAdviceStats } from '../../lib/pharmacy/advice-stats';
+import { AdviceRecordForm } from '../../components/pharmacy/advice-record-form';
+import { AdviceCharts } from '../../components/pharmacy/advice-charts';
+import { AdviceSoapTab } from '../../components/pharmacy/advice-soap-tab';
+import { AdviceEditDialog, type EditAcceptedValue } from '../../components/pharmacy/advice-edit-dialog';
+import { AdviceDeleteDialog } from '../../components/pharmacy/advice-delete-dialog';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 function getCategoryKeyByLabel(label: string): string {
   return masterGetCategoryKeyByLabel(label) || '';
@@ -424,69 +416,11 @@ export function PharmacyAdviceStatisticsPage() {
   }, [targetAdviceId, records, recordsLoading, recordsTotal, searchTerm, searchParams, setSearchParams]);
 
   // ── 統計 ──
-  const categoryStats: Record<string, number> = {};
-  Object.values(PHARMACY_ADVICE_CATEGORIES).forEach((cat) => {
-    categoryStats[cat.label] = 0;
-  });
-  records.forEach((r) => {
-    if (categoryStats[r.category] !== undefined) categoryStats[r.category]++;
-  });
-  const totalAdvices = Object.values(categoryStats).reduce((s, v) => s + v, 0);
-
-  const pieData = Object.entries(categoryStats)
-    .filter(([, value]) => value > 0)
-    .map(([name, value]) => ({
-      name,
-      value,
-      color: getAdviceCategoryColor(name),
-    }));
-
-  // 接受率統計
-  const acceptedCount = records.filter((r) => r.accepted === true).length;
-  const rejectedCount = records.filter((r) => r.accepted === false).length;
-  const acceptRate = totalAdvices > 0 ? Math.round((acceptedCount / totalAdvices) * 100) : 0;
-
-  const codeStats: Record<string, number> = {};
-  records.forEach((r) => {
-    codeStats[r.adviceCode] = (codeStats[r.adviceCode] || 0) + 1;
-  });
-  const barData = Object.entries(codeStats)
-    .map(([code, count]) => {
-      const rec = records.find((r) => r.adviceCode === code);
-      return {
-        code,
-        fullLabel: `${code} ${rec?.adviceLabel || code}`,
-        label: rec?.adviceLabel || code,
-        category: rec?.category || '',
-        count,
-        color: getAdviceCategoryColor(rec?.category || ''),
-      };
-    })
-    .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
-
-  const renderBarTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload?: typeof barData[number] }> }) => {
-    if (!active || !payload?.[0]?.payload) return null;
-    const d = payload[0].payload;
-    return (
-      <div className="bg-white dark:bg-slate-900 border dark:border-slate-700 rounded-lg shadow-lg p-3 text-sm">
-        <p className="font-semibold">{d.code} {d.label}</p>
-        <p className="text-muted-foreground text-xs">{d.category}</p>
-        <p className="font-bold mt-1 text-base">{t('adviceStats.tooltipCount', { count: d.count })}</p>
-      </div>
-    );
-  };
-
-  const renderPieCenterLabel = (props: { viewBox?: unknown }) => {
-    const vb = props.viewBox as { cx?: number; cy?: number } | undefined;
-    if (!vb || typeof vb.cx !== 'number' || typeof vb.cy !== 'number') return null;
-    const { cx, cy } = vb;
-    return (
-      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
-        <tspan x={cx} dy="-0.4em" fontSize={28} fontWeight={700} fill="#1a1a1a">{totalAdvices}</tspan>
-        <tspan x={cx} dy="1.6em" fontSize={12} fill="#6b7280">{t('adviceStats.centerSubtitle')}</tspan>
-      </text>
-    );
-  };
+  // Derived once per records change. computeAdviceStats does the per-category /
+  // per-code tallies in a single pass (no O(n²) find-in-map). Memoized so the
+  // charts only re-render when the underlying records actually change.
+  const stats = useMemo(() => computeAdviceStats(records), [records]);
+  const { categoryStats, totalAdvices } = stats;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -540,121 +474,23 @@ export function PharmacyAdviceStatisticsPage() {
 
         <TabsContent value="advice" className="space-y-4">
       {/* ── 新增紀錄 ── */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t('adviceStats.newRecord')}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid gap-3 md:grid-cols-4">
-            {/* 病患 */}
-            <div className="space-y-1">
-              <label className="text-xs font-medium">{t('adviceStats.patient')} *</label>
-              {patientsLoading ? (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground h-9">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('adviceStats.loading')}
-                </div>
-              ) : (
-                <Select value={selectedPatientId} onValueChange={setSelectedPatientId}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder={t('adviceStats.selectPatient')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {patients.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.bedNumber} {maskPatientName(p.name)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-
-            {/* 類別 */}
-            <div className="space-y-1">
-              <label className="text-xs font-medium">{t('adviceStats.category')} *</label>
-              <Select
-                value={selectedCategoryKey}
-                onValueChange={(v) => {
-                  setSelectedCategoryKey(v);
-                  setSelectedCode('');
-                }}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder={t('adviceStats.selectCategory')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(PHARMACY_ADVICE_CATEGORIES).map(([key, cat]) => (
-                    <SelectItem key={key} value={key}>
-                      {t(cat.labelKey ?? cat.label)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* 細項 */}
-            <div className="space-y-1">
-              <label className="text-xs font-medium">{t('adviceStats.subitem')} *</label>
-              <Select
-                value={selectedCode}
-                onValueChange={setSelectedCode}
-                disabled={!selectedCategory}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder={selectedCategory ? t('adviceStats.selectSubitem') : t('adviceStats.pickCategoryFirst')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectedCategory?.codes.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>
-                      {c.code} {t(c.labelKey ?? c.label)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* 醫師是否接受 */}
-            <div className="space-y-1">
-              <label className="text-xs font-medium">{t('adviceStats.doctorAccept')}</label>
-              <Select value={accepted} onValueChange={setAccepted}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder={t('adviceStats.selectAcceptance')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="yes">{t('adviceStats.accepted')}</SelectItem>
-                  <SelectItem value="no">{t('adviceStats.rejected')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* 備註 + 送出 */}
-          <div className="flex gap-3 items-end">
-            <div className="flex-1">
-              <Textarea
-                placeholder={t('adviceStats.notePlaceholder')}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                className="min-h-[60px] resize-none"
-              />
-            </div>
-            <Button
-              onClick={handleSubmit}
-              disabled={submitting || !selectedPatientId || !selectedCode}
-              className="h-[60px] px-6"
-            >
-              {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" />
-                  {t('adviceStats.submit')}
-                </>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <AdviceRecordForm
+        patients={patients}
+        patientsLoading={patientsLoading}
+        selectedPatientId={selectedPatientId}
+        onSelectedPatientIdChange={setSelectedPatientId}
+        selectedCategoryKey={selectedCategoryKey}
+        onSelectedCategoryKeyChange={setSelectedCategoryKey}
+        selectedCode={selectedCode}
+        onSelectedCodeChange={setSelectedCode}
+        accepted={accepted}
+        onAcceptedChange={setAccepted}
+        content={content}
+        onContentChange={setContent}
+        selectedCategory={selectedCategory}
+        submitting={submitting}
+        onSubmit={handleSubmit}
+      />
 
       {/* ── 統計卡片 ── */}
       <div className="grid gap-3 md:grid-cols-5">
@@ -686,167 +522,7 @@ export function PharmacyAdviceStatisticsPage() {
       </div>
 
       {/* ── 圖表 ── */}
-      {totalAdvices > 0 && (
-        <div className="space-y-4">
-          {/* Row 1: 甜甜圈 + 接受率 */}
-          <div className="grid gap-4 lg:grid-cols-3">
-            {/* 甜甜圈圖 — 類別分佈 */}
-            <Card className="lg:col-span-1">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">{t('adviceStats.categoryDistribution')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={240}>
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={90}
-                      paddingAngle={2}
-                      dataKey="value"
-                      labelLine={false}
-                    >
-                      {pieData.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} />
-                      ))}
-                      <Label content={renderPieCenterLabel} position="center" />
-                    </Pie>
-                    <Tooltip formatter={(value: number, name: string) => [t('adviceStats.tooltipCount', { count: value }), name]} />
-                  </PieChart>
-                </ResponsiveContainer>
-                {/* 圖例 */}
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-2 px-2">
-                  {pieData.map((entry) => (
-                    <div key={entry.name} className="flex items-center gap-1.5 text-xs min-w-0">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
-                      <span className="text-muted-foreground truncate">{entry.name}</span>
-                      <span className="font-semibold ml-auto shrink-0">{entry.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 接受率視覺化 */}
-            <Card className="lg:col-span-1">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <CircleDot className="h-4 w-4" /> {t('adviceStats.doctorResponseStats')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col items-center">
-                  {/* 接受率大數字 */}
-                  <div className="relative w-36 h-36 mb-3">
-                    <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-                      <circle cx="60" cy="60" r="50" fill="none" stroke="#e5e7eb" strokeWidth="10" />
-                      <circle cx="60" cy="60" r="50" fill="none" stroke="#16a34a" strokeWidth="10"
-                        strokeDasharray={`${acceptRate * 3.14} ${314 - acceptRate * 3.14}`}
-                        strokeLinecap="round" />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-3xl font-bold text-[#16a34a]">{acceptRate}%</span>
-                      <span className="text-xs text-muted-foreground">{t('adviceStats.acceptRate')}</span>
-                    </div>
-                  </div>
-                  {/* 統計 */}
-                  <div className="grid grid-cols-2 gap-3 w-full text-center">
-                    <div className="rounded-lg bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 py-2">
-                      <div className="text-lg font-bold text-green-700 dark:text-green-300">{acceptedCount}</div>
-                      <div className="text-xs text-green-600 dark:text-green-400">{t('adviceStats.acceptedCount')}</div>
-                    </div>
-                    <div className="rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 py-2">
-                      <div className="text-lg font-bold text-red-700 dark:text-red-300">{rejectedCount}</div>
-                      <div className="text-xs text-red-600 dark:text-red-400">{t('adviceStats.rejectedCount')}</div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 各類別接受率 */}
-            <Card className="lg:col-span-1">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">{t('adviceStats.categoryAcceptRate')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 pt-1">
-                  {Object.values(PHARMACY_ADVICE_CATEGORIES).map((cat) => {
-                    const catRecords = records.filter((r) => r.category === cat.label);
-                    const catTotal = catRecords.length;
-                    const catAccepted = catRecords.filter((r) => r.accepted === true).length;
-                    const catRate = catTotal > 0 ? Math.round((catAccepted / catTotal) * 100) : 0;
-                    const color = PHARMACY_ADVICE_CATEGORY_COLORS[cat.key] || '#999';
-                    return (
-                      <div key={cat.key}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium truncate pr-2">{t(cat.labelKey ?? cat.label)}</span>
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            {catTotal > 0 ? `${catAccepted}/${catTotal}` : '—'}
-                          </span>
-                        </div>
-                        <div className="h-2.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-500"
-                            style={{ width: `${catRate}%`, backgroundColor: color }}
-                          />
-                        </div>
-                        {catTotal > 0 && (
-                          <div className="text-right text-xs font-medium mt-0.5" style={{ color }}>
-                            {catRate}%
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Row 2: 直方圖 — 細項分析 */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">{t('adviceStats.subitemAnalysis', { count: barData.length })}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={340}>
-                <BarChart data={barData} margin={{ top: 20, right: 20, left: 0, bottom: 60 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                  <XAxis
-                    dataKey="code"
-                    stroke="#6b7280"
-                    tick={{ fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                    interval={0}
-                  />
-                  <YAxis
-                    allowDecimals={false}
-                    stroke="#6b7280"
-                    tick={{ fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip content={renderBarTooltip} />
-                  <Bar
-                    dataKey="count"
-                    radius={[6, 6, 0, 0]}
-                    barSize={32}
-                    label={{ position: 'top', fontSize: 13, fontWeight: 700 }}
-                  >
-                    {barData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {totalAdvices > 0 && <AdviceCharts stats={stats} />}
 
       {/* ── 留言板標籤統計 ── */}
       <Card>
@@ -968,7 +644,7 @@ export function PharmacyAdviceStatisticsPage() {
                             </Badge>
                           )}
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            {new Date(record.timestamp).toLocaleString(i18n.language, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                            {new Date(record.timestamp).toLocaleString(i18n.language, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Taipei' })}
                           </span>
                           {canManageAdviceRecords && (
                             <div className="flex items-center gap-1">
@@ -1046,243 +722,42 @@ export function PharmacyAdviceStatisticsPage() {
         </TabsContent>
 
         <TabsContent value="soap" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <NotebookPen className="h-4 w-4" />
-                {t('adviceStats.soapTitle')}
-                <Badge variant="secondary">{t('adviceStats.soapCount', { count: soapRecords.length })}</Badge>
-              </CardTitle>
-              <p className="text-xs text-muted-foreground">
-                {t('adviceStats.soapSubtitle')}
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={soapSearch}
-                  onChange={(e) => setSoapSearch(e.target.value)}
-                  placeholder={t('adviceStats.soapSearchPlaceholder')}
-                  className="flex-1 h-9 rounded-md border border-slate-300 bg-white dark:bg-slate-900 dark:border-slate-700 px-3 text-sm"
-                />
-                {soapSearch && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-9"
-                    onClick={() => setSoapSearch('')}
-                  >
-                    {t('adviceStats.clear')}
-                  </Button>
-                )}
-              </div>
-
-              {soapLoading ? (
-                <LoadingSpinner text={t('adviceStats.loadingSoap')} />
-              ) : soapRecords.length > 0 ? (
-                <ScrollArea className="h-[520px] pr-4">
-                  <div className="space-y-3">
-                    {soapRecords.map((record) => (
-                      <div
-                        key={record.id}
-                        className="border rounded-lg p-3 hover:shadow-md transition-shadow bg-white dark:bg-slate-900 dark:border-slate-700"
-                      >
-                        <div className="flex items-start justify-between mb-2 flex-wrap gap-2">
-                          <div className="flex items-center gap-2 text-sm">
-                            <User className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="font-medium">
-                              {record.bedNumber || '—'} {maskPatientName(record.patientName || '')}
-                            </span>
-                            <Badge variant="outline" className="text-xs">
-                              {record.pharmacistName}
-                            </Badge>
-                          </div>
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            {new Date(record.createdAt).toLocaleString(i18n.language, {
-                              year: 'numeric',
-                              month: '2-digit',
-                              day: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              timeZone: 'Asia/Taipei',
-                            })}
-                          </span>
-                        </div>
-
-                        <div className="grid gap-2 md:grid-cols-2">
-                          {record.subjective && (
-                            <div className="rounded border border-slate-200 dark:border-slate-700 p-2">
-                              <div className="text-xs font-semibold text-slate-500 mb-1">{t('adviceStats.soapSections.subjective')}</div>
-                              <p className="text-sm whitespace-pre-line line-clamp-4">{record.subjective}</p>
-                            </div>
-                          )}
-                          {record.objective && (
-                            <div className="rounded border border-slate-200 dark:border-slate-700 p-2">
-                              <div className="text-xs font-semibold text-slate-500 mb-1">{t('adviceStats.soapSections.objective')}</div>
-                              <p className="text-sm whitespace-pre-line line-clamp-4 font-mono">{record.objective}</p>
-                            </div>
-                          )}
-                          {record.assessment && (
-                            <div className="rounded border border-sky-200 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-950/20 p-2">
-                              <div className="text-xs font-semibold text-sky-700 dark:text-sky-300 mb-1">{t('adviceStats.soapSections.assessment')}</div>
-                              <p className="text-sm whitespace-pre-line line-clamp-4">{record.assessment}</p>
-                            </div>
-                          )}
-                          {record.plan && (
-                            <div className="rounded border border-sky-200 dark:border-sky-800 bg-sky-50/50 dark:bg-sky-950/20 p-2">
-                              <div className="text-xs font-semibold text-sky-700 dark:text-sky-300 mb-1">{t('adviceStats.soapSections.plan')}</div>
-                              <p className="text-sm whitespace-pre-line line-clamp-4 font-mono">{record.plan}</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              ) : (
-                <EmptyState
-                  icon={NotebookPen}
-                  title={t('adviceStats.noSoapTitle', { label: monthLabel })}
-                  description={t('adviceStats.noSoapDesc')}
-                />
-              )}
-            </CardContent>
-          </Card>
+          <AdviceSoapTab
+            soapRecords={soapRecords}
+            soapLoading={soapLoading}
+            soapSearch={soapSearch}
+            onSoapSearchChange={setSoapSearch}
+            monthLabel={monthLabel}
+          />
         </TabsContent>
       </Tabs>
 
-      <Dialog open={editingRecord !== null} onOpenChange={(open) => { if (!open) closeEditDialog(); }}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Edit2 className="h-5 w-5 text-brand" />
-              {t('adviceStats.editDialogTitle')}
-            </DialogTitle>
-            <DialogDescription>
-              {t('adviceStats.editDialogDesc')}
-            </DialogDescription>
-          </DialogHeader>
+      <AdviceEditDialog
+        open={editingRecord !== null}
+        onOpenChange={(open) => { if (!open) closeEditDialog(); }}
+        categoryKey={editCategoryKey}
+        onCategoryKeyChange={setEditCategoryKey}
+        code={editCode}
+        onCodeChange={setEditCode}
+        accepted={editAccepted}
+        onAcceptedChange={setEditAccepted}
+        content={editContent}
+        onContentChange={setEditContent}
+        linkedMedications={editLinkedMedications}
+        onLinkedMedicationsChange={setEditLinkedMedications}
+        selectedCategory={editSelectedCategory}
+        hasSelectedCode={!!editSelectedCodeItem}
+        saving={savingEdit}
+        onSave={handleSaveEdit}
+        onCancel={closeEditDialog}
+      />
 
-          <div className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="space-y-1">
-                <label className="text-xs font-medium">{t('adviceStats.category')} *</label>
-                <Select
-                  value={editCategoryKey}
-                  onValueChange={(value) => {
-                    setEditCategoryKey(value);
-                    setEditCode('');
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('adviceStats.selectCategory')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(PHARMACY_ADVICE_CATEGORIES).map(([key, cat]) => (
-                      <SelectItem key={key} value={key}>
-                        {t(cat.labelKey ?? cat.label)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-medium">{t('adviceStats.subitem')} *</label>
-                <Select value={editCode} onValueChange={setEditCode} disabled={!editSelectedCategory}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={editSelectedCategory ? t('adviceStats.selectSubitem') : t('adviceStats.pickCategoryFirst')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {editSelectedCategory?.codes.map((item) => (
-                      <SelectItem key={item.code} value={item.code}>
-                        {item.code} {t(item.labelKey ?? item.label)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-medium">{t('adviceStats.doctorAccept')}</label>
-                <Select value={editAccepted} onValueChange={(value) => setEditAccepted(value as EditAcceptedValue)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('adviceStats.selectStatus')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">{t('adviceStats.statusPending')}</SelectItem>
-                    <SelectItem value="yes">{t('adviceStats.accepted')}</SelectItem>
-                    <SelectItem value="no">{t('adviceStats.rejected')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium">{t('adviceStats.recordContent')} *</label>
-              <Textarea
-                value={editContent}
-                onChange={(event) => setEditContent(event.target.value)}
-                className="min-h-[140px]"
-                placeholder={t('adviceStats.recordContentPlaceholder')}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium">{t('adviceStats.linkedDrugs')}</label>
-              <Input
-                value={editLinkedMedications}
-                onChange={(event) => setEditLinkedMedications(event.target.value)}
-                placeholder={t('adviceStats.linkedDrugsPlaceholder')}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={closeEditDialog} disabled={savingEdit}>
-              {t('adviceStats.cancel')}
-            </Button>
-            <Button
-              onClick={handleSaveEdit}
-              disabled={savingEdit || !editSelectedCategory || !editSelectedCodeItem || !editContent.trim()}
-            >
-              {savingEdit ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit2 className="mr-2 h-4 w-4" />}
-              {t('adviceStats.saveChanges')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog
-        open={deletingRecord !== null}
-        onOpenChange={(open) => {
-          if (!open && !deleting) setDeletingRecord(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('adviceStats.deleteRecord')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('adviceStats.deleteDialogDesc', { code: deletingRecord?.adviceCode ?? '', label: deletingRecord?.adviceLabel ?? '' })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>{t('adviceStats.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 text-white"
-              disabled={deleting}
-              onClick={(event) => {
-                event.preventDefault();
-                void handleConfirmDelete();
-              }}
-            >
-              {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-              {t('adviceStats.delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <AdviceDeleteDialog
+        record={deletingRecord}
+        onOpenChange={(open) => { if (!open) setDeletingRecord(null); }}
+        deleting={deleting}
+        onConfirm={() => { void handleConfirmDelete(); }}
+      />
     </div>
   );
 }

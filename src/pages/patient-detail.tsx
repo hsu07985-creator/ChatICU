@@ -44,6 +44,18 @@ import {
 } from '../lib/api/ai';
 import { patientsApi, medicationsApi, messagesApi, ventilatorApi, type Patient, type LabData, type Medication, type PatientMessage, type VitalSigns, type VentilatorSettings, type WeaningAssessment } from '../lib/api';
 import { copyToClipboard } from '../lib/clipboard-utils';
+import {
+  formatAiDegradedReason,
+  getDisplayFreshnessHints,
+  formatCitationPageText,
+  compactSnippet,
+  formatSnapshotValue,
+  formatDisplayValue,
+  formatDisplayTimestamp,
+  formatMedicationRegimen,
+  deriveMedicationGroups,
+  type MedicationGroups,
+} from '../lib/patient-detail-format';
 import { maskPatientName } from '../lib/utils/patient-name';
 import { useAuth } from '../lib/auth-context';
 import { usePatientScores } from '../hooks/use-patient-scores';
@@ -173,14 +185,6 @@ interface ChatMessage {
   adviceRefs?: AdviceRef[];
 }
 
-interface MedicationGroups {
-  sedation: Medication[];
-  analgesia: Medication[];
-  nmb: Medication[];
-  other: Medication[];
-  outpatient: Medication[];
-}
-
 const EMPTY_MEDICATION_GROUPS: MedicationGroups = {
   sedation: [],
   analgesia: [],
@@ -188,207 +192,6 @@ const EMPTY_MEDICATION_GROUPS: MedicationGroups = {
   other: [],
   outpatient: [],
 };
-
-
-function formatAiDegradedReason(reason?: string | null, upstreamStatus?: string | null): string {
-  const tr = (k: string) => i18n.t(k, { ns: 'patient-detail' });
-  if (reason === 'insufficient_evidence') return tr('degradedReason.insufficientEvidence');
-  if (reason === 'insufficient_patient_data') return tr('degradedReason.insufficientPatientData');
-  if (reason === 'llm_unavailable') return tr('degradedReason.llmUnavailable');
-  return reason || upstreamStatus || tr('degradedReason.unknown');
-}
-
-function getDisplayFreshnessHints(dataFreshness?: DataFreshness | null): string[] {
-  if (!dataFreshness) {
-    return [];
-  }
-
-  const hints: string[] = [];
-  const seen = new Set<string>();
-  const pushHint = (value: string) => {
-    const text = value.trim();
-    if (!text || seen.has(text)) {
-      return;
-    }
-    seen.add(text);
-    hints.push(text);
-  };
-
-  const tr = (k: string) => i18n.t(k, { ns: 'patient-detail' });
-  const sections = dataFreshness.sections || ({} as DataFreshness['sections']);
-  if (sections.vital_signs?.status === 'missing') {
-    pushHint(tr('freshnessHints.vitalsMissing'));
-  } else if (sections.vital_signs?.status === 'stale') {
-    pushHint(tr('freshnessHints.vitalsStale'));
-  }
-
-  if (sections.lab_data?.status === 'missing') {
-    pushHint(tr('freshnessHints.labMissing'));
-  } else if (sections.lab_data?.status === 'stale') {
-    pushHint(tr('freshnessHints.labStale'));
-  }
-
-  if (sections.medications?.status === 'missing') {
-    pushHint(tr('freshnessHints.medsMissing'));
-  }
-
-  if (hints.length > 0) {
-    return hints;
-  }
-
-  for (const raw of dataFreshness.hints || []) {
-    const hint = String(raw || '').trim();
-    if (!hint) {
-      continue;
-    }
-    if (hint.includes('JSON 離線模式') || hint.includes('資料快照時間')) {
-      continue;
-    }
-    pushHint(hint);
-  }
-
-  return hints;
-}
-
-function formatCitationPageText(citation: AiCitation): string {
-  const tr = (k: string, opts?: Record<string, unknown>) => i18n.t(k, { ns: 'patient-detail', ...(opts ?? {}) }) as string;
-  const pages = Array.isArray(citation.pages)
-    ? citation.pages.filter((p): p is number => Number.isFinite(Number(p))).map((p) => Number(p))
-    : [];
-  if (pages.length > 1) {
-    const uniq = Array.from(new Set(pages)).sort((a, b) => a - b);
-    return tr('citation.pages', { pages: uniq.join('、') });
-  }
-  if (typeof citation.page === 'number') {
-    return tr('citation.page', { page: citation.page });
-  }
-  if (pages.length === 1) {
-    return tr('citation.page', { page: pages[0] });
-  }
-  return tr('citation.pageMissing');
-}
-
-function compactSnippet(snippet?: string): string {
-  const text = String(snippet || '').trim();
-  if (!text) return '';
-  return text;
-}
-
-function extractLabNumericValue(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  if (value && typeof value === 'object' && 'value' in value) {
-    const nestedValue = (value as { value?: unknown }).value;
-    if (typeof nestedValue === 'number' && Number.isFinite(nestedValue)) {
-      return nestedValue;
-    }
-    if (typeof nestedValue === 'string' && nestedValue.trim() !== '') {
-      const parsedNested = Number(nestedValue);
-      if (Number.isFinite(parsedNested)) {
-        return parsedNested;
-      }
-    }
-  }
-
-  return undefined;
-}
-
-function formatSnapshotValue(value: number | undefined): string {
-  return value !== undefined ? String(value) : 'N/A';
-}
-
-function formatDisplayValue(value: unknown): string {
-  if (value === null || value === undefined) return '-';
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed === '' ? '-' : trimmed;
-  }
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? String(value) : '-';
-  }
-  return String(value);
-}
-
-/**
- * 正規化藥物劑量顯示值：整數值去掉 .0（避免 1.0 被看成 10），
- * 有意義的小數（0.5、0.25）保留。非數字（「適量」）原樣返回。
- */
-function formatDoseValue(dose: unknown): string {
-  if (dose === null || dose === undefined) return '';
-  const raw = typeof dose === 'string' ? dose.trim() : String(dose);
-  if (raw === '') return '';
-  if (!/^-?\d+(\.\d+)?$/.test(raw)) return raw;
-  const num = Number(raw);
-  if (!Number.isFinite(num)) return raw;
-  return String(num);
-}
-
-function formatDisplayTimestamp(timestamp?: string | null): string {
-  if (!timestamp) return '-';
-  const parsed = new Date(timestamp);
-  if (Number.isNaN(parsed.getTime())) return '-';
-  return parsed.toLocaleString(i18n.language);
-}
-
-
-function normalizeSanCategory(raw: unknown): 'S' | 'A' | 'N' | null {
-  if (typeof raw !== 'string') return null;
-  const normalized = raw.trim().toUpperCase();
-  if (normalized === 'S' || normalized === 'A' || normalized === 'N') {
-    return normalized;
-  }
-  return null;
-}
-
-function formatMedicationRegimen(med: Medication): string {
-  const doseValue = formatDoseValue(med.dose);
-  const dose = doseValue === '' ? '-' : doseValue;
-  const unit = formatDisplayValue(med.unit);
-  const frequency = formatDisplayValue(med.frequency);
-  const route = formatDisplayValue(med.route);
-
-  const dosePart = [dose, unit].filter((part) => part !== '-').join(' ');
-  const parts = [dosePart || '-', frequency, med.prn ? 'PRN' : '', route].filter(Boolean);
-  return parts.join(' ');
-}
-
-function deriveMedicationGroups(items: Medication[]): MedicationGroups {
-  const grouped: MedicationGroups = {
-    sedation: [],
-    analgesia: [],
-    nmb: [],
-    other: [],
-    outpatient: [],
-  };
-
-  for (const med of items) {
-    if (med.sourceType === 'outpatient' || med.sourceType === 'self-supplied') {
-      grouped.outpatient.push(med);
-    } else {
-      const san = normalizeSanCategory(med.sanCategory);
-      if (san === 'S') {
-        grouped.sedation.push(med);
-      } else if (san === 'A') {
-        grouped.analgesia.push(med);
-      } else if (san === 'N') {
-        grouped.nmb.push(med);
-      } else {
-        grouped.other.push(med);
-      }
-    }
-  }
-
-  return grouped;
-}
 
 
 

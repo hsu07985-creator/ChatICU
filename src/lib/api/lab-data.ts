@@ -1,4 +1,4 @@
-import apiClient, { ensureData } from '../api-client';
+import apiClient, { ensureData, type ApiResponse } from '../api-client';
 
 // 單一檢驗項目的結構
 export interface LabItem {
@@ -67,13 +67,6 @@ export interface LabCorrectionResponse {
     role: string;
   };
   correctedAt: string;
-}
-
-// API 回應類型
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
 }
 
 // 取得最新檢驗數據

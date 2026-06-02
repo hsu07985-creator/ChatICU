@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.utils.request import get_client_ip
 from app.middleware.audit import create_audit_log
 from app.middleware.auth import get_current_user
 from app.models.clinical_score import ClinicalScore
@@ -124,7 +125,7 @@ async def record_score(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="記錄臨床評分", target=pid, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={
             "score_id": score.id,
             "score_type": body.score_type,
@@ -169,7 +170,7 @@ async def delete_score(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="刪除臨床評分", target=pid, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"score": deleted_snapshot},
     )
 

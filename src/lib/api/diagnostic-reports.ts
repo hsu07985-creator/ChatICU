@@ -1,4 +1,4 @@
-import apiClient, { ensureData } from '../api-client';
+import apiClient, { ensureData, type ApiResponse } from '../api-client';
 
 export interface DiagnosticReport {
   id: string;
@@ -10,11 +10,6 @@ export interface DiagnosticReport {
   impression?: string | null;
   reporterName?: string | null;
   status: 'preliminary' | 'final';
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
 }
 
 export async function getDiagnosticReports(

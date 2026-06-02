@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.utils.request import get_client_ip
 from app.fhir.bundle_builder import build_bundle_for_patient
 from app.middleware.audit import create_audit_log
 from app.middleware.auth import require_roles
@@ -56,7 +57,7 @@ async def export_patient_fhir_bundle(
         action="匯出 FHIR Bundle",
         target=pid,
         status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={
             "resource_counts": report["resource_counts"],
             "total_resources": report["total_resources"],

@@ -12,6 +12,7 @@ from app.middleware.auth import get_current_user, require_roles
 from app.models.error_report import ErrorReport
 from app.models.user import User
 from app.schemas.admin import ErrorReportCreate, ErrorReportUpdate
+from app.utils.request import get_client_ip
 from app.utils.response import escape_like, success_response
 
 router = APIRouter(tags=["pharmacy"])
@@ -140,7 +141,7 @@ async def create_error_report(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="提交用藥異常通報", target=report.id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"error_type": body.errorType, "severity": body.severity},
     )
 
@@ -185,7 +186,7 @@ async def update_error_report(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="更新用藥異常通報", target=report_id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"new_status": body.status, "has_resolution": bool(body.resolution)},
     )
 

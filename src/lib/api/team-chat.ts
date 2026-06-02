@@ -1,4 +1,4 @@
-import apiClient, { ensureData } from '../api-client';
+import apiClient, { ensureData, type ApiResponse } from '../api-client';
 import { resetChatCache } from './team-chat-cache';
 
 export type UserRole = 'doctor' | 'np' | 'nurse' | 'pharmacist' | 'admin';
@@ -42,12 +42,6 @@ export interface TeamUser {
   id: string;
   name: string;
   role: UserRole;
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
 }
 
 // All team-chat endpoints suppress the apiClient interceptor's automatic

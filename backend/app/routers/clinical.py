@@ -56,6 +56,13 @@ from app.utils.structured_output import build_summary_structured
 from app.utils.llm_errors import llm_unavailable_detail
 from app.middleware.rate_limit import limiter
 from app.utils.response import success_response
+from app.utils.sse import (
+    format_sse,
+    done_frame,
+    SSE_MEDIA_TYPE,
+    SSE_HEADERS_KEEPALIVE,
+)
+from app.utils.request import get_client_ip
 
 router = APIRouter(prefix="/api/v1/clinical", tags=["Clinical"])
 
@@ -246,7 +253,7 @@ async def clinical_summary_stream(
 
     request_id = getattr(request.state, "request_id", None)
     trace_id = getattr(request.state, "trace_id", None)
-    client_host = request.client.host if request.client else None
+    client_host = get_client_ip(request)
     # P1-C4: brief mode skips LLM reasoning for a quick chart digest.
     summary_disable_reasoning = (req.summary_depth == "brief")
     # P0-6: schema-shaped envelope so the LLM cannot mistake free-text fields
@@ -311,13 +318,13 @@ async def clinical_summary_stream(
                     err = chunk[7:].strip() if len(chunk) > 7 else "AI service error"
                     logger.error("[INTG][AI][API] clinical_summary stream failed: %s", err[:500])
                     stream_failed = True
-                    yield f"event: error\ndata: {_err_payload(err)}\n\n"
+                    yield format_sse(_err_payload(err), event="error")
                     return
                 full_content += chunk
-                yield f"event: delta\ndata: {json.dumps({'chunk': chunk}, ensure_ascii=False)}\n\n"
+                yield format_sse({"chunk": chunk}, event="delta")
         except Exception as e:
             logger.error("[INTG][AI][API] clinical_summary stream exception: %s", str(e)[:500])
-            yield f"event: error\ndata: {_err_payload(str(e))}\n\n"
+            yield format_sse(_err_payload(str(e)), event="error")
             return
 
         if stream_failed or client_disconnected:
@@ -338,7 +345,7 @@ async def clinical_summary_stream(
             "trace_id": trace_id,
         }
 
-        yield f"event: done\ndata: {json.dumps({'data': response_data}, ensure_ascii=False)}\n\n"
+        yield done_frame({"data": response_data})
 
         schedule_audit_log(
             user_id=user.id, user_name=user.name, role=user.role,
@@ -349,12 +356,8 @@ async def clinical_summary_stream(
 
     return StreamingResponse(
         event_stream(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-            "Connection": "keep-alive",
-        },
+        media_type=SSE_MEDIA_TYPE,
+        headers=SSE_HEADERS_KEEPALIVE,
     )
 
 
@@ -601,6 +604,11 @@ async def polish_clinical_text(
     # SOAP-format outputs in the audit log can be reliably attributed to a
     # licensed pharmacist. UI already gates the button but the server can't
     # trust frontend filtering.
+    # TODO(authz): this is a body-conditional sub-gate (only fires when
+    # req.task == "pharmacist_polish"), so it can't move to a fixed
+    # require_roles dependency without narrowing the endpoint's allowed roles.
+    # The endpoint-level require_roles already enforces clinical-role access;
+    # this stays inline. Do not widen.
     if is_pharmacist and user.role not in ("pharmacist", "admin"):
         raise HTTPException(
             status_code=403,
@@ -642,7 +650,7 @@ async def polish_clinical_text(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="文本修飾" + ("（再修飾）" if is_refinement else ""),
         target=req.patient_id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={
             "task": task_name,
             "polish_type": req.polish_type,
@@ -682,6 +690,10 @@ async def polish_clinical_text_stream(
     )
 
     # P0-5: same role check as non-streaming /polish.
+    # TODO(authz): body-conditional sub-gate (fires only for the
+    # "pharmacist_polish" task); cannot map to a fixed require_roles dependency
+    # without narrowing the endpoint's allowed roles. Endpoint-level
+    # require_roles already enforces clinical access. Do not widen.
     if is_pharmacist and user.role not in ("pharmacist", "admin"):
         raise HTTPException(
             status_code=403,
@@ -693,7 +705,7 @@ async def polish_clinical_text_stream(
     # body is being produced.
     request_id = getattr(request.state, "request_id", None)
     trace_id = getattr(request.state, "trace_id", None)
-    client_host = request.client.host if request.client else None
+    client_host = get_client_ip(request)
     user_msg = [
         {"role": "user", "content": json.dumps(input_data, ensure_ascii=False, default=str)}
     ]
@@ -751,10 +763,10 @@ async def polish_clinical_text_stream(
                     err = chunk[7:].strip() if len(chunk) > 7 else "AI service error"
                     logger.error("[INTG][AI][API] polish stream failed: %s", err[:500])
                     stream_failed = True
-                    yield f"event: error\ndata: {_err_payload(err)}\n\n"
+                    yield format_sse(_err_payload(err), event="error")
                     return
                 full_content += chunk
-                yield f"event: delta\ndata: {json.dumps({'chunk': chunk}, ensure_ascii=False)}\n\n"
+                yield format_sse({"chunk": chunk}, event="delta")
 
                 # For pharmacist target-section polish, also emit a clean
                 # decoded delta so the frontend doesn't have to scan JSON.
@@ -763,13 +775,13 @@ async def polish_clinical_text_stream(
                     if section_text is not None and len(section_text) > section_emitted_len:
                         new_chars = section_text[section_emitted_len:]
                         section_emitted_len = len(section_text)
-                        yield (
-                            f"event: section_delta\n"
-                            f"data: {json.dumps({'key': pharmacist_target, 'chunk': new_chars}, ensure_ascii=False)}\n\n"
+                        yield format_sse(
+                            {"key": pharmacist_target, "chunk": new_chars},
+                            event="section_delta",
                         )
         except Exception as e:
             logger.error("[INTG][AI][API] polish stream exception: %s", str(e)[:500])
-            yield f"event: error\ndata: {_err_payload(str(e))}\n\n"
+            yield format_sse(_err_payload(str(e)), event="error")
             return
 
         if stream_failed or client_disconnected:
@@ -785,7 +797,7 @@ async def polish_clinical_text_stream(
             data_freshness=data_freshness,
         )
 
-        yield f"event: done\ndata: {json.dumps({'data': response_data}, ensure_ascii=False)}\n\n"
+        yield done_frame({"data": response_data})
 
         schedule_audit_log(
             user_id=user.id, user_name=user.name, role=user.role,
@@ -806,12 +818,8 @@ async def polish_clinical_text_stream(
 
     return StreamingResponse(
         event_stream(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-            "Connection": "keep-alive",
-        },
+        media_type=SSE_MEDIA_TYPE,
+        headers=SSE_HEADERS_KEEPALIVE,
     )
 
 # ── P3-2: Drug Interaction Check ────────────────────────────────────────
@@ -923,7 +931,7 @@ async def interaction_check(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="交互作用查詢", target=",".join(req.drug_list[:5]), status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={
             "drug_count": len(req.drug_list),
             "overall_severity": result.get("overall_severity"),

@@ -16,6 +16,7 @@ from fastapi import Request as StarletteRequest
 from app.database import get_db
 from app.middleware.auth import require_roles
 from app.middleware.audit import create_audit_log, diff_dict, snapshot_fields
+from app.utils.request import get_client_ip
 from app.models.audit_log import AuditLog
 from app.models.user import User, PasswordHistory
 from app.schemas.admin import UserCreate, UserUpdate, UserListResponse
@@ -270,7 +271,7 @@ async def create_user(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="建立使用者", target=new_user.username, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"new_user_id": new_user.id, "new_role": new_user.role},
     )
 
@@ -364,7 +365,7 @@ async def update_user(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="更新使用者", target=target_user.username, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details=audit_details,
     )
 
@@ -420,7 +421,7 @@ async def delete_user(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="刪除使用者" if deleted else "停用使用者(刪除失敗)",
         target=target_username, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"target_user_id": target_user_id, "hardDeleted": deleted},
     )
 

@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from app.middleware.auth import require_roles
 from app.models.user import User
+from app.utils.response import success_response
 
 router = APIRouter()
 
@@ -269,9 +270,8 @@ def _pad_calculate(req: PadCalculateRequest) -> PadCalculateResponse:
 @router.get("/pad-drugs")
 async def list_pad_drugs(user: User = Depends(require_roles("pharmacist", "admin"))):
     """List all 9 PAD drugs with default parameters."""
-    return {
-        "success": True,
-        "data": {
+    return success_response(
+        data={
             "drugs": [
                 {
                     "key": k,
@@ -286,14 +286,11 @@ async def list_pad_drugs(user: User = Depends(require_roles("pharmacist", "admin
                 for k, v in PAD_DRUG_DEFAULTS.items()
             ]
         },
-    }
+    )
 
 
 @router.post("/pad-calculate")
 async def pad_calculate(req: PadCalculateRequest, user: User = Depends(require_roles("pharmacist", "admin"))):
     """Calculate PAD drug infusion rate (deterministic, no external service)."""
     result = _pad_calculate(req)
-    return {
-        "success": True,
-        "data": result.model_dump(exclude_none=True),
-    }
+    return success_response(data=result.model_dump(exclude_none=True))

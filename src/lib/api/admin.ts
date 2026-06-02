@@ -1,10 +1,4 @@
-import apiClient, { ensureData } from '../api-client';
-
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
-}
+import apiClient, { ensureData, type ApiResponse } from '../api-client';
 
 // ========== 稽核日誌 ==========
 

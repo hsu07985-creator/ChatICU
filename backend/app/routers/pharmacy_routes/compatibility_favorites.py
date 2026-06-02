@@ -11,6 +11,7 @@ from app.middleware.auth import require_roles
 from app.models.pharmacy_favorite import PharmacyCompatibilityFavorite
 from app.models.user import User
 from app.schemas.pharmacy import CompatibilityFavoriteCreate
+from app.utils.request import get_client_ip
 from app.utils.response import success_response
 
 router = APIRouter(tags=["pharmacy"])
@@ -95,7 +96,7 @@ async def create_compatibility_favorite(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="新增常用相容性組合", target=fav.id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"drugA": fav.drug_a, "drugB": fav.drug_b, "solution": fav.solution},
     )
 
@@ -121,7 +122,7 @@ async def delete_compatibility_favorite(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="刪除常用相容性組合", target=favorite_id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"drugA": fav.drug_a, "drugB": fav.drug_b, "solution": fav.solution},
     )
 

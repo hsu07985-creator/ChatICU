@@ -1,4 +1,4 @@
-import apiClient, { ensureData } from '../api-client';
+import apiClient, { ensureData, type ApiResponse } from '../api-client';
 
 // 類型定義
 export interface Medication {
@@ -83,13 +83,6 @@ export interface DrugInteraction {
   clinicalEffect: string;
   management: string;
   riskRating?: string | null; // X, D, C, B, A
-}
-
-// API 回應類型
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
 }
 
 // 取得病人用藥列表

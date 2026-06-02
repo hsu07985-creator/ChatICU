@@ -1,4 +1,4 @@
-import apiClient, { ensureData } from '../api-client';
+import apiClient, { ensureData, type ApiResponse } from '../api-client';
 
 // 類型定義
 export interface VentilatorSettings {
@@ -46,13 +46,6 @@ export interface WeaningAssessment {
     name: string;
     role: string;
   };
-}
-
-// API 回應類型
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
 }
 
 // 取得最新呼吸器設定

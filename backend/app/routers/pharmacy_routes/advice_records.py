@@ -17,6 +17,7 @@ from app.models.pharmacy_advice import PharmacyAdvice
 from app.models.user import User
 from app.routers.messages import CATEGORY_TAG_MAP, PHARMACIST_CATEGORY_TAGS, format_subcode_tag
 from app.schemas.admin import AdviceRecordCreate, AdviceRecordUpdate
+from app.utils.request import get_client_ip
 from app.utils.response import success_response
 
 router = APIRouter(tags=["pharmacy"])
@@ -526,13 +527,13 @@ async def create_advice_record(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="建立用藥建議", target=advice.id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"advice_code": body.adviceCode, "category": body.category},
     )
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="同步用藥建議至留言板", target=msg.id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"patient_id": patient.id, "advice_id": advice.id},
     )
 
@@ -584,7 +585,7 @@ async def update_advice_record(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="更新用藥建議", target=advice.id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={
             "fields": sorted(fields),
             "synced_widget_messages": synced_widget_messages,
@@ -635,7 +636,7 @@ async def delete_advice_record(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="刪除用藥建議", target=advice_id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={
             "source_message_id": source_message_id,
             "deleted_message_ids": deleted_message_ids,
@@ -706,7 +707,7 @@ async def respond_to_advice(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="回覆藥事建議" if accepted else "拒絕藥事建議",
         target=advice_id, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
         details={"accepted": accepted, "note": note},
     )
 

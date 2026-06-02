@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
+from app.utils.request import get_client_ip
 from app.middleware.auth import (
     COOKIE_REFRESH_KEY,
     clear_auth_cookies,
@@ -94,7 +95,7 @@ async def login(
             await create_audit_log(
                 db, user_id=user.id, user_name=user.name,
                 role=user.role, action="用戶登入", target="系統",
-                status="failed", ip=request.client.host if request.client else None,
+                status="failed", ip=get_client_ip(request),
                 details={"reason": "Invalid credentials", "attempt": attempts},
             )
         else:
@@ -136,7 +137,7 @@ async def login(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name,
         role=user.role, action="用戶登入", target="系統",
-        status="success", ip=request.client.host if request.client else None,
+        status="success", ip=get_client_ip(request),
     )
 
     body_data = success_response(data={
@@ -192,7 +193,7 @@ async def logout(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name,
         role=user.role, action="用戶登出", target="系統",
-        status="success", ip=request.client.host if request.client else None,
+        status="success", ip=get_client_ip(request),
     )
 
     response = JSONResponse(content=success_response(message="登出成功"))
@@ -350,7 +351,7 @@ async def change_password(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="變更密碼", target=user.username, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
     )
 
     return success_response(message="密碼已變更，請重新登入")
@@ -385,7 +386,7 @@ async def reset_password_request(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="密碼重設請求", target=user.username, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
     )
 
     # Token is stored in Redis only. In production, send email with reset link.
@@ -462,7 +463,7 @@ async def reset_password(
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="密碼重設", target=user.username, status="success",
-        ip=request.client.host if request.client else None,
+        ip=get_client_ip(request),
     )
 
     return success_response(message="密碼已重設，請使用新密碼登入")
