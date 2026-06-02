@@ -220,6 +220,30 @@ export interface AdviceRef {
   timestamp?: string | null;
 }
 
+/** Client-side shape for one message in a chat session view. Referenced by
+ *  the chat pages and chat-message-thread. (Relocated here from the retired
+ *  use-chat-sessions hook so it survives independently of that hook.) */
+export interface SessionChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  messageId?: string;
+  explanation?: string | null;
+  timestamp?: string;
+  references?: Citation[];
+  warnings?: string[] | null;
+  requiresExpertReview?: boolean;
+  degraded?: boolean;
+  degradedReason?: string | null;
+  upstreamStatus?: string | null;
+  dataFreshness?: DataFreshness | null;
+  graphMeta?: GraphMeta | null;
+  feedback?: 'up' | 'down' | null;
+  /** F3: live-only deep-link references prefetched for this turn (not
+   *  persisted server-side). Empty/undefined when reload reads from DB
+   *  or when the question didn't trigger an advice prefetch. */
+  adviceRefs?: AdviceRef[];
+}
+
 /** F3: structured prefetch metadata returned with each chat reply. Live-only
  *  (not persisted on the server), so chips disappear after page reload. */
 export interface PrefetchRefs {

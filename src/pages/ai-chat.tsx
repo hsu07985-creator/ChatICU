@@ -39,7 +39,7 @@ import {
   type Citation as AiCitation,
   type DataFreshness,
 } from '../lib/api/ai';
-import type { SessionChatMessage } from '../hooks/use-chat-sessions';
+import type { SessionChatMessage } from '../lib/api/ai';
 import { ChatMessageThread } from '../components/patient/chat-message-thread';
 import {
   AlertDialog,

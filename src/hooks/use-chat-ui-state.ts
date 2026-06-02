@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { SessionChatMessage } from './use-chat-sessions';
+import type { SessionChatMessage } from '../lib/api/ai';
 
 export function useChatUiState(chatMessages: SessionChatMessage[]) {
   const messagesEndRef = useRef<HTMLDivElement>(null);

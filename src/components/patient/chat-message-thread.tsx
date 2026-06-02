@@ -14,7 +14,7 @@ import {
 import { AiMarkdown, SafetyWarnings } from '../ui/ai-markdown';
 import { copyToClipboard } from '../../lib/clipboard-utils';
 import type { Citation as AiCitation, DataFreshness } from '../../lib/api/ai';
-import type { SessionChatMessage } from '../../hooks/use-chat-sessions';
+import type { SessionChatMessage } from '../../lib/api/ai';
 import { AdviceRefChips } from '../ai-chat/advice-ref-chips';
 import { DrugInteractionBadges } from './drug-interaction-badges';
 import { ExpertReviewWarning } from './expert-review-warning';
