@@ -21,6 +21,7 @@ from app.services.patient_context_builder import (
     _fmt_renal_dosing_section,
     _get_lab_val,
     _merge_lab_rows,
+    build_med_change_delta,
     extract_snapshot_key_values,
 )
 
@@ -270,7 +271,45 @@ def test_extract_snapshot_key_values_all_missing():
         "lactate": None,
         "plt": None,
         "vasopressor_ne_dose": None,
+        "_active_med_keys": [],
     }
+
+
+# ── llm-1: cross-turn medication-change detection ─────────────────────────────
+# (reuses the module-level _FakeMed defined above; **kwargs constructor)
+
+
+def test_extract_snapshot_key_values_tracks_active_med_keys():
+    """The snapshot must store the start-of-session active-med identity so a later
+    turn can detect drugs started/stopped (generic preferred, sorted, deduped)."""
+    meds = [
+        _FakeMed(name="Vanco", generic_name="vancomycin", dose=None),
+        _FakeMed(name="Levophed", generic_name="norepinephrine", dose=None),
+    ]
+    kvs = extract_snapshot_key_values(None, meds)
+    assert kvs["_active_med_keys"] == ["norepinephrine", "vancomycin"]
+
+
+def test_build_med_change_delta_detects_add_and_remove():
+    """A drug started/stopped mid-session must surface as a [用藥已變動] block."""
+    snap = {"_active_med_keys": ["vancomycin"]}
+    delta = build_med_change_delta(snap, [_FakeMed(name="Meropem", generic_name="meropenem")])
+    assert delta is not None
+    assert "用藥已變動" in delta
+    assert "新增用藥" in delta and "meropenem" in delta
+    assert "已停用/移除" in delta and "vancomycin" in delta
+
+
+def test_build_med_change_delta_no_change_returns_none():
+    snap = {"_active_med_keys": ["vancomycin"]}
+    assert build_med_change_delta(snap, [_FakeMed(name="Vanco", generic_name="vancomycin")]) is None
+
+
+def test_build_med_change_delta_legacy_snapshot_without_keys_returns_none():
+    """Older sessions whose snapshot predates med-key tracking must NOT emit a
+    spurious 'everything removed' delta."""
+    assert build_med_change_delta({}, [_FakeMed(name="X", generic_name="x")]) is None
+    assert build_med_change_delta({"_active_med_keys": None}, [_FakeMed(name="X", generic_name="x")]) is None
 
 
 @pytest.mark.asyncio

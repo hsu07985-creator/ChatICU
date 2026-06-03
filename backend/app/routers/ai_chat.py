@@ -48,6 +48,7 @@ from app.services.patient_context_builder import (
     build_clinical_snapshot,
     build_critical_snapshot,
     build_delta,
+    build_med_change_delta,
     extract_snapshot_key_values,
     _get_latest_lab,
     _get_active_medications,
@@ -530,6 +531,17 @@ async def chat_stream(
                     active_med_aliases.append(m.name)
                 if m and getattr(m, "generic_name", None):
                     active_med_aliases.append(m.generic_name)
+            # llm-1: the system prompt's [用藥] list is frozen at session start
+            # (and build_delta only diffs numeric labs). Surface any drug started
+            # or stopped since the snapshot so the LLM never reasons over a stale
+            # med list — ephemeral, injected into user_message only.
+            if session.snapshot_metadata:
+                med_change = build_med_change_delta(
+                    session.snapshot_metadata.get("snapshot_key_values", {}),
+                    conflict_meds,
+                )
+                if med_change:
+                    user_message = f"{med_change}\n{user_message}"
             user_message = await detect_and_inject_assertion_conflict(
                 db,
                 request,

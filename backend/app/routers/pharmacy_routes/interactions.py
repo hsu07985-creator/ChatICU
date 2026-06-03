@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import cast, or_, select, and_
+from sqlalchemy import case, cast, func, or_, select, and_
 from sqlalchemy import String as SAString
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,6 +23,17 @@ _SEVERITY_RANK = {
     "contraindicated": 0, "major": 1, "moderate": 2, "minor": 3,
 }
 _RISK_RANK = {"X": 0, "D": 1, "C": 2, "B": 3, "A": 4}
+
+
+def _severity_order():
+    """SQL ORDER BY expression: most severe rows first (mirrors _SEVERITY_RANK).
+
+    Applied BEFORE the .limit(500) cap so the cap keeps the most clinically
+    important rows for a heavily-interacting single drug; unknown/null severity
+    sorts last. The Python _relevance_score sort still runs afterwards.
+    """
+    whens = {sev: rank for sev, rank in _SEVERITY_RANK.items()}
+    return case(whens, value=func.lower(DrugInteraction.severity), else_=99)
 
 
 def _drug_match(drug_name: str):
@@ -179,7 +190,7 @@ async def search_drug_interactions(
     if drugB:
         query = query.where(_drug_match(drugB))
 
-    result = await db.execute(query.limit(500))
+    result = await db.execute(query.order_by(_severity_order()).limit(500))
     interactions: List[DrugInteraction] = list(result.scalars().all())
 
     if drugB:

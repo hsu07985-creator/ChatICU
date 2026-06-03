@@ -27,6 +27,11 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 
+// `hasMore` rides alongside the message cache (which is itself a module
+// singleton) so a warm-cache remount restores the "load older" affordance
+// instead of resetting it to false and stranding paged-in history.
+let cachedHasMore = false;
+
 // 格式化時間戳：固定台北時區（UTC+8），不隨瀏覽器 locale 漂移。
 function formatTimestamp(timestamp: string): string {
   const date = new Date(timestamp);
@@ -81,7 +86,7 @@ export function ChatPage() {
   // Reverse infinite scroll: anchor at latest message; load older pages
   // when the user scrolls near the top. ``hasMore`` and ``oldestTimestamp``
   // come from the backend's TC-W3-T2 cursor response.
-  const [hasMore, setHasMore] = useState(false);
+  const [hasMore, setHasMore] = useState(cachedHasMore);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const navigate = useNavigate();
 
@@ -106,10 +111,13 @@ export function ChatPage() {
     };
   }, []);
 
-  // 載入訊息（帶快取）
+  // 載入訊息（帶快取）。``force`` 走網路；30s 輪詢以 force 觸發。
   const loadMessages = useCallback(async (force = false) => {
     if (!force && chatCache.msgs && Date.now() - chatCache.msgsTimestamp < MSGS_STALE_MS) {
       setMessages(chatCache.msgs);
+      // Restore the paging affordance from the cache so a warm-cache remount
+      // doesn't strand already-loaded older history behind a false `hasMore`.
+      setHasMore(cachedHasMore);
       setLoading(false);
       // Even on a cache hit, bump the visit timestamp — entering the page
       // should always clear the badge.
@@ -119,10 +127,41 @@ export function ChatPage() {
     try {
       setError(null);
       const response = await getTeamChatMessages({ limit: 50 });
-      chatCache.msgs = response.messages;
-      chatCache.msgsTimestamp = Date.now();
-      setMessages(response.messages);
-      setHasMore(response.hasMore ?? false);
+      // ``force`` here means a poll/visibility refresh: fetching only the
+      // latest page must NOT clobber older pages the user paged in via
+      // loadOlder. Merge the fresh page into the existing list (dedupe by
+      // id) so loaded history survives; only treat it as a full reset when
+      // we haven't paged past the first page yet.
+      setMessages((prev) => {
+        // A poll fetches only the newest page, so a wholesale replace would
+        // discard older pages the user already paged in. Treat it as a full
+        // reset only when we haven't paged past the first page yet; otherwise
+        // merge the fresh page in (dedupe by id) so loaded history survives.
+        const fullReset = !force || prev.length <= response.messages.length;
+        if (fullReset) {
+          // Only a full load knows the true history depth, so adopt the
+          // server's `hasMore`. A merge leaves older pages loaded → keep the
+          // existing flag (set when those pages were paged in).
+          cachedHasMore = response.hasMore ?? false;
+          chatCache.msgs = response.messages;
+          chatCache.msgsTimestamp = Date.now();
+          return response.messages;
+        }
+        const fresh = new Map(response.messages.map((m) => [m.id, m]));
+        // Keep prior order; overwrite in place with refreshed copies (so
+        // edits/pins/reads propagate), then append genuinely new messages.
+        const merged = prev.map((m) => fresh.get(m.id) ?? m);
+        const seen = new Set(prev.map((m) => m.id));
+        for (const m of response.messages) {
+          if (!seen.has(m.id)) merged.push(m);
+        }
+        chatCache.msgs = merged;
+        chatCache.msgsTimestamp = Date.now();
+        return merged;
+      });
+      // Mirror the (possibly updated) cached flag into render state. Cheap
+      // and idempotent when unchanged.
+      setHasMore(cachedHasMore);
       // Bump the user's last-visit timestamp so the sidebar's unread badge
       // stays at 0 while the page is open. Fire-and-forget — UI doesn't
       // need to wait for the server ack.
@@ -156,7 +195,8 @@ export function ChatPage() {
         chatCache.msgsTimestamp = Date.now();
         return next;
       });
-      setHasMore(response.hasMore ?? false);
+      cachedHasMore = response.hasMore ?? false;
+      setHasMore(cachedHasMore);
       // Restore scroll anchor on the next frame, after the prepended
       // rows have been laid out.
       requestAnimationFrame(() => {

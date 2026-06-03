@@ -438,12 +438,21 @@ async def correct_lab_data(
     corrections.append(correction)
     lab.corrections = corrections
 
-    # Update the actual value in the category
+    # Update the actual value in the category.
+    # The lab JSONB columns are plain (no MutableDict), so an IN-PLACE mutation
+    # is NOT tracked by SQLAlchemy and would be silently dropped on commit — the
+    # correction would appear to save (API echoes the in-memory object) but
+    # revert on the next read. Rebuild the dict and REASSIGN the attribute so the
+    # change is flushed (mirrors the lab.corrections reassignment above).
     _col_name = body.category.replace("venousBloodGas", "venous_blood_gas").replace("bloodGas", "blood_gas")
     category_data = getattr(lab, _col_name, None)
     if category_data and body.item in category_data:
-        category_data[body.item]["value"] = body.correctedValue
-        category_data[body.item]["corrected"] = True
+        updated_category = dict(category_data)
+        updated_item = dict(updated_category[body.item])
+        updated_item["value"] = body.correctedValue
+        updated_item["corrected"] = True
+        updated_category[body.item] = updated_item
+        setattr(lab, _col_name, updated_category)
 
     await create_audit_log(
         db, user_id=user.id, user_name=user.name, role=user.role,

@@ -51,6 +51,7 @@
     "title": "Final output (auto-joined S + O + A + P)",
     "description": "If A / P were AI-polished, polished versions are used; S / O kept verbatim.",
     "staleBadge": "{{section}} section edited — polished result may be stale",
+    "staleGateTitle": "Polished A/P no longer matches its source — re-polish or clear it before saving",
     "empty": "(No content yet)",
     "charCount": "{{count}} chars"
   },

@@ -31,6 +31,7 @@
     "duplicateLabel": "Duplicate",
     "allergyLabel": "Allergy",
     "calculating": "Calculating…",
+    "ddiUnavailable": "Interaction check unavailable — please retry",
     "noneBadge": "None",
     "allergyCount": "{{count}} allergy(ies) on file",
     "viewDetails": "View details",

@@ -144,8 +144,10 @@ export function DashboardPage() {
       },
     },
     alerts: { total: patients.reduce((sum, p) => sum + p.alerts.length, 0) },
-    medications: { active: 0, sedation: 0, analgesia: 0, nmb: 0 },
-    messages: { today: 0, unread: 0 },
+    // The patient list can't measure medication/message stats — leave undefined
+    // so consumers show '—'/'資料不可用' instead of a fabricated all-zero.
+    medications: undefined,
+    messages: undefined,
     timestamp: new Date().toISOString(),
   } : null);
 

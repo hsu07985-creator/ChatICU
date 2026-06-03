@@ -50,6 +50,7 @@ from app.schemas.clinical import (
     SummaryRequest,
 )
 from app.services.llm_services.clinical_summary import generate_clinical_summary
+from app.services.patient_context_builder import _get_latest_lab
 from app.services.safety_guardrail import apply_safety_guardrail
 from app.utils.data_freshness import build_data_freshness
 from app.utils.structured_output import build_summary_structured
@@ -165,12 +166,9 @@ async def _get_patient_dict(patient_id: str, db: AsyncSession) -> dict:
     if not patient:
         raise HTTPException(status_code=404, detail=f"Patient {patient_id} not found")
 
-    latest_lab = (await db.execute(
-        select(LabData)
-        .where(LabData.patient_id == patient_id)
-        .order_by(LabData.timestamp.desc())
-        .limit(1)
-    )).scalar_one_or_none()
+    # Merge up to 50 recent rows (same as the chat snapshot) so HIS draws split
+    # across timestamps don't drop labs that live in slightly-older rows.
+    latest_lab = await _get_latest_lab(db, patient_id)
 
     latest_vital = (await db.execute(
         select(VitalSign)

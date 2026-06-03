@@ -10,7 +10,9 @@ import { useTranslation } from 'react-i18next';
 
 function isNormalFlora(panel: CulturePanel): boolean {
   if (panel.result && /normal\s*(oral\s*)?flora/i.test(panel.result)) return true;
-  return panel.isolates.some((i) => /normal\s*(oral\s*)?flora/i.test(i.organism));
+  // Only flora when EVERY isolate is normal flora — a real pathogen alongside
+  // normal flora must not suppress the pathogen (would falsely read as negative).
+  return panel.isolates.length > 0 && panel.isolates.every((i) => /normal\s*(oral\s*)?flora/i.test(i.organism));
 }
 
 function isPositiveCulture(panel: CulturePanel): boolean {

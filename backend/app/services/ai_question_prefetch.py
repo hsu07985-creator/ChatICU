@@ -576,7 +576,7 @@ def _med_change_bucket(med: Medication, cutoff_date: date) -> str:
         return "on_hold"
     if status in {"discontinued", "completed", "inactive"}:
         return "discontinued"
-    if isinstance(end_date, date) and end_date >= cutoff_date:
+    if isinstance(end_date, date) and cutoff_date <= end_date <= date.today():
         return "discontinued"
     if isinstance(start_date, date) and start_date >= cutoff_date:
         return "started"

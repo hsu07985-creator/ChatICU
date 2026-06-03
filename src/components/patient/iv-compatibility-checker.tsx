@@ -215,12 +215,16 @@ function IVCompatibilityMatrix({ drugs }: IVCompatibilityMatrixProps) {
 
     const newMatrix: MatrixState = {};
     const incompatible: IVCompatibilityResult[] = [];
-    for (const result of results) {
-      newMatrix[matrixKey(result.drug1, result.drug2)] = result.status;
+    // Key the matrix by the INPUT pair (limitedPairs[idx]), not result.drug1/drug2.
+    // The backend may echo a canonicalized name; keying by the canonical name would
+    // miss the read-key (rowDrug/colDrug = input names) and silently hide an 'I'.
+    results.forEach((result, idx) => {
+      const [a, b] = limitedPairs[idx];
+      newMatrix[matrixKey(a, b)] = result.status;
       if (result.status === 'I') {
         incompatible.push(result);
       }
-    }
+    });
     setMatrix(newMatrix);
     setIncompatiblePairs(incompatible);
     setIsLoading(false);

@@ -113,6 +113,7 @@ from .builders import (
     build_deferred_snapshot,
     extract_snapshot_key_values,
     build_delta,
+    build_med_change_delta,
 )
 
 __all__ = [
@@ -121,6 +122,7 @@ __all__ = [
     "build_critical_snapshot",
     "build_deferred_snapshot",
     "build_delta",
+    "build_med_change_delta",
     "extract_snapshot_key_values",
     # shared
     "TAIPEI_TZ",

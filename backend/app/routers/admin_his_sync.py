@@ -16,9 +16,15 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.database import get_db
+from app.middleware.audit import create_audit_log
+from app.middleware.auth import get_current_user
+from app.models.user import User
+from app.utils.request import get_client_ip
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/admin", tags=["admin-his-sync"])
@@ -98,6 +104,7 @@ def _check_token(x_admin_token: Optional[str]) -> None:
 
 @router.post("/his-sync")
 async def trigger_his_sync(
+    request: Request,
     force: bool = Query(
         False,
         description="true → ignore hash gate, resync everything; "
@@ -113,6 +120,8 @@ async def trigger_his_sync(
         alias="X-Admin-Token",
         description="Shared secret from backend/.env ADMIN_SYNC_TOKEN.",
     ),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Trigger one run of the HIS snapshot sync (same as a launchd tick).
 
@@ -164,6 +173,25 @@ async def trigger_his_sync(
 
         logger.info(
             "Manual HIS sync finished: rc=%s counts=%s", proc.returncode, counts
+        )
+
+        # This endpoint mutates ALL patient clinical data — record who pulled
+        # the trigger, with what scope, and the resulting outcome.
+        await create_audit_log(
+            db,
+            user_id=current_user.id,
+            user_name=current_user.name,
+            role=current_user.role,
+            action="手動觸發 HIS 同步",
+            target=patient or "全部病人",
+            status="success" if success else "failed",
+            ip=get_client_ip(request),
+            details={
+                "mode": "force" if force else "detect",
+                "patient": patient,
+                "return_code": proc.returncode,
+                "counts": counts,
+            },
         )
 
         return success_response(

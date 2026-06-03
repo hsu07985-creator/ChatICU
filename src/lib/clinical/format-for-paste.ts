@@ -101,7 +101,8 @@ export function formatMedicationsForPaste(
 ): string {
   if (!medications || !medications.length) return '';
   const active = medications.filter((m) => m.status === 'active');
-  const pool = active.length ? active : medications;
-  if (!pool.length) return '';
-  return ['Current meds:', ...pool.map(formatMedicationLine)].join('\n');
+  // Only list under 'Current meds:' when there are真正 active 用藥。若全部都是
+  // discontinued/on-hold，不可把它們列為 current（會被存進 SOAP / 複製到 HIS 誤導）。
+  if (!active.length) return 'Current meds:（無 active 用藥）';
+  return ['Current meds:', ...active.map(formatMedicationLine)].join('\n');
 }

@@ -102,7 +102,7 @@ async def test_bootstrap_returns_all_five_subpayloads(client, bootstrap_seed):
 
     # medications — same shape as GET /medications
     meds = data["medications"]
-    assert set(meds.keys()) == {"medications", "grouped", "interactions"}
+    assert set(meds.keys()) == {"medications", "grouped", "interactions", "interactionsError"}
     assert len(meds["medications"]) == 1
     assert meds["medications"][0]["name"] == "Propofol"
     assert "sedation" in meds["grouped"]

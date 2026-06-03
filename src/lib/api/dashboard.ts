@@ -15,13 +15,15 @@ export interface DashboardStats {
   alerts: {
     total: number;
   };
-  medications: {
+  // Optional: the patient-list fallback (when API stats are unavailable) cannot
+  // measure these, so it leaves them undefined rather than fabricating zeros.
+  medications?: {
     active: number;
     sedation: number;
     analgesia: number;
     nmb: number;
   };
-  messages: {
+  messages?: {
     today: number;
     unread: number;
   };

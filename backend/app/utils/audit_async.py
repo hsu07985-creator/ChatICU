@@ -22,6 +22,11 @@ from app.middleware.audit import create_audit_log
 
 logger = logging.getLogger(__name__)
 
+# Strong references to in-flight background tasks. asyncio only keeps a weak
+# reference to tasks, so without this the GC can collect a task mid-write and
+# silently drop the audit row. Tasks discard themselves on completion.
+_bg_tasks: set = set()
+
 
 def schedule_audit_log(
     *,
@@ -55,4 +60,6 @@ def schedule_audit_log(
                 action, target, str(exc)[:200],
             )
 
-    asyncio.create_task(_write())
+    task = asyncio.create_task(_write())
+    _bg_tasks.add(task)
+    task.add_done_callback(_bg_tasks.discard)

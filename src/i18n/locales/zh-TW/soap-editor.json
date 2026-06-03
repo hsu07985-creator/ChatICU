@@ -51,6 +51,7 @@
     "title": "最終輸出（自動拼接 S + O + A + P）",
     "description": "A / P 若已按 AI 修飾，會優先使用修飾後版本；S / O 逐字保留。",
     "staleBadge": "{{section}} 段已編輯，潤飾結果可能過時",
+    "staleGateTitle": "已 polish 的 A/P 與來源不一致，請重新 polish 或清除後再儲存",
     "empty": "（尚未輸入內容）",
     "charCount": "共 {{count}} 字"
   },

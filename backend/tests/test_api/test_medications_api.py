@@ -168,6 +168,18 @@ async def test_get_medication_administrations_date_window_returns_expected_subse
 
 
 @pytest.mark.asyncio
+async def test_medications_payload_exposes_interactions_error_flag(client, seeded_medication):
+    """Regression (meds-1): the payload must expose interactionsError so the UI can
+    tell 'no interactions' apart from 'check failed'. False on the happy path; a
+    failed DDI lookup now sets it True (and logs) instead of silently returning []."""
+    resp = await client.get("/patients/pat_001/medications")
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert "interactionsError" in data
+    assert data["interactionsError"] is False
+
+
+@pytest.mark.asyncio
 async def test_patch_medication_administration_persists_in_database(
     client,
     seeded_medication,

@@ -20,6 +20,7 @@ from app.middleware.auth import (
     get_current_user,
     get_redis,
     set_auth_cookies,
+    token_predates_password_change,
 )
 from app.middleware.audit import create_audit_log
 from app.middleware.rate_limit import limiter
@@ -243,6 +244,15 @@ async def refresh_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found or inactive",
+        )
+
+    # A refresh token minted before the last password change must NOT be able to
+    # mint a fresh access token — otherwise password change/reset wouldn't truly
+    # revoke the session.
+    if token_predates_password_change(payload, user):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token has been revoked",
         )
 
     token_data = {"sub": user.id, "username": user.username, "role": user.role}

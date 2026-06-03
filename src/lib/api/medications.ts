@@ -72,6 +72,10 @@ export interface MedicationsResponse {
     outpatient: Medication[];
   };
   interactions: DrugInteraction[];
+  // True when the backend drug-interaction lookup FAILED (vs genuinely found
+  // none). Lets the UI distinguish "no interactions = safe" from "check
+  // unavailable, retry" instead of showing a false all-clear.
+  interactionsError?: boolean;
 }
 
 export interface DrugInteraction {

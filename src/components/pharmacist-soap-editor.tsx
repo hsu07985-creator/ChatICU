@@ -232,10 +232,20 @@ export function PharmacistSoapEditor({
       const controller = new AbortController();
       abortRefs.current[key] = controller;
       patchSectionState(key, isRefinement ? { refining: true } : { polishing: true });
+      // ac-2: capture the prior good polished value BEFORE touching state so a
+      // FAILED refinement can restore it. A refine must never lose the last
+      // accepted A/P on a transient network error — otherwise `composed` falls
+      // through to the raw draft and that raw text is what gets saved + copied
+      // into HIS.
+      const priorPolished = polishedSoap[key] || '';
       // Reset section preview at start of each polish so previous artifacts
-      // don't bleed in (e.g. retry after error).
+      // don't bleed in (e.g. retry after error). For refinement we KEEP the prior
+      // value visible until the first refined chunk arrives — clearing it here
+      // was the bug that wiped good A/P when a refine failed.
       let sectionAccum = '';
-      setPolishedValue(key, '');
+      if (!isRefinement) {
+        setPolishedValue(key, '');
+      }
       try {
         const result = await streamPolishClinicalText(
           {
@@ -275,11 +285,13 @@ export function PharmacistSoapEditor({
         }
       } catch (err) {
         patchSectionState(key, isRefinement ? { refining: false } : { polishing: false });
-        // Per-section partial polish text is now garbage if not refinement —
-        // clear it so pharmacist doesn't paste a half-sentence into HIS.
-        // Refinement keeps the previous good polished value (the prior version
-        // is what `polishedSoap[key]` holds before this run started).
-        if (!isRefinement) {
+        // Per-section partial text is now garbage. For a fresh polish, clear it so
+        // the pharmacist can't paste a half-sentence into HIS. For refinement,
+        // RESTORE the prior good polished value — streaming above may have already
+        // overwritten it with a partial refined chunk before the failure.
+        if (isRefinement) {
+          setPolishedValue(key, priorPolished);
+        } else {
           setPolishedValue(key, '');
         }
         const reason = err instanceof PolishStreamError ? err.reason : 'network';
@@ -290,7 +302,7 @@ export function PharmacistSoapEditor({
         if (abortRefs.current[key] === controller) abortRefs.current[key] = null;
       }
     },
-    [canPolish, patchSectionState, patientId, polishReason, setPolishedValue, soap, t],
+    [canPolish, patchSectionState, patientId, polishReason, polishedSoap, setPolishedValue, soap, t],
   );
 
   const abortSection = useCallback((key: SoapSection) => {
@@ -331,6 +343,16 @@ export function PharmacistSoapEditor({
     .map((chunk) => (chunk || '').trim())
     .filter((chunk) => chunk.length > 0)
     .join('\n\n');
+
+  // ac-4: an A/P section is "stale" when it has a polished result whose source
+  // snapshot no longer matches the live source textarea — i.e. the pharmacist
+  // edited the source after polishing. `composed` still emits the OLD polished
+  // text, so Save&Copy must be GATED (not just soft-badged) to stop stale
+  // polished text reaching DB + HIS. Same condition as the stale badge below.
+  const staleSections = (['a', 'p'] as const).filter(
+    (k) => polishedSoap[k] && polishedFromSoap[k] !== soap[k],
+  );
+  const hasStalePolish = staleSections.length > 0;
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -619,17 +641,15 @@ export function PharmacistSoapEditor({
         <CardContent className="space-y-3 pt-4">
           {/* Stale warning per editable section: source textarea was edited
               after polish completed — composed is using the older polished. */}
-          {(['a', 'p'] as const)
-            .filter((k) => polishedSoap[k] && polishedFromSoap[k] !== soap[k])
-            .map((k) => (
-              <Badge
-                key={`stale-${k}`}
-                variant="secondary"
-                className="bg-amber-100 text-[11px] text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-              >
-                {t('compose.staleBadge', { section: k.toUpperCase() })}
-              </Badge>
-            ))}
+          {staleSections.map((k) => (
+            <Badge
+              key={`stale-${k}`}
+              variant="secondary"
+              className="bg-amber-100 text-[11px] text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+            >
+              {t('compose.staleBadge', { section: k.toUpperCase() })}
+            </Badge>
+          ))}
           <pre
             className="max-h-[280px] overflow-auto whitespace-pre-wrap rounded-md border border-slate-200 bg-slate-50 p-3 font-mono text-sm dark:border-slate-700 dark:bg-slate-900"
             data-testid="pharmacist-soap-composed"
@@ -662,7 +682,8 @@ export function PharmacistSoapEditor({
             </Button>
             <Button
               onClick={handleCopy}
-              disabled={!composed || submitting}
+              disabled={!composed || submitting || hasStalePolish}
+              title={hasStalePolish ? t('compose.staleGateTitle') : undefined}
               size="sm"
               className="bg-brand hover:bg-brand-hover"
             >

@@ -330,6 +330,23 @@ async def build_deferred_snapshot(
     return "\n\n".join(parts)
 
 
+def _active_med_keys(meds: List[Medication]) -> List[str]:
+    """Normalized identifier set for the active-med list, for cross-turn diffing.
+
+    Uses ``generic_name|name`` lowercased so a brand/generic rename does not read
+    as a spurious add+remove. Sorted + deduped for stable JSONB storage and
+    cheap equality comparison.
+    """
+    keys = set()
+    for m in meds or []:
+        ident = (
+            getattr(m, "generic_name", None) or getattr(m, "name", None) or ""
+        ).strip().lower()
+        if ident:
+            keys.add(ident)
+    return sorted(keys)
+
+
 def extract_snapshot_key_values(
     lab: Optional[LabData],
     meds: List[Medication],
@@ -337,6 +354,11 @@ def extract_snapshot_key_values(
     """
     Extract the key numeric values used for delta comparison.
     Stored in ai_sessions.snapshot_metadata JSONB.
+
+    ``_active_med_keys`` captures the start-of-session active-med identity so a
+    later turn can detect drugs started/stopped mid-session (see
+    ``build_med_change_delta``) — without it the LLM reasons over a frozen
+    [用藥] list.
     """
     return {
         "cr": _get_lab_val(lab, "biochemistry", "creatinine"),
@@ -345,6 +367,7 @@ def extract_snapshot_key_values(
         "lactate": _get_lab_val(lab, "blood_gas", "lactate"),
         "plt": _get_lab_val(lab, "hematology", "platelet"),
         "vasopressor_ne_dose": _vasopressor_ne_dose(meds),
+        "_active_med_keys": _active_med_keys(meds),
     }
 
 
@@ -411,3 +434,42 @@ async def build_delta(
     delta_lines.append(" | ".join(changes))
     delta_lines.append("---")
     return "\n".join(delta_lines)
+
+
+def build_med_change_delta(
+    snapshot_key_values: Dict[str, Any],
+    current_meds: List[Medication],
+) -> Optional[str]:
+    """Surface active-med additions/removals since the (frozen) session snapshot.
+
+    Unlike ``build_delta`` (numeric labs, gated to snapshots >30 min old),
+    med-list changes are surfaced on EVERY turn with no age gate: a drug started
+    or stopped mid-session is immediately clinically relevant and must never be
+    invisible to the LLM, which otherwise reasons over the start-of-session
+    [用藥] list embedded in the frozen system prompt. Ephemeral — the caller
+    injects the returned block into ``user_message`` only, so it never bloats the
+    persisted chat history or busts the OpenAI prompt cache.
+    """
+    old_keys = snapshot_key_values.get("_active_med_keys")
+    if not isinstance(old_keys, list):
+        # Snapshot predates med-key tracking (older session) — nothing to diff.
+        return None
+    new_keys = _active_med_keys(current_meds)
+    if new_keys == old_keys:
+        return None
+    old_set, new_set = set(old_keys), set(new_keys)
+    added = sorted(new_set - old_set)
+    removed = sorted(old_set - new_set)
+    if not added and not removed:
+        return None
+    parts = []
+    if added:
+        parts.append("新增用藥：" + "、".join(added))
+    if removed:
+        parts.append("已停用/移除：" + "、".join(removed))
+    now_str = _now_taipei().strftime("%H:%M")
+    return (
+        f"[用藥已變動 {now_str}（台北）]\n"
+        + " ｜ ".join(parts)
+        + "\n（session 起始的用藥清單已過時，請以本變動為準）\n---"
+    )

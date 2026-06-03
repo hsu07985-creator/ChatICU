@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Optional
@@ -24,6 +25,8 @@ from app.schemas.medication import (
     OutpatientImportRequest,
 )
 from app.utils.response import success_response
+
+logger = logging.getLogger("chaticu")
 
 router = APIRouter(prefix="/patients/{patient_id}/medications", tags=["medications"])
 
@@ -203,6 +206,7 @@ async def compute_medications_payload(
     # Lexicomp-style names in drug_interactions. ATC matching bypasses this.
     active_meds = [m for m in medications if m.status == "active"]
     interactions = []
+    interactions_error = False
     try:
         if len(active_meds) >= 2:
             from sqlalchemy import text
@@ -280,12 +284,22 @@ async def compute_medications_payload(
                     "riskRating": row[7],
                 })
     except Exception:
+        # NEVER swallow silently: an empty interaction list reads as "no
+        # interactions = safe" to the clinician, but here it means the CHECK
+        # FAILED. Log it and signal the failure so the UI can show an
+        # "unavailable, retry" state instead of a false all-clear.
+        logger.exception(
+            "[MEDS][DDI] interaction lookup failed patient=%s active_meds=%d",
+            pid, len(active_meds),
+        )
         interactions = []
+        interactions_error = True
 
     return {
         "medications": all_meds,
         "grouped": grouped,
         "interactions": interactions,
+        "interactionsError": interactions_error,
     }
 
 

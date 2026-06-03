@@ -128,6 +128,31 @@ def _extract_token(
     )
 
 
+def token_predates_password_change(payload: dict, user: User) -> bool:
+    """True if the JWT was issued before the user's password last changed.
+
+    Revokes every session minted before a password change / reset / admin-set
+    WITHOUT enumerating per-user tokens: access & refresh tokens carry ``iat``
+    and the User row carries ``password_changed_at`` (stamped by all three
+    password-mutation paths). Used to honour the "請重新登入" promise and to kill
+    an attacker's lingering session after a compromised-account reset.
+    """
+    changed_at = getattr(user, "password_changed_at", None)
+    if changed_at is None:
+        return False
+    iat = payload.get("iat")
+    if iat is None:
+        return False
+    try:
+        # Floor both sides to whole seconds: JWT ``iat`` is already integer
+        # seconds, so comparing against a sub-second ``password_changed_at``
+        # would otherwise falsely revoke a token minted in the SAME second a
+        # password change committed (e.g. change → immediate re-login).
+        return int(float(iat)) < int(changed_at.timestamp())
+    except (TypeError, ValueError, OSError):
+        return False
+
+
 async def get_current_user(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
@@ -171,6 +196,13 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found or inactive",
+        )
+
+    # Revoke sessions issued before the user's last password change/reset.
+    if token_predates_password_change(payload, user):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
         )
 
     # ── Idle timeout check ──

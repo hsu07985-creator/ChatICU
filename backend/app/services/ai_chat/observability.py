@@ -239,7 +239,17 @@ async def detect_and_inject_assertion_conflict(
     quantify how often this fires and whether the LLM actually pushed back.
     """
     try:
-        conflict_med_names = [m.name for m in active_meds if m and m.name]
+        # Match on both brand name and generic_name: the snapshot displays
+        # generic_name, so a clinician denying a drug by its generic name must
+        # still trip negation-conflict detection (mirror router alias-building).
+        conflict_med_names: list = []
+        for m in active_meds:
+            if not m:
+                continue
+            if m.name:
+                conflict_med_names.append(m.name)
+            if getattr(m, "generic_name", None):
+                conflict_med_names.append(m.generic_name)
         conflicts = detect_med_negation_conflict(original_message, conflict_med_names)
         if conflicts:
             med_records = [

@@ -294,7 +294,10 @@ def _fmt_renal_dosing_section(
     if crcl is None:
         lines.append(f"CrCl: 無法計算（{reason}）")
     else:
-        lines.append(f"CrCl 約 {_fmt_num(crcl)} mL/min（Cockcroft-Gault，{reason}）")
+        lines.append(
+            f"CrCl 約 {_fmt_num(crcl)} mL/min（Cockcroft-Gault，{reason}）"
+            "（以實際體重估算，肥胖／水腫時可能高估，請臨床判讀）"
+        )
 
     renal_meds = _renal_relevant_med_names(meds)
     if renal_meds:

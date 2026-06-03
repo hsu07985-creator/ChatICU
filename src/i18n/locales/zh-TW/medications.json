@@ -31,6 +31,7 @@
     "duplicateLabel": "重複用藥",
     "allergyLabel": "過敏衝突",
     "calculating": "計算中…",
+    "ddiUnavailable": "交互作用檢查暫時無法使用，請重試",
     "noneBadge": "無",
     "allergyCount": "已登錄 {{count}} 項過敏",
     "viewDetails": "查看詳情",

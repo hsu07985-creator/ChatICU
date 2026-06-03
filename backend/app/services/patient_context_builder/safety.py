@@ -69,6 +69,20 @@ _ALLERGY_GROUP_KEYWORDS: Dict[str, tuple[str, ...]] = {
     ),
 }
 
+# Chinese class-allergy terms → trigger key in _ALLERGY_GROUP_KEYWORDS.
+# HIS allergy fields are often Chinese class names, which never substring-match
+# English drug names; this routes them onto the existing English group path.
+_ALLERGY_ZH_ALIASES: Dict[str, str] = {
+    "青黴素": "penicillin",
+    "盤尼西林": "penicillin",
+    "磺胺": "sulfa",
+    "磺胺類": "sulfa",
+    "頭孢": "cephalosporin",
+    "先鋒": "cephalosporin",
+    "孢菌素": "cephalosporin",
+    "阿斯匹靈": "nsaid",
+}
+
 _SAFETY_CATEGORY_ORDER = (
     "QT/心律風險",
     "出血風險",
@@ -171,6 +185,13 @@ def _allergy_matches_med(term: str, med_text: str) -> bool:
     for noise in ("allergic to", "allergy", "過敏", "藥物"):
         needle = needle.replace(noise, "")
     needle = needle.strip()
+    # Chinese class allergies (e.g. 青黴素/磺胺) never substring-match English
+    # drug names, so route any alias onto its English group keywords first.
+    for alias, group in _ALLERGY_ZH_ALIASES.items():
+        if alias in needle and any(
+            keyword in med_text for keyword in _ALLERGY_GROUP_KEYWORDS[group]
+        ):
+            return True
     if len(needle) < 3:
         return False
     if needle in med_text or med_text in needle:
@@ -302,19 +323,38 @@ def _fmt_medication_safety_section(
     return "\n".join(lines)
 
 
+_NON_ICU_WARD_MARKERS = (
+    "ward",
+    "outpatient",
+    "opd",
+    "clinic",
+    "emergency",
+    "er",
+    "病房",
+    "門診",
+    "急診",
+    "一般病房",
+    "普通病房",
+)
+
+
 def _infer_duplicate_context(patient: Optional[Patient]) -> str:
     """Infer DuplicateDetector context from the patient's unit/ward.
 
-    Returns one of "icu" | "inpatient"; falls back to "inpatient" when the
-    unit is unknown. Outpatient/discharge are not reachable from the chat
-    snapshot (those flows have their own builders).
+    Returns one of "icu" | "inpatient". This builder feeds the *ICU* chat
+    snapshot, and HIS patients always have an empty ``unit``; defaulting an
+    empty/unknown unit to "inpatient" would wrongly downgrade ICU-level
+    bleeding/QT alerts. So we fail SAFE to "icu" unless the unit explicitly
+    names a recognisable non-ICU ward.
     """
     if patient is None:
-        return "inpatient"
+        return "icu"
     unit = (getattr(patient, "unit", None) or "").strip().lower()
     if "icu" in unit:
         return "icu"
-    return "inpatient"
+    if any(marker in unit for marker in _NON_ICU_WARD_MARKERS):
+        return "inpatient"
+    return "icu"
 
 
 async def _safe_duplicate_warnings(

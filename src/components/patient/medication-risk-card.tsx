@@ -156,6 +156,9 @@ export function MedicationRiskCard({
           medications: [],
           grouped: { sedation: [], analgesia: [], nmb: [], other: [], outpatient: [] },
           interactions: [],
+          // A fetch failure is an UNKNOWN state, not a confirmed all-clear —
+          // flag it so the DDI row shows "unavailable" instead of "no risk".
+          interactionsError: true,
         };
       }
     },
@@ -185,6 +188,10 @@ export function MedicationRiskCard({
   });
 
   const ddiCounts = tallyDdiBySeverity(medsData?.interactions);
+  // meds-1: the backend (or the fetch above) flagged that the DDI lookup FAILED.
+  // An empty interaction list then means "unknown", not "no interactions" — never
+  // render it as a safe all-clear.
+  const ddiUnavailable = Boolean(medsData?.interactionsError);
   const dupCounts = tallyDuplicatesBySeverity(
     duplicateData?.counts,
     duplicateData?.alerts,
@@ -252,6 +259,10 @@ export function MedicationRiskCard({
               {isLoading && ddiTotal === 0 ? (
                 <span className="inline-flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
                   <Loader2 className="h-3 w-3 animate-spin" /> {t('riskCard.calculating')}
+                </span>
+              ) : ddiUnavailable ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="h-3 w-3" aria-hidden /> {t('riskCard.ddiUnavailable')}
                 </span>
               ) : (
                 <SeverityBadges counts={ddiCounts} />

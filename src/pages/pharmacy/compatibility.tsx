@@ -290,11 +290,19 @@ export function CompatibilityPage() {
           const resp = await getIVCompatibility({ drugA: validDrugs[i], drugB: validDrugs[j] });
           const rows = resp.compatibilities || [];
           if (rows.length > 0) {
+            // Aggregate across ALL solution rows for this pair — worst-case wins:
+            // if ANY row is incompatible, the cell is 'I' (never hide an incompatibility
+            // behind rows[0]). Combine the notes from the incompatible rows.
+            const incompatRows = rows.filter(r => r.compatible === false);
+            const anyIncompatible = incompatRows.length > 0;
+            const notes = anyIncompatible
+              ? incompatRows.map(r => r.notes).filter(Boolean).join('; ') || undefined
+              : rows[0].notes || undefined;
             results.push({
               drugA: validDrugs[i],
               drugB: validDrugs[j],
-              status: rows[0].compatible ? 'C' : 'I',
-              notes: rows[0].notes || undefined,
+              status: anyIncompatible ? 'I' : 'C',
+              notes,
             });
           } else {
             results.push({ drugA: validDrugs[i], drugB: validDrugs[j], status: '-' });

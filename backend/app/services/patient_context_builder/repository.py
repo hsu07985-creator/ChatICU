@@ -50,6 +50,14 @@ def _merge_lab_rows(labs: List[LabData]) -> Optional[LabData]:
     timestamps. A single latest row may contain only ALP/GGT, which is not
     enough context for AI chat. Keep the newest row's timestamp, but fill each
     JSONB item from the most recent row that contains it.
+
+    NOTE (svc-2): the merge is intentionally UNBOUNDED in time. An ICU patient's
+    most recent CBC can legitimately be ~24-48h older than the latest chemistry
+    draw (different draw schedules); a time window would DROP that value and hide
+    a real, often abnormal result — a worse failure than the staleness it tried
+    to fix. The real svc-2 concern (a stale item shown under the newest
+    timestamp) should be addressed with per-item recency annotation in the lab
+    formatter, NOT by discarding data here.
     """
     if not labs:
         return None

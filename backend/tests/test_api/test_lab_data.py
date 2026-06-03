@@ -193,3 +193,37 @@ async def test_get_lab_trends_clcr_falls_back_to_patient_weight_when_no_history(
     assert clcr["value"] == 72.9
     assert clcr["weightUsed"] == 70.0
     assert clcr["weightSource"] == "patient_profile"
+
+
+@pytest.fixture
+async def seeded_wrapped_lab(seeded_db):
+    """Lab row in the HIS-wrapped {item: {value, ...}} shape that /correct mutates."""
+    db = seeded_db
+    db.add(LabData(
+        id="lab_corr_001",
+        patient_id="pat_001",
+        timestamp=datetime.now(timezone.utc),
+        biochemistry={"Cr": {"value": 1.2, "unit": "mg/dL"}},
+    ))
+    await db.commit()
+    return db
+
+
+async def test_correct_lab_value_persists_after_refetch(client, seeded_wrapped_lab):
+    """Regression (lab-1): a lab-value correction must PERSIST. The JSONB column is
+    plain (no MutableDict); an in-place mutation was silently dropped on commit, so
+    the value reverted on the next read while the API still echoed the new value."""
+    patch = await client.patch(
+        "/patients/pat_001/lab-data/lab_corr_001/correct",
+        json={"category": "biochemistry", "item": "Cr",
+              "correctedValue": 9.9, "reason": "unit test"},
+    )
+    assert patch.status_code == 200
+
+    # Re-fetch through a fresh request → reads committed DB state, not the
+    # in-memory object the PATCH echoed back.
+    latest = await client.get("/patients/pat_001/lab-data/latest")
+    assert latest.status_code == 200
+    cr = latest.json()["data"]["biochemistry"]["Cr"]
+    assert cr["value"] == 9.9
+    assert cr["corrected"] is True
