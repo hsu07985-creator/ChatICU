@@ -43,9 +43,7 @@ export default [
       'public/**',
       'e2e/**',
       'patient/**',
-      'drug_api/**',
       'reports/**',
-      'data/**',
       'output/**',
       'docs/**',
       'scripts/**',
@@ -53,14 +51,9 @@ export default [
       '.venv312/**',
       '.pre-commit-cache/**',
       '.claude/**',
-      // Reference / scratch directories that include non-ASCII names —
-      // not part of the deployed app.
-      '0_chatICU reference/**',
-      '1150429_2nd_2_patients_1141001_1150501/**',
-      '1_藥物＿季/**',
-      '2_藥物交互作用＋相容性/**',
-      '逆轉腎ai/**',
-      '重複用藥＋交互作用/**',
+      // Machine-local reference / scratch data (non-deployed), consolidated
+      // under local/ during the 2026-07-10 restructure.
+      'local/**',
       'src/imports/**',         // Figma-generated, not authored UI
       'src/i18n/locales/**',    // dictionary files themselves
       'src/styles/**',

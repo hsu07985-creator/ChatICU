@@ -40,7 +40,9 @@ backend/seeds/drug_interactions_full.json
 
 # Non-code assets / local tooling
 .claude/
-rag 文本/
+# Machine-local working data (reference corpora, drug source data, side
+# projects, xlsx) consolidated here — see local/README.md.
+local/
 *.xlsx
 security_report.json
 .mcp.json

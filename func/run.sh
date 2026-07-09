@@ -17,10 +17,10 @@ PYTHON_BIN="${PYTHON_BIN:-python3}"
 if [[ -z "${SOURCE_DIR:-}" ]]; then
   if [[ -d "$ROOT_DIR/rag 文本" ]]; then
     SOURCE_DIR="$ROOT_DIR/rag 文本"
-  elif [[ -d "$ROOT_DIR/../rag 文本" ]]; then
-    SOURCE_DIR="$ROOT_DIR/../rag 文本"
+  elif [[ -d "$ROOT_DIR/../local/rag 文本" ]]; then
+    SOURCE_DIR="$ROOT_DIR/../local/rag 文本"
   else
-    SOURCE_DIR="$ROOT_DIR/rag 文本"
+    SOURCE_DIR="$ROOT_DIR/../local/rag 文本"
   fi
 fi
 HOST="${HOST:-0.0.0.0}"

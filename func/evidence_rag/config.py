@@ -11,7 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 def _default_source_dir() -> str:
     local = PROJECT_ROOT / "rag 文本"
-    parent = PROJECT_ROOT.parent / "rag 文本"
+    parent = PROJECT_ROOT.parent / "local" / "rag 文本"
     if local.exists():
         return str(local)
     return str(parent)

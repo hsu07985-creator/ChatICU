@@ -12,7 +12,7 @@ import os
 from pathlib import Path
 
 # Add the parser module to sys.path
-PARSER_DIR = Path(__file__).resolve().parents[1] / "1_藥物＿季"
+PARSER_DIR = Path(__file__).resolve().parents[1] / "local" / "1_藥物＿季"
 sys.path.insert(0, str(PARSER_DIR))
 
 from parse_interactions import load_and_dedup, create_chunks, ParsedInteraction

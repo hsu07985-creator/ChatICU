@@ -1,0 +1,460 @@
+- generic [ref=e2]:
+  - generic [ref=e8]:
+    - generic [ref=e11]:
+      - button "ChatICU ChatICU 劉芃邑 · ICU" [ref=e13] [cursor=pointer]:
+        - generic [ref=e14]:
+          - img "ChatICU" [ref=e15]
+          - generic [ref=e16]:
+            - heading "ChatICU" [level=2] [ref=e17]
+            - paragraph [ref=e18]: 劉芃邑 · ICU
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - generic [ref=e21]: 病人照護
+          - list [ref=e23]:
+            - listitem [ref=e24]:
+              - link "總覽" [ref=e25] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e26]
+                - generic [ref=e29]: 總覽
+            - listitem [ref=e30]:
+              - link "病人清單" [ref=e31] [cursor=pointer]:
+                - /url: /patients
+                - img [ref=e32]
+                - generic [ref=e37]: 病人清單
+            - listitem [ref=e38]:
+              - link "已出院病人" [ref=e39] [cursor=pointer]:
+                - /url: /patients/discharged
+                - img [ref=e40]
+                - generic [ref=e43]: 已出院病人
+        - generic [ref=e44]:
+          - generic [ref=e45]: 溝通
+          - list [ref=e47]:
+            - listitem [ref=e48]:
+              - link "AI 問答" [ref=e49] [cursor=pointer]:
+                - /url: /ai-chat
+                - img [ref=e50]
+                - generic [ref=e52]: AI 問答
+            - listitem [ref=e53]:
+              - link "團隊聊天室" [ref=e54] [cursor=pointer]:
+                - /url: /chat
+                - img [ref=e55]
+                - generic [ref=e57]: 團隊聊天室
+      - generic [ref=e59]:
+        - button "淺色模式" [ref=e60]:
+          - img
+          - generic [ref=e61]: 淺色模式
+        - button "登出" [ref=e62]:
+          - img
+          - generic [ref=e63]: 登出
+    - main [ref=e64]:
+      - generic [ref=e65]:
+        - generic [ref=e67]:
+          - generic [ref=e68]:
+            - heading "病人清單" [level=1] [ref=e69]
+            - generic [ref=e70]:
+              - img [ref=e71]
+              - text: 模擬資料
+          - paragraph [ref=e73]: 檢視所有病患資料
+        - generic [ref=e74]:
+          - generic [ref=e76]:
+            - generic [ref=e77]:
+              - img [ref=e78]
+              - textbox "搜尋姓名或床號..." [ref=e81]
+            - combobox [ref=e82]:
+              - generic: 全部病患
+              - img
+          - table [ref=e317]:
+            - rowgroup [ref=e333]:
+              - row "床號 病例號碼 姓名 性別 年齡 主治醫師 入院診斷 入ICU日期 呼吸器天數 DNR 隔離 插管 編輯 出院" [ref=e334]:
+                - columnheader "床號" [ref=e335]
+                - columnheader "病例號碼" [ref=e336]
+                - columnheader "姓名" [ref=e337]
+                - columnheader "性別" [ref=e338]
+                - columnheader "年齡" [ref=e339]
+                - columnheader "主治醫師" [ref=e340]
+                - columnheader "入院診斷" [ref=e341]
+                - columnheader "入ICU日期" [ref=e342]
+                - columnheader "呼吸器天數" [ref=e343]
+                - columnheader "DNR" [ref=e344]
+                - columnheader "隔離" [ref=e345]
+                - columnheader "插管" [ref=e346]
+                - columnheader "編輯" [ref=e347]
+                - columnheader "出院" [ref=e348]
+            - rowgroup [ref=e349]:
+              - row "I-01 50554559 廖○賢 男 39 歲 黃英哲 I61.5非創傷性腦室出血 Z93.0氣管造口狀態 R06.00呼吸困難 2026-04-22 (11 天) 0 天 無 無 氣切" [ref=e350] [cursor=pointer]:
+                - cell "I-01" [ref=e351]:
+                  - generic [ref=e352]: I-01
+                - cell "50554559" [ref=e353]
+                - cell "廖○賢" [ref=e354]
+                - cell "男" [ref=e355]
+                - cell "39 歲" [ref=e356]
+                - cell "黃英哲" [ref=e357]:
+                  - generic [ref=e358]: 黃英哲
+                - cell "I61.5非創傷性腦室出血 Z93.0氣管造口狀態 R06.00呼吸困難" [ref=e359]:
+                  - generic [ref=e360]: I61.5非創傷性腦室出血
+                  - generic [ref=e361]: Z93.0氣管造口狀態
+                  - generic [ref=e362]: R06.00呼吸困難
+                - cell "2026-04-22 (11 天)" [ref=e363]:
+                  - generic [ref=e364]:
+                    - generic [ref=e365]: 2026-04-22
+                    - generic [ref=e366]: (11 天)
+                - cell "0 天" [ref=e367]:
+                  - generic [ref=e368]: 0 天
+                - cell "無" [ref=e369]:
+                  - generic [ref=e370]: 無
+                - cell "無" [ref=e371]:
+                  - generic [ref=e372]: 無
+                - cell "氣切" [ref=e373]:
+                  - generic [ref=e374]: 氣切
+                - cell [ref=e375]:
+                  - button "編輯" [ref=e376]:
+                    - img
+                - cell [ref=e377]:
+                  - button "辦理出院（保留病歷）" [ref=e379]:
+                    - img
+              - row "I-05 35876842 吳○旺 男 81 歲 李穎灝 J18.9肺炎，未明示病原體 Z99.11呼吸器依賴狀態 R65.10未伴有急性器官功能障礙的非感染性全身炎症反應症候群(SIRS) 2026-02-23 (69 天) 13 天 有 無 氣切" [ref=e380] [cursor=pointer]:
+                - cell "I-05" [ref=e381]:
+                  - generic [ref=e382]: I-05
+                - cell "35876842" [ref=e383]
+                - cell "吳○旺" [ref=e384]
+                - cell "男" [ref=e385]
+                - cell "81 歲" [ref=e386]
+                - cell "李穎灝" [ref=e387]:
+                  - generic [ref=e388]: 李穎灝
+                - cell "J18.9肺炎，未明示病原體 Z99.11呼吸器依賴狀態 R65.10未伴有急性器官功能障礙的非感染性全身炎症反應症候群(SIRS)" [ref=e389]:
+                  - generic [ref=e390]: J18.9肺炎，未明示病原體
+                  - generic [ref=e391]: Z99.11呼吸器依賴狀態
+                  - generic [ref=e392]: R65.10未伴有急性器官功能障礙的非感染性全身炎症反應症候群(SIRS)
+                - cell "2026-02-23 (69 天)" [ref=e393]:
+                  - generic [ref=e394]:
+                    - generic [ref=e395]: 2026-02-23
+                    - generic [ref=e396]: (69 天)
+                - cell "13 天" [ref=e397]:
+                  - generic [ref=e398]: 13 天
+                - cell "有" [ref=e399]:
+                  - generic [ref=e400]: 有
+                - cell "無" [ref=e401]:
+                  - generic [ref=e402]: 無
+                - cell "氣切" [ref=e403]:
+                  - generic [ref=e404]: 氣切
+                - cell [ref=e405]:
+                  - button "編輯" [ref=e406]:
+                    - img
+                - cell [ref=e407]:
+                  - button "辦理出院（保留病歷）" [ref=e409]:
+                    - img
+              - row "I-06 30477877 周○銘 男 72 歲 黃英哲 I63.9腦梗塞 2026-04-22 (11 天) 0 天 有 無 未插管" [ref=e410] [cursor=pointer]:
+                - cell "I-06" [ref=e411]:
+                  - generic [ref=e412]: I-06
+                - cell "30477877" [ref=e413]
+                - cell "周○銘" [ref=e414]
+                - cell "男" [ref=e415]
+                - cell "72 歲" [ref=e416]
+                - cell "黃英哲" [ref=e417]:
+                  - generic [ref=e418]: 黃英哲
+                - cell "I63.9腦梗塞" [ref=e419]:
+                  - generic [ref=e420]: I63.9腦梗塞
+                - cell "2026-04-22 (11 天)" [ref=e421]:
+                  - generic [ref=e422]:
+                    - generic [ref=e423]: 2026-04-22
+                    - generic [ref=e424]: (11 天)
+                - cell "0 天" [ref=e425]:
+                  - generic [ref=e426]: 0 天
+                - cell "有" [ref=e427]:
+                  - generic [ref=e428]: 有
+                - cell "無" [ref=e429]:
+                  - generic [ref=e430]: 無
+                - cell "未插管" [ref=e431]:
+                  - generic [ref=e432]: 未插管
+                - cell [ref=e433]:
+                  - button "編輯" [ref=e434]:
+                    - img
+                - cell [ref=e435]:
+                  - button "辦理出院（保留病歷）" [ref=e437]:
+                    - img
+              - row "I-07 50559866 楊○鳳 女 81 歲 黃英哲 N17.9急性腎衰竭 E87.5高血鉀症 I10本態性(原發性)高血壓 2026-01-16 (107 天) 0 天 有 無 插管中" [ref=e438] [cursor=pointer]:
+                - cell "I-07" [ref=e439]:
+                  - generic [ref=e440]: I-07
+                - cell "50559866" [ref=e441]
+                - cell "楊○鳳" [ref=e442]
+                - cell "女" [ref=e443]
+                - cell "81 歲" [ref=e444]
+                - cell "黃英哲" [ref=e445]:
+                  - generic [ref=e446]: 黃英哲
+                - cell "N17.9急性腎衰竭 E87.5高血鉀症 I10本態性(原發性)高血壓" [ref=e447]:
+                  - generic [ref=e448]: N17.9急性腎衰竭
+                  - generic [ref=e449]: E87.5高血鉀症
+                  - generic [ref=e450]: I10本態性(原發性)高血壓
+                - cell "2026-01-16 (107 天)" [ref=e451]:
+                  - generic [ref=e452]:
+                    - generic [ref=e453]: 2026-01-16
+                    - generic [ref=e454]: (107 天)
+                - cell "0 天" [ref=e455]:
+                  - generic [ref=e456]: 0 天
+                - cell "有" [ref=e457]:
+                  - generic [ref=e458]: 有
+                - cell "無" [ref=e459]:
+                  - generic [ref=e460]: 無
+                - cell "插管中" [ref=e461]:
+                  - generic [ref=e462]: 插管中
+                - cell [ref=e463]:
+                  - button "編輯" [ref=e464]:
+                    - img
+                - cell [ref=e465]:
+                  - button "辦理出院（保留病歷）" [ref=e467]:
+                    - img
+              - row "I-09 50068758 賴○玲 女 71 歲 李穎灝 Z99.11呼吸器依賴狀態 J44.9慢性阻塞性肺病 E11.65第二型糖尿病，伴有高血糖 2023-09-22 (954 天) 0 天 有 無 氣切" [ref=e468] [cursor=pointer]:
+                - cell "I-09" [ref=e469]:
+                  - generic [ref=e470]: I-09
+                - cell "50068758" [ref=e471]
+                - cell "賴○玲" [ref=e472]
+                - cell "女" [ref=e473]
+                - cell "71 歲" [ref=e474]
+                - cell "李穎灝" [ref=e475]:
+                  - generic [ref=e476]: 李穎灝
+                - cell "Z99.11呼吸器依賴狀態 J44.9慢性阻塞性肺病 E11.65第二型糖尿病，伴有高血糖" [ref=e477]:
+                  - generic [ref=e478]: Z99.11呼吸器依賴狀態
+                  - generic [ref=e479]: J44.9慢性阻塞性肺病
+                  - generic [ref=e480]: E11.65第二型糖尿病，伴有高血糖
+                - cell "2023-09-22 (954 天)" [ref=e481]:
+                  - generic [ref=e482]:
+                    - generic [ref=e483]: 2023-09-22
+                    - generic [ref=e484]: (954 天)
+                - cell "0 天" [ref=e485]:
+                  - generic [ref=e486]: 0 天
+                - cell "有" [ref=e487]:
+                  - generic [ref=e488]: 有
+                - cell "無" [ref=e489]:
+                  - generic [ref=e490]: 無
+                - cell "氣切" [ref=e491]:
+                  - generic [ref=e492]: 氣切
+                - cell [ref=e493]:
+                  - button "編輯" [ref=e494]:
+                    - img
+                - cell [ref=e495]:
+                  - button "辦理出院（保留病歷）" [ref=e497]:
+                    - img
+              - row "I-10 50078917 不○男 男 0 歲 劉奇樺 S06.6X0A創傷性蜘蛛網膜下出血，未伴有意識喪失之初期照護 S01.111A右側眼瞼及眼周圍撕裂傷未伴有異物之初期照護 S00.81XA頭部其他部位擦傷之初期照護 S80.211A右側膝部擦傷之初期照護 S80.212A左側膝部擦傷之初期照護 S52.591D右側橈骨下端其他閉鎖性骨折癒合之後續照護 2026-04-26 (7 天) 0 天 無 無 未插管" [ref=e498] [cursor=pointer]:
+                - cell "I-10" [ref=e499]:
+                  - generic [ref=e500]: I-10
+                - cell "50078917" [ref=e501]
+                - cell "不○男" [ref=e502]
+                - cell "男" [ref=e503]
+                - cell "0 歲" [ref=e504]
+                - cell "劉奇樺" [ref=e505]:
+                  - generic [ref=e506]: 劉奇樺
+                - cell "S06.6X0A創傷性蜘蛛網膜下出血，未伴有意識喪失之初期照護 S01.111A右側眼瞼及眼周圍撕裂傷未伴有異物之初期照護 S00.81XA頭部其他部位擦傷之初期照護 S80.211A右側膝部擦傷之初期照護 S80.212A左側膝部擦傷之初期照護 S52.591D右側橈骨下端其他閉鎖性骨折癒合之後續照護" [ref=e507]:
+                  - generic [ref=e508]: S06.6X0A創傷性蜘蛛網膜下出血，未伴有意識喪失之初期照護
+                  - generic [ref=e509]: S01.111A右側眼瞼及眼周圍撕裂傷未伴有異物之初期照護
+                  - generic [ref=e510]: S00.81XA頭部其他部位擦傷之初期照護
+                  - generic [ref=e511]: S80.211A右側膝部擦傷之初期照護
+                  - generic [ref=e512]: S80.212A左側膝部擦傷之初期照護
+                  - generic [ref=e513]: S52.591D右側橈骨下端其他閉鎖性骨折癒合之後續照護
+                - cell "2026-04-26 (7 天)" [ref=e514]:
+                  - generic [ref=e515]:
+                    - generic [ref=e516]: 2026-04-26
+                    - generic [ref=e517]: (7 天)
+                - cell "0 天" [ref=e518]:
+                  - generic [ref=e519]: 0 天
+                - cell "無" [ref=e520]:
+                  - generic [ref=e521]: 無
+                - cell "無" [ref=e522]:
+                  - generic [ref=e523]: 無
+                - cell "未插管" [ref=e524]:
+                  - generic [ref=e525]: 未插管
+                - cell [ref=e526]:
+                  - button "編輯" [ref=e527]:
+                    - img
+                - cell [ref=e528]:
+                  - button "辦理出院（保留病歷）" [ref=e530]:
+                    - img
+              - row "I-11 16312169 宋○津 女 66 歲 李穎灝 Z99.11呼吸器依賴狀態 J18.8其他肺炎，未明示病原體 R65.20未伴有敗血性休克的嚴重敗血症 2026-01-31 (92 天) 41 天 無 無 氣切" [ref=e531] [cursor=pointer]:
+                - cell "I-11" [ref=e532]:
+                  - generic [ref=e533]: I-11
+                - cell "16312169" [ref=e534]
+                - cell "宋○津" [ref=e535]
+                - cell "女" [ref=e536]
+                - cell "66 歲" [ref=e537]
+                - cell "李穎灝" [ref=e538]:
+                  - generic [ref=e539]: 李穎灝
+                - cell "Z99.11呼吸器依賴狀態 J18.8其他肺炎，未明示病原體 R65.20未伴有敗血性休克的嚴重敗血症" [ref=e540]:
+                  - generic [ref=e541]: Z99.11呼吸器依賴狀態
+                  - generic [ref=e542]: J18.8其他肺炎，未明示病原體
+                  - generic [ref=e543]: R65.20未伴有敗血性休克的嚴重敗血症
+                - cell "2026-01-31 (92 天)" [ref=e544]:
+                  - generic [ref=e545]:
+                    - generic [ref=e546]: 2026-01-31
+                    - generic [ref=e547]: (92 天)
+                - cell "41 天" [ref=e548]:
+                  - generic [ref=e549]: 41 天
+                - cell "無" [ref=e550]:
+                  - generic [ref=e551]: 無
+                - cell "無" [ref=e552]:
+                  - generic [ref=e553]: 無
+                - cell "氣切" [ref=e554]:
+                  - generic [ref=e555]: 氣切
+                - cell [ref=e556]:
+                  - button "編輯" [ref=e557]:
+                    - img
+                - cell [ref=e558]:
+                  - button "辦理出院（保留病歷）" [ref=e560]:
+                    - img
+              - row "I-15 19765571 舒○信 男 46 歲 李穎灝 Z99.11呼吸器依賴狀態 2026-03-12 (52 天) 47 天 無 無 插管中" [ref=e561] [cursor=pointer]:
+                - cell "I-15" [ref=e562]:
+                  - generic [ref=e563]: I-15
+                - cell "19765571" [ref=e564]
+                - cell "舒○信" [ref=e565]
+                - cell "男" [ref=e566]
+                - cell "46 歲" [ref=e567]
+                - cell "李穎灝" [ref=e568]:
+                  - generic [ref=e569]: 李穎灝
+                - cell "Z99.11呼吸器依賴狀態" [ref=e570]:
+                  - generic [ref=e571]: Z99.11呼吸器依賴狀態
+                - cell "2026-03-12 (52 天)" [ref=e572]:
+                  - generic [ref=e573]:
+                    - generic [ref=e574]: 2026-03-12
+                    - generic [ref=e575]: (52 天)
+                - cell "47 天" [ref=e576]:
+                  - generic [ref=e577]: 47 天
+                - cell "無" [ref=e578]:
+                  - generic [ref=e579]: 無
+                - cell "無" [ref=e580]:
+                  - generic [ref=e581]: 無
+                - cell "插管中" [ref=e582]:
+                  - generic [ref=e583]: 插管中
+                - cell [ref=e584]:
+                  - button "編輯" [ref=e585]:
+                    - img
+                - cell [ref=e586]:
+                  - button "辦理出院（保留病歷）" [ref=e588]:
+                    - img
+              - row "I-16 50076763 傅○曉 男 63 歲 黃英哲 S06.0X0A腦震盪，未伴有意識喪失之初期照護 R65.21伴有敗血性休克的嚴重敗血症 R56.1創傷後發作 I11.9高血壓性心臟病，無心臟衰竭 E11.9第二型糖尿病，未伴有併發症 2026-04-08 (25 天) 0 天 有 無 未插管" [ref=e589] [cursor=pointer]:
+                - cell "I-16" [ref=e590]:
+                  - generic [ref=e591]: I-16
+                - cell "50076763" [ref=e592]
+                - cell "傅○曉" [ref=e593]
+                - cell "男" [ref=e594]
+                - cell "63 歲" [ref=e595]
+                - cell "黃英哲" [ref=e596]:
+                  - generic [ref=e597]: 黃英哲
+                - cell "S06.0X0A腦震盪，未伴有意識喪失之初期照護 R65.21伴有敗血性休克的嚴重敗血症 R56.1創傷後發作 I11.9高血壓性心臟病，無心臟衰竭 E11.9第二型糖尿病，未伴有併發症" [ref=e598]:
+                  - generic [ref=e599]: S06.0X0A腦震盪，未伴有意識喪失之初期照護
+                  - generic [ref=e600]: R65.21伴有敗血性休克的嚴重敗血症
+                  - generic [ref=e601]: R56.1創傷後發作
+                  - generic [ref=e602]: I11.9高血壓性心臟病，無心臟衰竭
+                  - generic [ref=e603]: E11.9第二型糖尿病，未伴有併發症
+                - cell "2026-04-08 (25 天)" [ref=e604]:
+                  - generic [ref=e605]:
+                    - generic [ref=e606]: 2026-04-08
+                    - generic [ref=e607]: (25 天)
+                - cell "0 天" [ref=e608]:
+                  - generic [ref=e609]: 0 天
+                - cell "有" [ref=e610]:
+                  - generic [ref=e611]: 有
+                - cell "無" [ref=e612]:
+                  - generic [ref=e613]: 無
+                - cell "未插管" [ref=e614]:
+                  - generic [ref=e615]: 未插管
+                - cell [ref=e616]:
+                  - button "編輯" [ref=e617]:
+                    - img
+                - cell [ref=e618]:
+                  - button "辦理出院（保留病歷）" [ref=e620]:
+                    - img
+              - row "I-17 50480738 周○鄉 女 61 歲 黃英哲 R65.21伴有敗血性休克的嚴重敗血症 I73.9末梢血管疾病 L03.90蜂窩組織炎 N17.9急性腎衰竭 2026-04-23 (10 天) 0 天 無 無 插管中" [ref=e621] [cursor=pointer]:
+                - cell "I-17" [ref=e622]:
+                  - generic [ref=e623]: I-17
+                - cell "50480738" [ref=e624]
+                - cell "周○鄉" [ref=e625]
+                - cell "女" [ref=e626]
+                - cell "61 歲" [ref=e627]
+                - cell "黃英哲" [ref=e628]:
+                  - generic [ref=e629]: 黃英哲
+                - cell "R65.21伴有敗血性休克的嚴重敗血症 I73.9末梢血管疾病 L03.90蜂窩組織炎 N17.9急性腎衰竭" [ref=e630]:
+                  - generic [ref=e631]: R65.21伴有敗血性休克的嚴重敗血症
+                  - generic [ref=e632]: I73.9末梢血管疾病
+                  - generic [ref=e633]: L03.90蜂窩組織炎
+                  - generic [ref=e634]: N17.9急性腎衰竭
+                - cell "2026-04-23 (10 天)" [ref=e635]:
+                  - generic [ref=e636]:
+                    - generic [ref=e637]: 2026-04-23
+                    - generic [ref=e638]: (10 天)
+                - cell "0 天" [ref=e639]:
+                  - generic [ref=e640]: 0 天
+                - cell "無" [ref=e641]:
+                  - generic [ref=e642]: 無
+                - cell "無" [ref=e643]:
+                  - generic [ref=e644]: 無
+                - cell "插管中" [ref=e645]:
+                  - generic [ref=e646]: 插管中
+                - cell [ref=e647]:
+                  - button "編輯" [ref=e648]:
+                    - img
+                - cell [ref=e649]:
+                  - button "辦理出院（保留病歷）" [ref=e651]:
+                    - img
+              - row "I-20 50078841 丁○○華 女 80 歲 劉奇樺 S06.5X0A創傷性硬腦膜下出血，未伴有意識喪失之初期照護 S06.6X1A創傷性蜘蛛網膜下出血，伴有少於30分鐘意識喪失之初期照護 R42頭暈及目眩 2026-04-27 (6 天) 0 天 有 無 未插管" [ref=e652] [cursor=pointer]:
+                - cell "I-20" [ref=e653]:
+                  - generic [ref=e654]: I-20
+                - cell "50078841" [ref=e655]
+                - cell "丁○○華" [ref=e656]
+                - cell "女" [ref=e657]
+                - cell "80 歲" [ref=e658]
+                - cell "劉奇樺" [ref=e659]:
+                  - generic [ref=e660]: 劉奇樺
+                - cell "S06.5X0A創傷性硬腦膜下出血，未伴有意識喪失之初期照護 S06.6X1A創傷性蜘蛛網膜下出血，伴有少於30分鐘意識喪失之初期照護 R42頭暈及目眩" [ref=e661]:
+                  - generic [ref=e662]: S06.5X0A創傷性硬腦膜下出血，未伴有意識喪失之初期照護
+                  - generic [ref=e663]: S06.6X1A創傷性蜘蛛網膜下出血，伴有少於30分鐘意識喪失之初期照護
+                  - generic [ref=e664]: R42頭暈及目眩
+                - cell "2026-04-27 (6 天)" [ref=e665]:
+                  - generic [ref=e666]:
+                    - generic [ref=e667]: 2026-04-27
+                    - generic [ref=e668]: (6 天)
+                - cell "0 天" [ref=e669]:
+                  - generic [ref=e670]: 0 天
+                - cell "有" [ref=e671]:
+                  - generic [ref=e672]: 有
+                - cell "無" [ref=e673]:
+                  - generic [ref=e674]: 無
+                - cell "未插管" [ref=e675]:
+                  - generic [ref=e676]: 未插管
+                - cell [ref=e677]:
+                  - button "編輯" [ref=e678]:
+                    - img
+                - cell [ref=e679]:
+                  - button "辦理出院（保留病歷）" [ref=e681]:
+                    - img
+              - row "I-21 50021431 洪○○治 女 95 歲 李穎灝 I46.9未明示原因導致之心跳休止 E11.21第二型糖尿病，伴有糖尿病的腎臟病變 C03.1下齒齦惡性腫瘤 2026-04-19 (14 天) 0 天 有 無 插管中" [ref=e682] [cursor=pointer]:
+                - cell "I-21" [ref=e683]:
+                  - generic [ref=e684]: I-21
+                - cell "50021431" [ref=e685]
+                - cell "洪○○治" [ref=e686]
+                - cell "女" [ref=e687]
+                - cell "95 歲" [ref=e688]
+                - cell "李穎灝" [ref=e689]:
+                  - generic [ref=e690]: 李穎灝
+                - cell "I46.9未明示原因導致之心跳休止 E11.21第二型糖尿病，伴有糖尿病的腎臟病變 C03.1下齒齦惡性腫瘤" [ref=e691]:
+                  - generic [ref=e692]: I46.9未明示原因導致之心跳休止
+                  - generic [ref=e693]: E11.21第二型糖尿病，伴有糖尿病的腎臟病變
+                  - generic [ref=e694]: C03.1下齒齦惡性腫瘤
+                - cell "2026-04-19 (14 天)" [ref=e695]:
+                  - generic [ref=e696]:
+                    - generic [ref=e697]: 2026-04-19
+                    - generic [ref=e698]: (14 天)
+                - cell "0 天" [ref=e699]:
+                  - generic [ref=e700]: 0 天
+                - cell "有" [ref=e701]:
+                  - generic [ref=e702]: 有
+                - cell "無" [ref=e703]:
+                  - generic [ref=e704]: 無
+                - cell "插管中" [ref=e705]:
+                  - generic [ref=e706]: 插管中
+                - cell [ref=e707]:
+                  - button "編輯" [ref=e708]:
+                    - img
+                - cell [ref=e709]:
+                  - button "辦理出院（保留病歷）" [ref=e711]:
+                    - img
+    - button "通知中心" [ref=e314]:
+      - img
+  - region "Notifications alt+T"

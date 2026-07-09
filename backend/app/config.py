@@ -107,10 +107,10 @@ class Settings(BaseSettings):
     # Drug Interaction Graph (local DrugData) — non-RAG, kept.
     DRUG_GRAPH_ENABLED: bool = True
     DRUG_GRAPH_SCRIPT_PATH: str = str(
-        Path(__file__).resolve().parents[2] / "data" / "drug_interactions" / "DrugData" / "drug_graph_rag.py"
+        Path(__file__).resolve().parents[2] / "local" / "data" / "drug_interactions" / "DrugData" / "drug_graph_rag.py"
     )
     DRUG_GRAPH_DATA_ROOT: str = str(
-        Path(__file__).resolve().parents[2] / "data" / "drug_interactions" / "DrugData"
+        Path(__file__).resolve().parents[2] / "local" / "data" / "drug_interactions" / "DrugData"
     )
 
     # Layer2 structured data store (JSONL files) — non-RAG, kept.

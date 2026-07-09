@@ -26,8 +26,8 @@ BACKEND_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = BACKEND_ROOT.parent
 sys.path.insert(0, str(BACKEND_ROOT))
 
-FORMULARY_XLSX = REPO_ROOT / "陽明院區常備藥品明細表1150401.xlsx"
-ABX_XLSX = REPO_ROOT / "陽明抗生素清單 20260303.xlsx"
+FORMULARY_XLSX = REPO_ROOT / "local" / "xlsx" / "陽明院區常備藥品明細表1150401.xlsx"
+ABX_XLSX = REPO_ROOT / "local" / "xlsx" / "陽明抗生素清單 20260303.xlsx"
 ATC_DRUGS_CSV = REPO_ROOT / "FHIR功能" / "藥物標準化" / "atc_drugs.csv"
 
 OUTPUT_DIR = BACKEND_ROOT / "app" / "fhir" / "code_maps"

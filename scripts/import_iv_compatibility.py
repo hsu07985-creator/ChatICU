@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parents[0].parent / "backend"
-DATA_FILE = Path(__file__).resolve().parents[0].parent / "2_藥物交互作用＋相容性" / "DrugData" / "icu_y_site_compatibility_v2_lookup.json"
+DATA_FILE = Path(__file__).resolve().parents[0].parent / "local" / "2_藥物交互作用＋相容性" / "DrugData" / "icu_y_site_compatibility_v2_lookup.json"
 
 sys.path.insert(0, str(BACKEND_DIR))
 

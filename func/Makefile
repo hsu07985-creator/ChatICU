@@ -1,5 +1,5 @@
 PYTHON_BIN ?= ../.venv312/bin/python
-SOURCE_DIR ?= ../rag 文本
+SOURCE_DIR ?= ../local/rag 文本
 HOST ?= 0.0.0.0
 PORT ?= 8000
 RUN_EVAL ?= 1

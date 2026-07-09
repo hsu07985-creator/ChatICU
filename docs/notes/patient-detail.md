@@ -1,0 +1,179 @@
+- generic [ref=e2]:
+  - generic [ref=e8]:
+    - generic [ref=e11]:
+      - button "ChatICU ChatICU 許峻維 · NYCU" [ref=e13] [cursor=pointer]:
+        - generic [ref=e14]:
+          - img "ChatICU" [ref=e15]
+          - generic [ref=e16]:
+            - heading "ChatICU" [level=2] [ref=e17]
+            - paragraph [ref=e18]: 許峻維 · NYCU
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - generic [ref=e21]: 病人照護
+          - list [ref=e23]:
+            - listitem [ref=e24]:
+              - link "總覽" [ref=e25] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e26]
+                - generic [ref=e29]: 總覽
+            - listitem [ref=e30]:
+              - link "住院病人" [ref=e31] [cursor=pointer]:
+                - /url: /patients
+                - img [ref=e32]
+                - generic [ref=e37]: 住院病人
+            - listitem [ref=e38]:
+              - link "出院病人" [ref=e39] [cursor=pointer]:
+                - /url: /patients/discharged
+                - img [ref=e40]
+                - generic [ref=e43]: 出院病人
+        - generic [ref=e44]:
+          - generic [ref=e45]: 藥事評估
+          - list [ref=e47]:
+            - listitem [ref=e48]:
+              - link "智藥輔助" [ref=e49] [cursor=pointer]:
+                - /url: /pharmacy/workstation
+                - img [ref=e50]
+                - generic [ref=e53]: 智藥輔助
+        - generic [ref=e54]:
+          - generic [ref=e55]: 藥事工具
+          - list [ref=e57]:
+            - listitem [ref=e58]:
+              - link "劑量計算" [ref=e59] [cursor=pointer]:
+                - /url: /pharmacy/dosage
+                - img [ref=e60]
+                - generic [ref=e62]: 劑量計算
+            - listitem [ref=e63]:
+              - link "用藥交互" [ref=e64] [cursor=pointer]:
+                - /url: /pharmacy/interactions
+                - img [ref=e65]
+                - generic [ref=e67]: 用藥交互
+            - listitem [ref=e68]:
+              - link "重複用藥" [ref=e69] [cursor=pointer]:
+                - /url: /pharmacy/duplicates
+                - img [ref=e70]
+                - generic [ref=e73]: 重複用藥
+            - listitem [ref=e74]:
+              - link "用藥相容" [ref=e75] [cursor=pointer]:
+                - /url: /pharmacy/compatibility
+                - img [ref=e76]
+                - generic [ref=e79]: 用藥相容
+            - listitem [ref=e80]:
+              - link "藥物管理" [ref=e81] [cursor=pointer]:
+                - /url: /pharmacy/drug-library
+                - img [ref=e82]
+                - generic [ref=e84]: 藥物管理
+            - listitem [ref=e85]:
+              - link "藥物統計" [ref=e86] [cursor=pointer]:
+                - /url: /pharmacy/advice-statistics
+                - img [ref=e87]
+                - generic [ref=e89]: 藥物統計
+        - generic [ref=e90]:
+          - generic [ref=e91]: 溝通
+          - list [ref=e93]:
+            - listitem [ref=e94]:
+              - link "AI 問答" [ref=e95] [cursor=pointer]:
+                - /url: /ai-chat
+                - img [ref=e96]
+                - generic [ref=e98]: AI 問答
+            - listitem [ref=e99]:
+              - link "團隊訊息" [ref=e100] [cursor=pointer]:
+                - /url: /chat
+                - img [ref=e101]
+                - generic [ref=e103]: 團隊訊息
+        - generic [ref=e104]:
+          - generic [ref=e105]: 系統管理
+          - list [ref=e107]:
+            - listitem [ref=e108]:
+              - link "稽核紀錄" [ref=e109] [cursor=pointer]:
+                - /url: /admin/audit
+                - img [ref=e110]
+                - generic [ref=e113]: 稽核紀錄
+            - listitem [ref=e114]:
+              - link "帳號權限" [ref=e115] [cursor=pointer]:
+                - /url: /admin/users
+                - img [ref=e116]
+                - generic [ref=e128]: 帳號權限
+      - generic [ref=e130]:
+        - generic [ref=e131]:
+          - button "深" [ref=e132]:
+            - img
+            - generic [ref=e133]: 深
+          - button "切換為 English" [ref=e134]:
+            - img
+            - generic [ref=e135]: 英
+        - button "登出" [ref=e136]:
+          - img
+          - generic [ref=e137]: 登出
+    - main [ref=e138]:
+      - generic [ref=e225]:
+        - generic [ref=e227]:
+          - generic [ref=e228]:
+            - heading "住院病人" [level=1] [ref=e229]
+            - generic [ref=e230]:
+              - img [ref=e231]
+              - text: 模擬資料
+          - paragraph [ref=e233]: 檢視所有病患資料
+        - generic [ref=e234]:
+          - generic [ref=e236]:
+            - generic [ref=e237]:
+              - img [ref=e238]
+              - textbox "搜尋姓名或床號..." [active] [ref=e241]: I-17
+            - combobox [ref=e242]:
+              - generic: 全部病患
+              - img
+          - table [ref=e529]:
+            - rowgroup [ref=e546]:
+              - row "床號 病例號碼 姓名 性別 年齡 主治醫師 入院診斷 入ICU日期 呼吸器天數 DNR 過敏 隔離 插管 編輯 轉出" [ref=e547]:
+                - columnheader "床號" [ref=e548]
+                - columnheader "病例號碼" [ref=e549]
+                - columnheader "姓名" [ref=e550]
+                - columnheader "性別" [ref=e551]
+                - columnheader "年齡" [ref=e552]
+                - columnheader "主治醫師" [ref=e553]
+                - columnheader "入院診斷" [ref=e554]
+                - columnheader "入ICU日期" [ref=e555]
+                - columnheader "呼吸器天數" [ref=e556]
+                - columnheader "DNR" [ref=e557]
+                - columnheader "過敏" [ref=e558]
+                - columnheader "隔離" [ref=e559]
+                - columnheader "插管" [ref=e560]
+                - columnheader "編輯" [ref=e561]
+                - columnheader "轉出" [ref=e562]
+            - rowgroup [ref=e563]:
+              - row "I-17 50480738 周○鄉 女 61 歲 黃英哲 R65.21伴有敗血性休克的嚴重敗血症 I73.9末梢血管疾病 L03.90蜂窩組織炎 N17.9急性腎衰竭 2026-04-23 (16 天) 8 天 無 無 無 插管中" [ref=e856] [cursor=pointer]:
+                - cell "I-17" [ref=e857]:
+                  - generic [ref=e858]: I-17
+                - cell "50480738" [ref=e859]
+                - cell "周○鄉" [ref=e860]
+                - cell "女" [ref=e861]
+                - cell "61 歲" [ref=e862]
+                - cell "黃英哲" [ref=e863]:
+                  - generic [ref=e864]: 黃英哲
+                - cell "R65.21伴有敗血性休克的嚴重敗血症 I73.9末梢血管疾病 L03.90蜂窩組織炎 N17.9急性腎衰竭" [ref=e865]:
+                  - generic [ref=e866]: R65.21伴有敗血性休克的嚴重敗血症
+                  - generic [ref=e867]: I73.9末梢血管疾病
+                  - generic [ref=e868]: L03.90蜂窩組織炎
+                  - generic [ref=e869]: N17.9急性腎衰竭
+                - cell "2026-04-23 (16 天)" [ref=e870]:
+                  - generic [ref=e871]:
+                    - generic [ref=e872]: 2026-04-23
+                    - generic [ref=e873]: (16 天)
+                - cell "8 天" [ref=e874]:
+                  - generic [ref=e875]: 8 天
+                - cell "無" [ref=e876]:
+                  - generic [ref=e877]: 無
+                - cell "無" [ref=e878]:
+                  - generic "目前無登錄過敏藥品" [ref=e879]: 無
+                - cell "無" [ref=e880]:
+                  - generic [ref=e881]: 無
+                - cell "插管中" [ref=e882]:
+                  - generic [ref=e883]: 插管中
+                - cell [ref=e884]:
+                  - button "編輯" [ref=e885]:
+                    - img
+                - cell [ref=e886]:
+                  - button "辦理轉出（保留病歷）" [ref=e888]:
+                    - img
+    - button "通知中心" [ref=e145]:
+      - img
+  - region "Notifications alt+T"
