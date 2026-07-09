@@ -10,7 +10,7 @@ engine_kwargs = {
 
 # asyncpg connect_args. Empty for SQLite; populated for PostgreSQL so that
 # Supabase pooler (port 6543, transaction mode) works correctly. See
-# docs/system-audit-2026-04-28.md §1.1.
+# docs/codebase-health/system-audit-2026-04-28.md §1.1.
 connect_args: dict = {}
 
 if settings.DATABASE_URL.startswith("postgresql"):

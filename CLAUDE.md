@@ -4,12 +4,13 @@
 
 每次進入這個 repo 工作前，先讀以下檔案以掌握「目前正在進行的修補」與「PM 已決策但尚未落地」項目：
 
-1. **[`docs/team-chat-followup-fixes-2026-05-03.md`](docs/team-chat-followup-fixes-2026-05-03.md)** — 團隊聊天室 audit 後續追加修補（Wave 5）。包含 patient-board per-user 未讀、SOAP 落地、藥物統計頁 UX 三條進行中任務。
-2. **[`docs/team-chat-fixes-progress.md`](docs/team-chat-fixes-progress.md)** — 主進度面板（Wave 1-5 + Backlog）。
-3. **[`docs/team-chat-audit-fixes-2026-05-03.md`](docs/team-chat-audit-fixes-2026-05-03.md)** — 完整 41 條 audit 發現對照表。
+1. **[`docs/team-chat/team-chat-followup-fixes-2026-05-03.md`](docs/team-chat/team-chat-followup-fixes-2026-05-03.md)** — 團隊聊天室 audit 後續追加修補（Wave 5）。包含 patient-board per-user 未讀、SOAP 落地、藥物統計頁 UX 三條進行中任務。
+2. **[`docs/team-chat/team-chat-fixes-progress.md`](docs/team-chat/team-chat-fixes-progress.md)** — 主進度面板（Wave 1-5 + Backlog）。
+3. **[`docs/team-chat/team-chat-audit-fixes-2026-05-03.md`](docs/team-chat/team-chat-audit-fixes-2026-05-03.md)** — 完整 41 條 audit 發現對照表。
 4. **[`docs/coordination/backend-tasks.md`](docs/coordination/backend-tasks.md)** / **[`docs/coordination/frontend-tasks.md`](docs/coordination/frontend-tasks.md)** — 任務佇列。
-5. **[`docs/i18n-rollout-progress.md`](docs/i18n-rollout-progress.md)** — i18n（中/英介面）導入進度。Wave 0+1 已完成（基建 + sidebar/notification/error/role 字典化）；Wave 2-7 依「使用者價值優先」分波段進行。觸碰任何 UI 字串前先看此文件確認該區是否已被字典化。
-6. **[`docs/i18n-rollout-plan-2026-05-04.md`](docs/i18n-rollout-plan-2026-05-04.md)** — i18n 主計畫（架構、namespace、命名慣例、不在範圍項目）。新增字串請依 `<namespace>:<page>.<section>.<key>` 命名，且**避免硬編碼字串到 UI**（Wave 7 後將以 lint 強制）。
+5. **[`docs/i18n/i18n-rollout-progress.md`](docs/i18n/i18n-rollout-progress.md)** — i18n（中/英介面）導入進度。Wave 0+1 已完成（基建 + sidebar/notification/error/role 字典化）；Wave 2-7 依「使用者價值優先」分波段進行。觸碰任何 UI 字串前先看此文件確認該區是否已被字典化。
+6. **[`docs/i18n/i18n-rollout-plan-2026-05-04.md`](docs/i18n/i18n-rollout-plan-2026-05-04.md)** — i18n 主計畫（架構、namespace、命名慣例、不在範圍項目）。新增字串請依 `<namespace>:<page>.<section>.<key>` 命名，且**避免硬編碼字串到 UI**（Wave 7 後將以 lint 強制）。
+7. **[`docs/operations/deployment-guide.md`](docs/operations/deployment-guide.md)** — Commit / Push / 部署驗證標準流程（feature branch、pre-commit hook、`personal` vs `railway` remote 對應、後端/前端/DB 驗證指令、常見坑、rollback）。改完要 push 之前必看。
 
 如果你的工作觸碰 team chat / 鈴鐺 / mention / patient board 任何相關區域，先看 `team-chat-followup-fixes-2026-05-03.md` 的「修補狀態」段落，確認你不會與正在進行的修補衝突。
 
@@ -161,4 +162,4 @@ HIS sync 直寫 DB，前端 `src/lib/patients-cache.ts` 完全不知情（5 分�
 - 詳情頁 (`/patient/:id`) → 無 cache，直接看到（前提：DB 真有寫進去）
 
 ### 完整流程文件
-詳細步驟、`latest.txt` 格式、coverage report、launchd 排程等見：[`docs/資料更新_0424.md`](docs/資料更新_0424.md)
+詳細步驟、`latest.txt` 格式、coverage report、launchd 排程等見：[`docs/his-sync/資料更新_0424.md`](docs/his-sync/資料更新_0424.md)

@@ -17,7 +17,7 @@
 //   npx eslint --max-warnings 9999 .   (CI-friendly: warnings don't fail)
 //
 // Severity is intentionally `warn` (not `error`). Per the i18n rollout plan
-// (docs/i18n-rollout-plan-2026-05-04.md §10 row 5) this is the W7 deliverable;
+// (docs/i18n/i18n-rollout-plan-2026-05-04.md §10 row 5) this is the W7 deliverable;
 // promoting to `error` is a future call once the warning backlog is triaged.
 
 import js from '@eslint/js';

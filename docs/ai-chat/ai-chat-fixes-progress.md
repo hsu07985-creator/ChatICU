@@ -1,6 +1,6 @@
 # AI 對話助手修改進度
 
-> 對應 `docs/ai-chat-audit-fixes-2026-05-03.md`。每完成一個 T，更新此檔。
+> 對應 `docs/ai-chat/ai-chat-audit-fixes-2026-05-03.md`。每完成一個 T，更新此檔。
 > 圖示：☐ 未開始　⏳ 進行中　✅ 完成　⏸ 阻塞　❌ 放棄　🚧 部分完成
 
 **最後更新**：2026-05-03（**W1-W3 完成 14/15**，W2-T4 因無 Anthropic 額度 revert）

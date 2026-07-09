@@ -132,7 +132,7 @@
 - **Added by:** team-chat audit 2026-05-03 (F-01)
 - **Date:** 2026-05-03
 - **Priority:** P0 (security gap — any user can pin/unpin/silently zero everyone's mention badge)
-- **Progress tracker:** `docs/team-chat-fixes-progress.md` TC-W2-T1
+- **Progress tracker:** `docs/team-chat/team-chat-fixes-progress.md` TC-W2-T1
 - **Files:**
   - `backend/app/routers/team_chat.py:187` — reject `body.pinned=True` if `user.role != 'admin'`
   - `backend/app/routers/team_chat.py:271-304` — `toggle_pin_message` add `Depends(require_roles("admin"))`
@@ -146,7 +146,7 @@
   - user not mentioned + not author PATCH `/team/chat/{id}/read` → 403
   - audit log assertion on mark_read
 - **Frontend dependency:** TC-F02 hides the pin button for non-admin once this lands (else non-admin clicks 403 → toast spam).
-- **References:** `docs/team-chat-audit-fixes-2026-05-03.md` §F-01
+- **References:** `docs/team-chat/team-chat-audit-fixes-2026-05-03.md` §F-01
 
 ### TC-B02 [DONE] Replace JSONB→TEXT mention LIKE with `@>` + add GIN index
 - **Completed:** 2026-05-03 (branch `fix/tc-b02-mention-jsonb-gin`)
@@ -163,7 +163,7 @@
 - **Added by:** team-chat audit 2026-05-03 (F-13)
 - **Date:** 2026-05-03
 - **Priority:** P0 (correctness + performance — current code can collide on `"all_admins"` substring once enum loosens, and bypasses any index)
-- **Progress tracker:** `docs/team-chat-fixes-progress.md` TC-W2-T2
+- **Progress tracker:** `docs/team-chat/team-chat-fixes-progress.md` TC-W2-T2
 - **Files:**
   - `backend/app/routers/team_chat.py:118-137` — `cast(JSONB, String).contains(f'"{role}"')` → `mentioned_roles.contains([user.role])` / `mentioned_user_ids.contains([user.id])`
   - `backend/app/routers/notifications.py:31-45` — same change in `_team_chat_mention_predicate`

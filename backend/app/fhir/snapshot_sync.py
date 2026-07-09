@@ -17,7 +17,7 @@ class SchemaInconsistencyError(ValueError):
     effective key sets (i.e. keys other than created_at / updated_at differ
     between rows). Surfaced as a fail-loud signal so an upstream HISConverter
     regression cannot silently misalign columns inside a batch INSERT VALUES
-    statement. See docs/system-audit-2026-04-28.md §D.2.
+    statement. See docs/codebase-health/system-audit-2026-04-28.md §D.2.
     """
 
 

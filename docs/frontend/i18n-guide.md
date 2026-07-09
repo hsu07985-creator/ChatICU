@@ -1,7 +1,7 @@
 # ChatICU 前端 i18n 指南
 
 > 適用對象：未來會在 ChatICU 前端新增 / 修改 UI 字串的人（含 LLM 助手）。閱讀時間 5 分鐘。
-> 配對：[plan](../i18n-rollout-plan-2026-05-04.md) / [progress](../i18n-rollout-progress.md) / [glossary](../i18n-medical-glossary.md)
+> 配對：[plan](../i18n/i18n-rollout-plan-2026-05-04.md) / [progress](../i18n/i18n-rollout-progress.md) / [glossary](../i18n/i18n-medical-glossary.md)
 
 ChatICU 已導入 `react-i18next`，支援 `zh-TW`（預設）/ `en-US` 切換。所有可見 UI 字串都應走 `t()`，不可硬編碼中文 / 英文字面量。
 
@@ -247,8 +247,8 @@ W7 將加入 [`eslint-plugin-i18next`](https://github.com/edvardchen/eslint-plug
 
 ## 速查
 
-- 主計畫：[`docs/i18n-rollout-plan-2026-05-04.md`](../i18n-rollout-plan-2026-05-04.md)
-- 進度與設計決策：[`docs/i18n-rollout-progress.md`](../i18n-rollout-progress.md)
-- 醫療術語對照：[`docs/i18n-medical-glossary.md`](../i18n-medical-glossary.md)
+- 主計畫：[`docs/i18n/i18n-rollout-plan-2026-05-04.md`](../i18n/i18n-rollout-plan-2026-05-04.md)
+- 進度與設計決策：[`docs/i18n/i18n-rollout-progress.md`](../i18n/i18n-rollout-progress.md)
+- 醫療術語對照：[`docs/i18n/i18n-medical-glossary.md`](../i18n/i18n-medical-glossary.md)
 - i18next 官方：<https://www.i18next.com/>
 - react-i18next：<https://react.i18next.com/>

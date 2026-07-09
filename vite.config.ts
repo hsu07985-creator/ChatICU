@@ -67,7 +67,7 @@
       // lazy LabTrendChart / ScoreTrendChart imports inside patient detail.
       // The browser will still fetch the chunk when the lazy import runs
       // — we are merely declining to download it speculatively at boot.
-      // See docs/system-audit-2026-04-28.md §6.2.
+      // See docs/codebase-health/system-audit-2026-04-28.md §6.2.
       modulePreload: {
         resolveDependencies(filename, deps, { hostType }) {
           if (hostType !== 'html') return deps;

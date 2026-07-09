@@ -1,7 +1,7 @@
 # 團隊聊天室審查與修補計畫（2026-05-03）
 
-> **進度追蹤**：本文是「發現與計畫」的靜態快照。**實際開發進度請看** [`docs/team-chat-fixes-progress.md`](team-chat-fixes-progress.md)。
-> **任務佇列**：後端 → [`docs/coordination/backend-tasks.md`](coordination/backend-tasks.md)（搜 `TC-B`）；前端 → [`docs/coordination/frontend-tasks.md`](coordination/frontend-tasks.md)（搜 `TC-F`）。
+> **進度追蹤**：本文是「發現與計畫」的靜態快照。**實際開發進度請看** [`docs/team-chat/team-chat-fixes-progress.md`](team-chat-fixes-progress.md)。
+> **任務佇列**：後端 → [`docs/coordination/backend-tasks.md`](../coordination/backend-tasks.md)（搜 `TC-B`）；前端 → [`docs/coordination/frontend-tasks.md`](../coordination/frontend-tasks.md)（搜 `TC-F`）。
 >
 > 本文整合 2026-05-03 對「團隊聊天室」功能的四面向深度審查（後端 / 前端 / 整合面 / 資料層），列出所有發現並按優先序給出修補計畫。
 >

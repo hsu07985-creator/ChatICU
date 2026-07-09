@@ -2,7 +2,7 @@
 
 > **狀態**：已拍板（§10 全數決議完成 2026-05-04），待開 Wave 0+1 PR
 > **發起人**：Chun
-> **配對進度文件**：[`docs/i18n-rollout-progress.md`](i18n-rollout-progress.md)
+> **配對進度文件**：[`docs/i18n/i18n-rollout-progress.md`](i18n-rollout-progress.md)
 > **相關慣例**：CLAUDE.md「修復流程」「目錄慣例」「禁止事項」
 
 ## 1. 背景與目標
@@ -245,7 +245,7 @@ i18next 原生支援（`_one` / `_other`）：
 ### 衍生細節（從決議展開）
 - **按鈕互動**：點 `中` 切換到 EN（按鈕顯示 `EN`），再點切回中文（顯示 `中`）。即按鈕**永遠顯示對方語言**作為「點下去會變成什麼」的提示。
 - **按鈕尺寸**：與深色模式按鈕一致（`size="default"` 或短視窗 `size="icon"`）；icon 模式下顯示當前語言縮寫（`中` / `EN`）。
-- **醫療術語清單**：Wave 1 開始時同步建立 `docs/i18n-medical-glossary.md`，列出所有需校對的中→英對照（藥師、醫師、住院、出院、ICU 各細項、SOAP、bid/qid 等用法）。校對前用初譯版本，校對完回填字典。
+- **醫療術語清單**：Wave 1 開始時同步建立 `docs/i18n/i18n-medical-glossary.md`，列出所有需校對的中→英對照（藥師、醫師、住院、出院、ICU 各細項、SOAP、bid/qid 等用法）。校對前用初譯版本，校對完回填字典。
 
 ## 11. 預估時程（粗估，不含校稿）
 
@@ -267,7 +267,7 @@ i18next 原生支援（`_one` / `_other`）：
 
 - [ ] 本文件已被 PM 確認
 - [ ] §10 待決問題 1-3 有結論
-- [ ] 建立配對 progress 文件 `docs/i18n-rollout-progress.md`
+- [ ] 建立配對 progress 文件 `docs/i18n/i18n-rollout-progress.md`
 - [ ] CLAUDE.md「開工前必讀」清單加入本計畫與 progress 文件
 - [ ] 在 `docs/coordination/frontend-tasks.md` 排入 Wave 0 任務
 

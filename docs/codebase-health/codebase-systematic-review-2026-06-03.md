@@ -28,7 +28,7 @@
 > ## 🔧 Round 2 更新（同日，修復 + 缺口收尾）
 >
 > 第一輪只是「找問題」。Round 2 做了四件事：**(1) 修掉 Top 5 最嚴重**、**(2) 補驗證被丟棄的發現**、
-> **(3) 重審品質存疑的 `frontend/pages` 單元**、**(4) 為 5 個修復寫回歸測試**。
+> **(3) 重審品質存疑的 `../frontend/pages` 單元**、**(4) 為 5 個修復寫回歸測試**。
 >
 > ### ✅ 已修復並驗證的 5 條（都已寫回歸測試）
 > | id | 修復 | 檔案 | 測試 |
@@ -44,7 +44,7 @@
 > reasoning-effort 與 `app/fhir/allergy_parser` 真實病人資料測試）**。前端 tsc 0 error。
 >
 > ### 🔎 缺口收尾結果
-> - **`frontend/pages` 重審**（原 reviewer 只回「test」、0 發現）→ 重審 29 檔，抓到 **`pg-1` HIGH**
+> - **`../frontend/pages` 重審**（原 reviewer 只回「test」、0 發現）→ 重審 29 檔，抓到 **`pg-1` HIGH**
 >   （`pharmacy/compatibility.tsx` IV 矩陣只取 `rows[0]`，多溶液不相容被藏；與 `iv-1` 同類）+ 4 條 medium
 >   + 3 條 low；對抗式驗證 7 confirmed、1 refuted（`pg-5` PAD en-dash 經查有處理）。見 §8。
 > - **7 條臨床-AI false-negative 我親自讀碼驗證 → 全部 confirmed**（`micro-1` 病原被正常菌叢蓋掉、
@@ -208,7 +208,7 @@ ondelete、tz-aware 正規化）；重複用藥偵測器與 patient_context_buil
 | frontend · hooks+features+i18n | 18 | hooks 全讀；i18n 用程式化 flatten+diff 比對，parity 乾淨 |
 
 **已知盲區 / 後續建議**
-1. ~~`frontend/pages` 單元 coverageNote = 「test」~~ → **Round 2 已重審**（§8）。
+1. ~~`../frontend/pages` 單元 coverageNote = 「test」~~ → **Round 2 已重審**（§8）。
 2. ~~約 20 條 reviewer 發現未對抗式驗證~~ → **Round 2 已補完**（§3 + §6）。
 3. DuplicateDetector ATC 分群的 false-negative 未由獨立單元交叉驗證（各單元都標為「out of scope」）。
 4. comparator-lab（`fhir-1`）的**顯示文字段**是否也丟棄字串值，尚未逐行確認（數值/門檻路徑已確認丟棄）。

@@ -37,14 +37,14 @@
 ### 1.3 仍未放進 snapshot 也未提供 tool
 
 - MAR / 實際給藥紀錄。
-- 留言板、團隊聊天室全文（`docs/ai-chat-patient-context-followup-tasks-2026-05-03.md` F5 標記不做）。
+- 留言板、團隊聊天室全文（`docs/ai-chat/ai-chat-patient-context-followup-tasks-2026-05-03.md` F5 標記不做）。
 - 完整病歷紀錄全文、完整歷史檢驗趨勢、完整停用藥歷史。
 
 ### 1.4 架構現況
 
 - `/ai/chat/stream` 仍是一次性組 prompt + `call_llm_stream()`，**沒有正式 LLM tool calling / agent loop**。
 - Phase 4-7 的「依問題查資料」走 §3.2 過渡方案：後端用關鍵字判斷意圖，預取資料附到本輪 user message。
-- 升級成正式 tool loop 是後續 follow-up（`docs/ai-chat-patient-context-followup-tasks-2026-05-03.md` F4），等 prod 用一陣子看 prefetch 漏什麼類型的問題再做。
+- 升級成正式 tool loop 是後續 follow-up（`docs/ai-chat/ai-chat-patient-context-followup-tasks-2026-05-03.md` F4），等 prod 用一陣子看 prefetch 漏什麼類型的問題再做。
 
 ## 2. 設計原則
 
@@ -629,9 +629,9 @@ Scr 1.8 mg/dL | eGFR 32 | CrCl 約 28 mL/min（Cockcroft-Gault，使用體重 60
 ```bash
 git status -sb
 git branch --show-current
-git add docs/ai-chat-patient-context-enhancement-plan-2026-05-03.md
+git add docs/ai-chat/ai-chat-patient-context-enhancement-plan-2026-05-03.md
 git diff --cached --stat
-git diff --cached -- docs/ai-chat-patient-context-enhancement-plan-2026-05-03.md
+git diff --cached -- docs/ai-chat/ai-chat-patient-context-enhancement-plan-2026-05-03.md
 git commit -m "Document AI chat patient context enhancement plan"
 ```
 
@@ -647,7 +647,7 @@ git push origin feature/advice-history-management
 
 ```bash
 git checkout -b docs/ai-chat-patient-context-plan
-git add docs/ai-chat-patient-context-enhancement-plan-2026-05-03.md
+git add docs/ai-chat/ai-chat-patient-context-enhancement-plan-2026-05-03.md
 git commit -m "Document AI chat patient context enhancement plan"
 git push -u origin docs/ai-chat-patient-context-plan
 ```

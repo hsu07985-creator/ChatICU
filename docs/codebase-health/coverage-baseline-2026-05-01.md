@@ -222,7 +222,7 @@ git diff --name-only
 git status --short | grep -E "fastlane|coverage|\.state"
 # 預期：
 # ?? .state/coverage-baseline-2026-05-01.json
-# ?? docs/coverage-baseline-2026-05-01.md
+# ?? docs/codebase-health/coverage-baseline-2026-05-01.md
 ```
 
 無 commit、無 push。

@@ -120,7 +120,7 @@ def log_hedging_signal(
     """M1: F4 trigger signal — turns where the LLM hedged AND we had patient
     context AND no prefetch fired. Aggregating these over time answers
     "would a real LLM tool loop catch questions our keyword prefetch
-    doesn't?" — see docs/ai-chat-tool-loop-decision-2026-05-03.md §5
+    doesn't?" — see docs/ai-chat/ai-chat-tool-loop-decision-2026-05-03.md §5
     signal B. Lower-tier [REPLY][HEDGED] log captures hedging in cases
     where prefetch did fire (less actionable for F4 but useful sanity).
     """

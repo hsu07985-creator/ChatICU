@@ -1,10 +1,10 @@
 # 團隊聊天室後續追加修補計畫（2026-05-03）
 
-> **這份文件是 [`docs/team-chat-audit-fixes-2026-05-03.md`](team-chat-audit-fixes-2026-05-03.md) 的延伸**：原 audit 主任務 21/41 已落地，但使用者實測時發現兩個殘留 bug，三個 Opus 4.7 agent 並行審查後找出系統性盲點。
+> **這份文件是 [`docs/team-chat/team-chat-audit-fixes-2026-05-03.md`](team-chat-audit-fixes-2026-05-03.md) 的延伸**：原 audit 主任務 21/41 已落地，但使用者實測時發現兩個殘留 bug，三個 Opus 4.7 agent 並行審查後找出系統性盲點。
 >
 > **規範（用戶指示）**：以後每次工作都先讀這份檔案，確認修補狀態。
 >
-> **進度追蹤檔**：[`docs/team-chat-fixes-progress.md`](team-chat-fixes-progress.md) — 仍是主進度面板，本檔案的任務以 `TC-FU-XX` 為 ID 列入該檔的「Wave 5」。
+> **進度追蹤檔**：[`docs/team-chat/team-chat-fixes-progress.md`](team-chat-fixes-progress.md) — 仍是主進度面板，本檔案的任務以 `TC-FU-XX` 為 ID 列入該檔的「Wave 5」。
 
 **最後更新**：2026-05-03（**Wave 5 全部完成並整合進 main**；尚未 push prod）
 
@@ -149,7 +149,7 @@ W3-T1（per-user `read_by` mention 計數）只改了 team_chat 那條路徑。�
 
 ## 不在 Wave 5 範圍的 Backlog 增列
 
-從 agent 報告增補到 [`docs/team-chat-fixes-progress.md`](team-chat-fixes-progress.md) Backlog：
+從 agent 報告增補到 [`docs/team-chat/team-chat-fixes-progress.md`](team-chat-fixes-progress.md) Backlog：
 
 | 編號 | 內容 | 嚴重度 | 來源 |
 |------|------|--------|------|
@@ -174,7 +174,7 @@ W3-T1（per-user `read_by` mention 計數）只改了 team_chat 那條路徑。�
 2. `npx tsc --noEmit` exit 0
 3. `npm run build` 通過
 4. 更新本檔案的 task 狀態
-5. 更新 `docs/team-chat-fixes-progress.md` 的 Wave 5 段落
+5. 更新 `docs/team-chat/team-chat-fixes-progress.md` 的 Wave 5 段落
 6. 推送對應 remote
 
 ---
@@ -196,4 +196,4 @@ W3-T1（per-user `read_by` mention 計數）只改了 team_chat 那條路徑。�
 | `src/components/notification-bell.tsx` | mark-all-read race / retry / title flash |
 | `src/pages/admin/statistics.tsx:20-30` | 12 個月 dropdown 範本 |
 
-**Audit 全文 + 主進度**：[`docs/team-chat-audit-fixes-2026-05-03.md`](team-chat-audit-fixes-2026-05-03.md)、[`docs/team-chat-fixes-progress.md`](team-chat-fixes-progress.md)
+**Audit 全文 + 主進度**：[`docs/team-chat/team-chat-audit-fixes-2026-05-03.md`](team-chat-audit-fixes-2026-05-03.md)、[`docs/team-chat/team-chat-fixes-progress.md`](team-chat-fixes-progress.md)

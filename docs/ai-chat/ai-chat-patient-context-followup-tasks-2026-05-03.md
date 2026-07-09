@@ -32,7 +32,7 @@
 ### F1. 同步主計畫文件（避免文件落後實作）
 - **狀態**：✅ 完成（commit `488d3030b`，2026-05-03）
 - **問題**：主計畫 §1「目前狀態」仍寫著「沒有放進 snapshot：培養、CrCl、MAR、72h 用藥變更、藥師建議」，但這些已全部上線。新加入的人讀文件會被誤導。
-- **觸碰檔案**：`docs/ai-chat-patient-context-enhancement-plan-2026-05-03.md`
+- **觸碰檔案**：`docs/ai-chat/ai-chat-patient-context-enhancement-plan-2026-05-03.md`
 - **要改哪幾段**：
   - §1「目前狀態」：把已完成項目從「沒有放進」搬到「已讀取」，並標 commit hash
   - §3 Phase 0：標「✅ 已選後端關鍵字預取」

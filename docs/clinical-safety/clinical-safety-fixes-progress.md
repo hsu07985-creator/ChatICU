@@ -1,6 +1,6 @@
 # Clinical-Safety 修改進度
 
-> 對應 `docs/clinical-safety-audit-fixes-2026-05-03.md`。每完成一個 P，更新此檔。
+> 對應 `docs/clinical-safety/clinical-safety-audit-fixes-2026-05-03.md`。每完成一個 P，更新此檔。
 > 圖示：☐ 未開始　⏳ 進行中　✅ 完成　⏸ 阻塞　❌ 放棄
 
 **最後更新**：2026-05-03（**P0 6/6 + P1 12/12 + UI follow-up 全部完成、上 prod、multi-agent 驗證通過**）

@@ -406,7 +406,7 @@ export function DrugInteractionsPage() {
     // 配對速查 — 用輸入的藥物名合併同對、取最高風險
     // Word-boundary matching helpers — replaces previous bidirectional `includes`
     // pollution where `prednisolone` ⊂ `methylprednisolone` collapsed two distinct
-    // rows into one summary key. See docs/drug-interactions-substring-bug-and-fix.md §4.1.
+    // rows into one summary key. See docs/pharmacy/drug-interactions-substring-bug-and-fix.md §4.1.
     const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
     const isWord = (ch: string) => /[A-Za-z0-9_]/.test(ch);

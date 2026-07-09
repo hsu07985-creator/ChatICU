@@ -2,7 +2,7 @@
 
 > 本文整合 2026-05-03 對「AI 對話助手 / ChatICU」的六面向深度審查（前端 UI / API & SSE / 後端路由 / LLM & Prompt / 病患快照建構 / 持久層），列出所有發現並按優先序給出修補計畫。
 >
-> **進度追蹤**：→ `docs/ai-chat-fixes-progress.md`（每完成一個 T 即更新，含 Wave 對應、檔案、驗證步驟、commit/部署註記）。
+> **進度追蹤**：→ `docs/ai-chat/ai-chat-fixes-progress.md`（每完成一個 T 即更新，含 Wave 對應、檔案、驗證步驟、commit/部署註記）。
 >
 > **審查範圍**：
 > - 前端：`src/pages/ai-chat.tsx`、`src/components/patient/chat-message-thread.tsx`、`src/lib/api/ai.ts`、`vercel.json`
@@ -426,9 +426,9 @@ LLM 卡住或長 reasoning 期間，Vercel / Railway proxy 可能在無資料超
 
 ## 8. 相關文件
 
-- 本次審查的快照延遲設計：`docs/b15-snapshot-latency-plan-2026-04-30.md`
-- 同日團隊聊天室審查：`docs/team-chat-audit-fixes-2026-05-03.md`
-- AI 整合計畫（歷史）：`docs/ai-integration-plan.md`
+- 本次審查的快照延遲設計：`docs/his-sync/b15-snapshot-latency-plan-2026-04-30.md`
+- 同日團隊聊天室審查：`docs/team-chat/team-chat-audit-fixes-2026-05-03.md`
+- AI 整合計畫（歷史）：`docs/ai-chat/ai-integration-plan.md`
 - 重複用藥模組（snapshot 內 duplicate_warnings 來源）：見 `feedback_duplicate_medication_workflow` memory
 
 ---

@@ -469,7 +469,7 @@ async def chat_stream(
         # follow-up is NEVER merged into system_prompt — it would mutate
         # the byte-stable prefix and bust OpenAI prompt cache (the prior
         # _merged_snapshot path dropped cache_hit_ratio_p50 from 70% to 0%
-        # in canary, see docs/b15-snapshot-latency-plan-2026-04-30.md).
+        # in canary, see docs/his-sync/b15-snapshot-latency-plan-2026-04-30.md).
         # Deferred is instead injected into the ephemeral user_message
         # below via _maybe_inject_deferred_into_user_message.
         system_prompt = _build_system_prompt(session.snapshot_metadata["clinical_snapshot"])
@@ -565,7 +565,7 @@ async def chat_stream(
     # — log only categories that fired, message length, advice-ref count;
     # never the message text itself. Pair with the [CHAT][PREFETCH][MISS_LIKELY]
     # signal emitted by _event_stream after the LLM reply is complete to
-    # answer the F4 trigger question (see docs/ai-chat-tool-loop-decision-2026-05-03.md §5).
+    # answer the F4 trigger question (see docs/ai-chat/ai-chat-tool-loop-decision-2026-05-03.md §5).
     prefetch_categories = list(prefetch_meta.get("prefetchCategories") or [])
     prefetch_fired = bool(prefetch_categories)
     advice_ref_count = len(prefetch_meta.get("adviceRefs") or [])

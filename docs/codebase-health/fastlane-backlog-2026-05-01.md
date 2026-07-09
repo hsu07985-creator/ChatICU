@@ -1,14 +1,14 @@
 # Roadmap Fast-lane Backlog — 2026-05-01
 
 - **日期**：2026-05-01
-- **建立背景**：B15 chat-latency 系列 2026-05-01 收線（[`b15-a1b-canary-2026-05-01.md`](b15-a1b-canary-2026-05-01.md)）。Phase 0–4 全部上線、Phase 5 dormant、Phase 6 觀察類無觸發。手上沒有「正在跑的大計劃」，這份 doc 把候選工作項按可動性盤點清楚。
+- **建立背景**：B15 chat-latency 系列 2026-05-01 收線（[`b15-a1b-canary-2026-05-01.md`](../his-sync/b15-a1b-canary-2026-05-01.md)）。Phase 0–4 全部上線、Phase 5 dormant、Phase 6 觀察類無觸發。手上沒有「正在跑的大計劃」，這份 doc 把候選工作項按可動性盤點清楚。
 - **本檔不改任何 runtime code**，僅做盤點與優先序建議
 - **配套 doc**：
   - 前瞻 roadmap：[`optimization-roadmap-2026-04-29.md`](optimization-roadmap-2026-04-29.md)
   - 歷史 audit：[`system-audit-2026-04-28.md`](system-audit-2026-04-28.md)
-  - B15 closeout：[`b15-a1b-canary-2026-05-01.md`](b15-a1b-canary-2026-05-01.md)
+  - B15 closeout：[`b15-a1b-canary-2026-05-01.md`](../his-sync/b15-a1b-canary-2026-05-01.md)
   - Phase 5 preflight：[`phase5-preflight-2026-04-29.md`](phase5-preflight-2026-04-29.md)
-- **驗證指令**：寫完此 doc 後 `git diff --name-only` 應只看到 `docs/fastlane-backlog-2026-05-01.md`
+- **驗證指令**：寫完此 doc 後 `git diff --name-only` 應只看到 `docs/codebase-health/fastlane-backlog-2026-05-01.md`
 
 ---
 
@@ -38,7 +38,7 @@
 **真正缺的**：一份 baseline coverage report（不是基建）。詳 §2.1。
 
 ### 1.2 Phase 5 preflight
-**狀態**：✅ doc 已存在 `docs/phase5-preflight-2026-04-29.md`（2026-04-29 由 agent 平行盤點 33 個 router + 18 個 vercel.json rewrite + 8 個 header gate）。
+**狀態**：✅ doc 已存在 `docs/codebase-health/phase5-preflight-2026-04-29.md`（2026-04-29 由 agent 平行盤點 33 個 router + 18 個 vercel.json rewrite + 8 個 header gate）。
 
 **Doc 不同步點**：無。Phase 5 在 roadmap 標記 dormant，與 preflight doc 一致。
 
@@ -63,7 +63,7 @@
 | 屬性 | 值 |
 |---|---|
 | **預估工** | 30 min |
-| **影響檔** | 0 runtime；新增 `docs/coverage-baseline-2026-05-01.md` |
+| **影響檔** | 0 runtime；新增 `docs/codebase-health/coverage-baseline-2026-05-01.md` |
 | **Prod deploy** | 否（純 dev / doc） |
 | **LLM 質量影響** | 0 |
 | **Rollback 難度** | trivial（doc-only） |
@@ -71,7 +71,7 @@
 
 **做什麼**：
 1. `cd backend && python3 -m pytest --cov=app --cov-report=term-missing --cov-report=html`
-2. 把 term-missing summary（top-level + per-file）整理成 `docs/coverage-baseline-2026-05-01.md`
+2. 把 term-missing summary（top-level + per-file）整理成 `docs/codebase-health/coverage-baseline-2026-05-01.md`
 3. 標記哪些 module ≥80%、50–80%、< 50%；標記哪些 module 是 critical-path（routers / snapshot_sync / patient_context_builder）
 4. 不設 CI threshold、不裝 GitHub Action。只是「打 baseline 數字」，未來 PR 要不要對 coverage 才有依據
 
@@ -110,7 +110,7 @@
 | `datamock/users.json` | 同上 | 同上 |
 | `datamock/ventilatorSettings.json` | 同上 | 同上 |
 | `datamock/vitalSigns.json` | 同上 | 同上 |
-| `docs/his-sync-schedule-and-manual-trigger.md` | 被 commit `8e7f61b8a` finalize HIS sync runbook 後內容轉到 CLAUDE.md / `docs/資料更新_0424.md` | 確認新 runbook 完整後 commit deletion |
+| `docs/his-sync-schedule-and-manual-trigger.md` | 被 commit `8e7f61b8a` finalize HIS sync runbook 後內容轉到 CLAUDE.md / `docs/his-sync/資料更新_0424.md` | 確認新 runbook 完整後 commit deletion |
 
 **HARD CONSTRAINT**：這 10 個 datamock 已在 working tree 是「未提交的大規模刪除」，背後牽連到 json-mode 退役決策。**不要在沒有 architecture sign-off 的情況下打包進一個 commit**——刪錯一個 production fallback path 會讓 Railway boot 起不來。
 
@@ -127,8 +127,8 @@
 | `1150429_2nd_2_patients_1141001_1150501/` | HIS snapshot 暫存 | **加 .gitignore**（patient/* 已 gitignore？要確認） |
 | `backend/scripts/seed_demo_duplicates.py` | duplicate detection seed script | 若已驗證可用 → commit 進 repo |
 | `backend/scripts/smoke_test_duplicates.py` | duplicate smoke test | 同上 |
-| `docs/ai-context-architecture-plan.md` | 設計 doc | 確認是現役計劃 → commit；廢棄 → 刪 |
-| `docs/資料更新_0424.md` | HIS 資料更新 runbook（CLAUDE.md 已 link） | **commit**（CLAUDE.md `8e7f61b8a` 已引用，repo 卻沒這檔，是 broken link） |
+| `docs/ai-chat/ai-context-architecture-plan.md` | 設計 doc | 確認是現役計劃 → commit；廢棄 → 刪 |
+| `docs/his-sync/資料更新_0424.md` | HIS 資料更新 runbook（CLAUDE.md 已 link） | **commit**（CLAUDE.md `8e7f61b8a` 已引用，repo 卻沒這檔，是 broken link） |
 | `drug_api/` | 外部 drug data 暫存 | 加 .gitignore |
 | `patient/` | HIS patient snapshot working dir | 加 .gitignore（CLAUDE.md 提到此路徑） |
 | `reports/lexicomp_xd_candidates_*.{json,md}` 共 6 檔 | 一次性研究輸出 | 加 .gitignore（檔名帶日期戳記，疑為臨時產物） |
@@ -247,7 +247,7 @@
 
 ```bash
 git diff --name-only
-# 預期僅一行：docs/fastlane-backlog-2026-05-01.md
+# 預期僅一行：docs/codebase-health/fastlane-backlog-2026-05-01.md
 ```
 
 任何其他改動 → **stop，不可 commit**。

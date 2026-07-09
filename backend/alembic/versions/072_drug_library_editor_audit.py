@@ -3,7 +3,7 @@
 Revision ID: 072
 Revises: 071
 
-Per docs/drug-library-phase4-plan.md §5.1.
+Per docs/pharmacy/drug-library-phase4-plan.md §5.1.
 
 Adds five nullable columns to drug_interactions:
   pharmacist_note, last_verified_at, verified_by, is_active, etag

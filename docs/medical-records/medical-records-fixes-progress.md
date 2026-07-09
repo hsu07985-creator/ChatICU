@@ -1,6 +1,6 @@
 # 病歷紀錄修改進度
 
-> 對應 `docs/medical-records-ux-fixes-v2.md`。每完成一個 T，更新此檔。
+> 對應 `docs/medical-records/medical-records-ux-fixes-v2.md`。每完成一個 T，更新此檔。
 > 圖示：☐ 未開始　⏳ 進行中　✅ 完成　⏸ 阻塞　❌ 放棄
 
 **最後更新**：2026-05-02
@@ -119,6 +119,14 @@ done
   - **W4-T3** 加 `polishAandPParallel` 用 `Promise.allSettled`，A 與 P 同時跑（每段已有獨立 abort controller，不衝突）；只在兩段都空時 toast 拒絕。
   - **W4-T5** Insert toolbar 改 floating（grid 之前），加 `lastFocusedSection` state + 每段 textarea `onFocus` handler；toolbar label 顯示「一鍵帶入到 X 段：」。`insertWithDedup` 用 `=== Labs (HH:MM) ===` 純文字 sentinel 包覆插入內容，再次插入時 `window.confirm` 詢問替換或追加。
   - tsc + npm build 全綠。**W4 全部完成。** 4 個 PR 中的第 4 個（最後一個）準備好可以 commit + push。
+- 2026-05-02：W4 已 commit (fac6d20d6) 並 push railway。Vercel build 47s 完成 (bundle `Dfy7BA9U`)。Playwright 用 pharmacist 帳號 A3266 (陳佩君) 登入 prod 病歷記錄 → SOAP editor 驗證：
+  - 預設 land 在 用藥建議 ✅、看到 SOAP 4 段 ✅
+  - **sticky bottom bar** 出現「共 0 字 A · P · 潤飾 A + P 複製貼到 HIS」 ✅
+  - **floating insert toolbar** 顯示「一鍵帶入到 O 段：Labs 6h/24h/全部、插入 Labs、插入用藥」 ✅
+  - **「潤飾 A + P」並行按鈕** 在 sticky bar ✅
+  - **裝飾 icon 0 個** in editor area（brain/sparkles/wand/pill/arrowRight 都 []）✅
+  - **W1-W4 全部 prod 真實穩定**。
+- **🎉 完整修改計畫（v2.md 中 17 個 main task + 多個 P2 子項）全部完成、全部部署 prod、全部驗證通過。**
 
 - 2026-05-02：W3 hotfix + W3 整體 prod 驗證（用 nurse 帳號 B4372，bundle hash `DqSLPQdt`）：
   - **W3-T6** 用藥建議 popover 顯示「劑量調整建議、新增藥品建議」**無「藥師 SOAP」** ✅

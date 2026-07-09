@@ -9,7 +9,7 @@ Each test is named to explain the invariant; the body proves the contract on
 the current code so the same assertions still pass after the refactor.
 
 Companion to ``tests/test_fhir/test_snapshot_sync.py`` (happy-path coverage).
-See docs/system-audit-2026-04-28.md §2.2 for the refactor plan.
+See docs/codebase-health/system-audit-2026-04-28.md §2.2 for the refactor plan.
 """
 
 from __future__ import annotations

@@ -5,7 +5,7 @@
 - **目的**：彙整接下來所有優化工作的順序、範圍與決策依據
 - **範圍**：從 RAG 整層移除（Phase 1）到結構性收斂（Phase 5），含觀察類項目
 - **配套文件**：
-  - 歷史審計與已完成項目細節：[`docs/system-audit-2026-04-28.md`](system-audit-2026-04-28.md)
+  - 歷史審計與已完成項目細節：[`docs/codebase-health/system-audit-2026-04-28.md`](system-audit-2026-04-28.md)
   - 本檔是**前瞻 roadmap**，audit doc 是**歷史紀錄**
 - **使用方式**：每完成一個 Phase 在這份回來打勾、把對應細節 push 到 audit doc
 

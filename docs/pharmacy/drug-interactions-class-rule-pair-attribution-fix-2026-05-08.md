@@ -17,7 +17,7 @@
 | P3 | §6.4 i18n 文案（規則數 vs 配對-規則數）— zh-TW + en-US | ✅ 已完成 (`tsc --noEmit` pass) |
 | P4 | §7.1 單元測試新增 | ✅ 改以 standalone Node 腳本驗證（`/tmp/test-summary-fix.mjs` + `/tmp/test-edge-cases.mjs`），共 **9/9 assertions 通過** |
 | P5 | §7.2 手動驗證（程式碼 trace + standalone Node 跑觸發案例） | ✅ 已完成（trace + 5 邊界案例皆 pass，見 §0.3 / §0.4） |
-| P6 | §7.3 部署驗證（Vercel bundle hash + curl 驗證） | ⏸️ 待使用者授權 push（合併到 main → `git push railway main`）後再做 |
+| P6 | §7.3 部署驗證（Vercel preview deploy） | ✅ Vercel preview 部署成功 — 詳見 §0.5 |
 
 > **0.2 P4 範圍調整（2026-05-08）**：`package.json` 確認專案前端**沒有單元測試框架**（只有 `@playwright/test`），加 Vitest 屬於基建變更，超出本次 fix 範圍。改以下列方式取代：
 > - **程式碼推演**：手動 trace 觸發案例 5 藥的完整路徑（見 §0.3）
@@ -92,6 +92,34 @@ Risk C: 2、Risk B: 1
 **合計 9/9 assertions PASS**。腳本檔保存在 `/tmp/`，後續加 Vitest 時可直接搬進 `src/pages/pharmacy/__tests__/`。
 
 > **Edge case 2 觀察（不是 bug，但記錄一下）**：當一條 rule 的 `drug1 === drug2`（罕見，只有「同 class 內互斥」會出現），現行邏輯只把成員加到 side1，side2 會空，pair 產生不出來。實際 DB 該類 rule 通常用兩個獨立 group entries 表達（像 `ddi_ab869654bc38 Bradycardia-Causing Agents ↔ Bradycardia-Causing Agents`，會有兩個成員列表）。若日後遇到該情境，再針對性處理。
+
+### 0.5 Vercel preview 部署（2026-05-08）
+
+**Branch**：`fix/interactions-class-rule-pair-attribution`
+**Commit**：`7c09301c9` — `fix(pharmacy): expand class-rule pair attribution in interactions summary`
+**Push 到**：`railway` remote（`hsu07985-creator/ChatICU`）→ Vercel 自動 build
+
+**Preview URL**：https://chat-q9s4npi49-chuns-projects-068de742.vercel.app
+**Deploy state**：`success`（GitHub commit status = success；Vercel deployment 4619225694）
+
+> Preview URL 受 Vercel SSO 保護（curl 直連回 401）— 從已登入 Vercel 的瀏覽器點開即可。
+
+**驗證步驟（使用者執行）**：
+1. 從 Vercel-logged-in 的瀏覽器開 preview URL
+2. 登入 ChatICU（用 prod 帳密；preview 走 vercel.json 的 rewrites 連 Railway prod backend）
+3. 進「用藥交互」頁
+4. 輸入 5 藥：Mosapride、Candesartan、Linagliptin、Metformin、Carvedilol
+5. 預期看到：
+   - 找到 **3 條規則**（不是「3 筆交互作用」）
+   - 配對速查 **4 列**：
+     - Candesartan ↔ Linagliptin: Risk C, 相關規則數=2
+     - Carvedilol ↔ Linagliptin: Risk C, 相關規則數=1
+     - Carvedilol ↔ Metformin: Risk C, 相關規則數=1（修前消失）
+     - Candesartan ↔ Metformin: Risk B, 相關規則數=1（修前消失）
+   - 配對速查下方 footnote「※ 同一條 class rule 可能涵蓋多對藥品，因此「相關規則數」加總可能大於上方「條規則」總數」
+   - Detail 區 3 張卡片，CardTitle 顯示適用藥對（不是 class group 名稱），副標才是 class group 名稱
+
+驗證 OK 後再決定是否 merge 到 main、push 到 prod。
 
 > **0.1 文件 review 後修訂紀錄（2026-05-08）**：經 3 個 Opus 4.7 agent 並行審查，修訂以下 4 處：
 > - §5.1：補 by-rule_id dedup（避免 `searchResults` 跨迭代重複計數）+ wordPattern memoize
@@ -496,7 +524,7 @@ describe('interactions summary pair attribution', () => {
 | 2 | `src/pages/pharmacy/__tests__/interactions-summary.test.ts` | 新增 8 個單元測試（含 AI finding、跨迭代 dedup、memo correctness） | §7.1 |
 | 3 | `src/i18n/locales/zh-TW/pharmacy.json` | 改 queryStats / tableHeaders.count / riskCount 文案；新增 pairLookupNote / detail.applicablePairsLabel / detail.classRuleSuffix | §6.4 |
 | 4 | `src/i18n/locales/en-US/pharmacy.json` | 同上 en-US 對應字串 | §6.4 |
-| 5 | `docs/drug-interactions-architecture.md` | 補 cross-link 到本文件 | — |
+| 5 | `docs/pharmacy/drug-interactions-architecture.md` | 補 cross-link 到本文件 | — |
 
 **不改**：
 - 後端（`_pair_on_different_sides` 已有 word-boundary 保護）
@@ -514,6 +542,6 @@ Commit body 提及：
 
 ## 10. 與既有資產的關聯
 
-- **2026-05-06 substring bug fix**（`docs/drug-interactions-substring-bug-and-fix.md`）：建立了 `wordMatch` word-boundary 保護，本文件的 cartesian product 改動繼續沿用，不退回 `includes`。
-- **Lexicomp XD upgrade**（`docs/lexicomp-xd-upgrade-2026-04-28.md`）：4 月底補進 1,522 筆 Risk X 規則，提高了 class-level rule 比例（DB 已有 59% 是 class-level），讓本 bug 的暴露率變高。
+- **2026-05-06 substring bug fix**（`docs/pharmacy/drug-interactions-substring-bug-and-fix.md`）：建立了 `wordMatch` word-boundary 保護，本文件的 cartesian product 改動繼續沿用，不退回 `includes`。
+- **Lexicomp XD upgrade**（`docs/pharmacy/lexicomp-xd-upgrade-2026-04-28.md`）：4 月底補進 1,522 筆 Risk X 規則，提高了 class-level rule 比例（DB 已有 59% 是 class-level），讓本 bug 的暴露率變高。
 - **`drug-interactions-architecture.md`**：DDI 比對 pipeline 全圖，會在本修法落地後加一條 cross-link。

@@ -541,7 +541,7 @@
 
 ### Team Chat Audit (2026-05-03) — Wave 1 frontend tasks (no architecture dependency)
 
-> Source: `docs/team-chat-audit-fixes-2026-05-03.md`. Progress tracked in `docs/team-chat-fixes-progress.md`.
+> Source: `docs/team-chat/team-chat-audit-fixes-2026-05-03.md`. Progress tracked in `docs/team-chat/team-chat-fixes-progress.md`.
 > All Wave 1 tasks are pure frontend, push to `railway` remote (Vercel).
 
 ### TC-F01 [DONE] Clear team-chat module-level caches on logout
@@ -710,7 +710,7 @@
   - **Stale snapshot:** when `snapshotTakenAt` is > 30 min old, the existing `SnapshotRefreshControl` already turns amber. Inside the panel, add a one-line banner "快照已超過 30 分鐘未更新" with a link/button to trigger the refresh.
   - **Session has no `patient_id`:** snapshot will be `null`. Hide the panel entirely.
   - **Long snapshot:** typical critical+deferred ≈ 2–3 KB. Use `max-height` with internal scroll, not page scroll.
-- **i18n:** strings should go through the `ai-chat:` namespace per `docs/i18n-rollout-plan-2026-05-04.md`. **Avoid the word "快照" in user-facing copy** (台灣臨床語境少用)，改用「目前資料」「最新檢驗值」「目前用藥」等自然說法。Suggested keys:
+- **i18n:** strings should go through the `ai-chat:` namespace per `docs/i18n/i18n-rollout-plan-2026-05-04.md`. **Avoid the word "快照" in user-facing copy** (台灣臨床語境少用)，改用「目前資料」「最新檢驗值」「目前用藥」等自然說法。Suggested keys:
   - `ai-chat:snapshotPanel.title` = "AI 目前掌握的資料" / "Data the AI has now"
   - `ai-chat:snapshotPanel.empty` = "傳出第一則訊息後，會在這裡顯示 AI 目前掌握的病患資料"
   - `ai-chat:snapshotPanel.deferredLoading` = "影像/報告/評分載入中…"

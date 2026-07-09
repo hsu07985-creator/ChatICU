@@ -1,6 +1,6 @@
 # 團隊聊天室修補進度
 
-> 對應 `docs/team-chat-audit-fixes-2026-05-03.md`（41 條發現）。每完成一個 Task，更新此檔的狀態欄與「最後更新」日期。
+> 對應 `docs/team-chat/team-chat-audit-fixes-2026-05-03.md`（41 條發現）。每完成一個 Task，更新此檔的狀態欄與「最後更新」日期。
 >
 > **圖示**：☐ 未開始　⏳ 進行中　✅ 完成　⏸ 阻塞　❌ 放棄
 >
@@ -280,8 +280,8 @@ curl -s https://chat-icu.vercel.app/ | grep -oE 'assets/index-[^"]+\.js'
 
 ## 相關文件
 
-- 主審查文件：[`docs/team-chat-audit-fixes-2026-05-03.md`](team-chat-audit-fixes-2026-05-03.md)
-- Backend 任務佇列：[`docs/coordination/backend-tasks.md`](coordination/backend-tasks.md)（搜 `TC-B`）
-- Frontend 任務佇列：[`docs/coordination/frontend-tasks.md`](coordination/frontend-tasks.md)（搜 `TC-F`）
-- API 契約：[`docs/coordination/api-contracts.md`](coordination/api-contracts.md)
+- 主審查文件：[`docs/team-chat/team-chat-audit-fixes-2026-05-03.md`](team-chat-audit-fixes-2026-05-03.md)
+- Backend 任務佇列：[`docs/coordination/backend-tasks.md`](../coordination/backend-tasks.md)（搜 `TC-B`）
+- Frontend 任務佇列：[`docs/coordination/frontend-tasks.md`](../coordination/frontend-tasks.md)（搜 `TC-F`）
+- API 契約：[`docs/coordination/api-contracts.md`](../coordination/api-contracts.md)
 - 部署規範：[`CLAUDE.md`](../CLAUDE.md) 「部署與驗證流程」段

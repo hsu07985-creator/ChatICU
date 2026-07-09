@@ -131,7 +131,7 @@ async def build_clinical_snapshot(patient_id: str, db: AsyncSession) -> str:
     # been working only because the /ai/chat/stream router happens to call
     # _get_or_create_session() before this function — that prior SELECT
     # acquires the connection implicitly. Don't rely on caller order; warm
-    # up explicitly. See docs/b15-snapshot-latency-plan-2026-04-30.md §1
+    # up explicitly. See docs/his-sync/b15-snapshot-latency-plan-2026-04-30.md §1
     # and the audit in scripts/b15_snapshot_audit.py for the fragile-contract
     # discovery.
     await db.connection()
@@ -194,7 +194,7 @@ async def build_critical_snapshot(
     task after the first response yields:
       latest_vent, recent_reports, latest_scores.
 
-    Per docs/b15-snapshot-latency-plan-2026-04-30.md §3.1+§4.1:
+    Per docs/his-sync/b15-snapshot-latency-plan-2026-04-30.md §3.1+§4.1:
     - duplicate stays in critical (medication safety)
     - lab_before_24h stays in critical (small ~600ms, trend matters clinically)
     - vent: even when not intubated _fmt_vent_section returns empty, so deferring

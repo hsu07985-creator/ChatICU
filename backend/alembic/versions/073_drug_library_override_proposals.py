@@ -7,7 +7,7 @@ Adds 6 override columns to drug_interactions (Option C: schema-isolated
 override + COALESCE at read time, never overwriting source columns) and a
 new drug_rule_proposals table for the 4-eye proposal/approval flow.
 
-Per docs/drug-library-phase4-plan.md §4 Phase 4b. Bitemporal valid_from /
+Per docs/pharmacy/drug-library-phase4-plan.md §4 Phase 4b. Bitemporal valid_from /
 valid_to deferred to 4c.
 """
 from alembic import op

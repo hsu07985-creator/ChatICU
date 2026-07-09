@@ -1,7 +1,7 @@
 # 多語介面（i18n）導入進度
 
-> **配對計畫文件**：[`docs/i18n-rollout-plan-2026-05-04.md`](i18n-rollout-plan-2026-05-04.md)
-> **配對術語表**：[`docs/i18n-medical-glossary.md`](i18n-medical-glossary.md)
+> **配對計畫文件**：[`docs/i18n/i18n-rollout-plan-2026-05-04.md`](i18n-rollout-plan-2026-05-04.md)
+> **配對術語表**：[`docs/i18n/i18n-medical-glossary.md`](i18n-medical-glossary.md)
 > **負責人**：Chun + Claude
 > **啟動日**：2026-05-04
 > **總進度**：🟢 8 / 8 Waves 全部完成（W0+...+W7 已上線 2026-05-05）
@@ -73,7 +73,7 @@
 - e2e 同步：
   - `e2e/t27-extended-journeys.spec.js`（selector 改 regex 相容雙語）
 - 文件：
-  - `docs/i18n-medical-glossary.md`（術語對照表骨架，Wave 1 角色與側邊欄已列入校稿）
+  - `docs/i18n/i18n-medical-glossary.md`（術語對照表骨架，Wave 1 角色與側邊欄已列入校稿）
 
 #### 驗收（Wave 1）
 - [x] TypeScript build 過 (`npm run typecheck` 通過)
@@ -106,7 +106,7 @@
   - `src/components/dashboard/patient-duplicate-badge.tsx`（aria-label + tooltip）
   - `src/i18n/config.ts`（註冊 auth + dashboard namespace）
 - 文件：
-  - `docs/i18n-medical-glossary.md`（補入 Wave 2 校稿表）
+  - `docs/i18n/i18n-medical-glossary.md`（補入 Wave 2 校稿表）
 
 #### 驗收（Wave 2）
 - [x] TypeScript build 過 (`npm run typecheck` 通過)
@@ -134,7 +134,7 @@
   - `src/components/patient/dialogs/patient-edit-dialog.tsx`（共用編輯對話框，354 行）
   - `src/components/patient/dialogs/patient-archive-dialog.tsx`（共用辦理出院對話框，174 行）
 - `src/i18n/config.ts`：註冊 `patients` namespace
-- 文件：`docs/i18n-medical-glossary.md` 補入 Wave 3a 校稿表
+- 文件：`docs/i18n/i18n-medical-glossary.md` 補入 Wave 3a 校稿表
 
 **已知範圍外（dead code，跳過）**：
 - `src/components/patient/patients-list-card.tsx`（沒有 import 它）
@@ -279,7 +279,7 @@
    - 9 條常見錯誤對照表（從 W3-W6 踩雷紀錄萃取）
    - 新增字串 / 新增 namespace 的 checklist
 
-3. **`docs/i18n-audit-2026-05-05.md`**（372L / 21.7KB）
+3. **`docs/i18n/i18n-audit-2026-05-05.md`**（372L / 21.7KB）
    - 20 namespace 中英對照 audit
    - 結構：17/20 完全對稱；3 個 plural-form 不對稱（不擋）
    - 翻譯品質：**0 個 P0 blocker**；~15 個 P1 建議（plural symmetry / 跨 ns 術語對齊）
@@ -389,4 +389,4 @@
 ## 連結
 - [Plan](i18n-rollout-plan-2026-05-04.md)
 - [Medical Glossary](i18n-medical-glossary.md)（Wave 1 建立）
-- [i18n Guide](frontend/i18n-guide.md)（Wave 7 建立）
+- [i18n Guide](../frontend/i18n-guide.md)（Wave 7 建立）

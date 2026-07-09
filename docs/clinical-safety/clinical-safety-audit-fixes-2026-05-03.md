@@ -5,7 +5,7 @@
 > 2. **Clinical-summary + polish endpoints** (`backend/app/routers/clinical.py`)
 > 3. **Pharmacy-workstation** (`src/pages/pharmacy/workstation.tsx` + 子元件)
 >
-> **進度追蹤**：→ `docs/clinical-safety-fixes-progress.md`
+> **進度追蹤**：→ `docs/clinical-safety/clinical-safety-fixes-progress.md`
 >
 > **嚴重度**：🔴🔴 emergency（漏報臨床警示）｜🔴 high｜🟡 medium｜🟢 low｜ℹ️ observe.
 
@@ -128,8 +128,8 @@
 
 ## 6. 相關文件
 
-- 進度追蹤：`docs/clinical-safety-fixes-progress.md`
-- AI chat 同模式案例：`docs/ai-chat-audit-fixes-2026-05-03.md` + `docs/ai-chat-fixes-progress.md`
+- 進度追蹤：`docs/clinical-safety/clinical-safety-fixes-progress.md`
+- AI chat 同模式案例：`docs/ai-chat/ai-chat-audit-fixes-2026-05-03.md` + `docs/ai-chat/ai-chat-fixes-progress.md`
 - Duplicate detector 模組設計：見 memory `project_duplicate_medication_module.md`
 
 ---
