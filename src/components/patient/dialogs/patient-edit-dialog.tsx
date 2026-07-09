@@ -1,6 +1,6 @@
 import { Edit2, Save, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { ICU_DEPARTMENTS, type PatientWithFrontendFields } from '../../../features/patients/types';
+import { ICU_DEPARTMENTS, type PatientWithFrontendFields } from '../../../lib/patients/types';
 import { Button } from '../../ui/button';
 import { ButtonLoadingIndicator } from '../../ui/button-loading-indicator';
 import { Checkbox } from '../../ui/checkbox';

@@ -16,7 +16,7 @@ import {
 import { Button } from '../ui/button';
 import { EmptyState, ErrorDisplay } from '../ui/state-display';
 import { TableSkeleton } from '../ui/skeletons';
-import type { PatientWithFrontendFields } from '../../features/patients/types';
+import type { PatientWithFrontendFields } from '../../lib/patients/types';
 import { getAirwayStatusLabel } from '../../lib/patient-airway';
 
 interface PatientsListCardProps {

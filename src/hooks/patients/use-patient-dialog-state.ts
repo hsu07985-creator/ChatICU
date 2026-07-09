@@ -5,12 +5,12 @@ import {
   createDefaultNewPatient,
   type NewPatientFormData,
   type PatientWithFrontendFields,
-} from '../../features/patients/types';
-import { extractApiErrorMessage } from '../../features/patients/patient-error-utils';
+} from '../../lib/patients/types';
+import { extractApiErrorMessage } from '../../lib/patients/patient-error-utils';
 import {
   parseCreatePatientForm,
   parseEditPatientForm,
-} from '../../features/patients/patient-form-schema';
+} from '../../lib/patients/patient-form-schema';
 import { maskPatientName } from '../../lib/utils/patient-name';
 
 interface UsePatientDialogStateOptions {

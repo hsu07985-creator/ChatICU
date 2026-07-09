@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAllPatients } from '../use-patients';
 import { queryKeys } from '../use-api-query';
-import type { PatientWithFrontendFields } from '../../features/patients/types';
+import type { PatientWithFrontendFields } from '../../lib/patients/types';
 import { getApiErrorMessage } from '../../lib/api-client';
 
 interface UsePatientListQueryOptions {

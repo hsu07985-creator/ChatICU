@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Archive } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { PatientWithFrontendFields } from '../../../features/patients/types';
+import type { PatientWithFrontendFields } from '../../../lib/patients/types';
 import { maskPatientName } from '../../../lib/utils/patient-name';
 import { Button } from '../../ui/button';
 import {
