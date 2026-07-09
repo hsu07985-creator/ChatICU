@@ -325,7 +325,9 @@ verify_T08() {
   fi
 
   # 空目錄應已清除
-  for dir in "src/components/figma" "src/hooks" "src/guidelines"; do
+  # 註：src/hooks 於 2026-04 後由新功能重建（12+ 檔，含 hooks/patients/），
+  # 不再屬於 Batch 1-5 的封存目標，故自本清單移除（2026-07-10）。
+  for dir in "src/components/figma" "src/guidelines"; do
     if [ -d "$dir" ]; then
       local dir_files
       dir_files=$(find "$dir" -type f 2>/dev/null | wc -l)
