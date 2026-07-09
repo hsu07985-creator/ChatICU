@@ -13,7 +13,7 @@
 - Vite + React + TypeScript（SPA，port 3000）
 - **Pre-compiled Tailwind CSS v4.1.3**（root font-size 18px，所有 rem 單位膨脹 12.5%）
   - ⚠️ 重要：CSS 是預編譯的，無法動態產生新的 Tailwind utility class
-  - 如需新的 CSS 規則，請加到 `src/index.css` 檔案末尾
+  - 如需新的 CSS 規則，請加到 `src/styles/globals.css` 檔案末尾（`src/index.css` 是 Figma 匯出的死檔，已於 2026-07-10 移除）
 - shadcn/ui 元件庫（`src/components/ui/`）
 - Lucide React 圖示
 - 品牌主色：`#7f265b`（深紫紅）
@@ -38,7 +38,7 @@
 
 ### 補充修正（已完成）
 - H2: 藥物卡片加類別標籤（`MED_CATEGORY_LABELS` in patient-detail.tsx:158-175）
-- C1: 病人清單行高收緊（`compact-table` CSS in index.css:4729-4734 + patients.tsx:359）
+- C1: 病人清單行高收緊（`compact-table` CSS in src/styles/globals.css + patients.tsx:359）
 - C2: 留言欄位改為粉紅圓點指示（patients.tsx:434-440）
 - E1: 留言卡片間距收緊（patient-detail.tsx 多處 space-y-2, pb-2, p-1.5）
 - F2: 空狀態圖示縮小（medical-records.tsx:464-465, h-10 w-10, py-6）
@@ -93,7 +93,7 @@
 
 ## 關鍵注意事項
 
-1. **Pre-compiled Tailwind v4**：不能使用任意 variant 如 `[&_td]:py-1.5`，這類 class 不會在 CSS 中產生。需改用自訂 CSS 寫在 `src/index.css` 末尾。
+1. **Pre-compiled Tailwind v4**：不能使用任意 variant 如 `[&_td]:py-1.5`，這類 class 不會在 CSS 中產生。需改用自訂 CSS 寫在 `src/styles/globals.css` 末尾。
 2. **Root font-size 18px**：所有 rem 值實際渲染為 18px 基底。`p-2` = 0.5rem = 9px（非 8px）。
 3. **SPA 路由**：直接訪問 `/patients` 會被 Vite proxy 導向 API。測試時需從 `/` 進入後透過 sidebar 導航。
 4. **Backend API proxy**：Vite dev server proxy 定義在 `vite.config.ts:73-83`，所有 `/auth`, `/patients`, `/ai`, `/api` 等路徑轉發到 `localhost:8000`。

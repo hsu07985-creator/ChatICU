@@ -226,3 +226,13 @@ html {
   min-width: 18px !important;
   min-height: 18px !important;
 }
+
+/* C1: Compact table rows for patient list.
+   Ported 2026-07-10 from the dead pre-compiled src/index.css (removed) —
+   the rule was defined there but never loaded, so compact rows silently
+   didn't apply. This file (globals.css) is the real style entry. */
+.compact-table td,
+.compact-table th {
+  padding: 0.375rem 0.625rem;
+  overflow: hidden;
+}

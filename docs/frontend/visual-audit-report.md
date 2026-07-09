@@ -95,7 +95,7 @@
 - **位置**：第 359 行 — `<Table className="compact-table">`
 - **機制**：透過自訂 CSS class `compact-table` 覆蓋 `<td>/<th>` 的 padding
 - **原因**：pre-compiled Tailwind v4.1.3 無法動態生成 `[&_td]:py-1.5`，需自訂 CSS
-- **關聯**：CSS 規則定義在 `src/index.css:4729-4734`
+- **關聯**：CSS 規則定義在 `src/styles/globals.css`（2026-07-10 自死檔 index.css 移植）
 - **效果**：td padding 9px → 6.75px，行高 ~64px → ~59px
 
 **修正 C2 — 留言欄位改為圓點指示**
@@ -121,7 +121,7 @@
 
 ---
 
-### 2.4 `src/index.css` （1 項新增）
+### 2.4 `src/styles/globals.css` （1 項新增；原寫在已移除的 src/index.css）
 
 **修正 C1 — compact-table CSS 規則**
 - **位置**：第 4729-4734 行（檔案末尾）
@@ -201,7 +201,7 @@
 ## 三、檔案關聯圖
 
 ```
-src/index.css (compact-table 規則)
+src/styles/globals.css (compact-table 規則)
   └─→ src/pages/patients.tsx (C1: Table className)
         └─→ src/components/ui/table.tsx (TableCell p-2 被 CSS 覆蓋)
 
