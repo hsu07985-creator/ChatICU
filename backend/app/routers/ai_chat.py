@@ -184,6 +184,7 @@ async def _event_stream(
     current_user: Optional[User] = None,
     patient_id: Optional[str] = None,
     active_med_aliases: Optional[List[str]] = None,
+    original_message: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     """
     Generate SSE events from the LLM stream and persist the reply.
@@ -335,6 +336,7 @@ async def _event_stream(
         had_patient_context=had_patient_context,
         prefetch_fired=prefetch_fired,
         session_id=session_id,
+        user_question=original_message,
     )
 
     # Send done event — frontend expects ChatResponse shape:
@@ -624,6 +626,7 @@ async def chat_stream(
             current_user=current_user,
             patient_id=patient_id,
             active_med_aliases=active_med_aliases,
+            original_message=body.message,
         ),
         media_type=SSE_MEDIA_TYPE,
         headers=SSE_HEADERS,

@@ -14,6 +14,7 @@ reply:
 """
 
 import logging
+import re
 from datetime import timezone
 from typing import List, Optional, Tuple
 
@@ -110,23 +111,90 @@ def _reply_looks_hedged(reply: str) -> bool:
     return False
 
 
+# T3 (2026-07-10): the MISS_LIKELY gate was over-sensitive — a complete,
+# precise answer whose supplement responsibly noted 「目前資料缺少 MAR」
+# counted as a prefetch miss and inflated the F4 tool-loop statistics
+# (ai-chat-tool-loop-decision-2026-05-03.md §5 signal B). Design C: the
+# hedge only counts when it appears in the paragraph that addresses the
+# question subject. Subject tokens are ASCII words (drug names, MAR, CT)
+# plus Chinese runs left after stripping question function-words.
+# ponytail: keyword heuristic, not NLP — falls back to scanning the main
+# answer (first paragraph) when the question yields no usable tokens.
+_QUESTION_STOPWORDS_RE = re.compile(
+    "|".join(sorted((
+        "病人", "患者", "這位", "那位", "現在", "目前", "最近", "怎麼樣",
+        "怎樣", "如何", "什麼", "哪些", "哪個", "是多少", "多少", "是不是",
+        "是否", "有沒有", "有無", "可不可以", "可以", "能不能", "需不需要",
+        "需要", "請問", "請", "幫我", "幫忙", "告訴我", "給我", "看一下",
+        "一下", "他", "她", "的", "了", "嗎", "呢", "吧", "喔", "哦", "啊",
+        "有", "或", "與", "和", "及", "還是",
+    ), key=len, reverse=True))
+)
+_CJK_RUN_RE = re.compile(r"[一-鿿]{2,}")
+_ASCII_TOKEN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]+")
+_PARAGRAPH_SPLIT_RE = re.compile(r"\n\s*\n")
+
+
+def _extract_subject_tokens(question: str) -> set:
+    """Salient tokens of the user question: ASCII identifiers as-is,
+    Chinese as ≥2-char runs after function-word removal."""
+    if not question:
+        return set()
+    ascii_tokens = {t.lower() for t in _ASCII_TOKEN_RE.findall(question)}
+    cleaned = _QUESTION_STOPWORDS_RE.sub(" ", question)
+    return ascii_tokens | set(_CJK_RUN_RE.findall(cleaned))
+
+
+def _reply_hedges_on_question_subject(reply: str, question: str) -> bool:
+    """True when the paragraph answering the question subject is hedged.
+
+    The reply format mandated by the icu_chat prompt is 主回答 first
+    paragraph → blank line → 【說明/補充】, so the first paragraph that
+    mentions a subject token is where the question is actually being
+    answered. A hedge elsewhere (responsible data-gap note in the
+    supplement) does not make the turn a prefetch miss."""
+    if not reply:
+        return False
+    paragraphs = [p for p in _PARAGRAPH_SPLIT_RE.split(reply) if p.strip()]
+    if not paragraphs:
+        return False
+    target = None
+    tokens = _extract_subject_tokens(question)
+    if tokens:
+        for para in paragraphs:
+            lowered = para.lower()
+            if any(t in lowered for t in tokens):
+                target = para
+                break
+    if target is None:
+        # No usable subject tokens (or none matched) — conservatively
+        # judge the main answer only.
+        target = paragraphs[0]
+    return _reply_looks_hedged(target)
+
+
 def log_hedging_signal(
     full_reply: str,
     *,
     had_patient_context: bool,
     prefetch_fired: bool,
     session_id: str,
+    user_question: Optional[str] = None,
 ) -> None:
     """M1: F4 trigger signal — turns where the LLM hedged AND we had patient
     context AND no prefetch fired. Aggregating these over time answers
     "would a real LLM tool loop catch questions our keyword prefetch
     doesn't?" — see docs/ai-chat/ai-chat-tool-loop-decision-2026-05-03.md §5
     signal B. Lower-tier [REPLY][HEDGED] log captures hedging in cases
-    where prefetch did fire (less actionable for F4 but useful sanity).
+    where prefetch did fire, or where the hedge is off-subject (T3:
+    responsible data-gap notes no longer count as misses).
+
+    ``user_question`` is the ORIGINAL user message (no injected context
+    blocks) — used to locate the paragraph that answers the question.
     """
     if not (full_reply and had_patient_context):
         return
-    hedged = _reply_looks_hedged(full_reply)
+    hedged = _reply_hedges_on_question_subject(full_reply, user_question or "")
     if hedged and not prefetch_fired:
         logger.warning(
             "[CHAT][PREFETCH][MISS_LIKELY] session=%s reply_chars=%d "
@@ -135,14 +203,16 @@ def log_hedging_signal(
             session_id,
             len(full_reply),
         )
-    elif hedged:
+    elif hedged or _reply_looks_hedged(full_reply):
         logger.info(
             "[CHAT][REPLY][HEDGED] session=%s reply_chars=%d prefetch_fired=%s "
-            "— LLM hedged despite prefetch firing; check whether prefetch "
-            "returned no_data or denied.",
+            "subject_hedged=%s — hedge present but not a MISS_LIKELY "
+            "candidate (prefetch fired, or hedge is an off-subject "
+            "data-gap note).",
             session_id,
             len(full_reply),
             prefetch_fired,
+            hedged,
         )
 
 
