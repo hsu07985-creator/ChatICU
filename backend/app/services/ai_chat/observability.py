@@ -27,7 +27,11 @@ from app.services.assertion_conflict import (
     detect_med_negation_conflict,
     format_med_conflict_block,
 )
-from app.services.citation_audit import audit_citations, summarize_suspects
+from app.services.citation_audit import (
+    _CITATION_RE,
+    audit_citations,
+    summarize_suspects,
+)
 from app.utils.request import get_client_ip
 from .prompt_assembly import _maybe_inject_assertion_conflict_into_user_message
 
@@ -146,13 +150,22 @@ def _extract_subject_tokens(question: str) -> set:
 
 
 def _reply_hedges_on_question_subject(reply: str, question: str) -> bool:
-    """True when the paragraph answering the question subject is hedged.
+    """True when the paragraph answering the question subject is hedged
+    AND ungrounded.
 
     The reply format mandated by the icu_chat prompt is 主回答 first
     paragraph → blank line → 【說明/補充】, so the first paragraph that
     mentions a subject token is where the question is actually being
     answered. A hedge elsewhere (responsible data-gap note in the
-    supplement) does not make the turn a prefetch miss."""
+    supplement) does not make the turn a prefetch miss.
+
+    Citation exemption (2026-07-10 probe finding): the T4 staleness rule
+    tells the LLM to surface 【資料狀態】 gaps *in the main answer*, so a
+    complete cited answer legitimately contains 「缺少 MAR」 in the same
+    paragraph as the subject. If the subject paragraph carries a
+    （依【…】…） citation, the model was grounded — the hedge is a
+    caveat, not a miss. A true miss answers the subject with no citation
+    to stand on (DAY20 shape)."""
     if not reply:
         return False
     paragraphs = [p for p in _PARAGRAPH_SPLIT_RE.split(reply) if p.strip()]
@@ -170,6 +183,8 @@ def _reply_hedges_on_question_subject(reply: str, question: str) -> bool:
         # No usable subject tokens (or none matched) — conservatively
         # judge the main answer only.
         target = paragraphs[0]
+    if _CITATION_RE.search(target):
+        return False
     return _reply_looks_hedged(target)
 
 

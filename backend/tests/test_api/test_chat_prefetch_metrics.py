@@ -88,10 +88,16 @@ from app.services.ai_chat.observability import (  # noqa: E402
 )
 
 
+# Fixtures mirror the REAL 2026-07-10 probe replies: the T4 staleness
+# rule pushes data-gap notes INTO the cited main answer, so hedge words
+# and subject tokens legitimately share the first paragraph.
 Q1_RENAL = "他現在的腎功能怎麼樣？給我具體數值。"
 Q1_REPLY_COMPLETE = (
-    "腎功能嚴重受損：肌酸酐 6.52 mg/dL、血中尿素氮 143.9 mg/dL、"
-    "估計腎絲球過濾率 7.97（依【關鍵檢驗】Cr 6.52，2026-04-26 22:30）。\n\n"
+    "依 2026-04-26 22:30 的最新檢驗值（非即時資料），腎功能嚴重受損："
+    "肌酸酐 6.52 mg/dL、血中尿素氮 143.9 mg/dL、估算腎絲球過濾率 7.97"
+    "（依【關鍵檢驗】肌酸酐 6.52，2026-04-26 22:30）。目前資料缺少體重，"
+    "肌酸酐清除率無法計算，建議刷新最新腎功能與尿量資料"
+    "（依【資料狀態】缺口：無 MAR/實際給藥資料）。\n\n"
     "【說明/補充】\n"
     "(1) 數值符合急性腎損傷 KDIGO 第 3 期。\n"
     "(2) 建議調整經腎排除藥物劑量。\n"
@@ -100,10 +106,12 @@ Q1_REPLY_COMPLETE = (
 
 Q6_DUP = "目前用藥有什麼重複或安全問題嗎？"
 Q6_REPLY_COMPLETE = (
-    "目前有 4 條重複用藥警示：carbapenem 類重複、benzodiazepine 併用等"
-    "（依【用藥安全摘要】重複用藥警示）。\n\n"
+    "依 2026-04-27 23:12 的目前用藥（非即時資料），有 4 筆重複用藥警示："
+    "Pantoloc ×2、Transamin ×2 為 critical（依【用藥安全摘要】自動警示 4 筆）。"
+    "目前缺少實際給藥紀錄，建議先核對醫囑與實際給藥"
+    "（依【資料狀態】缺口：無 MAR/實際給藥資料）。\n\n"
     "【說明/補充】\n"
-    "(1) meropenem 與 imipenem 同屬 carbapenem 類。\n"
+    "(1) Pantoloc qd IV + Pantoloc stat IV 屬相同藥物重複。\n"
     "(2) 目前資料缺少 MAR，無法確認實際給藥時間，建議補充。"
 )
 
@@ -115,11 +123,23 @@ DAY20_REPLY_MISS = (
 
 
 def test_complete_answer_with_side_note_is_not_subject_hedged():
-    """T3 acceptance: 完整作答 + 「缺少 MAR」註記 → 不觸發。"""
+    """T3 acceptance: 完整作答 + 「缺少 MAR」註記 → 不觸發。
+    The subject paragraph hedges (T4 makes it surface gaps there) but it
+    carries citations — grounded caveat, not a miss."""
     assert _reply_hedges_on_question_subject(Q1_REPLY_COMPLETE, Q1_RENAL) is False
     assert _reply_hedges_on_question_subject(Q6_REPLY_COMPLETE, Q6_DUP) is False
     # ...while the full-text scan still sees the hedge (HEDGED info log).
     assert _reply_looks_hedged(Q1_REPLY_COMPLETE) is True
+
+
+def test_uncited_hedged_subject_paragraph_fires():
+    """Same subject paragraph, hedged, but WITHOUT any （依【…】） citation
+    → the model had nothing to ground on → miss candidate."""
+    reply = (
+        "目前資料缺少腎功能相關檢驗，無法給出具體數值，請補充最新抽血報告。\n\n"
+        "【說明/補充】\n(1) 建議安排肌酸酐與電解質檢驗。"
+    )
+    assert _reply_hedges_on_question_subject(reply, Q1_RENAL) is True
 
 
 def test_true_prefetch_miss_still_fires():
