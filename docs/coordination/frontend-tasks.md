@@ -12,6 +12,16 @@
 
 ## Pending Tasks
 
+### F-DECIDE [READY] 工作站「產生報告 → 送出用藥建議」流程斷頭 — 需 PM 決策
+- **Added by:** infra/test-suite session
+- **Date:** 2026-07-10
+- **Priority:** P2（功能缺口，非錯誤）
+- **背景:** commit `1983485d0`（2026-04-03「remove 6 action buttons」）本意是移除與側欄重複的導航鈕，但把「產生報告」也一併移除。自此 `handleGenerateAdvice`（workstation.tsx:733）、`PharmacyReportView`、`AdviceSubmitDialog`（分類送出＋同步留言板）成為**不可達代碼**——藥師無法再從工作站送出用藥建議報告。
+- **二選一:**
+  1. **恢復按鈕**：在評估結果面板加回「產生報告」入口（一顆按鈕，流程本身完好）
+  2. **刪除死碼**：確認建議都改走藥物統計頁手動表單後，移除上述三個元件與 handler
+- **Files:** `src/pages/pharmacy/workstation.tsx`、`src/pages/pharmacy/workstation/{pharmacy-report-view,advice-submit-dialog,assessment-results-panel}.tsx`
+
 ### Phase 3 — Patient-detail performance
 
 ### F00 [DONE] Switch patient-detail.tsx to /patients/{id}/bootstrap aggregator

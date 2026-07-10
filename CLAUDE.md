@@ -95,7 +95,9 @@ curl -s "https://chat-icu.vercel.app/$(curl -s https://chat-icu.vercel.app/ | gr
 - Procfile 啟動時自動執行 `alembic upgrade head`
 - Seed data 的 `created_by_id` **必須**使用真實存在的 user ID（如 `usr_003`），不可用 `"system"`（FK 約束）
 - 新 migration 必須是冪等的（用 `IF NOT EXISTS` 或先查再插）
-- 如果懷疑某個 migration ��標記完成但資料沒進去，建立新的 migration 重新 seed
+- **新 migration 必須能在全新空 DB 上通過**（2026-07-10 起）：資料型 seed migration 引用 demo 病人／使用者前先檢查存在、缺席時安全跳過（先例：029/030/035/044/050）。asyncpg 陷阱：DATE 欄要傳 `datetime.date` 不可傳字串、一個 `op.execute` 只能一條 SQL、`:param::jsonb` 解析不了要用 `CAST(:param AS JSONB)`
+- 改完 migration 跑 `bash scripts/ops/verify_fresh_db_bootstrap.sh`（拋棄式 pgvector 容器 → alembic head 零跳過 → seeds → API 冒煙，結尾應為 PASS）
+- 如果懷疑某個 migration 被標記完成但資料沒進去，建立新的 migration 重新 seed
 
 ### 5. 常見陷阱
 - **Vercel VITE_API_URL**：`vercel.json` 的 `buildCommand` 已強制 `VITE_API_URL=`，確保前端走 Vercel proxy 而非直連 Railway
