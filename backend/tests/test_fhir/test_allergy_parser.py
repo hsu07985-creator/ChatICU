@@ -258,13 +258,34 @@ class TestMultiVisit:
 # ======================================================================
 
 PATIENT_DIR = Path(__file__).resolve().parents[3] / "patient"
-SNAPSHOT = "20260415_152444"
+
+
+def _resolve_snapshot(pat_no: str):
+    """Resolve a patient's current snapshot dir via latest.txt (HIS sync
+    convention), falling back to the newest timestamped subdir. The old
+    hardcoded snapshot (20260415_152444) rotated out with patient turnover
+    and made every real-data test fail unconditionally.
+    """
+    pat_dir = PATIENT_DIR / pat_no
+    if not pat_dir.is_dir():
+        return None
+    latest = pat_dir / "latest.txt"
+    if latest.exists():
+        name = latest.read_text().strip()
+        snap = pat_dir / name
+        if snap.is_dir():
+            return snap
+    snaps = sorted(d for d in pat_dir.iterdir() if d.is_dir())
+    return snaps[-1] if snaps else None
 
 
 def _load_so_texts(pat_no: str) -> List[str]:
     """Load all SUBJECTIVE texts from a patient's getSO_AllPatientSeq.json."""
     import json
-    so_path = PATIENT_DIR / pat_no / SNAPSHOT / "getSO_AllPatientSeq.json"
+    snap = _resolve_snapshot(pat_no)
+    if snap is None:
+        return []
+    so_path = snap / "getSO_AllPatientSeq.json"
     if not so_path.exists():
         return []
     with open(so_path) as f:
@@ -293,8 +314,14 @@ class TestRealPatientData:
         ("50076763", "nka"),       # no allergy to egg & vaccine / ADR(-)
     ])
     def test_known_nka_patients(self, pat_no, expected_status):
+        # ICU beds turn over — historical MRNs rotate out of patient/.
+        # Skip (rather than fail) so the assertion still bites whenever the
+        # patient's data is present on this machine.
+        if _resolve_snapshot(pat_no) is None:
+            pytest.skip(f"{pat_no} rotated out of patient/ (bed turnover)")
         texts = _load_so_texts(pat_no)
-        assert len(texts) > 0, f"No SO data for {pat_no}"
+        if not texts:
+            pytest.skip(f"No SO data in current snapshot for {pat_no}")
         result = parse_allergy_texts(texts)
         assert result["status"] == expected_status, (
             f"pat {pat_no}: expected {expected_status}, got {result}"
@@ -318,21 +345,23 @@ class TestRealPatientData:
     ])
     def test_patients_without_so_file(self, pat_no):
         """無 SO 檔案 → 空 texts → unknown"""
+        if _resolve_snapshot(pat_no) is None:
+            pytest.skip(f"{pat_no} rotated out of patient/ (bed turnover)")
         texts = _load_so_texts(pat_no)
         assert texts == [], f"{pat_no} unexpectedly has SO data"
         result = parse_allergy_texts(texts)
         assert result["status"] == "unknown"
 
-    def test_all_16_patients_no_crash(self):
-        """16 位病人全跑一遍不 crash"""
+    def test_all_current_patients_no_crash(self):
+        """現有 patient/ 內每位病人全跑一遍不 crash（人數隨床位輪替浮動）"""
         count = 0
         for pat_dir in sorted(PATIENT_DIR.iterdir()):
-            snap = pat_dir / SNAPSHOT
-            if not snap.exists():
+            if not pat_dir.is_dir() or _resolve_snapshot(pat_dir.name) is None:
                 continue
             texts = _load_so_texts(pat_dir.name)
             result = parse_allergy_texts(texts)
             assert result["status"] in ("nka", "unknown", "has_allergies")
             assert isinstance(result["allergies"], list)
             count += 1
-        assert count >= 16
+        if count == 0:
+            pytest.skip("no patient snapshots present on this machine")
