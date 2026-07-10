@@ -93,7 +93,8 @@ class DrugGraphBridge:
     @staticmethod
     def _hash_id(prefix: str, parts: list[str]) -> str:
         raw = "|".join([prefix, *parts]).encode("utf-8", "ignore")
-        return f"{prefix}_{hashlib.sha1(raw).hexdigest()[:12]}"
+        # Deterministic node-ID fingerprint, not a security control.
+        return f"{prefix}_{hashlib.sha1(raw, usedforsecurity=False).hexdigest()[:12]}"
 
     @staticmethod
     def _clean_query(raw: str) -> str:

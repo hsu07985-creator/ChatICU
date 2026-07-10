@@ -72,7 +72,8 @@ def _roc_birthday_to_age(birthday: Optional[str]) -> Optional[int]:
 def _gen_id(prefix: str, *parts: str) -> str:
     """Generate a deterministic short ID from parts."""
     raw = "|".join(str(p) for p in parts)
-    h = hashlib.md5(raw.encode()).hexdigest()[:8]
+    # Deterministic fingerprint for ID generation, not a security control.
+    h = hashlib.md5(raw.encode(), usedforsecurity=False).hexdigest()[:8]
     return f"{prefix}_{h}"
 
 
