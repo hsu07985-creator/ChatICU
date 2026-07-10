@@ -67,6 +67,7 @@ from app.services.ai_chat.prompt_assembly import (  # noqa: F401
 from app.services.ai_chat.sse import (  # noqa: F401
     _with_heartbeat,
     _web_annotations_to_citations,
+    split_main_and_detail,
 )
 from app.services.ai_chat.snapshot_lifecycle import (  # noqa: F401
     _fill_deferred_snapshot_bg,
@@ -347,13 +348,18 @@ async def _event_stream(
     # page reload. Persistence is a future enhancement (would need either
     # a new JSONB column or co-opting suggested_actions).
     now_iso = datetime.now(timezone.utc).isoformat()
+    # B14: split at 【說明/補充】 so the frontend detail panel gets a real
+    # `explanation`. The persisted AIMessage keeps the FULL text — session
+    # reload re-splits client-side (splitMainAndDetail in src/lib/api/ai.ts),
+    # and LLM history continuity needs the unsplit blob anyway.
+    main_content, detail = split_main_and_detail(full_reply)
     done_payload = {
         "message": {
             "id": assistant_msg_id,
             "role": "assistant",
-            "content": full_reply,
+            "content": main_content,
             "timestamp": now_iso,
-            "explanation": None,
+            "explanation": detail,
             "citations": _web_annotations_to_citations(web_annotations, full_reply),
             "safetyWarnings": None,
             "requiresExpertReview": False,

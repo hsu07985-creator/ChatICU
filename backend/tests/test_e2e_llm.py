@@ -228,7 +228,12 @@ async def test_e2e_ai_chat_stream_with_patient(e2e_client):
 
     message = done["message"]
     assert message["role"] == "assistant"
-    assert message["content"] == reply
+    # B14: the done payload splits the reply at 【說明/補充】 into
+    # content + explanation; both halves come from the streamed text.
+    assert message["content"]
+    assert message["content"] in reply
+    if message.get("explanation"):
+        assert message["explanation"] in reply
     assert done["sessionId"]
 
     print(f"\n✅ /ai/chat/stream (with patient) — {len(reply)} chars")

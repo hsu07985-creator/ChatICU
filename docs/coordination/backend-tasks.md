@@ -12,7 +12,8 @@
 
 ## Pending Tasks
 
-### B09 [IN-PROGRESS] Wire drug-interaction lookup (Source C) into `/ai/chat/stream`
+### B09 [DONE] Wire drug-interaction lookup (Source C) into `/ai/chat/stream`
+- **Completed:** 2026-07-10 — 新 `app/services/drug_interaction_check.py`（自 /clinical/interactions 抽出 pairwise 核心，端點共用）；prefetch 新 category `drug_interactions`（關鍵詞或訊息點名 ≥2 active 藥觸發）注入【交互作用】硬約束 block。實測要點：HIS 藥名括號內嵌學名 → 別名群組；劑型限定詞 (Systemic) 列停用詞（曾產生假 contraindicated）；9k 列表改 in-process 1h TTL index + per-group regex（22 藥 regimen 7s → 0.4s）；finding 帶「本病人 X ↔ Y」歸因。Frontend badge 顯示另開 F19（需 interactionRefs metadata，屬後續擴充）。
 - **Added by:** architecture plan (G2 gap)
 - **Date:** 2026-03-02（2026-07-10 re-scope 並動工）
 - **Priority:** P1
@@ -90,7 +91,8 @@
 
 ---
 
-### B14 [TODO] Split `/ai/chat/stream` response into `content` + `explanation` at 【說明/補充】
+### B14 [DONE] Split `/ai/chat/stream` response into `content` + `explanation` at 【說明/補充】
+- **Completed:** 2026-07-10 — `split_main_and_detail()`（`app/services/ai_chat/sse.py`，marker 清單鏡射前端 `_DETAIL_MARKERS`）套在 done payload；marker 開頭的退化回覆不切（不留空 bubble）。持久化 AIMessage 維持全文（reload 走前端 fallback split、LLM history 連續性需要全文）。前端無需改動（已 prefer `message.explanation`）。真 LLM chat e2e 3 passed。
 - **Added by:** frontend session
 - **Date:** 2026-04-16
 - **Priority:** P2

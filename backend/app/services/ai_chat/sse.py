@@ -7,6 +7,8 @@ chat business logic:
   heartbeats fire during stalls (keeps proxies from killing idle connections).
 - ``_web_annotations_to_citations`` — maps OpenAI ``web_search`` url_citation
   annotations into the frontend Citation shape.
+- ``split_main_and_detail`` — B14: splits the assembled reply into
+  content / explanation at the earliest detail marker for the done payload.
 
 The shared SSE *frame* helpers (``format_sse`` / ``done_frame`` / headers)
 live in ``app.utils.sse`` — this module deliberately does not re-implement the
@@ -21,6 +23,32 @@ import asyncio
 # `event:`/`data:` prefixes as no-ops, so heartbeat frames flow through
 # transparently without affecting the rendered conversation.
 _HEARTBEAT_INTERVAL_S = 15.0
+
+# B14: canonical detail-section markers — mirrors _DETAIL_MARKERS in
+# src/lib/api/ai.ts (the frontend keeps its copy as a fallback for
+# pre-split history rows on session reload).
+_DETAIL_MARKERS = ("【說明/補充】", "【說明】", "說明/補充：", "說明：", "補充：")
+
+
+def split_main_and_detail(text: str):
+    """Split a reply into ``(content, explanation)`` at the earliest detail
+    marker. ``explanation`` keeps the marker; ``None`` when there is no
+    marker or when splitting would leave the content empty (degenerate
+    marker-first replies stay unsplit)."""
+    if not text:
+        return "", None
+    earliest = -1
+    for marker in _DETAIL_MARKERS:
+        idx = text.find(marker)
+        if idx >= 0 and (earliest == -1 or idx < earliest):
+            earliest = idx
+    if earliest <= 0:
+        return text, None
+    content = text[:earliest].strip()
+    explanation = text[earliest:].strip()
+    if not content or not explanation:
+        return text, None
+    return content, explanation
 
 
 async def _with_heartbeat(stream, interval_s: float = _HEARTBEAT_INTERVAL_S):

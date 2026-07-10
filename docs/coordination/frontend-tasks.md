@@ -533,6 +533,12 @@
   3. Re-clicking the same button on already-polished content (idempotency) → textarea content should remain stable, not degrade.
 - **References:** backend eval report `backend/tests/evals/reports/20260417T044720Z.md` (12/12 PASS) — golden outputs for visual comparison during manual verification.
 
+### F19 [TODO] AI chat interaction badges (follow-up to backend B09)
+- **Added by:** backend session
+- **Date:** 2026-07-10
+- **Priority:** P3 (nice-to-have — LLM already surfaces the warnings in reply text with ⚠️)
+- **Context:** B09 injects a 【交互作用】 hard-constraint block into the LLM context when the user asks about interactions or names ≥2 active meds; the model relays them in prose. Clickable severity badges below the bubble (like advice deep-link chips) would need the backend to also return `interactionRefs` metadata in the `done` SSE payload — that backend extension is NOT built yet; open a backend task first if this gets prioritized.
+
 ### F18 [DONE] Fix broken `LatestScores` import in patient-detail view model
 - **Closed as stale:** 2026-07-10 — `src/lib/api/index.ts:16` 已有 `export * from './scores'`（`LatestScores` 定義於 `scores.ts:13`），repo restructure 期間已修；CI / `verify_restructure.sh` 全綠佐證。
 - **Added by:** backend session (Step 5 verify_restructure cleanup)
