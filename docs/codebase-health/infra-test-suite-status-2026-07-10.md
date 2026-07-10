@@ -34,6 +34,17 @@ dast ✅、frontend-build ✅、static-guards ✅、backend-lint ✅——先前
 | svc-2 per-item lab 時效標註（不丟資料、>24h 標 (Nh前)/(N天前)、4 條單元測試） | ✅ pytest 811 passed |
 | 小項四件：vite /ai proxy bypass、colgroup 空白、呼吸器天數欄寬、ScrollArea forwardRef | ✅ tsc/build/eslint 綠 |
 
+### 最終確認（2026-07-10 18:50）
+
+- **CI run `fabf5e713` conclusion: SUCCESS — 全部 job 綠**（backend-lint / migration-check /
+  backend-test / static-guards / frontend-build / **security-scan** / dast / e2e-critical /
+  reproducibility-report / docker-build；e2e-extended 為條件性 job 正常 skip）。
+  這是本 repo 記錄以來第一次 CI 全綠。
+- 部署：Railway `/health` healthy；Vercel 新 bundle（`index-DTEXfl_q.js`）上線、
+  含恢復按鈕的 i18n key、無 Railway URL 洩漏。
+- 本機測試資源已清理（visual stack 停止、`chaticu-visual-db` 移除；
+  `chaticu-redis` 為 compose 正式服務保留）。
+
 **後續建議（新）**：snapshot_sync 欄位名以常數白名單斷言（目前隱含信任 HISConverter 的 key 紀律，
 是最可能的回歸點——見 security commit 訊息）；review doc 剩餘 ~14 條 low/cosmetic 可另批處理。
 
