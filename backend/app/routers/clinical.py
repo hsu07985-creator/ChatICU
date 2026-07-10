@@ -831,97 +831,14 @@ async def interaction_check(
     db: AsyncSession = Depends(get_db),
 ):
     """Check drug-drug interactions via the local DrugInteraction table."""
-    from sqlalchemy import cast, or_
-    from sqlalchemy import String as SAString
-    from app.models.drug_interaction import DrugInteraction
-    from app.utils.drug_match import word_boundary_pattern, word_match
+    # B09: pairwise core extracted to drug_interaction_check so the AI-chat
+    # prefetch shares the exact matching semantics.
+    from app.services.drug_interaction_check import check_drug_interactions
 
-    drugs = req.drug_list[:10]
-    db_findings: list = []
-    severity_rank = {"contraindicated": 5, "major": 4, "moderate": 3, "minor": 2}
-    max_sev = "none"
-    seen_ids: set = set()
-
-    def _drug_match_clause(drug_name: str):
-        # interacting_members is JSONB — cast to text before regex.
-        # Use POSIX regex with conditional word boundaries so e.g.
-        # "prednisolone" no longer matches "methylprednisolone".
-        # ``regexp_match`` is dialect-aware: Postgres -> ``~*`` (case-insensitive
-        # POSIX regex with \m/\M); SQLite -> ``REGEXP`` (resolved by a UDF
-        # registered in tests/conftest.py that maps \m/\M to \b).
-        pattern = word_boundary_pattern(drug_name)
-        return or_(
-            DrugInteraction.drug1.regexp_match(pattern, flags="i"),
-            DrugInteraction.drug2.regexp_match(pattern, flags="i"),
-            cast(DrugInteraction.interacting_members, SAString).regexp_match(pattern, flags="i"),
-        )
-
-    def _pair_on_different_sides(row, da: str, db_: str) -> bool:
-        """Ensure da and db_ match different sides of the interaction."""
-        members = row.interacting_members if isinstance(row.interacting_members, list) else (json.loads(row.interacting_members) if row.interacting_members else [])
-        d1_l = (row.drug1 or "").lower()
-        d2_l = (row.drug2 or "").lower()
-        side1 = {d1_l}
-        side2 = {d2_l}
-        for g in members:
-            gn = (g.get("group_name") or "").lower()
-            member_set = {m.lower() for m in g.get("members", [])}
-            if gn == d1_l:
-                side1.update(member_set)
-            elif gn == d2_l:
-                side2.update(member_set)
-        da_l, db_l = da.lower(), db_.lower()
-        # Word-boundary aware bidirectional match (replaces raw `in` substring
-        # check that leaked superstring drug names like methylprednisolone).
-        da_s1 = any(word_match(da_l, n) for n in side1)
-        da_s2 = any(word_match(da_l, n) for n in side2)
-        db_s1 = any(word_match(db_l, n) for n in side1)
-        db_s2 = any(word_match(db_l, n) for n in side2)
-        return (da_s1 and db_s2) or (da_s2 and db_s1)
-
-    for i in range(len(drugs)):
-        for j in range(i + 1, len(drugs)):
-            da, db_ = drugs[i], drugs[j]
-            query = select(DrugInteraction).where(
-                _drug_match_clause(da)
-            ).where(
-                _drug_match_clause(db_)
-            )
-            rows_result = await db.execute(query.limit(50))
-            for row in rows_result.scalars().all():
-                if row.id in seen_ids:
-                    continue
-                if not _pair_on_different_sides(row, da, db_):
-                    continue
-                seen_ids.add(row.id)
-                sev = row.severity or "unknown"
-                if severity_rank.get(sev, 0) > severity_rank.get(max_sev, 0):
-                    max_sev = sev
-                db_findings.append({
-                    "drug_a": row.drug1,
-                    "drug_b": row.drug2,
-                    "severity": sev,
-                    "mechanism": row.mechanism or "",
-                    "clinical_effect": row.clinical_effect or "",
-                    "recommended_action": row.management or "",
-                    "dose_adjustment_hint": row.references or "",
-                    "risk_rating": row.risk_rating or "",
-                    "risk_rating_description": row.risk_rating_description or "",
-                    "severity_label": row.severity_label or "",
-                    "reliability_rating": row.reliability_rating or "",
-                    "route_dependency": row.route_dependency or "",
-                    "discussion": row.discussion or "",
-                    "footnotes": row.footnotes or "",
-                    "dependencies": row.dependencies if isinstance(row.dependencies, list) else (json.loads(row.dependencies) if row.dependencies else []),
-                    "dependency_types": row.dependency_types if isinstance(row.dependency_types, list) else (json.loads(row.dependency_types) if row.dependency_types else []),
-                    "interacting_members": row.interacting_members if isinstance(row.interacting_members, list) else (json.loads(row.interacting_members) if row.interacting_members else []),
-                    "pubmed_ids": row.pubmed_ids if isinstance(row.pubmed_ids, list) else (json.loads(row.pubmed_ids) if row.pubmed_ids else []),
-                    "source": "database",
-                })
-
+    checked = await check_drug_interactions(db, req.drug_list)
     result = {
-        "overall_severity": max_sev,
-        "findings": db_findings,
+        "overall_severity": checked["overall_severity"],
+        "findings": checked["findings"],
         "source": "database",
     }
 

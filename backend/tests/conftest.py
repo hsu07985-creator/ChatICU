@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import JSON, event
@@ -92,6 +93,18 @@ def _register_sqlite_regexp(dbapi_connection, _connection_record):
             ))
         except Exception:
             pass
+
+
+@pytest.fixture(autouse=True)
+def _reset_drug_interaction_index():
+    """The DDI service caches a module-level index of the drug_interactions
+    table (reference data, 1h TTL in prod). Tests each build their own DB,
+    so a cached index from a previous test would poison lookups."""
+    from app.services.drug_interaction_check import invalidate_interaction_index
+
+    invalidate_interaction_index()
+    yield
+    invalidate_interaction_index()
 
 
 @pytest_asyncio.fixture

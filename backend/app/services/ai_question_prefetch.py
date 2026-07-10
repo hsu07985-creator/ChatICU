@@ -9,6 +9,7 @@ clearly needs it.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -156,6 +157,34 @@ _ADVICE_CROSS_PATIENT_KEYWORDS = (
     "寫過",
 )
 
+# B09: drug-interaction intent. Fires the 【交互作用】 hard-constraint block.
+_INTERACTION_INTENT_KEYWORDS = (
+    "interaction",
+    "interactions",
+    "drug-drug",
+    "ddi",
+    "交互作用",
+    "相互作用",
+    "併用",
+    "合用",
+    "一起用",
+    "一起使用",
+    "同時用",
+    "同時使用",
+    "同時吃",
+    "配伍",
+    "拮抗",
+    "協同作用",
+)
+
+# Cheap gate before we spend a DB query on active meds: drug names in
+# messages are written in English (HIS/Lexicomp store English names), so
+# ≥2 distinct ASCII words is the precondition for the "user named two
+# active drugs" trigger. ponytail: misses Chinese-only drug mentions;
+# revisit if prod logs show that phrasing.
+_ASCII_WORD_RE = re.compile(r"[A-Za-z][A-Za-z-]{3,}")
+
+
 _REPORT_INTENT_KEYWORDS = (
     "diagnostic report",
     "imaging report",
@@ -203,6 +232,85 @@ def should_prefetch_pharmacy_advice(message: str) -> bool:
 def should_prefetch_diagnostic_reports(message: str) -> bool:
     text = (message or "").lower()
     return any(keyword in text for keyword in _REPORT_INTENT_KEYWORDS)
+
+
+def should_prefetch_drug_interactions(message: str) -> bool:
+    text = (message or "").lower()
+    return any(keyword in text for keyword in _INTERACTION_INTENT_KEYWORDS)
+
+
+def _might_mention_multiple_drugs(message: str) -> bool:
+    """≥2 distinct ASCII words — precondition for the named-drugs trigger."""
+    return len({t.lower() for t in _ASCII_WORD_RE.findall(message or "")}) >= 2
+
+
+# HIS names embed the true generic in parentheses — ``Pantoloc 針劑
+# 40mg(Pantoprazole)`` — while the Lexicomp interaction table stores
+# generics. Alias group per med = leading brand word + parenthetical
+# chunks + generic_name, so both「Pantoloc」and「pantoprazole」match.
+_PAREN_CHUNK_RE = re.compile(r"[（(]([^()（）]{3,80})[)）]")
+_LEADING_WORD_RE = re.compile(r"[A-Za-z][A-Za-z-]{2,}")
+
+# Route/form qualifiers that appear parenthesised in Lexicomp-style names
+# ("Diphenhydramine (Systemic)") — as standalone aliases they word-match
+# the qualifier in OTHER drugs' names and produce false interaction pairs
+# (found live: alias "Systemic" matched "Aminolevulinic Acid (Systemic)").
+_ALIAS_STOPWORDS = frozenset({
+    "systemic", "topical", "oral", "nasal", "ophthalmic", "otic",
+    "rectal", "vaginal", "inhalation", "injection", "external",
+})
+
+
+def _active_med_alias_groups(meds: List[Medication]) -> List[Tuple[str, List[str]]]:
+    """One (display_name, alias_list) per distinct active med."""
+    groups: List[Tuple[str, List[str]]] = []
+    seen_meds: set = set()
+    for med in meds:
+        raw_names = [str(n) for n in (med.generic_name, med.name) if n]
+        aliases: List[str] = []
+        seen_alias: set = set()
+
+        def _add(alias: Optional[str]) -> None:
+            token = (alias or "").strip()
+            if len(token) < 3 or not _LEADING_WORD_RE.search(token):
+                return
+            lowered = token.lower()
+            if lowered in seen_alias or lowered in _ALIAS_STOPWORDS:
+                return
+            seen_alias.add(lowered)
+            aliases.append(token)
+
+        for raw in raw_names:
+            leading = _LEADING_WORD_RE.match(raw.strip())
+            if leading:
+                _add(leading.group(0))
+            for chunk in _PAREN_CHUNK_RE.findall(raw):
+                _add(chunk)
+        if not aliases:
+            continue
+        display = aliases[0]
+        key = tuple(a.lower() for a in aliases)
+        if key in seen_meds:
+            continue
+        seen_meds.add(key)
+        groups.append((display, aliases))
+    return groups
+
+
+def _mentioned_alias_groups(
+    message: str,
+    groups: List[Tuple[str, List[str]]],
+) -> List[Tuple[str, List[str]]]:
+    """Alias groups whose any alias word-matches the message."""
+    from app.utils.drug_match import word_match
+
+    text = (message or "").lower()
+    matched = []
+    for display, aliases in groups:
+        # word_match is case-sensitive — normalise both sides.
+        if any(word_match(alias.lower(), text) for alias in aliases):
+            matched.append((display, aliases))
+    return matched
 
 
 def _fmt_dt(value: Any) -> str:
@@ -463,6 +571,47 @@ async def build_question_prefetch_with_metadata(
                 "狀態: error（讀取 diagnostic_reports 失敗）"
             )
 
+    # B09: drug-interaction block. Trigger = interaction keywords, OR the
+    # message names ≥2 of the patient's active meds (checked only when the
+    # cheap ASCII-word gate passes, so ordinary turns cost no extra query).
+    wants_interactions = should_prefetch_drug_interactions(message)
+    if patient_id and (wants_interactions or _might_mention_multiple_drugs(message)):
+        try:
+            from app.services.drug_interaction_check import check_drug_interactions
+            from app.services.patient_context_builder.repository import (
+                _get_active_medications,
+            )
+
+            active_meds = await _get_active_medications(db, patient_id)
+            groups = _active_med_alias_groups(active_meds)
+            mentioned = _mentioned_alias_groups(message, groups)
+            if wants_interactions or len(mentioned) >= 2:
+                to_check = mentioned if len(mentioned) >= 2 else groups
+                prefetch_categories.append("drug_interactions")
+                checked = await check_drug_interactions(
+                    db,
+                    [aliases for _, aliases in to_check],
+                    # An ICU regimen is ~20-30 meds; the two-phase single
+                    # query keeps this flat, so the cap is just a guardrail.
+                    max_drugs=30,
+                )
+                blocks.append(
+                    format_drug_interaction_context(
+                        checked["findings"],
+                        checked_drugs=[display for display, _ in to_check],
+                    )
+                )
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "[CHAT][PREFETCH] drug-interaction prefetch failed patient=%s: %s",
+                patient_id,
+                exc,
+            )
+            blocks.append(
+                "【交互作用】\n"
+                "狀態: error（讀取 drug_interactions 失敗）"
+            )
+
     if wants_advice:
         if user is None or user.role not in {"admin", "pharmacist"}:
             blocks.append(format_pharmacy_advice_context([], denied=True))
@@ -514,6 +663,67 @@ async def build_question_prefetch_with_metadata(
                 )
 
     return "\n\n".join(blocks), metadata
+
+
+_SEVERITY_ORDER = {"contraindicated": 0, "major": 1, "moderate": 2, "minor": 3}
+
+
+def format_drug_interaction_context(
+    findings: List[Dict[str, Any]],
+    *,
+    checked_drugs: List[str],
+) -> str:
+    """B09: render pairwise interaction findings as a hard-constraint block.
+
+    The wording is deliberate: known DB interactions are ground truth the
+    LLM must not soften (architecture plan §1.3 G2 — "Source C risk X =
+    contraindicated, LLM must not downplay").
+    """
+    lines = ["【交互作用】"]
+    scope = "、".join(checked_drugs[:10]) or "無"
+    if len(checked_drugs) > 10:
+        scope += f" 等{len(checked_drugs)}項"
+    if not findings:
+        lines.append(f"狀態: no_data（{scope} 兩兩查詢無已知交互作用紀錄）")
+        return "\n".join(lines)
+
+    ordered = sorted(
+        findings,
+        key=lambda f: _SEVERITY_ORDER.get(str(f.get("severity", "")).lower(), 9),
+    )
+    lines.append(
+        f"狀態: ok（檢查藥物: {scope}；{len(findings)} 筆，依嚴重度排序，最多顯示 8）"
+    )
+    lines.append(
+        "以下為資料庫已知交互作用，屬硬性依據：回覆中不可淡化或省略"
+        " contraindicated/major 等級警示，並須引用本區塊。"
+    )
+    for f in ordered[:8]:
+        severity = str(f.get("severity", "unknown"))
+        risk = str(f.get("risk_rating", "") or "")
+        risk_text = f"/{risk}" if risk else ""
+        marker = "⚠️ " if severity in ("contraindicated", "major") else ""
+        matched_a = f.get("matched_a") or ""
+        matched_b = f.get("matched_b") or ""
+        # Class-level rows (e.g. "CNS Depressants") are unreadable without
+        # saying which regimen med triggered them.
+        attribution = (
+            f"（本病人: {matched_a} ↔ {matched_b}）"
+            if matched_a and matched_b
+            else ""
+        )
+        lines.append(
+            f"- {marker}[{severity}{risk_text}] {f.get('drug_a', '?')} + {f.get('drug_b', '?')}{attribution}"
+        )
+        effect = _compact_text(f.get("clinical_effect") or f.get("mechanism"), limit=200)
+        if effect:
+            lines.append(f"  影響: {effect}")
+        action = _compact_text(f.get("recommended_action"), limit=200)
+        if action:
+            lines.append(f"  處置: {action}")
+    if len(ordered) > 8:
+        lines.append(f"- 另有 {len(ordered) - 8} 筆未列出")
+    return "\n".join(lines)
 
 
 async def get_recent_medication_changes(

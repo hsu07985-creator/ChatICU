@@ -671,3 +671,131 @@ async def test_prefetch_metadata_advice_refs_empty_when_not_triggered(seeded_db)
 
     assert text == ""
     assert meta["adviceRefs"] == []
+
+
+# ---------------------------------------------------------------------------
+# B09: drug-interaction prefetch (【交互作用】 hard-constraint block)
+# ---------------------------------------------------------------------------
+
+from app.services.ai_question_prefetch import (  # noqa: E402
+    format_drug_interaction_context,
+    should_prefetch_drug_interactions,
+)
+
+
+def test_should_prefetch_drug_interactions_keywords():
+    assert should_prefetch_drug_interactions("目前用藥有沒有交互作用？")
+    assert should_prefetch_drug_interactions("meropenem 跟 valproate 併用可以嗎")
+    assert should_prefetch_drug_interactions("Any drug interaction between these?")
+    assert should_prefetch_drug_interactions("這兩個藥一起用安全嗎")
+    assert not should_prefetch_drug_interactions("今天 K 和 Cr 多少？")
+
+
+def test_format_drug_interaction_context_carries_hard_constraint():
+    findings = [
+        {
+            "drug_a": "Meropenem",
+            "drug_b": "Valproate",
+            "severity": "major",
+            "risk_rating": "D",
+            "clinical_effect": "Carbapenems reduce valproate levels",
+            "recommended_action": "Avoid combination; monitor levels",
+        },
+    ]
+    text = format_drug_interaction_context(findings, checked_drugs=["Meropenem", "Valproate"])
+    assert "【交互作用】" in text
+    assert "狀態: ok" in text
+    assert "Meropenem + Valproate" in text
+    assert "major" in text
+    # Hard-constraint wording: the LLM must not downplay known interactions.
+    assert "不可淡化" in text
+
+
+def test_format_drug_interaction_context_no_data():
+    text = format_drug_interaction_context([], checked_drugs=["Propofol", "Fentanyl"])
+    assert "【交互作用】" in text
+    assert "no_data" in text
+
+
+@pytest.mark.asyncio
+async def test_prefetch_interactions_when_two_active_meds_mentioned(seeded_db):
+    """Message naming 2 active meds fires the check even without the
+    interaction keywords."""
+    from app.models.drug_interaction import DrugInteraction
+
+    seeded_db.add_all([
+        Medication(
+            id="med_b09_a", patient_id="pat_001", name="Propofol",
+            dose="20", unit="mg/hr", frequency="continuous", route="IV",
+            status="active",
+        ),
+        Medication(
+            id="med_b09_b", patient_id="pat_001", name="Fentanyl",
+            dose="25", unit="mcg/hr", frequency="continuous", route="IV",
+            status="active",
+        ),
+        DrugInteraction(
+            id="di_b09", drug1="Propofol", drug2="Fentanyl", severity="major",
+            mechanism="CNS depression", clinical_effect="Increased sedation",
+            management="Monitor sedation depth",
+        ),
+    ])
+    await seeded_db.commit()
+
+    text, meta = await build_question_prefetch_with_metadata(
+        seeded_db, "pat_001", "propofol 加 fentanyl 這樣的組合劑量安全嗎？",
+        user=_user("pharmacist", "usr_test"),
+    )
+
+    assert "drug_interactions" in meta["prefetchCategories"]
+    assert "【交互作用】" in text
+    assert "Propofol + Fentanyl" in text
+    assert "Increased sedation" in text
+
+
+@pytest.mark.asyncio
+async def test_prefetch_interactions_keyword_checks_all_active_meds(seeded_db):
+    """「目前用藥有交互作用嗎」 without naming drugs → pairwise-check the
+    whole active regimen."""
+    from app.models.drug_interaction import DrugInteraction
+
+    seeded_db.add_all([
+        Medication(
+            id="med_b09_c", patient_id="pat_001", name="Propofol",
+            status="active",
+        ),
+        Medication(
+            id="med_b09_d", patient_id="pat_001", name="Fentanyl",
+            status="active",
+        ),
+        DrugInteraction(
+            id="di_b09_kw", drug1="Propofol", drug2="Fentanyl", severity="major",
+            clinical_effect="Increased sedation",
+        ),
+    ])
+    await seeded_db.commit()
+
+    text, meta = await build_question_prefetch_with_metadata(
+        seeded_db, "pat_001", "目前用藥有沒有交互作用要注意？",
+        user=_user("pharmacist", "usr_test"),
+    )
+
+    assert "drug_interactions" in meta["prefetchCategories"]
+    assert "Propofol + Fentanyl" in text
+
+
+@pytest.mark.asyncio
+async def test_prefetch_interactions_not_triggered_by_generic_question(seeded_db):
+    seeded_db.add_all([
+        Medication(id="med_b09_e", patient_id="pat_001", name="Propofol", status="active"),
+        Medication(id="med_b09_f", patient_id="pat_001", name="Fentanyl", status="active"),
+    ])
+    await seeded_db.commit()
+
+    text, meta = await build_question_prefetch_with_metadata(
+        seeded_db, "pat_001", "今天血鉀多少？",
+        user=_user("pharmacist", "usr_test"),
+    )
+
+    assert "drug_interactions" not in meta["prefetchCategories"]
+    assert "【交互作用】" not in text

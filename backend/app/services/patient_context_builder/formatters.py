@@ -48,6 +48,7 @@ SNAPSHOT_SECTION_TITLES = frozenset({
     "診斷/影像報告",
     "藥師建議歷史",
     "用藥變更",
+    "交互作用",
 })
 
 
