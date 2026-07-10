@@ -14,12 +14,15 @@ Scope notes (deliberately narrow for MVP):
   ``drug_aliases`` (active-medication name list, including both brand
   and generic forms). This catches the most dangerous failure mode —
   the LLM inventing a drug regimen that doesn't exist on the patient.
-- Citations from other sections (關鍵檢驗 / 生命徵象 / 影像/報告) are
-  counted but not strictly validated yet, because lab-name aliasing
-  (e.g. snapshot uses ``Cr``, the step-1 prompt asks the LLM to write
-  ``肌酸酐``) would produce noisy false positives without a proper
-  glossary. Once we have a week of production audit logs we can decide
-  whether to add that glossary or keep the drug-only check.
+- 關鍵檢驗 / 生命徵象 citations get a shape check only (llm-2): they
+  must contain a number, since the prompt's citation format always
+  carries the value. Identifier/value-vs-snapshot validation is still
+  deferred, because lab-name aliasing (e.g. snapshot uses ``Cr``, the
+  step-1 prompt asks the LLM to write ``肌酸酐``) would produce noisy
+  false positives without a proper glossary. Once we have a week of
+  production audit logs we can decide whether to add that glossary.
+- 影像/報告 and the remaining snapshot sections are free text —
+  counted, never value-checked.
 - The check is read-only — it never modifies the LLM reply or blocks
   streaming. Output is intended for the audit log so we can measure
   how often the LLM fabricates citations before deciding on remediation.
@@ -57,6 +60,14 @@ _MED_CHANGE_TITLE_RE = re.compile(r"^最近\d+小時用藥變更$")
 # Sections we strictly validate today. Expand later when we add a lab
 # alias glossary.
 _STRICT_SECTIONS = frozenset({"用藥"})
+
+# llm-2 (safe subset): lab/vital citations must carry a number — the
+# prompt's citation format always includes the value, so a digit-less
+# citation is the LLM sounding grounded without saying anything
+# checkable. Identifier/value-vs-snapshot validation stays deferred
+# until we have a lab-alias glossary (see module docstring).
+_VALUE_REQUIRED_SECTIONS = frozenset({"關鍵檢驗", "生命徵象"})
+_HAS_DIGIT_RE = re.compile(r"\d")
 
 
 def _section_is_known(section: str) -> bool:
@@ -150,6 +161,15 @@ def audit_citations(
                 "token": token,
                 "reason": f"unknown_section:{section}",
             })
+            continue
+
+        if section in _VALUE_REQUIRED_SECTIONS:
+            if not _HAS_DIGIT_RE.search(content):
+                suspects.append({
+                    **cit,
+                    "token": token,
+                    "reason": "no_value_in_citation",
+                })
             continue
 
         if section not in _STRICT_SECTIONS:

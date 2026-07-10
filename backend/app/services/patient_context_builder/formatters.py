@@ -640,6 +640,10 @@ def _fmt_med_section(meds: List[Medication]) -> str:
             dose_str = f" {m.dose}"
             if m.unit:
                 dose_str += m.unit
+            else:
+                # llm-4: HIS DOSE_UNIT can be missing — a bare number reads
+                # as an implied unit and invites the LLM to guess one.
+                dose_str += "(單位未記錄)"
         if m.frequency:
             dose_str += f" {m.frequency}"
         if m.route:

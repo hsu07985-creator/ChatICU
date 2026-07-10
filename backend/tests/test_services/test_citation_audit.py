@@ -181,6 +181,39 @@ def test_mixed_legit_and_fabricated():
     assert fabricated[0]["token"] == "Imipenem"
 
 
+def test_lab_citation_without_any_value_flagged():
+    """T5 (llm-2, safe subset): 關鍵檢驗/生命徵象 citations must carry a
+    verifiable number (the prompt's citation format always includes the
+    value). A digit-less citation is the LLM sounding grounded without
+    saying anything checkable. Full value-vs-snapshot validation stays
+    deferred until we have a lab-alias glossary (see module docstring)."""
+    reply = "腎功能不佳（依【關鍵檢驗】腎功能指標異常）"
+    result = audit_citations(reply, ACTIVE_ALIASES)
+    assert len(result["suspects"]) == 1
+    assert result["suspects"][0]["reason"] == "no_value_in_citation"
+
+    reply2 = "血壓偏低（依【生命徵象】血壓持續下降）"
+    result2 = audit_citations(reply2, ACTIVE_ALIASES)
+    assert result2["suspects"][0]["reason"] == "no_value_in_citation"
+
+
+def test_lab_citation_with_value_still_passes():
+    reply = "腎功能差（依【關鍵檢驗】肌酸酐 6.52，2026-04-26 22:30）"
+    assert audit_citations(reply, ACTIVE_ALIASES)["suspects"] == []
+    reply2 = "心搏過速（依【生命徵象】心率 121 次/分）"
+    assert audit_citations(reply2, ACTIVE_ALIASES)["suspects"] == []
+
+
+def test_report_and_snapshot_sections_stay_count_only():
+    """影像/報告 and the other snapshot sections are free text — no value
+    requirement there."""
+    reply = (
+        "影像顯示浸潤（依【影像/報告】胸腔檢查顯示雙側浸潤）。"
+        "病人臥床（依【患者基本】長期臥床）。"
+    )
+    assert audit_citations(reply, ACTIVE_ALIASES)["suspects"] == []
+
+
 # ---------------------------------------------------------------------------
 # edge cases
 # ---------------------------------------------------------------------------
