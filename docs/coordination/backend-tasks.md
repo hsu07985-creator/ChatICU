@@ -12,20 +12,28 @@
 
 ## Pending Tasks
 
-### B09 [TODO] Wire Source C (Drug Graph) into `/clinical/decision` and `/ai/chat`
+### B09 [IN-PROGRESS] Wire drug-interaction lookup (Source C) into `/ai/chat/stream`
 - **Added by:** architecture plan (G2 gap)
-- **Date:** 2026-03-02
+- **Date:** 2026-03-02（2026-07-10 re-scope 並動工）
 - **Priority:** P1
 - **Depends on:** B02
-- **File:** `backend/app/routers/clinical.py`, `backend/app/routers/ai_chat.py` (modify)
+- **File:** `backend/app/routers/ai_chat.py`, `backend/app/services/ai_question_prefetch.py` (modify)
+- **Re-scope（2026-07-10）：**
+  - 原 task 的 `/clinical/decision` 端點已移除（見 llm-infra-audit T1），只剩 `/ai/chat/stream` 一條路徑
+  - Graph 檔案屬 `local/` 機器本地資料，本機/雲端缺檔時 `drug_graph_bridge` fallback 到 `drug_interactions` 表（by design，`/pharmacy/drug-interactions` 已如此運作）——chat 注入走同一 bridge
 - **Description:**
-  - `drug_graph_bridge.py` is loaded in `clinical.py` but NOT wired into `ai_chat.py`
-  - When `/ai/chat` detects 2+ drug names → auto-lookup interactions via Graph (Source C, <5ms)
-  - Graph results are injected as hard constraints: "Source C risk X = contraindicated, LLM must not downplay"
+  - 問題觸發（沿用 ai_question_prefetch 架構）：使用者訊息 + 病人 active meds 比對出 ≥2 藥名，或訊息問交互作用 → 查 interactions → 注入【交互作用】context block，硬約束措辭「已知交互作用不可淡化」
+  - no_data 時明示（同其他 prefetch category）
   - **Add `[READY]` task to `frontend-tasks.md`** to display interaction badges
 - **References:** architecture plan §1.3 G2, §3.2
 
-### B15 [TODO] Reduce `/ai/chat/stream` TTFT via OpenAI prompt cache + DB parallelization
+### B15 [DONE] Reduce `/ai/chat/stream` TTFT via OpenAI prompt cache + DB parallelization
+- **Closed:** 2026-07-10，以實測證據結案（LLM infra audit 期間量測）：
+  - 子項 1（prompt cache 前綴穩定）✅ — `[CHAT][CACHE]` log 已存在，實測同 session 暖機後命中 **72–86%**
+  - 子項 3（DB 平行化）✅ — `build_clinical_snapshot` 用 `asyncio.gather` 7 查詢並行（含連線 warm-up fix，見 `docs/his-sync/b15-snapshot-latency-plan-2026-04-30.md`）
+  - 量測基建 ✅ — `[CHAT][TIMING] session/snapshot/pre_llm/ttft` 已存在；實測暖 cache ttft ≈ 1.0s、cache miss ttft 可達 9.4s（主因為模型 reasoning 延遲，非 snapshot 大小）
+  - 子項 2（snapshot 壓縮成 trend-summary）**不做** — 現行 sys_prompt ≈ 4.9KB 已在目標區間，且 cache miss 延遲主導因素是 reasoning 不是 prompt bytes，壓縮 ROI 低
+  - 子項 4（delta staleness gate）**不做** — delta 只影響最後一則 user message，不破壞 cache 前綴
 - **Added by:** frontend session
 - **Date:** 2026-04-16
 - **Priority:** P1 (user-facing latency complaint)
@@ -223,26 +231,27 @@
 - **Description:** Currently any string ≤50 chars passes Pydantic and is silently stored. Should `SELECT id FROM users WHERE id IN (...)` and 422 on unknown IDs (or strip them with a warning).
 - **References:** F-18
 
-### TC-B06 [BLOCKED] Switch `is_read` global flag → per-user mention unread
+### TC-B06 [DONE] Switch `is_read` global flag → per-user mention unread
+- **Completed:** 2026-05-03（PM 決策選 A；commit `7693e4400`，TC-W3-T1；patient-board 同模式延伸為 TC-FU-T1 `0375754c9`）
 - **Added by:** team-chat audit 2026-05-03 (F-02)
 - **Date:** 2026-05-03
 - **Priority:** P0 (architectural — root cause of "one user reads, all badges clear" bug)
 - **Progress tracker:** TC-W3-T1
-- **Blocked on:** PM decision — Option A (keep `is_read`, derive unread from `read_by @>` subquery) vs Option B (drop `is_read` from mention path entirely, use `last_chat_visit_at` + per-mention timestamp)
 - **Files (when unblocked):** `backend/app/routers/team_chat.py:130, 263`, `backend/app/routers/notifications.py:31-45`, new migration
 - **Reference:** F-02 in audit; multi-user regression test in TC-B10 will exercise this
 
-### TC-B07 [BLOCKED] `list_team_chat` reverse + cursor pagination
+### TC-B07 [DONE] `list_team_chat` reverse + cursor pagination
+- **Completed:** 2026-05-03（PM 確認為 bug；commit `fdeaa652c`，TC-W3-T2，含前端反向 infinite scroll）
 - **Added by:** team-chat audit 2026-05-03 (F-03)
 - **Date:** 2026-05-03
 - **Priority:** P0 (UX — over 50 messages users see oldest, never newest)
 - **Progress tracker:** TC-W3-T2
-- **Blocked on:** PM confirms `ORDER BY ASC LIMIT 50` is a bug, not deliberate onboarding behavior
 - **Files (when unblocked):** `backend/app/routers/team_chat.py:140-184`
 - **Description:** Change to `ORDER BY timestamp DESC LIMIT N`, reverse server-side, add `?before=<timestamp_or_id>` cursor for "load older". Frontend TC-F12 will rewire infinite scroll.
 - **References:** F-03
 
-### TC-B08 [TODO] `/team/users` filter by current user's unit/campus
+### TC-B08 [DEFERRED] `/team/users` filter by current user's unit/campus
+- **Deferred:** 2026-05-03（TC-W4-T1 ⏸——端點僅回 id/name/role、PII 面有限；強制單位過濾會破壞跨單位 @-mention（公告、跨科會診）。等 PM 確認需要嚴格隔離再動工，詳見 team-chat-fixes-progress.md Wave 4 結案）
 - **Added by:** team-chat audit 2026-05-03 (F-12 partial)
 - **Date:** 2026-05-03
 - **Priority:** P1 (PII — North Campus pharmacist can list every South Campus nurse)
@@ -252,7 +261,8 @@
 - **Tests:** seed two users in different campuses; `/team/users` for caller in campus A returns only campus-A users.
 - **References:** F-12
 
-### TC-B09 [TODO] `read_by` append helper with dedup (shared by team_chat + notifications)
+### TC-B09 [DONE] `read_by` append helper with dedup (shared by team_chat + notifications)
+- **Completed:** 2026-05-03（commit `bd5bcedb0`，TC-W4-T2；`app/utils/read_receipt.py` 供 4 個 endpoint 共用，8 unit tests）
 - **Added by:** team-chat audit 2026-05-03 (F-14)
 - **Date:** 2026-05-03
 - **Priority:** P1 (data growth — `notifications.py:213-214` mark-all-read appends without dedup)
@@ -264,7 +274,8 @@
 - **Tests:** call mark-all-read 10× for the same user → `read_by` length stays 1.
 - **References:** F-14
 
-### TC-B10 [TODO] Multi-user regression tests
+### TC-B10 [DONE] Multi-user regression tests
+- **Completed:** 2026-05-03（TC-W4-T4——未另建 `test_team_chat_multiuser.py`，同等覆蓋分散於 test_team_chat.py / test_notifications.py / test_read_receipt.py 共 43 cases；逐項對照見 team-chat-fixes-progress.md Wave 4 結案）
 - **Added by:** team-chat audit 2026-05-03 (F-29)
 - **Date:** 2026-05-03
 - **Priority:** P1
@@ -278,7 +289,8 @@
   - Reply to deleted parent shows orphan handling
 - **References:** F-29
 
-### TC-B11 [TODO] Soft delete + audit content snapshot for admin delete
+### TC-B11 [DONE] Soft delete + audit content snapshot for admin delete
+- **Completed:** 2026-05-03（commit `dae3e4b75`，TC-W4-T3；migration 078）
 - **Added by:** team-chat audit 2026-05-03 (F-16)
 - **Date:** 2026-05-03
 - **Priority:** P1
@@ -291,7 +303,8 @@
 - **Frontend dependency:** TC-F09 — show `[原訊息已刪除]` placeholder when `messageById.get(replyToId)` not found
 - **References:** F-16
 
-### TC-B12 [TODO] Schema cleanup: dead `reply_count` column + ORM FK alignment
+### TC-B12 [DONE] Schema cleanup: dead `reply_count` column + ORM FK alignment
+- **Completed:** 2026-05-03（commit `6662aa1f0`，TC-W4-T5；migration 077 drop `reply_count`）
 - **Added by:** team-chat audit 2026-05-03 (F-30)
 - **Date:** 2026-05-03
 - **Priority:** P2
@@ -301,7 +314,8 @@
   - new migration: drop `reply_count` column (currently always 0, never read/written) — OR add to model and maintain on insert/delete; pick one
 - **References:** F-30
 
-### TC-B13 [TODO] Retention: archive job + drop `total` count from list
+### TC-B13 [DEFERRED] Retention: archive job + drop `total` count from list
+- **Deferred:** 2026-05-03（TC-W4-T6 ⏸——perf 顧慮已被 168h 時間窗 + GIN index + cursor 分頁緩解；retention 剩 compliance/legal 議題，等 legal/PM 定保留期限再實作）
 - **Added by:** team-chat audit 2026-05-03 (F-31, F-32)
 - **Date:** 2026-05-03
 - **Priority:** P2

@@ -533,7 +533,8 @@
   3. Re-clicking the same button on already-polished content (idempotency) → textarea content should remain stable, not degrade.
 - **References:** backend eval report `backend/tests/evals/reports/20260417T044720Z.md` (12/12 PASS) — golden outputs for visual comparison during manual verification.
 
-### F18 [TODO] Fix broken `LatestScores` import in patient-detail view model
+### F18 [DONE] Fix broken `LatestScores` import in patient-detail view model
+- **Closed as stale:** 2026-07-10 — `src/lib/api/index.ts:16` 已有 `export * from './scores'`（`LatestScores` 定義於 `scores.ts:13`），repo restructure 期間已修；CI / `verify_restructure.sh` 全綠佐證。
 - **Added by:** backend session (Step 5 verify_restructure cleanup)
 - **Date:** 2026-04-14
 - **Priority:** P1 (blocks `tsc --noEmit` clean build)
