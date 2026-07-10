@@ -26,11 +26,14 @@
 3. **修改後**：立即執行 `bash scripts/verify_restructure.sh <TXX>`
 4. **Commit 規範**：每個任務獨立 commit，格式 `chore(TXX): <英文描述>`
 
-## 目錄慣例
+## 目錄慣例（完整結構契約見 [`docs/repo-structure.md`](docs/repo-structure.md)）
 
-- Markdown 文件 **一律放 `docs/`**，禁止放在 `src/`
+- Markdown 文件 **一律放 `docs/<功能域>/`**（team-chat、ai-chat、i18n、pharmacy、his-sync…），禁止放在 `src/` 或 repo 根目錄；audit/progress 配對文件放同一目錄
+- 機器本地資料（參考語料、藥物來源資料、側專案、xlsx）放 **`local/`**（ignored），並登記到 `local/README.md`；`patient/` 是唯一例外——HIS sync 以固定路徑依賴，留在根目錄勿搬
 - 封存檔案放 `_archive_candidates/YYYYMMDD/`，附 README 說明封存原因
 - `src/imports/` 僅保留被活躍頁面 import 的檔案
+- 前端 CSS 加在 `src/styles/globals.css`（`src/index.css` 是已移除的 Figma 死檔，勿重建）
+- 前端 domain 邏輯放 `src/lib/<domain>/`，勿復活 `src/features/`
 - `server/` 為 Dart Frog 參考實作，非正式後端
 
 ## 禁止事項

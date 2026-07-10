@@ -16,13 +16,31 @@ ChatICU is a production-oriented ICU clinical collaboration platform with a Reac
 
 ## Repository Structure
 
-- `src/`: frontend (Vite + React + TypeScript)
-- `backend/app/`: FastAPI application, routers, services, schemas, models
-- `backend/alembic/`: DB migrations
-- `backend/seeds/`: seed and datamock validation pipeline
-- `datamock/`: offline dataset and deterministic seed inputs
-- `e2e/`: Playwright end-to-end tests
-- `docs/operations/`: operational runbooks
+```
+ChatICU/
+├── src/               # Frontend (Vite + React + TS): pages/ components/ hooks/ lib/ i18n/
+├── public/            # Static assets served by Vite
+├── backend/           # FastAPI app (Railway deploy)
+│   ├── app/           #   routers/ services/ schemas/ models/ fhir/ llm/
+│   ├── alembic/       #   DB migrations
+│   ├── seeds/         #   seed + datamock validation pipeline
+│   └── scripts/       #   operational scripts (see backend/scripts/README.md)
+├── datamock/          # Offline dataset and deterministic seed inputs
+├── e2e/               # Playwright end-to-end tests
+├── scripts/           # Repo-level tooling (verify_restructure.sh, e2e/, ops/, imports)
+├── func/              # Evidence-RAG reference pipeline (not deployed)
+├── docs/              # All documentation, grouped by feature area
+│   ├── team-chat/ ai-chat/ i18n/ pharmacy/ medical-records/ his-sync/ …
+│   ├── operations/    #   runbooks + deployment-guide.md
+│   └── coordination/  #   backend/frontend task queues
+├── patient/           # (untracked) HIS patient snapshots — fixed path, do not move
+├── local/             # (untracked) machine-local working data — see local/README.md
+├── reports/           # Generated audit/restructure reports
+└── output/, build/    # (ignored) generated artifacts
+```
+
+The full structure contract — what each directory is for and where new
+files belong — lives in `docs/repo-structure.md`.
 
 ## Quick Start
 

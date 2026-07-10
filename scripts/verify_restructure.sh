@@ -57,8 +57,10 @@ verify_T02() {
 
   local rag_file="backend/app/services/llm_services/rag_service.py"
 
+  # 註：RAG 層已於 129cf67d0（Phase 1 D3+D4）整層刻意移除。檔案不存在
+  # ＝T02 的修補對象已退役，視為通過（2026-07-10）。
   if [ ! -f "$rag_file" ]; then
-    fail "$rag_file not found"
+    pass "RAG layer retired (129cf67d0) — T02 target no longer applicable"
     return
   fi
 
