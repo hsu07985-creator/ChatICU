@@ -12,7 +12,7 @@
 
 ## Pending Tasks
 
-### F-DECIDE [READY] 工作站「產生報告 → 送出用藥建議」流程斷頭 — 需 PM 決策
+### F-DECIDE [DONE] 工作站「產生報告 → 送出用藥建議」流程斷頭 — 已恢復按鈕（選項 1）
 - **Added by:** infra/test-suite session
 - **Date:** 2026-07-10
 - **Priority:** P2（功能缺口，非錯誤）
@@ -21,6 +21,7 @@
   1. **恢復按鈕**：在評估結果面板加回「產生報告」入口（一顆按鈕，流程本身完好）
   2. **刪除死碼**：確認建議都改走藥物統計頁手動表單後，移除上述三個元件與 handler
 - **Files:** `src/pages/pharmacy/workstation.tsx`、`src/pages/pharmacy/workstation/{pharmacy-report-view,advice-submit-dialog,assessment-results-panel}.tsx`
+- **Resolved:** 2026-07-10 — 評估摘要 header 加回「產生報告」按鈕（i18n 雙語），e2e pharmacy-center 已覆蓋完整報告→送出旅程（7/7 綠）。
 
 ### Phase 3 — Patient-detail performance
 

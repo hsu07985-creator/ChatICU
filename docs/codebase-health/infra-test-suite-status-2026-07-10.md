@@ -25,7 +25,19 @@
 dast ✅、frontend-build ✅、static-guards ✅、backend-lint ✅——先前這些因 pgvector 缺失＋
 過時 selectors 長期全紅。唯一殘紅：security-scan（見下）。
 
-## 未完成（依價值排序）
+## 第二波（同日稍晚）— 未完成清單全數收掉
+
+| 項目 | 狀態 |
+|---|---|
+| security-scan 11 個 Medium：逐點審查（10 nosec 附不變量理由、1 處根修 f-prefix、B310 加 https 強制） | ✅ bandit medium exit 0 |
+| 工作站「產生報告」按鈕恢復（F-DECIDE 選項 1）＋ e2e 覆蓋完整送出旅程 | ✅ e2e 7/7 |
+| svc-2 per-item lab 時效標註（不丟資料、>24h 標 (Nh前)/(N天前)、4 條單元測試） | ✅ pytest 811 passed |
+| 小項四件：vite /ai proxy bypass、colgroup 空白、呼吸器天數欄寬、ScrollArea forwardRef | ✅ tsc/build/eslint 綠 |
+
+**後續建議（新）**：snapshot_sync 欄位名以常數白名單斷言（目前隱含信任 HISConverter 的 key 紀律，
+是最可能的回歸點——見 security commit 訊息）；review doc 剩餘 ~14 條 low/cosmetic 可另批處理。
+
+## 原「未完成」清單（已全數處理，留存紀錄）
 
 1. **security-scan 殘餘 11 個 Medium**（B608 字串組 SQL ×10、B310 urlopen ×1，早於本輪、
    7/5 排程 run 已紅）。每一處都要逐點驗證「無使用者輸入進入字串插值」後才可加

@@ -21,7 +21,7 @@
 >
 > **狀態**：Round 2 修 5 + Round 3 修 14 = **共 19 條已修**，全數綠燈、未 commit。剩餘多為 low/cosmetic
 > （`ac-5`/`fl-3`/`fl-4`/`pad-1`/`br-3`/`lab-2`/`util-1`/`clin-2`/`fhir-4`/`bsc-4`/`ddi-1`/`pg-7`/`pg-8`/`llm-2`）
-> + svc-2 的「per-item 時效標註」較大改動待排。Fix workflow Run：`wf_f3298ac2-2fa`。
+> + ~~svc-2 的「per-item 時效標註」較大改動待排~~（**2026-07-10 已實作**：`_merge_lab_rows` 掛 transient `_item_as_of`，snapshot 對 >24h 舊值標 `(Nh前)/(N天前)`，不丟任何資料；4 條單元測試）。Fix workflow Run：`wf_f3298ac2-2fa`。
 >
 > ---
 
