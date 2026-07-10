@@ -55,9 +55,17 @@ def _merge_lab_rows(labs: List[LabData]) -> Optional[LabData]:
     most recent CBC can legitimately be ~24-48h older than the latest chemistry
     draw (different draw schedules); a time window would DROP that value and hide
     a real, often abnormal result — a worse failure than the staleness it tried
-    to fix. The real svc-2 concern (a stale item shown under the newest
-    timestamp) should be addressed with per-item recency annotation in the lab
-    formatter, NOT by discarding data here.
+    to fix (an earlier attempt added a 12h merge window and was reverted for
+    exactly this reason: it silently dropped a 29h-old PLT 61).
+
+    IMPLEMENTED: the svc-2 staleness concern (a stale item shown under the
+    newest row's timestamp) is addressed by annotation, not by discarding
+    data. Each item's source-row timestamp is tracked per (category,
+    item-key) and attached to the returned LabData as the transient
+    ``_item_as_of`` attribute — not a mapped column, never flushed/persisted.
+    ``_fmt_lab_section`` (formatters.py) reads it to append a compact
+    staleness marker (e.g. "(29h前)") to any item pulled from a row older
+    than the merged/displayed timestamp by more than 24h.
     """
     if not labs:
         return None
@@ -66,8 +74,10 @@ def _merge_lab_rows(labs: List[LabData]) -> Optional[LabData]:
 
     latest = labs[0]
     merged_categories: Dict[str, Optional[dict]] = {}
+    item_as_of: Dict[str, Dict[str, Any]] = {}
     for attr in _LAB_CATEGORY_ATTRS:
         merged: dict = {}
+        as_of_for_attr: Dict[str, Any] = {}
         for lab in labs:
             data = getattr(lab, attr, None)
             if not isinstance(data, dict):
@@ -75,15 +85,20 @@ def _merge_lab_rows(labs: List[LabData]) -> Optional[LabData]:
             for key, value in data.items():
                 if key not in merged:
                     merged[key] = value
+                    as_of_for_attr[key] = getattr(lab, "timestamp", None)
         merged_categories[attr] = merged or None
+        if as_of_for_attr:
+            item_as_of[attr] = as_of_for_attr
 
-    return LabData(
+    merged_lab = LabData(
         id=getattr(latest, "id", "lab_merged"),
         patient_id=getattr(latest, "patient_id", ""),
         timestamp=getattr(latest, "timestamp", None),
         corrections=getattr(latest, "corrections", None),
         **merged_categories,
     )
+    merged_lab._item_as_of = item_as_of
+    return merged_lab
 
 
 async def _get_patient(db: AsyncSession, patient_id: str) -> Optional[Patient]:

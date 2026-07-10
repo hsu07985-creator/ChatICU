@@ -5,6 +5,7 @@ formatting. Knows about the two storage shapes (HIS-wrapped vs flat legacy)
 and the canonical-key alias map.
 """
 
+from datetime import datetime
 from typing import Dict, List, Optional
 
 from app.models.lab_data import LabData
@@ -82,6 +83,29 @@ def _get_lab_val(lab: Optional[LabData], category: str, key: str) -> Optional[fl
             return float(raw)
         except (TypeError, ValueError):
             continue
+    return None
+
+
+def _get_lab_item_as_of(lab: Optional[LabData], category: str, key: str) -> Optional[datetime]:
+    """Return the source-row timestamp behind a merged item's value (svc-2).
+
+    Reads the transient ``_item_as_of`` map that ``_merge_lab_rows``
+    (repository.py) attaches to its return value — mirrors _get_lab_val's
+    alias resolution so callers use the same canonical (category, key).
+    Returns None when `lab` isn't a merge result, or the item has none
+    (both mean: nothing stale to report, render as-is).
+    """
+    as_of = getattr(lab, "_item_as_of", None)
+    if not isinstance(as_of, dict):
+        return None
+    cat_map = as_of.get(category)
+    if not isinstance(cat_map, dict):
+        return None
+    aliases = _LAB_KEY_ALIASES.get((category, key), [key])
+    for alias in aliases:
+        ts = cat_map.get(alias)
+        if isinstance(ts, datetime):
+            return ts
     return None
 
 

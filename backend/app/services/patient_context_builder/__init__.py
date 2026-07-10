@@ -52,6 +52,7 @@ from .repository import (
 from .lab_values import (
     _LAB_KEY_ALIASES,
     _get_lab_val,
+    _get_lab_item_as_of,
     _vasopressor_ne_dose,
 )
 
@@ -82,7 +83,9 @@ from .safety import (
 # ── Pure formatters ────────────────────────────────────────────────────────────
 from .formatters import (
     _RENAL_RELEVANT_KEYWORDS,
+    _LAB_STALE_THRESHOLD,
     _format_trend,
+    _stale_marker,
     _normalize_snapshot_dt,
     _fmt_snapshot_dt,
     _max_datetime,
@@ -131,7 +134,9 @@ __all__ = [
     "_get_latest_lab",
     "_get_active_medications",
     "_get_lab_val",
+    "_get_lab_item_as_of",
     "_merge_lab_rows",
+    "_stale_marker",
     "_vasopressor_ne_dose",
     "_fmt_data_freshness_section",
     "_fmt_lab_section",

@@ -5,7 +5,7 @@ string. No DB access, no async. The medication-safety / duplicate sections live
 in safety.py because they carry detection logic; everything else is here.
 """
 
-from datetime import date as _date, datetime, timezone
+from datetime import date as _date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from app.models.patient import Patient
@@ -24,7 +24,7 @@ from app.services.clinical_thresholds import (
 )
 
 from ._shared import TAIPEI_TZ, _TREND_THRESHOLD, _now_taipei
-from .lab_values import _get_lab_val
+from .lab_values import _get_lab_val, _get_lab_item_as_of
 
 
 _RENAL_RELEVANT_KEYWORDS = (
@@ -65,6 +65,38 @@ def _format_trend(
     if unit:
         base += f" {unit}"
     return base
+
+
+# svc-2: _merge_lab_rows keeps merging across unlimited time on purpose (see
+# repository.py NOTE) so no item is ever dropped. This threshold only gates
+# the compensating annotation — items backfilled from a row within 24h of the
+# merged/displayed timestamp render unchanged; older ones get a staleness
+# marker so the LLM doesn't read a days-old value as "as of today".
+_LAB_STALE_THRESHOLD = timedelta(hours=24)
+
+
+def _stale_marker(lab: Optional[LabData], category: str, key: str) -> str:
+    """"" / "(Xh前)" / "(X天前)" for an item sourced from an older split HIS row.
+
+    Compares the item's source-row timestamp (``_get_lab_item_as_of``,
+    svc-2) against ``lab.timestamp`` — the timestamp already shown in the
+    section header — so the marker reads as "this value is N older than the
+    time printed above", not an absolute clock reading.
+    """
+    as_of = _get_lab_item_as_of(lab, category, key)
+    merged_ts = getattr(lab, "timestamp", None)
+    if as_of is None or not isinstance(merged_ts, datetime):
+        return ""
+    try:
+        age = merged_ts - as_of
+    except TypeError:  # pragma: no cover - defensive (mixed naive/aware tz)
+        return ""
+    if age <= _LAB_STALE_THRESHOLD:
+        return ""
+    hours = age.total_seconds() / 3600
+    if hours < 48:
+        return f"({int(hours)}h前)"
+    return f"({int(hours // 24)}天前)"
 
 
 def _normalize_snapshot_dt(value: Any) -> Optional[datetime]:
@@ -430,6 +462,9 @@ def _fmt_lab_section(
     def pv(cat: str, key: str) -> Optional[float]:
         return _get_lab_val(prev_lab, cat, key)
 
+    def st(cat: str, key: str) -> str:
+        return _stale_marker(lab, cat, key)
+
     lines = [f"【關鍵檢驗】{ts_str}（標 * 者含24h趨勢）"]
 
     # Renal
@@ -438,11 +473,11 @@ def _fmt_lab_section(
     egfr = v("biochemistry", "egfr")
     parts = []
     if cr is not None:
-        parts.append(f"Cr {_format_trend(cr, pv('biochemistry', 'creatinine'))}*")
+        parts.append(f"Cr {_format_trend(cr, pv('biochemistry', 'creatinine'))}*{st('biochemistry', 'creatinine')}")
     if bun is not None:
-        parts.append(f"BUN {bun}{flag_only(bun, LAB_THRESHOLDS['BUN'])}")
+        parts.append(f"BUN {bun}{flag_only(bun, LAB_THRESHOLDS['BUN'])}{st('biochemistry', 'bun')}")
     if egfr is not None:
-        parts.append(f"eGFR {egfr}{flag_only(egfr, LAB_THRESHOLDS['eGFR'])}")
+        parts.append(f"eGFR {egfr}{flag_only(egfr, LAB_THRESHOLDS['eGFR'])}{st('biochemistry', 'egfr')}")
     if parts:
         lines.append("腎功能: " + " | ".join(parts))
 
@@ -452,11 +487,11 @@ def _fmt_lab_section(
     cl = v("biochemistry", "chloride")
     parts = []
     if k is not None:
-        parts.append(f"K⁺ {k}{flag_only(k, LAB_THRESHOLDS['K'])}")
+        parts.append(f"K⁺ {k}{flag_only(k, LAB_THRESHOLDS['K'])}{st('biochemistry', 'potassium')}")
     if na is not None:
-        parts.append(f"Na⁺ {na}{flag_only(na, LAB_THRESHOLDS['Na'])}")
+        parts.append(f"Na⁺ {na}{flag_only(na, LAB_THRESHOLDS['Na'])}{st('biochemistry', 'sodium')}")
     if cl is not None:
-        parts.append(f"Cl⁻ {cl}")
+        parts.append(f"Cl⁻ {cl}{st('biochemistry', 'chloride')}")
     if parts:
         lines.append("電解質: " + " | ".join(parts))
 
@@ -470,19 +505,19 @@ def _fmt_lab_section(
     alb = v("biochemistry", "albumin")
     parts = []
     if ast is not None:
-        parts.append(f"AST {ast}{flag_only(ast, LAB_THRESHOLDS['AST'])}")
+        parts.append(f"AST {ast}{flag_only(ast, LAB_THRESHOLDS['AST'])}{st('biochemistry', 'ast')}")
     if alt is not None:
-        parts.append(f"ALT {alt}{flag_only(alt, LAB_THRESHOLDS['ALT'])}")
+        parts.append(f"ALT {alt}{flag_only(alt, LAB_THRESHOLDS['ALT'])}{st('biochemistry', 'alt')}")
     if tbil is not None:
-        parts.append(f"T-Bil {tbil}{flag_only(tbil, LAB_THRESHOLDS['T-Bil'])}")
+        parts.append(f"T-Bil {tbil}{flag_only(tbil, LAB_THRESHOLDS['T-Bil'])}{st('biochemistry', 'total_bilirubin')}")
     if dbil is not None:
-        parts.append(f"D-Bil {dbil}")
+        parts.append(f"D-Bil {dbil}{st('biochemistry', 'direct_bilirubin')}")
     if alp is not None:
-        parts.append(f"ALP {alp}")
+        parts.append(f"ALP {alp}{st('biochemistry', 'alkaline_phosphatase')}")
     if ggt is not None:
-        parts.append(f"GGT {ggt}")
+        parts.append(f"GGT {ggt}{st('biochemistry', 'gamma_gt')}")
     if alb is not None:
-        parts.append(f"Albumin {alb}{flag_only(alb, LAB_THRESHOLDS['Albumin'])}")
+        parts.append(f"Albumin {alb}{flag_only(alb, LAB_THRESHOLDS['Albumin'])}{st('biochemistry', 'albumin')}")
     if parts:
         lines.append("肝功能: " + " | ".join(parts))
 
@@ -492,11 +527,11 @@ def _fmt_lab_section(
     plt = v("hematology", "platelet")
     parts = []
     if wbc is not None:
-        parts.append(f"WBC {_format_trend(wbc, pv('hematology', 'wbc'))}*")
+        parts.append(f"WBC {_format_trend(wbc, pv('hematology', 'wbc'))}*{st('hematology', 'wbc')}")
     if hb is not None:
-        parts.append(f"Hb {hb}{flag_only(hb, LAB_THRESHOLDS['Hb'])}")
+        parts.append(f"Hb {hb}{flag_only(hb, LAB_THRESHOLDS['Hb'])}{st('hematology', 'hemoglobin')}")
     if plt is not None:
-        parts.append(f"PLT {plt}{flag_only(plt, LAB_THRESHOLDS['PLT'])}")
+        parts.append(f"PLT {plt}{flag_only(plt, LAB_THRESHOLDS['PLT'])}{st('hematology', 'platelet')}")
     if parts:
         lines.append("血液: " + " | ".join(parts))
 
@@ -506,11 +541,11 @@ def _fmt_lab_section(
     ddimer = v("coagulation", "d_dimer")
     parts = []
     if inr is not None:
-        parts.append(f"INR {inr}{flag_only(inr, LAB_THRESHOLDS['INR'])}")
+        parts.append(f"INR {inr}{flag_only(inr, LAB_THRESHOLDS['INR'])}{st('coagulation', 'inr')}")
     if aptt is not None:
-        parts.append(f"aPTT {aptt}s{flag_only(aptt, LAB_THRESHOLDS['aPTT'])}")
+        parts.append(f"aPTT {aptt}s{flag_only(aptt, LAB_THRESHOLDS['aPTT'])}{st('coagulation', 'aptt')}")
     if ddimer is not None:
-        parts.append(f"D-Dimer {ddimer}{flag_only(ddimer, LAB_THRESHOLDS['D-Dimer'])}")
+        parts.append(f"D-Dimer {ddimer}{flag_only(ddimer, LAB_THRESHOLDS['D-Dimer'])}{st('coagulation', 'd_dimer')}")
     if parts:
         lines.append("凝血: " + " | ".join(parts))
 
@@ -519,9 +554,9 @@ def _fmt_lab_section(
     pct = v("inflammatory", "pct")
     parts = []
     if crp is not None:
-        parts.append(f"CRP {_format_trend(crp, pv('inflammatory', 'crp'))}*")
+        parts.append(f"CRP {_format_trend(crp, pv('inflammatory', 'crp'))}*{st('inflammatory', 'crp')}")
     if pct is not None:
-        parts.append(f"PCT {pct}{flag_only(pct, LAB_THRESHOLDS['PCT'])}")
+        parts.append(f"PCT {pct}{flag_only(pct, LAB_THRESHOLDS['PCT'])}{st('inflammatory', 'pct')}")
     if parts:
         lines.append("發炎: " + " | ".join(parts))
 
@@ -533,15 +568,15 @@ def _fmt_lab_section(
     lac = v("blood_gas", "lactate")
     parts = []
     if ph is not None:
-        parts.append(f"pH {ph}{flag_only(ph, LAB_THRESHOLDS['pH'])}")
+        parts.append(f"pH {ph}{flag_only(ph, LAB_THRESHOLDS['pH'])}{st('blood_gas', 'ph')}")
     if pco2 is not None:
-        parts.append(f"pCO₂ {pco2}")
+        parts.append(f"pCO₂ {pco2}{st('blood_gas', 'pco2')}")
     if po2 is not None:
-        parts.append(f"pO₂ {po2}{flag_only(po2, LAB_THRESHOLDS['pO2'])}")
+        parts.append(f"pO₂ {po2}{flag_only(po2, LAB_THRESHOLDS['pO2'])}{st('blood_gas', 'po2')}")
     if hco3 is not None:
-        parts.append(f"HCO₃ {hco3}{flag_only(hco3, LAB_THRESHOLDS['HCO3'])}")
+        parts.append(f"HCO₃ {hco3}{flag_only(hco3, LAB_THRESHOLDS['HCO3'])}{st('blood_gas', 'hco3')}")
     if lac is not None:
-        parts.append(f"Lac {_format_trend(lac, pv('blood_gas', 'lactate'))}*")
+        parts.append(f"Lac {_format_trend(lac, pv('blood_gas', 'lactate'))}*{st('blood_gas', 'lactate')}")
     if parts:
         lines.append("血氣: " + " | ".join(parts))
 
