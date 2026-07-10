@@ -193,7 +193,7 @@ async def _persist_date_column(
         nested = await db.begin_nested()
         try:
             await db.execute(
-                text(f"UPDATE patients SET {column_name} = :val WHERE id = :pid"),
+                text(f"UPDATE patients SET {column_name} = :val WHERE id = :pid"),  # nosec B608 — column_name is passed as a literal by every caller in this file ("intubation_date"/"tracheostomy_date"), never request-derived; value bound via :val
                 {"val": value, "pid": patient_id},
             )
             await nested.commit()

@@ -112,14 +112,14 @@ async def _execute_batch_upsert(
         set_clauses = [f"{c} = excluded.{c}" for c in update_cols]
         set_clauses.append("updated_at = CURRENT_TIMESTAMP")
         sql = (
-            f"INSERT INTO {table} ({', '.join(cols)}) "
+            f"INSERT INTO {table} ({', '.join(cols)}) "  # nosec B608 — table is a hardcoded literal ("medications"/"lab_data"/"culture_results"/"diagnostic_reports") from this module's own callers; cols are literal dict keys from HISConverter (app/fhir/his/converter.py), never raw HIS payload keys; row values bound via _build_batch_params placeholders
             f"VALUES {values_clause} "
             f"ON CONFLICT (id) DO UPDATE SET {', '.join(set_clauses)}"
         )
     else:
         # Only `id` supplied — preserve legacy "no UPDATE, no updated_at bump".
         sql = (
-            f"INSERT INTO {table} ({', '.join(cols)}) "
+            f"INSERT INTO {table} ({', '.join(cols)}) "  # nosec B608 — same constraint as the branch above: table/cols are internal constants, not external input
             f"VALUES {values_clause} "
             f"ON CONFLICT (id) DO NOTHING"
         )
@@ -140,7 +140,7 @@ async def _execute_batch_insert(
     if not records:
         return
     values_clause = _build_values_clause(cols, len(records))
-    sql = f"INSERT INTO {table} ({', '.join(cols)}) VALUES {values_clause}"
+    sql = f"INSERT INTO {table} ({', '.join(cols)}) VALUES {values_clause}"  # nosec B608 — table is a hardcoded literal from this module's own callers; cols are literal dict keys from HISConverter's fixed schema, never raw HIS payload keys; values bound via _build_batch_params placeholders
     await session.execute(text(sql), _build_batch_params(records, cols))
 
 
@@ -286,7 +286,7 @@ async def upsert_patient(session: Any, data: dict[str, Any]) -> None:
             params[key] = _serialize(value)
         if sets:
             sql = (
-                f"UPDATE patients SET {', '.join(sets)}, "
+                f"UPDATE patients SET {', '.join(sets)}, "  # nosec B608 — sets built only from merged_patient keys: the union of real `patients` DB columns (fetch_existing_patient's SELECT *) and HISConverter.convert_patient()'s hardcoded literal key set; never raw HIS payload keys; values bound via :key params
                 "updated_at = CURRENT_TIMESTAMP WHERE id = :id"
             )
             await session.execute(text(sql), params)
@@ -295,7 +295,7 @@ async def upsert_patient(session: Any, data: dict[str, Any]) -> None:
     cols = [key for key in data.keys() if key not in {"created_at", "updated_at"}]
     placeholders = [f":{key}" for key in cols]
     params = {key: _serialize(data[key]) for key in cols}
-    sql = f"INSERT INTO patients ({', '.join(cols)}) VALUES ({', '.join(placeholders)})"
+    sql = f"INSERT INTO patients ({', '.join(cols)}) VALUES ({', '.join(placeholders)})"  # nosec B608 — cols drawn from `data` (merged_patient), whose keys are HISConverter.convert_patient()'s hardcoded literal set / real DB columns, never raw HIS payload keys; values bound via placeholders
     await session.execute(text(sql), params)
 
 
@@ -314,7 +314,7 @@ async def replace_patient_records(
     audit log.
     """
     existing_rows = await session.execute(
-        text(f"SELECT id FROM {table} WHERE patient_id = :patient_id"),
+        text(f"SELECT id FROM {table} WHERE patient_id = :patient_id"),  # nosec B608 — table is one of the hardcoded literals ("lab_data"/"culture_results"/"diagnostic_reports") passed by sync_snapshot_into_session's fixed tuple; patient_id bound via :patient_id
         {"patient_id": patient_id},
     )
     existing_ids = {row[0] for row in existing_rows}
@@ -324,7 +324,7 @@ async def replace_patient_records(
     removed_ids = sorted(existing_ids - incoming_ids)
 
     await session.execute(
-        text(f"DELETE FROM {table} WHERE patient_id = :patient_id"),
+        text(f"DELETE FROM {table} WHERE patient_id = :patient_id"),  # nosec B608 — same constraint: table is a hardcoded literal from the caller's fixed tuple, not external input; patient_id bound via :patient_id
         {"patient_id": patient_id},
     )
     inserted = await insert_records(session, table, records)

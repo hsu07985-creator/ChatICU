@@ -219,7 +219,9 @@ async def get_drug_detail(
 
     # Fetch all DDI rows where this drug appears (drug1 / drug2 / interacting_members)
     escaped = escape_like(name)
-    r = await db.execute(text(f"""
+    # Plain (non-f) string: no interpolated fragments — the escaped LIKE pattern
+    # flows only into the :pat bind parameter below, never into the SQL text.
+    ddi_query = """
         SELECT
           id, drug1, drug2, drug1_atc, drug2_atc,
           risk_rating, severity, severity_label, reliability_rating,
@@ -237,7 +239,8 @@ async def get_drug_detail(
           CASE COALESCE(override_risk_rating, risk_rating)
               WHEN 'X' THEN 0 WHEN 'D' THEN 1 WHEN 'C' THEN 2
               WHEN 'B' THEN 3 WHEN 'A' THEN 4 ELSE 5 END
-    """), {"pat": f"%{escaped}%"})
+    """
+    r = await db.execute(text(ddi_query), {"pat": f"%{escaped}%"})
 
     ddi_rows = list(r)
     if not ddi_rows:

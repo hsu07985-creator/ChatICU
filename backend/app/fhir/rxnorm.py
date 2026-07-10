@@ -149,11 +149,14 @@ class RxNormNetworkError(RuntimeError):
 
 
 def _http_get_json(url: str, timeout: float = DEFAULT_TIMEOUT) -> dict[str, Any]:
+    scheme = urllib.parse.urlsplit(url).scheme
+    if scheme != "https":
+        raise ValueError(f"Refusing to fetch non-HTTPS URL (scheme={scheme!r}): {url!r}")
     req = urllib.request.Request(
         url, headers={"Accept": "application/json", "User-Agent": "chaticu-fhir/0.1"}
     )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310 — scheme validated to https above; url always built from hardcoded RXNAV_BASE constant
             return json.loads(resp.read().decode("utf-8"))
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as e:
         raise RxNormNetworkError(str(e)) from e

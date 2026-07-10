@@ -353,7 +353,7 @@ async def get_advice_tag_stats(
     result = await db.execute(sa.text(
         f"SELECT tag, COUNT(*) as cnt "
         f"FROM patient_messages pm, jsonb_array_elements_text(pm.tags) AS tag "
-        f"{filters} "
+        f"{filters} "  # nosec B608 — filters is assembled only from hardcoded SQL fragments above (never from `month` or other request data directly); month is parsed by _parse_month_range and passed as :start/:end bind params
         f"GROUP BY tag ORDER BY cnt DESC"
     ), params)
 
