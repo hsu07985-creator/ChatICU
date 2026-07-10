@@ -14,6 +14,7 @@ import {
   RotateCw,
   User,
   ShieldAlert,
+  FileText,
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { ButtonLoadingIndicator } from '../../../components/ui/button-loading-indicator';
@@ -201,6 +202,7 @@ export function AssessmentResultsPanel({
   assessmentResults,
   drugList,
   extendedData,
+  onGenerateAdvice,
   onRunAssessment,
   assessReady,
   assessHint,
@@ -325,17 +327,27 @@ export function AssessmentResultsPanel({
               <ShieldAlert className="h-5 w-5" />
               {t('workstation.assess.panel.summary')}
             </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onRunAssessment}
-              disabled={!assessReady}
-              className="h-8 px-2 text-white hover:bg-white/15 hover:text-white"
-              aria-label={t('workstation.assess.panel.rerun')}
-            >
-              {isAssessing ? <ButtonLoadingIndicator /> : <RotateCw className="h-4 w-4" />}
-              <span className="text-xs ml-1">{isAssessing ? t('workstation.assess.panel.processing') : t('workstation.assess.panel.rerun')}</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={onGenerateAdvice}
+                className="h-8 px-2 bg-[#7f265b] hover:bg-[#631e4d] text-white border border-white/30"
+              >
+                <FileText className="h-4 w-4" />
+                <span className="text-xs ml-1">{t('workstation.assess.panel.generateReport')}</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onRunAssessment}
+                disabled={!assessReady}
+                className="h-8 px-2 text-white hover:bg-white/15 hover:text-white"
+                aria-label={t('workstation.assess.panel.rerun')}
+              >
+                {isAssessing ? <ButtonLoadingIndicator /> : <RotateCw className="h-4 w-4" />}
+                <span className="text-xs ml-1">{isAssessing ? t('workstation.assess.panel.processing') : t('workstation.assess.panel.rerun')}</span>
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="pt-4 pb-4">

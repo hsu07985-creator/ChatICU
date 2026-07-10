@@ -7,6 +7,11 @@ const password = process.env.E2E_PHARMACY_PASSWORD || process.env.E2E_PASSWORD |
 // targeted a retired generation of the pages (藥事支援工作台 heading, free-text
 // interaction inputs, favorites, /pharmacy/error-report — all gone or
 // redesigned), so it could not pass at all.
+//
+// The 產生報告→送出建議 journey (cut from the UI in 1983485d0, restored in
+// this change) is covered below: generate the report from the assessment
+// summary card, submit an advice via the category dialog, and confirm the
+// toast + patient-board sync before navigating away.
 test.describe("Pharmacy Support Center", () => {
   test("pharmacist flow @pharmacy: workstation assess -> submit advice -> stats -> tools -> logout", async ({ page }) => {
     await page.goto("/login");
@@ -38,11 +43,32 @@ test.describe("Pharmacy Support Center", () => {
     await page.getByRole("button", { name: "執行全面評估" }).click();
 
     // Assessment completion signal: the run button flips to 重新評估 and the
-    // four result sections render. (The old 產生報告→送出建議 journey was cut
-    // from the UI in 1983485d0 — the report view is no longer reachable.)
+    // four result sections render.
     await expect(page.getByRole("button", { name: "重新評估" })).toBeVisible({ timeout: 90000 });
     await expect(page.getByRole("button", { name: /交互作用/ }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: /重複用藥/ }).first()).toBeVisible();
+
+    // ── Restored journey: generate report -> submit advice to the board ──
+    await page.getByRole("button", { name: "產生報告" }).click();
+    await expect(page.getByRole("heading", { name: "藥事評估報告" })).toBeVisible();
+
+    await page.getByRole("button", { name: "送出用藥建議" }).click();
+    const submitDialog = page.getByRole("dialog");
+    await expect(submitDialog.getByText("選擇用藥建議分類")).toBeVisible();
+
+    // AdviceSubmitDialog renders two Radix Selects (role="combobox"); the
+    // step-2 combobox only mounts after a step-1 category is chosen, so it's
+    // always the last one present at click time. SelectItem options render
+    // via a Portal outside the dialog DOM node, hence the page-level lookup.
+    await submitDialog.getByRole("combobox").first().click();
+    await page.getByRole("option", { name: /建議處方/ }).click();
+
+    await submitDialog.getByRole("combobox").last().click();
+    await page.getByRole("option").first().click();
+
+    await submitDialog.getByRole("button", { name: "確認送出" }).click();
+    await expect(submitDialog).not.toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/用藥建議已送出/)).toBeVisible({ timeout: 15000 });
 
     // ── Advice statistics page renders ──
     await page.getByRole("link", { name: /藥物統計|用藥建議與統計/ }).click();

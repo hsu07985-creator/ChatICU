@@ -571,6 +571,7 @@
         "runAssessment": "執行全面評估",
         "summary": "評估摘要",
         "rerun": "重新評估",
+        "generateReport": "產生報告",
         "duplicate": "重複用藥",
         "interaction": "交互作用",
         "ivCompatibility": "IV 相容性",

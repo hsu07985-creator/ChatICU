@@ -571,6 +571,7 @@
         "runAssessment": "Run Comprehensive Assessment",
         "summary": "Assessment Summary",
         "rerun": "Re-run",
+        "generateReport": "Generate Report",
         "duplicate": "Duplicates",
         "interaction": "Interactions",
         "ivCompatibility": "IV Compatibility",
