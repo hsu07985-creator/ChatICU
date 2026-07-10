@@ -3,17 +3,28 @@
 NO mocks, NO fake AI — every test hits the real OpenAI API via the full
 FastAPI → router → service → call_llm → OpenAI pipeline.
 
+T1 rewrite (2026-07-10, llm-infra-audit): the original suite targeted five
+endpoints that no longer exist (`/clinical/summary`, `/clinical/explanation`,
+`/clinical/guideline`, `/clinical/decision`, `/ai/chat`) — 7/13 tests failed
+with 404 before ever reaching the LLM, and the patient-not-found test was
+fake-green (404 because the ROUTE was gone, not the patient). Tests now
+target the surviving endpoints; the streaming ones assert on parsed SSE
+frames. Explanation/guideline/decision have no replacement endpoint and
+their tests were deleted.
+
 Uses SQLite in-memory DB (from conftest) + seeded patient with full
 clinical data (lab, vitals, meds, ventilator).
 
-Run:  cd backend && python3 -m pytest tests/test_e2e_llm.py -v -s
-Cost: ~10 OpenAI API calls per run (gpt-5)
+Run:  cd backend && RUN_REAL_LLM_E2E=1 python3 -m pytest tests/test_e2e_llm.py -v -s
+Cost: ~8 OpenAI API calls per run
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import json
 import os
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple
 
 import pytest
 import pytest_asyncio
@@ -25,6 +36,42 @@ pytestmark = pytest.mark.skipif(
     os.getenv("RUN_REAL_LLM_E2E") != "1" or not settings.OPENAI_API_KEY,
     reason="Set RUN_REAL_LLM_E2E=1 and OPENAI_API_KEY to run real LLM E2E tests",
 )
+
+
+def _parse_sse(text: str) -> List[Tuple[Optional[str], Any]]:
+    """Parse a buffered SSE body into (event, payload) tuples.
+
+    httpx ASGITransport buffers the whole response, so by the time we read
+    `.text` every frame is present. Payloads are JSON-decoded; error frames
+    whose data is a JSON string decode to dicts the same way.
+    """
+    frames: List[Tuple[Optional[str], Any]] = []
+    event: Optional[str] = None
+    for line in text.splitlines():
+        if line.startswith("event:"):
+            event = line.split(":", 1)[1].strip()
+        elif line.startswith("data:"):
+            data = line[5:].strip()
+            if not data:
+                continue
+            try:
+                frames.append((event, json.loads(data)))
+            except json.JSONDecodeError:
+                frames.append((event, data))
+    return frames
+
+
+def _sse_reply_and_done(text: str) -> Tuple[str, Optional[Dict[str, Any]]]:
+    """Concatenated delta chunks + the done payload (None if absent)."""
+    frames = _parse_sse(text)
+    errors = [p for e, p in frames if e == "error"]
+    assert not errors, f"stream emitted error frame(s): {errors}"
+    reply = "".join(
+        p["chunk"] for e, p in frames
+        if e == "delta" and isinstance(p, dict) and "chunk" in p
+    )
+    done = next((p for e, p in frames if e == "done"), None)
+    return reply, done
 
 
 @pytest_asyncio.fixture
@@ -84,125 +131,34 @@ async def e2e_client(client, seeded_db):
 
 
 # ───────────────────────────────────────────────────────────────
-# 1. POST /api/v1/clinical/summary — 真實 AI 臨床摘要
+# 1. POST /api/v1/clinical/summary/stream — 真實 AI 臨床摘要（SSE）
 # ───────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_e2e_clinical_summary(e2e_client):
-    """Full: HTTP → _get_patient_dict(with lab/vitals/meds/vent) → generate_clinical_summary → OpenAI."""
+async def test_e2e_clinical_summary_stream(e2e_client):
+    """Full: HTTP → _get_patient_dict(with lab/vitals/meds/vent) → call_llm_stream → OpenAI."""
     response = await e2e_client.post(
-        "/api/v1/clinical/summary",
+        "/api/v1/clinical/summary/stream",
         json={"patient_id": "pat_001"},
     )
     assert response.status_code == 200, f"Status {response.status_code}: {response.text}"
 
-    data = response.json()
-    assert data["success"] is True
-    assert "data" in data
+    reply, done = _sse_reply_and_done(response.text)
+    assert reply, "no delta chunks streamed"
+    assert done is not None, "no done frame"
 
-    result = data["data"]
-    assert "summary" in result
-    assert "metadata" in result
+    result = done["data"]
+    assert result["patient_id"] == "pat_001"
     assert isinstance(result["summary"], str)
     assert len(result["summary"]) > 50, f"Summary too short: {result['summary']}"
+    assert "metadata" in result
 
-    print(f"\n✅ /clinical/summary — {len(result['summary'])} chars")
+    print(f"\n✅ /clinical/summary/stream — {len(result['summary'])} chars")
     print(f"   {result['summary'][:300]}...")
 
 
 # ───────────────────────────────────────────────────────────────
-# 2. POST /api/v1/clinical/explanation — 真實 AI 衛教說明
-# ───────────────────────────────────────────────────────────────
-
-@pytest.mark.asyncio
-async def test_e2e_patient_explanation(e2e_client):
-    """Full: HTTP → _get_patient_dict → generate_patient_explanation → OpenAI."""
-    response = await e2e_client.post(
-        "/api/v1/clinical/explanation",
-        json={
-            "patient_id": "pat_001",
-            "topic": "目前使用的呼吸器和鎮靜藥物",
-        },
-    )
-    assert response.status_code == 200, f"Status {response.status_code}: {response.text}"
-
-    data = response.json()
-    assert data["success"] is True
-
-    result = data["data"]
-    assert "explanation" in result
-    assert len(result["explanation"]) > 50
-
-    print(f"\n✅ /clinical/explanation — {len(result['explanation'])} chars")
-    print(f"   {result['explanation'][:300]}...")
-
-
-# ───────────────────────────────────────────────────────────────
-# 3. POST /api/v1/clinical/guideline — 真實 AI 指引查詢
-# ───────────────────────────────────────────────────────────────
-
-@pytest.mark.asyncio
-async def test_e2e_guideline_interpretation(e2e_client):
-    """Full: HTTP → _get_patient_dict → call_llm(guideline) → OpenAI + safety guardrail."""
-    response = await e2e_client.post(
-        "/api/v1/clinical/guideline",
-        json={
-            "patient_id": "pat_001",
-            "scenario": "病人使用 Midazolam 連續鎮靜超過 72 小時，RASS -4，是否應轉換為 Propofol",
-            "guideline_topic": "ICU sedation management PADIS guidelines",
-        },
-    )
-    assert response.status_code == 200, f"Status {response.status_code}: {response.text}"
-
-    data = response.json()
-    assert data["success"] is True
-
-    result = data["data"]
-    assert result["patient_id"] == "pat_001"
-    assert "interpretation" in result
-    assert len(result["interpretation"]) > 50
-    assert "sources" in result
-    assert isinstance(result["sources"], list)
-
-    print(f"\n✅ /clinical/guideline — {len(result['interpretation'])} chars, {len(result['sources'])} sources")
-    print(f"   {result['interpretation'][:300]}...")
-
-
-# ───────────────────────────────────────────────────────────────
-# 4. POST /api/v1/clinical/decision — 真實 AI 多角色決策
-# ───────────────────────────────────────────────────────────────
-
-@pytest.mark.asyncio
-async def test_e2e_multi_agent_decision(e2e_client):
-    """Full: HTTP → _get_patient_dict → call_llm(decision) → OpenAI + safety guardrail."""
-    response = await e2e_client.post(
-        "/api/v1/clinical/decision",
-        json={
-            "patient_id": "pat_001",
-            "question": "腎功能持續下降 (eGFR 38)，是否需要啟動 CRRT？Meropenem 是否需要調整劑量？",
-            "assessments": [
-                {"agent": "nephrologist", "opinion": "eGFR trending down, consider CRRT if < 15"},
-                {"agent": "pharmacist", "opinion": "Meropenem dose adjustment needed for CrCl < 50"},
-                {"agent": "intensivist", "opinion": "Hemodynamically stable, can tolerate CRRT"},
-            ],
-        },
-    )
-    assert response.status_code == 200, f"Status {response.status_code}: {response.text}"
-
-    data = response.json()
-    assert data["success"] is True
-
-    result = data["data"]
-    assert result["patient_id"] == "pat_001"
-    assert "recommendation" in result
-    assert len(result["recommendation"]) > 50
-
-    print(f"\n✅ /clinical/decision — {len(result['recommendation'])} chars")
-    print(f"   {result['recommendation'][:300]}...")
-
-
-# ───────────────────────────────────────────────────────────────
-# 5. POST /api/v1/clinical/polish — 真實 AI 文本修飾（4 種全測）
+# 2. POST /api/v1/clinical/polish — 真實 AI 文本修飾（4 種全測）
 # ───────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
@@ -251,14 +207,14 @@ async def test_e2e_clinical_polish(e2e_client, polish_type, draft):
 
 
 # ───────────────────────────────────────────────────────────────
-# 6. POST /ai/chat — 真實 AI 對話（含病患上下文注入）
+# 3. POST /ai/chat/stream — 真實 AI 對話（SSE，含病患上下文注入）
 # ───────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_e2e_ai_chat_with_patient(e2e_client):
-    """Full: HTTP → ai_chat → _get_patient_dict → call_llm(rag) → OpenAI + safety guardrail."""
+async def test_e2e_ai_chat_stream_with_patient(e2e_client):
+    """Full: HTTP → chat_stream → build_clinical_snapshot → call_llm_stream → OpenAI."""
     response = await e2e_client.post(
-        "/ai/chat",
+        "/ai/chat/stream",
         json={
             "message": "這位病人目前的腎功能狀況如何？需要注意什麼？",
             "patientId": "pat_001",
@@ -266,59 +222,61 @@ async def test_e2e_ai_chat_with_patient(e2e_client):
     )
     assert response.status_code == 200, f"Status {response.status_code}: {response.text}"
 
-    data = response.json()
-    assert data["success"] is True
+    reply, done = _sse_reply_and_done(response.text)
+    assert len(reply) > 30, f"reply too short: {reply!r}"
+    assert done is not None, "no done frame"
 
-    result = data["data"]
-    assert "message" in result
-    assert result["message"]["role"] == "assistant"
-    assert len(result["message"]["content"]) > 30
-    assert "sessionId" in result
+    message = done["message"]
+    assert message["role"] == "assistant"
+    assert message["content"] == reply
+    assert done["sessionId"]
 
-    print(f"\n✅ /ai/chat (with patient) — {len(result['message']['content'])} chars")
-    print(f"   Session: {result['sessionId']}")
-    print(f"   {result['message']['content'][:300]}...")
+    print(f"\n✅ /ai/chat/stream (with patient) — {len(reply)} chars")
+    print(f"   Session: {done['sessionId']}")
+    print(f"   {reply[:300]}...")
 
 
 @pytest.mark.asyncio
-async def test_e2e_ai_chat_without_patient(e2e_client):
+async def test_e2e_ai_chat_stream_without_patient(e2e_client):
     """AI chat without patientId — should still work (general ICU question)."""
     response = await e2e_client.post(
-        "/ai/chat",
+        "/ai/chat/stream",
         json={
             "message": "ICU 常見的鎮靜藥物有哪些？各自的優缺點？",
         },
     )
     assert response.status_code == 200, f"Status {response.status_code}: {response.text}"
 
-    data = response.json()
-    assert data["success"] is True
+    reply, done = _sse_reply_and_done(response.text)
+    assert len(reply) > 30
+    assert done is not None and done["message"]["role"] == "assistant"
 
-    result = data["data"]
-    assert result["message"]["role"] == "assistant"
-    assert len(result["message"]["content"]) > 30
-
-    print(f"\n✅ /ai/chat (no patient) — {len(result['message']['content'])} chars")
-    print(f"   {result['message']['content'][:300]}...")
+    print(f"\n✅ /ai/chat/stream (no patient) — {len(reply)} chars")
+    print(f"   {reply[:300]}...")
 
 
 # ───────────────────────────────────────────────────────────────
-# 7. 錯誤情境 — 確認不會因 LLM 而崩潰
+# 4. 錯誤情境 — 確認不會因 LLM 而崩潰（不打 OpenAI）
 # ───────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
 async def test_e2e_summary_patient_not_found(e2e_client):
-    """Patient not found → 404, not crash."""
+    """Patient not found → 404 raised by _get_patient_dict BEFORE any LLM
+    call. Asserting the detail names the patient distinguishes this from
+    FastAPI's route-not-found 404 — the fake-green the old suite had."""
     response = await e2e_client.post(
-        "/api/v1/clinical/summary",
+        "/api/v1/clinical/summary/stream",
         json={"patient_id": "NONEXIST"},
     )
     assert response.status_code == 404
+    assert "NONEXIST" in response.text, (
+        f"404 must come from the patient lookup, not a missing route: {response.text}"
+    )
 
 
 @pytest.mark.asyncio
 async def test_e2e_polish_invalid_type(e2e_client):
-    """Invalid polish_type → 422 validation error."""
+    """Invalid polish_type → 422 validation error (no LLM call)."""
     response = await e2e_client.post(
         "/api/v1/clinical/polish",
         json={
@@ -328,22 +286,22 @@ async def test_e2e_polish_invalid_type(e2e_client):
         },
     )
     assert response.status_code == 422
+    assert "polish_type" in response.text
 
 
 @pytest.mark.asyncio
-async def test_e2e_chat_invalid_patient_still_works(e2e_client):
-    """Chat with nonexistent patientId → still works (patient context = None)."""
+async def test_e2e_chat_stream_invalid_patient_rejected(e2e_client):
+    """Chat with nonexistent patientId → 404 from the W1-T1 ACL
+    (assert_patient_chat_access), BEFORE any LLM call. The old /ai/chat
+    silently degraded to context-less chat; the stream endpoint
+    deliberately rejects instead — pin that behavior."""
     response = await e2e_client.post(
-        "/ai/chat",
+        "/ai/chat/stream",
         json={
             "message": "什麼是 ARDS？",
             "patientId": "NONEXIST",
         },
     )
-    assert response.status_code == 200
+    assert response.status_code == 404
 
-    data = response.json()
-    assert data["success"] is True
-    assert len(data["data"]["message"]["content"]) > 20
-
-    print(f"\n✅ /ai/chat (invalid patient) — still works, {len(data['data']['message']['content'])} chars")
+    print("\n✅ /ai/chat/stream (invalid patient) — rejected by ACL with 404")

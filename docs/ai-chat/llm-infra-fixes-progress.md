@@ -14,7 +14,7 @@
 | T2 | 🟡 | citation audit `_KNOWN_SECTIONS` 補全（建議自 formatters section 常數導出） | `backend/app/services/citation_audit.py:45`、`tests/test_services/test_citation_audit.py` | ① 新測試「引用【患者基本】/【用藥安全摘要】→ 無 suspect」先 RED 後 GREEN ② 跑 `probe_ai_chat_llm_grounding.py`，log 無 `fabrication_suspected` 誤報 | ✅ |
 | T3 | 🟡 | hedging 偵測去敏（先 brainstorm 設計：首段限定／精確數值豁免） | `backend/app/services/ai_chat/observability.py` | ① 單元測試：完整作答+「缺少 MAR」註記 → 不觸發 ② 6 題探測 Q1/Q6 無 `MISS_LIKELY` | 🚧 |
 | T4 | 🟡 | `icu_chat` prompt 加資料時效規則（先 brainstorm N 天門檻與措辭） | `backend/app/llm/prompts.py:286` | 真 LLM 重測 Q1：最新檢驗 >N 天時首句出現資料日期警示 | 🚧 |
-| T1 | 🔴 | e2e LLM 套件改打現存端點（SSE 斷言）、清除假綠、刪無替代端點的測試 | `backend/tests/test_e2e_llm.py` | `RUN_REAL_LLM_E2E=1 pytest tests/test_e2e_llm.py` 全綠，且每條曾確認 RED 理由正確 | ☐ |
+| T1 | 🔴 | e2e LLM 套件改打現存端點（SSE 斷言）、清除假綠、刪無替代端點的測試 | `backend/tests/test_e2e_llm.py` | `RUN_REAL_LLM_E2E=1 pytest tests/test_e2e_llm.py` 全綠，且每條曾確認 RED 理由正確 | ✅ |
 | T6 | 🟢 | 刪死 import `generate_clinical_summary`（評估連同 service 檔+測試一起刪） | `backend/app/routers/clinical.py:52`、`backend/app/services/llm_services/clinical_summary.py` | pytest 全套綠 | ☐ |
 | T5 | 🟢 | llm-2（非用藥 section 值驗證）、llm-4（無單位劑量 fallback） | `backend/app/services/citation_audit.py`、`backend/app/services/patient_context_builder/formatters.py` | 各一條紅綠單元測試 | ☐ |
 
@@ -47,6 +47,13 @@ python3 -m pytest tests/test_services/test_citation_audit.py \
 
 ## 完成紀錄
 
+- **T1**（2026-07-10）：summary/chat 5 條改打 `/summary/stream`、`/ai/chat/stream`
+  （SSE frame 解析斷言：delta 重組 = done payload、error frame 即 fail）；
+  explanation/guideline/decision 3 條無替代端點刪除；假綠
+  `summary_patient_not_found` 改斷言 404 detail 含病人 ID（區分 route-404）；
+  發現並固定新行為：`/ai/chat/stream` 對不存在 patientId 回 **404**（W1-T1 ACL
+  `assert_patient_chat_access`），非舊 `/ai/chat` 的無 context 降級。
+  RED 基準＝審查時 7 failed；真 LLM 重跑 **10 passed / 56s**。
 - **T3**（2026-07-10，設計拍板＝候選 C「同段關鍵詞比對」）：MISS_LIKELY 改用
   `_reply_hedges_on_question_subject(reply, question)`——從原始問題抽主體詞
   （ASCII 藥名/縮寫 + 去停用詞後 ≥2 字中文詞串），找回覆中**第一個含主體詞的段落**
