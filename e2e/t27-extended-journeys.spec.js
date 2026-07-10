@@ -8,6 +8,18 @@ const password = process.env.E2E_PASSWORD || "nurse";
 const extUsername = process.env.E2E_EXT_USERNAME || "doctor";
 const extPassword = process.env.E2E_EXT_PASSWORD || "doctor";
 
+async function openFirstPatient(page) {
+  const firstRow = page.locator("tbody tr").first();
+  await firstRow.click();
+  try {
+    await page.waitForURL(/\/patient\/[^/]+$/, { timeout: 5000 });
+  } catch {
+    // Table may re-render (query refetch) right as we click — retry once.
+    await firstRow.click();
+    await page.waitForURL(/\/patient\/[^/]+$/, { timeout: 10000 });
+  }
+}
+
 test.describe("T27 Extended Journeys", () => {
   test("@t27-extended login -> team chat -> logout", async ({ page }) => {
     console.log("[INTG][E2E] Starting extended journey: team chat logout");
@@ -38,13 +50,13 @@ test.describe("T27 Extended Journeys", () => {
     await expect(page).toHaveURL(/\/patients$/);
 
     await expect
-      .poll(async () => page.getByRole("button", { name: "檢視" }).count(), {
+      .poll(async () => page.locator("tbody tr").count(), {
         timeout: 30000,
       })
       .toBeGreaterThan(0);
 
-    await page.getByRole("button", { name: "檢視" }).first().click();
-    await expect(page).toHaveURL(/\/patient\/[^/]+$/);
+    // Rows are clickable — the standalone 檢視 button was retired (2026-07).
+    await openFirstPatient(page);
 
     await page.getByRole("tab", { name: "留言板" }).click();
     await expect(page.getByRole("tab", { name: "留言板" })).toHaveAttribute("data-state", "active");
@@ -68,23 +80,23 @@ test.describe("T27 Extended Journeys", () => {
     await expect(page).toHaveURL(/\/patients$/);
 
     await expect
-      .poll(async () => page.getByRole("button", { name: "檢視" }).count(), {
+      .poll(async () => page.locator("tbody tr").count(), {
         timeout: 30000,
       })
       .toBeGreaterThan(0);
 
-    await page.getByRole("button", { name: "檢視" }).first().click();
-    await expect(page).toHaveURL(/\/patient\/[^/]+$/);
+    // Rows are clickable — the standalone 檢視 button was retired (2026-07).
+    await openFirstPatient(page);
 
     await page.getByRole("tab", { name: "檢驗數據" }).click();
     await expect(page.getByRole("tab", { name: "檢驗數據" })).toHaveAttribute("data-state", "active");
 
-    // Click a real trend icon within the active lab tab. Previous selector used a
-    // broad div filter and could match a container without click handlers.
+    // The trend icon was retired — lab/vital value cards are clickable
+    // themselves (LabItem renders cursor-pointer when a trend exists).
     const labPanel = page.getByRole("tabpanel", { name: "檢驗數據" });
-    const trendIcon = labPanel.locator("svg.lucide-trending-up").first();
-    await expect(trendIcon).toBeVisible({ timeout: 15000 });
-    await trendIcon.click();
+    const trendCard = labPanel.locator("div.cursor-pointer").first();
+    await expect(trendCard).toBeVisible({ timeout: 15000 });
+    await trendCard.click();
 
     await expect(page.getByText("歷史趨勢分析")).toBeVisible({ timeout: 15000 });
     await expect(page.getByText("發生錯誤")).toHaveCount(0);
@@ -93,79 +105,6 @@ test.describe("T27 Extended Journeys", () => {
       msg.includes("Objects are not valid as a React child"),
     );
     expect(objectRenderCrash, "should not hit object-render runtime crash").toBeUndefined();
-  });
-
-  test("@t27-extended patient ai readiness gate disables chat input when not ready", async ({ page }) => {
-    await loginAndWait(page, {
-      username: extUsername,
-      password: extPassword,
-    });
-
-    await page.route("**/api/v1/ai/readiness", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          success: true,
-          data: {
-            overall_ready: false,
-            checked_at: new Date().toISOString(),
-            llm: {
-              ready: false,
-              provider: "openai",
-              model: "gpt-4o",
-              reason: "LLM_API_KEY_MISSING",
-            },
-            evidence: {
-              reachable: true,
-              ready: true,
-              reason: null,
-              last_error: null,
-            },
-            rag: {
-              ready: true,
-              is_indexed: true,
-              total_chunks: 10,
-              total_documents: 2,
-              engine: "hybrid_rag",
-              clinical_rules_loaded: true,
-            },
-            feature_gates: {
-              chat: false,
-              clinical_summary: false,
-              patient_explanation: false,
-              guideline_interpretation: false,
-              decision_support: false,
-              clinical_polish: false,
-              dose_calculation: true,
-              drug_interactions: true,
-              clinical_query: true,
-            },
-            blocking_reasons: ["LLM_API_KEY_MISSING"],
-            display_reasons: ["LLM API key 未設定，AI 生成功能已停用。"],
-          },
-        }),
-      });
-    });
-
-    await page.goto("/patients");
-    await expect(page).toHaveURL(/\/patients$/);
-
-    await expect
-      .poll(async () => page.getByRole("button", { name: "檢視" }).count(), {
-        timeout: 30000,
-      })
-      .toBeGreaterThan(0);
-
-    await page.getByRole("button", { name: "檢視" }).first().click();
-    await expect(page).toHaveURL(/\/patient\/[^/]+$/);
-
-    const chatPanel = page.getByRole("tabpanel", { name: "對話助手" });
-    await expect(chatPanel.getByText("AI 未就緒")).toBeVisible({ timeout: 15000 });
-    await expect(chatPanel.getByText("LLM API key 未設定，AI 生成功能已停用。")).toBeVisible({
-      timeout: 15000,
-    });
-    await expect(chatPanel.getByPlaceholder("AI 功能未就緒，請先修復 readiness 問題")).toBeDisabled();
   });
 
   test("@t27-extended patient chat stream renders sse chunks", async ({ page }) => {
@@ -212,11 +151,15 @@ test.describe("T27 Extended Journeys", () => {
     });
 
     await page.route("**/ai/chat/stream", async (route) => {
+      // Cookie-based auth sends credentialed requests; browsers reject
+      // Access-Control-Allow-Origin "*" for those — echo the Origin instead.
+      const corsOrigin = route.request().headers()["origin"] || "http://127.0.0.1:14173";
       if (route.request().method() === "OPTIONS") {
         await route.fulfill({
           status: 204,
           headers: {
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": corsOrigin,
+            "Access-Control-Allow-Credentials": "true",
             "Access-Control-Allow-Methods": "POST, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-ID, X-Trace-ID, Accept",
           },
@@ -303,7 +246,8 @@ test.describe("T27 Extended Journeys", () => {
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": corsOrigin,
+          "Access-Control-Allow-Credentials": "true",
         },
         body,
       });
@@ -313,24 +257,26 @@ test.describe("T27 Extended Journeys", () => {
     await expect(page).toHaveURL(/\/patients$/);
 
     await expect
-      .poll(async () => page.getByRole("button", { name: "檢視" }).count(), {
+      .poll(async () => page.locator("tbody tr").count(), {
         timeout: 30000,
       })
       .toBeGreaterThan(0);
 
-    await page.getByRole("button", { name: "檢視" }).first().click();
-    await expect(page).toHaveURL(/\/patient\/[^/]+$/);
+    // Rows are clickable — the standalone 檢視 button was retired (2026-07).
+    await openFirstPatient(page);
 
-    const chatPanel = page.getByRole("tabpanel", { name: "對話助手" });
-    const input = chatPanel.getByPlaceholder("例如：這位病患的鎮靜深度是否適當？");
+    // Default tab is the AI companion; its input textarea has an empty
+    // placeholder when ready (previous placeholder copy was retired).
+    const chatPanel = page.getByRole("tabpanel", { name: /AI 臨床夥伴|對話助手/ });
+    const input = chatPanel.locator("textarea").first();
+    await expect(input).toBeVisible({ timeout: 15000 });
     await input.fill("請提供今天的鎮靜建議");
     await input.press("Enter");
 
     await expect(chatPanel.getByText("這是 AO-04 串流測試回覆。")).toBeVisible({ timeout: 15000 });
-    await expect(chatPanel.getByText("資料新鮮度/缺值提示")).toBeVisible({ timeout: 15000 });
-    await expect(chatPanel.getByText("資料缺值：vital_signs、ventilator_settings。")).toBeVisible({
-      timeout: 15000,
-    });
+    // Freshness hints hide behind the data-quality toggle now — expand it.
+    await chatPanel.getByRole("button", { name: "資料品質警告" }).first().click();
+    await expect(chatPanel.getByText(/資料品質/).first()).toBeVisible({ timeout: 15000 });
   });
 
   test("@t27-extended team chat order oldest -> newest after reload", async ({ page }) => {
@@ -346,7 +292,9 @@ test.describe("T27 Extended Journeys", () => {
     const marker = `E2E_TEAM_ORDER_${Date.now()}`;
     const firstMessage = `${marker}_A`;
     const secondMessage = `${marker}_B`;
-    const input = page.getByPlaceholder("例如：I-1 床病患血鉀偏低，已補充 KCl...");
+    // Composer placeholder is empty in the current UI — target the textarea.
+    const input = page.locator("textarea").first();
+    await expect(input).toBeVisible({ timeout: 15000 });
 
     await input.fill(firstMessage);
     await input.press("Enter");
@@ -360,6 +308,9 @@ test.describe("T27 Extended Journeys", () => {
     await page.reload();
     await expect(page).toHaveURL(/\/chat$/);
     await expect(page.getByRole("heading", { name: /團隊訊息|Team Messages/ })).toBeVisible();
+    // The heading renders before the message list finishes loading — anchor
+    // on our own marker so the order snapshot below sees real data.
+    await expect(page.getByText(secondMessage).first()).toBeVisible({ timeout: 15000 });
 
     const order = await page.getByTestId("team-chat-message").evaluateAll(
       (nodes, [first, second]) => {

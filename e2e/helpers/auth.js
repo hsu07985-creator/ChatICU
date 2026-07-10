@@ -55,8 +55,11 @@ async function loginAndWait(page, options) {
     );
   }
 
+  // Auth moved to httpOnly cookies — chaticu_token in localStorage is legacy
+  // (api-client clears it on load). The login-state marker is the
+  // non-httpOnly chaticu_logged_in cookie.
   await page.waitForFunction(
-    () => Boolean(window.localStorage.getItem("chaticu_token")),
+    () => document.cookie.includes("chaticu_logged_in"),
     undefined,
     { timeout: timeoutMs },
   );
