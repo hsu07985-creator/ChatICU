@@ -49,7 +49,6 @@ from app.schemas.clinical import (
     PolishRequest,
     SummaryRequest,
 )
-from app.services.llm_services.clinical_summary import generate_clinical_summary
 from app.services.patient_context_builder import _get_latest_lab
 from app.services.safety_guardrail import apply_safety_guardrail
 from app.utils.data_freshness import build_data_freshness
