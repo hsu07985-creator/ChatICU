@@ -27,6 +27,30 @@ from ._shared import TAIPEI_TZ, _TREND_THRESHOLD, _now_taipei
 from .lab_values import _get_lab_val, _get_lab_item_as_of
 
 
+# Single source of truth for every bracketed section title the LLM can see in
+# its context — snapshot sections built here + safety.py, and the prefetch block
+# titles from ai_question_prefetch.py (listed by base name; their rendered
+# form carries a 「最近N天/筆」 qualifier). The citation-audit whitelist
+# (services/citation_audit.py, T2 2026-07-10) derives from this set;
+# test_whitelist_covers_every_emitted_section_title pins them together.
+SNAPSHOT_SECTION_TITLES = frozenset({
+    "患者基本",
+    "用藥",
+    "用藥安全摘要",
+    "關鍵檢驗",
+    "生命徵象",
+    "呼吸器",
+    "影像/報告",
+    "臨床評分",
+    "資料狀態",
+    "腎功能/給藥摘要",
+    "微生物培養",
+    "診斷/影像報告",
+    "藥師建議歷史",
+    "用藥變更",
+})
+
+
 _RENAL_RELEVANT_KEYWORDS = (
     "acyclovir", "amikacin", "amoxicillin", "ampicillin", "cefazolin",
     "cefepime", "ceftazidime", "ceftriaxone", "ciprofloxacin", "colistin",

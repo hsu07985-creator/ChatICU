@@ -86,6 +86,61 @@ def test_lab_citation_counted_but_not_flagged():
     assert result["suspects"] == []
 
 
+def test_snapshot_section_citations_not_flagged():
+    """T2 regression (2026-07-10 audit): 【患者基本】/【用藥安全摘要】 are
+    real snapshot sections the LLM sees every turn — citing them was
+    being written to audit_logs as fabrication_suspected."""
+    reply = (
+        "病人 65 歲（依【患者基本】吳佳旺，65 歲男性）。"
+        "已知 4 條警示（依【用藥安全摘要】carbapenem 類重複）。"
+        "腎功能極差（依【腎功能/給藥摘要】eGFR 7.97）。"
+        "尚未插管（依【呼吸器】無資料）。"
+        "評分中等（依【臨床評分】SOFA 9）。"
+        "檢驗停在四月底（依【資料狀態】最新檢驗 2026-04-26）。"
+    )
+    result = audit_citations(reply, ACTIVE_ALIASES)
+    assert result["suspects"] == []
+    assert result["total"] == 6
+
+
+def test_parameterized_prefetch_section_citations_not_flagged():
+    """Prefetch context blocks carry parameterized titles —
+    【微生物培養 最近14天】,【最近72小時用藥變更】 etc. Citing them
+    (with or without the qualifier) must not be flagged."""
+    reply = (
+        "血液培養陰性（依【微生物培養 最近14天】2026-04-20 blood）。"
+        "近期無異動（依【最近72小時用藥變更】無資料）。"
+        "報告見前（依【診斷/影像報告 最近14天】胸部X光）。"
+        "藥師已建議（依【藥師建議歷史 最近30天】renal dosing）。"
+        "影像如前述（依【影像/報告 最近3筆】2026-04-26 胸腔檢查）。"
+    )
+    result = audit_citations(reply, ACTIVE_ALIASES)
+    assert result["suspects"] == []
+
+
+def test_whitelist_covers_every_emitted_section_title():
+    """Anti-drift: every 【title】 literal emitted by the three context
+    builders must be recognised by the audit whitelist, so a newly added
+    snapshot section can never re-open the T2 false-positive hole."""
+    import re
+    from pathlib import Path
+
+    from app.services.citation_audit import _section_is_known
+    import app.services.patient_context_builder.formatters as formatters
+    import app.services.patient_context_builder.safety as safety
+    import app.services.ai_question_prefetch as prefetch
+
+    title_re = re.compile(r"【([^】{}\[\]()\\^|+*?]+?)】")
+    for mod in (formatters, safety, prefetch):
+        src = Path(mod.__file__).read_text(encoding="utf-8")
+        for title in title_re.findall(src):
+            rendered = title.replace("{days}", "14").replace("{hours}", "72")
+            assert _section_is_known(rendered), (
+                f"{mod.__name__} emits 【{rendered}】 "
+                "but citation-audit whitelist does not recognise it"
+            )
+
+
 # ---------------------------------------------------------------------------
 # audit_citations — fabrications must be flagged
 # ---------------------------------------------------------------------------

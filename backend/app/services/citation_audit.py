@@ -30,6 +30,10 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, Iterable, List, Optional
 
+from app.services.patient_context_builder.formatters import (
+    SNAPSHOT_SECTION_TITLES,
+)
+
 
 # Citation form set by step-1/step-4 system-prompt examples:
 #   （依【用藥】Meropenem 2.0 瓶 q12h IV）
@@ -40,18 +44,29 @@ _CITATION_RE = re.compile(
     r"[（(]\s*依\s*【\s*([^】]+?)\s*】\s*([^）)]+?)\s*[）)]"
 )
 
-# Sections that the step-1/step-4 prompt block instructs the LLM to use.
-# Anything else is unrecognised and gets flagged.
-_KNOWN_SECTIONS = frozenset({
-    "用藥",
-    "關鍵檢驗",
-    "生命徵象",
-    "影像/報告",
-})
+# Every section title the context builders put in front of the LLM
+# (T2 2026-07-10: the old hand-kept 4-entry list flagged real snapshot
+# sections like 【患者基本】 as fabrication). Single source of truth lives
+# in patient_context_builder/formatters.py.
+_KNOWN_SECTIONS = SNAPSHOT_SECTION_TITLES
+
+# Prefetch blocks render with a trailing qualifier (【微生物培養 最近14天】,
+# 【影像/報告 最近3筆】) or a leading one (【最近72小時用藥變更】).
+_MED_CHANGE_TITLE_RE = re.compile(r"^最近\d+小時用藥變更$")
 
 # Sections we strictly validate today. Expand later when we add a lab
 # alias glossary.
 _STRICT_SECTIONS = frozenset({"用藥"})
+
+
+def _section_is_known(section: str) -> bool:
+    """True when `section` matches a context-block title, with or without
+    its 最近N天/筆 qualifier."""
+    if section in _KNOWN_SECTIONS:
+        return True
+    if _MED_CHANGE_TITLE_RE.match(section):
+        return True
+    return any(section.startswith(base + " ") for base in _KNOWN_SECTIONS)
 
 
 def extract_citations(reply: str) -> List[Dict[str, str]]:
@@ -129,7 +144,7 @@ def audit_citations(
         token = _first_id_token(content)
         by_section[section] = by_section.get(section, 0) + 1
 
-        if section not in _KNOWN_SECTIONS:
+        if not _section_is_known(section):
             suspects.append({
                 **cit,
                 "token": token,
