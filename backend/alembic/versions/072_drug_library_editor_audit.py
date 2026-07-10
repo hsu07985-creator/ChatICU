@@ -89,17 +89,18 @@ def upgrade() -> None:
         END;
         $$ LANGUAGE plpgsql
     """)
+    # One statement per execute — asyncpg cannot prepare multi-command strings.
+    op.execute("DROP TRIGGER IF EXISTS tr_dlaa_no_update ON drug_library_audit_log")
     op.execute("""
-        DROP TRIGGER IF EXISTS tr_dlaa_no_update ON drug_library_audit_log;
         CREATE TRIGGER tr_dlaa_no_update
             BEFORE UPDATE ON drug_library_audit_log
-            FOR EACH ROW EXECUTE FUNCTION reject_audit_log_modify();
+            FOR EACH ROW EXECUTE FUNCTION reject_audit_log_modify()
     """)
+    op.execute("DROP TRIGGER IF EXISTS tr_dlaa_no_delete ON drug_library_audit_log")
     op.execute("""
-        DROP TRIGGER IF EXISTS tr_dlaa_no_delete ON drug_library_audit_log;
         CREATE TRIGGER tr_dlaa_no_delete
             BEFORE DELETE ON drug_library_audit_log
-            FOR EACH ROW EXECUTE FUNCTION reject_audit_log_modify();
+            FOR EACH ROW EXECUTE FUNCTION reject_audit_log_modify()
     """)
 
 

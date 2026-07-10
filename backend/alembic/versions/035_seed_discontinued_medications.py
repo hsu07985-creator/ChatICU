@@ -4,6 +4,8 @@ Revision ID: 035
 Revises: 034
 Create Date: 2026-04-06
 """
+from datetime import date
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -148,6 +150,13 @@ def upgrade() -> None:
         ).fetchone()
         if exists:
             continue
+        # asyncpg needs native date objects for DATE columns (str lacks
+        # .toordinal) — same class of bug fixed in migrations 049/050.
+        m = dict(
+            m,
+            start_date=date.fromisoformat(m["start_date"]) if m.get("start_date") else None,
+            end_date=date.fromisoformat(m["end_date"]) if m.get("end_date") else None,
+        )
         conn.execute(
             sa.text("""
                 INSERT INTO medications (
@@ -157,7 +166,8 @@ def upgrade() -> None:
                 ) VALUES (
                     :id, :patient_id, :name, :generic_name, :category, :san_category,
                     :dose, :unit, :frequency, :route, :prn, :indication,
-                    :start_date, :end_date, :status, :prescribed_by::jsonb, :warnings::jsonb
+                    :start_date, :end_date, :status,
+                    CAST(:prescribed_by AS JSONB), CAST(:warnings AS JSONB)
                 )
             """),
             m,

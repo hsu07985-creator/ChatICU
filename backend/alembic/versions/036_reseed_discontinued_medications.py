@@ -4,6 +4,8 @@ Revision ID: 036
 Revises: 035
 Create Date: 2026-04-06
 """
+from datetime import date
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -54,7 +56,11 @@ def upgrade() -> None:
                 "id": row[0], "pid": row[1], "name": row[2], "gname": row[3],
                 "cat": row[4], "san": row[5], "dose": row[6], "unit": row[7],
                 "freq": row[8], "route": row[9], "prn": row[10], "indication": row[11],
-                "sdate": row[12], "edate": row[13], "status": row[14],
+                # asyncpg needs native dates for DATE columns (str lacks
+                # .toordinal) — same bug class as 035/049/050.
+                "sdate": date.fromisoformat(row[12]) if row[12] else None,
+                "edate": date.fromisoformat(row[13]) if row[13] else None,
+                "status": row[14],
                 "prescribed_by": row[15], "warnings": row[16],
             },
         )
