@@ -464,23 +464,23 @@ export function PatientsPage() {
           {/* 病人列表 */}
           {!loading && !error && filteredPatients.length > 0 && (
           <div className="overflow-x-auto">
-          <Table className="compact-table" style={{ tableLayout: 'fixed', minWidth: '1160px' }}>
+          <Table className="compact-table" style={{ tableLayout: 'fixed', minWidth: '1185px' }}>
             <colgroup>
-              <col style={{ width: '60px' }} />    {/* 床號 */}
-              <col style={{ width: '90px' }} />    {/* 病例號碼 */}
-              <col style={{ width: '70px' }} />    {/* 姓名 */}
-              <col style={{ width: '45px' }} />    {/* 性別 */}
-              <col style={{ width: '55px' }} />    {/* 年齡 */}
-              <col style={{ width: '85px' }} />    {/* 主治醫師 */}
-              <col style={{ width: '180px' }} />   {/* 入院診斷 */}
-              <col style={{ width: '130px' }} />   {/* 入ICU日期 */}
-              <col style={{ width: '75px' }} />    {/* 呼吸器天數 */}
-              <col style={{ width: '50px' }} />    {/* DNR */}
-              <col style={{ width: '60px' }} />    {/* 過敏 */}
-              <col style={{ width: '50px' }} />    {/* 隔離 */}
-              <col style={{ width: '72px' }} />    {/* 插管 */}
-              <col style={{ width: '50px' }} />    {/* 編輯 */}
-              <col style={{ width: '50px' }} />    {/* 轉出 */}
+              <col style={{ width: '60px' }} />{/* 床號 */}
+              <col style={{ width: '90px' }} />{/* 病例號碼 */}
+              <col style={{ width: '70px' }} />{/* 姓名 */}
+              <col style={{ width: '45px' }} />{/* 性別 */}
+              <col style={{ width: '55px' }} />{/* 年齡 */}
+              <col style={{ width: '85px' }} />{/* 主治醫師 */}
+              <col style={{ width: '180px' }} />{/* 入院診斷 */}
+              <col style={{ width: '130px' }} />{/* 入ICU日期 */}
+              <col style={{ width: '100px' }} />{/* 呼吸器天數 */}
+              <col style={{ width: '50px' }} />{/* DNR */}
+              <col style={{ width: '60px' }} />{/* 過敏 */}
+              <col style={{ width: '50px' }} />{/* 隔離 */}
+              <col style={{ width: '72px' }} />{/* 插管 */}
+              <col style={{ width: '50px' }} />{/* 編輯 */}
+              <col style={{ width: '50px' }} />{/* 轉出 */}
             </colgroup>
             <TableHeader>
               <TableRow>

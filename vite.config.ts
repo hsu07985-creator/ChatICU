@@ -86,13 +86,18 @@
       proxy: {
         // Paths that ONLY exist on the backend (no SPA route conflict)
         '/auth': 'http://127.0.0.1:8000',
-        '/ai': 'http://127.0.0.1:8000',
         '/api': 'http://127.0.0.1:8000',
         '/health': 'http://127.0.0.1:8000',
         '/team': 'http://127.0.0.1:8000',
         '/docs': 'http://127.0.0.1:8000',
         '/openapi.json': 'http://127.0.0.1:8000',
         // Paths shared with SPA routes — only proxy API (non-HTML) requests
+        '/ai': {
+          target: 'http://127.0.0.1:8000',
+          bypass(req) {
+            if (req.headers.accept?.includes('text/html')) return req.url;
+          },
+        },
         '/patients': {
           target: 'http://127.0.0.1:8000',
           bypass(req) {
