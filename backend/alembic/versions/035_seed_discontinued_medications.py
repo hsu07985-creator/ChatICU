@@ -150,6 +150,13 @@ def upgrade() -> None:
         ).fetchone()
         if exists:
             continue
+        # Fresh-DB tolerance: demo patients are seeded after migrations —
+        # skip rows whose patient is absent (datamock provides equivalent
+        # discontinued meds on freshly seeded environments).
+        if not conn.execute(
+            sa.text("SELECT 1 FROM patients WHERE id = :pid"), {"pid": m["patient_id"]}
+        ).fetchone():
+            continue
         # asyncpg needs native date objects for DATE columns (str lacks
         # .toordinal) — same class of bug fixed in migrations 049/050.
         m = dict(

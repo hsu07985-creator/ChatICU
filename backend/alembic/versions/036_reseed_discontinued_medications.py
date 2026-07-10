@@ -39,6 +39,12 @@ def upgrade() -> None:
         ).fetchone()
         if exists:
             continue
+        # Fresh-DB tolerance: skip rows whose demo patient is absent
+        # (patients are seeded after migrations on fresh environments).
+        if not conn.execute(
+            sa.text("SELECT 1 FROM patients WHERE id = :pid"), {"pid": row[1]}
+        ).fetchone():
+            continue
         conn.execute(
             sa.text("""
                 INSERT INTO medications (

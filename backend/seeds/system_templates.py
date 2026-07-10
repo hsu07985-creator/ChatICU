@@ -1,22 +1,23 @@
-"""Seed system record templates for progress-note, medication-advice, nursing-record.
+"""System record-template seeding for fresh environments.
 
-Revision ID: 029
-Revises: 028
-Create Date: 2026-04-04
+Canonical copy of the 8 system templates originally seeded by alembic
+migrations 029/030. Those migrations require usr_003 to already exist
+(true on prod, false on fresh DBs) and now skip themselves when it does
+not — this module provides the same templates through the seed pipeline,
+which runs after users are inserted.
+
+Idempotent: existing (name, record_type, is_system=True) rows are kept.
 """
-
 import uuid
-from datetime import datetime
 
-from alembic import op
-import sqlalchemy as sa
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-revision = "029"
-down_revision = "028"
-branch_labels = None
-depends_on = None
+from app.models.record_template import RecordTemplate
 
-# System templates keyed by (record_type, name)
+SYSTEM_TEMPLATE_CREATOR_ID = "usr_003"
+SYSTEM_TEMPLATE_CREATOR_NAME = "系統管理"
+
 SYSTEM_TEMPLATES = [
     # ── Progress Note ──
     {
@@ -138,73 +139,31 @@ SYSTEM_TEMPLATES = [
 ]
 
 
-def upgrade():
-    conn = op.get_bind()
-
-    # Fresh-DB tolerance (2026-07-10): created_by_id is NOT NULL + FK to
-    # users at this point in the chain, and usr_003 only exists on
-    # environments seeded before this migration ran (prod). On a fresh DB
-    # users are seeded AFTER migrations, so skip here — the seed pipeline
-    # (seeds/system_templates.py) inserts the same templates post-seed.
-    if not conn.execute(
-        sa.text("SELECT 1 FROM users WHERE id = 'usr_003'")
-    ).fetchone():
-        print("029: usr_003 not present (fresh DB) — template seed deferred to seeds pipeline")
-        return
-
-    tbl = sa.table(
-        "record_templates",
-        sa.column("id", sa.String),
-        sa.column("name", sa.String),
-        sa.column("description", sa.String),
-        sa.column("record_type", sa.String),
-        sa.column("role_scope", sa.String),
-        sa.column("content", sa.Text),
-        sa.column("is_system", sa.Boolean),
-        sa.column("is_active", sa.Boolean),
-        sa.column("sort_order", sa.Integer),
-        sa.column("created_by_id", sa.String),
-        sa.column("created_by_name", sa.String),
-        sa.column("created_at", sa.DateTime),
-        sa.column("updated_at", sa.DateTime),
-    )
-
-    now = datetime.utcnow()
+async def seed_system_templates(session: AsyncSession) -> int:
+    """Insert missing system templates. Returns the number inserted."""
+    inserted = 0
     for t in SYSTEM_TEMPLATES:
-        # Idempotent: skip if already exists
-        exists = conn.execute(
-            sa.select(tbl.c.id).where(
-                tbl.c.name == t["name"],
-                tbl.c.record_type == t["record_type"],
-                tbl.c.is_system == True,
-            )
-        ).first()
-        if exists:
-            continue
-
-        conn.execute(
-            tbl.insert().values(
-                id=f"tpl_{uuid.uuid4().hex[:8]}",
-                name=t["name"],
-                description=t.get("description"),
-                record_type=t["record_type"],
-                role_scope=t["role_scope"],
-                content=t["content"],
-                is_system=True,
-                is_active=True,
-                sort_order=t.get("sort_order", 0),
-                created_by_id="usr_003",
-                created_by_name="系統管理",
-                created_at=now,
-                updated_at=now,
+        existing = await session.execute(
+            select(RecordTemplate.id).where(
+                RecordTemplate.name == t["name"],
+                RecordTemplate.record_type == t["record_type"],
+                RecordTemplate.is_system.is_(True),
             )
         )
-
-
-def downgrade():
-    conn = op.get_bind()
-    tbl = sa.table(
-        "record_templates",
-        sa.column("is_system", sa.Boolean),
-    )
-    conn.execute(tbl.delete().where(tbl.c.is_system == True))
+        if existing.first():
+            continue
+        session.add(RecordTemplate(
+            id=f"tpl_{uuid.uuid4().hex[:8]}",
+            name=t["name"],
+            description=t.get("description"),
+            record_type=t["record_type"],
+            role_scope=t["role_scope"],
+            content=t["content"],
+            is_system=True,
+            is_active=True,
+            sort_order=t.get("sort_order", 0),
+            created_by_id=SYSTEM_TEMPLATE_CREATOR_ID,
+            created_by_name=SYSTEM_TEMPLATE_CREATOR_NAME,
+        ))
+        inserted += 1
+    return inserted

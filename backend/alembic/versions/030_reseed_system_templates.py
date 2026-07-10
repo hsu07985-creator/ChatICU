@@ -140,6 +140,16 @@ SYSTEM_TEMPLATES = [
 
 def upgrade():
     conn = op.get_bind()
+
+    # Fresh-DB tolerance (2026-07-10): same reasoning as 029 — usr_003 is
+    # seeded after migrations on fresh environments; the seed pipeline
+    # (seeds/system_templates.py) provides these templates there.
+    if not conn.execute(
+        sa.text("SELECT 1 FROM users WHERE id = 'usr_003'")
+    ).fetchone():
+        print("030: usr_003 not present (fresh DB) — template seed deferred to seeds pipeline")
+        return
+
     tbl = sa.table(
         "record_templates",
         sa.column("id", sa.String),

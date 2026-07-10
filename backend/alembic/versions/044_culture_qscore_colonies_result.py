@@ -61,9 +61,12 @@ def upgrade() -> None:
         "(id, patient_id, sheet_number, specimen, specimen_code, "
         "department, collected_at, reported_at, isolates, susceptibility, "
         "q_score, result, created_at, updated_at) "
-        "VALUES (:id, :pid, :sheet, :spec, :spec_code, :dept, "
+        "SELECT :id, :pid, :sheet, :spec, :spec_code, :dept, "
         "CAST(:col_at AS timestamptz), CAST(:rep_at AS timestamptz), "
-        "CAST(:iso AS jsonb), CAST(:susc AS jsonb), :q_score, :result, NOW(), NOW())"
+        "CAST(:iso AS jsonb), CAST(:susc AS jsonb), :q_score, :result, NOW(), NOW() "
+        # Fresh-DB tolerance: only insert when the demo patient exists
+        # (patients are seeded after migrations on fresh environments).
+        "WHERE EXISTS (SELECT 1 FROM patients WHERE id = :pid)"
     ).bindparams(
         id=cid, pid="pat_001", sheet="M11411L014003", spec="Sputum", spec_code="SP01",
         dept="加護病房一",
@@ -79,9 +82,12 @@ def upgrade() -> None:
         "(id, patient_id, sheet_number, specimen, specimen_code, "
         "department, collected_at, reported_at, isolates, susceptibility, "
         "q_score, result, created_at, updated_at) "
-        "VALUES (:id, :pid, :sheet, :spec, :spec_code, :dept, "
+        "SELECT :id, :pid, :sheet, :spec, :spec_code, :dept, "
         "CAST(:col_at AS timestamptz), CAST(:rep_at AS timestamptz), "
-        "CAST(:iso AS jsonb), CAST(:susc AS jsonb), :q_score, :result, NOW(), NOW())"
+        "CAST(:iso AS jsonb), CAST(:susc AS jsonb), :q_score, :result, NOW(), NOW() "
+        # Fresh-DB tolerance: only insert when the demo patient exists
+        # (patients are seeded after migrations on fresh environments).
+        "WHERE EXISTS (SELECT 1 FROM patients WHERE id = :pid)"
     ).bindparams(
         id=cid2, pid="pat_002", sheet="M11411L020004", spec="Bile Fluid", spec_code="BF01",
         dept="加護病房一",
@@ -106,9 +112,12 @@ def upgrade() -> None:
         "(id, patient_id, sheet_number, specimen, specimen_code, "
         "department, collected_at, reported_at, isolates, susceptibility, "
         "q_score, result, created_at, updated_at) "
-        "VALUES (:id, :pid, :sheet, :spec, :spec_code, :dept, "
+        "SELECT :id, :pid, :sheet, :spec, :spec_code, :dept, "
         "CAST(:col_at AS timestamptz), CAST(:rep_at AS timestamptz), "
-        "CAST(:iso AS jsonb), CAST(:susc AS jsonb), :q_score, :result, NOW(), NOW())"
+        "CAST(:iso AS jsonb), CAST(:susc AS jsonb), :q_score, :result, NOW(), NOW() "
+        # Fresh-DB tolerance: only insert when the demo patient exists
+        # (patients are seeded after migrations on fresh environments).
+        "WHERE EXISTS (SELECT 1 FROM patients WHERE id = :pid)"
     ).bindparams(
         id=cid3, pid="pat_003", sheet="M11411L025004", spec="Blood", spec_code="BL01",
         dept="加護病房一",

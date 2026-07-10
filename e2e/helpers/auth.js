@@ -18,7 +18,7 @@ async function loginAndWait(page, options) {
       { timeout: timeoutMs },
     );
 
-    await page.getByRole("button", { name: "Login" }).click();
+    await page.getByRole("button", { name: /登入|Login/ }).click();
     const loginResponse = await loginResponsePromise;
     lastStatusCode = loginResponse.status();
     lastBackendMessage = "";

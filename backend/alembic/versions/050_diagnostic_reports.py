@@ -450,6 +450,13 @@ def upgrade() -> None:
         ).fetchone()
         if exists:
             continue
+        # Fresh-DB tolerance: skip rows whose demo patient is absent —
+        # the CREATE TABLE above must still apply on empty databases.
+        if not conn.execute(
+            sa.text("SELECT 1 FROM patients WHERE id = :pid"),
+            {"pid": r["patient_id"]},
+        ).fetchone():
+            continue
         params = dict(r)
         # Convert string datetime to proper datetime for asyncpg
         if isinstance(params.get("exam_date"), str):

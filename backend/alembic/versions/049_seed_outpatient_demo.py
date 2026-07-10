@@ -111,6 +111,13 @@ def upgrade() -> None:
         ).fetchone()
         if exists:
             continue
+        # Fresh-DB tolerance: skip rows whose demo patient is absent
+        # (patients are seeded after migrations on fresh environments).
+        if not conn.execute(
+            sa.text("SELECT 1 FROM patients WHERE id = :pid"),
+            {"pid": med["patient_id"]},
+        ).fetchone():
+            continue
         # Convert string dates to date objects for asyncpg
         params = dict(med)
         for dk in ("start_date", "end_date"):

@@ -248,7 +248,36 @@ Vercel dashboard → Deployments → 上一個成功的 → "Promote to Producti
 
 ---
 
-## 8. 相關文件
+## 8. 全新資料庫 bootstrap（本地 / CI / 新機器）
+
+2026-07-10 起，**完全空白的資料庫**可以用與 prod 相同的兩步驟直接建起：
+
+```bash
+cd backend
+python -m alembic upgrade head        # 80 條 migration 全數套用，零跳過
+SEED_PASSWORD_STRATEGY=username python -m seeds.seed_data
+python -m seeds.seed_culture_results  # 選配：培養結果 demo 資料
+```
+
+前提與注意：
+
+- **DB 必須有 pgvector**（migration 022 執行 `CREATE EXTENSION vector`）。
+  docker compose 與 CI 已改用 `pgvector/pgvector:pg16`；本機裸 postgres
+  沒裝 pgvector 時，`scripts/e2e/run_managed_e2e.sh` 會在 preflight 直接
+  告訴你怎麼開一個拋棄式容器。
+- 資料型 migration（029/030 模板、035–038/043/044/047/049/050 demo 資料）
+  在空 DB 上會自動偵測前置資料不存在而**安全跳過該部分**；系統模板改由
+  seed 管線（`seeds/system_templates.py`）在 users 建立後補上。
+- **驗收指令**（拋棄式容器 → migration → seed → API 冒煙 → 自動清理）：
+
+```bash
+bash scripts/ops/verify_fresh_db_bootstrap.sh
+# 預期結尾：PASS — fresh DB bootstrap is healthy
+```
+
+---
+
+## 9. 相關文件
 
 - `CLAUDE.md` — 專案總指南（背景、目錄慣例、HIS sync 流程）
 - `docs/his-sync/資料更新_0424.md` — HIS 患者資料 sync 完整步驟

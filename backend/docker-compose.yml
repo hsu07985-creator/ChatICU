@@ -51,7 +51,10 @@ services:
 
   chaticu-db:
     container_name: chaticu-db
-    image: postgres:16-alpine
+    # pgvector variant — migration 022 runs CREATE EXTENSION vector, so a
+    # plain postgres image can never bootstrap a fresh volume (2026-07-10).
+    # Same PG 16 line; existing data volumes remain compatible.
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-chaticu}
       POSTGRES_USER: ${POSTGRES_USER:-chaticu}
@@ -71,7 +74,10 @@ services:
     container_name: chaticu-redis
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      # host-publish remapped off 6379 (Homebrew redis owns host 6379) to a
+      # loopback-only 6382 — 2026-06-20 to resolve the 6379 dual-bind. The
+      # in-network service name chaticu-redis:6379 (see REDIS_URL) is unchanged.
+      - "127.0.0.1:6382:6379"
     volumes:
       - chaticu_redis:/data
     healthcheck:

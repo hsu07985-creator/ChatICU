@@ -13,26 +13,32 @@ test.describe("T27 Critical Journey", () => {
 
     await page.locator("#username").fill(username);
     await page.locator("#password").fill(password);
-    await page.getByRole("button", { name: "Login" }).click();
+    // Labels updated 2026-07: button is 「登入」, sidebar entry is 「住院病人」.
+    // Regexes tolerate both eras so the spec survives copy drift.
+    await page.getByRole("button", { name: /登入|Login/ }).click();
 
     await expect(page).toHaveURL(/\/dashboard$/);
     await expect(page.getByRole("heading", { name: "加護病房總覽" })).toBeVisible();
 
-    await page.getByRole("link", { name: "病人清單" }).click();
+    await page.getByRole("link", { name: /住院病人|病人清單/ }).click();
     await expect(page).toHaveURL(/\/patients$/);
-    await expect(page.getByRole("heading", { name: "病人清單" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /住院病人|病人清單/ })).toBeVisible();
 
+    // Patient rows are clickable (the standalone 檢視 button was retired).
     await expect
-      .poll(async () => await page.getByRole("button", { name: "檢視" }).count(), {
+      .poll(async () => await page.locator("tbody tr").count(), {
         timeout: 30000,
       })
       .toBeGreaterThan(0);
 
-    await page.getByRole("button", { name: "檢視" }).first().click();
+    await page.locator("tbody tr").first().click();
     await expect(page).toHaveURL(/\/patient\/[^/]+$/);
 
-    await page.getByRole("tab", { name: /對話助手/ }).click();
-    const chatInputBox = page.getByPlaceholder("例如：這位病患的鎮靜深度是否適當？");
+    await page.getByRole("tab", { name: /AI 臨床夥伴|對話助手/ }).click();
+    // The AI input is the tab's textarea (placeholder is empty when ready,
+    // 「AI 功能未就緒」 when the backend has no LLM configured).
+    const chatInputBox = page.locator("textarea").first();
+    await expect(chatInputBox).toBeVisible({ timeout: 15000 });
 
     // AI chat requires OPENAI_API_KEY on the backend. When the key is not
     // configured (typical in CI without secrets), the backend returns an error.
@@ -41,29 +47,34 @@ test.describe("T27 Critical Journey", () => {
     let aiChatSucceeded = false;
     let assistantContent = "";
 
-    const aiResponsePromise = page.waitForResponse(
-      (response) =>
-        response.url().includes("/ai/chat") &&
-        response.request().method() === "POST",
-      { timeout: 30000 },
-    );
+    const chatReady = await chatInputBox.isEnabled().catch(() => false);
+    if (chatReady) {
+      const aiResponsePromise = page.waitForResponse(
+        (response) =>
+          response.url().includes("/ai/chat") &&
+          response.request().method() === "POST",
+        { timeout: 30000 },
+      );
 
-    await chatInputBox.fill(chatPrompt);
-    await chatInputBox.press("Enter");
+      await chatInputBox.fill(chatPrompt);
+      await chatInputBox.press("Enter");
 
-    try {
-      const aiResponse = await aiResponsePromise;
-      if (aiResponse.status() === 200) {
-        const aiResponseBody = await aiResponse.json();
-        assistantContent = String(aiResponseBody?.data?.message?.content || "");
-        if (assistantContent.length > 0) {
-          aiChatSucceeded = true;
+      try {
+        const aiResponse = await aiResponsePromise;
+        if (aiResponse.status() === 200) {
+          const aiResponseBody = await aiResponse.json();
+          assistantContent = String(aiResponseBody?.data?.message?.content || "");
+          if (assistantContent.length > 0) {
+            aiChatSucceeded = true;
+          }
+        } else {
+          console.log(`[INTG][E2E] AI chat returned status ${aiResponse.status()} (API key may be missing)`);
         }
-      } else {
-        console.log(`[INTG][E2E] AI chat returned status ${aiResponse.status()} (API key may be missing)`);
+      } catch (e) {
+        console.log(`[INTG][E2E] AI chat response not received (skipping): ${e.message}`);
       }
-    } catch (e) {
-      console.log(`[INTG][E2E] AI chat response not received (skipping): ${e.message}`);
+    } else {
+      console.log("[INTG][E2E] AI chat input disabled (no LLM configured) — UI verified, send skipped");
     }
 
     if (aiChatSucceeded) {
@@ -78,7 +89,7 @@ test.describe("T27 Critical Journey", () => {
       await page.reload();
       await expect(page).toHaveURL(/\/patient\/[^/]+$/);
 
-      await page.getByRole("tab", { name: /對話助手/ }).click();
+      await page.getByRole("tab", { name: /AI 臨床夥伴|對話助手/ }).click();
       const sessionButtonAfterReload = page
         .locator("button", { hasText: sessionTitle })
         .first();

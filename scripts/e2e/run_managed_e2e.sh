@@ -110,6 +110,43 @@ export SEED_DEFAULT_PASSWORD="${SEED_DEFAULT_PASSWORD:-unused_when_username_stra
 export CORS_ORIGINS="[\"${FRONTEND_URL}\",\"http://127.0.0.1:4173\",\"http://localhost:4173\",\"http://127.0.0.1:3000\",\"http://localhost:3000\"]"
 
 cd "${BACKEND_DIR}"
+
+# Preflight: alembic migration 022 runs CREATE EXTENSION vector — a postgres
+# server without pgvector can never bootstrap the E2E database (the failure
+# used to surface as an opaque mid-migration abort).
+if ! "${PYTHON_BIN}" - <<'PY'
+import asyncio
+import os
+import sys
+
+import asyncpg
+
+
+async def main() -> None:
+    conn = await asyncpg.connect(os.environ["E2E_PG_ADMIN_URL"])
+    try:
+        row = await conn.fetchrow(
+            "SELECT 1 FROM pg_available_extensions WHERE name = 'vector'"
+        )
+    finally:
+        await conn.close()
+    sys.exit(0 if row else 1)
+
+
+asyncio.run(main())
+PY
+then
+  echo "[INTG][E2E] FATAL: the target postgres server has no pgvector extension"
+  echo "[INTG][E2E] (alembic 022 needs it). Easiest fix — run a disposable pgvector DB:"
+  echo "[INTG][E2E]   docker run -d --name chaticu-e2e-db -e POSTGRES_USER=chaticu \\"
+  echo "[INTG][E2E]     -e POSTGRES_PASSWORD=chaticu_password -e POSTGRES_DB=postgres \\"
+  echo "[INTG][E2E]     -p 127.0.0.1:55432:5432 pgvector/pgvector:pg16"
+  echo "[INTG][E2E] then re-run with:"
+  echo "[INTG][E2E]   E2E_PG_ADMIN_URL='postgresql://chaticu:chaticu_password@127.0.0.1:55432/postgres' \\"
+  echo "[INTG][E2E]   E2E_DATABASE_URL='postgresql+asyncpg://chaticu:chaticu_password@127.0.0.1:55432/chaticu_e2e_managed' \\"
+  echo "[INTG][E2E]   npm run test:e2e"
+  exit 1
+fi
 "${PYTHON_BIN}" - <<'PY'
 import asyncio
 import os

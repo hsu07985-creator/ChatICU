@@ -132,7 +132,8 @@ jobs:
         working-directory: backend
     services:
       postgres:
-        image: postgres:16-alpine
+        # pgvector variant — alembic 022 needs CREATE EXTENSION vector (2026-07-10)
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_DB: chaticu_migration
           POSTGRES_USER: chaticu
@@ -276,7 +277,8 @@ jobs:
     needs: [backend-test, migration-check]
     services:
       postgres:
-        image: postgres:16-alpine
+        # pgvector variant — alembic 022 needs CREATE EXTENSION vector (2026-07-10)
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_DB: chaticu_e2e
           POSTGRES_USER: chaticu
@@ -410,7 +412,8 @@ jobs:
     needs: [backend-test, migration-check]
     services:
       postgres:
-        image: postgres:16-alpine
+        # pgvector variant — alembic 022 needs CREATE EXTENSION vector (2026-07-10)
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_DB: chaticu_e2e_extended
           POSTGRES_USER: chaticu
@@ -543,7 +546,8 @@ jobs:
     needs: [backend-test, migration-check]
     services:
       postgres:
-        image: postgres:16-alpine
+        # pgvector variant — alembic 022 needs CREATE EXTENSION vector (2026-07-10)
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_DB: chaticu_dast
           POSTGRES_USER: chaticu

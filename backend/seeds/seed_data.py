@@ -19,6 +19,7 @@ from app.database import Base, async_session, engine
 from app.models import *  # noqa: F401, F403
 from app.utils.security import hash_password
 from seeds.datamock_source import get_datamock_dir, load_json, unwrap_list
+from seeds.system_templates import seed_system_templates
 from seeds.validate_datamock import validate_datamock
 
 
@@ -414,6 +415,10 @@ async def main():
     async with async_session() as session:
         try:
             await seed_users(session)
+            # System record templates — migrations 029/030 defer to the
+            # seed pipeline on fresh DBs (usr_003 must exist first).
+            n_tpl = await seed_system_templates(session)
+            print(f"Seeding system record templates... {n_tpl} inserted")
             await seed_patients(session)
             await seed_medications(session)
             await seed_medication_administrations(session)
