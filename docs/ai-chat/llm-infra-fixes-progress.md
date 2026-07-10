@@ -3,7 +3,10 @@
 > 對應 `docs/ai-chat/llm-infra-audit-fixes-2026-07-10.md`。每完成一個 T，更新此檔。
 > 圖示：☐ 未開始　⏳ 進行中　✅ 完成　⏸ 阻塞　❌ 放棄　🚧 部分完成
 
-**最後更新**：2026-07-10（**全部 6 個 T 完成**，真 LLM 探測二輪驗收通過）
+**最後更新**：2026-07-10（**全部 6 個 T 完成**，真 LLM 探測二輪驗收通過；
+已 push `personal main` 部署 Railway，`/health` healthy。同日追加：B09 交互作用
+prefetch、B14 content/explanation 拆分，亦已部署——見
+`docs/coordination/backend-tasks.md` 對應 DONE 條目）
 
 ---
 
