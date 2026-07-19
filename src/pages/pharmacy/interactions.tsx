@@ -1,5 +1,5 @@
 import { Search, Plus, BookOpen, AlertTriangle, AlertCircle, Info, Loader2, ShieldAlert, Route, X, User, ChevronDown, ChevronUp } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Separator } from '../../components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { toast } from 'sonner';
-import { checkInteractions, type InteractionCheckResponse } from '../../lib/api/ai';
+import { checkInteractions } from '../../lib/api/ai';
 import { maskPatientName } from '../../lib/utils/patient-name';
 import { getDrugInteractions } from '../../lib/api/pharmacy';
 import { type Patient } from '../../lib/api/patients';

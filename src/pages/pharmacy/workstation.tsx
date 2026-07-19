@@ -1,15 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Patient as ApiPatient } from '../../lib/api/patients';
-import { getCachedPadDrugs } from '../../lib/pad-drugs-cache';
-import { normalizePatientGender } from '../../lib/patient-gender';
 import { maskPatientName } from '../../lib/utils/patient-name';
 import { useAuth } from '../../lib/auth-context';
 import { getLatestLabData, type LabData as ApiLabData } from '../../lib/api/lab-data';
 import { getLatestVitalSigns, type VitalSigns as ApiVitalSigns } from '../../lib/api/vital-signs';
-import { checkInteractions, polishClinicalText, type PatientContext } from '../../lib/api/ai';
-import { createAdviceRecord, getDrugInteractions, getIVCompatibilityBatch, padCalculate, type PadDrugInfo } from '../../lib/api/pharmacy';
+import { polishClinicalText } from '../../lib/api/ai';
+import { createAdviceRecord } from '../../lib/api/pharmacy';
 import {
   getMedications,
   fetchPharmacyDuplicateSummary,
@@ -26,7 +23,6 @@ import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Separator } from '../../components/ui/separator';
 import { ScrollArea } from '../../components/ui/scroll-area';
-import { ButtonLoadingIndicator } from '../../components/ui/button-loading-indicator';
 import { AssessmentResultsPanel } from './workstation/assessment-results-panel';
 import { PharmacyReportView } from './workstation/pharmacy-report-view';
 import { AdviceSubmitDialog } from './workstation/advice-submit-dialog';
