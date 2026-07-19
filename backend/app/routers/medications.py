@@ -15,6 +15,7 @@ from app.models.medication import Medication
 from app.models.medication_administration import MedicationAdministration
 from app.models.user import User
 from app.models.patient import Patient
+from app.schemas.medication import MedicationResponse
 from app.utils.patient_access import normalize_patient_id, verify_patient_access
 from app.schemas.medication import (
     MedicationAdministrationItemEnvelope,
@@ -77,41 +78,9 @@ def normalize_san_category(raw: Optional[str]) -> Optional[str]:
 
 
 def med_to_dict(med: Medication) -> dict:
-    return {
-        "id": med.id,
-        "patientId": med.patient_id,
-        "name": med.name,
-        "genericName": med.generic_name,
-        "orderCode": getattr(med, "order_code", None),
-        "category": med.category,
-        "sanCategory": normalize_san_category(med.san_category),
-        "dose": med.dose,
-        "unit": med.unit,
-        "frequency": med.frequency,
-        "route": med.route,
-        "prn": med.prn,
-        "indication": med.indication,
-        "startDate": med.start_date.isoformat() if med.start_date else None,
-        "endDate": med.end_date.isoformat() if med.end_date else None,
-        "status": med.status,
-        "prescribedBy": med.prescribed_by,
-        "warnings": med.warnings or [],
-        "notes": med.notes,
-        "concentration": med.concentration,
-        "concentrationUnit": med.concentration_unit,
-        "sourceType": getattr(med, "source_type", None) or "inpatient",
-        "sourceCampus": getattr(med, "source_campus", None),
-        "prescribingHospital": getattr(med, "prescribing_hospital", None),
-        "prescribingDepartment": getattr(med, "prescribing_department", None),
-        "prescribingDoctorName": getattr(med, "prescribing_doctor_name", None),
-        "daysSupply": getattr(med, "days_supply", None),
-        "isExternal": getattr(med, "is_external", False) or False,
-        # Standardized codes (PR-1 / PR-2) — surfaced for frontend PAD matching
-        "atcCode": getattr(med, "atc_code", None),
-        "isAntibiotic": bool(getattr(med, "is_antibiotic", False) or False),
-        "kidneyRelevant": getattr(med, "kidney_relevant", None),
-        "codingSource": getattr(med, "coding_source", None),
-    }
+    """B2 batch 3: schema is the single source of the field mapping
+    (san_category 正規化在 schema validator 內鏡射)。"""
+    return MedicationResponse.model_validate(med).dump_camel()
 
 
 async def _get_medication_or_404(

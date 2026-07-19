@@ -17,6 +17,7 @@ from app.schemas.message import TeamChatCreate
 from app.utils.jsonb_compat import array_contains_user_receipt, array_contains_value, to_utc_aware
 from app.utils.read_receipt import append_read_receipt
 from app.utils.request import get_client_ip
+from app.schemas.message import TeamChatMessageResponse
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/team/chat", tags=["team-chat"])
@@ -46,25 +47,11 @@ async def list_team_users(
 
 
 def chat_to_dict(msg: TeamChatMessage, replies: Optional[List[dict]] = None) -> dict:
-    return {
-        "id": msg.id,
-        "userId": msg.user_id,
-        "userName": msg.user_name,
-        "userRole": msg.user_role,
-        "content": msg.content,
-        "timestamp": msg.timestamp.isoformat() if msg.timestamp else None,
-        "pinned": msg.pinned,
-        "pinnedBy": msg.pinned_by,
-        "pinnedAt": msg.pinned_at.isoformat() if msg.pinned_at else None,
-        "replyToId": msg.reply_to_id,
-        "isRead": msg.is_read or False,
-        "readBy": msg.read_by or [],
-        "mentionedRoles": msg.mentioned_roles or [],
-        "mentionedUserIds": msg.mentioned_user_ids or [],
-        "mentionsAll": bool(msg.mentions_all),
-        "replyCount": len(replies) if replies is not None else 0,
-        "replies": replies if replies is not None else [],
-    }
+    """B2 batch 3: schema for ORM fields; replies/replyCount 由參數計算。"""
+    d = TeamChatMessageResponse.model_validate(msg).dump_camel()
+    d["replyCount"] = len(replies) if replies is not None else 0
+    d["replies"] = replies if replies is not None else []
+    return d
 
 
 @router.post("/visit")

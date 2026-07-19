@@ -90,3 +90,71 @@ class OutpatientMedicationItem(BaseModel):
 
 class OutpatientImportRequest(BaseModel):
     medications: List[OutpatientMedicationItem]
+
+
+from datetime import date as _date
+from typing import Optional as _Optional
+
+from pydantic import field_validator as _field_validator
+
+from app.schemas.base import CamelModel as _CamelModel
+
+
+class MedicationResponse(_CamelModel):
+    """B2 batch 3:med_to_dict 的單一事實來源(clinical/pharmacy 共用)。"""
+    id: str
+    patient_id: str
+    name: _Optional[str] = None
+    generic_name: _Optional[str] = None
+    order_code: _Optional[str] = None
+    category: _Optional[str] = None
+    san_category: _Optional[str] = None
+    dose: _Optional[str] = None
+    unit: _Optional[str] = None
+    frequency: _Optional[str] = None
+    route: _Optional[str] = None
+    prn: _Optional[bool] = None
+    indication: _Optional[str] = None
+    start_date: _Optional[_date] = None
+    end_date: _Optional[_date] = None
+    status: _Optional[str] = None
+    prescribed_by: _Optional[dict] = None
+    warnings: list = []
+    notes: _Optional[str] = None
+    concentration: _Optional[str] = None
+    concentration_unit: _Optional[str] = None
+    source_type: str = "inpatient"
+    source_campus: _Optional[str] = None
+    prescribing_hospital: _Optional[str] = None
+    prescribing_department: _Optional[str] = None
+    prescribing_doctor_name: _Optional[str] = None
+    days_supply: _Optional[int] = None
+    is_external: bool = False
+    atc_code: _Optional[str] = None
+    is_antibiotic: bool = False
+    kidney_relevant: _Optional[bool] = None
+    coding_source: _Optional[str] = None
+
+    @_field_validator("warnings", mode="before")
+    @classmethod
+    def _none_to_list(cls, v):
+        return v or []
+
+    @_field_validator("source_type", mode="before")
+    @classmethod
+    def _default_inpatient(cls, v):
+        return v or "inpatient"
+
+    @_field_validator("is_external", "is_antibiotic", mode="before")
+    @classmethod
+    def _none_to_false(cls, v):
+        return bool(v)
+
+    @_field_validator("san_category", mode="before")
+    @classmethod
+    def _normalize_san(cls, v):
+        # 鏡射 routers.medications.normalize_san_category(避免循環 import)
+        if v is None:
+            return None
+        n = str(v).strip().upper()
+        return n if n in {"S", "A", "N"} else None

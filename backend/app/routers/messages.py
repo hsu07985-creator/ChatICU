@@ -13,6 +13,7 @@ from app.models.message import PatientMessage
 from app.models.patient import Patient
 from app.models.pharmacy_advice import PharmacyAdvice
 from app.models.user import User
+from app.schemas.message import PatientMessageResponse
 from app.utils.patient_access import normalize_patient_id
 from app.models.custom_tag import CustomTag
 from app.schemas.message import MessageCreate, MessageTagUpdate, CustomTagCreate
@@ -245,26 +246,9 @@ def msg_to_dict(
     advice_accepted: object = _UNSET,
     advice_responded_by: object = _UNSET,
 ) -> dict:
-    d = {
-        "id": msg.id,
-        "patientId": msg.patient_id,
-        "authorId": msg.author_id,
-        "authorName": msg.author_name,
-        "authorRole": msg.author_role,
-        "messageType": msg.message_type,
-        "content": msg.content,
-        "timestamp": msg.timestamp.isoformat() if msg.timestamp else None,
-        "isRead": msg.is_read,
-        "linkedMedication": msg.linked_medication,
-        "adviceCode": msg.advice_code,
-        "adviceRecordId": msg.advice_record_id,
-        "readBy": msg.read_by or [],
-        "replyToId": msg.reply_to_id,
-        "replyCount": msg.reply_count or 0,
-        "tags": msg.tags or [],
-        "mentionedRoles": msg.mentioned_roles or [],
-        "mentionedUserIds": msg.mentioned_user_ids or [],
-    }
+    # B2 batch 3: schema is the single source of the fixed field mapping;
+    # 條件鍵維持 sentinel 語意(缺席 ≠ null,前端契約)。
+    d = PatientMessageResponse.model_validate(msg).dump_camel()
     if advice_accepted is not _UNSET:
         d["adviceAccepted"] = advice_accepted
     if advice_responded_by is not _UNSET:

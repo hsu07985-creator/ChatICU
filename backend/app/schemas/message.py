@@ -89,3 +89,74 @@ class TeamChatCreate(BaseModel):
 
 class CustomTagCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=30)
+
+
+from datetime import datetime as _datetime
+from typing import Optional as _Optional
+
+from pydantic import field_validator as _field_validator
+
+from app.schemas.base import CamelModel as _CamelModel
+
+
+class PatientMessageResponse(_CamelModel):
+    """B2 batch 3:msg_to_dict 的固定欄位;條件鍵(adviceAccepted/
+    adviceRespondedBy/replies)由 router wrapper 依 sentinel 附加。"""
+    id: str
+    patient_id: str
+    author_id: _Optional[str] = None
+    author_name: _Optional[str] = None
+    author_role: _Optional[str] = None
+    message_type: _Optional[str] = None
+    content: _Optional[str] = None
+    timestamp: _Optional[_datetime] = None
+    is_read: _Optional[bool] = None
+    linked_medication: _Optional[str] = None
+    advice_code: _Optional[str] = None
+    advice_record_id: _Optional[str] = None
+    read_by: list = []
+    reply_to_id: _Optional[str] = None
+    reply_count: int = 0
+    tags: list = []
+    mentioned_roles: list = []
+    mentioned_user_ids: list = []
+
+    @_field_validator("read_by", "tags", "mentioned_roles", "mentioned_user_ids", mode="before")
+    @classmethod
+    def _none_to_list(cls, v):
+        return v or []
+
+    @_field_validator("reply_count", mode="before")
+    @classmethod
+    def _none_to_zero(cls, v):
+        return v or 0
+
+
+class TeamChatMessageResponse(_CamelModel):
+    """B2 batch 3:chat_to_dict 的 ORM 欄位;replyCount/replies 由
+    wrapper 依參數計算附加。"""
+    id: str
+    user_id: _Optional[str] = None
+    user_name: _Optional[str] = None
+    user_role: _Optional[str] = None
+    content: _Optional[str] = None
+    timestamp: _Optional[_datetime] = None
+    pinned: _Optional[bool] = None
+    pinned_by: _Optional[dict] = None
+    pinned_at: _Optional[_datetime] = None
+    reply_to_id: _Optional[str] = None
+    is_read: bool = False
+    read_by: list = []
+    mentioned_roles: list = []
+    mentioned_user_ids: list = []
+    mentions_all: bool = False
+
+    @_field_validator("read_by", "mentioned_roles", "mentioned_user_ids", mode="before")
+    @classmethod
+    def _none_to_list(cls, v):
+        return v or []
+
+    @_field_validator("is_read", "mentions_all", mode="before")
+    @classmethod
+    def _none_to_false(cls, v):
+        return bool(v)
