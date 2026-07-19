@@ -12,10 +12,10 @@ import { maskPatientName } from '../lib/utils/patient-name';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Patient, updatePatient } from '../lib/api/patients';
-import { getCachedPatientsSync, invalidatePatients, subscribePatientsCache } from '../lib/patients-cache';
+import { usePatientList } from '../hooks/use-patient-list';
 import type { DashboardStats } from '../lib/api/dashboard';
 import { useDashboardStats } from '../hooks/use-dashboard';
-import { refreshSharedPatientDataAfterMutation } from '../lib/patient-data-sync';
+import { patchSharedPatientList, refreshSharedPatientDataAfterMutation } from '../lib/patient-data-sync';
 import {
   triggerHisSync,
   isHisSyncAvailable,
@@ -58,9 +58,8 @@ export function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('bed');
-  const [patients, setPatients] = useState<Patient[]>(getCachedPatientsSync() ?? []);
-  const [loading, setLoading] = useState(!getCachedPatientsSync());
-  const [error, setError] = useState<string | null>(null);
+  const { patients, patientsLoading: loading, patientsLoadFailed, refetchPatients } = usePatientList();
+  const error = patientsLoadFailed ? t('list.loadFailed') : null;
 
   // 編輯對話框狀態
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -97,36 +96,6 @@ export function DashboardPage() {
   const changeGridCols = useCallback((cols: number) => {
     setGridCols(cols);
     localStorage.setItem('dashboard-grid-cols', String(cols));
-  }, []);
-
-  // 從共用快取獲取病患列表
-  const fetchPatients = useCallback(async () => {
-    setError(null);
-    try {
-      const data = await invalidatePatients();
-      setPatients(data);
-    } catch (err) {
-      console.error(`${t('list.loadErrorLog')}:`, err);
-      setError(t('list.loadFailed'));
-      setPatients([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    // Patients: skip fetch entirely if sync cache already populated state.
-    // Dashboard stats are now fetched by useDashboardStats() (TanStack Query).
-    if (!getCachedPatientsSync()) {
-      fetchPatients();
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    return subscribePatientsCache((nextPatients) => {
-      setPatients(nextPatients);
-      setLoading(false);
-    });
   }, []);
 
   // Fallback: compute stats from patient list when API stats unavailable
@@ -183,11 +152,9 @@ export function DashboardPage() {
       // refreshSharedPatientDataAfterMutation invalidates both the patients
       // cache and the TanStack dashboard.all key — useDashboardStats() will
       // refetch automatically.
-      const { patients: freshPatients } = await refreshSharedPatientDataAfterMutation();
-      if (freshPatients) {
-        setPatients(freshPatients);
-      } else {
-        setPatients((current) =>
+      const { patientsRefreshFailed } = await refreshSharedPatientDataAfterMutation();
+      if (patientsRefreshFailed) {
+        patchSharedPatientList((current) =>
           current.map((item) => (item.id === editingPatient.id ? updated : item)),
         );
       }
@@ -629,7 +596,7 @@ export function DashboardPage() {
             <div className="text-center py-12">
               <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-400 dark:text-red-500" />
               <p className="text-red-600 dark:text-red-400 font-medium">{error}</p>
-              <Button variant="outline" className="mt-4" onClick={fetchPatients}>
+              <Button variant="outline" className="mt-4" onClick={() => refetchPatients()}>
                 {t('common:actions.refresh')}
               </Button>
             </div>

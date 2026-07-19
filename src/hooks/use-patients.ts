@@ -18,10 +18,14 @@ import {
  * @param filters - Optional filter criteria (search, intubated, etc.).
  *                  Changing filters will automatically refetch.
  */
-export function useAllPatients(filters?: Omit<PatientFilters, 'page' | 'limit'>) {
+export function useAllPatients(
+  filters?: Omit<PatientFilters, 'page' | 'limit'>,
+  options?: { enabled?: boolean },
+) {
   return useApiQuery<Patient[]>({
     queryKey: queryKeys.patients.list(filters as Record<string, unknown> | undefined),
     queryFn: () => getAllPatients(filters),
+    enabled: options?.enabled ?? true,
   });
 }
 

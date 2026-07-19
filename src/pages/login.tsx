@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../lib/auth-context';
-import { getCachedPatients } from '../lib/patients-cache';
+import { getAllPatients } from '../lib/api/patients';
+import { queryClient } from '../lib/query-client';
+import { PATIENT_LIST_KEY } from '../lib/patient-data-sync';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
@@ -58,7 +60,9 @@ export function LoginPage() {
 
     if (result.success) {
       // Prefetch patients so dashboard renders instantly
-      getCachedPatients().catch(() => {});
+      queryClient
+        .prefetchQuery({ queryKey: PATIENT_LIST_KEY, queryFn: () => getAllPatients() })
+        .catch(() => {});
       navigate(result.passwordExpired ? '/change-password' : '/dashboard');
     } else {
       setError(result.message || t('login.invalidCredentials'));

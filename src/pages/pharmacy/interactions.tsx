@@ -11,13 +11,13 @@ import { checkInteractions, type InteractionCheckResponse } from '../../lib/api/
 import { maskPatientName } from '../../lib/utils/patient-name';
 import { getDrugInteractions } from '../../lib/api/pharmacy';
 import { type Patient } from '../../lib/api/patients';
-import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from '../../lib/patients-cache';
 import { getMedications, type Medication } from '../../lib/api/medications';
 import { selectPharmacyReviewMeds } from '../../lib/medication-scope';
 import { copyToClipboard } from '../../lib/clipboard-utils';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
 import { DRUG_LIST, hasInteractionData } from '../../lib/drug-list';
 import { useTranslation } from 'react-i18next';
+import { usePatientList } from '../../hooks/use-patient-list';
 
 interface InteractingMemberGroup {
   group_name: string;
@@ -129,30 +129,12 @@ export function DrugInteractionsPage() {
   const [loading, setLoading] = useState(false);
   const [resultSource, setResultSource] = useState<'ai' | 'database'>('database');
 
-  // Patient selector state (from shared cache)
-  const [patients, setPatients] = useState<Patient[]>(getCachedPatientsSync() ?? []);
-  const [patientsLoading, setPatientsLoading] = useState(!getCachedPatientsSync());
+  // Patient selector state (shared TanStack Query list)
+  const { patients, patientsLoading } = usePatientList();
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [medsLoading, setMedsLoading] = useState(false);
   const [skippedMeds, setSkippedMeds] = useState<Medication[]>([]);
   const [skippedExpanded, setSkippedExpanded] = useState(false);
-
-  // Load patient list from shared cache (skip if sync cache hit)
-  useEffect(() => {
-    if (getCachedPatientsSync()) return;
-    let cancelled = false;
-    getCachedPatients()
-      .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
-      .catch(() => { if (!cancelled) { toast.error('無法載入病患列表'); setPatientsLoading(false); } });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    return subscribePatientsCache((nextPatients) => {
-      setPatients(nextPatients);
-      setPatientsLoading(false);
-    });
-  }, []);
 
   // When patient is selected, load their active medications
   const handlePatientSelect = useCallback(async (patientId: string) => {

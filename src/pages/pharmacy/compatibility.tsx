@@ -10,11 +10,11 @@ import { toast } from 'sonner';
 import { getIVCompatibility } from '../../lib/api/pharmacy';
 import { maskPatientName } from '../../lib/utils/patient-name';
 import { type Patient } from '../../lib/api/patients';
-import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from '../../lib/patients-cache';
 import { getMedications, type Medication } from '../../lib/api/medications';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
 import { CompatibilityMatrix, CompatibilityMatrixLegend, type CompatStatus as SharedCompatStatus, type CompatibilityCell } from '../../components/pharmacy/compatibility-matrix';
 import { useTranslation } from 'react-i18next';
+import { usePatientList } from '../../hooks/use-patient-list';
 
 /**
  * Y-Site 相容性藥品清單
@@ -192,30 +192,12 @@ export function CompatibilityPage() {
   const [loading, setLoading] = useState(false);
   const [matrixResults, setMatrixResults] = useState<MatrixCell[]>([]);
 
-  // Patient selector (from shared cache)
-  const [patients, setPatients] = useState<Patient[]>(getCachedPatientsSync() ?? []);
-  const [patientsLoading, setPatientsLoading] = useState(!getCachedPatientsSync());
+  // Patient selector (shared TanStack Query list)
+  const { patients, patientsLoading } = usePatientList();
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [medsLoading, setMedsLoading] = useState(false);
   const [skippedMeds, setSkippedMeds] = useState<Medication[]>([]);
   const [skippedExpanded, setSkippedExpanded] = useState(false);
-
-  // Load patients from shared cache (skip if sync cache hit)
-  useEffect(() => {
-    if (getCachedPatientsSync()) return;
-    let cancelled = false;
-    getCachedPatients()
-      .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
-      .catch(() => { if (!cancelled) { toast.error(t('common.patientLoadError')); setPatientsLoading(false); } });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    return subscribePatientsCache((nextPatients) => {
-      setPatients(nextPatients);
-      setPatientsLoading(false);
-    });
-  }, []);
 
   const handlePatientSelect = useCallback(async (patientId: string) => {
     setSelectedPatientId(patientId);

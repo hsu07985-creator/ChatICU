@@ -14,9 +14,9 @@ import { Separator } from '../ui/separator';
 import { maskPatientName } from '../../lib/utils/patient-name';
 import { padCalculate, type PadCalculateResult, type PadDrugInfo } from '../../lib/api/pharmacy';
 import { type Patient } from '../../lib/api/patients';
-import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from '../../lib/patients-cache';
 import { getCachedPadDrugs, getCachedPadDrugsSync } from '../../lib/pad-drugs-cache';
 import { normalizePatientGender } from '../../lib/patient-gender';
+import { usePatientList } from '../../hooks/use-patient-list';
 
 type CalculatorMode = 'standalone' | 'patient';
 
@@ -53,8 +53,7 @@ export function PadDosageCalculator({
   const [padDrugs, setPadDrugs] = useState<PadDrugInfo[]>(getCachedPadDrugsSync() ?? []);
   const [drugsLoading, setDrugsLoading] = useState(!getCachedPadDrugsSync());
 
-  const [patients, setPatients] = useState<Patient[]>(allowPatientSelect ? (getCachedPatientsSync() ?? []) : []);
-  const [patientsLoading, setPatientsLoading] = useState(allowPatientSelect && !getCachedPatientsSync());
+  const { patients, patientsLoading } = usePatientList({ enabled: allowPatientSelect });
   const [selectedPatientId, setSelectedPatientId] = useState(patient?.id ?? '');
 
   const [selectedDrug, setSelectedDrug] = useState('');
@@ -120,35 +119,10 @@ export function PadDosageCalculator({
           if (!cancelled) setDrugsLoading(false);
         });
     }
-
-    if (allowPatientSelect && !getCachedPatientsSync()) {
-      getCachedPatients()
-        .then(data => {
-          if (!cancelled) {
-            setPatients(data);
-            setPatientsLoading(false);
-          }
-        })
-        .catch(() => {
-          if (!cancelled) {
-            toast.error(t('common.patientLoadError'));
-            setPatientsLoading(false);
-          }
-        });
-    }
-
     return () => {
       cancelled = true;
     };
-  }, [allowPatientSelect, t]);
-
-  useEffect(() => {
-    if (!allowPatientSelect) return undefined;
-    return subscribePatientsCache((nextPatients) => {
-      setPatients(nextPatients);
-      setPatientsLoading(false);
-    });
-  }, [allowPatientSelect]);
+  }, []);
 
   useEffect(() => {
     if (!patient || allowPatientSelect) return;

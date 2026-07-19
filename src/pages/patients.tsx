@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../lib/auth-context';
 import { patientsApi, type Patient } from '../lib/api';
-import { getCachedPatientsSync, invalidatePatients } from '../lib/patients-cache';
-import { refreshSharedPatientDataAfterMutation } from '../lib/patient-data-sync';
+import { usePatientList } from '../hooks/use-patient-list';
+import { patchSharedPatientList, refreshSharedPatientDataAfterMutation } from '../lib/patient-data-sync';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
@@ -47,31 +47,14 @@ export function PatientsPage() {
   const canEditPatients = canEditPatientProfile(user?.role);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const cached = getCachedPatientsSync();
-  const [patients, setPatients] = useState<PatientWithFrontendFields[]>((cached ?? []) as PatientWithFrontendFields[]);
-  const [loading, setLoading] = useState(!cached);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchPatients = useCallback(async () => {
-    try {
-      if (patients.length === 0) setLoading(true);
-      setError(null);
-      const data = await invalidatePatients();
-      setPatients(data as PatientWithFrontendFields[]);
-    } catch (err) {
-      console.error(`${t('patients:list.loadErrorLog')}:`, err);
-      setError(t('patients:list.loadErrorMessage'));
-    } finally {
-      setLoading(false);
-    }
-  }, [patients.length, t]);
-
-  useEffect(() => {
-    // Skip fetch if sync cache already populated initial state
-    if (!cached) {
-      fetchPatients();
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const {
+    patients: sharedPatients,
+    patientsLoading: loading,
+    patientsLoadFailed,
+    refetchPatients,
+  } = usePatientList();
+  const patients = sharedPatients as PatientWithFrontendFields[];
+  const error = patientsLoadFailed ? t('patients:list.loadErrorMessage') : null;
 
   const getSedation = (patient: PatientWithFrontendFields) => patient.sedation || patient.sanSummary?.sedation || [];
   const getAnalgesia = (patient: PatientWithFrontendFields) => patient.analgesia || patient.sanSummary?.analgesia || [];
@@ -214,15 +197,11 @@ export function PatientsPage() {
       setSavingPatient(true);
       try {
         const updated = await patientsApi.updatePatient(editingPatientId, editFormData);
-        const { patients: freshPatients } = await refreshSharedPatientDataAfterMutation();
-        if (freshPatients) {
-          setPatients(freshPatients as PatientWithFrontendFields[]);
-        } else {
-          setPatients((current) =>
+        const { patientsRefreshFailed } = await refreshSharedPatientDataAfterMutation();
+        if (patientsRefreshFailed) {
+          patchSharedPatientList((current) =>
             current.map((item) =>
-              item.id === editingPatientId
-                ? (updated as PatientWithFrontendFields)
-                : item,
+              item.id === editingPatientId ? (updated as PatientWithFrontendFields) : item,
             ),
           );
         }
@@ -321,8 +300,7 @@ export function PatientsPage() {
       toast.success(t('patients:create.successToast', { label: `${created.bedNumber} ${maskPatientName(created.name)}` }));
       setAddDialogOpen(false);
       resetNewPatientForm();
-      const { patients: freshPatients } = await refreshSharedPatientDataAfterMutation();
-      setPatients(freshPatients as PatientWithFrontendFields[]);
+      await refreshSharedPatientDataAfterMutation();
     } catch (err: unknown) {
       console.error(`${t('patients:create.validation.createErrorLog')}:`, err);
       const errMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -344,8 +322,7 @@ export function PatientsPage() {
       toast.success(t('patients:archive.successArchive', { label }));
       setArchiveDialogOpen(false);
       setArchiveTargetId('');
-      const { patients: freshPatients } = await refreshSharedPatientDataAfterMutation();
-      setPatients(freshPatients as PatientWithFrontendFields[]);
+      await refreshSharedPatientDataAfterMutation();
     } catch (err: unknown) {
       console.error(`${t('patients:archive.errorArchiveLog')}:`, err);
       const errMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -375,8 +352,7 @@ export function PatientsPage() {
       toast.success(t('patients:archive.successToast', { label }));
       setDischargeDialogOpen(false);
       setDischargeTargetId('');
-      const { patients: freshPatients } = await refreshSharedPatientDataAfterMutation();
-      setPatients(freshPatients as PatientWithFrontendFields[]);
+      await refreshSharedPatientDataAfterMutation();
     } catch (err: unknown) {
       console.error(`${t('patients:archive.errorLog')}:`, err);
       const errMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -448,7 +424,7 @@ export function PatientsPage() {
               type="server"
               title={t('patients:list.loadErrorTitle')}
               message={error}
-              onRetry={fetchPatients}
+              onRetry={() => refetchPatients()}
             />
           )}
 

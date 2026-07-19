@@ -19,13 +19,9 @@ import {
 } from '../../lib/api/medications';
 import { selectPharmacyReviewMeds } from '../../lib/medication-scope';
 import { type Patient } from '../../lib/api/patients';
-import {
-  getCachedPatients,
-  getCachedPatientsSync,
-  subscribePatientsCache,
-} from '../../lib/patients-cache';
 import { maskPatientName } from '../../lib/utils/patient-name';
 import { useTranslation } from 'react-i18next';
+import { usePatientList } from '../../hooks/use-patient-list';
 
 const MIN_DRUGS = 2;
 const MAX_DRUGS = 30;
@@ -75,30 +71,9 @@ function toDrugLabel(m: Medication): string {
 
 export function MedicationDuplicatesPage() {
   const { t } = useTranslation('pharmacy');
-  // ── Patient selector (shared — picking a patient auto-loads their meds) ──
-  const [patients, setPatients] = useState<Patient[]>(getCachedPatientsSync() ?? []);
-  const [patientsLoading, setPatientsLoading] = useState(!getCachedPatientsSync());
+  // ── Patient selector (shared TanStack Query list) ──
+  const { patients, patientsLoading } = usePatientList();
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
-
-  useEffect(() => {
-    if (patients.length > 0) return;
-    let cancelled = false;
-    getCachedPatients()
-      .then((list) => {
-        if (!cancelled) {
-          setPatients(list);
-          setPatientsLoading(false);
-        }
-      })
-      .catch(() => !cancelled && setPatientsLoading(false));
-    const unsub = subscribePatientsCache((list) => {
-      if (!cancelled) setPatients(list);
-    });
-    return () => {
-      cancelled = true;
-      unsub();
-    };
-  }, [patients.length]);
 
   // ── Patient-mode local state (now driven by the same stateless endpoint
   //    as manual mode, just on a scoped med list 住院 + 自備 + 院外) ──

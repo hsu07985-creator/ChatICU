@@ -26,7 +26,6 @@ import {
   type TagStatItem,
 } from '../../lib/api/pharmacy';
 import { type Patient } from '../../lib/api/patients';
-import { getCachedPatients, getCachedPatientsSync, subscribePatientsCache } from '../../lib/patients-cache';
 import {
   PHARMACY_ADVICE_CATEGORIES,
   PHARMACY_ADVICE_CATEGORY_COLORS,
@@ -40,6 +39,7 @@ import { AdviceSoapTab } from '../../components/pharmacy/advice-soap-tab';
 import { AdviceEditDialog, type EditAcceptedValue } from '../../components/pharmacy/advice-edit-dialog';
 import { AdviceDeleteDialog } from '../../components/pharmacy/advice-delete-dialog';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { usePatientList } from '../../hooks/use-patient-list';
 
 function getCategoryKeyByLabel(label: string): string {
   return masterGetCategoryKeyByLabel(label) || '';
@@ -57,9 +57,8 @@ export function PharmacyAdviceStatisticsPage() {
   const canManageAdviceRecords = user?.role === 'pharmacist' || user?.role === 'admin';
   const { t } = useTranslation('pharmacy');
 
-  // ── 病患清單（共用快取） ──
-  const [patients, setPatients] = useState<Patient[]>(getCachedPatientsSync() ?? []);
-  const [patientsLoading, setPatientsLoading] = useState(!getCachedPatientsSync());
+  // ── 病患清單（共用 TanStack Query） ──
+  const { patients, patientsLoading } = usePatientList();
 
   // ── 表單 ──
   const [selectedPatientId, setSelectedPatientId] = useState('');
@@ -139,23 +138,6 @@ export function PharmacyAdviceStatisticsPage() {
   const [soapRecords, setSoapRecords] = useState<PharmacySoapRecord[]>([]);
   const [soapLoading, setSoapLoading] = useState(false);
   const [soapSearch, setSoapSearch] = useState('');
-
-  // 載入病患清單（共用快取，sync cache 命中則跳過）
-  useEffect(() => {
-    if (getCachedPatientsSync()) return;
-    let cancelled = false;
-    getCachedPatients()
-      .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
-      .catch(() => { if (!cancelled) { toast.error(t('adviceStats.loadPatientsFail')); setPatientsLoading(false); } });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    return subscribePatientsCache((nextPatients) => {
-      setPatients(nextPatients);
-      setPatientsLoading(false);
-    });
-  }, []);
 
   // 載入紀錄
   const fetchRecords = useCallback(async () => {

@@ -2,12 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Patient as ApiPatient } from '../../lib/api/patients';
-import {
-  getCachedPatients,
-  getCachedPatientsSync,
-  isPatientsCacheFresh,
-  subscribePatientsCache,
-} from '../../lib/patients-cache';
 import { getCachedPadDrugs } from '../../lib/pad-drugs-cache';
 import { normalizePatientGender } from '../../lib/patient-gender';
 import { maskPatientName } from '../../lib/utils/patient-name';
@@ -55,6 +49,7 @@ import {
   User,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { usePatientList } from '../../hooks/use-patient-list';
 
 // Wave 5b: inline per-patient duplicate-medication severity badge. Only
 // renders non-zero buckets so the Select row stays compact. Intentionally
@@ -116,27 +111,9 @@ export function PharmacyWorkstationPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // 病患列表（從共用快取載入）
-  const [patients, setPatients] = useState<ApiPatient[]>(getCachedPatientsSync() ?? []);
-  const [patientsLoading, setPatientsLoading] = useState(!getCachedPatientsSync());
-  const [patientsError, setPatientsError] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Skip if sync cache already populated initial state
-    if (getCachedPatientsSync()) return;
-    let cancelled = false;
-    getCachedPatients()
-      .then(data => { if (!cancelled) { setPatients(data); setPatientsLoading(false); } })
-      .catch(() => { if (!cancelled) { setPatientsError(t('workstation.patientSelect.loadError')); setPatientsLoading(false); } });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    return subscribePatientsCache((nextPatients) => {
-      setPatients(nextPatients);
-      setPatientsLoading(false);
-    });
-  }, []);
+  // 病患列表（共用 TanStack Query）
+  const { patients, patientsLoading, patientsLoadFailed } = usePatientList();
+  const patientsError = patientsLoadFailed ? t('workstation.patientSelect.loadError') : null;
 
   // Wave 5b: batched duplicate-medication severity counts for the patient
   // dropdown. Key is derived from the sorted patient id list so adding or
