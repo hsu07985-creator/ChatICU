@@ -242,7 +242,12 @@ def main():
     parser.add_argument("--patient", "-p",
                         help="Import single patient by chart number (e.g. 50045203)")
     parser.add_argument("--dry-run", "-n", action="store_true",
-                        help="Preview only, no database writes")
+                        help="Preview only, no database writes (default behavior)")
+    parser.add_argument("--execute", action="store_true",
+                        help="Actually write to the database. Prefer "
+                             "sync_his_snapshots_serial.py for production sync — "
+                             "this script upserts without deleting stale rows "
+                             "and does not update delta/sync_status (fhir-2).")
     parser.add_argument("--patient-dir", "-d",
                         help=f"Patient data base directory (default: {PATIENT_BASE})")
     args = parser.parse_args()
@@ -254,10 +259,15 @@ def main():
         print("No patients found.")
         return
 
-    if args.dry_run:
-        dry_run(patient_dirs)
-    else:
+    if args.execute and not args.dry_run:
         asyncio.run(import_patients(patient_dirs))
+    else:
+        # 2026-07-19:預設 dry-run。此腳本與 serial sync 是分歧的第二條寫入路徑
+        # (upsert 不刪舊列、不更新 sync_status),誤用會殘留過期 lab/culture。
+        dry_run(patient_dirs)
+        if not args.dry_run:
+            print("\n[dry-run 預設] 真的要寫入 DB 請加 --execute;"
+                  "production sync 請改用 sync_his_snapshots_serial.py")
 
 
 if __name__ == "__main__":

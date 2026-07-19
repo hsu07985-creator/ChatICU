@@ -38,14 +38,16 @@ _PATIENT_BASE = _BACKEND_ROOT.parent / "patient"
 # Single-flight lock: rejects the second click while the first is still running.
 _sync_lock = asyncio.Lock()
 
-# Parse the "--- Summary ---" block emitted by sync_his_snapshots.py
+# Parse the "--- Summary ---" block emitted by sync_his_snapshots_serial.py
 _SUMMARY_LINE_RE = re.compile(
     r"forced=(\d+),\s*new=(\d+),\s*changed=(\d+),\s*"
     r"timestamp-only=(\d+),\s*unchanged=(\d+),\s*synced=(\d+)"
 )
 _ERRORS_LINE_RE = re.compile(r"errors=(\d+)")
-# Max runtime for one manual sync — 14 patients × ~30s + headroom.
-_SYNC_TIMEOUT_SECONDS = 15 * 60
+# Max runtime for one manual sync。serial 版每位變動病人 ~4-5 分鐘:
+# 增量(少數 changed)或單人 force 都在此限內;全量 --force(14 位 ≈ 60 分)
+# 請直接在 Mac shell 跑 sync_his_snapshots_serial.py,不要走此端點。
+_SYNC_TIMEOUT_SECONDS = 30 * 60
 
 
 def _parse_summary(stdout: str) -> dict:

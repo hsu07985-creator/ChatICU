@@ -442,6 +442,14 @@ def main() -> None:
     if args.dry_run:
         raise SystemExit(preview(base, args.patient, state_path, args.force))
 
+    # 2026-04-27:此腳本的 create_task+Semaphore 機制對 Supabase 6543 pooler 會
+    # silent-fail(回報 errors=0 但 DB 沒寫入)。CLAUDE.md 明令禁用寫入模式。
+    raise SystemExit(
+        "DISABLED: sync_his_snapshots.py 的寫入模式已停用(pooler silent-fail)。\n"
+        "請改用 scripts/sync_his_snapshots_serial.py(參數相容:-p/--force/--state-file)。\n"
+        "本腳本僅保留 --dry-run 預覽功能。"
+    )
+
     raise SystemExit(
         asyncio.run(
             sync(

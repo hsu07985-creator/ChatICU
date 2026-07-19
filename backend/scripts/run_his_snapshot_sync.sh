@@ -22,4 +22,5 @@ else
   PYTHON_BIN="$(command -v python3)"
 fi
 
-exec "$PYTHON_BIN" -u scripts/sync_his_snapshots.py "$@"
+# serial 版是唯一安全路徑:舊 async 版對 Supabase pooler 會 silent-fail(2026-04-27),詳見 CLAUDE.md
+exec "$PYTHON_BIN" -u scripts/sync_his_snapshots_serial.py "$@"

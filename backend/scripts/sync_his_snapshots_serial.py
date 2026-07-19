@@ -73,9 +73,9 @@ def classify(prev: dict | None, snapshot_id: str, normalized_hash: str, force: b
     return "changed"
 
 
-async def main(patient_filter: str | None, force: bool) -> int:
+async def main(patient_filter: str | None, force: bool, state_file: Path = STATE_FILE) -> int:
     base = PATIENT_BASE
-    state = load_state(STATE_FILE)
+    state = load_state(state_file)
     db_url = get_database_url()
 
     engine = create_async_engine(
@@ -94,7 +94,7 @@ async def main(patient_filter: str | None, force: bool) -> int:
     roots = discover_patient_roots(base, patient_filter)
     print(f"=== HIS SERIAL SYNC: {len(roots)} patients ===")
     print(f"patient dir: {base}")
-    print(f"state file : {STATE_FILE}")
+    print(f"state file : {state_file}")
     print()
 
     counts = {"forced": 0, "new": 0, "changed": 0, "unchanged": 0, "timestamp-only": 0, "synced": 0}
@@ -146,7 +146,7 @@ async def main(patient_filter: str | None, force: bool) -> int:
             "patient_id": summary["patient_id"],
             "patient_name": summary["patient_name"],
         }
-        save_state(STATE_FILE, state)
+        save_state(state_file, state)
         counts["synced"] += 1
 
     await engine.dispose()
@@ -161,5 +161,7 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("-p", "--patient", help="Sync one chart number")
     p.add_argument("--force", action="store_true", help="Force sync even when hash matches")
+    p.add_argument("--state-file", type=Path, default=STATE_FILE,
+                   help=f"Sync state file path (default: {STATE_FILE})")
     args = p.parse_args()
-    raise SystemExit(asyncio.run(main(args.patient, args.force)))
+    raise SystemExit(asyncio.run(main(args.patient, args.force, args.state_file)))
