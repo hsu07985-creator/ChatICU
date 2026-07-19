@@ -8,7 +8,10 @@ logic.
 """
 from __future__ import annotations
 
-from app.routers.ai_chat import _graph_meta_from_prefetch, _snapshot_source_citations
+from app.services.ai_chat.stream_orchestrator import (
+    _graph_meta_from_prefetch,
+    _snapshot_source_citations,
+)
 from app.services.ai_question_prefetch import _finding_to_interaction_ref
 
 

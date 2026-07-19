@@ -58,7 +58,7 @@ async def test_done_payload_carries_split_explanation(client, seeded_db, monkeyp
         yield "腎功能重度受損，建議調整劑量。\n\n"
         yield "【說明/補充】\n(1) 依 eGFR 調整。"
 
-    monkeypatch.setattr("app.routers.ai_chat.call_llm_stream", fake_llm_stream)
+    monkeypatch.setattr("app.services.ai_chat.stream_orchestrator.call_llm_stream", fake_llm_stream)
 
     response = await client.post(
         "/ai/chat/stream",
