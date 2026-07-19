@@ -69,6 +69,15 @@ jobs:
           SEED_DEFAULT_PASSWORD: "CITestPassword123!"
         run: python -m pytest tests/test_api -q
 
+      - name: Vercel route-parity gate (C4)
+        working-directory: .
+        env:
+          DATABASE_URL: "sqlite+aiosqlite:///./test.db"
+          REDIS_URL: "redis://localhost:6379/0"
+          JWT_SECRET: "ci-test-secret-do-not-use-in-production"
+          SEED_DEFAULT_PASSWORD: "CITestPassword123!"
+        run: python scripts/ops/verify_vercel_routes.py
+
   backend-lint:
     runs-on: ubuntu-latest
     defaults:
