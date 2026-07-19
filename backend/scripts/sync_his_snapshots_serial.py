@@ -21,7 +21,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.fhir.snapshot_resolver import discover_patient_roots, resolve_patient_snapshot
-from app.fhir.snapshot_sync import sync_snapshot_into_session, upsert_global_sync_status
+from app.fhir.snapshot_sync import (
+    record_sync_heartbeat,
+    sync_snapshot_into_session,
+    upsert_global_sync_status,
+)
 
 PATIENT_BASE = Path(__file__).resolve().parent.parent.parent / "patient"
 STATE_FILE = Path(__file__).resolve().parent.parent / ".state" / "his_snapshot_sync_state.json"
@@ -145,6 +149,16 @@ async def main(patient_filter: str | None, force: bool, state_file: Path = STATE
         }
         save_state(state_file, state)
         counts["synced"] += 1
+
+    # C2: heartbeat 每次 run 都寫(含全 unchanged),讓 /sync/status 能從
+    # prod 分辨「有跑沒變」vs「排程沒跑」。
+    async with sf() as session:
+        try:
+            await record_sync_heartbeat(session, counts, errors)
+            await session.commit()
+        except Exception as exc:
+            await session.rollback()
+            print(f"heartbeat error : {type(exc).__name__}: {exc}")
 
     await engine.dispose()
 

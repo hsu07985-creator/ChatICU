@@ -668,3 +668,65 @@ async def upsert_global_sync_status(session: Any, summary: dict[str, Any]) -> No
         ),
         params,
     )
+
+
+async def record_sync_heartbeat(
+    session: Any, counts: dict[str, Any], errors: int
+) -> None:
+    """Write details.last_run at the end of EVERY sync run — including
+    all-unchanged ones that never touch upsert_global_sync_status.
+
+    C2 (architecture-audit-2026-07-19): without this, /sync/status could not
+    distinguish「有跑但資料沒變」from「launchd 那台 Mac 根本沒跑」. version 與
+    last_synced_at 保持不動,不會觸發前端的 delta refresh。
+    """
+    last_run = {
+        "at": datetime.now(timezone.utc).isoformat(),
+        "counts": counts,
+        "errors": errors,
+    }
+
+    existing = await session.execute(
+        text("SELECT details FROM sync_status WHERE key = :key"),
+        {"key": GLOBAL_SYNC_STATUS_KEY},
+    )
+    row = existing.first()
+
+    if row is None:
+        # 從未有任何資料 sync 過(fresh DB)。version 用固定占位字串——
+        # 之後第一次真實 sync 會覆寫它並觸發前端 refresh,無害。
+        await session.execute(
+            text(
+                "INSERT INTO sync_status (key, source, version, last_synced_at, details) "
+                "VALUES (:key, :source, :version, :last_synced_at, :details)"
+            ),
+            {
+                "key": GLOBAL_SYNC_STATUS_KEY,
+                "source": "his_snapshots",
+                "version": "heartbeat-only",
+                "last_synced_at": datetime.now(timezone.utc),
+                "details": _serialize({"last_run": last_run}),
+            },
+        )
+        return
+
+    details_raw = row[0]
+    details: dict[str, Any] = {}
+    if isinstance(details_raw, dict):
+        details = details_raw
+    elif isinstance(details_raw, str):
+        try:
+            parsed = json.loads(details_raw)
+            if isinstance(parsed, dict):
+                details = parsed
+        except json.JSONDecodeError:
+            details = {}
+    details["last_run"] = last_run
+
+    await session.execute(
+        text(
+            "UPDATE sync_status SET details = :details, "
+            "updated_at = CURRENT_TIMESTAMP WHERE key = :key"
+        ),
+        {"details": _serialize(details), "key": GLOBAL_SYNC_STATUS_KEY},
+    )
