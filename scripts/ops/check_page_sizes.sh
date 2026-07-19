@@ -13,7 +13,6 @@ DEFAULT_MAX=900
 RATCHET=(
   "src/pages/patient-detail.tsx=1600"
   "src/pages/ai-chat.tsx=950"
-  "src/pages/patients.tsx=940"
 )
 
 limit_for() {
