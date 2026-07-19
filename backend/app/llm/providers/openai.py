@@ -65,6 +65,8 @@ def _openai_chat(
     trace_id: str | None = None,
     disable_reasoning: bool = False,
     capture_input_payload: Any = None,
+    model: str | None = None,
+    cache_key: str | None = None,
 ):
     """Unified non-streaming OpenAI call (covers single- and multi-turn).
 
@@ -73,23 +75,29 @@ def _openai_chat(
     for multi-turn to preserve the prior per-path capture behavior.
     """
     client = _get_openai_sync()
+    effective_model = model or settings.LLM_MODEL
     api_messages = [{"role": "system", "content": system_prompt}]
     api_messages.extend(messages)
     create_kwargs: dict = dict(
-        model=settings.LLM_MODEL,
+        model=effective_model,
         max_completion_tokens=max_tokens,
         messages=api_messages,
     )
+    if cache_key:
+        # AI-OPT #2:穩定的 prompt_cache_key 提升 cache 路由命中率
+        # (GPT-5.6+ 家族為必設)。效果由 [LLM][CACHE] log 觀測。
+        create_kwargs["prompt_cache_key"] = cache_key
     create_kwargs.update(_reasoning_param_block(
         task=task,
         temperature=temperature,
         disable_reasoning=disable_reasoning,
+        model=effective_model,
     ))
     response = client.chat.completions.create(**create_kwargs)
     _maybe_capture_provider_raw(
         provider="openai",
         task=task,
-        model=settings.LLM_MODEL,
+        model=effective_model,
         request_id=request_id,
         trace_id=trace_id,
         input_payload=capture_input_payload if capture_input_payload is not None else messages,
@@ -102,7 +110,7 @@ def _openai_chat(
     return {
         "status": "success",
         "content": content,
-        "metadata": {"model": settings.LLM_MODEL, "usage": {
+        "metadata": {"model": effective_model, "usage": {
             "prompt_tokens": prompt_tokens,
             "completion_tokens": response.usage.completion_tokens,
             "cached_tokens": cached_tokens,
@@ -120,6 +128,8 @@ def _call_openai(
     request_id: str | None = None,
     trace_id: str | None = None,
     disable_reasoning: bool = False,
+    model: str | None = None,
+    cache_key: str | None = None,
 ):
     """Single-turn OpenAI call (back-compat wrapper over ``_openai_chat``)."""
     return _openai_chat(
@@ -132,6 +142,8 @@ def _call_openai(
         trace_id=trace_id,
         disable_reasoning=disable_reasoning,
         capture_input_payload=input_data,
+        model=model,
+        cache_key=cache_key,
     )
 
 
@@ -144,6 +156,8 @@ def _call_openai_multi(
     task: str,
     request_id: str | None = None,
     trace_id: str | None = None,
+    model: str | None = None,
+    cache_key: str | None = None,
 ):
     """Multi-turn OpenAI call (back-compat wrapper over ``_openai_chat``).
 
@@ -161,6 +175,8 @@ def _call_openai_multi(
         trace_id=trace_id,
         disable_reasoning=False,
         capture_input_payload=messages,
+        model=model,
+        cache_key=cache_key,
     )
 
 
@@ -173,6 +189,8 @@ async def _stream_openai(
     request_id: Optional[str] = None,
     trace_id: Optional[str] = None,
     disable_reasoning: bool = False,
+    model: Optional[str] = None,
+    cache_key: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     """Stream tokens from OpenAI using the async client."""
     client = _get_openai_async()
@@ -183,7 +201,7 @@ async def _stream_openai(
     # Search model rejects reasoning_effort, so we skip the param block
     # entirely on that path.
     use_web_search = settings.LLM_WEB_SEARCH_ENABLED and task == "icu_chat"
-    effective_model = settings.LLM_WEB_SEARCH_MODEL if use_web_search else settings.LLM_MODEL
+    effective_model = settings.LLM_WEB_SEARCH_MODEL if use_web_search else (model or settings.LLM_MODEL)
 
     create_kwargs: dict = dict(
         model=effective_model,
@@ -192,12 +210,15 @@ async def _stream_openai(
         stream=True,
         stream_options={"include_usage": True},
     )
+    if cache_key:
+        create_kwargs["prompt_cache_key"] = cache_key
     if not use_web_search:
         create_kwargs.update(_reasoning_param_block(
             task=task,
             temperature=0.3,
             disable_reasoning=disable_reasoning,
             icu_chat_skips_reasoning=True,
+            model=effective_model,
         ))
     stream = await client.chat.completions.create(**create_kwargs)
 

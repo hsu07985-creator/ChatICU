@@ -221,6 +221,8 @@ async def _event_stream(
             system_prompt_override=system_prompt,
             request_id=request_id,
             trace_id=trace_id,
+            # AI-OPT #2:chat 的可快取前綴 = system_prompt + 歷史,per-session 穩定
+            cache_key=f"icu_chat:{session_id}",
         )
         async for kind, chunk in _with_heartbeat(llm_stream):
             if kind == "heartbeat":

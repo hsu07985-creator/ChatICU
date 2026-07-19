@@ -80,6 +80,7 @@ def _build_openai_reasoning_param_block(
     temperature: float,
     disable_reasoning: bool = False,
     icu_chat_skips_reasoning: bool = False,
+    model: Optional[str] = None,
 ) -> dict:
     """Single source of truth for OpenAI reasoning_effort vs temperature.
 
@@ -109,9 +110,16 @@ def _build_openai_reasoning_param_block(
     )
     if use_reasoning:
         return {"reasoning_effort": _REASONING_EFFORT}
-    if settings.LLM_MODEL.startswith("gpt-5"):
+    if (model or settings.LLM_MODEL).startswith("gpt-5"):
         return {"reasoning_effort": "none"}
     return {"temperature": temperature}
+
+
+def resolve_model(task: str, model_override: Optional[str] = None) -> str:
+    """AI-OPT #1:任務模型解析。優先序:呼叫端 override > per-task 設定表 > 預設。"""
+    if model_override:
+        return model_override
+    return settings.LLM_TASK_MODEL_OVERRIDES.get(task) or settings.LLM_MODEL
 
 
 # ── Provider-adapter registry ─────────────────────────────────────────────────
@@ -126,6 +134,8 @@ _PROVIDER_ADAPTERS: dict[str, dict[str, Any]] = {
         "stream": _openai._stream_openai,
         "single_supports_disable_reasoning": True,
         "stream_supports_disable_reasoning": True,
+        # AI-OPT #1/#2:model 路由與 prompt_cache_key 目前只有 OpenAI adapter 支援
+        "supports_model_and_cache": True,
     },
     "anthropic": {
         "api_key_attr": "ANTHROPIC_API_KEY",
@@ -135,6 +145,7 @@ _PROVIDER_ADAPTERS: dict[str, dict[str, Any]] = {
         "stream": _anthropic._stream_anthropic,
         "single_supports_disable_reasoning": False,
         "stream_supports_disable_reasoning": False,
+        "supports_model_and_cache": False,
     },
 }
 
@@ -184,6 +195,11 @@ def call_llm(task: str, input_data: dict[str, Any], **kwargs) -> dict[str, Any]:
         )
         if adapter["single_supports_disable_reasoning"]:
             call_kwargs["disable_reasoning"] = disable_reasoning
+        if adapter.get("supports_model_and_cache"):
+            call_kwargs["model"] = resolve_model(task, kwargs.get("model_override"))
+            # AI-OPT #2:一次性任務的可快取前綴 = TASK_PROMPTS[task],以 task 當
+            # 預設 cache key;呼叫端可用 cache_key= 覆寫(如 chat 用 session)。
+            call_kwargs["cache_key"] = kwargs.get("cache_key") or f"chaticu:{task}"
         return adapter["single"](
             system_prompt, input_data, temperature, max_tokens, **call_kwargs,
         )
@@ -226,9 +242,14 @@ def call_llm_multi_turn(
         return {"status": "error", "content": f"Unsupported provider: {settings.LLM_PROVIDER}", "metadata": {}}
 
     try:
-        return adapter["multi"](
-            system_prompt, messages, temperature, max_tokens,
+        call_kwargs: dict[str, Any] = dict(
             task=task, request_id=request_id, trace_id=trace_id,
+        )
+        if adapter.get("supports_model_and_cache"):
+            call_kwargs["model"] = resolve_model(task, kwargs.get("model_override"))
+            call_kwargs["cache_key"] = kwargs.get("cache_key") or f"chaticu:{task}"
+        return adapter["multi"](
+            system_prompt, messages, temperature, max_tokens, **call_kwargs,
         )
     except Exception as e:
         return {"status": "error", "content": str(e), "metadata": {}}
@@ -280,6 +301,9 @@ async def call_llm_stream(
         )
         if adapter["stream_supports_disable_reasoning"]:
             stream_kwargs["disable_reasoning"] = disable_reasoning
+        if adapter.get("supports_model_and_cache"):
+            stream_kwargs["model"] = resolve_model(task, kwargs.get("model_override"))
+            stream_kwargs["cache_key"] = kwargs.get("cache_key") or f"chaticu:{task}"
         async for chunk in adapter["stream"](
             system_prompt, messages, max_tokens, **stream_kwargs,
         ):

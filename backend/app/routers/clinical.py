@@ -318,6 +318,8 @@ async def polish_clinical_text(
         task=task_name,
         input_data=input_data,
         disable_reasoning=disable_reasoning,
+        # AI-OPT #1:grammar_only 只修文字,輕模型即可(eval 驗證後才擴大)
+        model_override=settings.LLM_LIGHT_MODEL if req.polish_mode == "grammar_only" else None,
     )
 
     if result.get("status") != "success":
@@ -441,6 +443,7 @@ async def polish_clinical_text_stream(
                 disable_reasoning=disable_reasoning,
                 request_id=request_id,
                 trace_id=trace_id,
+                model_override=settings.LLM_LIGHT_MODEL if req.polish_mode == "grammar_only" else None,
             ):
                 # P1-C6: stop the LLM stream if the client closed the tab.
                 if await request.is_disconnected():

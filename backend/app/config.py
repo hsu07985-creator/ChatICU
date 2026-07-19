@@ -77,6 +77,13 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "gpt-5.5-2026-04-23"
     LLM_MAX_TOKENS: int = 4096
     LLM_REASONING_EFFORT: str = "low"  # none|low|medium|high (gpt-5.5)
+    # AI-OPT #1(2026-07-20):輕任務降級模型。目前僅 grammar_only polish 與
+    # citation 別名判定走這顆;其他 task 降級前必須先過 eval
+    # (scripts/eval_ai_regression.py)。
+    LLM_LIGHT_MODEL: str = "gpt-5.4-mini"
+    # per-task 模型覆寫(env 以 JSON 設定,如 {"clinical_summary": "gpt-5.4-mini"});
+    # 空 dict = 全走 LLM_MODEL。優先序:呼叫端 model_override > 本表 > LLM_MODEL。
+    LLM_TASK_MODEL_OVERRIDES: dict = {}
     LLM_RECENT_MSG_WINDOW: int = 10   # keep N most recent messages verbatim (F08)
     LLM_COMPRESS_THRESHOLD: int = 20  # trigger compression above this count (F08)
     # Optional audit capture of provider raw payloads (disabled by default).
