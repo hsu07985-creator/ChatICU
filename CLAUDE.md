@@ -70,7 +70,9 @@
 ```bash
 # 等待 60-90 秒部署完成，然後：
 curl -s https://chaticu-production-8060.up.railway.app/health
-# 預期：{"success":true,"data":{"status":"healthy",...}}
+# 預期：{"success":true,"data":{"status":"healthy","database":"ok",...}}
+# 2026-07-19 起 /health 會真的 SELECT 1:DB 不通回 503 + status=degraded。
+# 容器 liveness 另有 /health/live(純 process 存活,不碰 DB)。
 ```
 
 #### Vercel（前端）

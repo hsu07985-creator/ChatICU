@@ -107,13 +107,17 @@ git push personal main && git push railway main
 sleep 80
 
 curl -s https://chaticu-production-8060.up.railway.app/health
-# 預期：{"success":true,"data":{"status":"healthy",...}}
+# 預期：{"success":true,"data":{"status":"healthy","database":"ok",...}}
+# 2026-07-19 起 /health 真的 SELECT 1:DB 不通會回 503 + status=degraded、
+# database=unreachable —— 這個 curl 現在驗得到 DB 連線,不再是硬編碼綠燈。
+# /health/live 是純 liveness(不碰 DB),給容器 HEALTHCHECK 用。
 ```
 
 如果 503 / timeout：
+- 先看回應 body：`database:"unreachable"` = app 活著但 DB 不通(Supabase/pooler 問題)
 - 開 Railway dashboard 看 build log
 - 通常是 alembic migration 失敗或環境變數錯
-- Procfile 啟動會自動 `alembic upgrade head`，migration 必須冪等
+- Procfile 與 Dockerfile 啟動都會 `alembic upgrade head` 且**失敗即不開機**(2026-07-19 起 Dockerfile 不再吞 migration 失敗),migration 必須冪等
 
 ### 4-2. 前端（Vercel）
 
