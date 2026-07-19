@@ -9,7 +9,7 @@
 | 腳本 | 用途 |
 |---|---|
 | `sync_his_snapshots_serial.py` | **正式版** HIS snapshot → Supabase 同步（順序寫入，每筆 persist）。用法見根 CLAUDE.md |
-| `sync_his_snapshots.py` | 舊版並行 sync——**禁用**（Supabase pooler silent-fail，見 CLAUDE.md 2026-04-27 記錄）；僅供 launchd 舊排程參考 |
+| `sync_his_snapshots.py` | 舊版並行 sync——寫入模式已在程式內硬性停用（Supabase pooler silent-fail，2026-04-27）；僅剩 `--dry-run` 預覽。launchd/wrapper 自 2026-07-19 起改跑 serial 版 |
 | `run_his_snapshot_sync.sh` | launchd/cron 進入點（包 venv 與 log） |
 | `install_his_sync_launchd.sh` | 安裝 launchd 排程 |
 | `keep_mac_awake.sh` | 同步期間防休眠 |

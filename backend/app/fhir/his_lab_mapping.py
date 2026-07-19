@@ -201,6 +201,7 @@ HIS_LAB_MAP: Dict[str, Tuple[str, str, str]] = {
     "APTT":   ("coagulation", "aPTT",      "APTT"),
     "8079":   ("coagulation", "DDimer",    "D dimer"),
     "8023":   ("coagulation", "Fibrinogen", "Fibrinogen(quantitative)"),
+    "8038":   ("coagulation", "FDP",        "FDP(quantitative)"),
 
     # ======================================================================= #
     #                           CARDIAC (心臟指標)                               #
