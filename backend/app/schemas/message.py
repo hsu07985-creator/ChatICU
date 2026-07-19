@@ -87,36 +87,5 @@ class TeamChatCreate(BaseModel):
         return v
 
 
-class MessageResponse(BaseModel):
-    id: str
-    patientId: str
-    authorId: str
-    authorName: str
-    authorRole: str
-    messageType: str
-    content: str
-    timestamp: str
-    isRead: bool
-    linkedMedication: Optional[str] = None
-    adviceCode: Optional[str] = None
-    readBy: Optional[list] = None
-
-    model_config = {"from_attributes": True}
-
-
-class TeamChatResponse(BaseModel):
-    id: str
-    userId: str
-    userName: str
-    userRole: str
-    content: str
-    timestamp: str
-    pinned: bool = False
-    pinnedBy: Optional[dict] = None
-    pinnedAt: Optional[str] = None
-
-    model_config = {"from_attributes": True}
-
-
 class CustomTagCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=30)

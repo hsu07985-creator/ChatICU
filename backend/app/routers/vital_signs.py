@@ -14,6 +14,7 @@ from app.middleware.audit import create_audit_log
 from app.models.vital_sign import VitalSign
 from app.models.user import User
 from app.models.patient import Patient
+from app.schemas.vital_sign import VitalSignResponse
 from app.utils.patient_access import normalize_patient_id, verify_patient_access
 from app.utils.response import success_response
 
@@ -34,38 +35,10 @@ class VitalSignInput(BaseModel):
 
 router = APIRouter(prefix="/patients/{patient_id}/vital-signs", tags=["vital-signs"])
 
-REFERENCE_RANGES = {
-    "temperature": {"min": 36.0, "max": 37.5, "unit": "°C"},
-    "heartRate": {"min": 60, "max": 100, "unit": "bpm"},
-    "systolicBP": {"min": 90, "max": 140, "unit": "mmHg"},
-    "diastolicBP": {"min": 60, "max": 90, "unit": "mmHg"},
-    "respiratoryRate": {"min": 12, "max": 20, "unit": "breaths/min"},
-    "spo2": {"min": 95, "max": 100, "unit": "%"},
-    "bodyWeight": {"min": 30, "max": 150, "unit": "kg"},
-}
-
 
 def vital_to_dict(vs: VitalSign) -> dict:
-    return {
-        "id": vs.id,
-        "patientId": vs.patient_id,
-        "timestamp": vs.timestamp.isoformat() if vs.timestamp else None,
-        "heartRate": vs.heart_rate,
-        "bloodPressure": {
-            "systolic": vs.systolic_bp,
-            "diastolic": vs.diastolic_bp,
-            "mean": vs.mean_bp,
-        },
-        "respiratoryRate": vs.respiratory_rate,
-        "spo2": vs.spo2,
-        "temperature": vs.temperature,
-        "etco2": vs.etco2,
-        "cvp": vs.cvp,
-        "icp": vs.icp,
-        "cpp": vs.cpp,
-        "bodyWeight": vs.body_weight,
-        "referenceRanges": REFERENCE_RANGES,
-    }
+    """B2 pattern: schema is the single source of the field mapping."""
+    return VitalSignResponse.from_model(vs).dump_camel()
 
 
 @router.get("/latest")

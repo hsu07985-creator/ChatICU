@@ -96,12 +96,6 @@ class UserListResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class VectorUploadRequest(BaseModel):
-    databaseId: str
-    fileName: str
-    fileSize: int
-
-
 class ErrorReportCreate(BaseModel):
     patientId: Optional[str] = None
     errorType: str = Field(..., min_length=1, max_length=100)

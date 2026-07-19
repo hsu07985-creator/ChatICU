@@ -33,39 +33,6 @@ class MedicationUpdate(BaseModel):
     notes: Optional[str] = None
 
 
-class MedicationResponse(BaseModel):
-    id: str
-    patientId: str
-    name: str
-    genericName: Optional[str] = None
-    category: Optional[str] = None
-    sanCategory: Optional[Literal["S", "A", "N"]] = None
-    dose: Optional[str] = None
-    unit: Optional[str] = None
-    concentration: Optional[str] = None
-    concentrationUnit: Optional[str] = None
-    frequency: Optional[str] = None
-    route: Optional[str] = None
-    prn: bool = False
-    indication: Optional[str] = None
-    startDate: Optional[str] = None
-    endDate: Optional[str] = None
-    status: str = "active"
-    prescribedBy: Optional[dict] = None
-    warnings: Optional[List[str]] = None
-    notes: Optional[str] = None
-    # Outpatient source fields (048)
-    sourceType: str = "inpatient"
-    sourceCampus: Optional[str] = None
-    prescribingHospital: Optional[str] = None
-    prescribingDepartment: Optional[str] = None
-    prescribingDoctorName: Optional[str] = None
-    daysSupply: Optional[int] = None
-    isExternal: bool = False
-
-    model_config = {"from_attributes": True}
-
-
 class MedicationAdministrationUpdate(BaseModel):
     status: Literal["scheduled", "administered", "missed", "held", "refused"]
     notes: Optional[str] = None
