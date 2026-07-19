@@ -31,4 +31,12 @@ export const queryKeys = {
       [...queryKeys.ai.all, 'sessions', params ?? {}] as const,
     session: (id: string) => [...queryKeys.ai.all, 'session', id] as const,
   },
+  notifications: {
+    all: ['notifications'] as const,
+    summary: () => [...queryKeys.notifications.all, 'summary'] as const,
+  },
+  teamChat: {
+    all: ['teamChat'] as const,
+    unread: () => [...queryKeys.teamChat.all, 'unread'] as const,
+  },
 } as const;

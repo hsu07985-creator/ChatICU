@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../lib/query-keys';
 import { getChatUnreadCount } from '../lib/api/team-chat';
 
 const POLL_INTERVAL_MS = 60 * 1000;
@@ -9,56 +10,26 @@ export interface UseTeamChatUnread {
 }
 
 /**
- * Poll /team/chat/unread-count every 60s for the sidebar badge. Pauses
- * while the tab is hidden and refreshes on re-focus to avoid wasted
- * requests. Mirrors useNotificationSummary's lifecycle.
+ * /team/chat/unread-count for the sidebar badge — shared TanStack Query key,
+ * 60s refetchInterval, paused in background tabs (see use-notification-summary
+ * for the B5 rationale).
  */
 export function useTeamChatUnread(enabled: boolean): UseTeamChatUnread {
-  const [count, setCount] = useState(0);
-  const intervalRef = useRef<number | null>(null);
-  const inFlightRef = useRef(false);
+  const queryClient = useQueryClient();
+  const query = useQuery({
+    queryKey: queryKeys.teamChat.unread(),
+    queryFn: getChatUnreadCount,
+    enabled,
+    refetchInterval: POLL_INTERVAL_MS,
+    refetchOnWindowFocus: 'always',
+    staleTime: 30 * 1000,
+    retry: 0,
+  });
 
-  const fetchOnce = useCallback(async () => {
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-    try {
-      const data = await getChatUnreadCount();
-      setCount(data.count);
-    } catch {
-      // best-effort — sidebar badge is non-critical, no toast spam.
-    } finally {
-      inFlightRef.current = false;
-    }
-  }, []);
-
-  const clearTimer = () => {
-    if (intervalRef.current !== null) {
-      window.clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
+  return {
+    count: query.data?.count ?? 0,
+    refresh: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.teamChat.unread() });
+    },
   };
-
-  useEffect(() => {
-    if (!enabled) {
-      clearTimer();
-      return;
-    }
-
-    void fetchOnce();
-    intervalRef.current = window.setInterval(() => {
-      if (document.visibilityState === 'visible') void fetchOnce();
-    }, POLL_INTERVAL_MS);
-
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') void fetchOnce();
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-
-    return () => {
-      clearTimer();
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [enabled, fetchOnce]);
-
-  return { count, refresh: fetchOnce };
 }
