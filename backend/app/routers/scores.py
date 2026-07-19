@@ -13,7 +13,7 @@ from app.middleware.auth import get_current_user
 from app.models.clinical_score import ClinicalScore
 from app.models.patient import Patient
 from app.models.user import User
-from app.routers.patients import normalize_patient_id, verify_patient_access
+from app.utils.patient_access import normalize_patient_id, verify_patient_access
 from app.schemas.scores import ScoreCreate
 from app.utils.response import success_response
 

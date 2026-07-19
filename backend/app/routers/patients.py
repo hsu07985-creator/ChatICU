@@ -20,6 +20,7 @@ from app.models.message import PatientMessage
 from app.models.user import User
 from app.schemas.patient import PatientArchiveUpdate, PatientCreate, PatientUpdate
 from app.utils.jsonb_compat import array_contains_user_receipt, to_utc_aware
+from app.utils.patient_access import normalize_patient_id, verify_patient_access
 from app.utils.response import escape_like, success_response
 
 
@@ -202,20 +203,6 @@ async def _persist_date_column(
             await nested.rollback()
     except Exception as exc:
         logger.warning("%s savepoint setup failed: %s", column_name, exc)
-
-
-def normalize_patient_id(patient_id: str) -> str:
-    if patient_id.startswith("pat_"):
-        return patient_id
-    return f"pat_{patient_id.zfill(3)}"
-
-
-def verify_patient_access(user: User, patient: "Patient") -> None:
-    """Verify the user has access to this patient's data.
-
-    All authenticated users can access all patients (shared ICU).
-    """
-    return
 
 
 @router.get("")

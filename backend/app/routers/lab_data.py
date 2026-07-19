@@ -16,7 +16,7 @@ from app.models.lab_data import LabData
 from app.models.vital_sign import VitalSign
 from app.models.user import User
 from app.models.patient import Patient
-from app.routers.patients import normalize_patient_id, verify_patient_access
+from app.utils.patient_access import normalize_patient_id, verify_patient_access
 from app.schemas.lab_data import LabCorrectionRequest
 from app.utils.response import success_response
 

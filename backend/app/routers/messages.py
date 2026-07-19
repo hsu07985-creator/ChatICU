@@ -13,7 +13,7 @@ from app.models.message import PatientMessage
 from app.models.patient import Patient
 from app.models.pharmacy_advice import PharmacyAdvice
 from app.models.user import User
-from app.routers.patients import normalize_patient_id
+from app.utils.patient_access import normalize_patient_id
 from app.models.custom_tag import CustomTag
 from app.schemas.message import MessageCreate, MessageTagUpdate, CustomTagCreate
 from app.utils.jsonb_compat import array_contains_user_receipt

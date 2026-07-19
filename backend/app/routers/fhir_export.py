@@ -18,7 +18,7 @@ from app.middleware.audit import create_audit_log
 from app.middleware.auth import require_roles
 from app.models.patient import Patient
 from app.models.user import User
-from app.routers.patients import normalize_patient_id, verify_patient_access
+from app.utils.patient_access import normalize_patient_id, verify_patient_access
 from app.utils.response import success_response
 
 
