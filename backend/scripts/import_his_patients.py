@@ -187,16 +187,14 @@ def dry_run(patient_dirs: List[Path]) -> None:
 
 async def import_patients(patient_dirs: List[Path]) -> None:
     """Import patients into the database."""
-    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+    from app.db_engine import create_pooled_engine
 
     db_url = get_database_url()
-    engine = create_async_engine(
+    engine = create_pooled_engine(
         db_url, echo=False,
         pool_size=1, max_overflow=0,
-        # Supabase uses PgBouncer in transaction mode — disable prepared statements
-        connect_args={"prepared_statement_cache_size": 0,
-                      "statement_cache_size": 0,
-                      "command_timeout": 120},
+        connect_args={"command_timeout": 120},
     )
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 

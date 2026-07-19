@@ -35,7 +35,9 @@ from pathlib import Path
 from typing import Optional
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from app.db_engine import create_pooled_engine
 
 LEXICOMP_DIR = Path(
     "/Users/chun/Desktop/逆轉腎agent/knowledge_base/drug_database/api/交互作用/interactions"
@@ -342,10 +344,7 @@ async def main():
 
     print(f"[2/4] Loading Supabase X/D rows")
     db_url = load_db_url()
-    engine = create_async_engine(db_url, connect_args={
-        "prepared_statement_cache_size": 0,
-        "statement_cache_size": 0,
-    })
+    engine = create_pooled_engine(db_url)
     sb_rows = await load_supabase_xd(engine)
     print(f"      Supabase X/D rows: {len(sb_rows)}")
 

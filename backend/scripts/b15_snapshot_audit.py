@@ -45,7 +45,7 @@ from typing import Any, Optional
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import event
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 # ---------------------------------------------------------------------------
@@ -267,14 +267,8 @@ async def main_async(patient_ids: list[str], no_stability_check: bool, show_snap
     install_patches()
 
     db_url = _get_database_url()
-    engine = create_async_engine(
-        db_url,
-        connect_args={
-            "prepared_statement_cache_size": 0,
-            "statement_cache_size": 0,
-            "command_timeout": 60,
-        },
-    )
+    from app.db_engine import create_pooled_engine
+    engine = create_pooled_engine(db_url, connect_args={"command_timeout": 60})
 
     @event.listens_for(engine.sync_engine, "before_cursor_execute")
     def _hook(conn, cursor, statement, parameters, context, executemany):

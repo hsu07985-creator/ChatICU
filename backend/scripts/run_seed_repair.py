@@ -51,7 +51,7 @@ from typing import Any, Awaitable, Callable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 logger = logging.getLogger("seed_repair")
 logging.basicConfig(
@@ -79,17 +79,13 @@ def _get_database_url() -> str:
 
 
 def _make_engine() -> AsyncEngine:
-    return create_async_engine(
+    from app.db_engine import create_pooled_engine
+    return create_pooled_engine(
         _get_database_url(),
         echo=False,
         pool_size=1,
         max_overflow=0,
-        # Supabase pooler (transaction mode) — disable prepared statements
-        connect_args={
-            "prepared_statement_cache_size": 0,
-            "statement_cache_size": 0,
-            "command_timeout": 120,
-        },
+        connect_args={"command_timeout": 120},
     )
 
 

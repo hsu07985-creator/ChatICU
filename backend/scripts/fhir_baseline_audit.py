@@ -112,7 +112,7 @@ def load_his_lab_codes() -> set[str]:
 
 async def audit() -> dict[str, Any]:
     from sqlalchemy import text
-    from sqlalchemy.ext.asyncio import create_async_engine
+    from app.db_engine import create_pooled_engine
 
     atc_map = load_atc_csv()
     legacy_atc_map = load_legacy_atc_csv()
@@ -122,14 +122,7 @@ async def audit() -> dict[str, Any]:
     his_lab_codes = load_his_lab_codes()
 
     url = get_database_url()
-    engine = create_async_engine(
-        url,
-        connect_args={
-            "prepared_statement_cache_size": 0,
-            "statement_cache_size": 0,
-            "command_timeout": 120,
-        },
-    )
+    engine = create_pooled_engine(url, connect_args={"command_timeout": 120})
 
     results: dict[str, Any] = {
         "generated_at": datetime.now(timezone.utc).isoformat(),

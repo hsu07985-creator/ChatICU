@@ -18,7 +18,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.fhir.snapshot_resolver import discover_patient_roots, resolve_patient_snapshot
 from app.fhir.snapshot_sync import sync_snapshot_into_session, upsert_global_sync_status
@@ -78,16 +78,13 @@ async def main(patient_filter: str | None, force: bool, state_file: Path = STATE
     state = load_state(state_file)
     db_url = get_database_url()
 
-    engine = create_async_engine(
+    from app.db_engine import create_pooled_engine
+    engine = create_pooled_engine(
         db_url,
         echo=False,
         pool_size=1,
         max_overflow=0,
-        connect_args={
-            "prepared_statement_cache_size": 0,
-            "statement_cache_size": 0,
-            "command_timeout": 120,
-        },
+        connect_args={"command_timeout": 120},
     )
     sf = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 

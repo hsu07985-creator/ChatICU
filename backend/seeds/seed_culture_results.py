@@ -8,10 +8,11 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 from app.config import settings
+from app.db_engine import create_pooled_engine
 
 CULTURES = [
     # pat_001 許先生 — 重度肺炎: sputum cultures with S. maltophilia
@@ -185,7 +186,7 @@ CULTURES = [
 
 
 async def main() -> None:
-    engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    engine = create_pooled_engine(settings.DATABASE_URL, echo=False)
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with async_session() as session:

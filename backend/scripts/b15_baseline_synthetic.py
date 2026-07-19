@@ -47,7 +47,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import httpx
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
+from app.db_engine import create_pooled_engine
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -111,14 +111,7 @@ def _get_database_url() -> str:
 
 
 def _make_engine():
-    return create_async_engine(
-        _get_database_url(),
-        connect_args={
-            "prepared_statement_cache_size": 0,
-            "statement_cache_size": 0,
-            "command_timeout": 60,
-        },
-    )
+    return create_pooled_engine(_get_database_url(), connect_args={"command_timeout": 60})
 
 
 # ---------------------------------------------------------------------------

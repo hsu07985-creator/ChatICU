@@ -121,7 +121,7 @@ def get_db_odr_frequencies() -> dict[str, tuple[int, str]]:
     import asyncio
 
     from sqlalchemy import text
-    from sqlalchemy.ext.asyncio import create_async_engine
+    from app.db_engine import create_pooled_engine
 
     def _db_url() -> str | None:
         env_path = os.environ.get("SYNC_ENV_PATH")
@@ -143,13 +143,7 @@ def get_db_odr_frequencies() -> dict[str, tuple[int, str]]:
         return {}
 
     async def _run() -> dict[str, tuple[int, str]]:
-        engine = create_async_engine(
-            url,
-            connect_args={
-                "prepared_statement_cache_size": 0,
-                "statement_cache_size": 0,
-            },
-        )
+        engine = create_pooled_engine(url)
         out: dict[str, tuple[int, str]] = {}
         async with engine.connect() as conn:
             r = await conn.execute(text(

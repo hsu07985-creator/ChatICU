@@ -32,7 +32,10 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Tuple
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from app.db_engine import create_pooled_engine
 
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
@@ -290,14 +293,7 @@ async def main() -> int:
     args = parser.parse_args()
 
     url = get_database_url()
-    engine = create_async_engine(
-        url,
-        connect_args={
-            "prepared_statement_cache_size": 0,
-            "statement_cache_size": 0,
-            "command_timeout": 120,
-        },
-    )
+    engine = create_pooled_engine(url, connect_args={"command_timeout": 120})
 
     try:
         print("Seeding L3 mechanism groups...")

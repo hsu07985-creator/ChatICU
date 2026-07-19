@@ -1,28 +1,15 @@
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 
 from app.config import settings
+from app.db_engine import create_pooled_engine
 
 engine_kwargs = {
     "echo": settings.DEBUG,
     "pool_pre_ping": True,
 }
 
-# asyncpg connect_args. Empty for SQLite; populated for PostgreSQL so that
-# Supabase pooler (port 6543, transaction mode) works correctly. See
-# docs/codebase-health/system-audit-2026-04-28.md §1.1.
-connect_args: dict = {}
-
 if settings.DATABASE_URL.startswith("postgresql"):
-    # Disable asyncpg's prepared statement cache. PgBouncer-style transaction
-    # pooling (Supabase 6543) routes successive transactions to different
-    # server backends, but prepared statements are per-connection — keeping
-    # the cache enabled produces DuplicatePreparedStatementError under load.
-    # Harmless on direct connections (5432).
-    connect_args = {
-        "prepared_statement_cache_size": 0,
-        "statement_cache_size": 0,
-    }
     # Pool sizing: Supabase pooler enforces a per-client connection cap that
     # varies by plan and is shared across Railway replicas. The previous
     # pool_size=20+10 (= 30 conns/replica) could exhaust the cap with two
@@ -34,11 +21,9 @@ if settings.DATABASE_URL.startswith("postgresql"):
         "max_overflow": 5,
     })
 
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    connect_args=connect_args,
-    **engine_kwargs,
-)
+# Pooler connect_args (prepared-statement cache off) live in app.db_engine —
+# the shared factory every script/seed must also use.
+engine = create_pooled_engine(settings.DATABASE_URL, **engine_kwargs)
 
 async_session = async_sessionmaker(
     engine,

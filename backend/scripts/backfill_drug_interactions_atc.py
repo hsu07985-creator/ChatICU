@@ -26,7 +26,8 @@ import sys
 from pathlib import Path
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from app.db_engine import create_pooled_engine
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 CODE_MAPS = BACKEND_ROOT / "app" / "fhir" / "code_maps"
@@ -144,14 +145,7 @@ async def main() -> int:
     print(f"Loaded {len(name_to_atc)} name→ATC entries from formulary+rxnorm")
 
     url = get_database_url()
-    eng = create_async_engine(
-        url,
-        connect_args={
-            "prepared_statement_cache_size": 0,
-            "statement_cache_size": 0,
-            "command_timeout": 120,
-        },
-    )
+    eng = create_pooled_engine(url, connect_args={"command_timeout": 120})
 
     matched_d1 = matched_d2 = both = 0
     total = 0
