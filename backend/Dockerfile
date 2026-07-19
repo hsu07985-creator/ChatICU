@@ -31,6 +31,7 @@ USER chaticu
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')" || exit 1
 
-CMD ["sh", "-c", "alembic upgrade head || echo 'WARN: migration failed, starting anyway'; uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# migration 失敗必須讓部署失敗(與 Procfile 一致),否則半套 schema 照樣開機
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
