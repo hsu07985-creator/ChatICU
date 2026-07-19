@@ -283,6 +283,15 @@ TASK_PROMPTS: dict[str, str] = {
         "Each field is a string; empty string allowed. No markdown fences around the JSON, "
         "no preamble, no explanation of changes."
     ),
+    "citation_alias_check": (
+        "你是藥名比對器。輸入含「病人用藥清單」與「可疑 token 清單」。"
+        "判斷每個 token 是否只是清單中某藥的別名、商品名/學名互換、"
+        "劑型或給藥途徑修飾、或前綴/後綴變體(例:Unfractionated Heparin ↔ Heparin、"
+        "Pantoloc ↔ Pantoprazole、Regular Insulin ↔ Insulin)。"
+        "不確定或明顯是清單外的另一種藥時回 null。"
+        "只輸出 JSON,格式:{\"decisions\":[{\"token\":\"...\",\"alias_of\":\"清單原名或null\"}]},"
+        "不要任何多餘文字或 markdown 圍欄。"
+    ),
     "icu_chat": (
         "你是 ChatICU 的 ICU 臨床決策輔助 AI。以實證醫學為依據，給出直接、可執行的建議。\n\n"
         "事實核對規則（最高優先，凌駕其他規則）：\n"

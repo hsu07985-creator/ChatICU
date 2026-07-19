@@ -231,6 +231,63 @@ def log_hedging_signal(
         )
 
 
+async def _dismiss_alias_suspects(
+    suspects: List[dict],
+    active_med_aliases: List[str],
+) -> Tuple[List[dict], List[dict]]:
+    """AI-OPT #4(2026-07-20):用輕模型過濾字面比對的別名假陽性。
+
+    白名單字面比對會把「Unfractionated Heparin」(清單:Heparin)這類
+    前綴/劑型變體標成 drug_not_in_active_meds。suspects 非空時(罕見)
+    以一次 LLM_LIGHT_MODEL 呼叫判定,是變體者移出 suspects。
+
+    Fail-open:LLM 錯誤/JSON 解析失敗一律視為「全部保留」,觀測不縮水。
+    Returns (kept, dismissed);dismissed 元素含 alias_of。
+    """
+    import asyncio
+    import json as _json
+
+    from app.config import settings as _settings
+    from app.llm import call_llm
+
+    try:
+        result = await asyncio.to_thread(
+            call_llm,
+            "citation_alias_check",
+            {
+                "active_medications": active_med_aliases,
+                "suspect_tokens": sorted({s["token"] for s in suspects}),
+            },
+            disable_reasoning=True,
+            model_override=_settings.LLM_LIGHT_MODEL,
+            max_tokens=800,
+        )
+        if result.get("status") != "success":
+            return suspects, []
+        raw = (result.get("content") or "").strip()
+        if raw.startswith("```"):
+            raw = raw.strip("`").split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        decisions = _json.loads(raw).get("decisions", [])
+        alias_map = {
+            d["token"]: d["alias_of"]
+            for d in decisions
+            if isinstance(d, dict) and d.get("alias_of")
+        }
+    except Exception:
+        logger.warning("[CHAT][CITATION] alias check failed — keeping all suspects", exc_info=True)
+        return suspects, []
+
+    kept: List[dict] = []
+    dismissed: List[dict] = []
+    for s in suspects:
+        alias_of = alias_map.get(s["token"])
+        if alias_of:
+            dismissed.append({**s, "alias_of": alias_of})
+        else:
+            kept.append(s)
+    return kept, dismissed
+
+
 async def run_citation_audit(
     db: AsyncSession,
     request: Request,
@@ -264,6 +321,17 @@ async def run_citation_audit(
                 summary or "none",
             )
             if cit_audit["suspects"]:
+                kept, dismissed = await _dismiss_alias_suspects(
+                    cit_audit["suspects"], active_med_aliases or []
+                )
+                if dismissed:
+                    logger.info(
+                        "[CHAT][CITATION] session=%s alias-dismissed=%s",
+                        session_id,
+                        [(d["token"], d["alias_of"]) for d in dismissed],
+                    )
+                if not kept:
+                    return
                 await create_audit_log(
                     db,
                     user_id=current_user.id,
@@ -284,7 +352,11 @@ async def run_citation_audit(
                                 "reason": s["reason"],
                                 "content": s["content"][:80],
                             }
-                            for s in cit_audit["suspects"]
+                            for s in kept
+                        ],
+                        "dismissed_aliases": [
+                            {"token": d["token"], "alias_of": d["alias_of"]}
+                            for d in dismissed
                         ],
                     },
                 )
