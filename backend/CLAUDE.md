@@ -37,6 +37,24 @@
 - Response envelope: `{success: true/false, data/error, message}`
 - All LLM calls through `backend/app/llm.py`
 
+## Architecture Conventions(2026-07-19 稽核後確立)
+
+- **DB engine**:任何 `create_async_engine` 一律改用 `app/db_engine.py` 的
+  `create_pooled_engine()`(scripts/seeds 也是)。pooler connect_args 只准
+  活在那一個檔案。
+- **Transaction 邊界(C6)**:`get_db()` 在 handler 成功結束時 auto-commit,
+  這就是預設的 transaction 邊界。**只有**「mid-request 就要持久化」的場景
+  (例:SSE 開始 streaming 前先落 session row)才准手動 `await db.commit()`,
+  並加註解說明為什麼。不要為了「保險」多 commit。
+- **Response 序列化(B2)**:新 endpoint 的 payload 宣告 `CamelModel` 子類
+  (`app/schemas/base.py`),不要再手刻 camelCase dict。既有 `*_to_dict`
+  依「改到哪遷到哪」換掉;示範:`schemas/vital_sign.py`。
+- **資料修補(C3)**:**不要再寫 data-seed / backfill migration**。資料修補
+  走 `backend/scripts/run_seed_repair.py` 或獨立腳本;alembic 只放 schema
+  變更。(歷史教訓:035→038 同一份資料連 seed 四次。)
+- **Patient authz**:`verify_patient_access` / `normalize_patient_id` 從
+  `app/utils/patient_access.py` import,不要從 routers.patients。
+
 ## HIS → ChatICU Import Pipeline (2026-04-09)
 
 ### Architecture
@@ -79,9 +97,10 @@ patient/*/  →  HISConverter  →  scripts/import_his_patients.py  →  Supabas
 ### Usage
 ```bash
 cd backend
-python3 scripts/import_his_patients.py --dry-run         # preview
-python3 scripts/import_his_patients.py                    # import all to DB
-python3 scripts/import_his_patients.py -p 50045203        # single patient
+python3 scripts/import_his_patients.py                    # 預設 dry-run(2026-07-19 起)
+python3 scripts/import_his_patients.py --execute          # 真的寫 DB(慎用:upsert 不刪舊列)
+python3 scripts/import_his_patients.py --execute -p 50045203  # single patient
+# production sync 一律用 sync_his_snapshots_serial.py,此腳本僅限一次性匯入
 ```
 
 ### Import Results (local DB, 2026-04-09)

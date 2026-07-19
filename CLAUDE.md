@@ -34,7 +34,7 @@
 - `src/imports/` 僅保留被活躍頁面 import 的檔案
 - 前端 CSS 加在 `src/styles/globals.css`（`src/index.css` 是已移除的 Figma 死檔，勿重建）
 - 前端 domain 邏輯放 `src/lib/<domain>/`，勿復活 `src/features/`
-- `server/` 為 Dart Frog 參考實作，非正式後端
+- 前端資料抓取一律走 TanStack Query（`usePatientList` / `useApiQuery`），勿再手刻 module-level cache / setInterval poller（2026-07-19 B1/B5 已收斂）
 
 ## 禁止事項
 
@@ -97,7 +97,7 @@ curl -s "https://chat-icu.vercel.app/$(curl -s https://chat-icu.vercel.app/ | gr
 - 新 migration 必須是冪等的（用 `IF NOT EXISTS` 或先查再插）
 - **新 migration 必須能在全新空 DB 上通過**（2026-07-10 起）：資料型 seed migration 引用 demo 病人／使用者前先檢查存在、缺席時安全跳過（先例：029/030/035/044/050）。asyncpg 陷阱：DATE 欄要傳 `datetime.date` 不可傳字串、一個 `op.execute` 只能一條 SQL、`:param::jsonb` 解析不了要用 `CAST(:param AS JSONB)`
 - 改完 migration 跑 `bash scripts/ops/verify_fresh_db_bootstrap.sh`（拋棄式 pgvector 容器 → alembic head 零跳過 → seeds → API 冒煙，結尾應為 PASS）
-- 如果懷疑某個 migration 被標記完成但資料沒進去，建立新的 migration 重新 seed
+- **2026-07-19 起：不要再新增 data-seed / backfill migration**——資料修補走 `backend/scripts/run_seed_repair.py`，alembic 只放 schema 變更。如果懷疑某個舊 migration 被標記完成但資料沒進去，用 seed_repair 腳本補，不要再疊 migration
 
 ### 5. 常見陷阱
 - **Vercel VITE_API_URL**：`vercel.json` 的 `buildCommand` 已強制 `VITE_API_URL=`，確保前端走 Vercel proxy 而非直連 Railway
