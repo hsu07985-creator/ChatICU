@@ -1,5 +1,11 @@
 # AI 管線優化研究筆記(2026-07-19 網路調研)
 
+> **2026-07-20 落地狀態**:#1 路由機制+grammar_only→gpt-5.4-mini ✅、#2 prompt_cache_key ✅、
+> #3 eval 迴歸集(`backend/evals/ai_regression_cases.yaml` + `scripts/eval_ai_regression.py`,7/7 PASS)✅、
+> #4 citation 別名 LLM 判定(取代 llm-2 詞彙表)✅。#5 為 F4 決策輸入、#6/#7 backlog。
+> 附帶修正:polish/summary 回應 metadata 過去硬編 `settings.LLM_MODEL`,現在回報實際路由模型;
+> `[LLM][CACHE]` log 加 `model=` 欄位。其他 task 要降級前先跑 eval。
+
 > 目的:對照外部現行實踐(2026 文獻/官方指引),找出 ChatICU AI 管線值得做的優化。
 > 現況基準:gpt-5.5、byte-stable system prompt 前綴(B15)、cache 命中率 log、
 > B09 交互作用 prefetch 硬約束、B14 content/explanation 切分、分段 guardrail、
