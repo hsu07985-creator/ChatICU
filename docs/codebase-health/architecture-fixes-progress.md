@@ -58,5 +58,5 @@ citation-fabrication 與 user-assertion-conflict 稽核寫入用 `status='detect
 - **A2 待使用者**:Railway 環境變數 `ALERT_WEBHOOK_URL` 填入 Slack/Discord webhook,severe-error 告警才會真的送出(程式路徑已存在且可用)。
 - **B2 批次**:✅ **實質完成(20/21)**。batch 4(2026-07-20)收掉 ai_chat session/message、administration、custom-tag、symptom、pharmacy 六件(advice/favorite/error/compat/interaction/soap)。**唯一刻意保留手刻**:`patient_to_dict`——計算欄最密(插管/氣切推導、vent days、hasDNR 非標準別名、參數化日期),schema 化收益薄風險高;新 endpoint 慣例照舊走 CamelModel。
 - **B3 後續**:✅ **Depends 化完成(2026-07-20)**——`app/dependencies.py::get_accessible_patient` 取代 13 處手刻 fetch+404+verify(10 個 router);scores.py 的 layer2 fallback 為唯一documented例外;靜態守衛測試禁止 imperative 樣式回流。**SSE 下沉亦完成(2026-07-20)**:`stream_chat_events` → `services/ai_chat/stream_orchestrator.py`、summary/polish 生成器 → `services/clinical_stream.py`;ai_chat.py 1050→793 行、clinical.py 568→407 行,Request 僅作資料依賴。live eval 7/7 驗證。**B3 全部完成。**
-- **D1 後續**:6 個凍結頁已拆 1(chat.tsx,2026-07-20 live 驗證發送流一致);已拆 2(chat、interactions→抽 `interactions-drug-match.ts` 純比對模組 925→818);剩 patient-detail(1576)、workstation(1104)、patients(940)、ai-chat(938)。
+- **D1 後續**:6 個凍結頁已拆 1(chat.tsx,2026-07-20 live 驗證發送流一致);已拆 3(chat、interactions、workstation→抽 `run-assessment.ts` 純評估協調 1104→656);剩 patient-detail(1576)、patients(940)、ai-chat(938)。
 - **C5**:staging 決策。
