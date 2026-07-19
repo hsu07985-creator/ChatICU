@@ -36,6 +36,23 @@
 2. **P0** B5 迴歸:`refresh` closure 不穩定 → 開通知鈴鐺觸發無限 invalidate 風暴(數百請求直到瀏覽器資源耗盡)→ useCallback
 3. cosmetic:IV 矩陣 legend div-in-p 巢狀警告 → span
 
+## 2026-07-19 深夜(續):後端 API + AI 管線探測
+
+同一本機棧以 httpx 逐端點探測(27 項核心 API + 3 發真實 LLM 呼叫)。**27/27 PASS**:
+auth/health(DB ping)/patients(422 上限驗證)/bootstrap/vital-signs(B2 payload)/labs/meds
+(interactionsError 欄位)/scores/通知/團隊訊息/sync-status/dashboard/admin×2/PAD 引擎
+(rate=13.0 ml/hr 驗算正確)/重複用藥/藥物庫;AI:chat 串流(delta→done、B14 content+
+explanation 分離、sessionId/citations/prefetchRefs、session 持久化、feedback 端點)、
+臨床摘要 brief 串流(guardrail 高警訊藥警語、structured、dataFreshness)、polish
+grammar_only(1.9s)。F02 Redis fail-closed 也順帶驗證(DEBUG=false 無 Redis 正確拒起)。
+
+**抓到並修復 1 條真 bug**(`fix/audit-status-constraint-violation`):observability 的
+citation-fabrication 與 user-assertion-conflict 稽核寫入用 `status='detected'`,違反
+`ck_audit_logs_status_valid` → fire-and-forget 下**每一筆都被靜默丟棄**(llm-2 觀察期
+至今無資料累積)。改 `degraded` + 新增靜態契約測試(掃全部 audit 呼叫點的 status 字面值
+對照 model constraint)。live 驗證兩種稽核列都落地,且 svc-1 學名否定偵測實測命中
+(「沒有在用 vancomycin」→ conflict row)。觀察期時鐘實質從 2026-07-19 重新起算。
+
 ## 遺留追蹤(不阻塞)
 
 - **A2 待使用者**:Railway 環境變數 `ALERT_WEBHOOK_URL` 填入 Slack/Discord webhook,severe-error 告警才會真的送出(程式路徑已存在且可用)。
