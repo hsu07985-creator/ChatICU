@@ -1,23 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import {
-  AlertCircle,
-  Archive,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
-  Info,
-  MessageSquare,
-  Plus,
-  Send,
-  Sparkles,
-  Square,
-  Trash2,
-  User,
-  X,
-} from 'lucide-react';
+import { AlertCircle, Archive, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Info, MessageSquare, Plus, Send, Sparkles, Square, Trash2, User, X } from 'lucide-react';
 import { SnapshotRefreshControl } from '../components/ai-chat/snapshot-refresh-control';
 import { patientsApi, type Patient } from '../lib/api';
 // FIX-AVATAR (2026-05-03): same ChatICU logo the app sidebar / login /
@@ -25,32 +9,11 @@ import { patientsApi, type Patient } from '../lib/api';
 // back to the browser's broken-image rendering ("AI" placeholder icon).
 import chatBotAvatar from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 import { maskPatientName } from '../lib/utils/patient-name';
-import {
-  deleteChatSession,
-  extractStreamMainContent,
-  getChatSession,
-  getChatSessions,
-  refreshChatSessionSnapshot,
-  splitMainAndDetail,
-  streamChatMessage,
-  updateMessageFeedback,
-  type ChatResponse,
-  type ChatSession as ApiChatSession,
-  type Citation as AiCitation,
-  type DataFreshness,
-} from '../lib/api/ai';
+import { deleteChatSession, extractStreamMainContent, getChatSession, getChatSessions, refreshChatSessionSnapshot, splitMainAndDetail, streamChatMessage, updateMessageFeedback, type ChatResponse } from '../lib/api/ai';
 import type { SessionChatMessage } from '../lib/api/ai';
+import { MAX_MESSAGE_LENGTH, MESSAGE_WARN_THRESHOLD, compactSnippet, formatCitationPageText, mapApiMessage, mapApiSession, type SessionItem } from './ai-chat-utils';
 import { ChatMessageThread } from '../components/patient/chat-message-thread';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '../components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../components/ui/alert-dialog';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { ButtonLoadingIndicator } from '../components/ui/button-loading-indicator';
@@ -60,108 +23,6 @@ import { Textarea } from '../components/ui/textarea';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n/config';
 
-// Must match backend `_MAX_MESSAGE_LENGTH` in ai_chat.py. Bumped from 4000
-// → 8000 on 2026-05-13 after users hit HTTP 422 pasting ~4200-char drafts.
-const MAX_MESSAGE_LENGTH = 8000;
-const MESSAGE_WARN_THRESHOLD = Math.floor(MAX_MESSAGE_LENGTH * 0.9);
-
-interface SessionItem {
-  id: string;
-  title: string;
-  sessionDate: string;
-  sessionTime: string;
-  lastUpdated: string;
-  messageCount?: number;
-}
-
-function toLocalDateKey(value: string | Date): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function mapApiSession(item: ApiChatSession): SessionItem {
-  const created = new Date(item.createdAt);
-  return {
-    id: item.id,
-    title: item.title,
-    sessionDate: toLocalDateKey(created),
-    sessionTime: created.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' }),
-    lastUpdated: new Date(item.updatedAt).toLocaleString('zh-TW'),
-    messageCount: item.messageCount,
-  };
-}
-
-function formatCitationPageText(citation: AiCitation): string {
-  const tr = (k: string, opts?: Record<string, unknown>) => i18n.t(k, { ns: 'chat', ...(opts ?? {}) }) as string;
-  const pages = Array.isArray(citation.pages)
-    ? citation.pages.filter((p): p is number => Number.isFinite(Number(p))).map((p) => Number(p))
-    : [];
-  if (pages.length > 1) {
-    const uniq = Array.from(new Set(pages)).sort((a, b) => a - b);
-    return tr('ai.citation.pages', { pages: uniq.join('、') });
-  }
-  if (typeof citation.page === 'number') return tr('ai.citation.page', { page: citation.page });
-  if (pages.length === 1) return tr('ai.citation.page', { page: pages[0] });
-  return tr('ai.citation.pageMissing');
-}
-
-function compactSnippet(snippet?: string): string {
-  return String(snippet || '').trim();
-}
-
-function mapApiMessage(item: {
-  role: string;
-  content: string;
-  explanation?: string | null;
-  timestamp?: string | null;
-  citations?: AiCitation[];
-  safetyWarnings?: string[] | null;
-  requiresExpertReview?: boolean;
-  degraded?: boolean;
-  degradedReason?: string | null;
-  upstreamStatus?: string | null;
-  dataFreshness?: DataFreshness | null;
-  graphMeta?: import('../lib/api/ai').GraphMeta | null;
-}): SessionChatMessage {
-  let timestamp: string | undefined;
-  if (item.timestamp) {
-    try {
-      timestamp = new Date(item.timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      timestamp = undefined;
-    }
-  }
-  // FIX-LOAD-SPLIT (2026-05-03): assistant `content` from the backend is
-  // the raw concatenated string with 【說明/補充】 inline. Without this
-  // split, the bubble shows main + detail in one block on session reload
-  // (the 詳細 collapse button only appears for live-sent messages because
-  // the send path was the only one calling splitMainAndDetail). Match
-  // patient-detail.tsx's send-time logic so live and reloaded views are
-  // identical — backend `explanation` takes precedence if it ever arrives
-  // populated (no current path emits it, but contract preserved).
-  let mainContent = item.content || '';
-  let detailContent: string | null = item.explanation || null;
-  if (!detailContent && item.role === 'assistant' && mainContent) {
-    const split = splitMainAndDetail(mainContent);
-    mainContent = split.main;
-    detailContent = split.detail;
-  }
-  return {
-    role: item.role === 'assistant' ? 'assistant' : 'user',
-    content: mainContent,
-    explanation: detailContent,
-    timestamp,
-    references: item.citations || [],
-    warnings: item.safetyWarnings || null,
-    requiresExpertReview: item.requiresExpertReview || false,
-    degraded: item.degraded || false,
-    degradedReason: item.degradedReason || null,
-    upstreamStatus: item.upstreamStatus || null,
-    dataFreshness: item.dataFreshness || null,
-    graphMeta: item.graphMeta || null,
-  };
-}
 
 export function AiChatPage() {
   const { t } = useTranslation('chat');
