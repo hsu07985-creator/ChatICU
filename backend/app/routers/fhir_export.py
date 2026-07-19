@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.dependencies import get_accessible_patient
 from app.utils.request import get_client_ip
 from app.fhir.bundle_builder import build_bundle_for_patient
 from app.middleware.audit import create_audit_log
@@ -31,18 +32,14 @@ async def export_patient_fhir_bundle(
     request: Request,
     user: User = Depends(require_roles("doctor", "np", "pharmacist", "admin")),
     db: AsyncSession = Depends(get_db),
+    patient_obj: Patient = Depends(get_accessible_patient),
 ):
     """Return a FHIR R5 collection Bundle for the patient.
 
     Resources included: Patient, MedicationRequest[], Observation[] (from lab_data).
     Medications carry ATC codes where populated (see PR-1, PR-2, PR-3.5).
     """
-    pid = normalize_patient_id(patient_id)
-    r = await db.execute(select(Patient).where(Patient.id == pid))
-    patient_obj = r.scalar_one_or_none()
-    if not patient_obj:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    verify_patient_access(user, patient_obj)
+    pid = patient_obj.id
 
     try:
         bundle, report = await build_bundle_for_patient(db, pid)

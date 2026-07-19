@@ -53,6 +53,9 @@ async def _get_patient_or_404(
     except Exception:
         pass
     # Fallback: check DB
+    # B3 exception:此處刻意不用 get_accessible_patient dependency ——
+    # layer2(JSON mode)病人不存在於 DB,上方 shortcut 已放行;只有
+    # fallback 進 DB 的分支需要 fetch+verify。
     norm_pid = normalize_patient_id(pid)
     result = await db.execute(select(Patient).where(Patient.id == norm_pid))
     patient = result.scalar_one_or_none()

@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.dependencies import get_accessible_patient
 from app.utils.request import get_client_ip
 from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log
@@ -303,14 +304,9 @@ async def get_latest_lab_data(
     patient_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    patient: Patient = Depends(get_accessible_patient),
 ):
-    pid = normalize_patient_id(patient_id)
-    # T09: verify patient access
-    pat_result = await db.execute(select(Patient).where(Patient.id == pid))
-    patient = pat_result.scalar_one_or_none()
-    if not patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    verify_patient_access(user, patient)
+    pid = patient.id
 
     payload = await compute_latest_lab_payload(db, patient, pid)
     if payload is None:

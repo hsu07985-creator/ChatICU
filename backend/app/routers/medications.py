@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.dependencies import get_accessible_patient
 from app.utils.request import get_client_ip
 from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log, diff_dict, snapshot_fields
@@ -269,14 +270,9 @@ async def list_medications(
     status_filter: str = Query(None, alias="status"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    patient_obj: Patient = Depends(get_accessible_patient),
 ):
-    pid = normalize_patient_id(patient_id)
-    # T09: verify patient access
-    pat_result = await db.execute(select(Patient).where(Patient.id == pid))
-    patient_obj = pat_result.scalar_one_or_none()
-    if not patient_obj:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    verify_patient_access(user, patient_obj)
+    pid = patient_obj.id
 
     payload = await compute_medications_payload(db, pid, status_filter)
     return success_response(data=payload)
@@ -482,14 +478,10 @@ async def import_outpatient_medications(
     request: Request,
     user: User = Depends(require_roles("doctor", "np", "pharmacist", "admin")),
     db: AsyncSession = Depends(get_db),
+    patient_obj: Patient = Depends(get_accessible_patient),
 ):
     """Import outpatient medications (門診用藥) for a patient."""
-    pid = normalize_patient_id(patient_id)
-    pat_result = await db.execute(select(Patient).where(Patient.id == pid))
-    patient_obj = pat_result.scalar_one_or_none()
-    if not patient_obj:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    verify_patient_access(user, patient_obj)
+    pid = patient_obj.id
 
     created = []
     for item in body.medications:

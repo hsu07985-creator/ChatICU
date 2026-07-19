@@ -34,6 +34,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.dependencies import get_accessible_patient
 from app.middleware.auth import get_current_user
 from app.models.medication import Medication
 from app.models.patient import Patient
@@ -306,6 +307,7 @@ async def discharge_check(
     patient_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    patient_obj: Patient = Depends(get_accessible_patient),
 ):
     """Compare inpatient-active-at-discharge vs discharge meds.
 
@@ -313,13 +315,7 @@ async def discharge_check(
     still inpatient (no discharge_date set). Returns 404 only when the
     patient does not exist.
     """
-    pid = normalize_patient_id(patient_id)
-
-    pat_result = await db.execute(select(Patient).where(Patient.id == pid))
-    patient_obj = pat_result.scalar_one_or_none()
-    if patient_obj is None:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    verify_patient_access(user, patient_obj)
+    pid = patient_obj.id
 
     discharge_date = patient_obj.discharge_date
     discharge_type = patient_obj.discharge_type

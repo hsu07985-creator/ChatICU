@@ -28,6 +28,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.dependencies import get_accessible_patient
 from app.middleware.auth import get_current_user
 from app.models.medication import Medication
 from app.models.patient import Patient
@@ -67,6 +68,7 @@ async def list_medication_duplicates(
     ),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    patient_obj: Patient = Depends(get_accessible_patient),
 ):
     """Return all duplicate-medication alerts for a patient's active medications.
 
@@ -76,14 +78,7 @@ async def list_medication_duplicates(
       3. Try the cache — if the stored hash + context match, serve from cache.
       4. Otherwise run the detector, upsert the cache, return fresh data.
     """
-    pid = normalize_patient_id(patient_id)
-
-    # Verify patient exists + access (matches pattern in list_medications).
-    pat_result = await db.execute(select(Patient).where(Patient.id == pid))
-    patient_obj = pat_result.scalar_one_or_none()
-    if not patient_obj:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    verify_patient_access(user, patient_obj)
+    pid = patient_obj.id
 
     meds = await _load_active_medications(db, pid)
     ctx: Context = context  # type: ignore[assignment]

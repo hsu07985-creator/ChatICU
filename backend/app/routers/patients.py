@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 from app.database import get_db
+from app.dependencies import get_accessible_patient
 from app.utils.request import get_client_ip
 from app.middleware.auth import get_current_user, require_roles
 from app.middleware.audit import create_audit_log, diff_dict, snapshot_fields
@@ -403,15 +404,9 @@ async def get_patient(
     patient_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    patient: Patient = Depends(get_accessible_patient),
 ):
-    pid = normalize_patient_id(patient_id)
-    result = await db.execute(select(Patient).where(Patient.id == pid))
-    patient = result.scalar_one_or_none()
-
-    if not patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
-
-    verify_patient_access(user, patient)
+    pid = patient.id
 
     unread_count = await _count_pb_unread_for_user(db, user, pid)
 
@@ -431,6 +426,7 @@ async def get_patient_bootstrap(
     patient_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    patient: Patient = Depends(get_accessible_patient),
 ):
     """Aggregate first-screen payload for the patient detail page.
 
@@ -456,12 +452,7 @@ async def get_patient_bootstrap(
     from app.models.vital_sign import VitalSign
     from app.models.ventilator import VentilatorSetting
 
-    pid = normalize_patient_id(patient_id)
-    result = await db.execute(select(Patient).where(Patient.id == pid))
-    patient = result.scalar_one_or_none()
-    if not patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    verify_patient_access(user, patient)
+    pid = patient.id
 
     # 1. Patient header (with unread + airway dates)
     unread_count = await _count_pb_unread_for_user(db, user, pid)

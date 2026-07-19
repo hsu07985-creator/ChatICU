@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.dependencies import get_accessible_patient
 from app.middleware.auth import get_current_user
 from app.models.diagnostic_report import DiagnosticReport
 from app.models.patient import Patient
@@ -27,15 +28,10 @@ async def list_diagnostic_reports(
     report_type: Optional[str] = Query(None, alias="type"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    patient: Patient = Depends(get_accessible_patient),
 ):
     """List diagnostic reports (imaging, procedures, etc.) for a patient."""
-    patient_id = normalize_patient_id(patient_id)
-    result = await db.execute(select(Patient).where(Patient.id == patient_id))
-    patient = result.scalar_one_or_none()
-    if not patient:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Patient not found")
-    verify_patient_access(user, patient)
+    patient_id = patient.id
 
     query = select(DiagnosticReport).where(
         DiagnosticReport.patient_id == patient_id

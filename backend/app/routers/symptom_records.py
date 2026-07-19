@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.dependencies import get_accessible_patient
 from app.utils.request import get_client_ip
 from app.middleware.audit import create_audit_log
 from app.middleware.auth import get_current_user
@@ -32,13 +33,9 @@ async def list_symptom_records(
     patient_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    patient_obj: Patient = Depends(get_accessible_patient),
 ):
-    pid = normalize_patient_id(patient_id)
-    pat_result = await db.execute(select(Patient).where(Patient.id == pid))
-    patient_obj = pat_result.scalar_one_or_none()
-    if not patient_obj:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    verify_patient_access(user, patient_obj)
+    pid = patient_obj.id
 
     result = await db.execute(
         select(SymptomRecord)
@@ -56,13 +53,9 @@ async def create_symptom_record(
     request: Request,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    patient_obj: Patient = Depends(get_accessible_patient),
 ):
-    pid = normalize_patient_id(patient_id)
-    pat_result = await db.execute(select(Patient).where(Patient.id == pid))
-    patient_obj = pat_result.scalar_one_or_none()
-    if not patient_obj:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    verify_patient_access(user, patient_obj)
+    pid = patient_obj.id
 
     symptoms = body.get("symptoms", [])
     if not isinstance(symptoms, list):
