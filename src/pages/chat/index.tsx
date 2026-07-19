@@ -1,21 +1,21 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { ButtonLoadingIndicator } from '../components/ui/button-loading-indicator';
-import { Badge } from '../components/ui/badge';
-import { Textarea } from '../components/ui/textarea';
-import { MentionTextarea } from '../components/ui/mention-textarea';
-import { ScrollArea } from '../components/ui/scroll-area';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { ButtonLoadingIndicator } from '../../components/ui/button-loading-indicator';
+import { Badge } from '../../components/ui/badge';
+import { Textarea } from '../../components/ui/textarea';
+import { MentionTextarea } from '../../components/ui/mention-textarea';
+import { ScrollArea } from '../../components/ui/scroll-area';
 import { Send, Pin, MessageSquare, RefreshCw, AtSign, ChevronDown, ChevronRight, ExternalLink, Trash2, CornerUpLeft, X } from 'lucide-react';
-import { useAuth } from '../lib/auth-context';
-import { maskPatientName } from '../lib/utils/patient-name';
-import { getTeamChatMessages, sendTeamChatMessage, postAnnouncement, togglePinMessage, deleteTeamChatMessage, getTeamUsers, markChatVisited, TeamChatMessage, TeamUser } from '../lib/api/team-chat';
-import { chatCache, MSGS_STALE_MS, MENTIONS_STALE_MS } from '../lib/api/team-chat-cache';
-import { roleLabel } from '../lib/utils/user-role';
+import { useAuth } from '../../lib/auth-context';
+import { maskPatientName } from '../../lib/utils/patient-name';
+import { getTeamChatMessages, sendTeamChatMessage, postAnnouncement, togglePinMessage, deleteTeamChatMessage, getTeamUsers, markChatVisited, TeamChatMessage, TeamUser } from '../../lib/api/team-chat';
+import { chatCache, MSGS_STALE_MS, MENTIONS_STALE_MS } from '../../lib/api/team-chat-cache';
+import { roleLabel } from '../../lib/utils/user-role';
 import { useTranslation } from 'react-i18next';
-import { MENTION_ALL_NAME, mentionRegex } from '../lib/utils/mention-parser';
-import { getMyMentions, type MentionGroup } from '../lib/api/messages';
-import { LoadingSpinner } from '../components/ui/state-display';
+import { MENTION_ALL_NAME, mentionRegex } from '../../lib/utils/mention-parser';
+import { getMyMentions, type MentionGroup } from '../../lib/api/messages';
+import { LoadingSpinner } from '../../components/ui/state-display';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -25,25 +25,15 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../components/ui/dialog';
+} from '../../components/ui/dialog';
+import { ChatMessageBubble } from './chat-message-bubble';
+import { formatTimestamp } from './format-timestamp';
 
 // `hasMore` rides alongside the message cache (which is itself a module
 // singleton) so a warm-cache remount restores the "load older" affordance
 // instead of resetting it to false and stranding paged-in history.
 let cachedHasMore = false;
 
-// 格式化時間戳：固定台北時區（UTC+8），不隨瀏覽器 locale 漂移。
-function formatTimestamp(timestamp: string): string {
-  const date = new Date(timestamp);
-  return date.toLocaleString('zh-TW', {
-    timeZone: 'Asia/Taipei',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 export function ChatPage() {
   const { t } = useTranslation('chat');
@@ -360,36 +350,6 @@ export function ChatPage() {
     }
   };
 
-  // Render message content, highlighting @姓名 tokens that match real users
-  // and the @所有人 broadcast sentinel. Pure typography styling — no chip,
-  // no background — so the highlight stays inline with the surrounding text
-  // and the color palette of the chat stays minimal. @所有人 adds an
-  // underline to read as a broadcast vs a personal mention.
-  const renderContent = useCallback((content: string, mentionClass?: string) => {
-    if (!userByName.size) return content;
-    const cls = mentionClass ?? 'font-semibold text-brand dark:text-brand-light';
-    const allCls = `${cls} underline underline-offset-4`;
-    type MentionPart = { name: string; kind: 'user' | 'all' | 'plain' };
-    const parts: Array<string | MentionPart> = [];
-    const re = mentionRegex();
-    let last = 0;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(content)) !== null) {
-      if (m.index > last) parts.push(content.slice(last, m.index));
-      const name = m[1];
-      const kind: MentionPart['kind'] =
-        name === MENTION_ALL_NAME ? 'all' : userByName.has(name) ? 'user' : 'plain';
-      parts.push({ name, kind });
-      last = m.index + m[0].length;
-    }
-    if (last < content.length) parts.push(content.slice(last));
-    return parts.map((p, i) => {
-      if (typeof p === 'string') return <span key={i}>{p}</span>;
-      if (p.kind === 'all') return <span key={i} className={allCls}>@{p.name}</span>;
-      if (p.kind === 'user') return <span key={i} className={cls}>@{p.name}</span>;
-      return <span key={i}>@{p.name}</span>;
-    });
-  }, [userByName]);
 
   // Flatten {root, replies} into a single chronological list so the chat reads
   // top-to-bottom like LINE (replies show next to where they were sent, with a
@@ -453,134 +413,6 @@ export function ChatPage() {
     }
   };
 
-  // LINE-style chat bubble: self → right-aligned green/black, others →
-  // left-aligned gray with avatar + name above. Replies show a quote block
-  // INSIDE the bubble pointing back to the parent.
-  const renderMessage = (msg: TeamChatMessage) => {
-    const isSelf = !!user && msg.userId === user.id;
-    const repliedTo = msg.replyToId ? messageById.get(msg.replyToId) : null;
-
-    // Self → soft WhatsApp/LINE-style mint, others → light gray.
-    const bubbleClass = isSelf
-      ? 'bg-[#DCF8C6] dark:bg-emerald-600 text-slate-900 dark:text-white'
-      : 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100';
-
-    // Speech-tail: the corner adjacent to the speaker is less rounded.
-    const cornerClass = isSelf ? 'rounded-2xl rounded-tr-sm' : 'rounded-2xl rounded-tl-sm';
-
-    const isFlashed = flashedMessageId === msg.id;
-
-    return (
-      <div
-        id={`msg-${msg.id}`}
-        data-testid="team-chat-message"
-        className={`group flex gap-2 transition-all duration-300 rounded-2xl py-1 ${isSelf ? 'flex-row-reverse' : 'flex-row'} ${isFlashed ? 'ring-2 ring-brand ring-offset-2 ring-offset-background bg-brand/5' : 'ring-0'}`}
-      >
-        {/* Avatar — only for others (self knows it's themself) */}
-        {!isSelf && (
-          <div className="shrink-0 mt-5 h-8 w-8 rounded-full bg-slate-300 dark:bg-slate-600 flex items-center justify-center text-xs font-semibold text-slate-700 dark:text-slate-200">
-            {msg.userName.slice(0, 1)}
-          </div>
-        )}
-
-        <div className={`flex flex-col max-w-[78%] ${isSelf ? 'items-end' : 'items-start'}`}>
-          {/* Header row above bubble — name+role for others, pin badge for any */}
-          {(!isSelf || msg.pinned) && (
-            <div className={`flex items-center gap-1.5 mb-1 px-1 ${isSelf ? 'flex-row-reverse' : ''}`}>
-              {!isSelf && (
-                <>
-                  <span className="text-xs font-medium text-foreground">{msg.userName}</span>
-                  <Badge variant="outline" className="text-[10px] px-1 py-0">
-                    {roleLabel(msg.userRole)}
-                  </Badge>
-                </>
-              )}
-              {msg.pinned && (
-                <Badge className="bg-[#f59e0b] text-white text-[10px] px-1 py-0 h-4">
-                  <Pin className="h-2.5 w-2.5 mr-0.5" />
-                  {t('team.message.pinnedBadge')}
-                </Badge>
-              )}
-            </div>
-          )}
-
-          {/* Bubble + hover actions, side-by-side */}
-          <div className={`flex items-end gap-1 ${isSelf ? 'flex-row-reverse' : 'flex-row'}`}>
-            <div className={`px-3 py-2 ${bubbleClass} ${cornerClass} shadow-sm`}>
-              {/* Reply quote — click to jump to the parent message */}
-              {repliedTo && (
-                <button
-                  type="button"
-                  onClick={() => scrollToMessage(repliedTo.id)}
-                  className={`mb-1.5 pl-2 border-l-2 text-left w-full block rounded transition-colors hover:bg-black/5 ${isSelf ? 'border-slate-700/40' : 'border-slate-500/40 dark:border-slate-300/40'} opacity-90 hover:opacity-100`}
-                  title={t('team.message.jumpToOriginal')}
-                >
-                  <div className="text-[11px] font-medium flex items-center gap-1">
-                    <CornerUpLeft className="h-2.5 w-2.5" />
-                    {t('team.input.replyPrefix')} {repliedTo.userName}
-                  </div>
-                  <div className="text-xs truncate max-w-[260px] sm:max-w-[320px]">
-                    {repliedTo.content}
-                  </div>
-                </button>
-              )}
-              <p className="text-base leading-relaxed whitespace-pre-wrap break-words">
-                {renderContent(msg.content)}
-              </p>
-            </div>
-
-            {/* Hover actions, opposite side from the bubble */}
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity self-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0 text-muted-foreground hover:text-brand"
-                onClick={() => setReplyingTo(msg)}
-                title={t('team.message.replyTitle')}
-              >
-                <CornerUpLeft className="h-3.5 w-3.5" />
-              </Button>
-              {user?.role === 'admin' && (
-                <span className="inline-flex items-center">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={`h-7 w-7 p-0 ${msg.pinned ? 'text-[#f59e0b]' : 'text-muted-foreground hover:text-[#f59e0b]'}`}
-                    onClick={() => void handleTogglePin(msg.id)}
-                    disabled={pinningMessageId === msg.id}
-                    title={msg.pinned ? t('team.message.togglePinFrom') : t('team.message.togglePinTo')}
-                  >
-                    <Pin className="h-3.5 w-3.5" />
-                  </Button>
-                  {pinningMessageId === msg.id ? <ButtonLoadingIndicator compact /> : null}
-                </span>
-              )}
-              {user?.role === 'admin' && (
-                <span className="inline-flex items-center">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
-                    onClick={() => void handleDeleteMessage(msg.id)}
-                    disabled={deletingMessageId === msg.id}
-                    title={t('team.message.deleteTitle')}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                  {deletingMessageId === msg.id ? <ButtonLoadingIndicator compact /> : null}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Timestamp under bubble */}
-          <div className={`text-[10px] text-muted-foreground mt-1 px-1 ${isSelf ? 'text-right' : 'text-left'}`}>
-            {formatTimestamp(msg.timestamp)}
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   const handleDeleteMessage = async (messageId: string) => {
     setDeletingMessageId(messageId);
@@ -678,7 +510,22 @@ export function ChatPage() {
                     </div>
                   )}
                   {flatMessages.map((msg) => (
-                    <div key={msg.id}>{renderMessage(msg)}</div>
+                    <div key={msg.id}>
+                      <ChatMessageBubble
+                        msg={msg}
+                        currentUserId={user?.id}
+                        isAdmin={user?.role === 'admin'}
+                        repliedTo={msg.replyToId ? messageById.get(msg.replyToId) ?? null : null}
+                        userByName={userByName}
+                        flashed={flashedMessageId === msg.id}
+                        pinning={pinningMessageId === msg.id}
+                        deleting={deletingMessageId === msg.id}
+                        onReply={setReplyingTo}
+                        onTogglePin={handleTogglePin}
+                        onDelete={handleDeleteMessage}
+                        onJumpToParent={scrollToMessage}
+                      />
+                    </div>
                   ))}
                 </div>
               )}

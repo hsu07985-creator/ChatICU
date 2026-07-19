@@ -13,7 +13,6 @@ DEFAULT_MAX=900
 RATCHET=(
   "src/pages/patient-detail.tsx=1600"
   "src/pages/pharmacy/workstation.tsx=1100"
-  "src/pages/chat.tsx=980"
   "src/pages/ai-chat.tsx=950"
   "src/pages/patients.tsx=940"
   "src/pages/pharmacy/interactions.tsx=925"
