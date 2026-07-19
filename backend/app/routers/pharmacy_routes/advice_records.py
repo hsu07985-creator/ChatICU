@@ -18,6 +18,7 @@ from app.models.user import User
 from app.routers.messages import CATEGORY_TAG_MAP, PHARMACIST_CATEGORY_TAGS, format_subcode_tag
 from app.schemas.admin import AdviceRecordCreate, AdviceRecordUpdate
 from app.utils.request import get_client_ip
+from app.schemas.pharmacy import PharmacyAdviceResponse
 from app.utils.response import success_response
 
 router = APIRouter(tags=["pharmacy"])
@@ -28,23 +29,8 @@ _VPN_TAG_PATTERN = re.compile(r"^\d+-[A-Z\d]+(\s|$)")
 
 
 def advice_to_dict(a: PharmacyAdvice) -> dict:
-    return {
-        "id": a.id,
-        "patientId": a.patient_id,
-        "patientName": a.patient_name,
-        "bedNumber": a.bed_number,
-        "adviceCode": a.advice_code,
-        "adviceLabel": a.advice_label,
-        "category": a.category,
-        "content": a.content,
-        "pharmacistName": a.pharmacist_name,
-        "timestamp": a.timestamp.isoformat() if a.timestamp else None,
-        "linkedMedications": a.linked_medications or [],
-        "accepted": a.accepted,
-        "respondedById": a.responded_by_id,
-        "respondedByName": a.responded_by_name,
-        "respondedAt": a.responded_at.isoformat() if a.responded_at else None,
-    }
+    """B2 batch 4: schema-backed."""
+    return PharmacyAdviceResponse.model_validate(a).dump_camel()
 
 
 def _parse_month_range(month: str) -> Tuple[datetime, datetime]:

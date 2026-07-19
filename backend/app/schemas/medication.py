@@ -158,3 +158,25 @@ class MedicationResponse(_CamelModel):
             return None
         n = str(v).strip().upper()
         return n if n in {"S", "A", "N"} else None
+
+
+from datetime import datetime as _datetime2
+
+
+class MedicationAdministrationRowResponse(_CamelModel):
+    """B2 batch 4:administration_to_dict。"""
+    id: str
+    medication_id: _Optional[str] = None
+    patient_id: _Optional[str] = None
+    scheduled_time: _Optional[_datetime2] = None
+    administered_time: _Optional[_datetime2] = None
+    status: _Optional[str] = None
+    dose: str = ""
+    route: str = ""
+    administered_by: _Optional[dict] = None
+    notes: _Optional[str] = None
+
+    @_field_validator("dose", "route", mode="before")
+    @classmethod
+    def _none_to_empty(cls, v):
+        return v or ""

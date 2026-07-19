@@ -64,6 +64,7 @@ from app.services.ai_chat.prompt_assembly import (  # noqa: F401
     _maybe_inject_question_prefetch_into_user_message,
     _maybe_inject_assertion_conflict_into_user_message,
 )
+from app.schemas.ai_chat import AIMessageResponse, AISessionResponse
 from app.services.citation_audit import extract_citations
 from app.services.safety_guardrail import apply_safety_guardrail
 from app.services.ai_chat.sse import (  # noqa: F401
@@ -692,30 +693,20 @@ async def chat_stream(
 
 
 def _session_to_dict(s: AISession, message_count: int = 0) -> dict:
-    # F2: expose snapshot_taken_at so the frontend can compute "snapshot age"
-    # and decide whether to highlight the refresh-snapshot button.
+    """B2 batch 4: schema-backed."""
+    # F2: snapshotTakenAt 由 snapshot_metadata 計算;messageCount 來自參數
+    d = AISessionResponse.model_validate(s).dump_camel()
     snapshot_taken_at = None
     if s.snapshot_metadata and isinstance(s.snapshot_metadata, dict):
         snapshot_taken_at = s.snapshot_metadata.get("snapshot_taken_at")
-    return {
-        "id": s.id,
-        "userId": s.user_id,
-        "patientId": s.patient_id,
-        "title": s.title or "新對話",
-        "createdAt": s.created_at.isoformat() if s.created_at else None,
-        "updatedAt": s.updated_at.isoformat() if s.updated_at else None,
-        "messageCount": message_count,
-        "snapshotTakenAt": snapshot_taken_at,
-    }
+    d["messageCount"] = message_count
+    d["snapshotTakenAt"] = snapshot_taken_at
+    return d
 
 
 def _message_to_dict(m: AIMessage) -> dict:
-    return {
-        "id": m.id,
-        "role": m.role,
-        "content": m.content,
-        "timestamp": m.created_at.isoformat() if m.created_at else None,
-    }
+    """B2 batch 4: schema-backed."""
+    return AIMessageResponse.model_validate(m).dump_camel()
 
 
 @router.get("/sessions")

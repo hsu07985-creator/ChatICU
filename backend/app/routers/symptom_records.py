@@ -12,6 +12,7 @@ from app.middleware.auth import get_current_user
 from app.models.patient import Patient
 from app.models.symptom_record import SymptomRecord
 from app.models.user import User
+from app.schemas.symptom_record import SymptomRecordResponse
 from app.utils.patient_access import normalize_patient_id, verify_patient_access
 from app.utils.response import success_response
 
@@ -22,15 +23,8 @@ router = APIRouter(
 
 
 def record_to_dict(rec: SymptomRecord) -> dict:
-    return {
-        "id": rec.id,
-        "patientId": rec.patient_id,
-        "recordedAt": rec.recorded_at.isoformat() if rec.recorded_at else None,
-        "symptoms": rec.symptoms or [],
-        "recordedBy": rec.recorded_by,
-        "notes": rec.notes,
-        "createdAt": rec.created_at.isoformat() if rec.created_at else None,
-    }
+    """B2 batch 4: schema-backed."""
+    return SymptomRecordResponse.model_validate(rec).dump_camel()
 
 
 @router.get("")

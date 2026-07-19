@@ -14,6 +14,7 @@ from app.models.drug_interaction import DrugInteraction, IVCompatibility
 from app.models.user import User
 from app.services.drug_graph_bridge import drug_graph_bridge
 from app.utils.drug_match import word_boundary_pattern, word_match
+from app.schemas.pharmacy import DrugInteractionRowResponse, IVCompatibilityRowResponse
 from app.utils.response import escape_like, success_response
 
 router = APIRouter(tags=["pharmacy"])
@@ -130,27 +131,8 @@ def _pair_on_different_sides(interaction, drug_a: str, drug_b: str) -> bool:
 
 
 def _interaction_to_dict(i: DrugInteraction) -> dict:
-    return {
-        "id": i.id,
-        "drug1": i.drug1,
-        "drug2": i.drug2,
-        "severity": i.severity,
-        "mechanism": i.mechanism,
-        "clinicalEffect": i.clinical_effect,
-        "management": i.management,
-        "references": i.references,
-        "riskRating": i.risk_rating,
-        "riskRatingDescription": i.risk_rating_description,
-        "severityLabel": i.severity_label,
-        "reliabilityRating": i.reliability_rating,
-        "routeDependency": i.route_dependency,
-        "discussion": i.discussion,
-        "footnotes": i.footnotes,
-        "dependencies": _parse_json_field(i.dependencies),
-        "dependencyTypes": _parse_json_field(i.dependency_types),
-        "interactingMembers": _parse_json_field(i.interacting_members),
-        "pubmedIds": _parse_json_field(i.pubmed_ids),
-    }
+    """B2 batch 4: schema-backed."""
+    return DrugInteractionRowResponse.model_validate(i).dump_camel()
 
 
 @router.get("/drug-interactions")
@@ -296,16 +278,8 @@ class _BatchRequest(BaseModel):
 
 
 def _compat_to_dict(c: IVCompatibility) -> dict:
-    return {
-        "id": c.id,
-        "drug1": c.drug1,
-        "drug2": c.drug2,
-        "solution": c.solution,
-        "compatible": c.compatible,
-        "timeStability": c.time_stability,
-        "notes": c.notes,
-        "references": c.references,
-    }
+    """B2 batch 4: schema-backed."""
+    return IVCompatibilityRowResponse.model_validate(c).dump_camel()
 
 
 @router.post("/iv-compatibility/batch")

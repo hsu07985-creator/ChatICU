@@ -13,6 +13,7 @@ from app.models.message import PatientMessage
 from app.models.patient import Patient
 from app.models.pharmacy_advice import PharmacyAdvice
 from app.models.user import User
+from app.schemas.message import CustomTagResponse
 from app.schemas.message import PatientMessageResponse
 from app.utils.patient_access import normalize_patient_id
 from app.models.custom_tag import CustomTag
@@ -317,13 +318,8 @@ async def get_pharmacy_tags(
 
 
 def custom_tag_to_dict(tag: CustomTag) -> dict:
-    return {
-        "id": tag.id,
-        "name": tag.name,
-        "createdById": tag.created_by_id,
-        "createdByName": tag.created_by_name,
-        "createdAt": tag.created_at.isoformat() if tag.created_at else None,
-    }
+    """B2 batch 4: schema-backed."""
+    return CustomTagResponse.model_validate(tag).dump_camel()
 
 
 @router.get("/custom-tags")

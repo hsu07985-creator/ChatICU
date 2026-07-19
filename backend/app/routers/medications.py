@@ -15,6 +15,7 @@ from app.models.medication import Medication
 from app.models.medication_administration import MedicationAdministration
 from app.models.user import User
 from app.models.patient import Patient
+from app.schemas.medication import MedicationAdministrationRowResponse
 from app.schemas.medication import MedicationResponse
 from app.utils.patient_access import normalize_patient_id, verify_patient_access
 from app.schemas.medication import (
@@ -100,18 +101,8 @@ async def _get_medication_or_404(
 
 
 def administration_to_dict(administration: MedicationAdministration) -> dict:
-    return {
-        "id": administration.id,
-        "medicationId": administration.medication_id,
-        "patientId": administration.patient_id,
-        "scheduledTime": administration.scheduled_time,
-        "administeredTime": administration.administered_time,
-        "status": administration.status,
-        "dose": administration.dose or "",
-        "route": administration.route or "",
-        "administeredBy": administration.administered_by,
-        "notes": administration.notes,
-    }
+    """B2 batch 4: schema-backed."""
+    return MedicationAdministrationRowResponse.model_validate(administration).dump_camel()
 
 
 async def compute_medications_payload(

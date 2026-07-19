@@ -160,3 +160,11 @@ class TeamChatMessageResponse(_CamelModel):
     @classmethod
     def _none_to_false(cls, v):
         return bool(v)
+
+
+class CustomTagResponse(_CamelModel):
+    id: str
+    name: _Optional[str] = None
+    created_by_id: _Optional[str] = None
+    created_by_name: _Optional[str] = None
+    created_at: _Optional[_datetime] = None

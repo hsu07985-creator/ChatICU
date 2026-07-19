@@ -13,6 +13,7 @@ from app.models.error_report import ErrorReport
 from app.models.user import User
 from app.schemas.admin import ErrorReportCreate, ErrorReportUpdate
 from app.utils.request import get_client_ip
+from app.schemas.pharmacy import ErrorReportResponse
 from app.utils.response import escape_like, success_response
 
 router = APIRouter(tags=["pharmacy"])
@@ -20,22 +21,8 @@ logger = logging.getLogger(__name__)
 
 
 def report_to_dict(r: ErrorReport) -> dict:
-    return {
-        "id": r.id,
-        "patientId": r.patient_id,
-        "reporterId": r.reporter_id,
-        "reporterName": r.reporter_name,
-        "reporterRole": r.reporter_role,
-        "errorType": r.error_type,
-        "severity": r.severity,
-        "medicationName": r.medication_name,
-        "description": r.description,
-        "actionTaken": r.action_taken,
-        "status": r.status,
-        "reviewedBy": r.reviewed_by,
-        "resolution": r.resolution,
-        "timestamp": r.timestamp.isoformat() if r.timestamp else None,
-    }
+    """B2 batch 4: schema-backed."""
+    return ErrorReportResponse.model_validate(r).dump_camel()
 
 
 @router.get("/error-reports")

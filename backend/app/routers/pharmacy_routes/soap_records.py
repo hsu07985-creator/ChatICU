@@ -24,27 +24,17 @@ from app.models.pharmacy_soap_record import PharmacySoapRecord
 from app.models.user import User
 from app.schemas.pharmacy_soap import PharmacySoapRecordCreate
 from app.utils.request import get_client_ip
+from app.schemas.pharmacy import PharmacySoapRecordResponse
 from app.utils.response import success_response
 
 router = APIRouter(tags=["pharmacy"])
 
 
 def _soap_to_dict(record: PharmacySoapRecord, patient_name: Optional[str] = None) -> dict:
-    return {
-        "id": record.id,
-        "patientId": record.patient_id,
-        "patientName": patient_name,
-        "bedNumber": record.bed_number,
-        "pharmacistId": record.pharmacist_id,
-        "pharmacistName": record.pharmacist_name,
-        "subjective": record.subjective or "",
-        "objective": record.objective or "",
-        "assessment": record.assessment or "",
-        "plan": record.plan or "",
-        "polishedContent": record.polished_content or "",
-        "createdAt": record.created_at.isoformat() if record.created_at else None,
-        "updatedAt": record.updated_at.isoformat() if record.updated_at else None,
-    }
+    """B2 batch 4: schema-backed."""
+    d = PharmacySoapRecordResponse.model_validate(record).dump_camel()
+    d["patientName"] = patient_name
+    return d
 
 
 def _parse_month_range(month: str) -> Tuple[datetime, datetime]:

@@ -12,6 +12,7 @@ from app.models.pharmacy_favorite import PharmacyCompatibilityFavorite
 from app.models.user import User
 from app.schemas.pharmacy import CompatibilityFavoriteCreate
 from app.utils.request import get_client_ip
+from app.schemas.pharmacy import CompatibilityFavoriteResponse
 from app.utils.response import success_response
 
 router = APIRouter(tags=["pharmacy"])
@@ -36,13 +37,8 @@ def _make_pair_key(drug_a: str, drug_b: str, solution: str) -> Tuple[str, str, s
 
 
 def favorite_to_dict(f: PharmacyCompatibilityFavorite) -> dict:
-    return {
-        "id": f.id,
-        "drugA": f.drug_a,
-        "drugB": f.drug_b,
-        "solution": f.solution,
-        "createdAt": f.created_at.isoformat() if f.created_at else None,
-    }
+    """B2 batch 4: schema-backed."""
+    return CompatibilityFavoriteResponse.model_validate(f).dump_camel()
 
 
 @router.get("/compatibility-favorites")
