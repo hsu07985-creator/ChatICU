@@ -15,21 +15,15 @@ from app.models.patient import Patient
 from app.models.user import User
 from app.utils.patient_access import normalize_patient_id, verify_patient_access
 from app.schemas.scores import ScoreCreate
+from app.schemas.scores import ClinicalScoreResponse
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/patients/{patient_id}/scores", tags=["scores"])
 
 
 def score_to_dict(s: ClinicalScore) -> dict:
-    return {
-        "id": s.id,
-        "patientId": s.patient_id,
-        "scoreType": s.score_type,
-        "value": s.value,
-        "timestamp": s.timestamp.isoformat() if s.timestamp else None,
-        "recordedBy": s.recorded_by,
-        "notes": s.notes,
-    }
+    """B2 batch 2: schema is the single source of the field mapping."""
+    return ClinicalScoreResponse.model_validate(s).dump_camel()
 
 
 def _resolve_patient_id(patient_id: str) -> Optional[str]:

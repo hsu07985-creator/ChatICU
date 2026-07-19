@@ -16,6 +16,7 @@ from app.models.lab_data import LabData
 from app.models.vital_sign import VitalSign
 from app.models.user import User
 from app.models.patient import Patient
+from app.schemas.lab_data import LabDataResponse
 from app.utils.patient_access import normalize_patient_id, verify_patient_access
 from app.schemas.lab_data import LabCorrectionRequest
 from app.utils.response import success_response
@@ -34,23 +35,8 @@ class WeightRecord:
 
 
 def lab_to_dict(lab: LabData) -> dict:
-    return {
-        "id": lab.id,
-        "patientId": lab.patient_id,
-        "timestamp": lab.timestamp.isoformat() if lab.timestamp else None,
-        "biochemistry": lab.biochemistry,
-        "hematology": lab.hematology,
-        "bloodGas": lab.blood_gas,
-        "venousBloodGas": lab.venous_blood_gas or {},
-        "inflammatory": lab.inflammatory,
-        "coagulation": lab.coagulation,
-        "cardiac": lab.cardiac,
-        "thyroid": lab.thyroid,
-        "hormone": lab.hormone,
-        "lipid": lab.lipid,
-        "other": lab.other,
-        "corrections": lab.corrections,
-    }
+    """B2 batch 2: schema is the single source of the field mapping."""
+    return LabDataResponse.model_validate(lab).dump_camel()
 
 
 _CATEGORY_COLS = [

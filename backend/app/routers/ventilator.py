@@ -14,6 +14,7 @@ from app.middleware.audit import create_audit_log
 from app.models.ventilator import VentilatorSetting, WeaningAssessment
 from app.models.user import User
 from app.models.patient import Patient
+from app.schemas.ventilator import VentilatorSettingResponse, WeaningAssessmentResponse
 from app.utils.patient_access import normalize_patient_id, verify_patient_access
 from app.utils.response import success_response
 
@@ -36,45 +37,12 @@ router = APIRouter(prefix="/patients/{patient_id}/ventilator", tags=["ventilator
 
 
 def vent_to_dict(v: VentilatorSetting) -> dict:
-    return {
-        "id": v.id,
-        "patientId": v.patient_id,
-        "timestamp": v.timestamp.isoformat() if v.timestamp else None,
-        "mode": v.mode,
-        "fio2": v.fio2,
-        "peep": v.peep,
-        "tidalVolume": v.tidal_volume,
-        "respiratoryRate": v.respiratory_rate,
-        "inspiratoryPressure": v.inspiratory_pressure,
-        "pressureSupport": v.pressure_support,
-        "ieRatio": v.ie_ratio,
-        "pip": v.pip,
-        "plateau": v.plateau,
-        "compliance": v.compliance,
-        "resistance": v.resistance,
-    }
+    """B2 batch 2: schema is the single source of the field mapping."""
+    return VentilatorSettingResponse.model_validate(v).dump_camel()
 
 
 def weaning_to_dict(w: WeaningAssessment) -> dict:
-    return {
-        "id": w.id,
-        "patientId": w.patient_id,
-        "timestamp": w.timestamp.isoformat() if w.timestamp else None,
-        "rsbi": w.rsbi,
-        "nif": w.nif,
-        "vt": w.vt,
-        "rr": w.rr,
-        "spo2": w.spo2,
-        "fio2": w.fio2,
-        "peep": w.peep,
-        "gcs": w.gcs,
-        "coughStrength": w.cough_strength,
-        "secretions": w.secretions,
-        "hemodynamicStability": w.hemodynamic_stability,
-        "recommendation": w.recommendation,
-        "readinessScore": w.readiness_score,
-        "assessedBy": w.assessed_by,
-    }
+    return WeaningAssessmentResponse.model_validate(w).dump_camel()
 
 
 @router.get("/latest")

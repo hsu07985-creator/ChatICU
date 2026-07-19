@@ -9,6 +9,7 @@ from app.middleware.auth import get_current_user
 from app.models.diagnostic_report import DiagnosticReport
 from app.models.patient import Patient
 from app.models.user import User
+from app.schemas.diagnostic_report import DiagnosticReportResponse
 from app.utils.patient_access import normalize_patient_id, verify_patient_access
 from app.utils.response import success_response
 
@@ -16,17 +17,8 @@ router = APIRouter(prefix="/patients/{patient_id}/diagnostic-reports", tags=["di
 
 
 def report_to_dict(r: DiagnosticReport) -> dict:
-    return {
-        "id": r.id,
-        "patientId": r.patient_id,
-        "reportType": r.report_type,
-        "examName": r.exam_name,
-        "examDate": r.exam_date.isoformat() if r.exam_date else None,
-        "bodyText": r.body_text,
-        "impression": r.impression,
-        "reporterName": r.reporter_name,
-        "status": r.status,
-    }
+    """B2 batch 2: schema is the single source of the field mapping."""
+    return DiagnosticReportResponse.model_validate(r).dump_camel()
 
 
 @router.get("")

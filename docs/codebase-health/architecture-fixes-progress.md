@@ -56,7 +56,7 @@ citation-fabrication 與 user-assertion-conflict 稽核寫入用 `status='detect
 ## 遺留追蹤(不阻塞)
 
 - **A2 待使用者**:Railway 環境變數 `ALERT_WEBHOOK_URL` 填入 Slack/Discord webhook,severe-error 告警才會真的送出(程式路徑已存在且可用)。
-- **B2 批次**:23 個 `*_to_dict` 依「改到哪遷到哪」逐批轉 CamelModel。
+- **B2 批次**:~~23 個~~ **剩 18 個** `*_to_dict` 待轉(2026-07-20 batch 2 完成 score/vent/weaning/report/lab 五個,加 vital 共 6/24;lab 的 corrections list 型別由回歸測試抓到,證明遷移護欄有效)。
 - **B3 後續**:authz Depends 化(動全部 patient-route 簽名)、ai_chat SSE 編排下沉。
 - **D1 後續**:實際把 6 個凍結頁拆成 page package(拆一個就從 ratchet 表移除一個)。
 - **C5**:staging 決策。

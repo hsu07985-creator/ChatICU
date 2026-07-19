@@ -15,3 +15,19 @@ class ScoreCreate(BaseModel):
         if self.score_type == "rass" and not (-5 <= self.value <= 4):
             raise ValueError("RASS score must be -5 to +4")
         return self
+
+
+from datetime import datetime as _datetime
+from typing import Optional as _Optional
+
+from app.schemas.base import CamelModel as _CamelModel
+
+
+class ClinicalScoreResponse(_CamelModel):
+    id: str
+    patient_id: str
+    score_type: _Optional[str] = None
+    value: _Optional[int] = None
+    timestamp: _Optional[_datetime] = None
+    recorded_by: _Optional[str] = None
+    notes: _Optional[str] = None
