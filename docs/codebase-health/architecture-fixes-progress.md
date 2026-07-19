@@ -25,6 +25,17 @@
 | D3 | 舊 sync script 硬停用(僅剩 --dry-run);`import_his_patients.py` 預設 dry-run、寫入需 `--execute` | P3 | ✅ | 併入 A1 commit |
 | D4 | flake8 gate 擴及 `backend/scripts/` + `seeds/`(E9/F63/F7/F82,擴前驗證 0 error)。knip/ts-prune 未引入(C1 主死碼已刪,新增依賴留待需要時);前端 unit test 為獨立決策項 | P3 | ✅(主體) | 併入 D1 commit |
 
+## 2026-07-19 深夜:全功能 UI 走測(本機拋棄式棧)
+
+以 Playwright 對本機完整棧(pgvector 容器 + seeds + uvicorn + vite)逐頁走測全部頁面與按鈕互動:
+登入、dashboard 編輯儲存、病人詳情 6 tab、團隊訊息發送、AI 串流、7 個藥事頁(含 PAD 計算數學驗證、IV 矩陣)、
+3 個 admin 頁、出院頁、深色/英文切換、登出;稽核 log 記錄到每個操作。**抓到並修復 3 條**
+(`fix/ui-walkthrough-hotfixes`):
+
+1. **P0** `getAllPatients` limit=200 超過後端 le=100 → 422,B1 後病人列表全掛(既有地雷被 B1 引爆)→ 改真分頁
+2. **P0** B5 迴歸:`refresh` closure 不穩定 → 開通知鈴鐺觸發無限 invalidate 風暴(數百請求直到瀏覽器資源耗盡)→ useCallback
+3. cosmetic:IV 矩陣 legend div-in-p 巢狀警告 → span
+
 ## 遺留追蹤(不阻塞)
 
 - **A2 待使用者**:Railway 環境變數 `ALERT_WEBHOOK_URL` 填入 Slack/Discord webhook,severe-error 告警才會真的送出(程式路徑已存在且可用)。
