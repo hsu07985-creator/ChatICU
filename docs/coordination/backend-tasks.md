@@ -114,7 +114,8 @@
 
 ---
 
-### B13 [TODO] Add LLM-based Stage 2 intent classifier (gpt-4o-mini)
+### B13 [CLOSED-SUPERSEDED] Add LLM-based Stage 2 intent classifier (gpt-4o-mini)
+- **Closed:** 2026-07-20 — 依賴的 B01 Stage-1 classifier(intent_classifier.py)從未建置;意圖偵測已由 B09 keyword prefetch(2026-07-10 上線)以另一路徑解決且 eval 全綠。規格中的 gpt-4o-mini 亦已過時。**重開條件**:觀察期資料顯示 prefetch keyword miss 率高到需要 LLM 分類時,以 LLM_LIGHT_MODEL 重新規格。
 - **Added by:** architecture plan
 - **Date:** 2026-03-02
 - **Priority:** P2

@@ -155,7 +155,8 @@
 - **API schema:** `citations: [{source_system, text_snippet, evidence_grade, relevance_score}]`
 - **References:** architecture plan §6.2
 
-### F03 [TODO] Add confidence indicator to clinical AI responses
+### F03 [CLOSED-STALE] Add confidence indicator to clinical AI responses
+- **Closed:** 2026-07-20 — 綁定的 B05/B06 orchestrator confidence scoring 屬已刪除的 RAG 架構,現行管線沒有可校準的信心分數;臨床端顯示編造的信心指標比不顯示更危險。誠實的子集(guardrail 旗標)已由 F04 於 2026-07-20 落地。**重開條件**:未來有真實校準信號(如 logprob 基礎或 eval 統計)時重新規格。
 - **Added by:** architecture plan (G7 gap — single global threshold)
 - **Date:** 2026-03-02
 - **Priority:** P2
@@ -199,7 +200,8 @@
   - Display `sources_used[]` as small badges (e.g., "指引", "藥品DB", "交互作用圖")
 - **References:** architecture plan §3.1
 
-### F06 [TODO] Update patient education display to show source citations
+### F06 [CLOSED-STALE] Update patient education display to show source citations
+- **Closed:** 2026-07-20 — `/clinical/explanation` 端點已隨 RAG 移除不存在(clinical.py 現存路由僅 summary/polish/interactions);病人衛教功能本身已不在現行產品面。
 - **Added by:** architecture plan (G4 gap — education is LLM-only, no citations)
 - **Date:** 2026-03-02
 - **Priority:** P2
@@ -309,7 +311,8 @@
 
 ### Phase 3-4 — Safety UI + Polish
 
-### F07 [TODO] Add drug comparison feature to pharmacy workstation
+### F07 [CLOSED-STALE] Add drug comparison feature to pharmacy workstation
+- **Closed:** 2026-07-20 — 依賴 B07 unified query + Qdrant 藥品 monograph(皆屬已刪除架構)。**重開條件**:若仍要此功能,需以現行 drug-library 資料重新規格(新任務,非本單)。
 - **Added by:** architecture plan
 - **Date:** 2026-03-02
 - **Priority:** P2
@@ -323,7 +326,8 @@
   - Data comes from Source B (Qdrant drug monographs)
 - **References:** architecture plan §1.4 row "藥物比較"
 
-### F08 [TODO] Add IV compatibility quick-check to medication tab
+### F08 [CLOSED-SUPERSEDED] Add IV compatibility quick-check to medication tab
+- **Closed:** 2026-07-20 — `IvCompatibilityChecker` 曾實際掛在用藥 tab,**2026-04-02(本單開立之後)由 commit 7e4450b8f 刻意移除**;藥事側欄「用藥相容」頁已提供病人模式(自動帶入 IV 用藥 + 矩陣)。不自行推翻該產品決策。**重開條件**:使用者明示要在 tab 內恢復——元件完整保留於 `src/components/patient/iv-compatibility-checker.tsx`,重掛一行 import 即可。
 - **Added by:** architecture plan
 - **Date:** 2026-03-02
 - **Priority:** P2
@@ -357,7 +361,8 @@
   - Use `graphMeta.hasRiskX` to conditionally show an amber "requires expert review" banner
 - **References:** architecture plan §3.2, inventory report §4.4
 
-### F10 [TODO] Add multi-source search loading states
+### F10 [CLOSED-STALE] Add multi-source search loading states
+- **Closed:** 2026-07-20 — B05 orchestrator 多源進度屬已刪除架構;現行 SSE 已有 heartbeat + thinking 狀態顯示。
 - **Added by:** architecture plan
 - **Date:** 2026-03-02
 - **Priority:** P2
@@ -427,7 +432,8 @@
   - `rg "codingSource" src/` should show every consumer aligning to one of the 7 literals above.
   - Manually sanity-check the patient medications tab and pharmacy duplicates page render the same as before (no visual regressions) — this is a type-only change, so runtime behaviour should be identical.
 
-### F17 [TODO] Archive remaining files in `src/hooks/` per restructure plan
+### F17 [CLOSED-STALE] Archive remaining files in `src/hooks/` per restructure plan
+- **Closed:** 2026-07-20 — 2026-07-10 repo 重整後 `src/hooks/` 為**正式保留目錄**(結構契約 docs/repo-structure.md),hooks 全數在用(react-query 資料層即住此);`verify_restructure.sh` T08 已改寫為 Batch 1-5 完整性檢查且全綠。原任務前提不復存在。
 - **Added by:** backend session (Step 5 verify_restructure cleanup)
 - **Date:** 2026-04-14
 - **Priority:** P2 (tech debt / restructure gate)
