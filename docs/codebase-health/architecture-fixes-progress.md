@@ -2,8 +2,10 @@
 
 > 配對稽核文件:[`architecture-audit-2026-07-19.md`](architecture-audit-2026-07-19.md)(完整證據與修法)
 > 狀態:🔲 未動工 · 🔧 進行中 · ✅ 完成 · ⏸ 擱置(附原因)
-> **2026-07-19 晚間:一次工作階段內完成 16/18 條**,每條獨立 commit、feature branch + merge,
-> 全程 pytest 836 passed / tsc 0 error / vite build 綠燈。
+>
+> **2026-07-20 收束:全部工程項完成。** 18 條稽核 + 後續(B2/B3 尾巴、D1 六頁、AI 優化、
+> F02/F04/F19、佇列清理)皆已 commit + 部署 + 驗證。純遺留 = 使用者決策項 + 日曆項(見文末)。
+> 每項獨立 commit、pytest/tsc/build/eval 綠燈、Vercel/Railway 部署後 curl 驗證。
 
 | # | 條目 | 等級 | 狀態 | Commit / 備註 |
 |---|------|------|------|----------------|
@@ -53,11 +55,17 @@ citation-fabrication 與 user-assertion-conflict 稽核寫入用 `status='detect
 對照 model constraint)。live 驗證兩種稽核列都落地,且 svc-1 學名否定偵測實測命中
 (「沒有在用 vancomycin」→ conflict row)。觀察期時鐘實質從 2026-07-19 重新起算。
 
-## 遺留追蹤(不阻塞)
+## 完成存檔(2026-07-20)
 
-- **A2 待使用者**:Railway 環境變數 `ALERT_WEBHOOK_URL` 填入 Slack/Discord webhook,severe-error 告警才會真的送出(程式路徑已存在且可用)。
-- **B2 批次**:✅ **實質完成(20/21)**。batch 4(2026-07-20)收掉 ai_chat session/message、administration、custom-tag、symptom、pharmacy 六件(advice/favorite/error/compat/interaction/soap)。**唯一刻意保留手刻**:`patient_to_dict`——計算欄最密(插管/氣切推導、vent days、hasDNR 非標準別名、參數化日期),schema 化收益薄風險高;新 endpoint 慣例照舊走 CamelModel。
-- **B3 後續**:✅ **Depends 化完成(2026-07-20)**——`app/dependencies.py::get_accessible_patient` 取代 13 處手刻 fetch+404+verify(10 個 router);scores.py 的 layer2 fallback 為唯一documented例外;靜態守衛測試禁止 imperative 樣式回流。**SSE 下沉亦完成(2026-07-20)**:`stream_chat_events` → `services/ai_chat/stream_orchestrator.py`、summary/polish 生成器 → `services/clinical_stream.py`;ai_chat.py 1050→793 行、clinical.py 568→407 行,Request 僅作資料依賴。live eval 7/7 驗證。**B3 全部完成。**
-- **D1 後續**:6 個凍結頁已拆 1(chat.tsx,2026-07-20 live 驗證發送流一致);**6 頁全部處理**(chat/interactions/workstation/patients/ai-chat 已降至 900 以下;patient-detail 1576→1359,抽 `patient-detail-types.ts` + `PatientDetailHeader` 元件並 live 冒煙驗證 header/tabs/AI 串流)。
-  **patient-detail 刻意不強拆到 900**:剩餘 bulk 是 ~360 行 AI chat 串流狀態機(捕獲 ~20 個 state setter),即記憶 [[chat-hooks-retired]] 明示「刻意 inline、勿天真重抽」者;頁面已遠低於 ratchet 上限(現收緊 1600→1360 鎖住改善)。強拆風險 > 收益,依 keep-inline 決策不做。(附帶發現:tsconfig 無 noUnusedLocals + eslint no-unused-vars off,兩者都不抓孤兒 import——前三頁殘留已清並補進 gate。)
-- **C5**:staging 決策。
+- **B2 序列化統一** ✅ 20/21 serializer 轉 CamelModel(batch 1-4)。唯一保留手刻:`patient_to_dict`(計算欄最密:插管/氣切推導、vent days、hasDNR 非標準別名、參數化日期),schema 化收益薄風險高;新 endpoint 仍走 CamelModel。med 有黃金 parity 測試護欄。
+- **B3 authz + SSE** ✅ `app/dependencies.py::get_accessible_patient` dependency 取代 13 處 imperative authz(靜態守衛測試防回流;scores.py layer2 fallback 唯一 documented 例外);SSE 生成器下沉 `services/ai_chat/stream_orchestrator.py` + `services/clinical_stream.py`(ai_chat 1050→793、clinical 568→407,Request 僅作資料依賴),live eval 7/7。
+- **D1 頁面拆分** ✅ 6/6 頁:chat/interactions/workstation/patients/ai-chat 皆 <900;patient-detail 1576→1359(抽 types + `PatientDetailHeader`,live 冒煙驗證 header/tabs/AI 串流)。**patient-detail 刻意不強拆到 900**——剩餘 bulk 是 ~360 行 AI chat 串流狀態機([[chat-hooks-retired]] 的 keep-inline),ratchet ceiling 收緊 1600→1360。**副產品**:發現 tsconfig 無 noUnusedLocals + eslint no-unused-vars off = 兩者都不抓未用 import;寫 `scripts/ops/check_orphan_imports.py`、全庫清 73 孤兒、接 CI 雙 gate(page-size + orphan)。
+- **AI 優化 #1-#4 / F02·F04·F19 / 佇列清理**:見 [`../ai-chat/ai-optimization-research-2026-07-19.md`](../ai-chat/ai-optimization-research-2026-07-19.md) 與 `docs/coordination/*-tasks.md`(7 條殭屍規格已結案)。
+
+## 純遺留:需使用者決策 / 日曆(工程端無可代勞)
+
+- **A2 webhook(使用者)**:Railway 環境變數 `ALERT_WEBHOOK_URL` 填 Slack/Discord webhook,severe-error 告警才會實際送出(程式路徑已就緒)。**價值密度最高。**
+- **origin remote(使用者)**:`origin`(ZymoMed/ChatICU_YU)落後 main 70+ commits——同步還是廢棄?擇一並寫進 CLAUDE.md 避免混淆(部署只走 personal→Railway、railway→Vercel)。
+- **C5 staging(使用者)**:是否開第二套 Railway/Supabase 環境(費用決策)。
+- **F08(使用者)**:IV 快速檢查是否恢復到用藥 tab——元件 `iv-compatibility-checker.tsx` 完整保留,一行 import 重掛即可(2026-04-02 曾被刻意移除)。
+- **~07/24 觀察期回看(日曆)**:F4 tool-loop 決策(prod MISS_LIKELY 樣本;判準見 AI 研究筆記)+ 查核 `dismissed_aliases` 別名判定品質(audit_logs 自 2026-07-19 才真正累積)。
