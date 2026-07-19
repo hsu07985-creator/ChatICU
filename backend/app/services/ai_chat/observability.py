@@ -271,7 +271,7 @@ async def run_citation_audit(
                     role=current_user.role,
                     action="ai_chat_citation_fabrication_suspected",
                     target=patient_id,
-                    status="detected",
+                    status="degraded",
                     ip=get_client_ip(request),
                     details={
                         "session_id": session_id,
@@ -371,7 +371,7 @@ async def detect_and_inject_assertion_conflict(
                 role=current_user.role,
                 action="ai_chat_user_assertion_conflict",
                 target=patient_id,
-                status="detected",
+                status="degraded",
                 ip=get_client_ip(request),
                 details={
                     "session_id": session_id,
