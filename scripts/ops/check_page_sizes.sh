@@ -15,7 +15,6 @@ RATCHET=(
   "src/pages/pharmacy/workstation.tsx=1100"
   "src/pages/ai-chat.tsx=950"
   "src/pages/patients.tsx=940"
-  "src/pages/pharmacy/interactions.tsx=925"
 )
 
 limit_for() {
