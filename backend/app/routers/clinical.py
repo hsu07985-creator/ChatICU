@@ -200,6 +200,7 @@ async def clinical_summary_stream(
     async def event_stream():
         full_content = ""
         usage_meta: Dict[str, Any] = {}
+        stream_model: str = settings.LLM_MODEL
         stream_failed = False
         client_disconnected = False
         # P1-C5: error frames carry trace_id so support can cross-reference
@@ -232,6 +233,7 @@ async def clinical_summary_stream(
                     try:
                         meta = json.loads(chunk)
                         usage_meta = meta.get("usage", {}) or {}
+                        stream_model = meta.get("model") or stream_model
                     except Exception:
                         pass
                     break
@@ -257,7 +259,7 @@ async def clinical_summary_stream(
             "patient_id": req.patient_id,
             "summary": guardrail["content"],
             "summary_structured": structured,
-            "metadata": {"model": settings.LLM_MODEL, "usage": usage_meta},
+            "metadata": {"model": stream_model, "usage": usage_meta},
             "safetyWarnings": guardrail["warnings"] if guardrail["flagged"] else None,
             "dataFreshness": data_freshness,
             # P1-C5: surface trace ids in done payload too so the toast can
@@ -337,6 +339,7 @@ async def polish_clinical_text(
         is_pharmacist=is_pharmacist,
         raw_content=raw_content,
         usage_meta=(result.get("metadata") or {}).get("usage", {}) or {},
+        model=(result.get("metadata") or {}).get("model"),
         user_role=user.role,
         data_freshness=data_freshness,
     )
@@ -425,6 +428,7 @@ async def polish_clinical_text_stream(
         nonlocal section_emitted_len
         full_content = ""
         usage_meta: Dict[str, Any] = {}
+        stream_model: str = settings.LLM_MODEL
         stream_failed = False
         client_disconnected = False
 
@@ -457,6 +461,7 @@ async def polish_clinical_text_stream(
                     try:
                         meta = json.loads(chunk)
                         usage_meta = meta.get("usage", {}) or {}
+                        stream_model = meta.get("model") or stream_model
                     except Exception:
                         pass
                     break
@@ -494,6 +499,7 @@ async def polish_clinical_text_stream(
             is_pharmacist=is_pharmacist,
             raw_content=full_content,
             usage_meta=usage_meta,
+            model=stream_model,
             user_role=user.role,
             data_freshness=data_freshness,
         )

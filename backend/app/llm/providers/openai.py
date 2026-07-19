@@ -36,7 +36,7 @@ def _single_turn_messages(input_data: Any) -> List[dict]:
     return [{"role": "user", "content": json.dumps(input_data, ensure_ascii=False, default=str)}]
 
 
-def _log_cache_stats(task: str, usage) -> tuple[int, int]:
+def _log_cache_stats(task: str, usage, model: str = "") -> tuple[int, int]:
     cached_tokens = 0
     details = getattr(usage, "prompt_tokens_details", None)
     if details is not None:
@@ -44,8 +44,9 @@ def _log_cache_stats(task: str, usage) -> tuple[int, int]:
     prompt_tokens = usage.prompt_tokens
     if prompt_tokens:
         logger.info(
-            "[LLM][CACHE] task=%s prompt_tokens=%d cached_tokens=%d hit_ratio=%.0f%% completion_tokens=%d",
+            "[LLM][CACHE] task=%s model=%s prompt_tokens=%d cached_tokens=%d hit_ratio=%.0f%% completion_tokens=%d",
             task,
+            model,
             prompt_tokens,
             cached_tokens,
             (cached_tokens / prompt_tokens * 100),
@@ -106,7 +107,7 @@ def _openai_chat(
     content = response.choices[0].message.content or ""
     if not content.strip():
         return {"status": "error", "content": "Model returned empty response (reasoning token budget may be too low)", "metadata": {}}
-    prompt_tokens, cached_tokens = _log_cache_stats(task, response.usage)
+    prompt_tokens, cached_tokens = _log_cache_stats(task, response.usage, effective_model)
     return {
         "status": "success",
         "content": content,

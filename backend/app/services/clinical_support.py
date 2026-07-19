@@ -282,6 +282,7 @@ def _build_polish_response_data(
     usage_meta: Dict[str, Any],
     user_role: Optional[str],
     data_freshness: Any,
+    model: Optional[str] = None,
 ):
     """Shared post-LLM processing: guardrail + JSON parse + response shape."""
     guardrail = apply_safety_guardrail(raw_content, user_role=user_role, include_disclaimer=False)
@@ -301,7 +302,8 @@ def _build_polish_response_data(
                 "requiresExpertReview": sectioned["flagged"],
             }
 
-    metadata: Dict[str, Any] = {"model": settings.LLM_MODEL, "usage": usage_meta}
+    # AI-OPT #1:回報實際使用的模型(task 可能被路由到輕模型),勿硬編預設
+    metadata: Dict[str, Any] = {"model": model or settings.LLM_MODEL, "usage": usage_meta}
     if parse_ok is not None:
         metadata["parse_ok"] = parse_ok
 

@@ -37,3 +37,4 @@
 | `backfill_orphan_advice.py` | 孤兒 advice 記錄回填（一次性） |
 | `run_seed_repair.py` | seed 修復（一次性） |
 | `probe_ai_chat_context.py` | AI chat context 探測（除錯用） |
+| `eval_ai_regression.py` | AI 迴歸 eval(evals/ai_regression_cases.yaml;模型升級/prompt 改動前必跑,需本機棧) |
