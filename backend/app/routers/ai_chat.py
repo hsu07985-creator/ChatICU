@@ -64,6 +64,8 @@ from app.services.ai_chat.prompt_assembly import (  # noqa: F401
     _maybe_inject_question_prefetch_into_user_message,
     _maybe_inject_assertion_conflict_into_user_message,
 )
+from app.services.citation_audit import extract_citations
+from app.services.safety_guardrail import apply_safety_guardrail
 from app.services.ai_chat.sse import (  # noqa: F401
     _with_heartbeat,
     _web_annotations_to_citations,
@@ -110,6 +112,40 @@ class ChatRequest(BaseModel):
 class MessageFeedbackRequest(BaseModel):
     # "up" / "down" / null. Pydantic accepts None → clears feedback.
     feedback: Optional[str] = Field(None, description="'up', 'down', or null to clear")
+
+
+# ── F02/F19 done-payload helpers ──────────────────────────────────────────────
+
+def _snapshot_source_citations(full_reply: str) -> list:
+    """F02:把回覆內的快照段落引用(【用藥】(依【用藥】)等)轉成前端
+    Citation 形狀,type='patient-data'。與 web citation 併列於「參考來源」。"""
+    out = []
+    for i, c in enumerate(extract_citations(full_reply or "")):
+        section = (c.get("section") or "").strip()
+        if not section:
+            continue
+        snippet = (c.get("content") or "").strip()[:160]
+        out.append({
+            "id": f"snap-{i}",
+            "type": "patient-data",
+            "title": f"【{section}】",
+            "source": "病人資料快照",
+            "relevance": 1.0,
+            "snippet": snippet or None,
+        })
+    return out
+
+
+def _graph_meta_from_prefetch(prefetch_meta: Optional[dict]) -> Optional[dict]:
+    """F19:B09 prefetch 已算好的 interaction findings → GraphMeta。
+    無資料回 None(前端不渲染 badge 區)。"""
+    refs = (prefetch_meta or {}).get("interactionRefs") or []
+    if not refs:
+        return None
+    return {
+        "interactions": refs,
+        "has_risk_x": any((r.get("risk") or "").upper() == "X" for r in refs),
+    }
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -305,6 +341,18 @@ async def _event_stream(
                 cache_ratio, prompt_tokens, cached_tokens, session_id,
             )
 
+    # F04:post-stream guardrail(純 regex,便宜)。內容已原樣串流給前端,
+    # 這裡只取旗標/警語,不回寫 content。
+    guardrail = apply_safety_guardrail(
+        full_reply,
+        user_role=getattr(current_user, "role", None),
+        include_disclaimer=False,
+    )
+
+    # F02:來源歸因 = web-search 引註 + 回覆中的快照段落引用(【用藥】等)。
+    citations = _web_annotations_to_citations(web_annotations, full_reply)
+    citations.extend(_snapshot_source_citations(full_reply))
+
     # Persist assistant reply only (user message was already committed by
     # chat_stream before the generator started, see W1-T3).
     assistant_msg_id = f"msg_{uuid.uuid4().hex[:16]}"
@@ -314,6 +362,7 @@ async def _event_stream(
             session_id=session_id,
             role="assistant",
             content=full_reply,
+            citations=citations or None,
             token_count=token_count or None,
         ))
         try:
@@ -362,14 +411,15 @@ async def _event_stream(
             "content": main_content,
             "timestamp": now_iso,
             "explanation": detail,
-            "citations": _web_annotations_to_citations(web_annotations, full_reply),
-            "safetyWarnings": None,
-            "requiresExpertReview": False,
+            "citations": citations,
+            "safetyWarnings": guardrail["warnings"] if guardrail["flagged"] else None,
+            "requiresExpertReview": bool(guardrail["requiresExpertReview"]),
             "degraded": False,
             "degradedReason": None,
             "upstreamStatus": None,
             "dataFreshness": None,
-            "graphMeta": None,
+            # F19:B09 prefetch 的 findings 餵 DrugInteractionBadges(live-only)
+            "graphMeta": _graph_meta_from_prefetch(prefetch_meta),
         },
         "sessionId": session_id,
         "prefetchRefs": prefetch_meta or {},

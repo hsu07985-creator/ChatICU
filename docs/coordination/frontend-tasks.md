@@ -139,7 +139,8 @@
   - `requires_prior_auth: true` → show a red "需事前審查" badge on the rule card
 - **References:** architecture plan §1.3 G3, §1.4 row "健保給付", api-contracts.md B08 section
 
-### F02 [TODO] Display source attribution / citations in AI response cards
+### F02 [DONE] Display source attribution / citations in AI response cards
+- **Completed:** 2026-07-20 — 前端 references 區塊(ChatMessageThread)自 Wave 4 即存在但被餓死;實作改為**後端供料**:done payload `citations` = web-search 引註 + 回覆內快照段落引用(`_snapshot_source_citations`,type='patient-data'),並持久化到 `AIMessage.citations`(reload 保留)。原規格的 B11 orchestrator schema 已死,按現行管線落地。eval `expect_citations` 釘住。
 - **Added by:** architecture plan (G6 gap — no source attribution)
 - **Date:** 2026-03-02
 - **Priority:** P1
@@ -168,7 +169,8 @@
   - Per-intent display: dose/IV answers show stricter messaging
 - **References:** architecture plan §6.3, §7.3
 
-### F04 [TODO] Add "requires expert review" warning banner
+### F04 [DONE] Add "requires expert review" warning banner
+- **Completed:** 2026-07-20 — `ExpertReviewWarning` 元件早已接好但 done payload 硬編 False;現在 post-stream 跑 `apply_safety_guardrail`(純 regex)填 `requiresExpertReview` + `safetyWarnings`。順帶修 guardrail 單位清單漏 `U/units/單位`(heparin 5000U 類劑量句原本永不觸發)。live 驗證 heparin 劑量問題 → banner 旗標 true。live-only(不持久化,同 F3 慣例)。
 - **Added by:** architecture plan
 - **Date:** 2026-03-02
 - **Priority:** P1
@@ -533,7 +535,8 @@
   3. Re-clicking the same button on already-polished content (idempotency) → textarea content should remain stable, not degrade.
 - **References:** backend eval report `backend/tests/evals/reports/20260417T044720Z.md` (12/12 PASS) — golden outputs for visual comparison during manual verification.
 
-### F19 [TODO] AI chat interaction badges (follow-up to backend B09)
+### F19 [DONE] AI chat interaction badges (follow-up to backend B09)
+- **Completed:** 2026-07-20 — 不建新 chips:`DrugInteractionBadges` 元件與 `msg.graphMeta` 渲染路徑既存(六月 ddi-1 指出其餓死)。後端 B09 prefetch 的 findings 以 GraphMeta 形狀外送(`interactionRefs` → done payload `graphMeta`,risk 取 DB risk_rating、缺席時 severity 保守對映 X/D/C/B),live-only。eval `expect_graph_meta` 釘住。
 - **Added by:** backend session
 - **Date:** 2026-07-10
 - **Priority:** P3 (nice-to-have — LLM already surfaces the warnings in reply text with ⚠️)

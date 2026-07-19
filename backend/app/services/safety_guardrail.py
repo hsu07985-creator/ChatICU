@@ -74,8 +74,10 @@ def apply_safety_guardrail(
     for med in HIGH_ALERT_MEDICATIONS:
         if med.lower() in content_lower:
             # Check if there's a numeric dosage near the mention
+            # F04(2026-07-20):補 U/units/單位 —— heparin/insulin 劑量慣用
+            # 「5000U」「6 單位」,原清單漏掉導致高警訊劑量句永不觸發。
             pattern = re.compile(
-                re.escape(med) + r"[^.]{0,60}\d+\s*(?:mg|mcg|ml|unit|mEq|g|IU)",
+                re.escape(med) + r"[^.]{0,60}\d+\s*(?:mg|mcg|ml|units?|mEq|g|IU|U|單位)\b",
                 re.IGNORECASE,
             )
             if pattern.search(content):

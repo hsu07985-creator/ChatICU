@@ -595,6 +595,12 @@ async def build_question_prefetch_with_metadata(
                     # query keeps this flat, so the cap is just a guardrail.
                     max_drugs=30,
                 )
+                # F19:同一份 findings 以 GraphMeta 形狀外送前端 badge
+                #(上限 8,與 LLM block 顯示數一致)。live-only,不落 DB。
+                metadata["interactionRefs"] = [
+                    _finding_to_interaction_ref(f)
+                    for f in checked["findings"][:8]
+                ]
                 blocks.append(
                     format_drug_interaction_context(
                         checked["findings"],
@@ -666,6 +672,24 @@ async def build_question_prefetch_with_metadata(
 
 
 _SEVERITY_ORDER = {"contraindicated": 0, "major": 1, "moderate": 2, "minor": 3}
+
+# F19:DB risk_rating 缺席時由 severity 推 Lexicomp 風險級的保守對映
+_SEVERITY_TO_RISK = {"contraindicated": "X", "major": "D", "moderate": "C", "minor": "B"}
+
+
+def _finding_to_interaction_ref(f: Dict[str, Any]) -> Dict[str, Any]:
+    """Trim one interaction finding to the frontend GraphMeta badge shape."""
+    severity = str(f.get("severity", "")).lower()
+    risk = (f.get("risk_rating") or "").strip().upper() or _SEVERITY_TO_RISK.get(severity, "")
+    title = (f.get("clinical_effect") or f.get("mechanism") or "").strip()[:80]
+    return {
+        "drug_a": f.get("drug_a", ""),
+        "drug_b": f.get("drug_b", ""),
+        "risk": risk,
+        "title": title,
+        "severity": f.get("severity"),
+    }
+
 
 
 def format_drug_interaction_context(

@@ -68,7 +68,12 @@ def _execute(client: httpx.Client, case: dict):
         }, timeout)
         msg = (done or {}).get("message", {})
         full = (msg.get("content") or "") + "\n" + (msg.get("explanation") or "") or text
-        fields = {"explanation": msg.get("explanation")}
+        fields = {
+            "explanation": msg.get("explanation"),
+            "citations": msg.get("citations"),
+            "requiresExpertReview": msg.get("requiresExpertReview"),
+            "graphMeta": msg.get("graphMeta"),
+        }
     elif ctype == "summary":
         text, done, err = _run_sse(client, BASE + "/api/v1/clinical/summary/stream", {
             "patient_id": case["patient_id"],
@@ -132,6 +137,10 @@ def _assert_case(case: dict, full: str, fields: dict, elapsed: float, err):
         failures.append("expected polished_sections (SOAP JSON parse), got none")
     if a.get("expect_explanation") is True and not fields.get("explanation"):
         failures.append("expected explanation (B14 split), got none")
+    if a.get("expect_citations") and not fields.get("citations"):
+        failures.append("expected non-empty citations (F02), got none")
+    if a.get("expect_graph_meta") and not (fields.get("graphMeta") or {}).get("interactions"):
+        failures.append("expected graphMeta.interactions (F19), got none")
     return failures
 
 

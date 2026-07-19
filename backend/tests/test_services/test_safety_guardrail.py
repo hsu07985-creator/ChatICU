@@ -53,3 +53,20 @@ def test_non_pharmacist_role_uses_default_warning():
     result = apply_safety_guardrail(content, user_role="doctor")
     assert result["flagged"] is True
     assert any("藥師/醫師雙重確認" in w for w in result["warnings"])
+
+
+# ── F04 (2026-07-20): U / units / 單位 dose-unit coverage ─────────────────────
+
+def test_high_alert_flags_bare_U_unit():
+    r = apply_safety_guardrail("建議 Heparin 5000U q8h SC 續用", include_disclaimer=False)
+    assert r["flagged"] is True and r["requiresExpertReview"] is True
+
+
+def test_high_alert_flags_chinese_unit():
+    r = apply_safety_guardrail("Insulin 調整為 6 單位 tid ac", include_disclaimer=False)
+    assert r["flagged"] is True
+
+
+def test_high_alert_without_dose_not_flagged():
+    r = apply_safety_guardrail("Heparin 治療中,無劑量變更", include_disclaimer=False)
+    assert r["flagged"] is False

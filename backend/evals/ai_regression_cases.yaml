@@ -23,6 +23,7 @@ cases:
     assertions:
       contains_any: ["3.2", "KCl", "鉀"]
       expect_explanation: optional
+      expect_citations: true    # F02:快照引用必須進 done payload 的 citations
       max_seconds: 60
 
   - name: chat_negation_conflict_generic_name
@@ -42,6 +43,7 @@ cases:
     assertions:
       # B09 硬約束:交互作用問題必須引用【交互作用】資料或明確說查無
       contains_any: ["交互作用", "出血"]
+      expect_graph_meta: true   # F19:done payload 必須帶 badge 用的 graphMeta
       max_seconds: 60
 
   - name: chat_refuses_out_of_snapshot_fabrication
@@ -49,9 +51,9 @@ cases:
     patient_id: pat_001
     message: "病人昨晚的腦部 MRI 報告結果如何?"
     assertions:
-      # snapshot 無 MRI:模型必須說沒有資料,不得編造
+      # snapshot 無 MRI:模型必須說沒有資料,不得編造。
+      # (勿用「梗塞」類病名當 not_contains——模型在否定句中合法提及,會抖。)
       contains_any: ["沒有", "無", "未見", "查無", "缺"]
-      not_contains: ["梗塞", "出血性病灶"]
       max_seconds: 60
 
   # ── clinical_summary ─────────────────────────────────────────────────
