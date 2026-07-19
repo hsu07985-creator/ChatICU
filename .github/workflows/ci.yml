@@ -101,7 +101,9 @@ jobs:
 
       - name: Lint with flake8
         run: |
-          flake8 app/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          # D4: scripts/ and seeds/ are gated too — the A1-class bug
+          # (automation running a wrong/broken script) lived outside app/
+          flake8 app/ scripts/ seeds/ --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 app/ --count --max-line-length=120 --statistics --exit-zero
 
   security-scan:
@@ -245,6 +247,9 @@ jobs:
             echo "[INTG][CI] risky non-null assertion detected (response.data.data!)"
             exit 1
           fi
+
+      - name: Page-size ratchet gate (D1)
+        run: bash scripts/ops/check_page_sizes.sh
 
       - name: Check for orphaned imports in src/imports/
         run: |
