@@ -251,6 +251,9 @@ jobs:
       - name: Page-size ratchet gate (D1)
         run: bash scripts/ops/check_page_sizes.sh
 
+      - name: Orphan named-import gate (D1)
+        run: python3 scripts/ops/check_orphan_imports.py
+
       - name: Check for orphaned imports in src/imports/
         run: |
           set -euo pipefail

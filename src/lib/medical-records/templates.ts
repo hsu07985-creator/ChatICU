@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { FileText, Pill, ClipboardList } from 'lucide-react';
-import { EMPTY_SOAP, type SoapDraft } from '../../components/pharmacist-soap-editor';
+import { type SoapDraft } from '../../components/pharmacist-soap-editor';
 import type { RecordType } from './draft-storage';
 
 export type { RecordType };

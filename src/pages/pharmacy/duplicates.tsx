@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle2, Copy, Loader2, Plus, User, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Alert, AlertDescription } from '../../components/ui/alert';
@@ -10,13 +10,7 @@ import { Separator } from '../../components/ui/separator';
 import { DrugCombobox } from '../../components/ui/drug-combobox';
 import { DRUG_LIST } from '../../lib/drug-list';
 import { MedicationDuplicateBadges } from '../../components/patient/medication-duplicate-badges';
-import {
-  checkDuplicateMedications,
-  getMedications,
-  type DuplicateAlert,
-  type DuplicateCheckResolved,
-  type Medication,
-} from '../../lib/api/medications';
+import { checkDuplicateMedications, getMedications, type DuplicateAlert, type DuplicateCheckResolved, type Medication } from '../../lib/api/medications';
 import { selectPharmacyReviewMeds } from '../../lib/medication-scope';
 import { type Patient } from '../../lib/api/patients';
 import { maskPatientName } from '../../lib/utils/patient-name';

@@ -2,48 +2,17 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n/config';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
-import { getUsers, createUser, updateUser as updateUserApi, deleteUser as deleteUserApi, UsersResponse, User as ApiUser } from '../../lib/api/admin';
+import { getUsers, createUser, updateUser as updateUserApi, deleteUser as deleteUserApi, UsersResponse } from '../../lib/api/admin';
 import { useAuth } from '../../lib/auth-context';
 import { Button } from '../../components/ui/button';
 import { ButtonLoadingIndicator } from '../../components/ui/button-loading-indicator';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../components/ui/select';
-import { 
-  UserCog, 
-  Plus, 
-  Edit2, 
-  Trash2, 
-  Shield,
-  ShieldCheck,
-  ShieldAlert,
-  Lock,
-  Unlock,
-  Search
-} from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { UserCog, Plus, Edit2, Trash2, Shield, ShieldCheck, ShieldAlert, Lock, Unlock, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '../../lib/api-client';
 

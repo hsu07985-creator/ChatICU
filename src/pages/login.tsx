@@ -6,7 +6,6 @@ import { useAuth } from '../lib/auth-context';
 import { getAllPatients } from '../lib/api/patients';
 import { queryClient } from '../lib/query-client';
 import { PATIENT_LIST_KEY } from '../lib/patient-data-sync';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Label } from '../components/ui/label';

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -16,21 +16,9 @@ import { usePatientList } from '../hooks/use-patient-list';
 import type { DashboardStats } from '../lib/api/dashboard';
 import { useDashboardStats } from '../hooks/use-dashboard';
 import { patchSharedPatientList, refreshSharedPatientDataAfterMutation } from '../lib/patient-data-sync';
-import {
-  triggerHisSync,
-  isHisSyncAvailable,
-  type HisSyncMode,
-  type HisSyncResult,
-} from '../lib/api/admin-his-sync';
+import { triggerHisSync, isHisSyncAvailable, type HisSyncMode, type HisSyncResult } from '../lib/api/admin-his-sync';
 import { toast } from 'sonner';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Switch } from '../components/ui/switch';
 import { getAirwayStatusLabel } from '../lib/patient-airway';
 import { useAuth } from '../lib/auth-context';

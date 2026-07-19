@@ -14,24 +14,8 @@ import { FileText, User, Tag, Pill, CheckCircle2, XCircle, ChevronLeft, ChevronR
 import { toast } from 'sonner';
 import { maskPatientName } from '../../lib/utils/patient-name';
 import { useAuth } from '../../lib/auth-context';
-import {
-  getAdviceRecords,
-  createAdviceRecord,
-  updateAdviceRecord,
-  deleteAdviceRecord,
-  getAdviceTagStats,
-  getPharmacySoapRecords,
-  type PharmacyAdviceRecord,
-  type PharmacySoapRecord,
-  type TagStatItem,
-} from '../../lib/api/pharmacy';
-import { type Patient } from '../../lib/api/patients';
-import {
-  PHARMACY_ADVICE_CATEGORIES,
-  PHARMACY_ADVICE_CATEGORY_COLORS,
-  getAdviceCategoryColor,
-  getAdviceCategoryKeyByLabel as masterGetCategoryKeyByLabel,
-} from '../../lib/pharmacy-master-data';
+import { getAdviceRecords, createAdviceRecord, updateAdviceRecord, deleteAdviceRecord, getAdviceTagStats, getPharmacySoapRecords, type PharmacyAdviceRecord, type PharmacySoapRecord, type TagStatItem } from '../../lib/api/pharmacy';
+import { PHARMACY_ADVICE_CATEGORIES, PHARMACY_ADVICE_CATEGORY_COLORS, getAdviceCategoryColor, getAdviceCategoryKeyByLabel as masterGetCategoryKeyByLabel } from '../../lib/pharmacy-master-data';
 import { computeAdviceStats } from '../../lib/pharmacy/advice-stats';
 import { AdviceRecordForm } from '../../components/pharmacy/advice-record-form';
 import { AdviceCharts } from '../../components/pharmacy/advice-charts';

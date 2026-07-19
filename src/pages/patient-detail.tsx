@@ -1,5 +1,4 @@
 // Patient detail page
-import { VitalSignCard } from '../components/vital-signs-card';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 // Lazy-load recharts-backed trend chart (H4: keep 411 KB charts-*.js off the critical path)
@@ -27,97 +26,24 @@ const PatientSummaryTab = lazy(() =>
 );
 import { useParams, useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
-import {
-  streamChatMessage,
-  extractStreamMainContent,
-  splitMainAndDetail,
-  getChatSessions as fetchChatSessionsApi,
-  getChatSession as fetchChatSessionApi,
-  refreshChatSessionSnapshot,
-  updateChatSessionTitle,
-  updateMessageFeedback,
-  deleteChatSession,
-  type AdviceRef,
-  type ChatResponse,
-  type Citation as AiCitation,
-  type DataFreshness,
-} from '../lib/api/ai';
-import { patientsApi, medicationsApi, messagesApi, ventilatorApi, type Patient, type LabData, type Medication, type PatientMessage, type VitalSigns, type VentilatorSettings, type WeaningAssessment } from '../lib/api';
-import { copyToClipboard } from '../lib/clipboard-utils';
-import {
-  formatAiDegradedReason,
-  getDisplayFreshnessHints,
-  formatCitationPageText,
-  compactSnippet,
-  formatSnapshotValue,
-  formatDisplayValue,
-  formatDisplayTimestamp,
-  formatMedicationRegimen,
-  deriveMedicationGroups,
-  type MedicationGroups,
-} from '../lib/patient-detail-format';
+import { streamChatMessage, extractStreamMainContent, splitMainAndDetail, getChatSessions as fetchChatSessionsApi, getChatSession as fetchChatSessionApi, refreshChatSessionSnapshot, updateChatSessionTitle, updateMessageFeedback, deleteChatSession, type AdviceRef, type ChatResponse, type Citation as AiCitation, type DataFreshness } from '../lib/api/ai';
+import { patientsApi, medicationsApi, messagesApi, ventilatorApi, type Patient, type LabData, type PatientMessage, type VitalSigns, type VentilatorSettings, type WeaningAssessment } from '../lib/api';
+import { formatAiDegradedReason, getDisplayFreshnessHints, formatCitationPageText, compactSnippet, formatSnapshotValue, formatDisplayValue, formatDisplayTimestamp, formatMedicationRegimen, deriveMedicationGroups, type MedicationGroups } from '../lib/patient-detail-format';
 import { maskPatientName } from '../lib/utils/patient-name';
 import { useAuth } from '../lib/auth-context';
 import { usePatientScores } from '../hooks/use-patient-scores';
 import { useTrendChart, type TrendSource } from '../hooks/use-trend-chart';
 import { refreshSharedPatientDataAfterMutation } from '../lib/patient-data-sync';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { ButtonLoadingIndicator } from '../components/ui/button-loading-indicator';
 import { Badge } from '../components/ui/badge';
-import { Separator } from '../components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Textarea } from '../components/ui/textarea';
-import { ScrollArea } from '../components/ui/scroll-area';
-import { Alert, AlertDescription } from '../components/ui/alert';
 import { toast } from 'sonner';
-import { LoadingSpinner, ErrorDisplay, EmptyState } from '../components/ui/state-display';
-import { AiMarkdown, SafetyWarnings } from '../components/ui/ai-markdown';
-import { LabDataSkeleton, MedicationsSkeleton, MessageListSkeleton } from '../components/ui/skeletons';
+import { LoadingSpinner, ErrorDisplay } from '../components/ui/state-display';
 import { PatientEditDialog } from '../components/patient/dialogs/patient-edit-dialog';
 import { PatientChatTab } from '../components/patient/patient-chat-tab';
 import { respondToAdvice } from '../lib/api/pharmacy';
-import {
-  ArrowLeft,
-  Calendar,
-  User,
-  Heart,
-  Droplet,
-  Wind,
-  TrendingUp,
-  MessageSquare,
-  MessagesSquare,
-  Pill,
-  Activity,
-  TestTube,
-  FileText,
-  AlertCircle,
-  Clock,
-  Send,
-  Copy,
-  Download,
-  CheckCircle2,
-  XCircle,
-  Shield,
-  Syringe,
-  Brain,
-  Stethoscope,
-  Info,
-  RefreshCw,
-  Plus,
-  Save,
-  History,
-  BookOpen,
-  Trash2,
-  ChevronDown,
-  ChevronUp,
-  ChevronRight,
-  ArrowDown,
-  ThumbsUp,
-  ThumbsDown,
-  AlertTriangle
-} from 'lucide-react';
-import { LabDataDisplay } from '../components/lab-data-display';
+import { ArrowLeft, Droplet, MessageSquare, MessagesSquare, Pill, TestTube, FileText, AlertCircle, Clock, Shield, AlertTriangle } from 'lucide-react';
 import chatBotAvatar from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 import { getAirwayStatusLabel } from '../lib/patient-airway';
 import { useTranslation } from 'react-i18next';

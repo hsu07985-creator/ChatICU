@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../..
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Badge } from '../../components/ui/badge';
 import { LoadingSpinner, ErrorDisplay, EmptyState } from '../../components/ui/state-display';
-import { BarChart3, TrendingUp, Tag, User as UserIcon, CircleDot, CheckCircle2, XCircle } from 'lucide-react';
+import { BarChart3, TrendingUp, Tag, User as UserIcon, CircleDot } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
 import { getAdviceRecordStats, type AdviceRecordStats } from '../../lib/api/pharmacy';
 import { PHARMACY_ADVICE_CATEGORIES, getAdviceCategoryColor } from '../../lib/pharmacy-master-data';

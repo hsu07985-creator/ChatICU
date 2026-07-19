@@ -1,19 +1,9 @@
 import type { RefObject } from 'react';
 import { toast } from 'sonner';
-import {
-  ArrowDown,
-  BookOpen,
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  Copy,
-  MessageSquare,
-  ThumbsDown,
-  ThumbsUp,
-} from 'lucide-react';
+import { ArrowDown, BookOpen, ChevronDown, ChevronRight, Clock, Copy, MessageSquare, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { AiMarkdown, SafetyWarnings } from '../ui/ai-markdown';
 import { copyToClipboard } from '../../lib/clipboard-utils';
-import type { Citation as AiCitation, DataFreshness } from '../../lib/api/ai';
+import type { Citation as AiCitation } from '../../lib/api/ai';
 import type { SessionChatMessage } from '../../lib/api/ai';
 import { AdviceRefChips } from '../ai-chat/advice-ref-chips';
 import { DrugInteractionBadges } from './drug-interaction-badges';

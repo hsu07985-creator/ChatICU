@@ -14,17 +14,10 @@ import { MessageListSkeleton } from '../ui/skeletons';
 import { Separator } from '../ui/separator';
 import { TabsContent } from '../ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Textarea } from '../ui/textarea';
 import { groupMessagesByWeek } from '../../pages/patient-detail-utils';
 import { useTranslation } from 'react-i18next';
 import { useRoleLabel } from '../../lib/utils/user-role';
-import {
-  CATEGORY_COLORS,
-  PharmacyTagSelector,
-  TagSelector,
-  type CustomTagInfo,
-  type PharmacyTagCategory,
-} from './message-tag-selectors';
+import { CATEGORY_COLORS, PharmacyTagSelector, TagSelector, type CustomTagInfo, type PharmacyTagCategory } from './message-tag-selectors';
 
 interface PatientMessagesTabProps {
   patientId?: string;

@@ -1,6 +1,5 @@
 import { Skeleton } from './skeleton';
 import { Card, CardContent, CardHeader } from './card';
-import { cn } from './utils';
 
 // ========== 病人列表 Skeleton ==========
 

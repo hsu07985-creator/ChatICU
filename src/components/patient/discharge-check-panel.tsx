@@ -1,11 +1,5 @@
 import { AlertTriangle, CheckCircle2, ClipboardCheck, Loader2, Pill } from 'lucide-react';
-import {
-  getDischargeCheck,
-  type DischargeCheckResponse,
-  type DischargeMissedCategory,
-  type DischargeMissedDiscontinuation,
-  type DischargeMissedSeverity,
-} from '../../lib/api/discharge';
+import { getDischargeCheck, type DischargeCheckResponse, type DischargeMissedSeverity } from '../../lib/api/discharge';
 import { useApiQuery } from '../../hooks/use-api-query';
 import { Badge } from '../ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';

@@ -7,13 +7,7 @@ import { getLatestLabData, type LabData as ApiLabData } from '../../lib/api/lab-
 import { getLatestVitalSigns, type VitalSigns as ApiVitalSigns } from '../../lib/api/vital-signs';
 import { polishClinicalText } from '../../lib/api/ai';
 import { createAdviceRecord } from '../../lib/api/pharmacy';
-import {
-  getMedications,
-  fetchPharmacyDuplicateSummary,
-  getMedicationDuplicates,
-  type DuplicateAlert,
-  type DuplicateSeverityCounts,
-} from '../../lib/api/medications';
+import { getMedications, fetchPharmacyDuplicateSummary, type DuplicateSeverityCounts } from '../../lib/api/medications';
 import { useApiQuery } from '../../hooks/use-api-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -27,24 +21,8 @@ import { AssessmentResultsPanel } from './workstation/assessment-results-panel';
 import { PharmacyReportView } from './workstation/pharmacy-report-view';
 import { AdviceSubmitDialog } from './workstation/advice-submit-dialog';
 import { runComprehensiveAssessment } from './workstation/run-assessment';
-import {
-  adviceCategories,
-  type AssessmentResults,
-  type CompatibilitySummary,
-  type DosageResult,
-  type DrugInteraction,
-  type DuplicateSummary,
-  type ExpandedSections,
-  type ExtendedPatientData,
-  type IVCompatibility,
-} from './workstation/types';
-import {
-  Plus,
-  X,
-  Info,
-  Pill,
-  User,
-} from 'lucide-react';
+import { adviceCategories, type AssessmentResults, type ExtendedPatientData } from './workstation/types';
+import { Plus, X, Info, Pill, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePatientList } from '../../hooks/use-patient-list';
 

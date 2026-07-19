@@ -1,44 +1,16 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import {
-  listRecordTemplates,
-  createRecordTemplate,
-  updateRecordTemplate,
-  deleteRecordTemplate,
-  type RecordTemplate,
-  type RecordTemplateType,
-} from '../lib/api/record-templates';
+import { listRecordTemplates, createRecordTemplate, updateRecordTemplate, deleteRecordTemplate, type RecordTemplate, type RecordTemplateType } from '../lib/api/record-templates';
 import type { LabData } from '../lib/api/lab-data';
 import type { Medication } from '../lib/api/medications';
 import { copyToClipboard } from '../lib/clipboard-utils';
 import { useAuth } from '../lib/auth-context';
-import {
-  PharmacistSoapEditor,
-  EMPTY_SOAP,
-  type SoapDraft,
-} from './pharmacist-soap-editor';
+import { PharmacistSoapEditor, EMPTY_SOAP, type SoapDraft } from './pharmacist-soap-editor';
 import { Button } from './ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from './ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n/config';
-import {
-  RECORD_TYPES,
-  useRecordTypeConfig,
-  BUILTIN_TEMPLATES,
-  PHARMACIST_SOAP_TEMPLATE_NAME,
-  isSoapTemplate,
-  flattenSoapTemplate,
-  type RecordType,
-  type TemplateContent,
-} from '../lib/medical-records/templates';
-import { EMPTY_DRAFTS } from '../lib/medical-records/draft-storage';
+import { RECORD_TYPES, useRecordTypeConfig, BUILTIN_TEMPLATES, PHARMACIST_SOAP_TEMPLATE_NAME, isSoapTemplate, flattenSoapTemplate, type RecordType, type TemplateContent } from '../lib/medical-records/templates';
 import { useDrafts } from './medical-records/use-drafts';
 import { useClinicalPolish } from './medical-records/use-clinical-polish';
 import { TemplatePopover } from './medical-records/template-popover';
