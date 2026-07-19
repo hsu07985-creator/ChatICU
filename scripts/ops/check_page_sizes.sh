@@ -11,7 +11,7 @@ DEFAULT_MAX=900
 
 # path=frozen-ceiling(現值 + 極小 buffer)
 RATCHET=(
-  "src/pages/patient-detail.tsx=1600"
+  "src/pages/patient-detail.tsx=1360"
 )
 
 limit_for() {
