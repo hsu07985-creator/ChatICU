@@ -26,8 +26,10 @@ const STATUS_CONFIG: Record<CompatStatus, { labelKey: string; short: string; col
 
 export function CompatibilityMatrixLegend() {
   const { t } = useTranslation('pharmacy');
+  // span root: 這個 legend 會被放進 CardDescription(<p>)內,div 會觸發
+  // validateDOMNesting 警告(p 不能包 div)。
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+    <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
       <span className="inline-flex items-center gap-1">
         <span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-700">C</span>
         {t('matrix.legend.compatible')}
@@ -40,7 +42,7 @@ export function CompatibilityMatrixLegend() {
         <span className="inline-block w-5 h-5 rounded text-center text-xs font-bold leading-5 bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-slate-700">-</span>
         {t('matrix.legend.noPair')}
       </span>
-    </div>
+    </span>
   );
 }
 

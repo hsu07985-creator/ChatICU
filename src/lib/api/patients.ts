@@ -89,10 +89,17 @@ export async function getPatients(filters: PatientFilters = {}): Promise<Patient
   return ensureData(response.data, 'API contract');
 }
 
-// 取得所有病人（無分頁）
+// 取得所有病人（自動翻頁;後端 limit 上限 100,patients.py Query le=100)
 export async function getAllPatients(filters: PatientFilters = {}): Promise<Patient[]> {
-  const resp = await getPatients({ ...filters, limit: 200 });
-  return resp.patients;
+  const limit = 100;
+  const first = await getPatients({ ...filters, page: 1, limit });
+  const all = [...first.patients];
+  const totalPages = first.pagination?.totalPages ?? 1;
+  for (let page = 2; page <= totalPages; page += 1) {
+    const next = await getPatients({ ...filters, page, limit });
+    all.push(...next.patients);
+  }
+  return all;
 }
 
 // 取得單一病人詳情

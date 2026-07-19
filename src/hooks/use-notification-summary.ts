@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../lib/query-keys';
 import { getNotificationSummary, type NotificationSummary } from '../lib/api/notifications';
@@ -31,11 +32,15 @@ export function useNotificationSummary(enabled: boolean): UseNotificationSummary
     retry: 0,
   });
 
+  // 穩定 identity:notification-bell 的 effect 依賴 refresh —— inline arrow
+  // 會在每次 render 重建 → effect 重跑 → invalidate → re-render 無限迴圈。
+  const refresh = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.summary() });
+  }, [queryClient]);
+
   return {
     summary: query.data ?? null,
     loading: query.isFetching,
-    refresh: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.summary() });
-    },
+    refresh,
   };
 }
