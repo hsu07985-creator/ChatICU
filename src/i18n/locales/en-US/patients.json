@@ -109,6 +109,7 @@
   "edit": {
     "title": "Edit Patient",
     "description": "Update the patient information and save.",
+    "hisSyncNote": "Most fields sync automatically from HIS every hour; manual edits to them may be overwritten at the next sync. Fields HIS does not provide keep their manual values.",
     "labels": {
       "bed": "Bed",
       "name": "Name",

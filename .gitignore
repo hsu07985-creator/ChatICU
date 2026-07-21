@@ -47,8 +47,9 @@ local/
 
 # HIS patient snapshots — real PHI (特種個資: names, ID numbers, addresses,
 # medical data). Fixed local path the HIS sync depends on; MUST NEVER be
-# committed/pushed. See patient/資料使用手冊.md.
-patient/
+# committed/pushed. See patient/資料使用手冊.md. Leading slash anchors to repo
+# root so it does NOT also ignore src/components/patient/.
+/patient/
 security_report.json
 .mcp.json
 .env.development

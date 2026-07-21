@@ -103,6 +103,12 @@ export function PatientEditDialog({
           </DialogTitle>
           <DialogDescription>{t('patients:edit.description')}</DialogDescription>
         </DialogHeader>
+        <div
+          role="note"
+          className="rounded-md border border-border/70 bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+        >
+          {t('patients:edit.hisSyncNote')}
+        </div>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="bedNumber" className="text-right">{t('patients:edit.labels.bed')}</Label>
