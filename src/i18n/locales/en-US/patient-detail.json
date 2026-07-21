@@ -13,7 +13,9 @@
     "diagnosisLabel": "Diagnosis:",
     "diagnosisPending": "Pending",
     "saveSuccess": "Patient updated",
-    "saveError": "Update failed. Please try again later."
+    "saveError": "Update failed. Please try again later.",
+    "leftUnitBadge": "Left ICU?",
+    "leftUnitTooltip": "This patient is absent from the latest ICU roster and may have been transferred or discharged. Confirm and run the discharge flow."
   },
   "state": {
     "loadingPatient": "Loading patient data...",

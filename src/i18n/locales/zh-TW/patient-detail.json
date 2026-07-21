@@ -13,7 +13,9 @@
     "diagnosisLabel": "診斷：",
     "diagnosisPending": "待確認",
     "saveSuccess": "病人資料已更新",
-    "saveError": "更新失敗，請稍後再試"
+    "saveError": "更新失敗，請稍後再試",
+    "leftUnitBadge": "已離開 ICU？",
+    "leftUnitTooltip": "此病人未出現在最新的 ICU 在院名冊，可能已轉出／出院。請確認後走出院流程。"
   },
   "state": {
     "loadingPatient": "載入病人資料中...",

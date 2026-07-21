@@ -68,7 +68,9 @@
     "allergyTooltip": "過敏藥品明細：{{items}}",
     "allergyDetailsTitle": "過敏藥品明細",
     "lastUpdatePrefix": "最後更新：",
-    "editButtonTitle": "編輯病患資料"
+    "editButtonTitle": "編輯病患資料",
+    "leftUnitBadge": "已離開 ICU？",
+    "leftUnitTooltip": "此病人未出現在最新的 ICU 在院名冊，可能已轉出／出院。請確認後走出院流程。"
   },
   "edit": {
     "title": "編輯病患資料",
