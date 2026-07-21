@@ -11,7 +11,7 @@ import { Search, AlertCircle, AlertTriangle, Pencil, ZoomIn, ZoomOut, RefreshCw,
 import { maskPatientName } from '../lib/utils/patient-name';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
-import { Patient, updatePatient } from '../lib/api/patients';
+import { Patient, updatePatient, archivePatient } from '../lib/api/patients';
 import { usePatientList } from '../hooks/use-patient-list';
 import type { DashboardStats } from '../lib/api/dashboard';
 import { useDashboardStats } from '../hooks/use-dashboard';
@@ -23,6 +23,7 @@ import { Switch } from '../components/ui/switch';
 import { getAirwayStatusLabel } from '../lib/patient-airway';
 import { useAuth } from '../lib/auth-context';
 import { canEditPatientProfile } from '../lib/permissions';
+import { PatientArchiveDialog, type ArchivePayload } from '../components/patient/dialogs/patient-archive-dialog';
 
 // 編輯表單的數據類型
 interface EditFormData {
@@ -65,6 +66,10 @@ export function DashboardPage() {
     allergies: '',
   });
   const [saving, setSaving] = useState(false);
+  // 「確認出院」對話框（重用列表頁的 per-row soft-discharge 流程）
+  const [dischargeDialogOpen, setDischargeDialogOpen] = useState(false);
+  const [dischargeTargetId, setDischargeTargetId] = useState('');
+  const [dischargingArchiveId, setDischargingArchiveId] = useState('');
   const { data: stats } = useDashboardStats();
 
   // Manual HIS sync state — see docs/his-sync-end-to-end-tutorial.md §11
@@ -153,6 +158,37 @@ export function DashboardPage() {
       toast.error(t('edit.saveFailed'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleOpenDischarge = (e: React.MouseEvent, patient: Patient) => {
+    e.stopPropagation();  // don't navigate to detail
+    setDischargeTargetId(patient.id);
+    setDischargeDialogOpen(true);
+  };
+
+  const handleConfirmDischarge = async (payload: ArchivePayload) => {
+    if (!payload.patientId) return;
+    const target = patients.find((p) => p.id === payload.patientId);
+    const label = target ? `${target.bedNumber} ${maskPatientName(target.name)}` : payload.patientId;
+    setDischargingArchiveId(payload.patientId);
+    try {
+      await archivePatient(payload.patientId, {
+        archived: true,
+        dischargeType: payload.dischargeType,
+        dischargeDate: payload.dischargeDate,
+        reason: payload.reason,
+      });
+      toast.success(t('patients:archive.successToast', { label }));
+      setDischargeDialogOpen(false);
+      setDischargeTargetId('');
+      await refreshSharedPatientDataAfterMutation();
+    } catch (err: unknown) {
+      console.error('discharge failed:', err);
+      const errMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(errMsg || t('patients:archive.errorToast'));
+    } finally {
+      setDischargingArchiveId('');
     }
   };
 
@@ -518,12 +554,24 @@ export function DashboardPage() {
                   <CardContent className="flex flex-col flex-1 space-y-3">
                     {/* 0. 已離開 ICU 旗標（census：不在最新在院名冊 → 待人工確認出院） */}
                     {patient.leftUnit && (
-                      <div
-                        className="flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                        title={t('card.leftUnitTooltip')}
-                      >
-                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                        {t('card.leftUnitBadge')}
+                      <div className="flex items-center justify-between gap-2 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 dark:border-amber-700 dark:bg-amber-950/40">
+                        <span
+                          className="flex items-center gap-1.5 text-xs font-medium text-amber-800 dark:text-amber-300"
+                          title={t('card.leftUnitTooltip')}
+                        >
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                          {t('card.leftUnitBadge')}
+                        </span>
+                        {canEditPatients && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 shrink-0 px-2 text-xs text-amber-800 hover:bg-amber-100 hover:text-amber-900 dark:text-amber-300 dark:hover:bg-amber-900/40"
+                            onClick={(e) => handleOpenDischarge(e, patient)}
+                          >
+                            {t('card.leftUnitConfirmDischarge')}
+                          </Button>
+                        )}
                       </div>
                     )}
                     {/* 3. 入院診斷（固定 3 行） */}
@@ -762,6 +810,23 @@ export function DashboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 確認出院對話框（per-row soft discharge，重用列表頁流程） */}
+      <PatientArchiveDialog
+        open={dischargeDialogOpen}
+        archivingPatient={!!dischargingArchiveId}
+        archiveTargetId={dischargeTargetId}
+        patients={patients}
+        onOpenChange={(open) => {
+          if (!open && !dischargingArchiveId) {
+            setDischargeDialogOpen(false);
+            setDischargeTargetId('');
+          }
+        }}
+        onArchiveTargetChange={setDischargeTargetId}
+        onConfirmArchive={handleConfirmDischarge}
+        lockTarget
+      />
     </div>
   );
 }

@@ -100,7 +100,8 @@ return str(self.pat_no) not in pat_nos            # True=離開 False=在院
 | Backend merge | `fhir/snapshot_sync.py` | `left_unit` None→保留 / bool→覆蓋 / new→False | ✅ |
 | Backend API | `routers/patients.py:patient_to_dict` | 加 `leftUnit` | ✅ |
 | Test | `tests/test_fhir/test_left_unit_census.py` | 7 條（在院/離開/小名冊/merge×4）＋全 test_fhir 121 綠 | ✅ |
-| Frontend | `dashboard.tsx`、`patient-detail-header.tsx` | `leftUnit` → 警示 badge +「確認出院」按鈕接既有 archive dialog | ⬜ 待做 |
+| Frontend badge | `dashboard.tsx`、`patient-detail-header.tsx` | `leftUnit` → 琥珀警示 badge（i18n 中/英） | ✅ |
+| Frontend 確認出院 | `dashboard.tsx` | 板卡片「確認出院」按鈕 → 重用 `PatientArchiveDialog`（lockTarget）+ `archivePatient` | ✅ tsc/build/orphan 綠 |
 | 部署 | — | 後端 push `personal`(Railway)（含 migration 081）；前端 push `railway`(Vercel) | ⬜ |
 | Prod 驗證 | — | 跑一次 sync 後，DB 查 `SELECT id,name,bed_number,left_unit FROM patients WHERE left_unit` 應含邱〇陽 | ⬜ |
 
