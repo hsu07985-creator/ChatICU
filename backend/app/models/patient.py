@@ -53,6 +53,10 @@ class Patient(Base):
     is_isolated: Mapped[bool] = mapped_column(Boolean, default=False)
     archived: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Census flag: patient's MRN absent from the latest getICUbed roster = left the
+    # ICU (transfer/discharge), distinct from `archived` (death). Shown as a badge for
+    # human confirm; NOT used to hide. See docs/his-sync/census-left-unit-detection-design-2026-07-21.md
+    left_unit: Mapped[bool] = mapped_column(Boolean, default=False)
     discharge_type: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     discharge_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     discharge_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

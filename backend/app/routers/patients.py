@@ -143,6 +143,7 @@ def patient_to_dict(
         "lastUpdate": (patient.last_update or patient.updated_at).isoformat() if (patient.last_update or patient.updated_at) else None,
         "archived": bool(patient.archived),
         "archivedAt": patient.archived_at.isoformat() if patient.archived_at else None,
+        "leftUnit": bool(patient.left_unit),  # census: absent from latest ICU roster (transfer/discharge)
         "dischargeType": patient.discharge_type,
         "dischargeDate": patient.discharge_date.isoformat() if patient.discharge_date else None,
         "dischargeReason": patient.discharge_reason,

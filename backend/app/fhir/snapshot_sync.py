@@ -231,9 +231,20 @@ def _is_meaningful(field: str, value: Any) -> bool:
 def merge_patient_payload(existing: dict[str, Any] | None, incoming: dict[str, Any]) -> dict[str, Any]:
     """Merge HIS-derived patient payload with an existing DB patient row."""
     if existing is None:
-        return dict(incoming)
+        new = dict(incoming)
+        # left_unit is NOT NULL in the DB; a roster-less first sync yields None → default False.
+        if new.get("left_unit") is None:
+            new["left_unit"] = False
+        return new
 
     merged = dict(existing)
+
+    # left_unit (census flag): overwrite only when the roster was trusted
+    # (converter emits None when getICUbed is empty/too small → keep existing).
+    # A plain bool can't ride PRESERVE_EXISTING because _is_meaningful treats
+    # False as "empty", which would stop the flag from ever clearing.
+    if incoming.get("left_unit") is not None:
+        merged["left_unit"] = incoming["left_unit"]
 
     for field in HIS_OWNED_FIELDS:
         if field in incoming:

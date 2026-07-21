@@ -1,6 +1,6 @@
 # ICU 在院名冊偵測 — 「已離開 ICU」自動旗標設計
 
-> 建立：2026-07-21 ｜ 域：his-sync ｜ 狀態：**設計已定案、尚未實作**
+> 建立：2026-07-21 ｜ 域：his-sync ｜ 狀態：**後端已實作+測試綠（未部署），前端 badge 待做**
 > 觸發：病人板顯示 `邱〇陽`（床 `CW29`、住院 300 天）等**已轉出 ICU 卻仍賴在板上**的人。
 > 決策：**旗標 + 人工確認**（PM 2026-07-21 拍板），不自動隱藏。
 
@@ -44,40 +44,44 @@
 **為何不自動隱藏**：名冊單次抖動/殘缺就把還在的病人弄不見 = 病安「漏掉病人」風險。
 自動隱藏（含寬限期版）留作未來選項，`census_last_seen_at` 欄已為它預留（見 §7）。
 
-## 4. 資料模型（schema migration，一欄）
+## 4. 資料模型（schema migration，一欄）— **已實作**
 
 `patients` 加：
 
 | 欄 | 型別 | 意義 |
 |---|---|---|
-| `census_last_seen_at` | `TIMESTAMPTZ NULL` | 此 MRN 最後一次出現在 getICUbed 名冊的時間 |
+| `left_unit` | `BOOLEAN NOT NULL DEFAULT FALSE` | 此病人 MRN 不在最新 getICUbed 名冊 = 已離開 ICU |
 
 - **不碰 `archived`**（那是死亡，離開 ICU ≠ 死亡）。
-- schema 變更走 alembic；**不是** data-seed migration（遵守 backend/CLAUDE.md C3）。
-- 衍生旗標**不落欄、查詢時算**：
-  `leftUnit = (census_last_seen_at IS NOT NULL AND census_last_seen_at < MAX(census_last_seen_at))`
-  —— `MAX()` 即「最近一次名冊蓋章時間」，不需另建 settings 表。
-- **NULL = 不旗標**（安全預設：資料缺就別動）。剛加入、還沒被任何名冊蓋過的 HIS 病人不誤旗。
+- migration `081_patient_left_unit.py`：`ADD COLUMN IF NOT EXISTS`（冪等、fresh DB 可過）；**不是** data-seed migration（遵守 backend/CLAUDE.md C3）。
+- 旗標直接落欄（不查詢時算）：sync 每輪由 converter 逐病人算出並寫入。
 
-## 5. Sync reconcile pass（`snapshot_sync.py` 或 serial script 尾端）
+> **設計演進**：原稿用 `census_last_seen_at TIMESTAMPTZ` + 查詢時 `< MAX()` 推導。改成
+> **逐病人 boolean** 因為 (a) 每位 snapshot 本就各帶完整名冊 → 不需全域參考時間；
+> (b) 消掉冷啟動缺口（邱〇陽這種「上線前就離開」的人，時間戳法永遠拿不到 present 蓋章 →
+> 永不旗標；boolean 法第一次 re-sync 就旗）；(c) 避開 `_is_meaningful` 把 `False` 當空、
+> 導致旗標永遠清不掉。時間戳留給未來寬限期再加（§7）。
 
+## 5. 偵測位置：converter 逐病人（`converter.py`）— **已實作**
+
+床號本來就讀同一份名冊。加 `_left_icu_unit()`，tri-state：
+
+```python
+pat_nos = { PAT_NO in getICUbed.json }
+if len(pat_nos) < _MIN_ICU_ROSTER:  return None   # 名冊不可信 → 見 §6
+return str(self.pat_no) not in pat_nos            # True=離開 False=在院
 ```
-roster = { PAT_NO for row in getICUbed.json }          # 已在讀
-if len(roster) < MIN_ROSTER:      # 空名冊護欄，見 §6
-    skip census reconcile this run
-else:
-    UPDATE patients SET census_last_seen_at = :now
-      WHERE medical_record_number = ANY(:roster)
-        AND <is HIS-sourced>                            # 見 §6
-```
-在院者蓋成 `now()`；缺席的 HIS 病人保留舊（較早）時間 → 自然 `< MAX` → 被旗標。
-**真的還在 ICU 的人下次 sync 會重新入名冊 → census_last_seen_at 回到 MAX → 自動取消旗標**（false positive 自癒）。
+`convert_patient()` 帶出 `left_unit: Optional[bool]`；`snapshot_sync.merge_patient_payload` 規則：
+- `None`（名冊不可信）→ **保留既有旗標**（不覆蓋）。
+- `True`/`False` → 覆蓋（設旗／清旗，**自癒**：重入名冊即清）。
+- 新病人（existing=None）且 `None` → 落 `False`（NOT NULL 保護）。
 
-## 6. 三個必守護欄（否則出事）
+**自癒**：真的還在 ICU 的人下次 sync 名冊仍含他 → `left_unit=False`。名冊是全單位的，任何人離開都會改動每位的 snapshot hash → 觸發 re-sync → 旗標即時更新。
 
-1. **只掃 HIS 病人**：demo/seed 病人不在 ICU 名冊，否則全被誤旗。scope 條件：
-   `id LIKE 'pat_%'` 且為 HIS 指紋（`pat_{md5(MRN)[:8]}`）／或 `medical_record_number` 是數字 MRN 且曾出現在 snapshot。**實作時先確認 seed 病人的 id 形態再定 predicate**。
-2. **空名冊護欄**：名冊空/殘缺時（參 memory「4–6KB 來源只剩 demographics」）**絕不 reconcile**，否則全board 被旗。`MIN_ROSTER` 設個合理下限（如 ≥ 3 或 ≥ 上輪名冊數的一半）。
+## 6. 三個必守護欄（否則出事）— **已實作**
+
+1. **只碰 HIS 病人**：**自動成立**——只有「從 snapshot 同步的病人」會被 converter 算旗標；demo/seed 病人沒 snapshot、根本不進這條路徑，永遠不被觸碰。（不需脆弱的 id-format predicate；seed 也用 `pat_{8hex}`，本來就分不出。）
+2. **空/殘名冊護欄**：`_MIN_ICU_ROSTER = 3`（converter.py）。名冊 < 3（demographics-only 殘檔，參 memory「4–6KB」）→ `None` → 保留既有，**不會把全單位標成離開**。
 3. **不跟 `archived=死亡` 打架**：獨立欄、獨立邏輯；死亡仍走 `archived`。
 
 ## 7. 未來（YAGNI，先不做）
@@ -88,12 +92,16 @@ else:
 
 ## 8. 實作任務切分（跨 session）
 
-| 層 | 檔 | 動作 |
-|---|---|---|
-| Backend schema | alembic migration | 加 `census_last_seen_at` |
-| Backend sync | `snapshot_sync.py` / `sync_his_snapshots_serial.py` | roster reconcile + 護欄 |
-| Backend API | `routers/patients.py` (`_patient_to_dict` ~L144、list 序列化) | 加 `censusLastSeenAt` + 衍生 `leftUnit`（CamelModel） |
-| Frontend | `dashboard.tsx`、`patient-detail-header.tsx` | `leftUnit` → 警示 badge +「確認出院」按鈕接既有 archive dialog |
-| Test | `tests/test_fhir/` | 名冊缺席 → 旗標；空名冊 → 不動；seed 病人不被旗；重入名冊 → 自癒 |
+| 層 | 檔 | 動作 | 狀態 |
+|---|---|---|---|
+| Backend schema | `alembic/versions/081_patient_left_unit.py` | 加 `left_unit` bool（`ADD COLUMN IF NOT EXISTS`） | ✅ |
+| Backend model | `models/patient.py` | `left_unit` mapped column | ✅ |
+| Backend 偵測 | `fhir/his/converter.py` | `_left_icu_unit()` tri-state + `_MIN_ICU_ROSTER=3` | ✅ |
+| Backend merge | `fhir/snapshot_sync.py` | `left_unit` None→保留 / bool→覆蓋 / new→False | ✅ |
+| Backend API | `routers/patients.py:patient_to_dict` | 加 `leftUnit` | ✅ |
+| Test | `tests/test_fhir/test_left_unit_census.py` | 7 條（在院/離開/小名冊/merge×4）＋全 test_fhir 121 綠 | ✅ |
+| Frontend | `dashboard.tsx`、`patient-detail-header.tsx` | `leftUnit` → 警示 badge +「確認出院」按鈕接既有 archive dialog | ⬜ 待做 |
+| 部署 | — | 後端 push `personal`(Railway)（含 migration 081）；前端 push `railway`(Vercel) | ⬜ |
+| Prod 驗證 | — | 跑一次 sync 後，DB 查 `SELECT id,name,bed_number,left_unit FROM patients WHERE left_unit` 應含邱〇陽 | ⬜ |
 
-> Backend 改動 push `personal`(Railway)、Frontend push `railway`(Vercel)。跨 session 依 backend/CLAUDE.md 用 `docs/coordination/*-tasks.md` 交接。
+> ⚠️ 尚未部署、尚未在 prod 驗。前端 badge 是使用者可見的最後一哩，未接則後端旗標無 UI 出口。
