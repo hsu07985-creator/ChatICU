@@ -31,6 +31,7 @@ from app.models.lab_data import LabData
 from app.models.medication import Medication
 from app.models.medication_administration import MedicationAdministration
 from app.models.patient import Patient
+from app.models.vital_sign import VitalSign
 
 
 # ────────────────────────────────────────────────────────────────────────
@@ -684,3 +685,66 @@ async def test_replace_patient_records_with_unchanged_set_reports_zero_delta(
     ).all()
     remaining_ids = {row[0] for row in remaining}
     assert remaining_ids == {"lab_same_a", "lab_same_b"}
+
+
+@pytest.mark.asyncio
+async def test_upsert_records_preserves_manual_vital_rows(db_session) -> None:
+    """HIS getTPR upserts must never touch manually-entered vital rows.
+
+    Manual rows carry uuid ids; HIS rows carry deterministic ``vit_*`` ids, so
+    an ON CONFLICT upsert of HIS rows leaves a manual row — including its SpO2,
+    which HIS never supplies — untouched. Locks the 'preserve manual' decision
+    for the getTPR → vital_signs wiring (2026-07-21).
+    """
+    db_session.add(
+        Patient(
+            id="pat_vit",
+            name="王測試",
+            bed_number="MICU11",
+            medical_record_number="30546132",
+            age=76,
+            gender="M",
+            diagnosis="肺炎",
+            intubated=False,
+            ventilator_days=0,
+        )
+    )
+    db_session.add(
+        VitalSign(
+            id="manual-uuid-1",
+            patient_id="pat_vit",
+            timestamp=datetime(2026, 7, 21, 3, 0, tzinfo=timezone.utc),
+            spo2=95,
+            heart_rate=88,
+        )
+    )
+    await db_session.commit()
+
+    his_rows = [
+        {
+            "id": "vit_deadbeef",
+            "patient_id": "pat_vit",
+            "timestamp": datetime(2026, 7, 21, 11, 0, tzinfo=timezone.utc),
+            "heart_rate": 107,
+            "systolic_bp": 99,
+            "diastolic_bp": 48,
+            "mean_bp": 65.0,
+            "respiratory_rate": 24,
+            "temperature": 37.0,
+        }
+    ]
+    await upsert_records(db_session, "vital_signs", his_rows)
+    await db_session.commit()
+
+    rows = (
+        await db_session.execute(
+            select(VitalSign)
+            .where(VitalSign.patient_id == "pat_vit")
+            .order_by(VitalSign.timestamp)
+        )
+    ).scalars().all()
+
+    assert {r.id for r in rows} == {"manual-uuid-1", "vit_deadbeef"}
+    manual = next(r for r in rows if r.id == "manual-uuid-1")
+    assert manual.spo2 == 95  # manual SpO2 survived the HIS sync
+    assert manual.heart_rate == 88

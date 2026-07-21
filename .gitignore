@@ -44,6 +44,11 @@ backend/seeds/drug_interactions_full.json
 # projects, xlsx) consolidated here — see local/README.md.
 local/
 *.xlsx
+
+# HIS patient snapshots — real PHI (特種個資: names, ID numbers, addresses,
+# medical data). Fixed local path the HIS sync depends on; MUST NEVER be
+# committed/pushed. See patient/資料使用手冊.md.
+patient/
 security_report.json
 .mcp.json
 .env.development

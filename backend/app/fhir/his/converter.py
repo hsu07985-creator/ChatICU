@@ -7,6 +7,7 @@ together into the per-patient converter.
 
 import json
 import os
+import re
 from collections import defaultdict
 from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Tuple
@@ -40,6 +41,22 @@ from app.fhir.his.roc_time import (
 )
 
 
+def _to_float(value: Any) -> Optional[float]:
+    """Parse HIS numeric strings ('163', '53.7') to float; None when unparseable."""
+    if value is None or value == "":
+        return None
+    try:
+        return float(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _to_int(value: Any) -> Optional[int]:
+    """Parse HIS numeric strings to int (via float, tolerating '99.0'); None if bad."""
+    f = _to_float(value)
+    return int(round(f)) if f is not None else None
+
+
 class HISConverter:
     """Convert HIS JSON data for one patient → ChatICU DB dicts."""
 
@@ -62,6 +79,20 @@ class HISConverter:
         See :func:`app.fhir.his.snapshot_io.load_all`.
         """
         return snapshot_io.load_all(self._cache, self.patient_dir, filename)
+
+    def _load_sb(self, sb_name: str) -> list:
+        """Load a SMARTBED nursing source (sbNutrition, sbTube, sbDisease, …).
+
+        See :func:`app.fhir.his.snapshot_io.load_smartbed`.
+        """
+        return snapshot_io.load_smartbed(self._cache, self.patient_dir, sb_name)
+
+    def _load_seq(self, tool: str) -> list:
+        """Load a ``<tool>_AllPatientSeq`` envelope's rows (getSO, getTPR, …).
+
+        See :func:`app.fhir.his.snapshot_io.load_seq`.
+        """
+        return snapshot_io.load_seq(self._cache, self.patient_dir, tool)
 
     @staticmethod
     def _load_from_dir(dir_path: str, candidates: Tuple[str, ...]) -> list:
@@ -106,20 +137,31 @@ class HISConverter:
         # Admission date from getIPD or earliest order
         admission_date, icu_admission_date = self._extract_admission_dates()
 
+        # SMARTBED-derived vitals-adjacent fields (2026-07-21 nested snapshot):
+        # bed from the in-bed roster, anthropometrics from nutrition assessment,
+        # airway status from the tube list. All emitted as real values so the
+        # PRESERVE_EXISTING merge overwrites when HIS has data and keeps the
+        # manual value when it does not (see snapshot_sync._is_meaningful).
+        bed_number = self._extract_bed_number()
+        height, weight, bmi = self._extract_anthropometrics()
+        intubated, tracheostomy, tracheostomy_date = self._extract_airway()
+
         return {
             "id": pat_id,
             "name": p.get("PAT_NAME", ""),
-            "bed_number": "",  # HIS 無床號資料，需手動補
+            "bed_number": bed_number or "",  # '' → not meaningful → keep manual
             "medical_record_number": self.pat_no,
             "age": age or 0,
             "date_of_birth": dob,
             "gender": _normalize_patient_gender(p.get("SEX")),
-            "height": None,
-            "weight": None,
-            "bmi": None,
+            "height": height,
+            "weight": weight,
+            "bmi": bmi,
             "diagnosis": diagnosis or "待確認",
             "symptoms": [],
-            "intubated": False,
+            "intubated": intubated,
+            "tracheostomy": tracheostomy,
+            "tracheostomy_date": tracheostomy_date,
             "critical_status": None,
             "sedation": [],
             "analgesia": [],
@@ -275,6 +317,75 @@ class HISConverter:
                 if d and (earliest is None or d < earliest):
                     earliest = d
         return earliest, earliest
+
+    def _extract_bed_number(self) -> Optional[str]:
+        """This patient's bed from getICUbed (the roster lists the whole unit)."""
+        for row in self._load("getICUbed.json"):
+            if str(row.get("PAT_NO")) == str(self.pat_no):
+                code = (row.get("BED_CODE") or "").strip()
+                if code:
+                    return code
+        return None
+
+    def _extract_anthropometrics(
+        self,
+    ) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+        """(height cm, weight kg, BMI) from the SMARTBED nutrition assessment.
+
+        HIS ships these as strings; BMI is pre-computed at source. Returns the
+        first assessment row that carries any of the three values.
+        """
+        for row in self._load_sb("sbNutrition"):
+            height = _to_float(row.get("BODY_HEIGHT"))
+            weight = _to_float(row.get("BODY_WEIGHT"))
+            bmi = _to_float(row.get("BMI"))
+            if height or weight or bmi:
+                return height, weight, bmi
+        return None, None, None
+
+    def _extract_airway(
+        self,
+    ) -> Tuple[bool, bool, Optional[date]]:
+        """(intubated, tracheostomy, tracheostomy_date) from sbTube PIPE_ALIASES.
+
+        ``Endo*`` = endotracheal tube (intubated), ``Tr*`` = tracheostomy. Only
+        a present-in-place tube counts — one whose END_DATE is unset or not yet
+        past the snapshot date (a removed line keeps its historical row).
+        """
+        intubated = tracheostomy = False
+        trach_date: Optional[date] = None
+        today = date.today()
+        for tube in self._load_sb("sbTube"):
+            alias = str(tube.get("PIPE_ALIASES") or "")
+            end = _roc_to_date(tube.get("END_DATE"))
+            if end is not None and end < today:
+                continue  # already removed
+            if alias.startswith("Endo"):
+                intubated = True
+            elif alias.startswith("Tr"):
+                tracheostomy = True
+                put = _roc_to_date(tube.get("PUT_DATE"))
+                if put and (trach_date is None or put < trach_date):
+                    trach_date = put
+        return intubated, tracheostomy, trach_date
+
+    def _extract_food_allergy(self) -> List[str]:
+        """Structured food allergies from sbDisease.FOOD_ALLERGY (comma-list).
+
+        The field is null/'' when there is no positive record (see snapshot
+        inventory §4 — '' means 'confirmed none', not 'unknown'), so only a
+        non-empty value contributes.
+        """
+        out: List[str] = []
+        for row in self._load_sb("sbDisease"):
+            raw = (row.get("FOOD_ALLERGY") or "").strip()
+            if not raw or raw in ("無", "否"):
+                continue
+            for part in re.split(r"[,、;/]", raw):
+                part = part.strip()
+                if part and part not in out:
+                    out.append(part)
+        return out
 
     # ------------------------------------------------------------------ #
     # Medications
@@ -769,6 +880,49 @@ class HISConverter:
         return reports
 
     # ------------------------------------------------------------------ #
+    # Vital signs (getTPR)
+    # ------------------------------------------------------------------ #
+
+    def convert_vital_signs(self) -> List[Dict[str, Any]]:
+        """getTPR_AllPatientSeq → vital_signs rows (hourly TPR + BP time series).
+
+        HIS provides temperature / pulse / respiration / BP only — SpO2 and the
+        invasive pressures (etco2/cvp/icp/cpp) stay manual, so those columns are
+        left unset. Each row gets a deterministic id (patient + timestamp) so
+        re-syncs upsert in place and manually-entered vital rows (uuid ids) are
+        never touched. Rows with no numeric measurement at all are skipped.
+        """
+        pat_id = _gen_id("pat", self.pat_no)
+        # Keyed by id (patient + timestamp): HIS repeats the identical reading
+        # several times per timestamp, so one row per timestamp is correct.
+        rows: Dict[str, Dict[str, Any]] = {}
+        for r in self._load_seq("getTPR"):
+            ts = _roc_to_datetime(r.get("CREATEDATE"), r.get("CREATETIME"))
+            if ts is None:
+                continue
+            hr = _to_int(r.get("PULSE"))
+            sbp = _to_int(r.get("SYSTOLICBP"))
+            dbp = _to_int(r.get("DIASTOLICBP"))
+            rr = _to_int(r.get("RESPIRATIONRATE"))
+            temp = _to_float(r.get("TEMPERATURE"))
+            if hr is None and sbp is None and dbp is None and rr is None and temp is None:
+                continue
+            mean_bp = round((sbp + 2 * dbp) / 3, 1) if sbp is not None and dbp is not None else None
+            vid = _gen_id("vit", self.pat_no, r.get("CREATEDATE") or "", r.get("CREATETIME") or "")
+            rows[vid] = {
+                "id": vid,
+                "patient_id": pat_id,
+                "timestamp": ts,
+                "heart_rate": hr,
+                "systolic_bp": sbp,
+                "diastolic_bp": dbp,
+                "mean_bp": mean_bp,
+                "respiratory_rate": rr,
+                "temperature": temp,
+            }
+        return list(rows.values())
+
+    # ------------------------------------------------------------------ #
     # Enrichment: derive fields from converted data
     # ------------------------------------------------------------------ #
 
@@ -839,43 +993,20 @@ class HISConverter:
     # ------------------------------------------------------------------ #
 
     def _extract_allergies(self) -> Dict[str, Any]:
-        """Extract structured allergy data from getSO_AllPatientSeq.json.
+        """Extract structured allergy data from the getSO SOAP narrative.
+
+        Reads through the snapshot loader (flat ``getSO_AllPatientSeq.json`` or
+        the same key inside ALL_MERGED.json), so both snapshot layouts work.
 
         Returns:
             {"status": "nka"|"has_allergies"|"unknown",
              "allergies": [{"substance": str, "reaction": str|None, ...}]}
         """
-        so_path = os.path.join(self.patient_dir, "getSO_AllPatientSeq.json")
-        if not os.path.exists(so_path):
-            # Also check ExtraFactories
-            extras_dir = os.path.join(self.patient_dir, "ExtraFactories")
-            if os.path.isdir(extras_dir):
-                for factory_name in sorted(os.listdir(extras_dir)):
-                    candidate = os.path.join(
-                        extras_dir, factory_name, "getSO_AllPatientSeq.json"
-                    )
-                    if os.path.exists(candidate):
-                        so_path = candidate
-                        break
-                else:
-                    return {"status": "unknown", "allergies": []}
-            else:
-                return {"status": "unknown", "allergies": []}
-
-        try:
-            with open(so_path, encoding="utf-8-sig") as f:
-                raw = json.load(f)
-        except (json.JSONDecodeError, OSError):
-            return {"status": "unknown", "allergies": []}
-
-        # getSO has nested structure: {Responses: [{Data: [{SUBJECTIVE}]}]}
-        texts = []
-        for resp in raw.get("Responses", []):
-            for item in resp.get("Data", []):
-                subj = item.get("SUBJECTIVE", "")
-                if subj:
-                    texts.append(subj)
-
+        texts = [
+            item.get("SUBJECTIVE", "")
+            for item in self._load_seq("getSO")
+            if item.get("SUBJECTIVE")
+        ]
         return parse_allergy_texts(texts)
 
     # ------------------------------------------------------------------ #
@@ -894,6 +1025,7 @@ class HISConverter:
         reports = self.convert_diagnostic_reports()
         surgery_reports = self.convert_surgery()
         ai_reports = self.convert_ai_results()
+        vital_signs = self.convert_vital_signs()
 
         # Merge all diagnostic reports
         all_reports = reports + surgery_reports + ai_reports
@@ -916,12 +1048,19 @@ class HISConverter:
         all_orders = self._load("getAllOrder.json")
         patient["ventilator_days"] = self._derive_ventilator_days(all_orders)
 
-        # Step 7: Allergies from SOAP notes
+        # Step 7: Allergies — SOAP-parsed substances (getSO) unioned with the
+        # structured food-allergy field (sbDisease). Either source alone is
+        # sparse; combining keeps whichever is present. Empty result leaves the
+        # placeholder [] so the PRESERVE merge keeps any manual allergy list.
+        allergies: List[str] = []
         allergy_result = self._extract_allergies()
         if allergy_result["status"] == "has_allergies":
-            patient["allergies"] = [
-                a["substance"] for a in allergy_result["allergies"]
-            ]
+            allergies.extend(a["substance"] for a in allergy_result["allergies"])
+        for food in self._extract_food_allergy():
+            if food not in allergies:
+                allergies.append(food)
+        if allergies:
+            patient["allergies"] = allergies
 
         return {
             "patient": patient,
@@ -929,6 +1068,7 @@ class HISConverter:
             "lab_data": lab_data,
             "culture_results": cultures,
             "diagnostic_reports": all_reports,
+            "vital_signs": vital_signs,
             "summary": {
                 "patient_name": patient["name"],
                 "medical_record_number": patient["medical_record_number"],
@@ -940,6 +1080,7 @@ class HISConverter:
                 ),
                 "culture_results_count": len(cultures),
                 "diagnostic_reports_count": len(all_reports),
+                "vital_signs_count": len(vital_signs),
                 "surgery_reports_count": len(surgery_reports),
                 "ecg_ai_reports_count": len(ai_reports),
                 "sedation_drugs": sedation,

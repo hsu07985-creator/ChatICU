@@ -506,6 +506,14 @@ async def sync_snapshot_into_session(session: Any, snapshot: SnapshotInfo) -> di
         replace_counts[table] = await replace_patient_records(session, table, patient_id, records)
 
     medication_summary = await reconcile_medications(session, patient_id, result["medications"])
+
+    # Vital signs (getTPR): upsert HIS-id rows only. upsert_records never
+    # DELETEs, and HIS rows carry deterministic vit_* ids while manual entries
+    # use uuids, so manually-recorded vitals (incl. SpO2, which HIS lacks) are
+    # never touched. Historical HIS readings accumulate across syncs by design.
+    vital_rows = result.get("vital_signs") or []
+    vital_upserted = await upsert_records(session, "vital_signs", vital_rows)
+
     # PR-4: per-patient ATC coverage report written to disk for operator audit.
     coverage = compute_medication_coverage(result["medications"])
     write_coverage_report(snapshot.mrn, patient_id, snapshot.snapshot_id, coverage)
@@ -523,6 +531,7 @@ async def sync_snapshot_into_session(session: Any, snapshot: SnapshotInfo) -> di
         "lab_data": replace_counts["lab_data"],
         "culture_results": replace_counts["culture_results"],
         "diagnostic_reports": replace_counts["diagnostic_reports"],
+        "vital_signs": vital_upserted,
         "synced_at": datetime.now(timezone.utc).isoformat(),
     }
 

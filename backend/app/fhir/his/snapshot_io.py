@@ -13,6 +13,156 @@ from typing import Any, Dict, Tuple
 from app.fhir.his.resources import _FILENAME_ALIASES
 
 
+# --------------------------------------------------------------------------- #
+# ALL_MERGED.json fallback (nested "Factories/ + Smartbed/" snapshot layout)
+#
+# The 2026-07-21 export dropped the flat per-source files (<dir>/getPatient.json
+# and ExtraFactories/Factory_*/) in favour of nested Factories/<hosp>/ +
+# Smartbed/<hosp>/ directories, shipping one ALL_MERGED.json that carries every
+# source. To avoid changing behaviour for the flat/hourly-flat layouts still in
+# production, ALL_MERGED is consulted ONLY as a last resort — after the existing
+# filesystem attempts return nothing. It preserves the same campus-aware
+# top-level + ExtraFactories_Factory_* flat keys, so single/all resolution is a
+# straight key lookup.
+# --------------------------------------------------------------------------- #
+
+_ALL_MERGED_CACHE_KEY = "__ALL_MERGED__"
+_EXTRA_PREFIX = "ExtraFactories_Factory_"
+
+
+def _all_merged(cache: Dict[str, Any], patient_dir: str) -> Any:
+    """Load + cache ALL_MERGED.json for ``patient_dir``; None when absent/bad."""
+    if _ALL_MERGED_CACHE_KEY not in cache:
+        path = os.path.join(patient_dir, "ALL_MERGED.json")
+        data = None
+        if os.path.exists(path):
+            try:
+                with open(path, encoding="utf-8-sig") as f:
+                    data = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                data = None
+        cache[_ALL_MERGED_CACHE_KEY] = data if isinstance(data, dict) else None
+    return cache[_ALL_MERGED_CACHE_KEY]
+
+
+def _envelope_rows(node: Any) -> list:
+    """Rows from a REST envelope ``{"Data": [...]}`` or a bare list."""
+    if isinstance(node, dict):
+        data = node.get("Data")
+        if isinstance(data, list):
+            return data
+        return [data] if data else []
+    if isinstance(node, list):
+        return node
+    return []
+
+
+def _base_names(candidates: Tuple[str, ...]) -> Tuple[str, ...]:
+    """Strip the ``.json`` suffix so filenames map to ALL_MERGED top-level keys."""
+    return tuple(c[:-5] if c.endswith(".json") else c for c in candidates)
+
+
+def _merged_single(all_merged: dict, candidates: Tuple[str, ...]) -> list:
+    """load_single semantics against ALL_MERGED: primary key, else any campus."""
+    bases = _base_names(candidates)
+    for base in bases:
+        rows = _envelope_rows(all_merged.get(base))
+        if rows:
+            return rows
+    for base in bases:
+        for key, value in all_merged.items():
+            if key.startswith(_EXTRA_PREFIX) and key.endswith("_" + base):
+                rows = _envelope_rows(value)
+                if rows:
+                    return rows
+    return []
+
+
+def _merged_all(all_merged: dict, candidates: Tuple[str, ...]) -> list:
+    """load_all semantics against ALL_MERGED: union primary + every campus key."""
+    out: list = []
+    for base in _base_names(candidates):
+        for row in _envelope_rows(all_merged.get(base)):
+            if isinstance(row, dict):
+                row = dict(row)
+                row.setdefault("_source_factory", "MAIN")
+            out.append(row)
+        for key, value in all_merged.items():
+            if not (key.startswith(_EXTRA_PREFIX) and key.endswith("_" + base)):
+                continue
+            factory = key[len(_EXTRA_PREFIX):-(len(base) + 1)]
+            for row in _envelope_rows(value):
+                if isinstance(row, dict):
+                    row = dict(row)
+                    row.setdefault("_source_factory", f"Factory_{factory}")
+                out.append(row)
+    return out
+
+
+def load_smartbed(cache: Dict[str, Any], patient_dir: str, sb_name: str) -> list:
+    """Flatten a SMARTBED source to a row list, across both snapshot layouts.
+
+    Flat layout: ``<patient_dir>/<sb_name>.json`` (shape-1/2/3). Nested layout:
+    ``ALL_MERGED.json`` › ``Smartbed`` › ``<hosp>`` › ``<sb_name>`` where the
+    value is either ``{seq: [rows]}`` (per-visit) or a bare ``[rows]`` list.
+    SMARTBED is main-campus-only, so campus iteration is a formality.
+    """
+    cache_key = f"__SB__{sb_name}"
+    if cache_key in cache:
+        return cache[cache_key]
+
+    result = _load_from_dir(patient_dir, (f"{sb_name}.json",))
+    if not result:
+        all_merged = _all_merged(cache, patient_dir)
+        smartbed = (all_merged or {}).get("Smartbed") or {}
+        rows: list = []
+        for hosp_block in smartbed.values():
+            node = hosp_block.get(sb_name) if isinstance(hosp_block, dict) else None
+            if isinstance(node, dict):
+                for seq_rows in node.values():
+                    if isinstance(seq_rows, list):
+                        rows.extend(r for r in seq_rows if isinstance(r, dict))
+            elif isinstance(node, list):
+                rows.extend(r for r in node if isinstance(r, dict))
+        result = rows
+
+    cache[cache_key] = result
+    return result
+
+
+def load_seq(cache: Dict[str, Any], patient_dir: str, tool: str) -> list:
+    """Flatten a ``<tool>_AllPatientSeq`` envelope's Responses[].Data[] to rows.
+
+    Covers getSO / getTPR / getMedicine / getStatOrder in both layouts (flat
+    file ``<tool>_AllPatientSeq.json`` or the same key inside ALL_MERGED.json).
+    """
+    key = f"{tool}_AllPatientSeq"
+    cache_key = f"__SEQ__{tool}"
+    if cache_key in cache:
+        return cache[cache_key]
+
+    env: Any = None
+    path = os.path.join(patient_dir, f"{key}.json")
+    if os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8-sig") as f:
+                env = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            env = None
+    if not isinstance(env, dict):
+        env = (_all_merged(cache, patient_dir) or {}).get(key)
+
+    rows: list = []
+    if isinstance(env, dict):
+        for resp in env.get("Responses") or []:
+            for row in (resp or {}).get("Data") or []:
+                if isinstance(row, dict):
+                    rows.append(row)
+
+    cache[cache_key] = rows
+    return rows
+
+
 def _load_from_dir(dir_path: str, candidates: Tuple[str, ...]) -> list:
     """Try each candidate filename in ``dir_path``; return its Data array.
 
@@ -77,6 +227,11 @@ def load_single(cache: Dict[str, Any], patient_dir: str, filename: str) -> list:
                 if result:
                     break
 
+    if not result:
+        all_merged = _all_merged(cache, patient_dir)
+        if all_merged is not None:
+            result = _merged_single(all_merged, candidates)
+
     cache[filename] = result
     return result
 
@@ -128,6 +283,13 @@ def load_all(cache: Dict[str, Any], patient_dir: str, filename: str) -> list:
                     row = dict(row)
                     row.setdefault("_source_factory", factory_name)
                 merged.append(row)
+
+    # Nested layout (no flat files / ExtraFactories dir): union the campus keys
+    # carried inside ALL_MERGED.json instead.
+    if not merged:
+        all_merged = _all_merged(cache, patient_dir)
+        if all_merged is not None:
+            merged = _merged_all(all_merged, candidates)
 
     cache[cache_key] = merged
     return merged
