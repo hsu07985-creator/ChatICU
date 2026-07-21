@@ -1,6 +1,6 @@
 # ICU 在院名冊偵測 — 「已離開 ICU」自動旗標設計
 
-> 建立：2026-07-21 ｜ 域：his-sync ｜ 狀態：**後端已實作+測試綠（未部署），前端 badge 待做**
+> 建立：2026-07-21 ｜ 域：his-sync ｜ 狀態：**全端已部署+驗證（Railway migration 081 已上、Vercel 新 bundle 已切）；prod 待跑一次 sync 才會有 left_unit 資料**
 > 觸發：病人板顯示 `邱〇陽`（床 `CW29`、住院 300 天）等**已轉出 ICU 卻仍賴在板上**的人。
 > 決策：**旗標 + 人工確認**（PM 2026-07-21 拍板），不自動隱藏。
 
@@ -102,7 +102,7 @@ return str(self.pat_no) not in pat_nos            # True=離開 False=在院
 | Test | `tests/test_fhir/test_left_unit_census.py` | 7 條（在院/離開/小名冊/merge×4）＋全 test_fhir 121 綠 | ✅ |
 | Frontend badge | `dashboard.tsx`、`patient-detail-header.tsx` | `leftUnit` → 琥珀警示 badge（i18n 中/英） | ✅ |
 | Frontend 確認出院 | `dashboard.tsx` | 板卡片「確認出院」按鈕 → 重用 `PatientArchiveDialog`（lockTarget）+ `archivePatient` | ✅ tsc/build/orphan 綠 |
-| 部署 | — | 後端 push `personal`(Railway)（含 migration 081）；前端 push `railway`(Vercel) | ⬜ |
-| Prod 驗證 | — | 跑一次 sync 後，DB 查 `SELECT id,name,bed_number,left_unit FROM patients WHERE left_unit` 應含邱〇陽 | ⬜ |
+| 部署 | — | 後端 push `personal`(Railway，migration 081 已上、`left_unit` 欄已存在)；前端 push `railway`(Vercel，bundle `BCsRED4i`) | ✅ 已驗 |
+| Prod 啟用 | — | **跑一次 sync** 才會填 `left_unit`；之後 DB 查 `SELECT id,name,bed_number,left_unit FROM patients WHERE left_unit` 應含邱〇陽 | ⬜ 待跑（prod-direct，使用者決策） |
 
 > ⚠️ 尚未部署、尚未在 prod 驗。前端 badge 是使用者可見的最後一哩，未接則後端旗標無 UI 出口。
