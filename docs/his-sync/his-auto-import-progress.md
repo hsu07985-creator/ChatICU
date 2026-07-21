@@ -40,6 +40,7 @@
 
 - [x] ~~**Vercel 前端 promote**~~：**已確認生效（2026-07-21）**。`66c6a48` = Production·Current，apex `index-C1j_oTLU.js` 已含 `hisSyncNote` 中英 banner。（驗證改用 `curl chat-icu.vercel.app/assets/index-*.js | grep hisSyncNote`，別比 index hash——見 §0。）
 - [ ] **在 prod 觸發一次 HIS sync**：converter 程式部署了，但**資料不會自己流進 prod DB**，要跑一次 sync（`sync_his_snapshots_serial.py`，見根 CLAUDE.md「手動更新 HIS」）才會看到床號/身高/氣道/生命徵象自動帶入。⚠️ 本機的 HIS sync 按鈕直連 prod，勿在本機亂點。
+- [ ] **實作「已離開 ICU」自動旗標**：設計已定案（旗標+人工確認），見 [`census-left-unit-detection-design-2026-07-21.md`](./census-left-unit-detection-design-2026-07-21.md)。訊號=getICUbed 名冊 PAT_NO 集合；加一欄 `census_last_seen_at` + 前端 badge 接既有 /archive。**起因：`邱〇陽`(CW29,300天) 轉出 ICU 仍賴在板上。**
 - [ ] **決策：床號覆蓋行為**（Playwright 已重現，見 §4）——維持「HIS 為準」（現狀，banner 已提醒）還是改「手動優先」（fill-if-empty，需改 code）。**未決前維持現狀。**
 - [ ] **（延後）`patients.unit`**：仍硬編碼 `'ICU'`，未改讀 BED_CODE 前綴——因為改值會動**資料層存取控制**（unit-scoped 使用者可見範圍），需先評估。
 - [ ] **（延後）過敏 parser bug**：`getSO` SOAP 的 `parse_allergy_texts` 把「denied」誤判成過敏物質（應為 NKA）。既有 bug，非本次引入；哪天碰 allergy 再修。
@@ -60,6 +61,7 @@
 | 想知道 | 看 |
 |---|---|
 | **本主題現況/待辦**（就是這頁） | `docs/his-sync/his-auto-import-progress.md` |
+| **「已離開 ICU」自動旗標設計**（getICUbed 名冊偵測，已定案未實作） | [`census-left-unit-detection-design-2026-07-21.md`](./census-left-unit-detection-design-2026-07-21.md) |
 | 哪些手動欄位變自動 / 仍缺 / pipeline 接線細節 | [`manual-to-auto-gap-closure-2026-07-21.md`](./manual-to-auto-gap-closure-2026-07-21.md) |
 | DB 欄位「HIS 覆蓋 vs 手動保留」邊界（三 frozenset） | [`his-field-source-inventory-2026-07-21.md`](./his-field-source-inventory-2026-07-21.md) |
 | 原始 snapshot 全欄位 + 坑（LAB_CODE、DC_FLAG、跨院區…） | [`patient-snapshot-field-inventory-2026-07-21.md`](./patient-snapshot-field-inventory-2026-07-21.md) |
