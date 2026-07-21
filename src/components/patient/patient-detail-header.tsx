@@ -72,14 +72,6 @@ export function PatientDetailHeader({
           </div>
           <div className="flex items-center gap-2">
             {/* 臨床旗標 badges */}
-            {patient.leftUnit && (
-              <Badge
-                className="bg-amber-100 text-amber-800 hover:bg-amber-100/90 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-700"
-                title={t('header.leftUnitTooltip')}
-              >
-                <AlertTriangle className="mr-1 h-3 w-3" />{t('header.leftUnitBadge')}
-              </Badge>
-            )}
             {patient.intubated && (
               <Badge className="bg-[#d1cbf7] text-brand hover:bg-[#d1cbf7]/90 dark:bg-[#4a2f5c] dark:text-[#efe3ff] dark:hover:bg-[#4a2f5c]/90">
                 {getAirwayStatusLabel(patient)}

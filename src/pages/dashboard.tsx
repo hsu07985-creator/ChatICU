@@ -516,16 +516,6 @@ export function DashboardPage() {
                   </CardHeader>
 
                   <CardContent className="flex flex-col flex-1 space-y-3">
-                    {/* 0. 已離開 ICU 旗標（census：不在最新在院名冊 → 待人工確認出院） */}
-                    {patient.leftUnit && (
-                      <div
-                        className="flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                        title={t('card.leftUnitTooltip')}
-                      >
-                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                        {t('card.leftUnitBadge')}
-                      </div>
-                    )}
                     {/* 3. 入院診斷（固定 3 行） */}
                     <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-border">
                       <p className="text-xs font-medium text-muted-foreground mb-1">{t('card.diagnosisLabel')}</p>

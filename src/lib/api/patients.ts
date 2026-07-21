@@ -45,7 +45,6 @@ export interface Patient {
   };
   archived?: boolean;
   archivedAt?: string | null;
-  leftUnit?: boolean;  // census: absent from latest ICU roster (transfer/discharge), distinct from archived (death)
   dischargeType?: 'discharge' | 'transfer' | 'death' | 'other' | null;
   dischargeDate?: string | null;
   dischargeReason?: string | null;
