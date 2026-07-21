@@ -775,3 +775,9 @@
 - **References:** `docs/coordination/dev-step-tracker.md` Step 3; schema in `api-contracts.md` → "GET `/sync/status`".
 
 <!-- Frontend session: move finished tasks here -->
+
+### [OPTIONAL] medications coding_source: add 'his_atc'
+- **Added by:** backend session
+- **Date:** 2026-07-22
+- **What:** backend now emits `coding_source='his_atc'` (ATC taken directly from HIS ATC_CODE on formulary miss). If `src/lib/api/medications.ts` has a `codingSource` union, add `'his_atc'`.
+- **Notes:** NOT load-bearing — the union ends with `| string` and no UI branches on the value. Docs/typing only.
