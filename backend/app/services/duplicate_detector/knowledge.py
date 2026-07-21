@@ -260,5 +260,8 @@ _SALT_SUFFIXES: Tuple[str, ...] = (
     "citrate",
     "acetate",
     "bitartrate",
+    "trihydrate",
+    "dihydrate",
+    "tromethamine",
     "hydrobromide",
 )

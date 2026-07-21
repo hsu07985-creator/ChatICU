@@ -74,12 +74,43 @@ _SAN_PATTERNS = {
 }
 
 
-def _classify_san(drug_name: str) -> Optional[str]:
-    """Classify drug into S/A/N category by name pattern."""
+# ATC-prefix backstop for S/A/N, used ONLY when the name-pattern list misses
+# (trade names outside the curated list silently drop from the SAN dashboard).
+# Name-regex stays PRIMARY — it disambiguates drugs whose ATC is ambiguous
+# (e.g. haloperidol/quetiapine given for sedation). Prefixes are ICU-relevant
+# S/A/N only; anything else stays None (unclassified), never force-fit.
+_SAN_ATC_PREFIXES = (
+    ("N05CD", "S"),  # benzodiazepine hypnotics (midazolam N05CD08, estazolam)
+    ("N05BA", "S"),  # benzodiazepine anxiolytics given IV for sedation (diazepam, lorazepam N05BA06)
+    ("N05CM", "S"),  # other hypnotics/sedatives (dexmedetomidine N05CM18)
+    ("N05AD", "S"),  # butyrophenone antipsychotics (haloperidol/droperidol) for agitation
+    ("N01AX", "S"),  # other general anaesthetics (propofol N01AX10, ketamine N01AX03)
+    # NOTE: N05AH (quetiapine/olanzapine/clozapine) deliberately NOT here — the
+    # sedation cases (quetiapine) are already caught by name-regex; the prefix
+    # would misclassify maintenance olanzapine/clozapine as sedation.
+    ("N02A",  "A"),  # opioids (morphine, fentanyl, tramadol)
+    ("N02BE", "A"),  # anilides (paracetamol/acetaminophen)
+    ("M01A",  "A"),  # NSAIDs (ketorolac, diclofenac, etodolac, celecoxib)
+    ("M03A",  "N"),  # peripherally-acting neuromuscular blockers (rocuronium, cisatracurium)
+)
+
+
+def _classify_san(drug_name: str, atc_code: Optional[str] = None) -> Optional[str]:
+    """Classify drug into S/A/N category.
+
+    Name pattern is PRIMARY. When it misses and an ATC code is available, fall
+    back to the ATC prefix (recovers trade names outside the curated list). No
+    ATC / no prefix match → None (unclassified), never a forced guess.
+    """
     lower = drug_name.lower()
     for cat, patterns in _SAN_PATTERNS.items():
         for p in patterns:
             if p in lower:
+                return cat
+    if atc_code:
+        code = atc_code.strip().upper()
+        for prefix, cat in _SAN_ATC_PREFIXES:
+            if code.startswith(prefix):
                 return cat
     return None
 

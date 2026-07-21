@@ -408,18 +408,27 @@ class HISConverter:
         medications = []
         for m in rows:
             raw_name = m.get("ODR_NAME", "")
-            clean_name, generic = _clean_drug_name(raw_name)
+            clean_name, rule_generic = _clean_drug_name(raw_name)
             odr_code = (m.get("ODR_CODE") or "").strip()
 
-            # Override generic_name with DDI alias map when available.
-            # Combination drugs store all DDI names joined by " / "
-            # (e.g., "Ampicillin / Sulbactam") so ddi_check.py can expand them.
+            # generic_name precedence (name = clean_name stays trade+strength):
+            #  1. _DDI_ALIAS_MAP — curated DDI vocabulary (class names + Lexicomp
+            #     tall-man spellings); load-bearing for class-level DDI matching.
+            #  2. _DDI_EXCLUSION_SET — IV fluids / non-drugs → None (suppress noise).
+            #  3. HIS DRUG_NAME — clean ingredient name (Quetiapine, not brand
+            #     "Seroquel"); commas (combos) → " / " so ddi_check can expand them.
+            #  4. rule-derived first word — only when HIS ships no DRUG_NAME.
             if odr_code and odr_code in _DDI_ALIAS_MAP:
                 generic = " / ".join(_DDI_ALIAS_MAP[odr_code])
-            # IV fluids, laxatives and non-drug items: clear generic_name so
-            # ddi_check.py naturally skips them when building the drug pair list.
             elif odr_code and odr_code in _DDI_EXCLUSION_SET:
                 generic = None
+            else:
+                his_generic = (m.get("DRUG_NAME") or "").strip()
+                generic = (
+                    " / ".join(p.strip() for p in his_generic.split(",") if p.strip())
+                    if his_generic
+                    else rule_generic
+                )
 
             freq_code = (m.get("FREQ_CODE") or "").strip().upper()
             route_code = (m.get("ROUTE_CODE") or "").strip().upper()
@@ -465,29 +474,45 @@ class HISConverter:
                 kidney_relevant = formulary_entry["kidney_relevant"]
                 coding_source = formulary_entry["source"]
             else:
-                # PR-2: cache-only RxNorm fallback for codes not in formulary.
-                # Cache is prebuilt offline via scripts/refresh_rxnorm_cache.py;
-                # production syncs never hit the network.
+                # Formulary miss. GAP-FILL ONLY — the formulary branch above is
+                # never overridden, so DDI Path-2 vocabulary alignment (migration
+                # 065) and curated is_antibiotic/kidney_relevant are preserved for
+                # the 94.5% of rows the formulary covers.
                 atc_code = None
                 is_antibiotic = False
                 kidney_relevant = None
                 coding_source = "unmapped" if odr_code else None
 
-                try:
-                    from app.fhir.rxnorm import (
-                        extract_generic_name as _rxnorm_extract,
-                        lookup as _rxnorm_lookup,
-                    )
+                # Prefer the HIS-supplied ATC_CODE (100% filled in current
+                # snapshots) over the offline RxNorm cache.
+                his_atc = (m.get("ATC_CODE") or "").strip() or None
+                if his_atc:
+                    atc_code = his_atc
+                    coding_source = "his_atc"
+                    # Re-derive is_antibiotic from ATC. Systemic antibacterials/
+                    # antifungals/antimycobacterials sit under J01/J02/J04/J05;
+                    # P01AB = nitroimidazoles (metronidazole/tinidazole); A07AA =
+                    # oral non-absorbed antibacterials (vancomycin/neomycin/
+                    # rifaximin/colistin). J06/J07 (vaccines/Ig) excluded.
+                    is_antibiotic = his_atc[:3] in ("J01", "J02", "J04", "J05") or his_atc[:5] in ("P01AB", "A07AA")
+                else:
+                    # PR-2: cache-only RxNorm fallback (near-dead now HIS ATC=100%).
+                    # Cache is prebuilt offline; production syncs never hit network.
+                    try:
+                        from app.fhir.rxnorm import (
+                            extract_generic_name as _rxnorm_extract,
+                            lookup as _rxnorm_lookup,
+                        )
 
-                    generic_candidate = _rxnorm_extract(raw_name)
-                    if generic_candidate:
-                        hit = _rxnorm_lookup(generic_candidate, online=False)
-                        if hit and hit.atc_code:
-                            atc_code = hit.atc_code
-                            coding_source = "rxnorm_cache"
-                except Exception:
-                    # RxNorm cache is optional — never fail sync on lookup error
-                    pass
+                        generic_candidate = _rxnorm_extract(raw_name)
+                        if generic_candidate:
+                            hit = _rxnorm_lookup(generic_candidate, online=False)
+                            if hit and hit.atc_code:
+                                atc_code = hit.atc_code
+                                coding_source = "rxnorm_cache"
+                    except Exception:
+                        # RxNorm cache is optional — never fail sync on lookup error
+                        pass
 
             if coding_source is not None and coding_source not in VALID_CODING_SOURCES:
                 raise ValueError(
@@ -501,8 +526,9 @@ class HISConverter:
                 "name": clean_name,
                 "generic_name": generic,
                 "order_code": odr_code or None,
+                "nhi_code": (m.get("NHI_CODE") or "").strip() or None,
                 "category": _classify_category(raw_name),
-                "san_category": _classify_san(raw_name),
+                "san_category": _classify_san(raw_name, atc_code),
                 "dose": str(m["DOSE"]) if m.get("DOSE") is not None else None,
                 "unit": m.get("DOSE_UNIT"),
                 "frequency": _FREQ_MAP.get(freq_code, freq_code.lower() if freq_code else None),

@@ -18,7 +18,8 @@ from app.models.coding_source import VALID_CODING_SOURCES
 
 _REPO_BACKEND = Path(__file__).resolve().parents[2]
 _FORMULARY_CSV = _REPO_BACKEND / "app" / "fhir" / "code_maps" / "drug_formulary.csv"
-_MIGRATION_066 = _REPO_BACKEND / "alembic" / "versions" / "066_add_coding_source_check.py"
+# The canonical CHECK now lives in migration 083 (widened 066's set with 'his_atc').
+_MIGRATION_066 = _REPO_BACKEND / "alembic" / "versions" / "083_coding_source_his_atc.py"
 
 
 def test_formulary_csv_sources_match_enum():

@@ -16,6 +16,7 @@ CodingSource = Literal[
     "legacy_only",     # legacy/history-only mapping
     "manual",          # hand-entered (includes seed/demo rows)
     "rxnorm_cache",    # RxNorm offline cache fallback
+    "his_atc",         # ATC taken directly from the HIS ATC_CODE (formulary miss)
     "unmapped",        # has an order code but nothing matched
 ]
 
