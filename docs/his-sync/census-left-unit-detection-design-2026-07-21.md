@@ -1,108 +1,68 @@
-# ICU 在院名冊偵測 — 「已離開 ICU」自動旗標設計
+# 出院偵測 — 以 `patient/` 目錄為真相，自動下架
 
-> 建立：2026-07-21 ｜ 域：his-sync ｜ 狀態：**全端已部署+驗證（Railway migration 081 已上、Vercel 新 bundle 已切）；prod 待跑一次 sync 才會有 left_unit 資料**
-> 觸發：病人板顯示 `邱〇陽`（床 `CW29`、住院 300 天）等**已轉出 ICU 卻仍賴在板上**的人。
-> 決策：**旗標 + 人工確認**（PM 2026-07-21 拍板），不自動隱藏。
+> 建立：2026-07-21（設計）｜改版：2026-07-22（改為 patient/ 目錄 + 自動 archive）｜域：his-sync
+> 起因：病人板顯示已出院卻仍在的病人（鄭義輝 I-07、周麗華 I-12、舒以信 I-15、陳弘暉 I-17、黃桂華 I-20）。
+> 決策（PM 2026-07-22）：**真相來源＝`patient/` 目錄**；不在目錄裡的 HIS 病人＝出院，**sync 時自動 archive（直接下架）**。
 
 ---
 
-## 1. 問題
+## 1. 真相來源：`patient/` 目錄
 
-病人板（`src/pages/dashboard.tsx`）與列表只濾 `Patient.archived == False`
-（`backend/app/routers/patients.py:231`）。而 `archived` 的唯一 HIS 來源是
-`DEAD_DATE`（`archived = bool(DEAD_DATE)`，見
-[`his-field-source-inventory-2026-07-21.md`](./his-field-source-inventory-2026-07-21.md) §3.1）——
-**只反映死亡，不反映出院/轉出**。因此轉出 ICU 的活人永遠留在板上，且舊床號
-（如 `CW29`）因 `_extract_bed_number` 找不到名冊列而回 `None`、被 PRESERVE 保留不覆蓋。
+`/patient/{MRN}/` 每個子目錄 = HIS 目前**仍在匯出**的病人。HIS 停止匯出某人 → 目錄消失 → 該人已出院。
+這比 getICUbed 名冊更權威，因為它是「HIS 還認不認這個病人」，而非「他在不在 ICU 床」。
 
-## 2. 訊號：getICUbed 就是權威在院名冊（免費）
+**Join key 單一乾淨**：目錄名 = MRN = `patients.medical_record_number`。
+**HIS 身分**：`patients.id == 'pat_' || md5(MRN)[:8]`（`_gen_id('pat', mrn)`）。手動 demo（`pat_001/003/004`，其 MRN 不會 md5 回自己的 id）**天生被排除**。
 
-- `getICUbed.json` 是**全單位 ICU 在院名冊**，非單一病人資料：`[{BED_CODE, PAT_NO, PAT_SEQ}, …]`，
-  實測 16 筆（如 `{'BED_CODE':'GICU01','PAT_NO':'61288774','PAT_SEQ':'G01003'}`）。
-- **每位病人的 snapshot 都各複製一份**（`patient/{MRN}/{latest}/Factories/G/getICUbed.json`）→
-  只要 sync 到任一位，就拿得到完整當前名冊。
-- `converter.py:321 _extract_bed_number` **現在就在讀它**（`PAT_NO == self.pat_no` 撈本人床號）。偵測訊號零額外抓取成本。
-- **Join key 單一乾淨**：`pat_no = os.path.basename(patient_dir) = MRN = 名冊 PAT_NO = patients.medical_record_number`
-  （`converter.py:65,153`）。名冊 PAT_NO 直接對得上 DB 病人的 `medical_record_number`。
+## 2. 為什麼放棄原本的 getICUbed 做法（重要教訓）
 
-> **定義**：「這一批在院病人」= 最新 `getICUbed` 名冊裡的 PAT_NO 集合。
-> 板上（HIS 來源、未 archived）任何 MRN 不在名冊裡的人 = **已離開 ICU**。
+初版用 getICUbed 名冊算 `left_unit` 旗標（誰不在 ICU 床誰就標記）。實跑 prod × `patient/` 比對後發現**訊號會搞反**：
 
-## 3. 定案動作：旗標 + 人工確認（不自動隱藏）
+- **邱建陽（床 RCW29-1，MRN 50669055）在 `patient/` 裡** → 是現役病人（轉呼吸照護病房，HIS 仍匯出），**不該標記**。但 getICUbed 做法會把他標成離開（他不在 ICU 床）。
+- **真正出院的 5 位**（鄭義輝等）**snapshot 已不再 sync** → getICUbed 逐病人邏輯根本跑不到他們 → 抓不到。
 
-板上仍顯示，但打旗標；醫護點「確認出院」→ 走**現成的** `/archive` 出院流程
-（`patient-archive-dialog.tsx` + `discharged-patients.tsx` 都已存在，不重造）。
+結論：「在不在 ICU 床」≠「是不是現役病人」。**目錄成員**才對。`left_unit` 欄/旗標/badge/確認按鈕整組移除（migration 082 drop 掉 081 加的欄）。
+
+## 3. 動作：sync 時自動 archive
+
+**位置**：`sync_his_snapshots_serial.py` main() 迴圈**之後**（API `/admin/his-sync` 也走這支腳本，兩路同時涵蓋）。
+**只在全量 sync 跑**（`patient_filter is None`）——`-p 單一 MRN` 時**絕不** reconcile（否則會把其他人全下架）。
 
 ```
-┌──────────────┐
-│ 邱〇陽  ⚠ 已離開 ICU？ │
-│ CW29 · 住院 300 天     │
-│ [確認出院]             │
-└──────────────┘
+present = { 目錄名 for 目錄 in patient/ }          # discover_patient_roots
+archive_absent_his_patients(session, present):
+    if len(present) < CENSUS_MIN_PRESENT(=3): 跳過        # 空/殘目錄護欄
+    取 archived=false 的 (id, mrn)
+    要下架 = [ id | mrn 不在 present 且 id == pat_{md5(mrn)} ]   # 純函式，可測
+    UPDATE ... SET archived=true, archived_at=now, updated_at=now,
+                   discharge_reason=COALESCE(既有, 'HIS 匯出已無此病人，自動判定出院')
+             WHERE id IN 要下架
 ```
+- **冪等**：已 archived 的不動；重跑無副作用。
+- **不跟 HIS_OWNED `archived` 打架**：被下架者不在 `patient/` → 無 snapshot → sync 根本不會 merge 到他們（`archived=bool(DEAD_DATE)` 那條碰不到），所以下架穩定不被還原。
+- **不設 discharge_type/date**：我們不知道真實出院別/日期，只留 reason 說明是自動判定，誠實可審計。
 
-**為何不自動隱藏**：名冊單次抖動/殘缺就把還在的病人弄不見 = 病安「漏掉病人」風險。
-自動隱藏（含寬限期版）留作未來選項，`census_last_seen_at` 欄已為它預留（見 §7）。
+## 4. 護欄（否則出事）
 
-## 4. 資料模型（schema migration，一欄）— **已實作**
+1. **只碰 HIS 身分**（`id == pat_{md5(mrn)}`）＋ **archived=false**：demo/手動病人天生排除。
+2. **空/殘目錄護欄**（`CENSUS_MIN_PRESENT=3`）：`patient/` 目錄過少（跑 sync 的機器資料不全）→ 整個跳過，不會把全board 下架。
+3. **僅全量 sync**：`-p` 單人 sync 不 reconcile。
 
-`patients` 加：
+## 5. Prod 實測（dry-run 已驗，2026-07-22）
 
-| 欄 | 型別 | 意義 |
-|---|---|---|
-| `left_unit` | `BOOLEAN NOT NULL DEFAULT FALSE` | 此病人 MRN 不在最新 getICUbed 名冊 = 已離開 ICU |
+`patient/` 有 10 目錄。DB 未 archived 15 位 → predicate 精準命中**這 5 位**（鄭義輝/周麗華/舒以信/陳弘暉/黃桂華），零誤傷（邱建陽在目錄 → 保留；seed 全部不符 md5 身分 → 保留）。
 
-- **不碰 `archived`**（那是死亡，離開 ICU ≠ 死亡）。
-- migration `081_patient_left_unit.py`：`ADD COLUMN IF NOT EXISTS`（冪等、fresh DB 可過）；**不是** data-seed migration（遵守 backend/CLAUDE.md C3）。
-- 旗標直接落欄（不查詢時算）：sync 每輪由 converter 逐病人算出並寫入。
-
-> **設計演進**：原稿用 `census_last_seen_at TIMESTAMPTZ` + 查詢時 `< MAX()` 推導。改成
-> **逐病人 boolean** 因為 (a) 每位 snapshot 本就各帶完整名冊 → 不需全域參考時間；
-> (b) 消掉冷啟動缺口（邱〇陽這種「上線前就離開」的人，時間戳法永遠拿不到 present 蓋章 →
-> 永不旗標；boolean 法第一次 re-sync 就旗）；(c) 避開 `_is_meaningful` 把 `False` 當空、
-> 導致旗標永遠清不掉。時間戳留給未來寬限期再加（§7）。
-
-## 5. 偵測位置：converter 逐病人（`converter.py`）— **已實作**
-
-床號本來就讀同一份名冊。加 `_left_icu_unit()`，tri-state：
-
-```python
-pat_nos = { PAT_NO in getICUbed.json }
-if len(pat_nos) < _MIN_ICU_ROSTER:  return None   # 名冊不可信 → 見 §6
-return str(self.pat_no) not in pat_nos            # True=離開 False=在院
-```
-`convert_patient()` 帶出 `left_unit: Optional[bool]`；`snapshot_sync.merge_patient_payload` 規則：
-- `None`（名冊不可信）→ **保留既有旗標**（不覆蓋）。
-- `True`/`False` → 覆蓋（設旗／清旗，**自癒**：重入名冊即清）。
-- 新病人（existing=None）且 `None` → 落 `False`（NOT NULL 保護）。
-
-**自癒**：真的還在 ICU 的人下次 sync 名冊仍含他 → `left_unit=False`。名冊是全單位的，任何人離開都會改動每位的 snapshot hash → 觸發 re-sync → 旗標即時更新。
-
-## 6. 三個必守護欄（否則出事）— **已實作**
-
-1. **只碰 HIS 病人**：**自動成立**——只有「從 snapshot 同步的病人」會被 converter 算旗標；demo/seed 病人沒 snapshot、根本不進這條路徑，永遠不被觸碰。（不需脆弱的 id-format predicate；seed 也用 `pat_{8hex}`，本來就分不出。）
-2. **空/殘名冊護欄**：`_MIN_ICU_ROSTER = 3`（converter.py）。名冊 < 3（demographics-only 殘檔，參 memory「4–6KB」）→ `None` → 保留既有，**不會把全單位標成離開**。
-3. **不跟 `archived=死亡` 打架**：獨立欄、獨立邏輯；死亡仍走 `archived`。
-
-## 7. 未來（YAGNI，先不做）
-
-- **寬限期自動下架**：連續缺席 ≥ N 次 sync / ≥ X 小時才自動 `/archive`。`census_last_seen_at` 已足以支撐，不用再加欄。
-- **「仍在院」手動 pin**：目前 false positive 靠「下次 sync 自癒」即可，不需持久化覆蓋欄。真的踩到名冊 bug 再加。
-- **床號前綴 → unit 推導**（`CW*` vs `*ICU*`）：可當第二訊號，但牽涉 `patients.unit` 存取控制（見 auto-import-progress §3 延後項），暫不併入。
-
-## 8. 實作任務切分（跨 session）
+## 6. 實作任務
 
 | 層 | 檔 | 動作 | 狀態 |
 |---|---|---|---|
-| Backend schema | `alembic/versions/081_patient_left_unit.py` | 加 `left_unit` bool（`ADD COLUMN IF NOT EXISTS`） | ✅ |
-| Backend model | `models/patient.py` | `left_unit` mapped column | ✅ |
-| Backend 偵測 | `fhir/his/converter.py` | `_left_icu_unit()` tri-state + `_MIN_ICU_ROSTER=3` | ✅ |
-| Backend merge | `fhir/snapshot_sync.py` | `left_unit` None→保留 / bool→覆蓋 / new→False | ✅ |
-| Backend API | `routers/patients.py:patient_to_dict` | 加 `leftUnit` | ✅ |
-| Test | `tests/test_fhir/test_left_unit_census.py` | 7 條（在院/離開/小名冊/merge×4）＋全 test_fhir 121 綠 | ✅ |
-| Frontend badge | `dashboard.tsx`、`patient-detail-header.tsx` | `leftUnit` → 琥珀警示 badge（i18n 中/英） | ✅ |
-| Frontend 確認出院 | `dashboard.tsx` | 板卡片「確認出院」按鈕 → 重用 `PatientArchiveDialog`（lockTarget）+ `archivePatient` | ✅ tsc/build/orphan 綠 |
-| 部署 | — | 後端 push `personal`(Railway，migration 081 已上、`left_unit` 欄已存在)；前端 push `railway`(Vercel，bundle `BCsRED4i`) | ✅ 已驗 |
-| Prod 啟用 | — | **跑一次 sync** 才會填 `left_unit`；之後 DB 查 `SELECT id,name,bed_number,left_unit FROM patients WHERE left_unit` 應含邱〇陽 | ⬜ 待跑（prod-direct，使用者決策） |
+| Backend 邏輯 | `fhir/snapshot_sync.py` | `archive_absent_his_patients` + `select_absent_his_patient_ids`(純) + `_his_patient_id` + `CENSUS_MIN_PRESENT` | ✅ |
+| Backend 接線 | `scripts/sync_his_snapshots_serial.py` | 迴圈後、全量 sync 才 reconcile | ✅ |
+| Backend 移除 | converter/merge/model/api | 拔掉 `left_unit`（getICUbed 旗標） | ✅ |
+| Migration | `082_drop_patient_left_unit.py` | drop 掉 081 加的欄（`DROP COLUMN IF EXISTS`） | ✅ |
+| Frontend 移除 | `dashboard.tsx`、`patient-detail-header.tsx`、`patients.ts`、i18n | 拔掉 badge/確認按鈕/型別/字典 | ✅ tsc/build/orphan 綠 |
+| Test | `tests/test_fhir/test_census_auto_archive.py` | 5 條（選中/保留/非HIS/None/護欄）；test_fhir 119 綠 | ✅ |
+| 部署 | — | 後端 push `personal`(Railway，migration 082)；前端 push `railway`(Vercel) | ⬜ 待部署 |
+| Prod 啟用 | — | **跑一次全量 sync** → 5 位自動 archive 離板 | ⬜ 待跑（prod-direct） |
 
-> ⚠️ 尚未部署、尚未在 prod 驗。前端 badge 是使用者可見的最後一哩，未接則後端旗標無 UI 出口。
+> ⚠️ 部署後，5 位仍在板上直到**跑一次全量 sync**；sync 尾端才會 archive 他們。
