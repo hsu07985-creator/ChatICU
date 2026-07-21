@@ -40,7 +40,7 @@
 
 - [x] ~~**Vercel 前端 promote**~~：**已確認生效（2026-07-21）**。`66c6a48` = Production·Current，apex `index-C1j_oTLU.js` 已含 `hisSyncNote` 中英 banner。（驗證改用 `curl chat-icu.vercel.app/assets/index-*.js | grep hisSyncNote`，別比 index hash——見 §0。）
 - [ ] **在 prod 觸發一次 HIS sync**：converter 程式部署了，但**資料不會自己流進 prod DB**，要跑一次 sync（`sync_his_snapshots_serial.py`，見根 CLAUDE.md「手動更新 HIS」）才會看到床號/身高/氣道/生命徵象自動帶入。⚠️ 本機的 HIS sync 按鈕直連 prod，勿在本機亂點。
-- [ ] **部署 + 啟用「出院自動下架」**：程式已完成（後端+前端+測試綠、未部署），見 [`census-left-unit-detection-design-2026-07-21.md`](./census-left-unit-detection-design-2026-07-21.md)。**真相來源=`patient/` 目錄**（不在目錄的 HIS 病人=出院），sync 全量跑時自動 `archived=true`。待：後端 push `personal`(migration 082)、前端 push `railway`、**prod 跑一次全量 sync** 才會把 5 位（鄭義輝/周麗華/舒以信/陳弘暉/黃桂華）下架。**注意：邱建陽(RCW29-1) 在目錄裡=現役，不下架**；初版 getICUbed 旗標做法已廢除（會搞反）。
+- [x] ~~**部署 + 啟用「出院自動下架」**~~ ✅ **完成（2026-07-22）**，見 [`census-left-unit-detection-design-2026-07-21.md`](./census-left-unit-detection-design-2026-07-21.md)。**真相來源=`patient/` 目錄**（不在目錄的 HIS 病人=出院），全量 sync 尾端自動 `archived=true`。後端(migration 082)+前端已部署驗證；prod 全量 sync 已跑（台北 00:16），5 位（鄭義輝/周麗華/舒以信/陳弘暉/黃桂華）已 archive 離板、邱建陽保留(→MICU17)、board active=10。初版 getICUbed 旗標做法已廢除（會搞反）。
 - [ ] **決策：床號覆蓋行為**（Playwright 已重現，見 §4）——維持「HIS 為準」（現狀，banner 已提醒）還是改「手動優先」（fill-if-empty，需改 code）。**未決前維持現狀。**
 - [ ] **（延後）`patients.unit`**：仍硬編碼 `'ICU'`，未改讀 BED_CODE 前綴——因為改值會動**資料層存取控制**（unit-scoped 使用者可見範圍），需先評估。
 - [ ] **（延後）過敏 parser bug**：`getSO` SOAP 的 `parse_allergy_texts` 把「denied」誤判成過敏物質（應為 NKA）。既有 bug，非本次引入；哪天碰 allergy 再修。
