@@ -508,7 +508,8 @@ export function DashboardPage() {
                           {t('card.ageYears', { age: patient.age })}&nbsp;·&nbsp;{stayDays !== null ? t('card.stayDays', { days: stayDays, count: stayDays }) : t('card.stayShort')}
                         </p>
                       </div>
-                      <div className="h-12 w-12 rounded-full bg-brand text-white flex items-center justify-center font-bold text-lg shadow-lg shrink-0">
+                      {/* ponytail: min-width pill, not fixed circle — short codes (I-07) stay round, wide HIS codes (CW29/MICU17) expand instead of overflowing */}
+                      <div className="h-12 min-w-[3rem] px-2 rounded-full bg-brand text-white flex items-center justify-center font-bold text-lg shadow-lg shrink-0 whitespace-nowrap">
                         {patient.bedNumber || '-'}
                       </div>
                     </div>

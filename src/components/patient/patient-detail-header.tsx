@@ -36,7 +36,8 @@ export function PatientDetailHeader({
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex items-center gap-4">
-              <div className="h-16 w-16 rounded-full bg-brand text-white flex items-center justify-center font-bold text-2xl shadow-lg">
+              {/* ponytail: min-width pill, not fixed circle — wide HIS bed codes (CW29/MICU17) expand instead of overflowing */}
+              <div className="h-16 min-w-[4rem] px-3 rounded-full bg-brand text-white flex items-center justify-center font-bold text-2xl shadow-lg shrink-0 whitespace-nowrap">
                 {patient.bedNumber || '-'}
               </div>
               <div>
