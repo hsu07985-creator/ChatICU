@@ -68,8 +68,7 @@
     "lastUpdatePrefix": "Last update: ",
     "editButtonTitle": "Edit patient info",
     "leftUnitBadge": "Left ICU?",
-    "leftUnitTooltip": "This patient is absent from the latest ICU roster and may have been transferred or discharged. Confirm and run the discharge flow.",
-    "leftUnitConfirmDischarge": "Confirm discharge"
+    "leftUnitTooltip": "This patient is absent from the latest ICU roster and may have been transferred or discharged. Confirm and run the discharge flow."
   },
   "edit": {
     "title": "Edit Patient Info",

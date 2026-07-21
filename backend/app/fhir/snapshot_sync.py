@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import date, datetime, timezone
 from typing import Any
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 
 from app.fhir.his_converter import HISConverter
 from app.fhir.snapshot_resolver import SnapshotInfo
@@ -231,20 +232,9 @@ def _is_meaningful(field: str, value: Any) -> bool:
 def merge_patient_payload(existing: dict[str, Any] | None, incoming: dict[str, Any]) -> dict[str, Any]:
     """Merge HIS-derived patient payload with an existing DB patient row."""
     if existing is None:
-        new = dict(incoming)
-        # left_unit is NOT NULL in the DB; a roster-less first sync yields None → default False.
-        if new.get("left_unit") is None:
-            new["left_unit"] = False
-        return new
+        return dict(incoming)
 
     merged = dict(existing)
-
-    # left_unit (census flag): overwrite only when the roster was trusted
-    # (converter emits None when getICUbed is empty/too small → keep existing).
-    # A plain bool can't ride PRESERVE_EXISTING because _is_meaningful treats
-    # False as "empty", which would stop the flag from ever clearing.
-    if incoming.get("left_unit") is not None:
-        merged["left_unit"] = incoming["left_unit"]
 
     for field in HIS_OWNED_FIELDS:
         if field in incoming:
@@ -269,6 +259,68 @@ def merge_patient_payload(existing: dict[str, Any] | None, incoming: dict[str, A
         merged[field] = value
 
     return merged
+
+
+# --- Census auto-archive: patient/ directory is the source of truth ---------
+# A patient whose MRN is no longer exported by HIS (absent from the patient/
+# directory set) has been discharged (PM decision 2026-07-22). Refuse to sweep
+# when the present set is implausibly small so an empty/incomplete patient/
+# directory can never wipe the whole board.
+CENSUS_MIN_PRESENT = 3
+
+
+def _his_patient_id(mrn: str) -> str:
+    """Deterministic HIS patient id for an MRN — mirrors _gen_id('pat', mrn)."""
+    return "pat_" + hashlib.md5(mrn.encode(), usedforsecurity=False).hexdigest()[:8]
+
+
+def select_absent_his_patient_ids(
+    active_rows: list[tuple[str, str | None]], present_mrns: set[str]
+) -> list[str]:
+    """Pure: ids of active HIS-managed patients whose MRN is absent from present.
+
+    HIS-managed identity = id equals the md5 fingerprint of its own MRN. This
+    excludes hand-set demo ids (pat_001/003/004) whose MRN doesn't fingerprint
+    back to the id, so manual patients are never auto-archived.
+    """
+    return [
+        rid
+        for (rid, mrn) in active_rows
+        if mrn and mrn not in present_mrns and rid == _his_patient_id(mrn)
+    ]
+
+
+async def archive_absent_his_patients(session: Any, present_mrns: set[str]) -> dict[str, Any]:
+    """Archive active HIS patients absent from the current patient/ set. Idempotent."""
+    present = set(present_mrns)
+    if len(present) < CENSUS_MIN_PRESENT:
+        return {"skipped": "present_too_small", "present": len(present), "archived": 0}
+
+    rows = (
+        await session.execute(
+            text("SELECT id, medical_record_number FROM patients WHERE archived = false")
+        )
+    ).all()
+    ids = select_absent_his_patient_ids(
+        [(r.id, r.medical_record_number) for r in rows], present
+    )
+    if not ids:
+        return {"archived": 0, "ids": []}
+
+    stmt = text(
+        "UPDATE patients SET archived = true, archived_at = :now, updated_at = :now, "
+        "discharge_reason = COALESCE(discharge_reason, :reason) "
+        "WHERE id IN :ids"
+    ).bindparams(bindparam("ids", expanding=True))
+    await session.execute(
+        stmt,
+        {
+            "now": datetime.now(timezone.utc),
+            "reason": "HIS 匯出已無此病人，自動判定出院",
+            "ids": ids,
+        },
+    )
+    return {"archived": len(ids), "ids": ids}
 
 
 async def fetch_existing_patient(session: Any, patient_id: str) -> dict[str, Any] | None:

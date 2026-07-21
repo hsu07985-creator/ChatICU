@@ -41,12 +41,6 @@ from app.fhir.his.roc_time import (
 )
 
 
-# Minimum getICUbed roster size to trust for the left-ICU flag. Below this the
-# snapshot is likely degraded (demographics-only), so we don't flag anyone.
-# ponytail: fixed floor; make it "≥ half of last roster" only if source flakiness proves it.
-_MIN_ICU_ROSTER = 3
-
-
 def _to_float(value: Any) -> Optional[float]:
     """Parse HIS numeric strings ('163', '53.7') to float; None when unparseable."""
     if value is None or value == "":
@@ -151,13 +145,11 @@ class HISConverter:
         bed_number = self._extract_bed_number()
         height, weight, bmi = self._extract_anthropometrics()
         intubated, tracheostomy, tracheostomy_date = self._extract_airway()
-        left_unit = self._left_icu_unit()
 
         return {
             "id": pat_id,
             "name": p.get("PAT_NAME", ""),
             "bed_number": bed_number or "",  # '' → not meaningful → keep manual
-            "left_unit": left_unit,  # tri-state: True/False when roster trusted, None → keep existing
             "medical_record_number": self.pat_no,
             "age": age or 0,
             "date_of_birth": dob,
@@ -334,26 +326,6 @@ class HISConverter:
                 if code:
                     return code
         return None
-
-    def _left_icu_unit(self) -> Optional[bool]:
-        """Has this patient left the ICU? Derived from the getICUbed roster.
-
-        getICUbed lists the whole in-bed ICU unit. If our PAT_NO is absent, the
-        patient has been transferred/discharged out of the ICU. Tri-state:
-          True  → roster trusted and we're not in it (left)
-          False → roster trusted and we're in it (present)
-          None  → roster empty/too small to trust → caller keeps existing flag
-        A degraded source (demographics-only snapshot) yields a stub roster; the
-        _MIN_ICU_ROSTER floor stops that from flagging the whole unit as gone.
-        """
-        pat_nos = {
-            str(row.get("PAT_NO"))
-            for row in self._load("getICUbed.json")
-            if row.get("PAT_NO") is not None
-        }
-        if len(pat_nos) < _MIN_ICU_ROSTER:
-            return None
-        return str(self.pat_no) not in pat_nos
 
     def _extract_anthropometrics(
         self,

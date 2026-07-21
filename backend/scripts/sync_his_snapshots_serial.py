@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.fhir.snapshot_resolver import discover_patient_roots, resolve_patient_snapshot
 from app.fhir.snapshot_sync import (
+    archive_absent_his_patients,
     record_sync_heartbeat,
     sync_snapshot_into_session,
     upsert_global_sync_status,
@@ -149,6 +150,22 @@ async def main(patient_filter: str | None, force: bool, state_file: Path = STATE
         }
         save_state(state_file, state)
         counts["synced"] += 1
+
+    # Census auto-archive: patients no longer in patient/ have been discharged.
+    # Full-sync only — a -p single-patient run must never sweep everyone else.
+    if patient_filter is None:
+        present = {root.name for root in roots}
+        async with sf() as session:
+            try:
+                arch = await archive_absent_his_patients(session, present)
+                await session.commit()
+                if arch.get("archived"):
+                    print(f"  census auto-archive: {arch['archived']} discharged (absent from patient/) → {arch['ids']}")
+                elif arch.get("skipped"):
+                    print(f"  census auto-archive: SKIPPED ({arch['skipped']}, present={arch.get('present')})")
+            except Exception as exc:
+                await session.rollback()
+                print(f"census auto-archive error: {type(exc).__name__}: {exc}")
 
     # C2: heartbeat 每次 run 都寫(含全 unchanged),讓 /sync/status 能從
     # prod 分辨「有跑沒變」vs「排程沒跑」。
