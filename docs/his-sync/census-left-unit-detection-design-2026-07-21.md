@@ -62,7 +62,7 @@ archive_absent_his_patients(session, present):
 | Migration | `082_drop_patient_left_unit.py` | drop 掉 081 加的欄（`DROP COLUMN IF EXISTS`） | ✅ |
 | Frontend 移除 | `dashboard.tsx`、`patient-detail-header.tsx`、`patients.ts`、i18n | 拔掉 badge/確認按鈕/型別/字典 | ✅ tsc/build/orphan 綠 |
 | Test | `tests/test_fhir/test_census_auto_archive.py` | 5 條（選中/保留/非HIS/None/護欄）；test_fhir 119 綠 | ✅ |
-| 部署 | — | 後端 push `personal`(Railway，migration 082)；前端 push `railway`(Vercel) | ⬜ 待部署 |
-| Prod 啟用 | — | **跑一次全量 sync** → 5 位自動 archive 離板 | ⬜ 待跑（prod-direct） |
+| 部署 | — | 後端 Railway（migration 082 已上，`left_unit` 欄已 drop）；前端 Vercel bundle `BsgigTzN` | ✅ 已驗（2026-07-22） |
+| Prod 啟用 | — | **跑一次全量 sync** → 5 位自動 archive 離板 | ⬜ 待跑（prod-direct，使用者決策） |
 
 > ⚠️ 部署後，5 位仍在板上直到**跑一次全量 sync**；sync 尾端才會 archive 他們。
