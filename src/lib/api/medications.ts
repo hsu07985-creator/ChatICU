@@ -64,13 +64,13 @@ export interface MedicationAdministration {
 
 export interface MedicationsResponse {
   medications: Medication[];
-  grouped: {
+  grouped?: {
     sedation: Medication[];
     analgesia: Medication[];
     nmb: Medication[];
     other: Medication[];
     outpatient: Medication[];
-  };
+  } | null;
   interactions: DrugInteraction[];
   // True when the backend drug-interaction lookup FAILED (vs genuinely found
   // none). Lets the UI distinguish "no interactions = safe" from "check
@@ -92,13 +92,14 @@ export interface DrugInteraction {
 // 取得病人用藥列表
 export async function getMedications(
   patientId: string,
-  options: { page?: number; limit?: number; status?: string; category?: string } = {}
+  options: { page?: number; limit?: number; status?: string; category?: string; compact?: boolean } = {}
 ): Promise<MedicationsResponse> {
   const params = new URLSearchParams();
   if (options.page) params.append('page', String(options.page));
   if (options.limit) params.append('limit', String(options.limit));
   if (options.status) params.append('status', options.status);
   if (options.category) params.append('category', options.category);
+  if (options.compact) params.append('compact', 'true');
 
   const response = await apiClient.get<ApiResponse<MedicationsResponse>>(
     `/patients/${patientId}/medications?${params}`

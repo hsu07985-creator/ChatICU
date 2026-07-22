@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import JSON, cast, func, select
+from sqlalchemy import func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -21,68 +21,40 @@ async def get_dashboard_stats(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Total patients
-    total_result = await db.execute(
-        select(func.count(Patient.id)).where(Patient.archived == False)
-    )
-    total_patients = total_result.scalar() or 0
-
-    # Intubated patients — count + bed numbers
-    intubated_rows = await db.execute(
-        select(Patient.bed_number)
+    patient_result = await db.execute(
+        select(Patient.bed_number, Patient.intubated, Patient.alerts)
         .where(Patient.archived == False)
-        .where(Patient.intubated == True)
     )
-    intubated_beds = [row[0] for row in intubated_rows.all()]
+    patient_rows = patient_result.all()
+    total_patients = len(patient_rows)
+    intubated_beds = [row.bed_number for row in patient_rows if row.intubated]
     intubated_count = len(intubated_beds)
+    alert_count = sum(len(row.alerts or []) for row in patient_rows)
 
-    # SAN stats in 3 queries (was 7 separate queries)
-    # All SAN queries join Patient and filter archived==False so that archiving
-    # (soft-delete) a patient removes them from SAN stats immediately — archiving
-    # leaves Medication rows with status='active', so without this join the
-    # SAN counts keep including archived patients and can exceed total patients.
-    # Query 1: distinct patients per SAN category (GROUP BY)
-    san_patient_rows = await db.execute(
-        select(Medication.san_category, func.count(func.distinct(Medication.patient_id)))
+    san_result = await db.execute(
+        select(
+            Medication.san_category,
+            Medication.patient_id,
+            func.count(Medication.id),
+        )
         .join(Patient, Patient.id == Medication.patient_id)
         .where(Patient.archived == False)
         .where(Medication.status == "active")
         .where(Medication.san_category.in_(["S", "A", "N"]))
-        .group_by(Medication.san_category)
+        .group_by(Medication.san_category, Medication.patient_id)
     )
-    san_patient_map = dict(san_patient_rows.all())
+    san_counts = {"S": 0, "A": 0, "N": 0}
+    san_patient_ids = {"S": set(), "A": set(), "N": set()}
+    for category, patient_id, medication_count in san_result:
+        san_counts[category] += medication_count
+        san_patient_ids[category].add(patient_id)
     san_patient_counts = {
-        "sedation": san_patient_map.get("S", 0),
-        "analgesia": san_patient_map.get("A", 0),
-        "nmb": san_patient_map.get("N", 0),
-    }
-
-    # Query 2: medication counts per SAN category (GROUP BY)
-    san_med_rows = await db.execute(
-        select(Medication.san_category, func.count(Medication.id))
-        .join(Patient, Patient.id == Medication.patient_id)
-        .where(Patient.archived == False)
-        .where(Medication.status == "active")
-        .where(Medication.san_category.in_(["S", "A", "N"]))
-        .group_by(Medication.san_category)
-    )
-    san_med_map = dict(san_med_rows.all())
-    san_counts = {
-        "S": san_med_map.get("S", 0),
-        "A": san_med_map.get("A", 0),
-        "N": san_med_map.get("N", 0),
+        "sedation": len(san_patient_ids["S"]),
+        "analgesia": len(san_patient_ids["A"]),
+        "nmb": len(san_patient_ids["N"]),
     }
     total_active_meds = san_counts["S"] + san_counts["A"] + san_counts["N"]
-
-    # Query 3: distinct patients with any SAN (cross-category dedup)
-    san_distinct_result = await db.execute(
-        select(func.count(func.distinct(Medication.patient_id)))
-        .join(Patient, Patient.id == Medication.patient_id)
-        .where(Patient.archived == False)
-        .where(Medication.status == "active")
-        .where(Medication.san_category.in_(["S", "A", "N"]))
-    )
-    with_san = san_distinct_result.scalar() or 0
+    with_san = len(set().union(*san_patient_ids.values()))
 
     # Per-user unread messages (TC-FU-T1) — was global ``is_read==False``
     # which let any reader silently zero everyone else's dashboard count.
@@ -92,45 +64,27 @@ async def get_dashboard_stats(
         db_user.last_chat_visit_at if db_user is not None else None
     )
     baseline_at = max(cutoff, last_visit) if last_visit is not None else None
-    if baseline_at is None:
-        unread_messages = 0
-    else:
-        dialect_name = db.bind.dialect.name if db.bind is not None else "sqlite"
-        already_read = array_contains_user_receipt(
-            PatientMessage.read_by, user.id, dialect_name,
-        )
-        unread_result = await db.execute(
-            select(func.count(PatientMessage.id))
-            .where(PatientMessage.timestamp >= baseline_at)
-            .where(~already_read)
-        )
-        unread_messages = unread_result.scalar() or 0
-
-    # Today's messages
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_result = await db.execute(
+    dialect_name = db.bind.dialect.name if db.bind is not None else "sqlite"
+    already_read = array_contains_user_receipt(PatientMessage.read_by, user.id, dialect_name)
+    unread_count = (
+        select(func.count(PatientMessage.id))
+        .where(PatientMessage.timestamp >= baseline_at)
+        .where(~already_read)
+        .scalar_subquery()
+        if baseline_at is not None
+        else literal(0)
+    )
+    today_count = (
         select(func.count(PatientMessage.id))
         .where(PatientMessage.timestamp >= today_start)
+        .scalar_subquery()
     )
-    today_messages = today_result.scalar() or 0
-
-    # Alerts count — aggregate in DB instead of loading full Patient objects.
-    # Patient.alerts is JSONB in PostgreSQL; json_array_length(jsonb) does not
-    # exist in Postgres, so we must cast jsonb→json. SQLite has no distinct JSON
-    # type and stores JSON as TEXT — wrapping with CAST AS JSON silently breaks
-    # json_array_length there (returns 0). So pick the expression by dialect.
-    dialect_name = db.bind.dialect.name if db.bind is not None else "sqlite"
-    if dialect_name == "postgresql":
-        alerts_arr = cast(Patient.alerts, JSON)
-    else:
-        alerts_arr = Patient.alerts
-    alert_result = await db.execute(
-        select(func.coalesce(func.sum(func.json_array_length(alerts_arr)), 0))
-        .where(Patient.archived == False)
-        .where(Patient.alerts != None)
+    message_result = await db.execute(
+        select(today_count, unread_count)
     )
-    alert_count = alert_result.scalar() or 0
+    today_messages, unread_messages = message_result.one()
 
     # Response matches frontend DashboardStats interface (F09)
     return success_response(data={

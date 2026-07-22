@@ -111,6 +111,7 @@ async def compute_medications_payload(
     db: AsyncSession,
     pid: str,
     status_filter: Optional[str] = None,
+    compact: bool = False,
 ) -> dict:
     """Return the same ``{medications, grouped, interactions}`` payload that
     ``GET /patients/{id}/medications`` puts in ``data``.
@@ -132,6 +133,8 @@ async def compute_medications_payload(
     all_meds: list = []
     for med in medications:
         d = med_to_dict(med)
+        if compact:
+            d.pop("sourceDetails", None)
         if d["sourceType"] in ("outpatient", "self-supplied"):
             grouped["outpatient"].append(d)
         else:
@@ -139,6 +142,14 @@ async def compute_medications_payload(
             key = _SAN_KEY_MAP.get(cat, "other")
             grouped[key].append(d)
         all_meds.append(d)
+
+    if compact:
+        return {
+            "medications": all_meds,
+            "grouped": None,
+            "interactions": [],
+            "interactionsError": False,
+        }
 
     # Find drug interactions for active medications.
     # PR-3.5: dual-path matching — ATC codes (class-level) OR drug names.
@@ -250,13 +261,14 @@ async def compute_medications_payload(
 async def list_medications(
     patient_id: str,
     status_filter: str = Query(None, alias="status"),
+    compact: bool = Query(False),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     patient_obj: Patient = Depends(get_accessible_patient),
 ):
     pid = patient_obj.id
 
-    payload = await compute_medications_payload(db, pid, status_filter)
+    payload = await compute_medications_payload(db, pid, status_filter, compact)
     return success_response(data=payload)
 
 

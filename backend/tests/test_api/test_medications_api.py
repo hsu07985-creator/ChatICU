@@ -180,6 +180,24 @@ async def test_medications_payload_exposes_interactions_error_flag(client, seede
 
 
 @pytest.mark.asyncio
+async def test_compact_medications_keep_display_fields_without_duplicate_payload(
+    client, seeded_medication,
+):
+    full = (await client.get("/patients/pat_001/medications")).json()["data"]
+    compact_response = await client.get(
+        "/patients/pat_001/medications", params={"compact": "true"}
+    )
+
+    assert compact_response.status_code == 200
+    compact = compact_response.json()["data"]
+    assert compact["grouped"] is None
+    assert compact["interactions"] == []
+    assert compact["medications"][0]["id"] == full["medications"][0]["id"]
+    assert compact["medications"][0]["sanCategory"] == "A"
+    assert "sourceDetails" not in compact["medications"][0]
+
+
+@pytest.mark.asyncio
 async def test_medications_payload_does_not_infer_self_supplied(client, seeded_db):
     seeded_db.add_all([
         Medication(
