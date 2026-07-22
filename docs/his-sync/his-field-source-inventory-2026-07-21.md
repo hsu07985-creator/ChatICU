@@ -1,15 +1,23 @@
 # HIS 自動匯入 vs 手動輸入 — 全欄位來源盤點
 
-> 版本：2026-07-21 ｜ 域：his-sync ｜ 對象：後端/前端工程師 + 臨床使用者
+> 版本：2026-07-21；現況修訂：2026-07-22（commit `1574779b1`） ｜ 域：his-sync ｜ 對象：後端/前端工程師 + 臨床使用者
 > 配對閱讀：[`docs/his-sync/資料更新_0424.md`](../his-sync/資料更新_0424.md)、[`backend/CLAUDE.md`](../../backend/CLAUDE.md)（Data Coverage Summary）
 
 ---
 
 ## 1. 摘要 / TL;DR
 
-**「哪些欄位是 HIS 說了算、哪些是人填了算」的唯一真相，全部寫在 `backend/app/fhir/snapshot_sync.py` 裡**：三個 frozenset（`HIS_OWNED_FIELDS`、`PRESERVE_EXISTING_FIELDS`、`MIXED_FIELDS`，`snapshot_sync.py:147-201`）決定 **patients 這一張表** 每一欄的合併規則；`REPLACE_TABLES`（`lab_data` / `culture_results` / `diagnostic_reports`）走整表刪除重插；`medications` 走 `reconcile_medications`（upsert + stale 刪除/停用）。HIS sync 是**每小時把 snapshot 覆蓋進 DB 的權威來源**：凡是落在 `HIS_OWNED` / `MIXED` 的欄位，手動改了下一次 sync 一律被蓋回（連空值 `''`/`0`/`None`/`[]` 都蓋）；只有 `PRESERVE_EXISTING` 的空 placeholder 欄位、以及**完全不在 sync pipeline 內的 10 張 App 表**，手動輸入才留得住。這份文件把每一張表、每一欄逐一標記到這套機制上（經過逐表對抗驗證）。
+**「哪些欄位是 HIS 說了算、哪些是人填了算」的唯一真相仍在 `backend/app/fhir/snapshot_sync.py` 與各 PATCH router。** Patients 由三個 frozenset 決定；藥物由 `reconcile_medications` 與 medication PATCH ownership guard 決定；lab/culture/diagnostic 則依來源完整性選擇 replace 或 non-destructive upsert。2026-07-22 起，來源不完整不再把「沒回來」解讀成刪除。
 
-一句話界線：**`HISConverter.convert_all()` 只吐 5 個 key**（patient / medications / lab_data / culture_results / diagnostic_reports，`converter.py:927-931`），`sync_snapshot_into_session` 只寫這 5 個目標（`snapshot_sync.py:483-527`）。其餘 `vital_signs`、`clinical_scores`、`symptom_records`、`ventilator_settings`、`weaning_assessments`、`medication_administrations`、`pharmacy_soap_records`、`pharmacy_advices`、`patient_messages`、`team_chat_messages` **HIS 從頭到尾不碰**。
+一句話界線：**HIS 有明確來源的欄位自動寫入且不能手動改；HIS 沒有的欄位保留人工補充；來源錯誤/缺頁時只更新已收到資料，不刪既有資料。** `vital_signs` 與 `clinical_scores` 現在也由 HIS 以決定性 id upsert，但手動 uuid 列不會被碰。
+
+### 2026-07-22 現況覆寫（與下方歷史逐欄表衝突時，以本段與程式碼為準）
+
+- **Medications**：HIS-id（`order_code` 非空）的 dose/unit/frequency/route/status/endDate/sanCategory/notes 等自動欄位 PATCH 會回 409；只有 `indication`、`warnings`、`concentration`、`concentration_unit`、`prescribing_hospital` 可人工補充且同步後保留。手動藥（`order_code IS NULL`）維持完整編輯。來源不完整時 `delete_stale=False`，不刪缺席藥物。
+- **Lab data**：完整來源仍 replace，但先把既有 `corrections` 注回同 id 新列；含 message/error row 或空來源時改用 upsert，不刪缺席列。latest 查詢上限由 50 提升為 2,000 並加 id tie-break。
+- **Culture results**：以 `(source_campus, sheet_number)` 分組；保存 MIC、檢體類型、最早採檢/最晚報告時間與完整 `source_details`。只有 culture/AST 的 sheet 不再產生空白 `lab_data` orphan。
+- **Raw source**：藥物與培養新增 JSONB `source_details`；藥物另保存 `source_campus`，培養新增 `source_campus`。schema migration = 085。
+- **實測**：10 位病患，medications 2,120、lab items 6,224、culture/AST items 1,812、MIC 98，逐筆 source counter 與數值差異皆為 0；空白 lab orphan = 0。
 
 ---
 
@@ -30,15 +38,13 @@
 
 **Post-merge 覆寫（TRAP #5）**：merge 完後 `snapshot_sync.py:497` 立刻 `merged_patient['last_update'] = datetime.now(utc)`，打敗 `last_update` 的 PRESERVE 身分；`upsert_patient`（`272-299`）再把 `updated_at=CURRENT_TIMESTAMP`。
 
-### 2.2 三張 REPLACE_TABLES：整表刪除重插
+### 2.2 Lab / culture / diagnostic：完整來源 replace，部分來源 upsert
 
-`lab_data` / `culture_results` / `diagnostic_reports`（`REPLACE_TABLES`，`snapshot_sync.py:197-201`）走 `replace_patient_records`（`302-338`）：先 snapshot 既有 id 算 delta → `DELETE FROM {table} WHERE patient_id` → `insert_records` 嚴格多列 INSERT（**無 ON CONFLICT、無去重**，重複 id 直接 `IntegrityError` fail-loud）。**每次 sync 整批砍掉重建**，手動塞的列一定被銷毀，`created_at` 每次 sync 重置為 now()。
+完整來源走 `replace_patient_records`；部分來源走 `upsert_patient_records`，只更新收到的 id。Lab 完整 replace 前會保留同 id 的人工 `corrections`。來源健康判定目前採「資料存在且每個 raw row 都有必要 key」；實際快照中的 81 個 message row 因缺 `LAB_CODE` 會觸發非破壞路徑。
 
 ### 2.3 medications：reconcile（非 REPLACE）
 
-`reconcile_medications`（`snapshot_sync.py:402-456`）：
-- **Step 1 upsert**：`ON CONFLICT (id) DO UPDATE SET <每個非 id 欄>=excluded.col, updated_at=CURRENT_TIMESTAMP`；`created_at` 刻意排除以保留原始插入時間（`384-387`）。無 `_is_meaningful` 閘門 → 每個 converter 欄位對 HIS-id 列**無條件覆蓋**（連 `None`/`[]`/`False`）。
-- **Step 2 stale 處理**：`stale = existing_ids − incoming_ids`。每個 stale 列，**若有 `medication_administrations` 子列 → 改 `status='discontinued'` 保留（protected）；否則硬 DELETE**（TRAP #4）。手動新增藥用 app uuid（`med_xxxxxx` / `med_opd_xxxxxx`）永遠不在 incoming set，故一定被當 stale 處理。
+`reconcile_medications` 先讀取既有人工補充欄位，將非空的 `indication`、`warnings`、`concentration`、`concentration_unit`、`prescribing_hospital` 合併回 converter record，再 upsert。只有來源完整時才處理 stale；來源不完整時回傳 `partial_source=True` 且不刪除。HIS-id 欄位的手動權限另由 PATCH router 統一攔截；手動藥（order_code NULL）不受自動欄位鎖定。
 
 ---
 
@@ -105,7 +111,9 @@
 
 > **關鍵盲點**：`intubation_date` 與 `tracheostomy_date` 是 DB 欄但**刻意不 ORM-map**（`patient.py:33-35`，避免 async deferred-column lazy-load），只透過 raw SQL 存取。任何只讀 ORM model 的盤點都會漏掉這兩欄。
 
-### 3.2 medications（reconcile：upsert + stale 刪除/停用）
+### 3.2 medications（完整來源 reconcile；不完整來源只 upsert）
+
+> **2026-07-22 覆寫**：以下表格保留首次盤點細節。現況是完整來源才處理 stale；部分來源不刪既有資料。HIS 自動欄位鎖定，五個人工補充欄位跨同步保留，`source_details` 保存完整原始列與院區來源。
 
 | 欄位 | 類別 | HIS 來源 | sync 行為 | 手動入口 | 備註 |
 |---|---|---|---|---|---|
@@ -144,7 +152,9 @@
 | `created_at` | 系統自動(APP/DB) | 無 | ON CONFLICT **保留**（測試把關） | 無 | `test_upsert_records_preserves_created_at_on_update` |
 | `updated_at` | 系統自動(APP/DB) | 無 | 每次 ON CONFLICT force `CURRENT_TIMESTAMP`；reconcile 停藥也 set | 無 | 等同 patients last_update trap 的 medications 版 |
 
-### 3.3 lab_data（REPLACE_TABLES：整表刪除重插）
+### 3.3 lab_data（完整來源 replace；不完整來源 upsert）
+
+> **2026-07-22 覆寫**：部分/訊息列不再觸發整表刪除；同步會保留 `corrections` 與人工修正值。以下「手動修正被還原／audit trail 被清除」是舊行為紀錄，不代表目前實作。
 
 | 欄位 | 類別 | HIS 來源 | sync 行為 | 手動入口 | 備註 |
 |---|---|---|---|---|---|
@@ -166,7 +176,9 @@
 | `created_at` | 系統自動(APP/DB) | 無 | **每次 sync 重置為 now()**（刪除重插，非 upsert） | 無 | 對比 medications 刻意保留 |
 | `updated_at` | 系統自動(APP/DB) | 無 | insert 時 now()；手動 PATCH 觸發 onupdate | 無 | — |
 
-### 3.4 culture_results（REPLACE_TABLES，純 HIS，無任何寫入 endpoint）
+### 3.4 culture_results（完整來源 replace；部分來源 upsert；純 HIS）
+
+> **2026-07-22 覆寫**：現況以 `(source_campus, sheet_number)` 分組，保存 MIC、檢體類型、最早採檢/最晚報告時間及完整 `source_details`；只有 culture/AST 的 sheet 不會再建立空白 `lab_data`。以下 `_MIC` 排除與欄位丟棄描述是舊行為紀錄。
 
 > 全表 12 欄由 converter 供給、刪除重插、**無 create/update/delete endpoint**（只有 `GET /{patient_id}/cultures`）。
 
@@ -187,9 +199,9 @@
 | `created_at` | 系統自動(APP/DB) | 無 | **每次 sync 重置為 now()** | 無 | 非穩定插入時間 |
 | `updated_at` | 系統自動(APP/DB) | 無 | onupdate 從不觸發（只刪除重插）；恆等於 created_at | 無 | GET-only router |
 
-### 3.5 diagnostic_reports（REPLACE_TABLES，純 HIS，只有 GET endpoint）
+### 3.5 diagnostic_reports（完整來源 replace；部分來源 upsert；純 HIS）
 
-> 三來源串流合併：imaging（getAllOrder MAJOR_CLASS∈{22,23}）、procedure（getSurgery）、ecg_ai（getAIResult）。無 updated_at 欄。
+> 三來源串流合併：imaging（getAllOrder MAJOR_CLASS∈{22,23}）、procedure（getSurgery）、ecg_ai（getAIResult）。無 updated_at 欄。下表的「刪除重插」指完整來源；部分來源只 upsert 收到的 id。
 
 | 欄位 | 類別 | HIS 來源 | sync 行為 | 手動入口 | 備註 |
 |---|---|---|---|---|---|
@@ -204,9 +216,9 @@
 | `status` | 純 HIS(無手動入口) | 字面 `'final'`（三串流皆是） | 刪除重插 | 無 | 只寫 `final` |
 | `created_at` | 系統自動(APP/DB) | 無 | **每次 sync 重置為 now()** | 無 | REPLACE 表無穩定原始時間；**無 updated_at 欄** |
 
-### 3.6 完全不在 HIS pipeline 的 10 張 App 表
+### 3.6 App 管理表（8 張純 App；2 張 HIS 與手動列共存）
 
-以下每張表 **his_source = null、sync 行為 = 不觸碰（never-touched）**（`HISConverter` 從不吐、三 frozenset/REPLACE_TABLES/reconcile 皆不引用）。因此只列 類別 + 手動入口 + 備註。
+除 `clinical_scores` 與 `vital_signs` 外，其餘八張表 **his_source = null、sync 行為 = 不觸碰（never-touched）**。兩個例外採 HIS 決定性 id upsert；使用者建立的 uuid 列不會被同步刪除或覆寫。
 
 **`medication_administrations`**（HIS 只在 reconcile 讀取一次以決定 med 命運，`snapshot_sync.py:424`）
 
@@ -219,15 +231,15 @@
 | `notes` | 純手動 | PATCH（**無條件覆寫**） | **陷阱**：省略 notes 會把既有 note 洗成 None |
 | `created_at` / `updated_at` | 系統自動(APP/DB) | — | onupdate 走 ORM 可靠觸發 |
 
-**`clinical_scores`**（backend/CLAUDE.md：需臨床評估，HIS 0 列；無 updated_at 欄；immutable 只 insert/delete）
+**`clinical_scores`**（HIS `sbPain` 自動 pain score + 手動 pain/RASS；無 updated_at 欄；immutable 只 insert/delete）
 
 | 欄位 | 類別 | 手動入口 | 備註 |
 |---|---|---|---|
-| `id` / `created_at` | 系統自動(APP/DB) | 伺服器（uuid / server_default） | — |
-| `patient_id` | 純手動 | POST `.../scores`（URL path 衍生） | server-derived from route |
-| `score_type` / `value` / `notes` | 純手動 | POST body（`pain`/`rass`；範圍 Pydantic 驗證） | — |
-| `timestamp` | 純手動 | 伺服器 `now(utc)` at POST | 評估時間，非 body |
-| `recorded_by` | 純手動 | `user.id`（scalar 字串，非 JSONB） | server-derived |
+| `id` / `created_at` | 混合 | HIS 由 patient+pain+時間決定；手動為 uuid / server_default | 兩種 id namespace 共存 |
+| `patient_id` | 混合 | HIS patient id；POST 由 URL path 衍生 | — |
+| `score_type` / `value` / `notes` | 混合 | HIS `pain` / `PAIN_NUMBER` / `sbPain`；手動 POST body | HIS pain 限 0..10；手動另支援 RASS |
+| `timestamp` | 混合 | HIS `CREATE_DATE+CREATE_TIME`；手動為 POST 當下 | — |
+| `recorded_by` | 混合 | HIS 固定 `HIS`；手動為 `user.id` | scalar 字串，非 JSONB |
 
 **`symptom_records`**（無 updated_at 欄）
 
@@ -238,12 +250,13 @@
 
 > **勿混淆**：`patients.symptoms`（PRESERVE 欄）與 `symptom_records` 表是兩回事。
 
-**`vital_signs`**（backend/CLAUDE.md：HIS 無床邊監視器資料，0 列）
+**`vital_signs`**（HIS `getTPR` 自動 TPR/BP + 手動生命徵象列）
 
 | 欄位 | 類別 | 手動入口 | 備註 |
 |---|---|---|---|
-| `id` / `patient_id` / `timestamp` | 系統自動(APP/DB) | 伺服器（uuid / route / now(utc)） | — |
-| `heart_rate` `systolic_bp` `diastolic_bp` `mean_bp` `respiratory_rate` `spo2` `temperature` `etco2` `cvp` `icp` `cpp` `body_weight` | 純手動 | admin POST（`patient-labs-tab.tsx`）；`etco2/cvp/icp/cpp/body_weight` 另由 `run_seed_repair.py` 回填（非 HIS） | spo2 有 CHECK 0..100 |
+| `id` / `patient_id` / `timestamp` | 混合 | HIS 由 patient+時間決定；手動為 uuid / route / now(utc) | HIS re-sync 原地 upsert；手動 uuid 不觸碰 |
+| `heart_rate` `systolic_bp` `diastolic_bp` `mean_bp` `respiratory_rate` `temperature` | 混合 | HIS `PULSE/SYSTOLICBP/DIASTOLICBP/RESPIRATIONRATE/TEMPERATURE`；也可由 admin POST 建立手動列 | `mean_bp` 由 SBP/DBP 計算 |
+| `spo2` `etco2` `cvp` `icp` `cpp` `body_weight` | 純手動 | admin POST；部分欄位另可由 `run_seed_repair.py` 回填（非 HIS） | HIS 無來源；spo2 有 CHECK 0..100 |
 | `reference_ranges` | 系統自動(APP/DB) | 無（**dead/orphan 欄**，恆 NULL） | API 回硬編碼常數，DB 欄從不讀寫 |
 | `created_at` / `updated_at` | 系統自動(APP/DB) | — | 無 UPDATE endpoint，onupdate 僅 seed_repair 觸發 |
 
@@ -302,11 +315,11 @@
 
 5. **所有 HIS_OWNED 但可 PATCH 的 patients 欄位**：`name`、`age`、`gender`、`diagnosis`、`medical_record_number`、`attending_physician`、`department`、`admission_date`、`icu_admission_date`、`blood_type`、`code_status`、`has_dnr`、`archived` — 手動改了下次 sync 一律被還原（`archived` 尤其危險：**手動 archive/出院的活人下次 sync 被 un-archive**，因為 `archived=bool(DEAD_DATE)` 只反映死亡）。
 
-6. **`medications` HIS-id 藥的手動 PATCH**：`dose`/`unit`/`frequency`/`route`/`status`/`endDate`/`sanCategory`/`concentration`/`concentration_unit`/`notes` 下次 sync 全部還原成 converter 值。`concentration`/`concentration_unit` 甚至被 **蓋成 NULL**（converter 恆吐 None）。
+6. **`medications` HIS-id 藥的手動 PATCH**：自動欄位已在 API 邊界鎖定，`dose`/`unit`/`frequency`/`route`/`status`/`endDate`/`sanCategory`/`notes` 會直接回 409，不再接受「暫時改、下次被蓋回」。HIS 沒提供的五個人工補充欄位可寫且同步後保留。
 
-7. **手動新增藥被刪（TRAP #4）**：POST 建立的手動藥（`med_xxxxxx` / `med_opd_xxxxxx`）永不在 HIS incoming set → 被當 stale：**無 `medication_administrations` 子列 → 硬 DELETE；有子列 → 強制 `discontinued` 保留**。手動藥**永遠無法**存活成 active 通過一次 sync。
+7. **手動新增藥**：`order_code IS NULL` 的手動藥維持完整編輯；當 HIS 回應被判定為部分來源時不處理 stale，因此不會因缺頁誤刪。完整來源的 stale 政策仍是「有 administration 則 discontinued、無 administration 則刪除」，後續若要永久排除手動藥，需另加 provenance 欄位。
 
-8. **`lab_data` 手動修正被洗掉**：`PATCH /lab-data/{id}/correct` 會（a）改 category JSONB 內的 item value、（b）append `corrections` audit 陣列。但 lab_data 是 REPLACE_TABLES → **每小時 sync 整批 DELETE+re-INSERT**，兩者都被還原/銷毀（converter 從不吐 `corrections` key）。醫師輸入的檢驗值修正與稽核軌跡都不持久。
+8. **`lab_data` 人工修正**：完整 replace 前會依決定性 id 保留 `corrections` audit；部分來源改為 upsert，也不會刪除既有列。原始 HIS value 仍是自動來源，人工修正以 `corrections` 疊加呈現，不把來源值改成永久手動值。
 
 ---
 
@@ -320,7 +333,7 @@
 **純手動（sync 不碰，填了會保留）**
 
 - **patients 表內**：`bed_number`、`height`、`weight`、`bmi`（app 衍生）、`symptoms`、`intubated`、`tracheostomy`、`tracheostomy_date`、`intubation_date`、`critical_status`、`is_isolated`、`campus`（僅 seed/DB）、`discharge_type`/`discharge_date`/`discharge_reason`/`archived_at`。
-- **整張表都是手動/App（HIS 從不碰）**：`medication_administrations`、`clinical_scores`、`symptom_records`、`vital_signs`、`ventilator_settings`、`weaning_assessments`、`pharmacy_soap_records`、`pharmacy_advices`、`patient_messages`、`team_chat_messages`。
+- **整張表都是手動/App（HIS 從不碰）**：`medication_administrations`、`symptom_records`、`ventilator_settings`、`weaning_assessments`、`pharmacy_soap_records`、`pharmacy_advices`、`patient_messages`、`team_chat_messages`。`vital_signs` 與 `clinical_scores` 已改成 HIS 決定性 id upsert + 手動 uuid 共存，不屬於純手動。
 
 ---
 
@@ -328,15 +341,15 @@
 
 **填了會留住（安全）：**
 - 病人基本補充資料：**床號、身高、體重、隔離狀態、氣管內管/氣切與其日期、危急狀態、症狀**。這些 HIS 沒有，你填了就一直在。
-- **所有生命徵象、鎮靜/RASS 評分、症狀紀錄、呼吸器設定、脫離評估、藥師 SOAP 與藥事建議、團隊聊天/病人留言** — 這些整套都是院內自己記的，HIS 完全不會蓋掉。
+- **手動生命徵象、鎮靜/RASS 評分**會以不同 id 保留；HIS 同時可 upsert 自動 vital/pain rows。症狀紀錄、呼吸器設定、脫離評估、藥師 SOAP 與藥事建議、團隊聊天/病人留言仍完全由 App 管理。
 - 出院/離開資訊（出院類型、日期、原因）走獨立的封存流程，不會被 sync 動到。
 
 **填了只是暫時（下次同步會被 HIS 蓋回，別依賴）：**
 - 病人的**姓名、年齡、性別、診斷、血型、主治醫師、科別、住院/入 ICU 日期、DNR/code status、病歷號** — 這些以 HIS 為準，你在系統裡改，最多撐到下一次每小時同步。
 - **鎮靜/止痛/肌鬆藥清單、consent 狀態、呼吸器天數、過敏、警示（alerts）**：HIS 有資料時會覆蓋；沒資料時，鎮靜/consent/呼吸器天數甚至會被**清空**（過敏/警示例外：HIS 沒抓到時會保留你填的）。
 - **床位所在 unit** 會被固定蓋回 `ICU`。
-- **檢驗值的手動更正**：你在檢驗頁做的更正，**下一次同步會被原始 HIS 值蓋回**，更正紀錄也會消失 — 若需長期修正請走正式管道。
-- **手動新增的藥**：下次同步會被移除（若沒有給藥紀錄）或標記為停用（若已有給藥紀錄），無法維持在「使用中」。對 HIS 既有藥所做的劑量/頻率/途徑等修改也只是暫時。
+- **檢驗值的手動更正**：更正 audit 已能跨同步保留；畫面仍應同時辨識原始 HIS 值與人工 correction。
+- **HIS 既有藥的劑量/頻率/途徑等自動欄位**：API 已禁止手動修改；只有 indication、warnings、濃度與開立醫院等來源缺口可補填。手動建立藥仍可編輯，但完整來源同步時的 stale 政策仍要留意。
 
 一句話：**HIS 有的欄位以 HIS 為準；HIS 沒有的欄位你說了算。**
 
@@ -357,10 +370,10 @@
 - 別把 `medications.unit`（藥物劑量單位，純 MIXED）誤當成 `patients.unit`（TRAP #1 灰色地帶）。同名不同表、不同機制。
 - 別以為 `PRESERVE_EXISTING` 就一定保留：`unit`（硬 `'ICU'`）與 `last_update`（post-merge force now()）都在 PRESERVE 集合卻被打敗。
 - HIS_OWNED loop **無 meaningfulness 檢查**：空 `''` name、`0` age、`None` blood_type、`'待確認'` diagnosis placeholder 都會覆蓋既有值 — 加 HIS_OWNED 欄前想清楚 converter 缺值時吐什麼。
-- REPLACE 表的 `created_at` **每次 sync 重置**（刪除重插），不是穩定插入時間；只有 medications 的 upsert 路徑刻意保留 `created_at`。
+- 完整來源的 REPLACE 表 `created_at` 仍會重置；部分來源 upsert 則保留既有列。Lab 的 `corrections` 在 complete replace 前另行搬回。
 - 只讀 ORM model 會漏 `patients.intubation_date` / `tracheostomy_date`（raw SQL，非 ORM-mapped）。
 - Python 端 `default=`（非 `server_default=`）只在 ORM insert 生效；raw-SQL/bulk sync 路徑會繞過（例：`medications.status='active'`、`source_type='inpatient'`、各 bool False）。
-- 資料修補**不要再疊 data-seed migration**；走 `backend/scripts/run_seed_repair.py`（見 CLAUDE.md）。lab corrections 若要持久化，需在 REPLACE 邏輯外另存（現況會被 sync 洗掉）。
+- 資料修補**不要再疊 data-seed migration**；走 `backend/scripts/run_seed_repair.py`（見 CLAUDE.md）。Lab corrections 的保留已在 `replace_patient_records` 共用路徑處理。
 
 ---
 
@@ -380,4 +393,4 @@
 | 藥物手動入口 | `backend/app/routers/medications.py` | create `342`；update `387-399`；import-outpatient `489-507` |
 | 檢驗更正 | `backend/app/routers/lab_data.py` | `correct_lab_data` `394-437` |
 | enrichment 來源 | `code_maps/drug_formulary.csv`；`backend/app/fhir/his/resources.py` `58-99`；`backend/app/fhir/his_lab_mapping.py` | ATC/antibiotic/kidney；LAB_CODE 路由 |
-| 資料覆蓋現況 | `backend/CLAUDE.md` | Data Coverage Summary（vital/ventilator/scores = 0；height/weight/allergies/campus/bed_number/unit 非 HIS） |
+| 資料覆蓋現況 | `backend/CLAUDE.md` | Data Coverage Summary；本文件 2026-07-22 覆寫段為 HIS vital/scores 與欄位 ownership 的目前狀態 |

@@ -4,13 +4,17 @@
 >
 > **實作狀態（2026-07-22）**：A（generic_name←DRUG_NAME）、B（atc gap-fill his_atc + migration 083）、san ATC 後備、nhi_code（migration 084）**全部實作**，7 reviewer 對抗驗證 = GO 無 blocker。額外採納兩條 follow-up：is_antibiotic 加 `P01AB`/`A07AA`（metronidazole、口服非吸收抗菌）、san 後備加 `N05BA`(IV benzo) 去掉 `N05AH`(避免 olanzapine 誤分)。測試 378 passed、fresh-DB 過。剩餘 follow-up：combo generic 多分隔符/去 strength（純上升、未做）、is_antibiotic 文案「抗生素→抗微生物」（產品用語決策）。
 
+> **來源完整性追驗（commit `1574779b1`、migration 085）**：藥物來源改為合併 `getseq` 2,041 筆與 `getAll` 1,809 筆，去重後共 **2,120/2,120**（MAIN 2,041、Factory_Q 48、Factory_H 31）。逐筆比對 `source_details` 與原始列：`ATC_CODE` 2,120、`NHI_CODE` 2,101，直接欄位差異 **0**。有 HIS `order_code` 的自動欄位禁止手動修改；`indication`、`warnings`、`concentration`、`concentration_unit`、`prescribing_hospital` 五個人工補充欄位會跨同步保留。來源不完整時不刪 stale 資料；DDI alias 只在交互作用檢查路徑使用，不覆寫來源忠實的 `generic_name`。Railway、Vercel 與完整 CI 均已成功；正式庫需在下一次 HIS sync 後才會寫入新增的完整 raw details。
+
 # ChatICU HIS→DB 藥物欄位審計：規則 vs. 直連 HIS
 
-*Scope: `backend/app/fhir/his/converter.py::convert_medications()` (394–535)。Ground truth = 10 位病人、1809 med rows（含 ExtraFactories，經 `_load_all`）。*
+*Scope: `backend/app/fhir/his/converter.py::convert_medications()`。以下主體保留最初 1,809 筆 audit 的決策脈絡；目前 ground truth 以來源聯集後的 10 位病人、2,120 筆唯一藥物列與上方追驗結果為準。*
 
 ---
 
 ## 1. TL;DR
+
+> 本節是初始直連決策紀錄；欄位是否已實作、完整來源筆數與正式行為，以上方兩個狀態區塊為準。
 
 **只有兩個欄位值得動，其餘四個維持現狀。**
 
