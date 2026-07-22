@@ -12,6 +12,7 @@ import {
   Tooltip,
   ReferenceArea,
   ReferenceLine,
+  Brush,
   type TooltipProps,
 } from 'recharts';
 
@@ -200,6 +201,7 @@ export function LabTrendChart({
         <div className="mt-3 h-[400px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
+              key={`${labName}-${windowDays ?? 'all'}-${filteredData.length}`}
               data={filteredData}
               margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
             >
@@ -335,9 +337,25 @@ export function LabTrendChart({
                   );
                 }}
               />
+              {filteredData.length > 1 && (
+                <Brush
+                  dataKey="date"
+                  height={32}
+                  travellerWidth={10}
+                  stroke="#8f1d5d"
+                  fill="#f8fafc"
+                  tickFormatter={formatDateShort}
+                  ariaLabel={t('trendChart.zoomControlLabel')}
+                />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </div>
+        {filteredData.length > 1 && (
+          <p className="text-center text-xs text-slate-500 dark:text-slate-400">
+            {t('trendChart.zoomHint')}
+          </p>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -81,6 +81,8 @@
     "referenceRange": "參考範圍: {{range}} {{unit}}",
     "windowPickerLabel": "顯示區間：",
     "totalCount": "共 {{count}} 筆",
+    "zoomHint": "拖曳下方兩側控制點縮放 X 軸；拖曳中間區域可左右移動",
+    "zoomControlLabel": "X 軸縮放控制點；可用左右方向鍵調整",
     "statusHigh": "偏高",
     "statusLow": "偏低",
     "statusNormal": "正常",

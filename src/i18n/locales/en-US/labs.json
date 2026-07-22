@@ -81,6 +81,8 @@
     "referenceRange": "Reference range: {{range}} {{unit}}",
     "windowPickerLabel": "Window:",
     "totalCount": "{{count}} point(s)",
+    "zoomHint": "Drag either handle below to zoom the X-axis; drag the selected area to pan",
+    "zoomControlLabel": "X-axis zoom handle; use the left and right arrow keys to adjust",
     "statusHigh": "High",
     "statusLow": "Low",
     "statusNormal": "Normal",
