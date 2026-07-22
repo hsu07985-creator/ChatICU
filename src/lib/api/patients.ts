@@ -32,6 +32,7 @@ export interface Patient {
   bmi?: number | null;
   symptoms?: string[];
   allergies?: string[];
+  allergiesFromHis?: boolean;
   bloodType?: string | null;
   codeStatus?: string | null;
   criticalStatus?: string | null;

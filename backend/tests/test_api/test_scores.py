@@ -1,6 +1,12 @@
 """Test clinical scores (Pain / RASS) API endpoints."""
 
+from datetime import datetime, timezone
+
 import pytest
+
+from app.fhir.his.roc_time import _gen_id
+from app.models.clinical_score import ClinicalScore
+from app.models.patient import Patient
 
 
 @pytest.mark.asyncio
@@ -212,6 +218,78 @@ async def test_delete_score(client):
 async def test_delete_score_not_found(client):
     resp = await client.delete("/patients/pat_001/scores/nonexistent-id")
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_his_pain_score_cannot_be_entered_or_deleted(client, db_session):
+    mrn = "99999002"
+    patient_id = _gen_id("pat", mrn)
+    db_session.add(Patient(
+        id=patient_id,
+        name="HIS 病人",
+        bed_number="I-2",
+        medical_record_number=mrn,
+        age=70,
+        gender="男",
+        diagnosis="測試",
+        intubated=False,
+        ventilator_days=0,
+    ))
+    score_id = "score_his_pain_test"
+    db_session.add(ClinicalScore(
+        id=score_id,
+        patient_id=patient_id,
+        score_type="pain",
+        value=4,
+        timestamp=datetime.now(timezone.utc),
+        recorded_by="HIS",
+    ))
+    await db_session.commit()
+
+    create_resp = await client.post(
+        f"/patients/{patient_id}/scores",
+        json={"score_type": "pain", "value": 5},
+    )
+    assert create_resp.status_code == 409
+
+    trends_resp = await client.get(
+        f"/patients/{patient_id}/scores/trends",
+        params={"score_type": "pain"},
+    )
+    his_score = trends_resp.json()["data"]["trends"][0]
+    assert his_score["sourceType"] == "his"
+    assert his_score["editable"] is False
+
+    delete_resp = await client.delete(f"/patients/{patient_id}/scores/{score_id}")
+    assert delete_resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_his_patient_without_his_pain_record_can_enter_orphan_value(
+    client, db_session,
+):
+    mrn = "99999003"
+    patient_id = _gen_id("pat", mrn)
+    db_session.add(Patient(
+        id=patient_id,
+        name="尚無 HIS 疼痛資料",
+        bed_number="I-3",
+        medical_record_number=mrn,
+        age=65,
+        gender="女",
+        diagnosis="測試",
+        intubated=False,
+        ventilator_days=0,
+    ))
+    await db_session.commit()
+
+    response = await client.post(
+        f"/patients/{patient_id}/scores",
+        json={"score_type": "pain", "value": 3},
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["sourceType"] == "manual"
+    assert response.json()["data"]["editable"] is True
 
 
 @pytest.mark.asyncio

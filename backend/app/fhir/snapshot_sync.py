@@ -189,10 +189,13 @@ HIS_OWNED_FIELDS = frozenset(
         "code_status",
         "has_dnr",
         "archived",
+        "discharge_type",
+        "discharge_date",
         "intubated",
         "intubation_date",
         "tracheostomy",
         "tracheostomy_date",
+        "allergies_from_his",
     }
 )
 
@@ -279,7 +282,15 @@ def merge_patient_payload(existing: dict[str, Any] | None, incoming: dict[str, A
         if _is_meaningful(field, incoming_value):
             merged[field] = incoming_value
             continue
-        merged[field] = existing.get(field)
+        existing_value = existing.get(field)
+        if field == "allergies" and isinstance(existing_value, list):
+            # Remove the exact false value emitted by the retired SOAP parser,
+            # while preserving real manually entered substances.
+            existing_value = [
+                value for value in existing_value
+                if str(value).strip().lower() != "denied"
+            ]
+        merged[field] = existing_value
 
     for field, value in incoming.items():
         if field in merged:

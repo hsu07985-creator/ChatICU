@@ -351,7 +351,13 @@ export function PatientsPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-center">
-                    {renderAllergyCell(patient)}
+                    <div className="flex flex-col items-center gap-1">
+                      {renderAllergyCell(patient)}
+                      <DataOwnershipBadge
+                        kind={patient.allergiesFromHis ? 'auto' : patient.allergies?.length ? 'manual' : 'orphan'}
+                        compact
+                      />
+                    </div>
                   </TableCell>
                   <TableCell className="text-center">
                     {patient.isIsolated ? (

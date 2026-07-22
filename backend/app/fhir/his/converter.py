@@ -12,7 +12,6 @@ from collections import defaultdict
 from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
-from app.fhir.allergy_parser import parse_allergy_texts
 from app.fhir.his_lab_mapping import HIS_LAB_MAP
 from app.models.coding_source import VALID_CODING_SOURCES
 
@@ -28,7 +27,6 @@ from app.fhir.his.drug_dictionaries import (
 from app.fhir.his.lab_dictionaries import _build_ecg_impression
 from app.fhir.his.resources import (
     _FORMULARY_MAP,
-    _SITE_CONFIG,
 )
 from app.fhir.his import snapshot_io
 from app.fhir.his.roc_time import (
@@ -136,8 +134,13 @@ class HISConverter:
         has_dnr = bool(p.get("DNR_CONSENT") or p.get("DNR_IC_FLAG"))
         code_status = "DNR" if has_dnr else "Full Code"
 
-        # Archived (deceased)
-        archived = bool(p.get("DEAD_DATE"))
+        # Discharge/death fields are direct HIS dates. REAL_OUT_DATE does not
+        # encode a disposition, so only DEAD_DATE may set discharge_type.
+        dead_date = _roc_to_date(p.get("DEAD_DATE"))
+        current_ipd = self._current_ipd_row()
+        real_out_date = _roc_to_date(current_ipd.get("REAL_OUT_DATE")) if current_ipd else None
+        discharge_date = dead_date or real_out_date
+        archived = bool(discharge_date)
 
         # Diagnosis from getOpd ICD codes
         diagnosis = self._extract_diagnosis()
@@ -185,28 +188,28 @@ class HISConverter:
             "alerts": [],
             "consent_status": None,
             "allergies": [],
+            "allergies_from_his": False,
             "blood_type": blood_type,
             "code_status": code_status,
             "has_dnr": has_dnr,
             "is_isolated": False,
             "archived": archived,
+            "discharge_type": "death" if dead_date else None,
+            "discharge_date": discharge_date,
             "campus": None,
             "last_update": None,
         }
 
     def _extract_diagnosis(self) -> Optional[str]:
-        """Extract admission diagnosis from getIPD.json ICD codes.
+        """Extract the current admission diagnosis from getIpd ICD codes.
 
-        getIPD.json contains the true inpatient admission diagnosis with
+        getIpd.json contains the active inpatient admission diagnosis with
         ICD codes that already include Chinese descriptions (e.g.
-        "A41.9敗血症，未明示病原體").  Falls back to getOpd.json OPD_SW=1
-        records only when getIPD.json is unavailable.
+        "A41.9敗血症，未明示病原體"). getIPD is a historical discharge
+        summary and must not replace the current admission.
         """
-        # Primary: getIPD.json — real admission diagnosis.
-        # Use the most recent admission row (last in file order).
-        ipd_rows = self._load("getIPD.json")
-        if ipd_rows:
-            chosen = ipd_rows[-1]
+        chosen = self._current_ipd_row()
+        if chosen:
             icd_codes = []
             for i in range(1, 11):
                 icd = chosen.get(f"ICD_CODE{i}")
@@ -231,75 +234,20 @@ class HISConverter:
                 icd_codes.append(icd)
         return "; ".join(icd_codes) if icd_codes else None
 
-    # ICU internal medicine attendings — loaded from his_site_config.json.
-    # To add/remove doctors, edit that file and re-run import_his_patients.py.
-    _ICU_INTERNAL_MED_DOCTORS: set = set(
-        _SITE_CONFIG.get("icu_internal_medicine_doctors", ["黃英哲", "李穎灝"])
-    )
+    def _current_ipd_row(self) -> Optional[dict]:
+        """Active getIpd row; getIPD is a different historical source."""
+        rows = self._load("getIpd.json")
+        if not rows:
+            return None
+        return next((row for row in reversed(rows) if not row.get("REAL_OUT_DATE")), rows[-1])
 
     def _extract_dept_doctor(self) -> Tuple[Optional[str], Optional[str]]:
-        """Extract department and ICU attending physician.
+        """Department and attending directly from the active admission row."""
+        current = self._current_ipd_row()
+        if current and current.get("DR_NAME"):
+            return current.get("HDEPT_NAME"), current.get("DR_NAME")
 
-        Logic:
-          1. Determine if patient is surgical or internal medicine.
-             - Surgical: the primary ICU prescriber also appears as surgeon
-               in getSurgery.json.
-             - Internal medicine: all other cases.
-          2. Surgical → use the surgeon as attending + their dept.
-          3. Internal medicine → attending must be 黃英哲 or 李穎灝;
-             pick whichever has more OPD_SW='I' medication orders.
-          4. Fallback: getIPD.json DR_NAME, then getOpd.json DR_NAME.
-        """
-        from collections import Counter
-
-        med_rows = self._load("getAllMedicine.json")
-        icu_meds = [r for r in med_rows if str(r.get("OPD_SW", "")) == "I"] if med_rows else []
-
-        if icu_meds:
-            user_counter = Counter(
-                r.get("USER_NAME", "") for r in icu_meds if r.get("USER_NAME")
-            )
-
-            # Collect all doctors who have performed surgeries on this patient.
-            surg_rows = self._load("getSurgery.json")
-            surgery_doctors = {r.get("DR_NAME") for r in surg_rows if r.get("DR_NAME")} if surg_rows else set()
-
-            top_doctor = user_counter.most_common(1)[0][0]
-            is_surgical = top_doctor in surgery_doctors
-
-            if is_surgical:
-                # Surgical patient: attending is the surgeon
-                attending = top_doctor
-            else:
-                # Internal medicine patient: attending must be one of the two
-                # ICU internal medicine doctors
-                im_counter = Counter(
-                    r.get("USER_NAME", "")
-                    for r in icu_meds
-                    if r.get("USER_NAME") in self._ICU_INTERNAL_MED_DOCTORS
-                )
-                if im_counter:
-                    attending = im_counter.most_common(1)[0][0]
-                else:
-                    # No ICU internal med doctor found — fall back to top prescriber
-                    attending = top_doctor
-
-            dept_counter = Counter(
-                r.get("HDEPT_NAME", "")
-                for r in icu_meds
-                if r.get("USER_NAME") == attending and r.get("HDEPT_NAME")
-            )
-            dept = dept_counter.most_common(1)[0][0] if dept_counter else None
-            return dept, attending
-
-        # Fallback 1: getIPD.json — direct inpatient attending record
-        ipd_rows = self._load("getIPD.json")
-        if ipd_rows:
-            r = ipd_rows[0]
-            if r.get("DR_NAME"):
-                return r.get("HDEPT_NAME"), r.get("DR_NAME")
-
-        # Fallback 2: getOpd.json inpatient record (emergency admission doctor)
+        # Older snapshots without getIpd retain the direct getOpd fallback.
         opd_rows = self._load("getOpd.json")
         if not opd_rows:
             return None, None
@@ -311,12 +259,11 @@ class HISConverter:
         return chosen.get("HDEPT_NAME"), chosen.get("DR_NAME")
 
     def _extract_admission_dates(self) -> Tuple[Optional[date], Optional[date]]:
-        """Extract admission dates from getIPD or earliest medicine order."""
-        ipd_rows = self._load("getIPD.json")
-        if ipd_rows:
-            ipd = ipd_rows[-1]  # most recent admission
-            admission = _roc_to_date(ipd.get("IPD_DATE"))
-            return admission, admission  # ICU admission ≈ admission for ICU patients
+        """Extract the current ICU admission date from getIpd."""
+        current = self._current_ipd_row()
+        if current:
+            admission = _roc_to_date(current.get("IPD_DATE"))
+            return admission, admission
 
         # Fallback: earliest inpatient medication order
         med_rows = self._load("getAllMedicine.json")
@@ -1086,27 +1033,6 @@ class HISConverter:
         return "DNR signed", alert_parts
 
     # ------------------------------------------------------------------ #
-    # Allergy extraction from SOAP notes
-    # ------------------------------------------------------------------ #
-
-    def _extract_allergies(self) -> Dict[str, Any]:
-        """Extract structured allergy data from the getSO SOAP narrative.
-
-        Reads through the snapshot loader (flat ``getSO_AllPatientSeq.json`` or
-        the same key inside ALL_MERGED.json), so both snapshot layouts work.
-
-        Returns:
-            {"status": "nka"|"has_allergies"|"unknown",
-             "allergies": [{"substance": str, "reaction": str|None, ...}]}
-        """
-        texts = [
-            item.get("SUBJECTIVE", "")
-            for item in self._load_seq("getSO")
-            if item.get("SUBJECTIVE")
-        ]
-        return parse_allergy_texts(texts)
-
-    # ------------------------------------------------------------------ #
     # Master convert
     # ------------------------------------------------------------------ #
 
@@ -1146,19 +1072,10 @@ class HISConverter:
         all_orders = self._load("getAllOrder.json")
         patient["ventilator_days"] = self._derive_ventilator_days(all_orders)
 
-        # Step 7: Allergies — SOAP-parsed substances (getSO) unioned with the
-        # structured food-allergy field (sbDisease). Either source alone is
-        # sparse; combining keeps whichever is present. Empty result leaves the
-        # placeholder [] so the PRESERVE merge keeps any manual allergy list.
-        allergies: List[str] = []
-        allergy_result = self._extract_allergies()
-        if allergy_result["status"] == "has_allergies":
-            allergies.extend(a["substance"] for a in allergy_result["allergies"])
-        for food in self._extract_food_allergy():
-            if food not in allergies:
-                allergies.append(food)
-        if allergies:
-            patient["allergies"] = allergies
+        # Allergies must come from a structured source field. SOAP text such as
+        # "allergy: denied" is not an allergy substance.
+        patient["allergies"] = self._extract_food_allergy()
+        patient["allergies_from_his"] = bool(patient["allergies"])
 
         return {
             "patient": patient,

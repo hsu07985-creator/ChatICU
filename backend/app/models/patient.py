@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, Integer, String, Text, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, Integer, String, Text, false, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -47,6 +47,9 @@ class Patient(Base):
     alerts: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of strings
     consent_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     allergies: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # array of strings
+    allergies_from_his: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     blood_type: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     code_status: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     has_dnr: Mapped[bool] = mapped_column(Boolean, default=False)

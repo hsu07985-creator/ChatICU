@@ -23,7 +23,24 @@ router = APIRouter(prefix="/patients/{patient_id}/scores", tags=["scores"])
 
 def score_to_dict(s: ClinicalScore) -> dict:
     """B2 batch 2: schema is the single source of the field mapping."""
-    return ClinicalScoreResponse.model_validate(s).dump_camel()
+    payload = ClinicalScoreResponse.model_validate(s).dump_camel()
+    is_his = s.id.startswith("score_") or s.recorded_by == "HIS"
+    payload.update(sourceType="his" if is_his else "manual", editable=not is_his)
+    return payload
+
+
+async def _has_his_pain_score(db: AsyncSession, patient_id: str) -> bool:
+    """Whether this patient already has a structured HIS pain record."""
+    result = await db.execute(
+        select(ClinicalScore.id)
+        .where(
+            ClinicalScore.patient_id == patient_id,
+            ClinicalScore.score_type == "pain",
+            ClinicalScore.recorded_by == "HIS",
+        )
+        .limit(1)
+    )
+    return result.scalar_one_or_none() is not None
 
 
 def _resolve_patient_id(patient_id: str) -> Optional[str]:
@@ -104,6 +121,11 @@ async def record_score(
     db: AsyncSession = Depends(get_db),
 ):
     pid = await _get_patient_or_404(db, patient_id, user)
+    if body.score_type == "pain" and await _has_his_pain_score(db, pid):
+        raise HTTPException(
+            status_code=409,
+            detail="Pain score is managed by HIS and cannot be entered manually",
+        )
 
     score = ClinicalScore(
         id=str(uuid.uuid4()),
@@ -156,6 +178,11 @@ async def delete_score(
     score = result.scalar_one_or_none()
     if not score:
         raise HTTPException(status_code=404, detail="Score not found")
+    if score.id.startswith("score_") or score.recorded_by == "HIS":
+        raise HTTPException(
+            status_code=409,
+            detail="HIS score cannot be deleted manually",
+        )
 
     # Audit: snapshot the full row before deletion so the audit log is the
     # only record of what existed (clinical scores affect sedation decisions).

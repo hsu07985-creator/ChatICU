@@ -25,6 +25,7 @@ export function ScoreTrendChart({
 }: ScoreTrendChartProps) {
   const { t, i18n } = useTranslation('score-trend');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const canDeleteAny = !!onDeleteEntry && scoreEntries.some((entry) => entry.editable !== false);
 
   const labName = scoreType === 'pain' ? t('labels.painLong') : t('labels.rassLong');
   const labNameChinese = scoreType === 'pain' ? t('labels.painShort') : t('labels.rassShort');
@@ -149,7 +150,7 @@ export function ScoreTrendChart({
                     <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-400">{t('history.headers.time')}</th>
                     <th className="px-3 py-2 text-center font-medium text-slate-600 dark:text-slate-400">{t('history.headers.value')}</th>
                     <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-400">{t('history.headers.recordedBy')}</th>
-                    {onDeleteEntry && (
+                    {canDeleteAny && (
                       <th className="px-3 py-2 text-center font-medium text-slate-600 dark:text-slate-400 w-16">{t('history.headers.actions')}</th>
                     )}
                   </tr>
@@ -169,17 +170,19 @@ export function ScoreTrendChart({
                       </td>
                       <td className="px-3 py-2 text-center font-semibold">{entry.value}</td>
                       <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{entry.recordedBy}</td>
-                      {onDeleteEntry && (
+                      {canDeleteAny && (
                         <td className="px-3 py-2 text-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
-                            disabled={deletingId === entry.id}
-                            onClick={() => handleDelete(entry.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {entry.editable !== false && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
+                              disabled={deletingId === entry.id}
+                              onClick={() => handleDelete(entry.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </td>
                       )}
                     </tr>

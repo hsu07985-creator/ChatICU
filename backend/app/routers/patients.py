@@ -69,7 +69,10 @@ async def _count_pb_unread_for_user(
 router = APIRouter(prefix="/patients", tags=["patients"])
 
 _HIS_MANUAL_PATIENT_FIELDS = frozenset(
-    {"critical_status", "campus", "is_isolated", "symptoms"}
+    {
+        "critical_status", "campus", "is_isolated", "symptoms",
+        "allergies",
+    }
 )
 
 
@@ -141,6 +144,7 @@ def patient_to_dict(
         "alerts": patient.alerts or [],
         "consentStatus": patient.consent_status,
         "allergies": patient.allergies or [],
+        "allergiesFromHis": bool(getattr(patient, "allergies_from_his", False)),
         "bloodType": patient.blood_type,
         "codeStatus": patient.code_status,
         "hasDNR": patient.has_dnr,
@@ -524,6 +528,8 @@ async def update_patient(
     )
     if is_his_managed:
         blocked = sorted(set(update_data) - _HIS_MANUAL_PATIENT_FIELDS)
+        if patient.allergies_from_his and "allergies" in update_data:
+            blocked.append("allergies")
         if blocked:
             raise HTTPException(
                 status_code=409,

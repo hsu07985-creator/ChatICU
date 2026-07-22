@@ -115,6 +115,15 @@ def test_merge_patient_payload_preserves_manual_only_fields() -> None:
     assert merged["has_dnr"] is True
 
 
+def test_merge_patient_payload_removes_legacy_denied_allergy() -> None:
+    merged = merge_patient_payload(
+        {"allergies": ["denied", "Penicillin"]},
+        {"allergies": []},
+    )
+
+    assert merged["allergies"] == ["Penicillin"]
+
+
 @pytest.mark.asyncio
 async def test_replace_patient_records_reports_added_and_removed_ids(db_session) -> None:
     """replace_patient_records should compute the set-diff of existing vs

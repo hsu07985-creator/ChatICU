@@ -135,11 +135,62 @@ def test_removed_tube_is_ignored() -> None:
 def test_food_allergy_merged_into_allergies() -> None:
     import tempfile
 
+    merged = _base_merged("30546132")
+    merged["getSO_AllPatientSeq"] = {
+        "Responses": [{"Data": [{"SUBJECTIVE": "allergy: denied"}]}]
+    }
     with tempfile.TemporaryDirectory() as tmp:
-        snap = _write_nested_snapshot(Path(tmp), "30546132", _base_merged("30546132"))
+        snap = _write_nested_snapshot(Path(tmp), "30546132", merged)
         result = HISConverter(snap, pat_no="30546132").convert_all()
 
     assert result["patient"]["allergies"] == ["海鮮類", "花生"]
+    assert result["patient"]["allergies_from_his"] is True
+
+
+def test_current_getipd_wins_over_historical_getIPD() -> None:
+    import tempfile
+
+    merged = _base_merged("30546132")
+    merged["getIPD"] = _rest([{
+        "IPD_DATE": "1150529",
+        "DR_NAME": "歷史醫師",
+        "HDEPT_NAME": "歷史科別",
+        "ICD_CODE1": "Z99.9歷史診斷",
+        "REAL_OUT_DATE": "1150601",
+    }])
+    merged["getIpd"] = _rest([{
+        "IPD_DATE": "1150709",
+        "DR_NAME": "目前醫師",
+        "HDEPT_NAME": "加護醫學科",
+        "ICD_CODE1": "A41.9目前診斷",
+        "REAL_OUT_DATE": None,
+    }])
+
+    with tempfile.TemporaryDirectory() as tmp:
+        snap = _write_nested_snapshot(Path(tmp), "30546132", merged)
+        patient = HISConverter(snap, pat_no="30546132").convert_patient()
+
+    assert patient["admission_date"] == date(2026, 7, 9)
+    assert patient["icu_admission_date"] == date(2026, 7, 9)
+    assert patient["attending_physician"] == "目前醫師"
+    assert patient["department"] == "加護醫學科"
+    assert patient["diagnosis"] == "A41.9目前診斷"
+
+
+def test_discharge_fields_only_use_direct_his_dates() -> None:
+    import tempfile
+
+    merged = _base_merged("30546132")
+    merged["getPatient"]["Data"][0]["DEAD_DATE"] = "1150710"
+    merged["getIpd"] = _rest([{"IPD_DATE": "1150701", "REAL_OUT_DATE": "1150709"}])
+
+    with tempfile.TemporaryDirectory() as tmp:
+        snap = _write_nested_snapshot(Path(tmp), "30546132", merged)
+        patient = HISConverter(snap, pat_no="30546132").convert_patient()
+
+    assert patient["archived"] is True
+    assert patient["discharge_type"] == "death"
+    assert patient["discharge_date"] == date(2026, 7, 10)
 
 
 def _tpr_seq(pat_no: str, rows: list) -> dict:

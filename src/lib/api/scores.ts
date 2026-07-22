@@ -8,6 +8,8 @@ export interface ScoreEntry {
   timestamp: string;
   recordedBy: string;
   notes?: string;
+  sourceType?: 'his' | 'manual';
+  editable?: boolean;
 }
 
 export interface LatestScores {

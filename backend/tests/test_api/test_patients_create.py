@@ -106,7 +106,7 @@ async def test_update_patient_orphan_fields(client):
 async def test_his_patient_blocks_auto_fields_but_allows_orphans(client, seeded_db):
     mrn = "HIS-LOCK-001"
     patient_id = _gen_id("pat", mrn)
-    seeded_db.add(Patient(
+    his_patient = Patient(
         id=patient_id,
         name="HIS 病人",
         bed_number="I-8",
@@ -115,7 +115,8 @@ async def test_his_patient_blocks_auto_fields_but_allows_orphans(client, seeded_
         gender="男",
         diagnosis="肺炎",
         intubated=False,
-    ))
+    )
+    seeded_db.add(his_patient)
     await seeded_db.commit()
 
     blocked = await client.patch(
@@ -128,13 +129,28 @@ async def test_his_patient_blocks_auto_fields_but_allows_orphans(client, seeded_
 
     allowed = await client.patch(
         f"/patients/{patient_id}",
-        json={"critical_status": "critical", "campus": "main", "is_isolated": True},
+        json={
+            "critical_status": "critical",
+            "campus": "main",
+            "is_isolated": True,
+            "allergies": ["Penicillin"],
+        },
     )
     assert allowed.status_code == 200
     data = allowed.json()["data"]
     assert data["criticalStatus"] == "critical"
     assert data["campus"] == "main"
     assert data["isIsolated"] is True
+    assert data["allergies"] == ["Penicillin"]
+
+    his_patient.allergies_from_his = True
+    await seeded_db.commit()
+    blocked_allergy = await client.patch(
+        f"/patients/{patient_id}",
+        json={"allergies": ["不可覆寫"]},
+    )
+    assert blocked_allergy.status_code == 409
+    assert "allergies" in blocked_allergy.json()["message"]
 
 
 @pytest.mark.asyncio
