@@ -6,65 +6,28 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { Label } from '../components/ui/label';
-import { Search, AlertCircle, AlertTriangle, Pencil, ZoomIn, ZoomOut, RefreshCw, DownloadCloud, Loader2, FlaskConical } from 'lucide-react';
+import { Search, AlertCircle, AlertTriangle, ZoomIn, ZoomOut, RefreshCw, DownloadCloud, Loader2, FlaskConical } from 'lucide-react';
 import { maskPatientName } from '../lib/utils/patient-name';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
-import { Patient, updatePatient } from '../lib/api/patients';
+import type { Patient } from '../lib/api/patients';
 import { usePatientList } from '../hooks/use-patient-list';
 import type { DashboardStats } from '../lib/api/dashboard';
 import { useDashboardStats } from '../hooks/use-dashboard';
-import { patchSharedPatientList, refreshSharedPatientDataAfterMutation } from '../lib/patient-data-sync';
+import { refreshSharedPatientDataAfterMutation } from '../lib/patient-data-sync';
 import { triggerHisSync, isHisSyncAvailable, type HisSyncMode, type HisSyncResult } from '../lib/api/admin-his-sync';
 import { toast } from 'sonner';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog';
-import { Switch } from '../components/ui/switch';
 import { getAirwayStatusLabel } from '../lib/patient-airway';
-import { useAuth } from '../lib/auth-context';
-import { canEditPatientProfile } from '../lib/permissions';
-
-// 編輯表單的數據類型
-interface EditFormData {
-  name: string;
-  bedNumber: string;
-  diagnosis: string;
-  intubated: boolean;
-  tracheostomy: boolean;
-  intubationDate?: string | null;
-  tracheostomyDate?: string | null;
-  age: number;
-  attendingPhysician: string;
-  allergies: string;
-}
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { t, i18n } = useTranslation('dashboard');
-  const canEditPatients = canEditPatientProfile(user?.role);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('bed');
   const { patients, patientsLoading: loading, patientsLoadFailed, refetchPatients } = usePatientList();
   const error = patientsLoadFailed ? t('list.loadFailed') : null;
 
-  // 編輯對話框狀態
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
-  const [editFormData, setEditFormData] = useState<EditFormData>({
-    name: '',
-    bedNumber: '',
-    diagnosis: '',
-    intubated: false,
-    tracheostomy: false,
-    intubationDate: null,
-    tracheostomyDate: null,
-    age: 0,
-    attendingPhysician: '',
-    allergies: '',
-  });
-  const [saving, setSaving] = useState(false);
   const { data: stats } = useDashboardStats();
 
   // Manual HIS sync state — see docs/his-sync-end-to-end-tutorial.md §11
@@ -107,54 +70,6 @@ export function DashboardPage() {
     messages: undefined,
     timestamp: new Date().toISOString(),
   } : null);
-
-  // 開啟編輯對話框
-  const handleEditClick = (e: React.MouseEvent, patient: Patient) => {
-    e.stopPropagation(); // 阻止點擊傳播到卡片
-    setEditingPatient(patient);
-    setEditFormData({
-      name: patient.name,
-      bedNumber: patient.bedNumber,
-      diagnosis: patient.diagnosis,
-      intubated: patient.intubated,
-      tracheostomy: patient.tracheostomy ?? false,
-      intubationDate: patient.intubationDate ?? null,
-      tracheostomyDate: patient.tracheostomyDate ?? null,
-      age: patient.age,
-      attendingPhysician: patient.attendingPhysician,
-      allergies: (patient.allergies ?? []).join(', '),
-    });
-    setEditDialogOpen(true);
-  };
-
-  // 儲存編輯
-  const handleSaveEdit = async () => {
-    if (!editingPatient) return;
-
-    setSaving(true);
-    try {
-      const updated = await updatePatient(editingPatient.id, {
-        ...editFormData,
-        allergies: parseCsvList(editFormData.allergies),
-      });
-      // refreshSharedPatientDataAfterMutation invalidates both the patients
-      // cache and the TanStack dashboard.all key — useDashboardStats() will
-      // refetch automatically.
-      const { patientsRefreshFailed } = await refreshSharedPatientDataAfterMutation();
-      if (patientsRefreshFailed) {
-        patchSharedPatientList((current) =>
-          current.map((item) => (item.id === editingPatient.id ? updated : item)),
-        );
-      }
-      setEditDialogOpen(false);
-      toast.success(t('edit.saveSuccess'));
-    } catch (err) {
-      console.error(`${t('edit.saveErrorLog')}:`, err);
-      toast.error(t('edit.saveFailed'));
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // 手動觸發 HIS 同步（兩種模式：detect=只抓新/變動的、force=全部重抓）
   const handleHisSync = useCallback(
@@ -223,8 +138,6 @@ export function DashboardPage() {
 
   const SAN_MAX_CHIPS = 2;
   const ALLERGY_MAX_CHIPS = 2;
-  const parseCsvList = (value: string) =>
-    value ? value.split(',').map((item) => item.trim()).filter(Boolean) : [];
   const getPatientAllergies = (patient: Patient) =>
     (patient.allergies ?? []).map((allergy) => allergy.trim()).filter(Boolean);
   const getSANRows = (patient: Patient) => {
@@ -476,19 +389,6 @@ export function DashboardPage() {
                   className="group cursor-pointer hover:shadow-xl transition-all duration-200 hover:border-primary/30 bg-white dark:bg-slate-900 relative"
                   onClick={() => navigate(`/patient/${patient.id}`)}
                 >
-                  {/* 編輯按鈕 */}
-                  {canEditPatients && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-muted-foreground hover:text-brand hover:bg-brand/10 z-10"
-                      onClick={(e) => handleEditClick(e, patient)}
-                      title={t('card.editButtonTitle')}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  )}
-
                   {/* 1. 標題區：姓名 + 氣切/插管中（固定保留一行） + 床號 */}
                   <CardHeader>
                     <div className="flex items-start justify-between gap-3">
@@ -599,159 +499,6 @@ export function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* 編輯病患對話框 */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Pencil className="h-5 w-5 text-brand" />
-              {t('edit.title')}
-            </DialogTitle>
-            <DialogDescription>
-              {t('edit.description')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-name" className="text-right">
-                {t('edit.labels.name')}
-              </Label>
-              <Input
-                id="edit-name"
-                value={editFormData.name}
-                onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-bed" className="text-right">
-                {t('edit.labels.bed')}
-              </Label>
-              <Input
-                id="edit-bed"
-                value={editFormData.bedNumber}
-                onChange={(e) => setEditFormData(prev => ({ ...prev, bedNumber: e.target.value }))}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-diagnosis" className="text-right">
-                {t('edit.labels.diagnosis')}
-              </Label>
-              <Input
-                id="edit-diagnosis"
-                value={editFormData.diagnosis}
-                onChange={(e) => setEditFormData(prev => ({ ...prev, diagnosis: e.target.value }))}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-age" className="text-right">
-                {t('edit.labels.age')}
-              </Label>
-              <Input
-                id="edit-age"
-                type="number"
-                value={editFormData.age}
-                onChange={(e) => setEditFormData(prev => ({ ...prev, age: parseInt(e.target.value) || 0 }))}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-physician" className="text-right">
-                {t('edit.labels.physician')}
-              </Label>
-              <Input
-                id="edit-physician"
-                value={editFormData.attendingPhysician}
-                onChange={(e) => setEditFormData(prev => ({ ...prev, attendingPhysician: e.target.value }))}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-allergies" className="text-right">
-                {t('edit.labels.allergies')}
-              </Label>
-              <Input
-                id="edit-allergies"
-                value={editFormData.allergies}
-                onChange={(e) => setEditFormData(prev => ({ ...prev, allergies: e.target.value }))}
-                className="col-span-3"
-                placeholder={t('edit.placeholders.allergies')}
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="edit-intubated" className="text-right">
-                {t('edit.labels.airway')}
-              </Label>
-              <div className="col-span-3 space-y-3 rounded-lg border border-border/70 bg-muted/30 p-3">
-                <div className="flex flex-wrap items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="edit-intubated"
-                      checked={editFormData.intubated}
-                      onCheckedChange={(checked) =>
-                        setEditFormData((prev) =>
-                          checked
-                            ? { ...prev, intubated: true }
-                            : { ...prev, intubated: false, tracheostomy: false, intubationDate: null, tracheostomyDate: null }
-                        )
-                      }
-                    />
-                    <span className="text-sm text-muted-foreground">
-                      {t('edit.airway.invasive')}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={editFormData.tracheostomy}
-                      onCheckedChange={(checked) =>
-                        setEditFormData((prev) =>
-                          checked
-                            ? { ...prev, intubated: true, tracheostomy: true }
-                            : { ...prev, tracheostomy: false, tracheostomyDate: null }
-                        )
-                      }
-                    />
-                    <span className="text-sm text-muted-foreground">{t('edit.airway.tracheostomy')}</span>
-                  </div>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Input
-                    type="date"
-                    value={editFormData.intubationDate ?? ''}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, intubationDate: e.target.value || null }))}
-                    disabled={!editFormData.intubated}
-                  />
-                  <Input
-                    type="date"
-                    value={editFormData.tracheostomyDate ?? ''}
-                    onChange={(e) => setEditFormData(prev => ({
-                      ...prev,
-                      intubated: e.target.value ? true : prev.intubated,
-                      tracheostomy: e.target.value ? true : prev.tracheostomy,
-                      tracheostomyDate: e.target.value || null,
-                    }))}
-                    disabled={!editFormData.tracheostomy}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              {t('common:actions.cancel')}
-            </Button>
-            <Button
-              onClick={handleSaveEdit}
-              disabled={saving}
-              className="bg-brand hover:bg-brand/90"
-            >
-              {saving ? t('common:status.saving') : t('common:actions.save')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

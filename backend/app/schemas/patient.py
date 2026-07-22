@@ -54,6 +54,7 @@ class PatientUpdate(BaseModel):
     tracheostomy: Optional[bool] = None
     tracheostomy_date: Optional[date] = None
     critical_status: Optional[str] = None
+    campus: Optional[str] = None
     sedation: Optional[List[str]] = None
     analgesia: Optional[List[str]] = None
     nmb: Optional[List[str]] = None
@@ -77,5 +78,4 @@ class PatientArchiveUpdate(BaseModel):
     reason: Optional[str] = None
     discharge_type: Optional[str] = None
     discharge_date: Optional[str] = None  # ISO date string (YYYY-MM-DD)
-
 

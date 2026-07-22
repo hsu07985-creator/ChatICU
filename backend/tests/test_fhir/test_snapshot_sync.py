@@ -18,7 +18,7 @@ from app.models.patient import Patient
 from app.models.sync_status import SyncStatus
 
 
-def test_merge_patient_payload_preserves_manual_fields() -> None:
+def test_merge_patient_payload_preserves_manual_only_fields() -> None:
     existing = {
         "id": "pat_001",
         "name": "舊姓名",
@@ -32,6 +32,9 @@ def test_merge_patient_payload_preserves_manual_fields() -> None:
         "bmi": 22.5,
         "symptoms": ["呼吸喘"],
         "intubated": True,
+        "intubation_date": None,
+        "tracheostomy": True,
+        "tracheostomy_date": None,
         "critical_status": "critical",
         "alerts": ["手動警示"],
         "allergies": ["Penicillin"],
@@ -66,6 +69,9 @@ def test_merge_patient_payload_preserves_manual_fields() -> None:
         "bmi": None,
         "symptoms": [],
         "intubated": False,
+        "intubation_date": None,
+        "tracheostomy": False,
+        "tracheostomy_date": None,
         "critical_status": None,
         "alerts": [],
         "allergies": [],
@@ -97,7 +103,8 @@ def test_merge_patient_payload_preserves_manual_fields() -> None:
     assert merged["height"] == 170.0
     assert merged["weight"] == 65.0
     assert merged["symptoms"] == ["呼吸喘"]
-    assert merged["intubated"] is True
+    assert merged["intubated"] is False
+    assert merged["tracheostomy"] is False
     assert merged["alerts"] == ["手動警示"]
     assert merged["allergies"] == ["Penicillin"]
     assert merged["is_isolated"] is True

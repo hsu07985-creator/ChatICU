@@ -10,9 +10,7 @@ import type { PatientWithFrontendFields } from '../../pages/patient-detail-types
 export interface PatientDetailHeaderProps {
   patient: PatientWithFrontendFields;
   daysAdmitted: number;
-  isAdmin: boolean;
   onBack: () => void;
-  onEdit: () => void;
 }
 
 /**
@@ -22,9 +20,7 @@ export interface PatientDetailHeaderProps {
 export function PatientDetailHeader({
   patient,
   daysAdmitted,
-  isAdmin,
   onBack,
-  onEdit,
 }: PatientDetailHeaderProps) {
   const { t } = useTranslation(['patient-detail', 'patients']);
   return (
@@ -86,9 +82,6 @@ export function PatientDetailHeader({
               <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100/90 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700">
                 {t('header.isolating')}
               </Badge>
-            )}
-            {isAdmin && (
-              <Button className="bg-brand hover:bg-brand-hover" onClick={onEdit}>{t('header.editButton')}</Button>
             )}
           </div>
         </div>

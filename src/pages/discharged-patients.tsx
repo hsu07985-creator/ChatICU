@@ -38,6 +38,7 @@ import {
 } from '../components/ui/table';
 import { EmptyState, ErrorDisplay } from '../components/ui/state-display';
 import { TableSkeleton } from '../components/ui/skeletons';
+import { DataOwnershipBadge, DataOwnershipLegend } from '../components/patient/data-ownership-badge';
 
 type DischargeType = 'discharge' | 'transfer' | 'death' | 'other';
 
@@ -248,6 +249,7 @@ export function DischargedPatientsPage() {
             </div>
           </div>
           <p className="text-muted-foreground text-sm mt-1">{t('patients:discharged.subtitle')}</p>
+          <DataOwnershipLegend />
         </div>
       </div>
 
@@ -290,7 +292,7 @@ export function DischargedPatientsPage() {
         </CardHeader>
 
         <CardContent>
-          {loading && <TableSkeleton rows={6} columns={8} />}
+          {loading && <TableSkeleton rows={6} columns={11} />}
 
           {error && !loading && (
             <ErrorDisplay
@@ -311,7 +313,7 @@ export function DischargedPatientsPage() {
 
           {!loading && !error && filtered.length > 0 && (
             <div className="overflow-x-auto">
-              <Table className="compact-table" style={{ tableLayout: 'fixed', minWidth: '1100px' }}>
+              <Table className="compact-table" style={{ tableLayout: 'fixed', minWidth: '1260px' }}>
                 <colgroup>
                   <col style={{ width: '40px' }} />
                   <col style={{ width: '90px' }} />
@@ -323,8 +325,9 @@ export function DischargedPatientsPage() {
                   <col style={{ width: '70px' }} />
                   <col style={{ width: '90px' }} />
                   <col style={{ width: '160px' }} />
+                  <col style={{ width: '160px' }} />
                 </colgroup>
-                <TableHeader>
+                <TableHeader className="[&_th]:bg-sky-50/70 dark:[&_th]:bg-sky-950/20">
                   <TableRow>
                     <TableHead className="text-center">
                       <Checkbox
@@ -338,9 +341,12 @@ export function DischargedPatientsPage() {
                     <TableHead>{t('patients:discharged.table.physician')}</TableHead>
                     <TableHead>{t('patients:discharged.table.diagnosis')}</TableHead>
                     <TableHead>{t('patients:discharged.table.icuAdmissionShort')}</TableHead>
-                    <TableHead>{t('patients:discharged.table.dischargeDateShort')}</TableHead>
+                    <TableHead className="!bg-amber-50/80 dark:!bg-amber-950/30">{t('patients:discharged.table.dischargeDateShort')}</TableHead>
                     <TableHead>{t('patients:discharged.table.stayDaysShort')}</TableHead>
-                    <TableHead>{t('patients:discharged.table.dischargeType')}</TableHead>
+                    <TableHead className="!bg-amber-50/80 dark:!bg-amber-950/30">{t('patients:discharged.table.dischargeType')}</TableHead>
+                    <TableHead className="!bg-amber-50/80 dark:!bg-amber-950/30">
+                      <span className="inline-flex items-center gap-1">{t('patients:discharged.table.dischargeReason')}<DataOwnershipBadge kind="manual" compact /></span>
+                    </TableHead>
                     <TableHead className="text-center">{t('patients:discharged.table.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -382,6 +388,7 @@ export function DischargedPatientsPage() {
                             {dischargeTypeLabel(typeKey)}
                           </Badge>
                         </TableCell>
+                        <TableCell className="whitespace-normal text-xs text-muted-foreground">{p.dischargeReason || '—'}</TableCell>
                         <TableCell>
                           <div className="flex items-center justify-center gap-1">
                             <Button

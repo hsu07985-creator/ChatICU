@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../lib/auth-context';
 import { patientsApi, type Patient } from '../lib/api';
 import { usePatientList } from '../hooks/use-patient-list';
-import { patchSharedPatientList, refreshSharedPatientDataAfterMutation } from '../lib/patient-data-sync';
+import { refreshSharedPatientDataAfterMutation } from '../lib/patient-data-sync';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
@@ -18,20 +18,16 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import { AlertTriangle, Search, Archive, Edit2, Users, LogOut, FlaskConical } from 'lucide-react';
+import { AlertTriangle, Search, Users, LogOut, FlaskConical } from 'lucide-react';
 import { maskPatientName } from '../lib/utils/patient-name';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
-import { PatientEditDialog } from '../components/patient/dialogs/patient-edit-dialog';
 import { PatientArchiveDialog, type ArchivePayload } from '../components/patient/dialogs/patient-archive-dialog';
-import { PatientAddDialog } from '../components/patient/dialogs/patient-add-dialog';
-import { Label } from '../components/ui/label';
 import { ErrorDisplay, EmptyState } from '../components/ui/state-display';
 import { TableSkeleton } from '../components/ui/skeletons';
 import { toast } from 'sonner';
 import { getAirwayStatusLabel } from '../lib/patient-airway';
-import { canEditPatientProfile } from '../lib/permissions';
+import { DataOwnershipBadge, DataOwnershipLegend } from '../components/patient/data-ownership-badge';
 
 interface PatientWithFrontendFields extends Patient {
   sedation?: string[];
@@ -44,7 +40,7 @@ export function PatientsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useTranslation(['patients', 'common', 'dashboard']);
-  const canEditPatients = canEditPatientProfile(user?.role);
+  const canEditPatients = ['admin', 'doctor', 'np'].includes(user?.role ?? '');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const {
@@ -150,187 +146,9 @@ export function PatientsPage() {
     );
   };
 
-  const [editingPatientId, setEditingPatientId] = useState<string | null>(null);
-  const [editFormData, setEditFormData] = useState<PatientWithFrontendFields | null>(null);
-
-  // 新增病患 / 封存病患
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
-  const [creatingPatient, setCreatingPatient] = useState(false);
-  const [archivingPatient, setArchivingPatient] = useState(false);
-  const [savingPatient, setSavingPatient] = useState(false);
-  const [archiveTargetId, setArchiveTargetId] = useState<string>('');
   const [dischargeDialogOpen, setDischargeDialogOpen] = useState(false);
   const [dischargeTargetId, setDischargeTargetId] = useState<string>('');
   const [dischargingArchiveId, setDischargingArchiveId] = useState<string | null>(null);
-
-  const [newPatient, setNewPatient] = useState({
-    bedNumber: '',
-    medicalRecordNumber: '',
-    name: '',
-    gender: '男' as '男' | '女',
-    age: '',
-    attendingPhysician: '',
-    department: '',
-    diagnosis: '',
-    admissionDate: '',
-    icuAdmissionDate: '',
-    ventilatorDays: '',
-    intubated: false,
-    intubationDate: '',
-    tracheostomy: false,
-    tracheostomyDate: '',
-    hasDNR: false,
-    isIsolated: false,
-    sedation: '',
-    analgesia: '',
-    nmb: '',
-  });
-
-  const handleEdit = (patient: PatientWithFrontendFields) => {
-    setEditingPatientId(patient.id);
-    setEditFormData({ ...patient });
-  };
-
-  const handleSave = async () => {
-    if (editFormData && editingPatientId) {
-      setSavingPatient(true);
-      try {
-        const updated = await patientsApi.updatePatient(editingPatientId, editFormData);
-        const { patientsRefreshFailed } = await refreshSharedPatientDataAfterMutation();
-        if (patientsRefreshFailed) {
-          patchSharedPatientList((current) =>
-            current.map((item) =>
-              item.id === editingPatientId ? (updated as PatientWithFrontendFields) : item,
-            ),
-          );
-        }
-        setEditingPatientId(null);
-        setEditFormData(null);
-        toast.success(t('patients:edit.successToast'));
-      } catch (err) {
-        console.error(`${t('patients:edit.errorLog')}:`, err);
-        toast.error(t('patients:edit.errorToast'));
-      } finally {
-        setSavingPatient(false);
-      }
-    }
-  };
-
-  const handleCancel = () => {
-    setEditingPatientId(null);
-    setEditFormData(null);
-  };
-
-  const resetNewPatientForm = () => {
-    setNewPatient({
-      bedNumber: '',
-      medicalRecordNumber: '',
-      name: '',
-      gender: '男',
-      age: '',
-      attendingPhysician: '',
-      department: '',
-      diagnosis: '',
-      admissionDate: '',
-      icuAdmissionDate: '',
-      ventilatorDays: '',
-      intubated: false,
-      intubationDate: '',
-      tracheostomy: false,
-      tracheostomyDate: '',
-      hasDNR: false,
-      isIsolated: false,
-      sedation: '',
-      analgesia: '',
-      nmb: '',
-    });
-  };
-
-  const handleCreatePatient = async () => {
-    if (!newPatient.bedNumber.trim() || !newPatient.medicalRecordNumber.trim() || !newPatient.name.trim()) {
-      toast.error(t('patients:create.validation.missingBasic'));
-      return;
-    }
-    if (!newPatient.age || !Number.isFinite(Number(newPatient.age))) {
-      toast.error(t('patients:create.validation.invalidAge'));
-      return;
-    }
-    if (!newPatient.diagnosis.trim()) {
-      toast.error(t('patients:create.validation.missingDiagnosis'));
-      return;
-    }
-
-    setCreatingPatient(true);
-    try {
-      const sedation = newPatient.sedation
-        ? newPatient.sedation.split(',').map((s) => s.trim()).filter(Boolean)
-        : [];
-      const analgesia = newPatient.analgesia
-        ? newPatient.analgesia.split(',').map((s) => s.trim()).filter(Boolean)
-        : [];
-      const nmb = newPatient.nmb
-        ? newPatient.nmb.split(',').map((s) => s.trim()).filter(Boolean)
-        : [];
-
-      const created = await patientsApi.createPatient({
-        bedNumber: newPatient.bedNumber.trim(),
-        medicalRecordNumber: newPatient.medicalRecordNumber.trim(),
-        name: newPatient.name.trim(),
-        gender: newPatient.gender,
-        age: Number(newPatient.age),
-        diagnosis: newPatient.diagnosis.trim(),
-        intubated: newPatient.intubated || newPatient.tracheostomy || Boolean(newPatient.tracheostomyDate),
-        intubationDate: newPatient.intubationDate || undefined,
-        tracheostomy: newPatient.tracheostomy || Boolean(newPatient.tracheostomyDate),
-        tracheostomyDate: newPatient.tracheostomyDate || undefined,
-        admissionDate: newPatient.admissionDate || undefined,
-        icuAdmissionDate: newPatient.icuAdmissionDate || undefined,
-        ventilatorDays: newPatient.ventilatorDays ? Number(newPatient.ventilatorDays) : 0,
-        attendingPhysician: newPatient.attendingPhysician.trim() || undefined,
-        department: newPatient.department.trim() || undefined,
-        sedation,
-        analgesia,
-        nmb,
-        hasDNR: newPatient.hasDNR,
-        isIsolated: newPatient.isIsolated,
-        criticalStatus: undefined,
-      });
-
-      toast.success(t('patients:create.successToast', { label: `${created.bedNumber} ${maskPatientName(created.name)}` }));
-      setAddDialogOpen(false);
-      resetNewPatientForm();
-      await refreshSharedPatientDataAfterMutation();
-    } catch (err: unknown) {
-      console.error(`${t('patients:create.validation.createErrorLog')}:`, err);
-      const errMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(errMsg || t('patients:create.validation.createFailed'));
-    } finally {
-      setCreatingPatient(false);
-    }
-  };
-
-  const handleArchivePatient = async (patientId: string) => {
-    if (!patientId) return;
-    const target = patients.find((p) => p.id === patientId);
-    const label = target ? `${target.bedNumber} ${maskPatientName(target.name)}` : patientId;
-    if (!confirm(t('patients:archive.confirmPrompt', { label }))) return;
-
-    setArchivingPatient(true);
-    try {
-      await patientsApi.archivePatient(patientId, { archived: true });
-      toast.success(t('patients:archive.successArchive', { label }));
-      setArchiveDialogOpen(false);
-      setArchiveTargetId('');
-      await refreshSharedPatientDataAfterMutation();
-    } catch (err: unknown) {
-      console.error(`${t('patients:archive.errorArchiveLog')}:`, err);
-      const errMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(errMsg || t('patients:archive.errorArchive'));
-    } finally {
-      setArchivingPatient(false);
-    }
-  };
 
   const handleOpenDischargeDialog = (patient: PatientWithFrontendFields) => {
     setDischargeTargetId(patient.id);
@@ -375,6 +193,7 @@ export function PatientsPage() {
             </div>
           </div>
           <p className="text-muted-foreground text-sm mt-1">{t('patients:list.subtitle')}</p>
+          <DataOwnershipLegend />
         </div>
       </div>
 
@@ -414,7 +233,7 @@ export function PatientsPage() {
         <CardContent>
           {/* Loading 狀態 */}
           {loading && (
-            <TableSkeleton rows={8} columns={15} />
+            <TableSkeleton rows={8} columns={14} />
           )}
 
           {/* 錯誤狀態 */}
@@ -439,7 +258,7 @@ export function PatientsPage() {
           {/* 病人列表 */}
           {!loading && !error && filteredPatients.length > 0 && (
           <div className="overflow-x-auto">
-          <Table className="compact-table" style={{ tableLayout: 'fixed', minWidth: '1185px' }}>
+          <Table className="compact-table" style={{ tableLayout: 'fixed', minWidth: '1135px' }}>
             <colgroup>
               <col style={{ width: '60px' }} />{/* 床號 */}
               <col style={{ width: '90px' }} />{/* 病例號碼 */}
@@ -454,10 +273,9 @@ export function PatientsPage() {
               <col style={{ width: '60px' }} />{/* 過敏 */}
               <col style={{ width: '50px' }} />{/* 隔離 */}
               <col style={{ width: '72px' }} />{/* 插管 */}
-              <col style={{ width: '50px' }} />{/* 編輯 */}
               <col style={{ width: '50px' }} />{/* 轉出 */}
             </colgroup>
-            <TableHeader>
+            <TableHeader className="[&_th]:bg-sky-50/70 dark:[&_th]:bg-sky-950/20">
               <TableRow>
                 <TableHead className="text-center">{t('patients:list.table.bed')}</TableHead>
                 <TableHead className="text-center">{t('patients:list.table.mrn')}</TableHead>
@@ -470,10 +288,19 @@ export function PatientsPage() {
                 <TableHead className="text-center">{t('patients:list.table.ventilatorDays')}</TableHead>
                 <TableHead className="text-center">{t('patients:list.table.dnr')}</TableHead>
                 <TableHead className="text-center">{t('patients:list.table.allergy')}</TableHead>
-                <TableHead className="text-center">{t('patients:list.table.isolation')}</TableHead>
+                <TableHead className="!bg-rose-50/80 text-center dark:!bg-rose-950/30">
+                  <span className="inline-flex flex-col items-center gap-1">
+                    {t('patients:list.table.isolation')}
+                    <DataOwnershipBadge kind="orphan" compact />
+                  </span>
+                </TableHead>
                 <TableHead className="text-center">{t('patients:list.table.intubation')}</TableHead>
-                <TableHead className="text-center">{t('patients:list.table.edit')}</TableHead>
-                <TableHead className="text-center">{t('patients:list.table.transferOut')}</TableHead>
+                <TableHead className="!bg-amber-50/80 text-center dark:!bg-amber-950/30">
+                  <span className="inline-flex flex-col items-center gap-1">
+                    {t('patients:list.table.transferOut')}
+                    <DataOwnershipBadge kind="manual" compact />
+                  </span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -542,19 +369,6 @@ export function PatientsPage() {
                   </TableCell>
                   <TableCell className="text-center">
                     {canEditPatients && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); handleEdit(patient); }}
-                        className="text-brand hover:text-brand hover:bg-slate-50 dark:hover:bg-slate-800"
-                        title={t('patients:list.editTooltip')}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {canEditPatients && (
                       <span className="inline-flex items-center gap-1">
                         <Button
                           variant="ghost"
@@ -585,15 +399,6 @@ export function PatientsPage() {
         </CardContent>
       </Card>
 
-      {/* 編輯病患資料對話框 */}
-      <PatientEditDialog
-        patient={editFormData}
-        onPatientChange={setEditFormData}
-        onCancel={handleCancel}
-        onSave={handleSave}
-        isSaving={savingPatient}
-      />
-
       {/* 辦理轉出對話框（per-row, soft discharge） */}
       <PatientArchiveDialog
         open={dischargeDialogOpen}
@@ -611,65 +416,6 @@ export function PatientsPage() {
         lockTarget
       />
 
-      {/* 新增病患對話框 */}
-      <PatientAddDialog
-        open={addDialogOpen}
-        newPatient={newPatient}
-        setNewPatient={setNewPatient}
-        creating={creatingPatient}
-        onClose={() => { setAddDialogOpen(false); resetNewPatientForm(); }}
-        onSubmit={handleCreatePatient}
-      />
-
-      {/* 封存病患對話框 */}
-      {archiveDialogOpen && (
-        <Dialog open={true} onOpenChange={(open) => { if (!open && !archivingPatient) { setArchiveDialogOpen(false); setArchiveTargetId(''); } }}>
-          <DialogContent className="sm:max-w-[520px]">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Archive className="h-5 w-5 text-brand" />
-                {t('patients:archive.simpleTitle')}
-              </DialogTitle>
-              <DialogDescription>
-                {t('patients:archive.simpleDescription')}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-3 py-2">
-              <Label>{t('patients:archive.selectLabel')}</Label>
-              <Select value={archiveTargetId} onValueChange={setArchiveTargetId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('patients:archive.selectPlaceholder')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {patients.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.bedNumber} - {maskPatientName(p.name)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => { if (!archivingPatient) { setArchiveDialogOpen(false); setArchiveTargetId(''); } }}
-                disabled={archivingPatient}
-              >
-                {t('common:actions.cancel')}
-              </Button>
-              <Button
-                onClick={() => handleArchivePatient(archiveTargetId)}
-                disabled={archivingPatient || !archiveTargetId}
-                className="bg-brand hover:bg-brand-hover"
-              >
-                {archivingPatient ? t('patients:archive.simpleSubmitting') : t('patients:archive.simpleSubmit')}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }

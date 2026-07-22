@@ -18,11 +18,13 @@ interface VitalSignCardProps {
   abnormalDirection?: 'high' | 'low' | 'normal';
   secondaryValue?: string;
   timestamp?: string;
+  ownership?: import('./patient/data-ownership-badge').DataOwnership;
 }
 
 import { memo } from 'react';
+import { DataOwnershipBadge } from './patient/data-ownership-badge';
 
-export const VitalSignCard = memo(function VitalSignCard({ label, value, unit, onClick, isAbnormal, abnormalDirection, secondaryValue, timestamp }: VitalSignCardProps) {
+export const VitalSignCard = memo(function VitalSignCard({ label, value, unit, onClick, isAbnormal, abnormalDirection, secondaryValue, timestamp, ownership }: VitalSignCardProps) {
   const hasSecondaryValue = typeof secondaryValue === 'string' && secondaryValue.trim() !== '';
   const normalizedValue =
     value === null || value === undefined || (typeof value === 'string' && value.trim() === '')
@@ -54,13 +56,14 @@ export const VitalSignCard = memo(function VitalSignCard({ label, value, unit, o
       }`}
       onClick={canClick ? onClick : undefined}
     >
-      <div className="flex items-start gap-1">
+      <div className="flex items-start justify-between gap-1">
         <p
           className="font-semibold leading-tight tracking-tight text-slate-500 dark:text-slate-400"
           style={{ fontSize: 'calc(var(--metric-card-label-size) + 0.1rem)' }}
         >
           {label}
         </p>
+        {ownership && <DataOwnershipBadge kind={ownership} compact />}
       </div>
       <div className="flex flex-1 flex-col items-center justify-center text-center">
         <span

@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Optional
 
+from pydantic import Field
+
 from app.schemas.base import CamelModel
 
 
@@ -40,3 +42,19 @@ class WeaningAssessmentResponse(CamelModel):
     recommendation: Optional[str] = None
     readiness_score: Optional[int] = None
     assessed_by: Optional[dict] = None
+
+
+class WeaningAssessmentCreate(CamelModel):
+    rsbi: Optional[int] = Field(default=None, ge=0, le=500)
+    nif: Optional[int] = Field(default=None, ge=-200, le=0)
+    vt: Optional[int] = Field(default=None, ge=0, le=3000)
+    rr: Optional[int] = Field(default=None, ge=0, le=100)
+    spo2: Optional[int] = Field(default=None, ge=0, le=100)
+    fio2: Optional[int] = Field(default=None, ge=21, le=100)
+    peep: Optional[int] = Field(default=None, ge=0, le=40)
+    gcs: Optional[int] = Field(default=None, ge=3, le=15)
+    cough_strength: Optional[str] = Field(default=None, max_length=20)
+    secretions: Optional[str] = Field(default=None, max_length=20)
+    hemodynamic_stability: Optional[bool] = None
+    recommendation: Optional[str] = Field(default=None, max_length=1000)
+    readiness_score: Optional[int] = Field(default=None, ge=0, le=100)

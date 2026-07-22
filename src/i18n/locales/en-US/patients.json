@@ -220,6 +220,7 @@
       "dischargeDateShort": "Discharge",
       "stayDaysShort": "Stay (d)",
       "dischargeType": "Type",
+      "dischargeReason": "Discharge note",
       "actions": "Actions"
     },
     "selectRowAria": "Select {{name}}",

@@ -152,12 +152,10 @@ class HISConverter:
 
         # SMARTBED-derived vitals-adjacent fields (2026-07-21 nested snapshot):
         # bed from the in-bed roster, anthropometrics from nutrition assessment,
-        # airway status from the tube list. All emitted as real values so the
-        # PRESERVE_EXISTING merge overwrites when HIS has data and keeps the
-        # manual value when it does not (see snapshot_sync._is_meaningful).
+        # airway status and dates from the tube list.
         bed_number = self._extract_bed_number()
         height, weight, bmi = self._extract_anthropometrics()
-        intubated, tracheostomy, tracheostomy_date = self._extract_airway()
+        intubated, intubation_date, tracheostomy, tracheostomy_date = self._extract_airway()
 
         return {
             "id": pat_id,
@@ -173,6 +171,7 @@ class HISConverter:
             "diagnosis": diagnosis or "待確認",
             "symptoms": [],
             "intubated": intubated,
+            "intubation_date": intubation_date,
             "tracheostomy": tracheostomy,
             "tracheostomy_date": tracheostomy_date,
             "critical_status": None,
@@ -363,14 +362,15 @@ class HISConverter:
 
     def _extract_airway(
         self,
-    ) -> Tuple[bool, bool, Optional[date]]:
-        """(intubated, tracheostomy, tracheostomy_date) from sbTube PIPE_ALIASES.
+    ) -> Tuple[bool, Optional[date], bool, Optional[date]]:
+        """Airway status and placement dates from sbTube PIPE_ALIASES.
 
         ``Endo*`` = endotracheal tube (intubated), ``Tr*`` = tracheostomy. Only
         a present-in-place tube counts — one whose END_DATE is unset or not yet
         past the snapshot date (a removed line keeps its historical row).
         """
         intubated = tracheostomy = False
+        intubation_date: Optional[date] = None
         trach_date: Optional[date] = None
         today = date.today()
         for tube in self._load_sb("sbTube"):
@@ -380,12 +380,15 @@ class HISConverter:
                 continue  # already removed
             if alias.startswith("Endo"):
                 intubated = True
+                put = _roc_to_date(tube.get("PUT_DATE"))
+                if put and (intubation_date is None or put < intubation_date):
+                    intubation_date = put
             elif alias.startswith("Tr"):
                 tracheostomy = True
                 put = _roc_to_date(tube.get("PUT_DATE"))
                 if put and (trach_date is None or put < trach_date):
                     trach_date = put
-        return intubated, tracheostomy, trach_date
+        return intubated, intubation_date, tracheostomy, trach_date
 
     def _extract_food_allergy(self) -> List[str]:
         """Structured food allergies from sbDisease.FOOD_ALLERGY (comma-list).
@@ -965,6 +968,35 @@ class HISConverter:
             }
         return list(rows.values())
 
+    def convert_clinical_scores(self) -> List[Dict[str, Any]]:
+        """sbPain → immutable pain-score rows with deterministic HIS ids."""
+        pat_id = _gen_id("pat", self.pat_no)
+        rows: Dict[str, Dict[str, Any]] = {}
+        for record in self._load_sb("sbPain"):
+            value = _to_int(record.get("PAIN_NUMBER"))
+            timestamp = _roc_to_datetime(
+                record.get("CREATE_DATE"), record.get("CREATE_TIME")
+            )
+            if value is None or not 0 <= value <= 10 or timestamp is None:
+                continue
+            score_id = _gen_id(
+                "score",
+                self.pat_no,
+                "pain",
+                record.get("CREATE_DATE") or "",
+                record.get("CREATE_TIME") or "",
+            )
+            rows[score_id] = {
+                "id": score_id,
+                "patient_id": pat_id,
+                "score_type": "pain",
+                "value": value,
+                "timestamp": timestamp,
+                "recorded_by": "HIS",
+                "notes": "sbPain",
+            }
+        return list(rows.values())
+
     # ------------------------------------------------------------------ #
     # Enrichment: derive fields from converted data
     # ------------------------------------------------------------------ #
@@ -1069,6 +1101,7 @@ class HISConverter:
         surgery_reports = self.convert_surgery()
         ai_reports = self.convert_ai_results()
         vital_signs = self.convert_vital_signs()
+        clinical_scores = self.convert_clinical_scores()
 
         # Merge all diagnostic reports
         all_reports = reports + surgery_reports + ai_reports
@@ -1112,6 +1145,7 @@ class HISConverter:
             "culture_results": cultures,
             "diagnostic_reports": all_reports,
             "vital_signs": vital_signs,
+            "clinical_scores": clinical_scores,
             "summary": {
                 "patient_name": patient["name"],
                 "medical_record_number": patient["medical_record_number"],
@@ -1124,6 +1158,7 @@ class HISConverter:
                 "culture_results_count": len(cultures),
                 "diagnostic_reports_count": len(all_reports),
                 "vital_signs_count": len(vital_signs),
+                "clinical_scores_count": len(clinical_scores),
                 "surgery_reports_count": len(surgery_reports),
                 "ecg_ai_reports_count": len(ai_reports),
                 "sedation_drugs": sedation,

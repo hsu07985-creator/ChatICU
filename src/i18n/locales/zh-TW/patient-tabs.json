@@ -1,4 +1,13 @@
 {
+  "ownership": {
+    "legend": "資料來源",
+    "auto": "自動",
+    "manual": "手動",
+    "orphan": "孤兒・暫時手動",
+    "autoDescription": "由 HIS／病患快照自動帶入，前端不可手動修改",
+    "manualDescription": "目前沒有自動來源，依正式流程由使用者輸入",
+    "orphanDescription": "目前沒有自動來源或完整流程，暫時開放人工補登"
+  },
   "summary": {
     "infoCard": {
       "title": "病患資訊",
@@ -19,6 +28,19 @@
       "tracheostomy": "氣切",
       "dnr": "DNR",
       "isolating": "隔離中"
+    },
+    "orphanFields": {
+      "title": "待串接欄位補登",
+      "description": "這些欄位目前沒有自動資料來源，先以人工補登維持可用。",
+      "isolation": "隔離狀態",
+      "criticalStatus": "危急狀態",
+      "criticalStatusPlaceholder": "例如：穩定、危急",
+      "campus": "院區",
+      "campusPlaceholder": "例如：總院、分院",
+      "save": "儲存補登",
+      "saving": "儲存中...",
+      "saveSuccess": "孤兒欄位已更新",
+      "saveError": "孤兒欄位更新失敗"
     },
     "clinicalCard": {
       "title": "臨床狀態",
@@ -67,12 +89,33 @@
     },
     "weaning": {
       "title": "脫機評估 Weaning Assessment",
+      "empty": "尚無脫機評估，請先人工補登。",
+      "manualEntry": "補登脫機評估",
       "evaluatedAt": "評估時間: {{timestamp}}",
       "rsbi": "RSBI",
       "nif": "NIF",
       "nifValue": "{{value}} cmH₂O",
       "readiness": "準備度分數",
-      "recommendation": "建議"
+      "recommendation": "建議",
+      "vt": "潮氣容積",
+      "rr": "呼吸速率",
+      "spo2": "SpO₂",
+      "fio2": "FiO₂",
+      "peep": "PEEP",
+      "gcs": "GCS",
+      "coughStrength": "咳嗽力",
+      "secretions": "分泌物",
+      "hemodynamicStability": "血流動力穩定",
+      "stable": "穩定",
+      "unstable": "不穩定"
+    },
+    "weaningDialog": {
+      "title": "孤兒欄位補登－脫機評估",
+      "saveSuccess": "脫機評估已新增",
+      "saveError": "新增失敗，請確認輸入值",
+      "saving": "儲存中...",
+      "save": "儲存",
+      "cancel": "取消"
     },
     "sections": {
       "labData": "Lab Data",

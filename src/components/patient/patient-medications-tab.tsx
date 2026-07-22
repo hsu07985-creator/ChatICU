@@ -2,7 +2,6 @@ import { lazy, Suspense, useState, useMemo } from 'react';
 import type { Medication, Patient } from '../../lib/api';
 import type { UserRole } from '../../lib/auth-context';
 import { isAntibiotic } from '../../lib/antibiotic-codes';
-import { updateMedication } from '../../lib/api/medications';
 import { canAccessPharmacy } from '../../lib/permissions';
 import {
   formatDoseValue,
@@ -15,32 +14,20 @@ import {
   getMedicationEndDate,
   formatMedicationConcentration,
   MED_CATEGORY_COLORS,
-  painColor,
   rassColor,
   formatScoreTimestamp,
 } from '../../lib/medications/medication-formatters';
 import { detectDuplicates } from '../../lib/medications/duplicate-overlap';
 import { PadDosageCalculator } from '../pharmacy/pad-dosage-calculator';
 import { ScoreSelector } from './medications/score-selector';
+import { DataOwnershipBadge, DataOwnershipLegend } from './data-ownership-badge';
 import { SanMedCard } from './medications/san-med-card';
 import { MedicationDetailModal } from './medications/medication-detail-modal';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../ui/dialog';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
 import { MedicationsSkeleton } from '../ui/skeletons';
 import { TabsContent } from '../ui/tabs';
-import { Textarea } from '../ui/textarea';
-import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 
 // Lazy-load recharts-backed trend chart (H4: keep 411 KB charts-*.js off the critical path)
@@ -73,7 +60,6 @@ interface PatientMedicationsTabProps {
   scoreEntries: import('@/lib/api/scores').ScoreEntry[];
   onDeleteScoreEntry?: (scoreId: string) => Promise<void>;
   onCloseScoreTrend: () => void;
-  onRefreshMedications: () => Promise<void>;
 }
 
 export function PatientMedicationsTab({
@@ -101,26 +87,13 @@ export function PatientMedicationsTab({
   scoreEntries,
   onDeleteScoreEntry,
   onCloseScoreTrend,
-  onRefreshMedications,
 }: PatientMedicationsTabProps) {
   const { t } = useTranslation('medications');
   // medView：all=全部 / active=使用中 / regular=常規（使用中且非 PRN,STAT）/ discontinued=已停用 / duplicate=重複用藥
   const [medView, setMedView] = useState<'active' | 'regular' | 'discontinued' | 'all' | 'duplicate'>('active');
-  const [painPending, setPainPending] = useState<number | null>(null);
   const [rassPending, setRassPending] = useState<number | null>(null);
   const [selfSuppliedFilter, setSelfSuppliedFilter] = useState(false);
   const [detailMedication, setDetailMedication] = useState<Medication | null>(null);
-  const [editingMedication, setEditingMedication] = useState<Medication | null>(null);
-  const [editForm, setEditForm] = useState({
-    dose: '',
-    unit: '',
-    concentration: '',
-    concentrationUnit: '',
-    frequency: '',
-    route: '',
-    indication: '',
-  });
-  const [isSavingMedication, setIsSavingMedication] = useState(false);
   const showPadDosageCalculator = canAccessPharmacy(userRole) && !!patient;
 
   const isDiscontinued = (med: Medication) =>
@@ -196,65 +169,11 @@ export function PatientMedicationsTab({
   });
 
   const displayedMeds = sortOtherMeds(baseMeds);
-  // TODO(PM sign-off required): the inline medication edit-form path is currently
-  // dead (hard-disabled). Do NOT delete the edit-form logic / handlers / dialog
-  // below without product confirmation that manual medication editing is retired.
-  const canEditMedication = false;
-
   // Duplicate medication detection: same generic across inpatient ↔ outpatient (active only)
   const duplicateMeds = useMemo(() => {
     const allActiveInpatient = [...activePainMeds, ...activeSedationMeds, ...activeNmbMeds, ...activeOtherMeds];
     return detectDuplicates(allActiveInpatient, activeOutpatientMeds);
   }, [activePainMeds, activeSedationMeds, activeNmbMeds, activeOtherMeds, activeOutpatientMeds]);
-
-  const openMedicationEditor = (medication: Medication) => {
-    setEditingMedication(medication);
-    setEditForm({
-      dose: formatDoseValue(medication.dose),
-      unit: medication.unit || '',
-      concentration: medication.concentration || '',
-      concentrationUnit: medication.concentrationUnit || '',
-      frequency: medication.frequency || '',
-      route: medication.route || '',
-      indication: medication.indication || '',
-    });
-  };
-
-  const closeMedicationEditor = () => {
-    if (isSavingMedication) return;
-    setEditingMedication(null);
-  };
-
-  const handleEditFieldChange = (field: keyof typeof editForm, value: string) => {
-    setEditForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const handleSaveMedication = async () => {
-    if (!patientId || !editingMedication) return;
-    setIsSavingMedication(true);
-    try {
-      await updateMedication(patientId, editingMedication.id, {
-        dose: editForm.dose,
-        unit: editForm.unit,
-        concentration: editForm.concentration,
-        concentrationUnit: editForm.concentrationUnit,
-        frequency: editForm.frequency,
-        route: editForm.route,
-        indication: editForm.indication,
-      });
-      await onRefreshMedications();
-      toast.success(t('tab.edit.saveSuccess'));
-      setEditingMedication(null);
-    } catch (error) {
-      console.error(`${t('tab.edit.saveErrorLog')}:`, error);
-      toast.error(t('tab.edit.saveError'));
-    } finally {
-      setIsSavingMedication(false);
-    }
-  };
 
   return (
     <TabsContent value="meds" className="space-y-3">
@@ -262,11 +181,12 @@ export function PatientMedicationsTab({
         <MedicationsSkeleton />
       ) : (
         <>
+          <DataOwnershipLegend />
           {showPadDosageCalculator && (
             <PadDosageCalculator
               mode="patient"
               patient={patient}
-              allowManualAnthropometrics
+              allowManualAnthropometrics={false}
             />
           )}
 
@@ -278,9 +198,10 @@ export function PatientMedicationsTab({
                 <div className="flex items-center justify-between">
                   <div className="flex items-baseline gap-2">
                     <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">{t('tab.main.painCardTitle')}</CardTitle>
-                    {(painPending ?? painScoreValue) !== null && (
+                    <DataOwnershipBadge kind="auto" compact />
+                    {painScoreValue !== null && (
                       <span className="text-2xl font-bold tabular-nums leading-none text-slate-900 dark:text-slate-100">
-                        {painPending ?? painScoreValue}
+                        {painScoreValue}
                       </span>
                     )}
                   </div>
@@ -293,21 +214,13 @@ export function PatientMedicationsTab({
                     {t('tab.main.trendButton')}
                   </Button>
                 </div>
-                {painPending === null && painScoreTimestamp && (
+                {painScoreTimestamp && (
                   <p className="text-xs text-muted-foreground tabular-nums">
                     {t('tab.main.lastRecorded', { timestamp: formatScoreTimestamp(painScoreTimestamp) })}
                   </p>
                 )}
               </CardHeader>
               <CardContent className="pt-0 space-y-3">
-                <ScoreSelector
-                  min={0}
-                  max={10}
-                  currentValue={painScoreValue}
-                  onSelect={(v) => onRecordScore('pain', v)}
-                  onPendingChange={setPainPending}
-                  colorFn={painColor}
-                />
                 <div>
                   <p className="mb-2 text-xs font-medium text-muted-foreground">{t('tab.main.painMedsLabel')}</p>
                   {activePainMeds.length === 0 ? (
@@ -315,7 +228,7 @@ export function PatientMedicationsTab({
                   ) : (
                     <div className="space-y-2">
                       {activePainMeds.map((medication) => (
-                        <SanMedCard key={medication.id} medication={medication} canEdit={canEditMedication} patientId={patientId} onEdit={openMedicationEditor} onDetail={setDetailMedication} />
+                        <SanMedCard key={medication.id} medication={medication} onDetail={setDetailMedication} />
                       ))}
                     </div>
                   )}
@@ -329,6 +242,7 @@ export function PatientMedicationsTab({
                 <div className="flex items-center justify-between">
                   <div className="flex items-baseline gap-2">
                     <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">{t('tab.main.rassCardTitle')}</CardTitle>
+                    <DataOwnershipBadge kind="manual" compact />
                     {(() => {
                       const display = rassPending ?? rassScoreValue;
                       if (display === null) return null;
@@ -371,7 +285,7 @@ export function PatientMedicationsTab({
                   ) : (
                     <div className="space-y-2">
                       {activeSedationMeds.map((medication) => (
-                        <SanMedCard key={medication.id} medication={medication} canEdit={canEditMedication} patientId={patientId} onEdit={openMedicationEditor} onDetail={setDetailMedication} />
+                        <SanMedCard key={medication.id} medication={medication} onDetail={setDetailMedication} />
                       ))}
                     </div>
                   )}
@@ -382,7 +296,10 @@ export function PatientMedicationsTab({
             {/* Neuromuscular Blockade (N) */}
             <Card className="border-border">
               <CardHeader className="pb-2 space-y-1">
-                <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">{t('tab.main.nmbCardTitle')}</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">{t('tab.main.nmbCardTitle')}</CardTitle>
+                  <DataOwnershipBadge kind="auto" compact />
+                </div>
                 <CardDescription className="text-sm leading-tight">
                   {nmbIndication || '-'}
                 </CardDescription>
@@ -394,7 +311,7 @@ export function PatientMedicationsTab({
                 ) : (
                   <div className="space-y-2">
                     {activeNmbMeds.map((medication) => (
-                      <SanMedCard key={medication.id} medication={medication} canEdit={canEditMedication} patientId={patientId} onEdit={openMedicationEditor} onDetail={setDetailMedication} />
+                      <SanMedCard key={medication.id} medication={medication} onDetail={setDetailMedication} />
                     ))}
                   </div>
                 )}
@@ -582,16 +499,6 @@ export function PatientMedicationsTab({
                               </Badge>
                             )}
                           </div>
-                          {!discontinued && canEditMedication && patientId && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-xs shrink-0"
-                              onClick={() => openMedicationEditor(medication)}
-                            >
-                              {t('tab.sanMedCard.edit')}
-                            </Button>
-                          )}
                         </div>
                         <div className={`mt-1 flex items-center gap-2 text-sm ${discontinued ? 'text-gray-400 dark:text-gray-500' : 'text-muted-foreground'}`}>
                           <span>{formatMedicationRegimen(medication)}</span>
@@ -728,79 +635,6 @@ export function PatientMedicationsTab({
             onClose={() => setDetailMedication(null)}
           />
 
-          <Dialog open={editingMedication !== null} onOpenChange={(open) => { if (!open) closeMedicationEditor(); }}>
-            <DialogContent className="sm:max-w-xl">
-              <DialogHeader>
-                <DialogTitle>{t('tab.edit.title')}</DialogTitle>
-                <DialogDescription>
-                  {t('tab.edit.description')}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4">
-                <div className="rounded-lg border dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2">
-                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{editingMedication?.name || '—'}</p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{editingMedication?.genericName || t('tab.edit.noGenericName')}</p>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="med-dose">{t('tab.edit.doseLabel')}</Label>
-                    <Input id="med-dose" value={editForm.dose} onChange={(e) => handleEditFieldChange('dose', e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="med-unit">{t('tab.edit.unitLabel')}</Label>
-                    <Input id="med-unit" value={editForm.unit} onChange={(e) => handleEditFieldChange('unit', e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="med-concentration">{t('tab.edit.concentrationLabel')}</Label>
-                    <Input
-                      id="med-concentration"
-                      placeholder={t('tab.edit.concentrationPlaceholder')}
-                      value={editForm.concentration}
-                      onChange={(e) => handleEditFieldChange('concentration', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="med-concentration-unit">{t('tab.edit.concentrationUnitLabel')}</Label>
-                    <Input
-                      id="med-concentration-unit"
-                      placeholder={t('tab.edit.concentrationUnitPlaceholder')}
-                      value={editForm.concentrationUnit}
-                      onChange={(e) => handleEditFieldChange('concentrationUnit', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="med-frequency">{t('tab.edit.frequencyLabel')}</Label>
-                    <Input id="med-frequency" value={editForm.frequency} onChange={(e) => handleEditFieldChange('frequency', e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="med-route">{t('tab.edit.routeLabel')}</Label>
-                    <Input id="med-route" value={editForm.route} onChange={(e) => handleEditFieldChange('route', e.target.value)} />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="med-indication">{t('tab.edit.indicationLabel')}</Label>
-                  <Textarea
-                    id="med-indication"
-                    rows={4}
-                    value={editForm.indication}
-                    onChange={(e) => handleEditFieldChange('indication', e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button variant="outline" onClick={closeMedicationEditor} disabled={isSavingMedication}>
-                  {t('tab.edit.cancel')}
-                </Button>
-                <Button onClick={handleSaveMedication} disabled={isSavingMedication || !patientId}>
-                  {isSavingMedication ? t('tab.edit.submitting') : t('tab.edit.submit')}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </>
       )}
     </TabsContent>

@@ -96,6 +96,7 @@ def test_anthropometrics_and_airway() -> None:
     assert patient["weight"] == 42.7
     assert patient["bmi"] == 15.7
     assert patient["intubated"] is True          # Endo_1
+    assert patient["intubation_date"] == date(2026, 7, 1)
     assert patient["tracheostomy"] is False       # no Tr tube
     assert patient["tracheostomy_date"] is None
 
@@ -187,6 +188,26 @@ def test_vital_signs_absent_when_no_gettpr() -> None:
 
     assert result["vital_signs"] == []
     assert result["summary"]["vital_signs_count"] == 0
+
+
+def test_pain_scores_from_sbpain() -> None:
+    import tempfile
+
+    merged = _base_merged("30546132")
+    merged["Smartbed"]["M"]["sbPain"] = {"M01311": [
+        {"CREATE_DATE": "1150721", "CREATE_TIME": "1900", "PAIN_NUMBER": "4"},
+        {"CREATE_DATE": "1150721", "CREATE_TIME": "1900", "PAIN_NUMBER": "4"},
+        {"CREATE_DATE": "1150721", "CREATE_TIME": "1800", "PAIN_NUMBER": None},
+    ]}
+    with tempfile.TemporaryDirectory() as tmp:
+        snap = _write_nested_snapshot(Path(tmp), "30546132", merged)
+        scores = HISConverter(snap, pat_no="30546132").convert_clinical_scores()
+
+    assert len(scores) == 1
+    assert scores[0]["score_type"] == "pain"
+    assert scores[0]["value"] == 4
+    assert scores[0]["recorded_by"] == "HIS"
+    assert scores[0]["timestamp"].tzinfo is not None
 
 
 def test_absent_smartbed_keeps_placeholders() -> None:

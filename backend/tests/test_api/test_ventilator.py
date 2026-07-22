@@ -117,10 +117,38 @@ async def test_weaning_assessment_no_data(client):
 
 @pytest.mark.asyncio
 async def test_weaning_assessment_create(client, _seed_ventilator):
-    resp = await client.post("/patients/pat_001/ventilator/weaning-assessment")
+    resp = await client.post("/patients/pat_001/ventilator/weaning-assessment", json={
+        "rsbi": 72,
+        "nif": -30,
+        "vt": 420,
+        "rr": 18,
+        "spo2": 96,
+        "fio2": 35,
+        "peep": 5,
+        "gcs": 15,
+        "coughStrength": "strong",
+        "secretions": "small",  # pragma: allowlist secret
+        "hemodynamicStability": True,
+        "recommendation": "Proceed with SBT",
+        "readinessScore": 82,
+    })
     assert resp.status_code == 200
     body = resp.json()
     data = body["data"]
     assert data["id"].startswith("weaning_")
     assert data["patientId"] == "pat_001"
     assert data["assessedBy"]["id"] == "usr_test"
+    assert data["rsbi"] == 72
+    assert data["nif"] == -30
+    assert data["coughStrength"] == "strong"
+    assert data["hemodynamicStability"] is True
+    assert data["readinessScore"] == 82
+
+
+@pytest.mark.asyncio
+async def test_weaning_assessment_create_validates_ranges(client, _seed_ventilator):
+    resp = await client.post(
+        "/patients/pat_001/ventilator/weaning-assessment",
+        json={"readinessScore": 101},
+    )
+    assert resp.status_code == 422

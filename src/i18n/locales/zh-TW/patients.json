@@ -220,6 +220,7 @@
       "dischargeDateShort": "出院日",
       "stayDaysShort": "住院天",
       "dischargeType": "出院類別",
+      "dischargeReason": "轉出備註",
       "actions": "操作"
     },
     "selectRowAria": "選擇 {{name}}",

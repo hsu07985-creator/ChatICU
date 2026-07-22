@@ -27,26 +27,32 @@ export interface VentilatorTrendsResponse {
 export interface WeaningAssessment {
   id: string;
   patientId: string;
-  timestamp: string;
-  rsbi: number;
-  nif: number;
-  vt: number;
-  rr: number;
-  spo2: number;
-  fio2: number;
-  peep: number;
-  gcs: number;
-  coughStrength: string;
-  secretions: string;
-  hemodynamicStability: boolean;
-  recommendation: string;
-  readinessScore: number;
+  timestamp: string | null;
+  rsbi: number | null;
+  nif: number | null;
+  vt: number | null;
+  rr: number | null;
+  spo2: number | null;
+  fio2: number | null;
+  peep: number | null;
+  gcs: number | null;
+  coughStrength: string | null;
+  secretions: string | null;
+  hemodynamicStability: boolean | null;
+  recommendation: string | null;
+  readinessScore: number | null;
   assessedBy: {
     id: string;
     name: string;
     role: string;
-  };
+  } | null;
 }
+
+export type WeaningAssessmentInput = Partial<Pick<
+  WeaningAssessment,
+  'rsbi' | 'nif' | 'vt' | 'rr' | 'spo2' | 'fio2' | 'peep' | 'gcs' |
+  'coughStrength' | 'secretions' | 'hemodynamicStability' | 'recommendation' | 'readinessScore'
+>>;
 
 // 取得最新呼吸器設定
 export async function getLatestVentilatorSettings(patientId: string): Promise<VentilatorSettings> {
@@ -82,7 +88,7 @@ export async function getWeaningAssessment(patientId: string): Promise<WeaningAs
 // 建立脫機評估
 export async function createWeaningAssessment(
   patientId: string,
-  data: Partial<WeaningAssessment>
+  data: WeaningAssessmentInput
 ): Promise<WeaningAssessment> {
   const response = await apiClient.post<ApiResponse<WeaningAssessment>>(
     `/patients/${patientId}/ventilator/weaning-assessment`,
@@ -117,4 +123,3 @@ export async function createVentilatorSettings(
   );
   return ensureData(response.data, 'API contract');
 }
-

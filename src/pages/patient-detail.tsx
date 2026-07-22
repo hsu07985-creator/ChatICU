@@ -27,19 +27,17 @@ const PatientSummaryTab = lazy(() =>
 import { useParams, useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import { streamChatMessage, extractStreamMainContent, splitMainAndDetail, getChatSessions as fetchChatSessionsApi, getChatSession as fetchChatSessionApi, refreshChatSessionSnapshot, updateChatSessionTitle, updateMessageFeedback, deleteChatSession, type ChatResponse } from '../lib/api/ai';
-import { patientsApi, medicationsApi, messagesApi, ventilatorApi, type Patient, type LabData, type PatientMessage, type VitalSigns, type VentilatorSettings, type WeaningAssessment } from '../lib/api';
+import { patientsApi, messagesApi, ventilatorApi, type Patient, type LabData, type PatientMessage, type VitalSigns, type VentilatorSettings, type WeaningAssessment } from '../lib/api';
 import { formatAiDegradedReason, getDisplayFreshnessHints, formatCitationPageText, compactSnippet, formatSnapshotValue, formatDisplayValue, formatDisplayTimestamp, formatMedicationRegimen, deriveMedicationGroups, type MedicationGroups } from '../lib/patient-detail-format';
 import { maskPatientName } from '../lib/utils/patient-name';
 import { useAuth } from '../lib/auth-context';
 import { usePatientScores } from '../hooks/use-patient-scores';
 import { useTrendChart, type TrendSource } from '../hooks/use-trend-chart';
-import { refreshSharedPatientDataAfterMutation } from '../lib/patient-data-sync';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { toast } from 'sonner';
 import { LoadingSpinner, ErrorDisplay } from '../components/ui/state-display';
-import { PatientEditDialog } from '../components/patient/dialogs/patient-edit-dialog';
 import { PatientChatTab } from '../components/patient/patient-chat-tab';
 import { respondToAdvice } from '../lib/api/pharmacy';
 import { ArrowLeft, MessageSquare, MessagesSquare, Pill, TestTube, FileText } from 'lucide-react';
@@ -105,25 +103,6 @@ export function PatientDetailPage() {
   const [patient, setPatient] = useState<PatientWithFrontendFields | null>(null);
   const [patientLoading, setPatientLoading] = useState(true);
   const [patientError, setPatientError] = useState<string | null>(null);
-
-  // 編輯病人資料
-  const [editingPatient, setEditingPatient] = useState<PatientWithFrontendFields | null>(null);
-  const [savingPatient, setSavingPatient] = useState(false);
-  const handleEditSave = async () => {
-    if (!editingPatient || !patient) return;
-    setSavingPatient(true);
-    try {
-      const updated = await patientsApi.updatePatient(patient.id, editingPatient);
-      await refreshSharedPatientDataAfterMutation();
-      setPatient(updated as PatientWithFrontendFields);
-      setEditingPatient(null);
-      toast.success(t('header.saveSuccess'));
-    } catch {
-      toast.error(t('header.saveError'));
-    } finally {
-      setSavingPatient(false);
-    }
-  };
 
   // 檢驗數據狀態
   const [labData, setLabData] = useState<LabData>(defaultLabData);
@@ -362,17 +341,6 @@ export function PatientDetailPage() {
     const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     setShowScrollToBottom(distFromBottom > 200);
   }, []);
-
-  const handleRefreshMedications = useCallback(async () => {
-    if (!id) return;
-    setMedicationsLoading(true);
-    try {
-      const result = await medicationsApi.getMedications(id, { status: 'all' });
-      setMedicationGroups(result.grouped || deriveMedicationGroups(result.medications));
-    } catch { /* ignore */ } finally {
-      setMedicationsLoading(false);
-    }
-  }, [id]);
 
   const handleCreateCustomTag = useCallback(async (name: string) => {
     if (!id) return;
@@ -1087,6 +1055,7 @@ export function PatientDetailPage() {
   const etco2 = vitalSigns?.etco2;
   const cvp = vitalSigns?.cvp;
   const icp = vitalSigns?.icp;
+  const cpp = vitalSigns?.cpp;
   const bodyWeight = patient?.weight;
 
   const ventTimestamp = ventilator?.timestamp;
@@ -1098,6 +1067,10 @@ export function PatientDetailPage() {
   const ventPip = ventilator?.pip;
   const ventPlateau = ventilator?.plateau;
   const ventCompliance = ventilator?.compliance;
+  const ventInspiratoryPressure = ventilator?.inspiratoryPressure;
+  const ventPressureSupport = ventilator?.pressureSupport;
+  const ventIeRatio = ventilator?.ieRatio;
+  const ventResistance = ventilator?.resistance;
 
   const handleVitalSignClick = (labName: string, value: number, unit: string, source: TrendSource = 'vital') => {
     setSelectedTrendMetric({
@@ -1115,9 +1088,7 @@ export function PatientDetailPage() {
       <PatientDetailHeader
         patient={patient}
         daysAdmitted={daysAdmitted}
-        isAdmin={user?.role === 'admin'}
         onBack={() => navigate('/patients')}
-        onEdit={() => setEditingPatient({ ...patient })}
       />
 
       {/* 分頁內容 */}
@@ -1264,6 +1235,8 @@ export function PatientDetailPage() {
               spo2={spo2}
               cvp={cvp}
               icp={icp}
+              cpp={cpp}
+              etco2={etco2}
               bodyWeight={bodyWeight}
               bodyHeight={patient?.height}
               ventilatorLoading={ventilatorLoading}
@@ -1276,13 +1249,19 @@ export function PatientDetailPage() {
               ventPip={ventPip}
               ventPlateau={ventPlateau}
               ventCompliance={ventCompliance}
+              ventInspiratoryPressure={ventInspiratoryPressure}
+              ventPressureSupport={ventPressureSupport}
+              ventIeRatio={ventIeRatio}
+              ventResistance={ventResistance}
               weaningAssessment={weaningAssessment}
               formatDisplayTimestamp={formatDisplayTimestamp}
               formatDisplayValue={formatDisplayValue}
               onVitalSignClick={handleVitalSignClick}
               isAdmin={user?.role === 'admin'}
+              canEditWeaning={['admin', 'doctor', 'np'].includes(user?.role ?? '')}
               onVitalSignsUpdate={(vs) => setVitalSigns(vs)}
               onVentilatorUpdate={(v) => setVentilator(v)}
+              onWeaningAssessmentUpdate={(assessment) => setWeaningAssessment(assessment)}
             />
           </Suspense>
         )}
@@ -1315,7 +1294,6 @@ export function PatientDetailPage() {
               scoreEntries={scores.scoreEntries}
               onDeleteScoreEntry={scores.handleDeleteScoreEntry}
               onCloseScoreTrend={scores.closeScoreTrend}
-              onRefreshMedications={handleRefreshMedications}
             />
           </Suspense>
         )}
@@ -1326,6 +1304,13 @@ export function PatientDetailPage() {
             <PatientSummaryTab
               patient={patient}
               userRole={user?.role}
+              onPatientUpdate={(updated) => setPatient((current) => current ? {
+                ...current,
+                symptoms: updated.symptoms ?? current.symptoms,
+                isIsolated: updated.isIsolated ?? current.isIsolated,
+                criticalStatus: updated.criticalStatus !== undefined ? updated.criticalStatus : current.criticalStatus,
+                campus: updated.campus !== undefined ? updated.campus : current.campus,
+              } : current)}
               onNavigateToMeds={() => setActiveTab('meds')}
             />
           </Suspense>
@@ -1346,14 +1331,6 @@ export function PatientDetailPage() {
         </Suspense>
       )}
 
-      {/* 編輯病人資料對話框 */}
-      <PatientEditDialog
-        patient={editingPatient}
-        onPatientChange={setEditingPatient}
-        onCancel={() => setEditingPatient(null)}
-        onSave={handleEditSave}
-        isSaving={savingPatient}
-      />
     </div>
   );
 }

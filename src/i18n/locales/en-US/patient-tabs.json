@@ -1,4 +1,13 @@
 {
+  "ownership": {
+    "legend": "Data source",
+    "auto": "Auto",
+    "manual": "Manual",
+    "orphan": "Orphan · temporary manual",
+    "autoDescription": "Automatically populated from HIS/patient snapshots and not editable here",
+    "manualDescription": "No automatic source; entered through the supported manual workflow",
+    "orphanDescription": "No automatic source or complete workflow yet; temporary manual entry is enabled"
+  },
   "summary": {
     "infoCard": {
       "title": "Patient Info",
@@ -19,6 +28,19 @@
       "tracheostomy": "Tracheostomy",
       "dnr": "DNR",
       "isolating": "Isolation"
+    },
+    "orphanFields": {
+      "title": "Pending integration fields",
+      "description": "These fields do not have an automatic source yet and are temporarily maintained manually.",
+      "isolation": "Isolation status",
+      "criticalStatus": "Critical status",
+      "criticalStatusPlaceholder": "e.g. stable, critical",
+      "campus": "Campus",
+      "campusPlaceholder": "e.g. main campus",
+      "save": "Save entry",
+      "saving": "Saving...",
+      "saveSuccess": "Orphan fields updated",
+      "saveError": "Failed to update orphan fields"
     },
     "clinicalCard": {
       "title": "Clinical Status",
@@ -67,12 +89,33 @@
     },
     "weaning": {
       "title": "Weaning Assessment",
+      "empty": "No weaning assessment yet. Add a temporary manual entry.",
+      "manualEntry": "Add weaning assessment",
       "evaluatedAt": "Evaluated at: {{timestamp}}",
       "rsbi": "RSBI",
       "nif": "NIF",
       "nifValue": "{{value}} cmH₂O",
       "readiness": "Readiness Score",
-      "recommendation": "Recommendation"
+      "recommendation": "Recommendation",
+      "vt": "Tidal volume",
+      "rr": "Respiratory rate",
+      "spo2": "SpO₂",
+      "fio2": "FiO₂",
+      "peep": "PEEP",
+      "gcs": "GCS",
+      "coughStrength": "Cough strength",
+      "secretions": "Secretions",
+      "hemodynamicStability": "Hemodynamic stability",
+      "stable": "Stable",
+      "unstable": "Unstable"
+    },
+    "weaningDialog": {
+      "title": "Orphan field entry — Weaning assessment",
+      "saveSuccess": "Weaning assessment added",
+      "saveError": "Save failed. Please verify the values.",
+      "saving": "Saving...",
+      "save": "Save",
+      "cancel": "Cancel"
     },
     "sections": {
       "labData": "Lab Data",

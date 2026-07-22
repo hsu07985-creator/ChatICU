@@ -34,7 +34,8 @@ export interface Patient {
   allergies?: string[];
   bloodType?: string | null;
   codeStatus?: string | null;
-  criticalStatus?: string;
+  criticalStatus?: string | null;
+  campus?: string | null;
   sedation?: string[];
   analgesia?: string[];
   nmb?: string[];
@@ -142,6 +143,7 @@ export async function updatePatient(id: string, data: Partial<Patient>): Promise
   if (data.tracheostomy !== undefined) body.tracheostomy = data.tracheostomy;
   if (data.tracheostomyDate !== undefined) body.tracheostomy_date = data.tracheostomyDate;
   if (data.criticalStatus !== undefined) body.critical_status = data.criticalStatus;
+  if (data.campus !== undefined) body.campus = data.campus;
   if (data.admissionDate !== undefined) body.admission_date = data.admissionDate;
   if (data.icuAdmissionDate !== undefined) body.icu_admission_date = data.icuAdmissionDate;
   if (data.ventilatorDays !== undefined) body.ventilator_days = data.ventilatorDays;

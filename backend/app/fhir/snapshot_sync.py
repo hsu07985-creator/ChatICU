@@ -96,11 +96,13 @@ async def _execute_batch_upsert(
     table: str,
     cols: list[str],
     records: list[dict[str, Any]],
+    *,
+    touch_updated_at: bool = True,
 ) -> None:
     """One ``INSERT ... VALUES (...), (...) ON CONFLICT (id) DO UPDATE`` round-trip.
 
-    SET clause uses ``excluded.{col}`` for every non-id column plus
-    ``updated_at = CURRENT_TIMESTAMP``. ``created_at`` is intentionally
+    SET clause uses ``excluded.{col}`` for every non-id column and optionally
+    bumps ``updated_at`` for tables that own that column. ``created_at`` is intentionally
     omitted from both the column list (server default fills it on INSERT)
     and the SET clause (so a conflict update preserves the original
     insertion timestamp). See audit doc §D.6.1 / Step 1 invariant tests.
@@ -111,7 +113,8 @@ async def _execute_batch_upsert(
     update_cols = [c for c in cols if c != "id"]
     if update_cols:
         set_clauses = [f"{c} = excluded.{c}" for c in update_cols]
-        set_clauses.append("updated_at = CURRENT_TIMESTAMP")
+        if touch_updated_at:
+            set_clauses.append("updated_at = CURRENT_TIMESTAMP")
         sql = (
             f"INSERT INTO {table} ({', '.join(cols)}) "  # nosec B608 — table is a hardcoded literal ("medications"/"lab_data"/"culture_results"/"diagnostic_reports") from this module's own callers; cols are literal dict keys from HISConverter (app/fhir/his/converter.py), never raw HIS payload keys; row values bound via _build_batch_params placeholders
             f"VALUES {values_clause} "
@@ -162,6 +165,10 @@ HIS_OWNED_FIELDS = frozenset(
         "code_status",
         "has_dnr",
         "archived",
+        "intubated",
+        "intubation_date",
+        "tracheostomy",
+        "tracheostomy_date",
     }
 )
 
@@ -172,9 +179,6 @@ PRESERVE_EXISTING_FIELDS = frozenset(
         "weight",
         "bmi",
         "symptoms",
-        "intubated",
-        "tracheostomy",
-        "tracheostomy_date",
         "critical_status",
         "alerts",
         "allergies",
@@ -422,7 +426,13 @@ async def insert_records(session: Any, table: str, records: list[dict[str, Any]]
     return len(records)
 
 
-async def upsert_records(session: Any, table: str, records: list[dict[str, Any]]) -> int:
+async def upsert_records(
+    session: Any,
+    table: str,
+    records: list[dict[str, Any]],
+    *,
+    touch_updated_at: bool = True,
+) -> int:
     """Insert all records via multi-row ``INSERT VALUES`` batches with
     ``ON CONFLICT (id) DO UPDATE`` recovery.
 
@@ -448,6 +458,9 @@ async def upsert_records(session: Any, table: str, records: list[dict[str, Any]]
     SET clause so a conflict update never overwrites the original
     insertion timestamp. Verified by
     ``test_upsert_records_preserves_created_at_on_update``.
+
+    Set ``touch_updated_at=False`` for append-style tables such as
+    ``clinical_scores`` that have ``created_at`` but no ``updated_at`` column.
     """
     if not records:
         return 0
@@ -457,7 +470,13 @@ async def upsert_records(session: Any, table: str, records: list[dict[str, Any]]
 
     for offset in range(0, len(deduped), CHUNK_SIZE):
         chunk = deduped[offset : offset + CHUNK_SIZE]
-        await _execute_batch_upsert(session, table, cols, chunk)
+        await _execute_batch_upsert(
+            session,
+            table,
+            cols,
+            chunk,
+            touch_updated_at=touch_updated_at,
+        )
 
     return len(records)
 
@@ -577,6 +596,16 @@ async def sync_snapshot_into_session(session: Any, snapshot: SnapshotInfo) -> di
     vital_rows = result.get("vital_signs") or []
     vital_upserted = await upsert_records(session, "vital_signs", vital_rows)
 
+    # Pain scores (sbPain): deterministic ids update HIS rows in place while
+    # manual RASS rows use unrelated UUIDs and remain untouched.
+    clinical_score_rows = result.get("clinical_scores") or []
+    clinical_scores_upserted = await upsert_records(
+        session,
+        "clinical_scores",
+        clinical_score_rows,
+        touch_updated_at=False,
+    )
+
     # PR-4: per-patient ATC coverage report written to disk for operator audit.
     coverage = compute_medication_coverage(result["medications"])
     write_coverage_report(snapshot.mrn, patient_id, snapshot.snapshot_id, coverage)
@@ -595,6 +624,7 @@ async def sync_snapshot_into_session(session: Any, snapshot: SnapshotInfo) -> di
         "culture_results": replace_counts["culture_results"],
         "diagnostic_reports": replace_counts["diagnostic_reports"],
         "vital_signs": vital_upserted,
+        "clinical_scores": clinical_scores_upserted,
         "synced_at": datetime.now(timezone.utc).isoformat(),
     }
 

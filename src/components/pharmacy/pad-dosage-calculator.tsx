@@ -276,8 +276,9 @@ export function PadDosageCalculator({
   };
 
   const doseUnitShort = drugInfo?.dose_unit?.replace('/kg/hr', '/hr') || '/hr';
-  const inputClassName = `h-9 ${allowManualAnthropometrics ? '' : 'bg-muted/50'}`;
   const selectedPatient = patient ?? patients.find(item => item.id === selectedPatientId);
+  const anthropometricsEditable = allowManualAnthropometrics && !selectedPatient;
+  const inputClassName = `h-9 ${anthropometricsEditable ? '' : 'bg-muted/50'}`;
   const shouldShowPatientSelector = allowPatientSelect;
   const hasInput = selectedDrug || weight || targetDoseMin || targetDoseMax || concentration || sex !== 'none' || height || selectedPatientId;
 
@@ -359,10 +360,10 @@ export function PadDosageCalculator({
               type="number"
               step="any"
               className={inputClassName}
-              placeholder={allowManualAnthropometrics ? t('dosage.weight.manualPlaceholder') : t('dosage.weight.placeholder')}
+              placeholder={anthropometricsEditable ? t('dosage.weight.manualPlaceholder') : t('dosage.weight.placeholder')}
               value={weight}
-              readOnly={!allowManualAnthropometrics}
-              tabIndex={allowManualAnthropometrics ? undefined : -1}
+              readOnly={!anthropometricsEditable}
+              tabIndex={anthropometricsEditable ? undefined : -1}
               onChange={(event) => {
                 setWeight(event.target.value);
                 clearResults();
@@ -378,7 +379,7 @@ export function PadDosageCalculator({
                 setSex(value);
                 clearResults();
               }}
-              disabled={!allowManualAnthropometrics}
+              disabled={!anthropometricsEditable}
             >
               <SelectTrigger className={inputClassName}>
                 <SelectValue placeholder={t('dosage.sex.placeholder')} />
@@ -512,10 +513,10 @@ export function PadDosageCalculator({
                 type="number"
                 step="any"
                 className={inputClassName}
-                placeholder={allowManualAnthropometrics ? t('dosage.height.manualPlaceholder') : t('dosage.height.placeholder')}
+                placeholder={anthropometricsEditable ? t('dosage.height.manualPlaceholder') : t('dosage.height.placeholder')}
                 value={height}
-                readOnly={!allowManualAnthropometrics}
-                tabIndex={allowManualAnthropometrics ? undefined : -1}
+                readOnly={!anthropometricsEditable}
+                tabIndex={anthropometricsEditable ? undefined : -1}
                 onChange={(event) => {
                   setHeight(event.target.value);
                   clearResults();
@@ -533,10 +534,10 @@ export function PadDosageCalculator({
                 type="number"
                 step="any"
                 className={inputClassName}
-                placeholder={allowManualAnthropometrics ? t('dosage.height.manualPlaceholder') : t('dosage.height.placeholder')}
+                placeholder={anthropometricsEditable ? t('dosage.height.manualPlaceholder') : t('dosage.height.placeholder')}
                 value={height}
-                readOnly={!allowManualAnthropometrics}
-                tabIndex={allowManualAnthropometrics ? undefined : -1}
+                readOnly={!anthropometricsEditable}
+                tabIndex={anthropometricsEditable ? undefined : -1}
                 onChange={(event) => {
                   setHeight(event.target.value);
                   clearResults();

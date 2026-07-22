@@ -15,7 +15,11 @@ from app.middleware.audit import create_audit_log
 from app.models.ventilator import VentilatorSetting, WeaningAssessment
 from app.models.user import User
 from app.models.patient import Patient
-from app.schemas.ventilator import VentilatorSettingResponse, WeaningAssessmentResponse
+from app.schemas.ventilator import (
+    VentilatorSettingResponse,
+    WeaningAssessmentCreate,
+    WeaningAssessmentResponse,
+)
 from app.utils.patient_access import normalize_patient_id, verify_patient_access
 from app.utils.response import success_response
 
@@ -115,6 +119,7 @@ async def get_weaning_assessment(
 @router.post("/weaning-assessment")
 async def create_weaning_assessment(
     patient_id: str,
+    body: WeaningAssessmentCreate,
     request: Request,
     user: User = Depends(require_roles("doctor", "np", "admin")),
     db: AsyncSession = Depends(get_db),
@@ -124,6 +129,7 @@ async def create_weaning_assessment(
         id=f"weaning_{uuid.uuid4().hex[:8]}",
         patient_id=pid,
         timestamp=datetime.now(timezone.utc),
+        **body.model_dump(),
         assessed_by={"id": user.id, "name": user.name, "role": user.role},
     )
     db.add(assessment)
@@ -132,7 +138,7 @@ async def create_weaning_assessment(
         db, user_id=user.id, user_name=user.name, role=user.role,
         action="建立脫機評估", target=pid, status="success",
         ip=get_client_ip(request),
-        details={"assessment_id": assessment.id},
+        details={"assessment_id": assessment.id, "fields": body.model_dump(exclude_none=True)},
     )
     await db.flush()
 

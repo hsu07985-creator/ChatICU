@@ -21,6 +21,8 @@ import {
 } from '../../lib/api/symptom-records';
 import { maskPatientName } from '../../lib/utils/patient-name';
 import { MedicationRiskCard } from './medication-risk-card';
+import { DataOwnershipBadge, DataOwnershipLegend, type DataOwnership } from './data-ownership-badge';
+import { updatePatient } from '../../lib/api/patients';
 import { useTranslation } from 'react-i18next';
 
 interface PatientSummaryTabPatient {
@@ -45,6 +47,8 @@ interface PatientSummaryTabPatient {
   ventilatorDays?: number;
   department?: string;
   isIsolated?: boolean;
+  criticalStatus?: string | null;
+  campus?: string | null;
   codeStatus?: string | null;
   medicalRecordNumber?: string | null;
   tracheostomyDate?: string | null;
@@ -197,7 +201,7 @@ function SymptomTimeline({ records }: { records: SymptomRecord[] }) {
 
 /* ── Main Component ─────────────────────────── */
 
-export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }: PatientSummaryTabProps) {
+export function PatientSummaryTab({ patient, userRole, onPatientUpdate, onNavigateToMeds }: PatientSummaryTabProps) {
   const { t } = useTranslation('patient-tabs');
   // Symptom editing state
   const initialSymptoms = Array.isArray(patient.symptoms) ? patient.symptoms : [];
@@ -207,12 +211,23 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [suggestElapsedSec, setSuggestElapsedSec] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingOrphans, setIsSavingOrphans] = useState(false);
+  const [isIsolatedDraft, setIsIsolatedDraft] = useState(!!patient.isIsolated);
+  const [criticalStatusDraft, setCriticalStatusDraft] = useState(patient.criticalStatus ?? '');
+  const [campusDraft, setCampusDraft] = useState(patient.campus ?? '');
 
   // Symptom history
   const [symptomRecords, setSymptomRecords] = useState<SymptomRecord[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
 
   const hasChanges = JSON.stringify(editingSymptoms) !== JSON.stringify(initialSymptoms);
+  const canEditOrphans = ['admin', 'doctor', 'np', 'nurse'].includes(userRole ?? '');
+
+  useEffect(() => {
+    setIsIsolatedDraft(!!patient.isIsolated);
+    setCriticalStatusDraft(patient.criticalStatus ?? '');
+    setCampusDraft(patient.campus ?? '');
+  }, [patient.isIsolated, patient.criticalStatus, patient.campus]);
 
   // RAG layer removed — clinical summary is always available.
   const canSummary = true;
@@ -265,6 +280,27 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
       setIsSaving(false);
     }
   }, [patient.id, editingSymptoms, onPatientUpdate]);
+
+  const handleSaveOrphans = useCallback(async () => {
+    setIsSavingOrphans(true);
+    try {
+      const updated = await updatePatient(patient.id, {
+        isIsolated: isIsolatedDraft,
+        criticalStatus: criticalStatusDraft.trim() || null,
+        campus: campusDraft.trim() || null,
+      });
+      onPatientUpdate?.({
+        isIsolated: updated.isIsolated,
+        criticalStatus: updated.criticalStatus ?? null,
+        campus: updated.campus ?? null,
+      });
+      toast.success(t('summary.orphanFields.saveSuccess'));
+    } catch {
+      toast.error(t('summary.orphanFields.saveError'));
+    } finally {
+      setIsSavingOrphans(false);
+    }
+  }, [campusDraft, criticalStatusDraft, isIsolatedDraft, onPatientUpdate, patient.id, t]);
 
   const handleAiSuggest = useCallback(async () => {
     if (!canSummary) {
@@ -331,20 +367,21 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
     }
   }
 
-  const infoRows: { label: string; value: string }[] = [
-    { label: t('summary.infoCard.rows.bed'), value: patient.bedNumber || '-' },
-    { label: t('summary.infoCard.rows.name'), value: maskPatientName(patient.name) || '-' },
-    { label: t('summary.infoCard.rows.age'), value: t('summary.ageSuffix', { age: patient.age }) },
-    { label: t('summary.infoCard.rows.gender'), value: patient.gender || '-' },
-    { label: t('summary.infoCard.rows.height'), value: patient.height ? t('summary.heightSuffix', { height: patient.height }) : '-' },
-    { label: t('summary.infoCard.rows.weight'), value: patient.weight ? t('summary.weightSuffix', { weight: patient.weight }) : '-' },
-    { label: t('summary.infoCard.rows.bmi'), value: patient.bmi ? `${patient.bmi}` : '-' },
-    { label: t('summary.infoCard.rows.mrn'), value: patient.medicalRecordNumber || patient.id },
-    { label: t('summary.infoCard.rows.physician'), value: patient.attendingPhysician || '-' },
+  const infoRows: { label: string; value: string; ownership: DataOwnership }[] = [
+    { label: t('summary.infoCard.rows.bed'), value: patient.bedNumber || '-', ownership: 'auto' },
+    { label: t('summary.infoCard.rows.name'), value: maskPatientName(patient.name) || '-', ownership: 'auto' },
+    { label: t('summary.infoCard.rows.age'), value: t('summary.ageSuffix', { age: patient.age }), ownership: 'auto' },
+    { label: t('summary.infoCard.rows.gender'), value: patient.gender || '-', ownership: 'auto' },
+    { label: t('summary.infoCard.rows.height'), value: patient.height ? t('summary.heightSuffix', { height: patient.height }) : '-', ownership: 'auto' },
+    { label: t('summary.infoCard.rows.weight'), value: patient.weight ? t('summary.weightSuffix', { weight: patient.weight }) : '-', ownership: 'auto' },
+    { label: t('summary.infoCard.rows.bmi'), value: patient.bmi ? `${patient.bmi}` : '-', ownership: 'auto' },
+    { label: t('summary.infoCard.rows.mrn'), value: patient.medicalRecordNumber || patient.id, ownership: 'auto' },
+    { label: t('summary.infoCard.rows.physician'), value: patient.attendingPhysician || '-', ownership: 'auto' },
   ];
 
   return (
     <div className="space-y-3">
+    <DataOwnershipLegend />
     <div className="grid gap-3 lg:grid-cols-[3fr_2fr]">
       {/* ── 左欄：基本資訊 ── */}
       <div className="space-y-2">
@@ -356,7 +393,10 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
             <div className="grid grid-cols-2 gap-x-6 gap-y-0 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2">
               {infoRows.map((row) => (
                 <div key={row.label} className="flex items-baseline gap-3 border-b border-slate-100 dark:border-slate-700 py-2 last:border-b-0">
-                  <span className="w-16 shrink-0 text-sm text-slate-500 dark:text-slate-400">{row.label}</span>
+                  <span className="flex w-24 shrink-0 items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
+                    {row.label}
+                    <DataOwnershipBadge kind={row.ownership} compact />
+                  </span>
                   <span className="text-base font-semibold text-slate-900 dark:text-slate-100">{row.value}</span>
                 </div>
               ))}
@@ -368,20 +408,75 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 px-3 py-1 text-sm font-medium text-red-700 dark:text-red-400">
                   <span className="h-2 w-2 rounded-full bg-red-500" />
                   {patient.tracheostomy ? t('summary.flags.tracheostomy') : t('summary.flags.intubated')}
+                  <DataOwnershipBadge kind="auto" compact />
                 </span>
               )}
               {patient.hasDNR && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 px-3 py-1 text-sm font-medium text-red-700 dark:text-red-400">
                   <span className="h-2 w-2 rounded-full bg-red-500" />
                   DNR
+                  <DataOwnershipBadge kind="auto" compact />
                 </span>
               )}
               {patient.isIsolated && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-3 py-1 text-sm font-medium text-amber-700 dark:text-amber-400">
                   <span className="h-2 w-2 rounded-full bg-amber-500" />
                   {t('summary.flags.isolating')}
+                  <DataOwnershipBadge kind="orphan" compact />
                 </span>
               )}
+            </div>
+
+            <div className="rounded-md border border-rose-200 bg-rose-50/60 px-4 py-3 dark:border-rose-900 dark:bg-rose-950/20">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-rose-800 dark:text-rose-300">{t('summary.orphanFields.title')}</p>
+                    <DataOwnershipBadge kind="orphan" />
+                  </div>
+                  <p className="mt-1 text-xs text-rose-700/80 dark:text-rose-300/80">{t('summary.orphanFields.description')}</p>
+                </div>
+                {canEditOrphans && (
+                  <Button size="sm" className="h-8" onClick={handleSaveOrphans} disabled={isSavingOrphans}>
+                    {isSavingOrphans ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1 h-3.5 w-3.5" />}
+                    {isSavingOrphans ? t('summary.orphanFields.saving') : t('summary.orphanFields.save')}
+                  </Button>
+                )}
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={isIsolatedDraft}
+                    onChange={(event) => setIsIsolatedDraft(event.target.checked)}
+                    disabled={!canEditOrphans}
+                    className="h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand"
+                  />
+                  {t('summary.orphanFields.isolation')}
+                </label>
+                <label className="space-y-1 text-sm text-slate-700 dark:text-slate-300">
+                  <span>{t('summary.orphanFields.criticalStatus')}</span>
+                  <input
+                    type="text"
+                    value={criticalStatusDraft}
+                    onChange={(event) => setCriticalStatusDraft(event.target.value)}
+                    placeholder={t('summary.orphanFields.criticalStatusPlaceholder')}
+                    readOnly={!canEditOrphans}
+                    className="h-8 w-full rounded-md border border-rose-200 bg-white px-2.5 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand dark:border-rose-900 dark:bg-slate-900"
+                  />
+                </label>
+                <label className="space-y-1 text-sm text-slate-700 dark:text-slate-300">
+                  <span>{t('summary.orphanFields.campus')}</span>
+                  <input
+                    type="text"
+                    value={campusDraft}
+                    onChange={(event) => setCampusDraft(event.target.value)}
+                    placeholder={t('summary.orphanFields.campusPlaceholder')}
+                    readOnly={!canEditOrphans}
+                    className="h-8 w-full rounded-md border border-rose-200 bg-white px-2.5 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand dark:border-rose-900 dark:bg-slate-900"
+                  />
+                </label>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -401,14 +496,20 @@ export function PatientSummaryTab({ patient, onPatientUpdate, onNavigateToMeds }
         </CardHeader>
         <CardContent className="space-y-3 pt-3">
           <div className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3">
-            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{t('summary.clinicalCard.diagnosisLabel')}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{t('summary.clinicalCard.diagnosisLabel')}</p>
+              <DataOwnershipBadge kind="auto" compact />
+            </div>
             <p className="mt-1 text-base font-semibold text-slate-900 dark:text-slate-100">{patient.diagnosis || '-'}</p>
           </div>
 
           {/* ── 目前症狀（可編輯） ── */}
           <div className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{t('summary.clinicalCard.currentSymptomsLabel')}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{t('summary.clinicalCard.currentSymptomsLabel')}</p>
+                <DataOwnershipBadge kind="manual" compact />
+              </div>
               {hasChanges && (
                 <Button
                   size="sm"

@@ -1,6 +1,7 @@
 backend/
 func/
 local/
+/patient/
 datamock/
 docs/
 e2e/

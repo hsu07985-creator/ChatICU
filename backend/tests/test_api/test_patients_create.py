@@ -83,3 +83,17 @@ async def test_create_patient_default_values_when_optional_fields_omitted(client
     assert created["sedation"] == []
     assert created["analgesia"] == []
     assert created["nmb"] == []
+
+
+@pytest.mark.asyncio
+async def test_update_patient_orphan_fields(client):
+    response = await client.patch("/patients/pat_001", json={
+        "critical_status": "critical",
+        "campus": "main",
+        "is_isolated": True,
+    })
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["criticalStatus"] == "critical"
+    assert data["campus"] == "main"
+    assert data["isIsolated"] is True

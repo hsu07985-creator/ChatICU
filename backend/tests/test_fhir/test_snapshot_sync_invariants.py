@@ -28,6 +28,7 @@ from app.fhir.snapshot_sync import (
     upsert_records,
 )
 from app.models.lab_data import LabData
+from app.models.clinical_score import ClinicalScore
 from app.models.medication import Medication
 from app.models.medication_administration import MedicationAdministration
 from app.models.patient import Patient
@@ -632,7 +633,6 @@ async def test_replace_patient_records_still_executes_delete_before_insert(
     )
     await db_session.commit()
 
-    delete_stmts = [s for s in sql_log if "DELETE FROM lab_data" in s.upper().replace(" ", " ")]
     # Match either "DELETE FROM lab_data" or its case variants
     delete_stmts_norm = [s for s in sql_log if "DELETE" in s.upper() and "lab_data" in s]
     assert len(delete_stmts_norm) >= 1, (
@@ -748,3 +748,56 @@ async def test_upsert_records_preserves_manual_vital_rows(db_session) -> None:
     manual = next(r for r in rows if r.id == "manual-uuid-1")
     assert manual.spo2 == 95  # manual SpO2 survived the HIS sync
     assert manual.heart_rate == 88
+
+
+@pytest.mark.asyncio
+async def test_upsert_records_adds_his_pain_without_touching_manual_rass(db_session) -> None:
+    db_session.add(
+        Patient(
+            id="pat_score",
+            name="王測試",
+            bed_number="I-11",
+            medical_record_number="30546133",
+            age=76,
+            gender="M",
+            diagnosis="肺炎",
+            intubated=False,
+            ventilator_days=0,
+        )
+    )
+    db_session.add(
+        ClinicalScore(
+            id="manual-rass-1",
+            patient_id="pat_score",
+            score_type="rass",
+            value=-2,
+            timestamp=datetime(2026, 7, 21, 3, 0, tzinfo=timezone.utc),
+            recorded_by="user-1",
+        )
+    )
+    await db_session.commit()
+
+    await upsert_records(
+        db_session,
+        "clinical_scores",
+        [
+            {
+                "id": "score_deadbeef",
+                "patient_id": "pat_score",
+                "score_type": "pain",
+                "value": 4,
+                "timestamp": datetime(2026, 7, 21, 11, 0, tzinfo=timezone.utc),
+                "recorded_by": "HIS",
+                "notes": "sbPain",
+            }
+        ],
+        touch_updated_at=False,
+    )
+    await db_session.commit()
+
+    rows = (
+        await db_session.execute(
+            select(ClinicalScore).where(ClinicalScore.patient_id == "pat_score")
+        )
+    ).scalars().all()
+    assert {(row.score_type, row.value) for row in rows} == {("rass", -2), ("pain", 4)}
