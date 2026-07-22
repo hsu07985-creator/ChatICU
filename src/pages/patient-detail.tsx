@@ -276,7 +276,7 @@ export function PatientDetailPage() {
   }, [id]);
 
   const refreshChatSessions = useCallback(async () => {
-    if (!id) return;
+    if (!id || chatSessionsLoading) return;
     setChatSessionsLoading(true);
     try {
       const sessionsData = await fetchChatSessionsApi({ patientId: id });
@@ -297,7 +297,7 @@ export function PatientDetailPage() {
     } finally {
       setChatSessionsLoading(false);
     }
-  }, [id]);
+  }, [chatSessionsLoading, id]);
 
   const refreshTags = useCallback(async () => {
     if (!id) return;
@@ -322,9 +322,9 @@ export function PatientDetailPage() {
   }, [loadPatient]);
 
   useEffect(() => {
-    if (!id || !patient || activeTab !== 'chat' || chatSessionsLoaded) return;
+    if (!id || !patient || activeTab !== 'chat' || chatSessionsLoaded || chatSessionsLoading) return;
     void refreshChatSessions();
-  }, [activeTab, chatSessionsLoaded, id, patient, refreshChatSessions]);
+  }, [activeTab, chatSessionsLoaded, chatSessionsLoading, id, patient, refreshChatSessions]);
 
   useEffect(() => {
     if (!id || !patient || activeTab !== 'messages') return;
@@ -351,7 +351,8 @@ export function PatientDetailPage() {
     if (!id || !patient || !['meds', 'records'].includes(activeTab)) return;
     void loadMedications();
     if (activeTab === 'meds' && !scoresLoaded) {
-      void scores.loadLatestScores().finally(() => setScoresLoaded(true));
+      setScoresLoaded(true);
+      void scores.loadLatestScores();
     }
   }, [activeTab, id, loadMedications, patient, scores.loadLatestScores, scoresLoaded]);
 
