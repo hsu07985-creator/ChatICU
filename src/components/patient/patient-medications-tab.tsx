@@ -452,7 +452,8 @@ export function PatientMedicationsTab({
               ) : (
                 <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
                   {displayedMeds.map((medication) => {
-                    const categoryColor = MED_CATEGORY_COLORS[medication.category];
+                    const category = medication.category;
+                    const categoryColor = category ? MED_CATEGORY_COLORS[category] : undefined;
                     const abx = isAntibiotic(medication);
                     const prn = isPrnOrStat(medication);
                     const isStat = medication.frequency?.toUpperCase() === 'STAT';
@@ -494,8 +495,8 @@ export function PatientMedicationsTab({
                               </Badge>
                             )}
                             {categoryColor && !abx && (
-                              <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 ${MED_CATEGORY_COLORS[medication.category]} ${discontinued ? 'opacity-60' : ''}`}>
-                                {t(`tab.categories.${medication.category}`, { defaultValue: medication.category })}
+                              <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 ${categoryColor} ${discontinued ? 'opacity-60' : ''}`}>
+                                {t(`tab.categories.${category}`, { defaultValue: category })}
                               </Badge>
                             )}
                           </div>

@@ -2,6 +2,7 @@ from scripts.sync_his_snapshots_serial import SYNC_SCHEMA_VERSION, classify
 
 
 def test_sync_state_reimports_when_mapping_version_changes() -> None:
+    assert SYNC_SCHEMA_VERSION == "2026-07-22.4"
     current = {
         "snapshot_id": "20260721_204616",
         "normalized_hash": "same-hash",

@@ -10,8 +10,6 @@ import { formatDoseValue } from '../patient-detail-format';
 
 export { formatDoseValue };
 
-const PRN_FREQ_PATTERN = /PRN|STAT/i;
-
 /** 判定門診藥物是否已過期（endDate 已過） */
 export function isOutpatientExpired(med: Medication): boolean {
   if (!med.endDate) return false;
@@ -30,9 +28,7 @@ export function getOutpatientStatus(med: Medication): { labelKey: 'discontinued'
 }
 
 export function isPrnOrStat(med: Medication): boolean {
-  if (med.prn) return true;
-  if (med.frequency && PRN_FREQ_PATTERN.test(med.frequency)) return true;
-  return false;
+  return med.prn || med.frequency?.toUpperCase() === 'STAT';
 }
 
 export function formatMedDate(dateStr?: string | null): string {

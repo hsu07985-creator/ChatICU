@@ -456,7 +456,7 @@ class HISConverter:
             # Determine PRN
             is_prn = "PRN" in freq_code
 
-            # Source type (self-supplied detection is done at API layer)
+            # Source type comes directly from HIS OPD_SW.
             opd_sw = m.get("OPD_SW", "I")
             source_type = _OPD_SW_MAP.get(opd_sw, "inpatient")
 
@@ -490,19 +490,18 @@ class HISConverter:
             # fallback and supplies only derived metadata.
             formulary_entry = _FORMULARY_MAP.get(odr_code) if odr_code else None
             his_atc = (m.get("ATC_CODE") or "").strip() or None
+            category = _classify_category(his_atc)
+            is_antibiotic = category == "antibiotic"
             if his_atc:
                 atc_code = his_atc
-                is_antibiotic = his_atc[:3] in ("J01", "J02", "J04", "J05") or his_atc[:5] in ("P01AB", "A07AA")
                 kidney_relevant = formulary_entry["kidney_relevant"] if formulary_entry else None
                 coding_source = "his_atc"
             elif formulary_entry:
                 atc_code = formulary_entry["atc_code"]
-                is_antibiotic = formulary_entry["is_antibiotic"]
                 kidney_relevant = formulary_entry["kidney_relevant"]
                 coding_source = formulary_entry["source"]
             else:
                 atc_code = None
-                is_antibiotic = False
                 kidney_relevant = None
                 coding_source = "unmapped" if odr_code else None
 
@@ -536,8 +535,8 @@ class HISConverter:
                 "generic_name": generic,
                 "order_code": odr_code or None,
                 "nhi_code": (m.get("NHI_CODE") or "").strip() or None,
-                "category": _classify_category(raw_name),
-                "san_category": _classify_san(raw_name, atc_code),
+                "category": category,
+                "san_category": _classify_san(his_atc),
                 "dose": str(m["DOSE"]) if m.get("DOSE") is not None else None,
                 "unit": m.get("DOSE_UNIT"),
                 "frequency": _FREQ_MAP.get(freq_code, freq_code.lower() if freq_code else None),

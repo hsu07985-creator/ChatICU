@@ -41,7 +41,6 @@ from app.fhir.his.drug_dictionaries import (  # noqa: F401
     _FREQ_MAP,
     _OPD_SW_MAP,
     _ROUTE_MAP,
-    _SAN_PATTERNS,
     _classify_category,
     _classify_san,
     _clean_drug_name,

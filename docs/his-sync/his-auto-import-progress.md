@@ -7,7 +7,7 @@
 
 ## 0. 一句話現況
 
-**2026-07-22 欄位串接已完成：HIS 病人的自動欄位由 API 邊界禁止人工覆寫；生命徵象以逐欄最新值合併 HIS TPR 與五個人工指標；藥物、檢驗、培養與真正的 AI／手術報告均已直接連到目前 `patient/` 快照。同步 state 加入 mapping schema version，converter 改版時即使快照 hash 不變也會重跑。**
+**2026-07-22 欄位串接已完成：HIS 病人的自動欄位由 API 邊界禁止人工覆寫；生命徵象以逐欄最新值合併 HIS TPR 與五個人工指標；藥物、檢驗、培養與真正的 AI／手術報告均已直接連到目前 `patient/` 快照。藥物可見標籤已封口為 ATC/FREQ 等原始欄位驅動，不再使用藥名、備註或前端醫令碼關鍵字。同步 state 加入 mapping schema version，converter 改版時即使快照 hash 不變也會重跑。**
 
 > **2026-07-21 更正**：先前記「Vercel 未切版（bundle 仍 C1j_oTLU）」是**誤判**——`index-*.js` 是 entry chunk，Vite 依內容 hash，而 `patient-edit-dialog.tsx` + 所有 locale JSON 都 static-import 進 entry chunk，內容變了但**檔名 hash 恰好沒變**。實測 `curl chat-icu.vercel.app` 的 `index-C1j_oTLU.js` **已含 `hisSyncNote` ×3 + 中英 banner 全文**，且 Vercel deployment overview 顯示 `66c6a48` = Production·Current、`chat-icu.vercel.app` 已指向它。**前端已生效，無需再 Promote。** 教訓：驗證「切版沒」別只比 index hash，直接 grep 服務中 bundle 的新字串。
 
@@ -23,6 +23,7 @@
 | `2109f5526` | patient PATCH ownership、sparse vital merge + per-field timestamp、手動 vital 欄位限制、sync schema version、排除把影像醫囑誤當 final report | patients/vital routers、vital schema、converter、serial sync + API/FHIR 測試 |
 | `eed377a7b` | migration 086 修復 production 遺失的 `patients.intubation_date` 實體欄位 | `backend/alembic/versions/086_repair_patient_intubation_date.py` |
 | `c7e01516d` | 成功空院區 marker 完整性判定；讓 lab/culture 完整 reconcile 清除舊分組 ID | `snapshot_sync.py`、serial sync version `2026-07-22.3` + 測試 |
+| 本次藥物標籤封口 | category/SAN/抗感染改由 raw ATC；STAT/PRN 由 FREQ；移除自備藥與前端名稱推論 | converter、medications API、前端 medication helpers；serial sync `2026-07-22.4` |
 
 以上變更都在 `main`，已 `git push personal main`（Railway）+ `git push railway main`（Vercel）。
 
@@ -60,6 +61,7 @@
 - 真 PG sync：拋棄式容器實跑 `sync_snapshot_into_session`，`tracheostomy_date`（raw-SQL 欄）與 `vital_signs`（50669055=1401 列）寫入正確、`spo2` 保持 NULL。
 - **Playwright 本機 UI 走測**：登入 → 病人列表顯示 MICU11/MICU17、氣切/插管；編輯對話框 banner 有出現、床號/身高/氣切日期自動帶入。**床號更新測試**：手動改 `A-99-TEST` 存得進 DB（更新功能正常）→ 重跑 sync → 變回 `MICU17`（**確認「手動床號撐不過下次同步」= 預期行為**）。
 - **2026-07-22 真實快照逐筆驗收**：10 位病患；藥物 **2,120/2,120**、檢驗 **6,224/6,224**、培養/藥敏 **1,812/1,812** 全數對上原始 `patient/` 欄位，數值差異 0；MIC **98/98**；空白 lab orphan 0。
+- **藥物標籤來源驗收**：2,120 筆 raw parity mismatch=0；STAT **837**、PRN **173**、antibiotic/antifungal/antiviral **379/18/4**、steroid **109**、laxative **58**、PPI/H2 **57/18**、S/A/N **62/70/3**；可見標籤路徑未再使用藥名、備註或醫令碼關鍵字。
 - **分組基準**：同一批快照應落庫為 lab_data **829** 組、culture_results **204** 組；成功空院區 marker 不再使整批誤判 partial，因此舊版分組 ID 可由完整 replace 正常清除。
 - **Production 最終比對（2026-07-22）**：10 位 active 病患；medications **2,120**（`source_details` **2,120**）、lab_data **829** 組／項目 **6,224**（含 source **6,224**）、culture_results **204** 組／source items **1,812**、diagnostic_reports **43**（ECG AI **40**＋procedure **3**）、vital_signs **4,484**、clinical_scores **4**。以 converter 的 id 與每個自動欄位逐筆比正式 DB，**auto field mismatch = 0**。
 - **熱同步與冪等**：`--force` 結果 synced **10/10**、errors **0**，完整 reconcile 清除舊分組 ID；緊接著非 force 結果 unchanged **10**、synced **0**、errors **0**，DB `sync_status.details.last_run` 已保存相同結果。

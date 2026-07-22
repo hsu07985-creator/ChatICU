@@ -1,9 +1,4 @@
-"""Medication fields connected directly to HIS snapshot fields (2026-07-22 audit).
-
-Covers: generic_name ← HIS DRUG_NAME, atc_code gap-fill ← HIS ATC_CODE (formulary
-miss only, coding_source='his_atc', is_antibiotic from J-prefix), nhi_code
-passthrough, and the _classify_san ATC-prefix backstop.
-"""
+"""Medication fields connected directly to HIS snapshot fields."""
 from __future__ import annotations
 
 import json
@@ -11,36 +6,47 @@ import tempfile
 from pathlib import Path
 
 from app.fhir.his.converter import HISConverter
-from app.fhir.his.drug_dictionaries import _classify_san, _combo_generic_from_his
+from app.fhir.his.drug_dictionaries import (
+    _classify_category,
+    _classify_san,
+    _combo_generic_from_his,
+)
 
 
-# ---- _classify_san: name primary, ATC backstop ---------------------------
+# ---- ATC-only labels -----------------------------------------------------
 
-def test_san_name_pattern_is_primary() -> None:
-    assert _classify_san("Propofol 1% 20ml inj", None) == "S"
-    assert _classify_san("Fentanyl 0.5mg inj", None) == "A"
-    assert _classify_san("Rocuronium 50mg inj", None) == "N"
-
-
-def test_san_atc_backstop_when_name_misses() -> None:
-    # trade names outside the curated list, recovered via ATC prefix
-    assert _classify_san("Eurodin 2mg", "N05CD07") == "S"   # estazolam (benzo hypnotic)
-    assert _classify_san("Ansial", "N05BA06") == "S"        # lorazepam (IV benzo → sedation)
-    assert _classify_san("Celebrex 200mg cap", "M01AH01") == "A"  # celecoxib (NSAID)
-    assert _classify_san("Tramacet", "N02AJ13") == "A"      # tramadol/paracetamol
-    assert _classify_san("SomeBlocker", "M03AC01") == "N"   # neuromuscular blocker
+def test_san_uses_only_atc() -> None:
+    assert _classify_san("N05CD07") == "S"
+    assert _classify_san("N05BA06") == "S"
+    assert _classify_san("N01AH01") == "A"
+    assert _classify_san("N02AJ13") == "A"
+    assert _classify_san("M01AH01") == "A"
+    assert _classify_san("M03AC01") == "N"
+    assert _classify_san("N05AH04") is None
+    assert _classify_san("Seroquel 25mg tab") is None
+    assert _classify_san(None) is None
 
 
-def test_san_atc_backstop_excludes_maintenance_antipsychotics() -> None:
-    # N05AH removed: maintenance olanzapine/clozapine must NOT be forced to S by ATC
-    assert _classify_san("Zyprexa 10mg", "N05AH03") is None  # olanzapine, name misses
-    # but quetiapine used for sedation is still caught by NAME (primary)
-    assert _classify_san("Seroquel 25mg tab", "N05AH04") == "S"
-
-
-def test_san_none_when_neither_matches() -> None:
-    assert _classify_san("Aspirin 100mg", None) is None
-    assert _classify_san("Aspirin 100mg", "B01AC06") is None  # antiplatelet, not S/A/N
+def test_therapeutic_category_uses_only_atc() -> None:
+    cases = {
+        "J01DH02": "antibiotic", "J04AB02": "antibiotic",
+        "P01AB01": "antibiotic", "D06AX01": "antibiotic",
+        "S01AA01": "antibiotic", "A07AA09": "antibiotic",
+        "A07AA02": "antifungal", "J02AC01": "antifungal",
+        "D01AC01": "antifungal", "J05AB01": "antiviral",
+        "D06BB03": "antiviral", "S01AD03": "antiviral",
+        "C01CA03": "vasopressor", "B01AF01": "anticoagulant",
+        "D07AA02": "steroid", "A02BC02": "ppi",
+        "A02BA03": "h2_blocker", "C03CA01": "diuretic",
+        "A10AB01": "insulin", "B05XA03": "electrolyte",
+        "R03AC02": "bronchodilator", "C01BD01": "antiarrhythmic",
+        "N03AX14": "antiepileptic", "A06AD02": "laxative",
+        "A03FA09": "antiemetic", "A04AA01": "antiemetic",
+    }
+    assert {code: _classify_category(code) for code in cases} == cases
+    assert _classify_category("Hydrocortisone") is None
+    assert _classify_category("A07BC05") is None
+    assert _classify_category(None) is None
 
 
 # ---- converter medication direct-connect ---------------------------------
@@ -117,6 +123,18 @@ def test_his_generic_and_atc_are_not_overwritten_by_ddi_or_formulary() -> None:
     assert med["generic_name"] == "Amikacin"
     assert med["atc_code"] == "J01GB06"
     assert med["coding_source"] == "his_atc"
+
+
+def test_fallback_atc_never_drives_source_owned_labels() -> None:
+    (med,) = _convert([{
+        "ODR_CODE": "IAMIN9", "ODR_NAME": "Amikacin inj",
+        "DRUG_NAME": "Amikacin", "ATC_CODE": "", "ODR_SEQ": "10",
+    }])
+    assert med["atc_code"] == "J01GB06"  # retained for non-label consumers
+    assert med["coding_source"] == "formulary+abx"
+    assert med["category"] is None
+    assert med["san_category"] is None
+    assert med["is_antibiotic"] is False
 
 
 def test_generic_name_combo_splits_on_comma() -> None:

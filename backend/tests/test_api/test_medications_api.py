@@ -180,6 +180,32 @@ async def test_medications_payload_exposes_interactions_error_flag(client, seede
 
 
 @pytest.mark.asyncio
+async def test_medications_payload_does_not_infer_self_supplied(client, seeded_db):
+    seeded_db.add_all([
+        Medication(
+            id="med_inpatient_same_code", patient_id="pat_001", name="Inpatient",
+            order_code="SAME01", source_type="inpatient", route="PO",
+            status="discontinued",
+        ),
+        Medication(
+            id="med_outpatient_same_code", patient_id="pat_001", name="Outpatient",
+            order_code="SAME01", source_type="outpatient", route="PO",
+            notes="病人自備", status="discontinued", is_external=False,
+        ),
+    ])
+    await seeded_db.commit()
+
+    response = await client.get("/patients/pat_001/medications")
+    assert response.status_code == 200
+    outpatient = next(
+        med for med in response.json()["data"]["medications"]
+        if med["id"] == "med_outpatient_same_code"
+    )
+    assert outpatient["sourceType"] == "outpatient"
+    assert outpatient["isExternal"] is False
+
+
+@pytest.mark.asyncio
 async def test_his_medication_blocks_manual_change_to_automatic_field(
     client, seeded_db,
 ):

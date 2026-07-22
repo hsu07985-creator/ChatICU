@@ -55,130 +55,57 @@ _OPD_SW_MAP = {
     "1": "inpatient",
 }
 
-# Drug name patterns for SAN classification
-_SAN_PATTERNS = {
-    "S": [
-        "propofol", "midazolam", "dormicum", "lorazepam", "ativan",
-        "dexmedetomidine", "precedex", "ketamine",
-        "haloperidol", "haldol", "quetiapine", "seroquel",
-    ],
-    "A": [
-        "morphine", "fentanyl", "meperidine", "demerol", "tramadol",
-        "acetaminophen", "panadol", "ketorolac",
-        "diclofenac", "voltaren", "nefopam", "acupan",
-    ],
-    "N": [
-        "cisatracurium", "nimbex", "rocuronium", "esmeron",
-        "atracurium", "vecuronium", "succinylcholine",
-    ],
-}
-
-
-# ATC-prefix backstop for S/A/N, used ONLY when the name-pattern list misses
-# (trade names outside the curated list silently drop from the SAN dashboard).
-# Name-regex stays PRIMARY — it disambiguates drugs whose ATC is ambiguous
-# (e.g. haloperidol/quetiapine given for sedation). Prefixes are ICU-relevant
-# S/A/N only; anything else stays None (unclassified), never force-fit.
 _SAN_ATC_PREFIXES = (
-    ("N05CD", "S"),  # benzodiazepine hypnotics (midazolam N05CD08, estazolam)
-    ("N05BA", "S"),  # benzodiazepine anxiolytics given IV for sedation (diazepam, lorazepam N05BA06)
-    ("N05CM", "S"),  # other hypnotics/sedatives (dexmedetomidine N05CM18)
-    ("N05AD", "S"),  # butyrophenone antipsychotics (haloperidol/droperidol) for agitation
-    ("N01AX", "S"),  # other general anaesthetics (propofol N01AX10, ketamine N01AX03)
-    # NOTE: N05AH (quetiapine/olanzapine/clozapine) deliberately NOT here — the
-    # sedation cases (quetiapine) are already caught by name-regex; the prefix
-    # would misclassify maintenance olanzapine/clozapine as sedation.
-    ("N02A",  "A"),  # opioids (morphine, fentanyl, tramadol)
-    ("N02BE", "A"),  # anilides (paracetamol/acetaminophen)
-    ("M01A",  "A"),  # NSAIDs (ketorolac, diclofenac, etodolac, celecoxib)
-    ("M03A",  "N"),  # peripherally-acting neuromuscular blockers (rocuronium, cisatracurium)
+    ("N05CD", "S"), ("N05BA", "S"), ("N05CM", "S"),
+    ("N05AD", "S"), ("N01AX", "S"),
+    ("N01AH", "A"), ("N02A", "A"), ("N02BE", "A"), ("M01A", "A"),
+    ("M03A", "N"),
 )
 
 
-def _classify_san(drug_name: str, atc_code: Optional[str] = None) -> Optional[str]:
-    """Classify drug into S/A/N category.
-
-    Name pattern is PRIMARY. When it misses and an ATC code is available, fall
-    back to the ATC prefix (recovers trade names outside the curated list). No
-    ATC / no prefix match → None (unclassified), never a forced guess.
-    """
-    lower = drug_name.lower()
-    for cat, patterns in _SAN_PATTERNS.items():
-        for p in patterns:
-            if p in lower:
-                return cat
-    if atc_code:
-        code = atc_code.strip().upper()
-        for prefix, cat in _SAN_ATC_PREFIXES:
-            if code.startswith(prefix):
-                return cat
+def _classify_san(atc_code: Optional[str]) -> Optional[str]:
+    """Classify S/A/N solely from the HIS ATC_CODE field."""
+    code = (atc_code or "").strip().upper()
+    for prefix, category in _SAN_ATC_PREFIXES:
+        if code.startswith(prefix):
+            return category
     return None
 
 
-def _classify_category(drug_name: str) -> Optional[str]:
-    """Classify drug into therapeutic category by name."""
-    lower = drug_name.lower()
-    categories = {
-        "antibiotic": ["vancomycin", "meropenem", "ceftriaxone", "cefazolin",
-                       "piperacillin", "tazobactam", "levofloxacin", "ciprofloxacin",
-                       "metronidazole", "ampicillin", "amoxicillin", "azithromycin",
-                       "colistin", "linezolid", "teicoplanin", "ceftazidime",
-                       "cefepime", "imipenem", "ertapenem", "doxycycline",
-                       "fluconazole", "voriconazole", "caspofungin", "anidulafungin",
-                       "acyclovir", "ganciclovir", "oseltamivir",
-                       "tigecycline", "tigelin", "biomycin", "brosym",
-                       "tazocin", "gentamycin", "gentamicin", "pipe"],
-        "vasopressor": ["norepinephrine", "levophed", "epinephrine", "vasopressin",
-                        "dopamine", "dobutamine", "milrinone", "phenylephrine",
-                        "gipamine"],
-        "sedative": ["propofol", "midazolam", "dormicum", "lorazepam", "ativan",
-                     "dexmedetomidine", "precedex", "ketamine", "haloperidol",
-                     "xanax", "alprazolam", "seroquel", "quetiapine", "binin"],
-        "analgesic": ["morphine", "fentanyl", "meperidine", "tramadol",
-                      "acetaminophen", "panadol", "ketorolac", "nefopam",
-                      "tramacet", "acetal"],
-        "anticoagulant": ["heparin", "enoxaparin", "warfarin", "rivaroxaban"],
-        "ppi": ["pantoprazole", "omeprazole", "esomeprazole", "lansoprazole",
-                "famotidine", "ranitidine", "primperan"],
-        "electrolyte": ["kcl", "potassium", "calcium gluconate", "magnesium",
-                        "sodium bicarbonate", "nacl"],
-        "diuretic": ["furosemide", "lasix", "spironolactone", "mannitol",
-                     "bumetanide", "hydrochlorothiazide", "albumin"],
-        "antiepileptic": ["levetiracetam", "keppra", "phenytoin", "valproic",
-                          "carbamazepine", "lacosamide", "phenobarbital",
-                          "depakine"],
-        "antihypertensive": ["amlodipine", "nicardipine", "labetalol", "esmolol",
-                             "nitroglycerin", "nitroprusside", "hydralazine",
-                             "bisoprolol", "biso", "concor", "dilatrend",
-                             "carvedilol", "herbesser", "diltiazem"],
-        "insulin": ["insulin", "novolin", "novorapid", "lantus", "humalog"],
-        "steroid": ["methylprednisolone", "hydrocortisone", "dexamethasone",
-                    "prednisolone", "prednisone", "fludrocortisone"],
-        "bronchodilator": ["salbutamol", "ventolin", "ipratropium", "combivent",
-                           "aminophylline", "theophylline", "meptin",
-                           "procaterol"],
-        "nmb": ["cisatracurium", "nimbex", "rocuronium", "vecuronium",
-                "succinylcholine", "atracurium"],
-        "iv_fluid": ["n.s.", "normal saline", "glucose", "d5w", "d10w",
-                     "lactated ringer", "benamine", "taita", "aminofluid",
-                     "nutriflex", "kabiven", "smof"],
-        "antiarrhythmic": ["amiodarone", "cordarone", "lidocaine"],
-        "antidiabetic": ["jardiance", "empagliflozin", "metformin",
-                         "trajenta", "linagliptin", "glimepiride"],
-        "antihistamine": ["allegra", "fexofenadine", "cetirizine",
-                          "diphenhydramine"],
-        "thyroid": ["eltroxin", "levothyroxine"],
-        "mucolytic": ["actein", "acetylcysteine"],
-        "laxative": ["mosad", "smecta", "magnesium oxide", "dulcolax",
-                     "bisacodyl", "lactulose"],
-        "epo": ["nesp", "darbepoetin", "epoetin"],
-        "hemostatic": ["transamin", "tranexamic"],
-        "alpha_blocker": ["tamlosin", "tamsulosin"],
-    }
-    for cat, patterns in categories.items():
-        for p in patterns:
-            if p in lower:
-                return cat
+_CATEGORY_ATC_PREFIXES = (
+    # Exact exception must precede the broader A07AA antibacterial class.
+    ("A07AA02", "antifungal"),
+    ("J01", "antibiotic"), ("J04", "antibiotic"),
+    ("P01AB", "antibiotic"), ("D06A", "antibiotic"),
+    ("D06BA", "antibiotic"), ("S01AA", "antibiotic"),
+    ("A07AA", "antibiotic"),
+    ("J02", "antifungal"), ("D01", "antifungal"),
+    ("J05", "antiviral"), ("D06BB", "antiviral"), ("S01AD", "antiviral"),
+    ("C01CA", "vasopressor"), ("C01CE", "vasopressor"),
+    ("H01BA", "vasopressor"),
+    ("B01AA", "anticoagulant"), ("B01AB", "anticoagulant"),
+    ("B01AE", "anticoagulant"), ("B01AF", "anticoagulant"),
+    ("B01AX", "anticoagulant"),
+    ("H02A", "steroid"), ("D07", "steroid"), ("R01AD", "steroid"),
+    ("R03BA", "steroid"), ("S01BA", "steroid"), ("S01BB", "steroid"),
+    ("S02B", "steroid"), ("S03B", "steroid"),
+    ("A02BC", "ppi"), ("A02BA", "h2_blocker"),
+    ("C03", "diuretic"), ("A10A", "insulin"),
+    ("A12", "electrolyte"), ("B05XA", "electrolyte"),
+    ("R03AC", "bronchodilator"), ("R03AK", "bronchodilator"),
+    ("R03AL", "bronchodilator"), ("R03CC", "bronchodilator"),
+    ("R03DA", "bronchodilator"),
+    ("C01B", "antiarrhythmic"), ("N03A", "antiepileptic"),
+    ("A06", "laxative"), ("A03FA", "antiemetic"), ("A04", "antiemetic"),
+)
+
+
+def _classify_category(atc_code: Optional[str]) -> Optional[str]:
+    """Classify the therapeutic tag solely from the HIS ATC_CODE field."""
+    code = (atc_code or "").strip().upper()
+    for prefix, category in _CATEGORY_ATC_PREFIXES:
+        if code.startswith(prefix):
+            return category
     return None
 
 

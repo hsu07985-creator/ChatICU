@@ -7,7 +7,7 @@ export interface Medication {
   name: string;
   genericName: string;
   orderCode?: string | null;
-  category: string;  // 'analgesic' | 'sedative' | 'antibiotic' | 'neuromuscular_blocker' | 'vasopressor' 等
+  category: string | null;  // null when source ATC_CODE has no mapped category
   sanCategory: 'S' | 'A' | 'N' | null;  // S=Sedation, A=Analgesia, N=Neuromuscular Blocker
   route: string;
   routeNormalized?: string | null;
@@ -38,8 +38,8 @@ export interface Medication {
   prescribingDoctorName?: string | null;
   daysSupply?: number | null;
   isExternal?: boolean;
-  // Standardized codes (PR-1 / PR-2). atcCode is populated from the hospital
-  // formulary; frontend can use it for ATC-class matching (e.g. PAD drug ID).
+  // Standardized codes (PR-1 / PR-2). HIS medications use the source ATC_CODE;
+  // frontend can use it for exact structured matching (e.g. PAD drug ID).
   atcCode?: string | null;
   isAntibiotic?: boolean;
   kidneyRelevant?: boolean | null;
@@ -327,4 +327,3 @@ export async function fetchPharmacyDuplicateSummary(
     computing,
   };
 }
-
