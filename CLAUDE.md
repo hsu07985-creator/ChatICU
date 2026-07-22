@@ -5,6 +5,7 @@
 每次進入這個 repo 工作前，先讀以下檔案以掌握「目前正在進行的修補」與「PM 已決策但尚未落地」項目：
 
 0. **[`docs/his-sync/his-auto-import-progress.md`](docs/his-sync/his-auto-import-progress.md)** — ✅ **欄位串接封口（更新至 2026-07-22）**：HIS patient PATCH ownership、稀疏生命徵象逐欄合併、藥物/檢驗/培養 raw mapping、真正 AI/手術報告與 sync schema version 均已完成。真實快照驗收：2,120 藥物、6,224 檢驗、1,812 培養/藥敏、MIC 98、報告 43。碰 HIS sync / converter / 病人欄位前先看這頁。
+   - 正式庫曾有 migration 056 已標記但 `patients.intubation_date` 缺欄的 schema drift；migration 086 是冪等修復，不可移除。
 1. **[`docs/team-chat/team-chat-followup-fixes-2026-05-03.md`](docs/team-chat/team-chat-followup-fixes-2026-05-03.md)** — 團隊聊天室 audit 後續追加修補（Wave 5）。包含 patient-board per-user 未讀、SOAP 落地、藥物統計頁 UX 三條進行中任務。
 2. **[`docs/team-chat/team-chat-fixes-progress.md`](docs/team-chat/team-chat-fixes-progress.md)** — 主進度面板（Wave 1-5 + Backlog）。
 3. **[`docs/team-chat/team-chat-audit-fixes-2026-05-03.md`](docs/team-chat/team-chat-audit-fixes-2026-05-03.md)** — 完整 41 條 audit 發現對照表。

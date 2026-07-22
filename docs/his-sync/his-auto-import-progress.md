@@ -42,6 +42,7 @@
 
 - [x] ~~**Vercel 前端 promote**~~：**已確認生效（2026-07-21）**。`66c6a48` = Production·Current，apex `index-C1j_oTLU.js` 已含 `hisSyncNote` 中英 banner。（驗證改用 `curl chat-icu.vercel.app/assets/index-*.js | grep hisSyncNote`，別比 index hash——見 §0。）
 - [x] **正式庫強制熱匯目前快照**：本次部署後使用 serial `--force` 在線逐病人 transaction 匯入；不用 migration/backfill、不停機。同步 state 現在保存 `schema_version`，以後 mapping 更新不會再被相同 snapshot hash 跳過。
+- [x] **正式 schema 漂移修復**：首次熱匯發現 prod 雖標記 migration 085，但 migration 056 應建立的 `patients.intubation_date` 實體欄位缺失；10 位病人 transaction 全數 rollback、沒有半套資料。migration 086 以 `ADD COLUMN IF NOT EXISTS` 修復後再完整重跑。
 - [x] ~~**部署 + 啟用「出院自動下架」**~~ ✅ **完成（2026-07-22）**，見 [`census-left-unit-detection-design-2026-07-21.md`](./census-left-unit-detection-design-2026-07-21.md)。**真相來源=`patient/` 目錄**（不在目錄的 HIS 病人=出院），全量 sync 尾端自動 `archived=true`。後端(migration 082)+前端已部署驗證；prod 全量 sync 已跑（台北 00:16），5 位（鄭義輝/周麗華/舒以信/陳弘暉/黃桂華）已 archive 離板、邱建陽保留(→MICU17)、board active=10。初版 getICUbed 旗標做法已廢除（會搞反）。
 - [x] **床號與其他快照自動欄位 ownership**：HIS 決定性病人禁止透過 patient PATCH 修改；只有 `critical_status`、`campus`、`is_isolated`、`symptoms` 保持人工入口。非 HIS 建立的病人仍可完整編輯。
 - [ ] **（延後）`patients.unit`**：仍硬編碼 `'ICU'`，未改讀 BED_CODE 前綴——因為改值會動**資料層存取控制**（unit-scoped 使用者可見範圍），需先評估。
