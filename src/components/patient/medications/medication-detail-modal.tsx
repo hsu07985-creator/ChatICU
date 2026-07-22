@@ -11,6 +11,7 @@ import {
 } from '../../../lib/medications/medication-formatters';
 import { Badge } from '../../ui/badge';
 import { Button } from '../../ui/button';
+import { SanCategoryBadge } from './san-med-card';
 import {
   Dialog,
   DialogContent,
@@ -49,6 +50,7 @@ export function MedicationDetailModal({
 
         {/* Status badge */}
         <div className="flex gap-2 flex-wrap">
+          <SanCategoryBadge category={med.sanCategory} />
           {isOutpatient ? (
             <>
               {(() => { const status = getOutpatientStatus(med); return <Badge className={`${status.color} border-0`}>{t(`tab.outpatient.${status.labelKey}`)}</Badge>; })()}

@@ -109,7 +109,10 @@ async def get_latest_scores(
             else:
                 rass = score_to_dict(row)
 
-    return success_response(data={"pain": pain, "rass": rass})
+    pain_ownership = "auto" if await _has_his_pain_score(db, pid) else "orphan"
+    return success_response(
+        data={"pain": pain, "rass": rass, "painOwnership": pain_ownership}
+    )
 
 
 @router.post("")

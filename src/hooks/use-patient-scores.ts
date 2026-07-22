@@ -4,6 +4,7 @@ import { getLatestScores, recordScore, deleteScore, getScoreTrends, type ScoreEn
 
 export interface PatientScoresState {
   painScoreValue: number | null;
+  painScoreOwnership: 'auto' | 'orphan';
   rassScoreValue: number | null;
   painScoreTimestamp: string | null;
   rassScoreTimestamp: string | null;
@@ -20,6 +21,7 @@ export interface PatientScoresState {
 
 export function usePatientScores(patientId: string | undefined): PatientScoresState {
   const [painScoreValue, setPainScoreValue] = useState<number | null>(null);
+  const [painScoreOwnership, setPainScoreOwnership] = useState<'auto' | 'orphan'>('auto');
   const [rassScoreValue, setRassScoreValue] = useState<number | null>(null);
   const [painScoreTimestamp, setPainScoreTimestamp] = useState<string | null>(null);
   const [rassScoreTimestamp, setRassScoreTimestamp] = useState<string | null>(null);
@@ -82,6 +84,7 @@ export function usePatientScores(patientId: string | undefined): PatientScoresSt
     try {
       const latest = await getLatestScores(patientId);
       setPainScoreValue(latest.pain?.value ?? null);
+      setPainScoreOwnership(latest.painOwnership);
       setRassScoreValue(latest.rass?.value ?? null);
       setPainScoreTimestamp(latest.pain?.timestamp ?? null);
       setRassScoreTimestamp(latest.rass?.timestamp ?? null);
@@ -92,6 +95,7 @@ export function usePatientScores(patientId: string | undefined): PatientScoresSt
 
   return {
     painScoreValue,
+    painScoreOwnership,
     rassScoreValue,
     painScoreTimestamp,
     rassScoreTimestamp,

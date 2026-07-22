@@ -18,10 +18,15 @@ from app.fhir.his.drug_dictionaries import (
 def test_san_uses_only_atc() -> None:
     assert _classify_san("N05CD07") == "S"
     assert _classify_san("N05BA06") == "S"
+    assert _classify_san("N05CM18") == "S"
+    assert _classify_san("N05AD01") == "S"
+    assert _classify_san("N01AX10") == "S"
     assert _classify_san("N01AH01") == "A"
     assert _classify_san("N02AJ13") == "A"
+    assert _classify_san("N02BE01") == "A"
     assert _classify_san("M01AH01") == "A"
     assert _classify_san("M03AC01") == "N"
+    assert _classify_san("M03BA52") is None
     assert _classify_san("N05AH04") is None
     assert _classify_san("Seroquel 25mg tab") is None
     assert _classify_san(None) is None

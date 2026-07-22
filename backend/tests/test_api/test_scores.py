@@ -17,6 +17,7 @@ async def test_get_latest_scores_empty(client):
     assert data["success"] is True
     assert data["data"]["pain"] is None
     assert data["data"]["rass"] is None
+    assert data["data"]["painOwnership"] == "orphan"
 
 
 @pytest.mark.asyncio
@@ -167,6 +168,7 @@ async def test_get_latest_after_post(client):
     data = resp.json()["data"]
     assert data["pain"]["value"] == 7  # latest
     assert data["rass"]["value"] == -1
+    assert data["painOwnership"] == "orphan"
 
 
 @pytest.mark.asyncio
@@ -245,6 +247,10 @@ async def test_his_pain_score_cannot_be_entered_or_deleted(client, db_session):
         recorded_by="HIS",
     ))
     await db_session.commit()
+
+    latest_resp = await client.get(f"/patients/{patient_id}/scores/latest")
+    assert latest_resp.status_code == 200
+    assert latest_resp.json()["data"]["painOwnership"] == "auto"
 
     create_resp = await client.post(
         f"/patients/{patient_id}/scores",

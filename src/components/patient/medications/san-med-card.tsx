@@ -2,6 +2,30 @@
 // Extracted from patient-medications-tab.tsx (behavior-preserving).
 import { useTranslation } from 'react-i18next';
 import type { Medication } from '../../../lib/api';
+import { Badge } from '../../ui/badge';
+
+const SAN_BADGES = {
+  A: { labelKey: 'tab.main.painMedsLabel', color: 'bg-orange-100 dark:bg-orange-950/30 text-orange-800 dark:text-orange-300' },
+  S: { labelKey: 'tab.main.sedationMedsLabel', color: 'bg-indigo-100 dark:bg-indigo-950/30 text-indigo-800 dark:text-indigo-300' },
+  N: { labelKey: 'tab.main.nmbMedsLabel', color: 'bg-rose-100 dark:bg-rose-950/30 text-rose-800 dark:text-rose-300' },
+} as const;
+
+export function SanCategoryBadge({
+  category,
+  className = '',
+}: {
+  category: Medication['sanCategory'];
+  className?: string;
+}) {
+  const { t } = useTranslation('medications');
+  if (!category) return null;
+  const badge = SAN_BADGES[category];
+  return (
+    <Badge variant="secondary" className={`h-4 px-1.5 py-0 text-xs ${badge.color} ${className}`}>
+      {category} {t(badge.labelKey)}
+    </Badge>
+  );
+}
 
 export function SanMedCard({
   medication,
@@ -21,6 +45,7 @@ export function SanMedCard({
           {medication.name || '—'}
           {spec && <span className="font-normal text-muted-foreground ml-1.5">{spec}</span>}
         </p>
+        <SanCategoryBadge category={medication.sanCategory} />
       </div>
       {noteText && (
         <div className="rounded bg-slate-100 dark:bg-slate-800 px-2.5 py-2">

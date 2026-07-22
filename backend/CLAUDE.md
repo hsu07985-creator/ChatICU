@@ -75,18 +75,18 @@ patient/*/  →  HISConverter  →  scripts/import_his_patients.py  →  Supabas
 | 2 | Medication raw mapping | 2,120 rows, source/API/DB mismatch=0 |
 | 3 | Lab / culture raw mapping | 6,224 / 1,812 items, mismatch=0 |
 | 4 | Structured allergy | `sbDisease.FOOD_ALLERGY`; source present → locked automatic |
-| 5 | HIS Pain | 4 deterministic rows; source present → immutable from UI/API |
+| 5 | HIS Pain | 4 deterministic rows; latest API returns `painOwnership`; source present → immutable from UI/API |
 | 6 | Reports / vitals | 43 reports / 4,484 vital rows |
 
 ### Data Coverage Summary
 - **Patients**: 10 active; current admission comes from `getIpd`, not historical `getIPD`
-- **Medications**: 2,120 total; PRN/STAT from `FREQ_CODE`, category/S/A/N from `ATC_CODE` or exact formulary fallback
+- **Medications**: 2,120 total; PRN/STAT from raw `FREQ_CODE`; visible S/A/N labels only from raw `ATC_CODE` (never drug-name keywords or formulary fallback)
 - **Lab Data**: 829 groups / 6,224 items
 - **Culture Results**: 204 groups / 1,812 source items
 - **Diagnostic Reports**: 43 total (40 ECG AI + 3 surgery)
 - **Vital Signs**: 4,484 HIS TPR rows; SpO2/EtCO2/CVP/ICP/CPP remain manual
 - **Ventilator Settings**: 0 — HIS has no ventilator parameter data
-- **Clinical Scores**: 4 HIS Pain rows; RASS remains manual
+- **Clinical Scores**: 4 HIS Pain rows; `painOwnership=auto` when any HIS Pain exists, otherwise `orphan` and UI permits 0–10 manual input; RASS remains manual
 
 ### Remaining Gaps (need HIS team or other source)
 - **unit**: Still fixed to `ICU`; changing it affects access control and requires separate review

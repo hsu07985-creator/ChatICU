@@ -1284,6 +1284,7 @@ export function PatientDetailPage() {
               formatDisplayValue={formatDisplayValue}
               formatMedicationRegimen={formatMedicationRegimen}
               painScoreValue={scores.painScoreValue}
+              painScoreOwnership={scores.painScoreOwnership}
               rassScoreValue={scores.rassScoreValue}
               painScoreTimestamp={scores.painScoreTimestamp}
               rassScoreTimestamp={scores.rassScoreTimestamp}

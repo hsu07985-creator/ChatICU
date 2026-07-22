@@ -14,6 +14,7 @@ import {
   getMedicationEndDate,
   formatMedicationConcentration,
   MED_CATEGORY_COLORS,
+  painColor,
   rassColor,
   formatScoreTimestamp,
 } from '../../lib/medications/medication-formatters';
@@ -21,7 +22,7 @@ import { detectDuplicates } from '../../lib/medications/duplicate-overlap';
 import { PadDosageCalculator } from '../pharmacy/pad-dosage-calculator';
 import { ScoreSelector } from './medications/score-selector';
 import { DataOwnershipBadge, DataOwnershipLegend } from './data-ownership-badge';
-import { SanMedCard } from './medications/san-med-card';
+import { SanCategoryBadge, SanMedCard } from './medications/san-med-card';
 import { MedicationDetailModal } from './medications/medication-detail-modal';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -49,6 +50,7 @@ interface PatientMedicationsTabProps {
   formatDisplayValue: (value: unknown) => string;
   formatMedicationRegimen: (medication: Medication) => string;
   painScoreValue: number | null;
+  painScoreOwnership: 'auto' | 'orphan';
   rassScoreValue: number | null;
   painScoreTimestamp?: string | null;
   rassScoreTimestamp?: string | null;
@@ -76,6 +78,7 @@ export function PatientMedicationsTab({
   formatDisplayValue,
   formatMedicationRegimen,
   painScoreValue,
+  painScoreOwnership,
   rassScoreValue,
   painScoreTimestamp,
   rassScoreTimestamp,
@@ -198,7 +201,7 @@ export function PatientMedicationsTab({
                 <div className="flex items-center justify-between">
                   <div className="flex items-baseline gap-2">
                     <CardTitle className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-200">{t('tab.main.painCardTitle')}</CardTitle>
-                    <DataOwnershipBadge kind="auto" compact />
+                    <DataOwnershipBadge kind={painScoreOwnership} compact />
                     {painScoreValue !== null && (
                       <span className="text-2xl font-bold tabular-nums leading-none text-slate-900 dark:text-slate-100">
                         {painScoreValue}
@@ -221,6 +224,15 @@ export function PatientMedicationsTab({
                 )}
               </CardHeader>
               <CardContent className="pt-0 space-y-3">
+                {painScoreOwnership === 'orphan' && (
+                  <ScoreSelector
+                    min={0}
+                    max={10}
+                    currentValue={painScoreValue}
+                    onSelect={(v) => onRecordScore('pain', v)}
+                    colorFn={painColor}
+                  />
+                )}
                 <div>
                   <p className="mb-2 text-xs font-medium text-muted-foreground">{t('tab.main.painMedsLabel')}</p>
                   {activePainMeds.length === 0 ? (
@@ -406,6 +418,7 @@ export function PatientMedicationsTab({
                           >
                             <div className="flex items-center gap-1.5">
                               <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 shrink-0">{t('tab.main.inpatientBadge')}</Badge>
+                              <SanCategoryBadge category={m.sanCategory} />
                               <span className="text-sm font-medium truncate">{m.name}</span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
@@ -422,6 +435,7 @@ export function PatientMedicationsTab({
                           >
                             <div className="flex items-center gap-1.5">
                               <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 shrink-0">{t('tab.main.outpatientBadge')}</Badge>
+                              <SanCategoryBadge category={m.sanCategory} />
                               <span className="text-sm font-medium truncate">{m.name}</span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
@@ -494,6 +508,10 @@ export function PatientMedicationsTab({
                                 {isStat ? 'STAT' : 'PRN'}
                               </Badge>
                             )}
+                            <SanCategoryBadge
+                              category={medication.sanCategory}
+                              className={discontinued ? 'opacity-60' : ''}
+                            />
                             {categoryColor && !abx && (
                               <Badge variant="secondary" className={`text-xs px-1.5 py-0 h-4 ${categoryColor} ${discontinued ? 'opacity-60' : ''}`}>
                                 {t(`tab.categories.${category}`, { defaultValue: category })}
@@ -583,6 +601,7 @@ export function PatientMedicationsTab({
                                     {medication.sourceCampus}
                                   </Badge>
                                 )}
+                                <SanCategoryBadge category={medication.sanCategory} />
                                 {medication.sourceType === 'self-supplied' ? (
                                   <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400">
                                     {t('tab.detailModal.selfSupplied')}

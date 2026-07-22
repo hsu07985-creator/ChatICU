@@ -35,6 +35,10 @@
 
 有 `order_code` 的 HIS 藥物，API 只允許更新上述人工補充欄位；劑量、頻率、途徑、狀態、S/A/N 等自動欄位會回 `409`，避免人工覆寫。
 
+S/A/N 使用同一條資料路徑：每筆 raw medication 的 `ATC_CODE` → converter 的固定 ATC prefix taxonomy → API `sanCategory` → 共用 `SanCategoryBadge`。A（橘）、S（靛）、N（玫瑰）會出現在所有可見藥物情境，包括 active summary、一般／停用清單、住院／門診／自備、重複用藥與藥物明細；沒有 `sanCategory` 就不顯示，前端不得自行推論。
+
+Pain 使用 ownership-aware latest contract：API 除 `pain`、`rass` 外回傳 `painOwnership`。資料庫只要存在任一筆 HIS Pain，ownership 即為 `auto` 且前端不提供輸入；完全沒有 HIS Pain 才回 `orphan` 並提供 0–10 手動選擇器。這個判定不會把合法的 Pain 0 當成空值。
+
 ## 真實快照 parity
 
 | 項目 | 驗收數量 |

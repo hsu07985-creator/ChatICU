@@ -15,6 +15,7 @@ export interface ScoreEntry {
 export interface LatestScores {
   pain: ScoreEntry | null;
   rass: ScoreEntry | null;
+  painOwnership: 'auto' | 'orphan';
 }
 
 export interface ScoreTrendsResponse {
@@ -29,7 +30,11 @@ export async function getLatestScores(patientId: string): Promise<LatestScores> 
     { suppressErrorToast: true },
   );
   const normalized = ensureSuccess(response.data, 'API contract');
-  return normalized.data ?? { pain: null, rass: null };
+  if (!normalized.data) return { pain: null, rass: null, painOwnership: 'auto' };
+  return {
+    ...normalized.data,
+    painOwnership: normalized.data.painOwnership ?? 'auto',
+  };
 }
 
 export async function recordScore(

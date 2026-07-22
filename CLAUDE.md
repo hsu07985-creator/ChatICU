@@ -126,6 +126,8 @@ python3 scripts/sync_his_snapshots_serial.py                     # 增量（依 
 
 2026-07-22 production 驗收基準（commit `d21e25564`、migration `087`、sync schema `2026-07-22.8`）：10 位 active；medications 2,120、lab_data 829 組／6,224 items、culture_results 204 組／1,812 source items、diagnostic_reports 43（ECG AI 40＋手術 3）、vital_signs 4,484、clinical_scores 4。藥物標籤基準：STAT 837、PRN 173、antibiotic/antifungal/antiviral 379/18/4、steroid 109、laxative 58、S/A/N 62/70/3。converter 自動欄位逐筆對正式 DB mismatch=0；force sync 10/10、errors=0。結構化過敏只讀 `Smartbed.sbDisease.FOOD_ALLERGY`，HIS Pain 與過敏有來源時前端不可人工異動。
 
+2026-07-22 Pain/SAN 顯示規則：`GET /patients/{id}/scores/latest` 回傳 `painOwnership`。只要該病人有任一筆 HIS Pain 即為 `auto`，前端只讀並保留 0 分；完全沒有 HIS Pain 才是 `orphan`，可用 0–10 選擇器人工補錄。藥物 `sanCategory` 只能由每筆原始 HIS `ATC_CODE` 產生，禁止藥名關鍵字與 formulary fallback；A/S/N 彩色標籤顯示於 active summary、一般／停用、住院／門診／自備、重複用藥及明細視窗。RASS 仍維持手動。
+
 ### 為何禁用舊版 `sync_his_snapshots.py`（2026-04-27 發現）
 舊版用 `asyncio.create_task` + `Semaphore` + `as_completed` + `engine.dispose()` 與 Supabase pooler (port 6543, transaction mode) 互動會 **silent fail**：
 - ✅ console 報告 `synced=14, errors=0`
