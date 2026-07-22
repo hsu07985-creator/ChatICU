@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 
 from app.fhir.his.converter import HISConverter
-from app.fhir.his.drug_dictionaries import _classify_san
+from app.fhir.his.drug_dictionaries import _classify_san, _combo_generic_from_his
 
 
 # ---- _classify_san: name primary, ATC backstop ---------------------------
@@ -80,6 +80,24 @@ def test_generic_name_combo_splits_on_comma() -> None:
                         "DOSE": "4.5", "DOSE_UNIT": "gm", "FREQ_CODE": "Q8H",
                         "ROUTE_CODE": "IV", "ODR_SEQ": "2"}])
     assert med["generic_name"] == "Piperacillin / Tazobactam"
+
+
+def test_combo_generic_helper() -> None:
+    # comma + strength stripping
+    assert _combo_generic_from_his("Amlodipine 5mg, Telmisartan 80mg") == "Amlodipine / Telmisartan"
+    # slash as component separator (drug names on both sides)
+    assert _combo_generic_from_his("Tiotropium/Olodaterol") == "Tiotropium / Olodaterol"
+    assert _combo_generic_from_his("Empagliflozin 12.5mg / Metformin 850mg") == "Empagliflozin / Metformin"
+    # plus and semicolon separators
+    assert _combo_generic_from_his("Neomycin+Nystatin+Gramicidin") == "Neomycin / Nystatin / Gramicidin"
+    assert _combo_generic_from_his("Acetylsalicylic acid; Aspirin") == "Acetylsalicylic acid / Aspirin"
+    # THE TRAP: slash inside a strength ratio is NOT a component separator
+    assert _combo_generic_from_his("Acyclovir 50mg/gm 5gm Cream") == "Acyclovir"
+    # name-numbers (no unit) must survive
+    assert _combo_generic_from_his("Silymarin, Vit B1, Vit B2, Vit B6") == "Silymarin / Vit B1 / Vit B2 / Vit B6"
+    # single clean generic unchanged; empty → None
+    assert _combo_generic_from_his("Quetiapine") == "Quetiapine"
+    assert _combo_generic_from_his("") is None
 
 
 def test_atc_gapfill_from_his_when_formulary_misses() -> None:

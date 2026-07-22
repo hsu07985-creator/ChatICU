@@ -23,6 +23,7 @@ from app.fhir.his.drug_dictionaries import (
     _classify_category,
     _classify_san,
     _clean_drug_name,
+    _combo_generic_from_his,
 )
 from app.fhir.his.lab_dictionaries import _build_ecg_impression
 from app.fhir.his.resources import (
@@ -423,12 +424,11 @@ class HISConverter:
             elif odr_code and odr_code in _DDI_EXCLUSION_SET:
                 generic = None
             else:
-                his_generic = (m.get("DRUG_NAME") or "").strip()
-                generic = (
-                    " / ".join(p.strip() for p in his_generic.split(",") if p.strip())
-                    if his_generic
-                    else rule_generic
-                )
+                # HIS DRUG_NAME → clean generic; combos (,;+/) split to " / " with
+                # strengths/forms stripped so DDI name matching (medications.py:181,
+                # split on " / ") can expand each ingredient. Falls back to the
+                # rule-derived first word only when HIS ships no DRUG_NAME.
+                generic = _combo_generic_from_his(m.get("DRUG_NAME") or "") or rule_generic
 
             freq_code = (m.get("FREQ_CODE") or "").strip().upper()
             route_code = (m.get("ROUTE_CODE") or "").strip().upper()

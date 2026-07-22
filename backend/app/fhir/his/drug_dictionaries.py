@@ -182,6 +182,55 @@ def _classify_category(drug_name: str) -> Optional[str]:
     return None
 
 
+# Combination-drug generic parsing for HIS DRUG_NAME.
+# Units the ratio/dose tokens end in (the trailing (?![A-Za-z]) guard — not \b —
+# is what lets a unit ending in a non-word char like '%' strip cleanly).
+_COMBO_UNIT = r"(?:mg|mcg|ug|µg|g|gm|kg|ml|l|iu|units?|u|%|meq|mmol|oz|cc)"
+# A strength/dose/ratio run: number (optionally a ratio 10/0.5/1) + unit(s).
+# The required leading number+unit is what protects real name-numbers
+# ("Vit B12", "Q10", "VIT K1", "Isosorbide-5-Mononitrate") from being stripped.
+_COMBO_STRENGTH = re.compile(
+    r"\b[\d.]+(?:\s*/\s*[\d.]+)*\s*" + _COMBO_UNIT + r"(?:\s*/\s*" + _COMBO_UNIT + r")*(?![A-Za-z])",
+    re.IGNORECASE,
+)
+# Dosage-form / packaging words that pollute a generic name.
+_COMBO_FORM = re.compile(
+    r"\b(?:cream|gel|oint(?:ment)?|sol(?:'n|ution)?|susp(?:ension)?|"
+    r"tab(?:let)?|cap(?:sule)?|inj(?:ection)?|eye\s+(?:drop|oint)s?|oph\.?|"
+    r"drops?|lotion|syrup|powder|patch|spray|sr|xl|xr|lyo|respimat|"
+    r"nebul(?:e|iser)?|effervescent|granules?)\b",
+    re.IGNORECASE,
+)
+_COMBO_SEP = re.compile(r"[,;+/]")
+
+
+def _combo_generic_from_his(drug_name: str) -> Optional[str]:
+    """HIS DRUG_NAME → clean ' / '-joined ingredient list for DDI name matching.
+
+    Strips strengths/forms BEFORE splitting so a strength ratio like ``50mg/gm``
+    is never mistaken for a component separator. Single-ingredient names come
+    back cleaned (strength/form removed); combinations split on , ; + /.
+    Returns None when nothing alphabetic survives.
+
+        "Amlodipine 5mg, Telmisartan 80mg"        -> "Amlodipine / Telmisartan"
+        "Empagliflozin 12.5mg / Metformin 850mg"  -> "Empagliflozin / Metformin"
+        "Acyclovir 50mg/gm 5gm Cream"             -> "Acyclovir"   (single, / is a ratio)
+    """
+    s = drug_name.strip()
+    if not s:
+        return None
+    s = _COMBO_STRENGTH.sub(" ", s)
+    s = _COMBO_FORM.sub(" ", s)
+    parts = []
+    for raw in _COMBO_SEP.split(s):
+        part = re.sub(r"\s+", " ", raw).strip(" -.")
+        if part and re.search(r"[A-Za-z]", part):  # drop empties / stray unit fragments
+            parts.append(part)
+    if not parts:
+        return None
+    return " / ".join(parts)
+
+
 def _clean_drug_name(raw_name: str) -> Tuple[str, Optional[str]]:
     """Clean HIS drug name, extract trade name and generic name.
 
