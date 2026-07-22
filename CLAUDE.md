@@ -124,7 +124,7 @@ python3 scripts/sync_his_snapshots_serial.py                     # 增量（依 
 
 同步 state 另含 mapping `schema_version`；版本更新會強制重跑相同 hash。多院區來源的純數字病歷號回聲與「查無資料」代表成功空結果，可進行完整 reconcile；未知 message／缺檔仍視為 partial，只 upsert、不刪 stale rows。
 
-2026-07-22 production 驗收基準（sync schema `2026-07-22.4`）：10 位 active；medications 2,120、lab_data 829 組／6,224 items、culture_results 204 組／1,812 source items、diagnostic_reports 43（ECG AI 40＋手術 3）、vital_signs 4,484、clinical_scores 4。藥物標籤基準：STAT 837、PRN 173、antibiotic/antifungal/antiviral 379/18/4、steroid 109、laxative 58、S/A/N 62/70/3。converter 自動欄位逐筆對 DB mismatch=0；force sync 10/10、errors=0，隨後非 force 應為 unchanged=10、synced=0、errors=0。
+2026-07-22 production 驗收基準（commit `d21e25564`、migration `087`、sync schema `2026-07-22.8`）：10 位 active；medications 2,120、lab_data 829 組／6,224 items、culture_results 204 組／1,812 source items、diagnostic_reports 43（ECG AI 40＋手術 3）、vital_signs 4,484、clinical_scores 4。藥物標籤基準：STAT 837、PRN 173、antibiotic/antifungal/antiviral 379/18/4、steroid 109、laxative 58、S/A/N 62/70/3。converter 自動欄位逐筆對正式 DB mismatch=0；force sync 10/10、errors=0。結構化過敏只讀 `Smartbed.sbDisease.FOOD_ALLERGY`，HIS Pain 與過敏有來源時前端不可人工異動。
 
 ### 為何禁用舊版 `sync_his_snapshots.py`（2026-04-27 發現）
 舊版用 `asyncio.create_task` + `Semaphore` + `as_completed` + `engine.dispose()` 與 Supabase pooler (port 6543, transaction mode) 互動會 **silent fail**：

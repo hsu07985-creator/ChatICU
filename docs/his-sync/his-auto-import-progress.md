@@ -24,6 +24,7 @@
 | `eed377a7b` | migration 086 修復 production 遺失的 `patients.intubation_date` 實體欄位 | `backend/alembic/versions/086_repair_patient_intubation_date.py` |
 | `c7e01516d` | 成功空院區 marker 完整性判定；讓 lab/culture 完整 reconcile 清除舊分組 ID | `snapshot_sync.py`、serial sync version `2026-07-22.3` + 測試 |
 | 本次藥物標籤封口 | category/SAN/抗感染改由 raw ATC；STAT/PRN 由 FREQ；移除自備藥與前端名稱推論 | converter、medications API、前端 medication helpers；serial sync `2026-07-22.4` |
+| `d21e25564` | current `getIpd`、結構化過敏 ownership、出院日期、HIS Pain 不可異動；migration 087 | converter、snapshot sync、patients/scores API、前端 ownership；serial sync `2026-07-22.8` |
 
 以上變更都在 `main`，已 `git push personal main`（Railway）+ `git push railway main`（Vercel）。
 
@@ -36,8 +37,8 @@
 
 | 元件 | 狀態 | 備註 |
 |---|---|---|
-| **Railway 後端** | ✅ 已部署（commit `c7e01516d`，GitHub deploy status = success） | `alembic_version=086`；production 已確認 `patients.intubation_date` 存在。 |
-| **Vercel 前端** | ✅ **已上線**（commit `c7e01516d`，Vercel status = success） | `chat-icu.vercel.app` 已指向本次 main 部署；本次沒有改 UI。 |
+| **Railway 後端** | ✅ 已部署（commit `d21e25564`，GitHub deploy status = success） | `alembic_version=087`；health `database=ok`。 |
+| **Vercel 前端** | ✅ **已上線**（commit `d21e25564`，Vercel status = success） | production bundle `index-BYK4922I.js`；未洩漏 Railway 直連 URL。 |
 
 ---
 
@@ -50,7 +51,7 @@
 - [x] ~~**部署 + 啟用「出院自動下架」**~~ ✅ **完成（2026-07-22）**，見 [`census-left-unit-detection-design-2026-07-21.md`](./census-left-unit-detection-design-2026-07-21.md)。**真相來源=`patient/` 目錄**（不在目錄的 HIS 病人=出院），全量 sync 尾端自動 `archived=true`。後端(migration 082)+前端已部署驗證；prod 全量 sync 已跑（台北 00:16），5 位（鄭義輝/周麗華/舒以信/陳弘暉/黃桂華）已 archive 離板、邱建陽保留(→MICU17)、board active=10。初版 getICUbed 旗標做法已廢除（會搞反）。
 - [x] **床號與其他快照自動欄位 ownership**：HIS 決定性病人禁止透過 patient PATCH 修改；只有 `critical_status`、`campus`、`is_isolated`、`symptoms` 保持人工入口。非 HIS 建立的病人仍可完整編輯。
 - [ ] **（延後）`patients.unit`**：仍硬編碼 `'ICU'`，未改讀 BED_CODE 前綴——因為改值會動**資料層存取控制**（unit-scoped 使用者可見範圍），需先評估。
-- [ ] **（延後）過敏 parser bug**：`getSO` SOAP 的 `parse_allergy_texts` 把「denied」誤判成過敏物質（應為 NKA）。既有 bug，非本次引入；哪天碰 allergy 再修。
+- [x] **過敏 parser bug**：已停止解析 getSO SOAP；只接受 `sbDisease.FOOD_ALLERGY` 結構值，並清除舊的精確假值 `denied`。有來源時自動鎖定，無來源時保留人工／孤兒入口。
 
 ---
 
@@ -68,7 +69,7 @@
 - **本次回歸/CI**：本機 API+FHIR **571 passed / 15 skipped**；GitHub backend-test、backend-lint、migration-check、security、static guards、frontend build、critical E2E、DAST、Docker build 全部 success。
 - **報告語意修正**：`getAllOrder` 是醫囑，不再轉成 final diagnostic report；目前快照只匯入真正的 ECG AI **40** 筆與手術報告 **3** 筆。ID 改由來源 sheet／手術代碼與日期決定，不再依陣列順序。
 - **生命徵象**：HIS `vit_*` 只供 HR/BP/MAP/RR/體溫，人工 `vs_*` 只供 SpO₂/EtCO₂/CVP/ICP/CPP；latest、bootstrap 與人工 POST 回應均逐欄合併，趨勢/歷史維持原始列。
-- **2026-07-22 回歸/部署驗收**：本機 backend **909 passed / 40 skipped**；GitHub CI 的 backend-test、lint、migration-check、security、frontend build、critical E2E、DAST、Docker build 全數 success；Railway + Vercel production success。
+- **2026-07-22 最終回歸/部署驗收（`d21e25564`）**：本機 backend **926 passed / 40 skipped**；typecheck、ESLint、production build 通過；GitHub CI 的 backend-test、lint、migration-check、security、frontend build、critical E2E、DAST、Docker build 全數 success；Railway + Vercel production success。Playwright 正式站確認 ownership、過敏、HIS Pain、藥物標籤與檢驗頁，network 全 200、console 0 errors。
 
 ---
 

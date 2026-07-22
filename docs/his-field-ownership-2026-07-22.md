@@ -48,3 +48,10 @@
 | HIS Pain | 4 |
 
 本輪修正不改變上述資料總量，只修正目前住院來源、結構化過敏、出院日期及 HIS Pain 的編輯權限。
+
+## 正式部署驗收
+
+- Commit：`d21e25564`；Railway 與 Vercel production 均成功，正式 DB migration=`087`。
+- Serial `--force` 熱同步 10/10 完成；病人、藥物、檢驗、培養、報告、生命徵象與 HIS Pain 逐筆對正式 DB，missing/extra/field mismatch 全為 0。
+- 正式頁面確認：結構化過敏顯示「自動」且無編輯入口；無來源顯示「孤兒・暫時手動」；HIS Pain 趨勢無刪除入口；PRN、STAT、緩瀉劑、抗生素等標籤與檢驗值正常。
+- Production bundle：`index-BYK4922I.js`，未包含 Railway 直連 URL；Playwright network 全 200、console 0 errors。

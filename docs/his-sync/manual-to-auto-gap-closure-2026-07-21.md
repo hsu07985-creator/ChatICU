@@ -123,16 +123,16 @@
 - `getICUbed`（過濾 `PAT_NO`）→ `bed_number`
 - `sbNutrition` → `height` / `weight` / `bmi`（來源字串轉 float，BMI 用來源預算值）
 - `sbTube`（掃 `PIPE_ALIASES`）→ `intubated`（`Endo*`）、`tracheostomy` + `tracheostomy_date`（`Tr*`，濾掉 END_DATE 已過期的移除管路）
-- `sbDisease.FOOD_ALLERGY` → `allergies`（在 `convert_all` **併入** getSO SOAP 解析，非取代）
-- `_extract_allergies` 改走 loader（原本直接讀檔，新格式讀不到）
+- `sbDisease.FOOD_ALLERGY` → `allergies`；最終版只接受此結構欄位，**不再解析 getSO SOAP**
+- 有結構值時 `allergies_from_his=true` 並鎖定自動；無值時保留既有人工內容
 
-**歸類（無需改 frozenset）**：這些欄位都在 `PRESERVE_EXISTING_FIELDS`，converter 現在吐**真值** → `_is_meaningful` 給出「HIS 有值就覆蓋、HIS 沒值就保留手動」的安全語意，**零資料遺失**。故 slice 1 **不動 `snapshot_sync.py`**。
+**最終歸類（2026-07-22）**：`allergies` 仍採「HIS 有結構值才覆蓋、無值保留人工」，另由 migration 087 新增 `allergies_from_his` ownership；來源存在時 API/UI 不允許人工異動。其餘欄位維持 `PRESERVE_EXISTING_FIELDS`。
 
 **驗證**：`tests/test_fhir/test_converter_nested_snapshot.py`（7 tests）+ 全 10 病人真實資料 smoke（bed/身高體重/氣道全對，meds/labs 也證明 loader 備援讓既有來源在新格式可讀）+ 全 fhir 套件 111 passed 無 regression。
 
 **刻意延後**：
 - `unit`：仍硬編碼 `'ICU'`（TRAP #1）。改讀 BED_CODE 前綴會改變 `unit` 值 → **牽動資料層存取控制**（unit-scoped 使用者可見範圍），需 PM 決策，未動。
-- `50153753` SOAP 過敏被 `parse_allergy_texts` 解析成 `['denied']`（應為 NKA）——既有 allergy parser 品質問題，非本次引入，另案處理。
+- ~~SOAP `denied` 誤判~~：已停止 SOAP 過敏解析，並在同步時清除舊的精確假值 `denied`。
 
 ### 5.2 ✅ 已完成 — 生命徵象 `vital_signs`（getTPR）
 

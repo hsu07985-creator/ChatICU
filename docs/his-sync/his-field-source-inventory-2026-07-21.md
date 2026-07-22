@@ -1,6 +1,6 @@
 # HIS 自動匯入 vs 手動輸入 — 全欄位來源盤點
 
-> 版本：2026-07-21；現況修訂：2026-07-22（commit `c7e01516d`） ｜ 域：his-sync ｜ 對象：後端/前端工程師 + 臨床使用者
+> 版本：2026-07-21；現況修訂：2026-07-22（commit `d21e25564`） ｜ 域：his-sync ｜ 對象：後端/前端工程師 + 臨床使用者
 > 配對閱讀：[`docs/his-sync/資料更新_0424.md`](../his-sync/資料更新_0424.md)、[`backend/CLAUDE.md`](../../backend/CLAUDE.md)（Data Coverage Summary）
 
 ---
@@ -20,8 +20,9 @@
 - **Culture results**：以 `(source_campus, sheet_number)` 分組；保存 MIC、檢體類型、最早採檢/最晚報告時間與完整 `source_details`。只有 culture/AST 的 sheet 不再產生空白 `lab_data` orphan。
 - **Raw source**：藥物與培養新增 JSONB `source_details`；藥物另保存 `source_campus`，培養新增 `source_campus`。schema migration = 085。
 - **實測**：10 位病患，medications 2,120、lab items 6,224、culture/AST items 1,812、MIC 98，逐筆 source counter 與數值差異皆為 0；空白 lab orphan = 0。
-- **同步版本**：serial state 保存 `schema_version`；converter/mapping 版本不同時，即使來源 hash 相同仍分類為 changed 並重新匯入。目前版本 `2026-07-22.3`。
+- **同步版本**：serial state 保存 `schema_version`；converter/mapping 版本不同時，即使來源 hash 相同仍分類為 changed 並重新匯入。目前版本 `2026-07-22.8`。
 - **正式驗收**：10 位 active 病患、所有 converter 自動欄位逐筆對 DB mismatch=0；medications 2,120、lab_data 829 組／6,224 items、culture_results 204 組／1,812 source items、reports 43、vitals 4,484、pain scores 4。
+- **過敏 ownership**：只讀 `Smartbed.sbDisease.FOOD_ALLERGY`；有結構值時 `allergies_from_his=true` 且禁止人工異動，無值時保留人工。SOAP 自由文字不再解析，舊的精確假值 `denied` 會被清除。
 
 ---
 
@@ -97,7 +98,7 @@
 | `unit` | **灰色地帶** | **硬編碼字面 `'ICU'`**（非 payload 欄） | **實質無條件覆蓋**（在 PRESERVE 但 `'ICU'` 恆 meaningful） | POST only（create 覆寫為建立者 unit 或 `'加護病房一'`）；**不可 PATCH** | **TRAP #1**：每次 sync 蓋回 `'ICU'`；驅動資料層存取控制，可能悄悄讓 HIS 病人脫離 unit-scoped 使用者 |
 | `alerts` | **灰色地帶** | getPatient `DNR_CONSENT/DNR_IC_FLAG`→DNR 字串；否則 `[]` | 有意義才覆蓋（`[]` 保留，有 DNR 覆蓋） | PATCH + Create | **TRAP #2**：DNR alert 以 fresh `[]`+dnr 重建，**取代（非合併）**手動 alerts |
 | `consent_status` | HIS 衍生覆蓋(含空值) | DNR→`'DNR signed'` 或 None | 無條件覆蓋（含 None） | PATCH + Create | TRAP #3：無 DNR 時手動值被洗成 None |
-| `allergies` | **灰色地帶** | getSO SUBJECTIVE SOAP `parse_allergy_texts` | 有意義才覆蓋（`[]` 保留，`has_allergies` 覆蓋） | PATCH + Create | **TRAP #2**：`nka`/`unknown` 保留既有（記錄 NKA **不會清空**清單），只有陽性覆蓋 |
+| `allergies` | 結構值自動／無值孤兒 | `Smartbed.sbDisease.FOOD_ALLERGY` | 有結構值才覆蓋並設 `allergies_from_his=true`；無值保留人工 | 無來源時可人工 | SOAP 不解析；自動來源存在時 API/UI 鎖定 |
 | `blood_type` | HIS 專屬覆蓋 | `BLOODTYPE_LAB`+`_RH` | 無條件覆蓋 | PATCH + Create | 缺值→None 覆蓋 |
 | `code_status` | HIS 專屬覆蓋 | DNR flags→`'DNR'`/`'Full Code'` | 無條件覆蓋 | PATCH + Create | 手動每次被還原 |
 | `has_dnr` | HIS 專屬覆蓋 | DNR flags（bool） | 無條件覆蓋 | PATCH + Create | 因是 HIS_OWNED，HIS 的 False **會蓋掉**既有 True |
@@ -311,7 +312,7 @@
 
 1. **`patients.unit`（TRAP #1，存取控制風險）**：宣告在 `PRESERVE_EXISTING_FIELDS`（意圖=保留），但 converter 硬編碼 `'ICU'`，`_is_meaningful('ICU')=True`，故 PRESERVE loop **每次 sync 都覆蓋**建立時的 unit（例如 `'加護病房一'`）回 `'ICU'`。且 `unit` 不在 PatientUpdate（不可 PATCH）。unit 驅動資料層存取控制 → HIS 病人可能悄悄脫離 unit-scoped 使用者。
 
-2. **`patients.allergies`（TRAP #2）**：CLAUDE.md 說「HIS 無過敏」，但 converter **確實**從 getSO SUBJECTIVE SOAP 解析。`nka`/`unknown` 保留既有（記錄 NKA **不會清空**清單）；只有 `has_allergies` 陽性覆蓋，且是 **fresh `[]`+新值重建、取代而非合併**手動輸入。
+2. **`patients.allergies`**：`Smartbed.sbDisease.FOOD_ALLERGY` 有結構值時是 HIS 自動欄位，`allergies_from_his=true` 且不可人工修改；沒有結構值時是孤兒欄位，保留既有人工內容並開放補登。SOAP `SUBJECTIVE` 不再解析，避免把 `denied` 當成過敏物質。
 
 3. **`patients.alerts`（TRAP #2）**：手動可填，但 HIS DNR 解析出 alert 時，用 fresh `[]`+dnr_alerts 重建 → **取代**（非合併）手動 alerts。
 

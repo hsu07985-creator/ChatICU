@@ -2,13 +2,13 @@
 
 > **藥物標籤來源封口（2026-07-22）**：本文件下方保留最初審計的歷史決策脈絡；目前正式規則已由後續產品決策取代。所有可見藥物標籤不得再解析 `ODR_NAME`、`DRUG_NAME`、備註或前端醫令碼清單：`category`、`san_category`、`is_antibiotic` 只由原始 HIS `ATC_CODE` 分類；STAT／PRN 只由 `FREQ_CODE`；來源與狀態只由 `OPD_SW`、`DC_FLAG` 與日期欄位。沒有原始欄位的「自備藥」不再推論。前端只讀 API 結構化結果，重複用藥只比較完整七碼 ATC，非七碼才使用精確 `ODR_CODE`。
 >
-> **真實快照驗收**：10 位病人、2,120 筆藥物，`ATC_CODE` 與 `FREQ_CODE` 均 2,120/2,120 非空；converter 對 raw source parity mismatch=0。標籤基準：STAT 837、PRN 173、antibiotic 379、antifungal 18、antiviral 4、steroid 109、laxative 58、PPI 57、H2 blocker 18、S/A/N=62/70/3。同步 mapping schema 為 `2026-07-22.4`，同一快照 hash 也會重新套用新分類。
+> **真實快照驗收**：10 位病人、2,120 筆藥物，`ATC_CODE` 與 `FREQ_CODE` 均 2,120/2,120 非空；converter 對 raw source parity mismatch=0。標籤基準：STAT 837、PRN 173、antibiotic 379、antifungal 18、antiviral 4、steroid 109、laxative 58、PPI 57、H2 blocker 18、S/A/N=62/70/3。正式同步 mapping schema 為 `2026-07-22.8`，同一快照 hash 也會重新套用新分類。
 
 > **已上線並 backfill 驗證（2026-07-22）**：全端部署 + prod `--force` 全量 re-sync 完成，DB 驗證：`his_atc` +99、`nhi_code` 0→1793、`is_antibiotic` 245→299（Colistin/Tigecycline 等修回）、`san_category` 107→144；**formulary 1338/236 零變動**（不變式 prod 實證）。errors=0。
 >
 > **實作狀態（2026-07-22）**：A（generic_name←DRUG_NAME）、B（atc gap-fill his_atc + migration 083）、san ATC 後備、nhi_code（migration 084）**全部實作**，7 reviewer 對抗驗證 = GO 無 blocker。額外採納兩條 follow-up：is_antibiotic 加 `P01AB`/`A07AA`（metronidazole、口服非吸收抗菌）、san 後備加 `N05BA`(IV benzo) 去掉 `N05AH`(避免 olanzapine 誤分)。測試 378 passed、fresh-DB 過。剩餘 follow-up：combo generic 多分隔符/去 strength（純上升、未做）、is_antibiotic 文案「抗生素→抗微生物」（產品用語決策）。
 
-> **來源完整性追驗（commit `1574779b1`、migration 085）**：藥物來源改為合併 `getseq` 2,041 筆與 `getAll` 1,809 筆，去重後共 **2,120/2,120**（MAIN 2,041、Factory_Q 48、Factory_H 31）。逐筆比對 `source_details` 與原始列：`ATC_CODE` 2,120、`NHI_CODE` 2,101，直接欄位差異 **0**。有 HIS `order_code` 的自動欄位禁止手動修改；`indication`、`warnings`、`concentration`、`concentration_unit`、`prescribing_hospital` 五個人工補充欄位會跨同步保留。來源不完整時不刪 stale 資料；DDI alias 只在交互作用檢查路徑使用，不覆寫來源忠實的 `generic_name`。Railway、Vercel 與完整 CI 均已成功；正式庫需在下一次 HIS sync 後才會寫入新增的完整 raw details。
+> **來源完整性追驗（commit `1574779b1`、migration 085）**：藥物來源改為合併 `getseq` 2,041 筆與 `getAll` 1,809 筆，去重後共 **2,120/2,120**（MAIN 2,041、Factory_Q 48、Factory_H 31）。逐筆比對 `source_details` 與原始列：`ATC_CODE` 2,120、`NHI_CODE` 2,101，直接欄位差異 **0**。有 HIS `order_code` 的自動欄位禁止手動修改；`indication`、`warnings`、`concentration`、`concentration_unit`、`prescribing_hospital` 五個人工補充欄位會跨同步保留。來源不完整時不刪 stale 資料；DDI alias 只在交互作用檢查路徑使用，不覆寫來源忠實的 `generic_name`。最終 commit `d21e25564` 已部署 Railway/Vercel，migration `087` 與正式 `--force` 全量同步完成，2,120 筆正式 DB parity mismatch=0。
 
 # ChatICU HIS→DB 藥物欄位審計：規則 vs. 直連 HIS
 

@@ -67,31 +67,31 @@ patient/*/  →  HISConverter  →  scripts/import_his_patients.py  →  Supabas
 - `app/fhir/his_lab_mapping.py` — 372 LAB_CODE → (category, key, name) mappings
 - `scripts/import_his_patients.py` — DB import script (upsert, idempotent)
 
-### Completed Steps (verified on 13 patients, 2026-04-09)
+### Current Production Baseline (verified on 10 patients, 2026-07-22)
 
 | Step | Feature | Result |
 |------|---------|--------|
-| 1 | Import pipeline (`--dry-run` / DB upsert) | 13/13 patients, idempotent |
-| 2 | SAN auto-derive (sedation/analgesia/nmb) | S=5, A=10, N=0 drugs extracted |
-| 3 | ECG AI → diagnostic_reports | 35 records, 11/13 patients |
-| 4 | DNR_CONSENT bitmask → consent_status + alerts | 8/13 patients with DNR detail |
-| 5 | getSurgery → diagnostic_reports | 4 records, 3/13 patients |
-| 6 | ventilator_days from D3 orders | 1 patient (50911741), TOTAL_QTY=1 |
+| 1 | Serial snapshot sync + ownership | 10/10 patients, schema `2026-07-22.8`, idempotent |
+| 2 | Medication raw mapping | 2,120 rows, source/API/DB mismatch=0 |
+| 3 | Lab / culture raw mapping | 6,224 / 1,812 items, mismatch=0 |
+| 4 | Structured allergy | `sbDisease.FOOD_ALLERGY`; source present → locked automatic |
+| 5 | HIS Pain | 4 deterministic rows; source present → immutable from UI/API |
+| 6 | Reports / vitals | 43 reports / 4,484 vital rows |
 
 ### Data Coverage Summary
-- **Patients**: 13 mapped (height/weight/allergies/campus unavailable from HIS)
-- **Medications**: 1,791 total (20/29 fields filled; indication/warnings/concentration unavailable)
-- **Lab Data**: 954 records (372 LAB_CODEs, 100% coverage, 0 unmapped)
-- **Culture Results**: 174 records (83 isolates, 100% mapped)
-- **Diagnostic Reports**: 266 total (227 imaging + 4 surgery + 35 ECG AI)
-- **Vital Signs**: 0 — HIS has no bedside monitor data
+- **Patients**: 10 active; current admission comes from `getIpd`, not historical `getIPD`
+- **Medications**: 2,120 total; PRN/STAT from `FREQ_CODE`, category/S/A/N from `ATC_CODE` or exact formulary fallback
+- **Lab Data**: 829 groups / 6,224 items
+- **Culture Results**: 204 groups / 1,812 source items
+- **Diagnostic Reports**: 43 total (40 ECG AI + 3 surgery)
+- **Vital Signs**: 4,484 HIS TPR rows; SpO2/EtCO2/CVP/ICP/CPP remain manual
 - **Ventilator Settings**: 0 — HIS has no ventilator parameter data
-- **Clinical Scores**: 0 — requires clinical assessment, not in HIS
+- **Clinical Scores**: 4 HIS Pain rows; RASS remains manual
 
 ### Remaining Gaps (need HIS team or other source)
-- **bed_number / unit**: Need GetIpd API (急住診, p.21) — not yet called
-- **height / weight / BMI**: Not in HIS API — need nursing system or manual entry
-- **allergies**: Not in HIS API
+- **unit**: Still fixed to `ICU`; changing it affects access control and requires separate review
+- **height / weight / BMI**: Use `Smartbed.sbNutrition` when present; otherwise preserve manual values
+- **allergies**: Only structured food allergy exists; drug allergy remains unavailable
 - **is_isolated / campus**: Not in HIS API
 
 ### Usage
