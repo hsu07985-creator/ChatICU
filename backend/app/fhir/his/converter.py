@@ -27,8 +27,6 @@ from app.fhir.his.drug_dictionaries import (
 )
 from app.fhir.his.lab_dictionaries import _build_ecg_impression
 from app.fhir.his.resources import (
-    _DDI_ALIAS_MAP,
-    _DDI_EXCLUSION_SET,
     _FORMULARY_MAP,
     _SITE_CONFIG,
 )
@@ -413,14 +411,30 @@ class HISConverter:
     # ------------------------------------------------------------------ #
 
     def convert_medications(self) -> List[Dict[str, Any]]:
-        """getAllMedicine.json → list of medications table dicts.
+        """HIS medication sources → list of medications table dicts.
 
-        Uses _load_all() so medications from secondary campuses (ExtraFactories)
-        are merged with the primary campus. Without this, cross-campus
-        outpatient Rx (e.g. 70117162's 10 emergency-department meds at
-        Factory_F) are silently dropped.
+        ``getMedicine_AllPatientSeq`` is the complete primary-campus source;
+        ``getAllMedicine`` supplies campus metadata and secondary-campus rows.
         """
-        rows = self._load_all("getAllMedicine.json")
+        rows_by_key: Dict[Tuple[str, str, str, str], dict] = {}
+        for row in self._load_all("getAllMedicine.json"):
+            key = (
+                str(row.get("_source_factory") or "MAIN"),
+                str(row.get("PAT_SEQ") or ""),
+                str(row.get("ODR_SEQ") or ""),
+                str(row.get("ODR_CODE") or ""),
+            )
+            rows_by_key[key] = dict(row)
+        for row in self._load_seq("getMedicine"):
+            key = (
+                "MAIN",
+                str(row.get("PAT_SEQ") or ""),
+                str(row.get("ODR_SEQ") or ""),
+                str(row.get("ODR_CODE") or ""),
+            )
+            rows_by_key[key] = {**rows_by_key.get(key, {}), **row, "_source_factory": "MAIN"}
+
+        rows = list(rows_by_key.values())
         patient = self.convert_patient()
         if not patient:
             return []
@@ -432,23 +446,9 @@ class HISConverter:
             clean_name, rule_generic = _clean_drug_name(raw_name)
             odr_code = (m.get("ODR_CODE") or "").strip()
 
-            # generic_name precedence (name = clean_name stays trade+strength):
-            #  1. _DDI_ALIAS_MAP — curated DDI vocabulary (class names + Lexicomp
-            #     tall-man spellings); load-bearing for class-level DDI matching.
-            #  2. _DDI_EXCLUSION_SET — IV fluids / non-drugs → None (suppress noise).
-            #  3. HIS DRUG_NAME — clean ingredient name (Quetiapine, not brand
-            #     "Seroquel"); commas (combos) → " / " so ddi_check can expand them.
-            #  4. rule-derived first word — only when HIS ships no DRUG_NAME.
-            if odr_code and odr_code in _DDI_ALIAS_MAP:
-                generic = " / ".join(_DDI_ALIAS_MAP[odr_code])
-            elif odr_code and odr_code in _DDI_EXCLUSION_SET:
-                generic = None
-            else:
-                # HIS DRUG_NAME → clean generic; combos (,;+/) split to " / " with
-                # strengths/forms stripped so DDI name matching (medications.py:181,
-                # split on " / ") can expand each ingredient. Falls back to the
-                # rule-derived first word only when HIS ships no DRUG_NAME.
-                generic = _combo_generic_from_his(m.get("DRUG_NAME") or "") or rule_generic
+            # Keep the source field source-authentic. DDI aliases are applied only
+            # while computing interactions, not written over HIS DRUG_NAME.
+            generic = _combo_generic_from_his(m.get("DRUG_NAME") or "") or rule_generic
 
             freq_code = (m.get("FREQ_CODE") or "").strip().upper()
             route_code = (m.get("ROUTE_CODE") or "").strip().upper()
@@ -486,53 +486,42 @@ class HISConverter:
             med_id = _gen_id("med", self.pat_no, str(m.get("ODR_SEQ", "")),
                              m.get("PAT_SEQ", ""), m.get("ODR_CODE", ""))
 
-            # Enrich with standardized ATC code from hospital formulary (PR-1)
+            # HIS ATC_CODE is the source of truth. The formulary remains a
+            # fallback and supplies only derived metadata.
             formulary_entry = _FORMULARY_MAP.get(odr_code) if odr_code else None
-            if formulary_entry:
+            his_atc = (m.get("ATC_CODE") or "").strip() or None
+            if his_atc:
+                atc_code = his_atc
+                is_antibiotic = his_atc[:3] in ("J01", "J02", "J04", "J05") or his_atc[:5] in ("P01AB", "A07AA")
+                kidney_relevant = formulary_entry["kidney_relevant"] if formulary_entry else None
+                coding_source = "his_atc"
+            elif formulary_entry:
                 atc_code = formulary_entry["atc_code"]
                 is_antibiotic = formulary_entry["is_antibiotic"]
                 kidney_relevant = formulary_entry["kidney_relevant"]
                 coding_source = formulary_entry["source"]
             else:
-                # Formulary miss. GAP-FILL ONLY — the formulary branch above is
-                # never overridden, so DDI Path-2 vocabulary alignment (migration
-                # 065) and curated is_antibiotic/kidney_relevant are preserved for
-                # the 94.5% of rows the formulary covers.
                 atc_code = None
                 is_antibiotic = False
                 kidney_relevant = None
                 coding_source = "unmapped" if odr_code else None
 
-                # Prefer the HIS-supplied ATC_CODE (100% filled in current
-                # snapshots) over the offline RxNorm cache.
-                his_atc = (m.get("ATC_CODE") or "").strip() or None
-                if his_atc:
-                    atc_code = his_atc
-                    coding_source = "his_atc"
-                    # Re-derive is_antibiotic from ATC. Systemic antibacterials/
-                    # antifungals/antimycobacterials sit under J01/J02/J04/J05;
-                    # P01AB = nitroimidazoles (metronidazole/tinidazole); A07AA =
-                    # oral non-absorbed antibacterials (vancomycin/neomycin/
-                    # rifaximin/colistin). J06/J07 (vaccines/Ig) excluded.
-                    is_antibiotic = his_atc[:3] in ("J01", "J02", "J04", "J05") or his_atc[:5] in ("P01AB", "A07AA")
-                else:
-                    # PR-2: cache-only RxNorm fallback (near-dead now HIS ATC=100%).
-                    # Cache is prebuilt offline; production syncs never hit network.
-                    try:
-                        from app.fhir.rxnorm import (
-                            extract_generic_name as _rxnorm_extract,
-                            lookup as _rxnorm_lookup,
-                        )
+                # PR-2: cache-only RxNorm fallback. Production syncs never hit network.
+                try:
+                    from app.fhir.rxnorm import (
+                        extract_generic_name as _rxnorm_extract,
+                        lookup as _rxnorm_lookup,
+                    )
 
-                        generic_candidate = _rxnorm_extract(raw_name)
-                        if generic_candidate:
-                            hit = _rxnorm_lookup(generic_candidate, online=False)
-                            if hit and hit.atc_code:
-                                atc_code = hit.atc_code
-                                coding_source = "rxnorm_cache"
-                    except Exception:
-                        # RxNorm cache is optional — never fail sync on lookup error
-                        pass
+                    generic_candidate = _rxnorm_extract(raw_name)
+                    if generic_candidate:
+                        hit = _rxnorm_lookup(generic_candidate, online=False)
+                        if hit and hit.atc_code:
+                            atc_code = hit.atc_code
+                            coding_source = "rxnorm_cache"
+                except Exception:
+                    # RxNorm cache is optional — never fail sync on lookup error
+                    pass
 
             if coding_source is not None and coding_source not in VALID_CODING_SOURCES:
                 raise ValueError(
@@ -564,7 +553,7 @@ class HISConverter:
                 "concentration_unit": None,
                 "notes": m.get("NOTES"),
                 "source_type": source_type,
-                "source_campus": None,
+                "source_campus": m.get("_source_factory"),
                 "prescribing_hospital": None,
                 "prescribing_department": m.get("HDEPT_NAME"),
                 "prescribing_doctor_name": m.get("USER_NAME"),
@@ -575,6 +564,9 @@ class HISConverter:
                 "is_antibiotic": is_antibiotic,
                 "kidney_relevant": kidney_relevant,
                 "coding_source": coding_source,
+                # Preserve every HIS field verbatim for audit/replay.  The
+                # normalized columns above remain the API's stable contract.
+                "source_details": dict(m),
             }
             medications.append(med_dict)
 
@@ -597,20 +589,26 @@ class HISConverter:
             return []
         pat_id = patient["id"]
 
-        # Group by report timestamp
-        grouped: Dict[str, List[dict]] = defaultdict(list)
+        # A timestamp alone is not a report identity: different sheets/campuses
+        # can report simultaneously and contain the same analyte key.
+        grouped: Dict[Tuple[str, str, str, str], List[dict]] = defaultdict(list)
         for r in rows:
-            ts_key = f"{r.get('REPORT_DATE', '')}_{r.get('REPORT_TIME', '')}"
-            grouped[ts_key].append(r)
+            group_key = (
+                str(r.get("REPORT_DATE") or ""),
+                str(r.get("REPORT_TIME") or ""),
+                str(r.get("_source_factory") or "MAIN"),
+                str(r.get("SHEET_NO") or ""),
+            )
+            grouped[group_key].append(r)
 
         lab_records = []
-        for ts_key, items in sorted(grouped.items()):
-            parts = ts_key.split("_")
-            timestamp = _roc_to_datetime(parts[0], parts[1] if len(parts) > 1 else None)
+        for group_key, items in sorted(grouped.items()):
+            report_date, report_time, source_campus, sheet_no = group_key
+            timestamp = _roc_to_datetime(report_date, report_time or None)
             if not timestamp:
                 continue
 
-            lab_id = _gen_id("lab", self.pat_no, ts_key)
+            lab_id = _gen_id("lab", self.pat_no, *group_key)
 
             # Initialize all JSONB categories
             categories: Dict[str, Dict] = {
@@ -631,15 +629,22 @@ class HISConverter:
                 else:
                     cat, key, _ = mapping
 
-                # Skip non-numeric categories (culture, susceptibility, etc.)
-                if cat in ("culture", "susceptibility", "gram_stain",
-                           "molecular", "rapid_antigen"):
+                # Culture/AST have their own table. Other textual tests stay in
+                # lab_data so the source record is not silently lost.
+                if cat in ("culture", "susceptibility"):
                     continue
 
                 # Map to parent category if not in our JSONB columns
                 if cat in ("glycated",):
                     cat = "other"  # frontend expects HbA1C in "other"
-                elif cat in ("serology", "tumor_marker", "allergy", "tdm"):
+                elif cat in ("serology", "tumor_marker", "allergy", "tdm",
+                             "molecular", "rapid_antigen", "gram_stain"):
+                    prefix = {
+                        "molecular": "PCR_",
+                        "rapid_antigen": "AG_",
+                        "gram_stain": "GRAM_",
+                    }.get(cat, "")
+                    key = prefix + key
                     cat = "other"
                 elif cat in ("urinalysis", "stool", "pleural_fluid"):
                     # Prefix key to avoid collision with blood-based items
@@ -679,7 +684,19 @@ class HISConverter:
                     "unit": item.get("UNIT", ""),
                     "referenceRange": ref_range,
                     "isAbnormal": is_abnormal,
+                    "code": lab_code,
+                    "name": item.get("LAB_NAME") or (mapping[2] if mapping else key),
+                    "specimen": item.get("ITEM_NAME"),
+                    "comment": item.get("RES_COMMENT"),
+                    "sourceCampus": source_campus,
+                    "sheetNumber": sheet_no,
+                    "source": dict(item),
                 }
+
+            # A sheet containing only culture/AST rows belongs exclusively in
+            # culture_results; do not create an empty lab_data orphan.
+            if not any(categories.values()):
+                continue
 
             # Remove empty categories
             lab_dict: Dict[str, Any] = {
@@ -706,8 +723,8 @@ class HISConverter:
             return []
         pat_id = patient["id"]
 
-        # Group culture items by SHEET_NO
-        culture_groups: Dict[str, List[dict]] = defaultdict(list)
+        # SHEET_NO is only unique within a campus.
+        culture_groups: Dict[Tuple[str, str], List[dict]] = defaultdict(list)
         for r in rows:
             lab_code = r.get("LAB_CODE", "")
             mapping = HIS_LAB_MAP.get(lab_code)
@@ -715,23 +732,30 @@ class HISConverter:
                 continue
             cat = mapping[0]
             if cat in ("culture", "susceptibility", "gram_stain"):
-                sheet_no = r.get("SHEET_NO", "unknown")
-                culture_groups[sheet_no].append(r)
+                source_campus = str(r.get("_source_factory") or "MAIN")
+                sheet_no = str(r.get("SHEET_NO") or "unknown")
+                culture_groups[(source_campus, sheet_no)].append(r)
 
         results = []
-        for sheet_no, items in culture_groups.items():
+        for (source_campus, sheet_no), items in culture_groups.items():
             first = items[0]
-            cul_id = _gen_id("cul", self.pat_no, sheet_no)
+            cul_id = (
+                _gen_id("cul", self.pat_no, sheet_no)
+                if source_campus == "MAIN"
+                else _gen_id("cul", self.pat_no, sheet_no, source_campus)
+            )
 
             # First pass: collect metadata, colonies, isolates
             isolate_map: Dict[str, dict] = {}  # _Isolate1 → {organism, code, colonies}
             colonies_map: Dict[str, str] = {}  # _Colonies1 → value
             susceptibility = []
+            mic_by_key: Dict[str, str] = {}
             q_score = None
             result_text = None
             alerts: List[str] = []
             aerobic_result = None
             anaerobic_result = None
+            sample_type = None
 
             for item in items:
                 mapping = HIS_LAB_MAP.get(item.get("LAB_CODE", ""))
@@ -765,6 +789,9 @@ class HISConverter:
                     elif key == "_AnaerobicResult":
                         if result_val and result_val.strip():
                             anaerobic_result = result_val.strip()
+                    elif key == "_SampleType":
+                        if result_val and result_val.strip():
+                            sample_type = result_val.strip()
                     elif key in ("_Comment", "_Comment2") and result_val:
                         val = result_val.strip()
                         if val and ("抗藥" in val or "MDR" in val or "Carbapenem" in val or "危急" in val):
@@ -772,13 +799,19 @@ class HISConverter:
                     elif key == "_CriticalAlert" and result_val and result_val.strip():
                         alerts.append(result_val.strip())
 
-                elif cat == "susceptibility" and not key.endswith("_MIC"):
-                    if result_val and result_val.strip():
+                elif cat == "susceptibility" and result_val and result_val.strip():
+                    if key.endswith("_MIC"):
+                        mic_by_key[key.removesuffix("_MIC")] = result_val.strip()
+                    else:
                         susceptibility.append({
                             "antibiotic": name,
                             "code": lab_code,
                             "result": result_val.strip(),  # S, I, R
+                            "_key": key,
                         })
+
+            for entry in susceptibility:
+                entry["mic"] = mic_by_key.pop(entry.pop("_key"), None)
 
             # Pair isolates with colonies: _Isolate1↔_Colonies1, etc.
             isolates = []
@@ -799,25 +832,36 @@ class HISConverter:
                 if aerobic_result == "Negative" and anaerobic_result == "Negative":
                     result_text = "No growth to date"
 
-            # Note: alerts / aerobic_result / anaerobic_result are intentionally
-            # NOT included in the output dict because the DB table has no columns
-            # for them.  The import script dynamically maps dict keys → SQL columns,
-            # so extra keys would cause a crash.  These values remain accessible in
-            # the raw HIS JSON if needed in the future.
+            collected_times = [
+                dt for item in items
+                if (dt := _roc_to_datetime(item.get("SIGN_DATE"), item.get("SIGN_TIME")))
+            ]
+            reported_times = [
+                dt for item in items
+                if (dt := _roc_to_datetime(item.get("REPORT_DATE"), item.get("REPORT_TIME")))
+            ]
 
             results.append({
                 "id": cul_id,
                 "patient_id": pat_id,
                 "sheet_number": sheet_no,
-                "specimen": first.get("ITEM_NAME", ""),
+                "specimen": sample_type or first.get("ITEM_NAME", ""),
                 "specimen_code": first.get("ITEM_CODE", ""),
                 "department": first.get("HDEPT_NAME", ""),
-                "collected_at": _roc_to_datetime(first.get("SIGN_DATE"), first.get("SIGN_TIME")),
-                "reported_at": _roc_to_datetime(first.get("REPORT_DATE"), first.get("REPORT_TIME")),
+                "collected_at": min(collected_times) if collected_times else None,
+                "reported_at": max(reported_times) if reported_times else None,
                 "isolates": isolates,
                 "susceptibility": susceptibility,
                 "q_score": q_score,
                 "result": result_text,
+                "source_campus": source_campus,
+                "source_details": {
+                    "items": [dict(item) for item in items],
+                    "alerts": alerts,
+                    "aerobic_result": aerobic_result,
+                    "anaerobic_result": anaerobic_result,
+                    "unpaired_mic": mic_by_key,
+                },
             })
 
         return results

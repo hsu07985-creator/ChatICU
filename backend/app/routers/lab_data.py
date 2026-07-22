@@ -263,8 +263,8 @@ async def compute_latest_lab_payload(
     result = await db.execute(
         select(LabData)
         .where(LabData.patient_id == pid)
-        .order_by(LabData.timestamp.desc())
-        .limit(50)  # enough to cover all categories across recent draws
+        .order_by(LabData.timestamp.desc(), LabData.id.desc())
+        .limit(2000)
     )
     labs = result.scalars().all()
 
@@ -332,7 +332,7 @@ async def get_lab_trends(
     stmt = (
         select(LabData)
         .where(LabData.patient_id == pid)
-        .order_by(LabData.timestamp.desc())
+        .order_by(LabData.timestamp.desc(), LabData.id.desc())
         .limit(2000)
     )
     if effective_days is not None:

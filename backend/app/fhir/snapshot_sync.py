@@ -7,10 +7,12 @@ import json
 from datetime import date, datetime, timezone
 from typing import Any
 
-from sqlalchemy import bindparam, text
+from sqlalchemy import bindparam, select, text
 
 from app.fhir.his_converter import HISConverter
 from app.fhir.snapshot_resolver import SnapshotInfo
+from app.models.lab_data import LabData
+from app.models.medication import Medication
 
 
 class SchemaInconsistencyError(ValueError):
@@ -380,11 +382,21 @@ async def replace_patient_records(
     "X new lab results arrived" notification without needing a separate
     audit log.
     """
-    existing_rows = await session.execute(
-        text(f"SELECT id FROM {table} WHERE patient_id = :patient_id"),  # nosec B608 — table is one of the hardcoded literals ("lab_data"/"culture_results"/"diagnostic_reports") passed by sync_snapshot_into_session's fixed tuple; patient_id bound via :patient_id
-        {"patient_id": patient_id},
-    )
-    existing_ids = {row[0] for row in existing_rows}
+    if table == "lab_data":
+        existing_rows = await session.execute(
+            select(LabData.id, LabData.corrections).where(LabData.patient_id == patient_id)
+        )
+        existing = {row[0]: row[1] for row in existing_rows}
+        existing_ids = set(existing)
+        # Corrections are user-authored supplements and are not present in HIS.
+        for record in records:
+            record["corrections"] = existing.get(record.get("id"))
+    else:
+        existing_rows = await session.execute(
+            text(f"SELECT id FROM {table} WHERE patient_id = :patient_id"),  # nosec B608 — table is one of the hardcoded literals ("lab_data"/"culture_results"/"diagnostic_reports") passed by sync_snapshot_into_session's fixed tuple; patient_id bound via :patient_id
+            {"patient_id": patient_id},
+        )
+        existing_ids = {row[0] for row in existing_rows}
     incoming_ids = {record["id"] for record in records if record.get("id") is not None}
 
     added_ids = sorted(incoming_ids - existing_ids)
@@ -402,6 +414,31 @@ async def replace_patient_records(
         "removed": len(removed_ids),
         "added_ids": added_ids,
         "removed_ids": removed_ids,
+    }
+
+
+async def upsert_patient_records(
+    session: Any,
+    table: str,
+    patient_id: str,
+    records: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Upsert a partial source snapshot without deleting absent DB rows."""
+    existing_rows = await session.execute(
+        text(f"SELECT id FROM {table} WHERE patient_id = :patient_id"),  # nosec B608 — table is a fixed internal literal from sync_snapshot_into_session
+        {"patient_id": patient_id},
+    )
+    existing_ids = {row[0] for row in existing_rows}
+    incoming_ids = {record["id"] for record in records if record.get("id") is not None}
+    upserted = await upsert_records(session, table, records)
+    added_ids = sorted(incoming_ids - existing_ids)
+    return {
+        "total": upserted,
+        "added": len(added_ids),
+        "removed": 0,
+        "added_ids": added_ids,
+        "removed_ids": [],
+        "partial_source": True,
     }
 
 
@@ -485,20 +522,58 @@ async def reconcile_medications(
     session: Any,
     patient_id: str,
     medications: list[dict[str, Any]],
+    *,
+    delete_stale: bool = True,
 ) -> dict[str, Any]:
     existing_rows = await session.execute(
-        text("SELECT id FROM medications WHERE patient_id = :patient_id"),
-        {"patient_id": patient_id},
+        select(
+            Medication.id,
+            Medication.indication,
+            Medication.warnings,
+            Medication.concentration,
+            Medication.concentration_unit,
+            Medication.prescribing_hospital,
+        ).where(Medication.patient_id == patient_id)
     )
-    existing_ids = {row[0] for row in existing_rows}
+    manual_fields = (
+        "indication", "warnings", "concentration",
+        "concentration_unit", "prescribing_hospital",
+    )
+    existing = {
+        row[0]: dict(zip(manual_fields, row[1:]))
+        for row in existing_rows
+    }
+    existing_ids = set(existing)
     incoming_ids = {record["id"] for record in medications}
     added_ids = sorted(incoming_ids - existing_ids)
+
+    # HIS has no source columns for these optional fields. Keep the user's
+    # existing supplement instead of replacing it with converter placeholders.
+    for record in medications:
+        old = existing.get(record["id"])
+        if not old:
+            continue
+        for field in manual_fields:
+            if record.get(field) in (None, "", []) and old[field] not in (None, "", []):
+                record[field] = old[field]
 
     upserted = await upsert_records(session, "medications", medications)
 
     stale_ids = sorted(existing_ids - incoming_ids)
     protected_ids: list[str] = []
     deleted_ids: list[str] = []
+
+    if not delete_stale:
+        return {
+            "upserted": upserted,
+            "added": len(added_ids),
+            "added_ids": added_ids,
+            "deleted": 0,
+            "deleted_ids": [],
+            "protected": 0,
+            "protected_ids": [],
+            "partial_source": True,
+        }
 
     for medication_id in stale_ids:
         admin_row = await session.execute(
@@ -564,6 +639,12 @@ def compute_medication_coverage(medications: list[dict[str, Any]]) -> dict[str, 
 
 async def sync_snapshot_into_session(session: Any, snapshot: SnapshotInfo) -> dict[str, Any]:
     converter = HISConverter(str(snapshot.snapshot_dir), pat_no=snapshot.mrn)
+    lab_source_rows = converter._load_all("getLabResult.json")
+    medication_source_rows = (
+        converter._load_all("getAllMedicine.json")
+        + converter._load_seq("getMedicine")
+    )
+    order_source_rows = converter._load_all("getAllOrder.json")
     result = converter.convert_all()
     if "error" in result:
         raise ValueError(result["error"])
@@ -579,15 +660,42 @@ async def sync_snapshot_into_session(session: Any, snapshot: SnapshotInfo) -> di
     merged_patient["last_update"] = datetime.now(timezone.utc)
     await upsert_patient(session, merged_patient)
 
+    # HIS sometimes returns an error/message row inside an otherwise valid
+    # response.  Such snapshots are partial: update what arrived but never
+    # interpret absence as deletion.
+    lab_source_complete = bool(lab_source_rows) and all(
+        row.get("LAB_CODE") for row in lab_source_rows
+    )
+    medication_source_complete = bool(medication_source_rows) and all(
+        row.get("ODR_CODE") for row in medication_source_rows
+    )
+    source_complete = {
+        "lab_data": lab_source_complete,
+        "culture_results": lab_source_complete,
+        "diagnostic_reports": bool(order_source_rows),
+    }
+
     replace_counts = {}
     for table, records in (
         ("lab_data", result["lab_data"]),
         ("culture_results", result["culture_results"]),
         ("diagnostic_reports", result["diagnostic_reports"]),
     ):
-        replace_counts[table] = await replace_patient_records(session, table, patient_id, records)
+        if source_complete[table]:
+            replace_counts[table] = await replace_patient_records(
+                session, table, patient_id, records,
+            )
+        else:
+            replace_counts[table] = await upsert_patient_records(
+                session, table, patient_id, records,
+            )
 
-    medication_summary = await reconcile_medications(session, patient_id, result["medications"])
+    medication_summary = await reconcile_medications(
+        session,
+        patient_id,
+        result["medications"],
+        delete_stale=medication_source_complete,
+    )
 
     # Vital signs (getTPR): upsert HIS-id rows only. upsert_records never
     # DELETEs, and HIS rows carry deterministic vit_* ids while manual entries

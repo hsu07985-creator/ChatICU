@@ -180,6 +180,59 @@ async def test_medications_payload_exposes_interactions_error_flag(client, seede
 
 
 @pytest.mark.asyncio
+async def test_his_medication_blocks_manual_change_to_automatic_field(
+    client, seeded_db,
+):
+    med = Medication(
+        id="med_his_owned", patient_id="pat_001", name="HIS drug",
+        order_code="HIS001", dose="1", status="active",
+    )
+    seeded_db.add(med)
+    await seeded_db.commit()
+
+    response = await client.patch(
+        "/patients/pat_001/medications/med_his_owned",
+        json={"dose": "2"},
+    )
+
+    assert response.status_code == 409
+    assert "dose" in response.json()["message"]
+    await seeded_db.refresh(med)
+    assert med.dose == "1"
+
+
+@pytest.mark.asyncio
+async def test_his_medication_allows_missing_source_supplement(client, seeded_db):
+    med = Medication(
+        id="med_his_supplement", patient_id="pat_001", name="HIS drug",
+        order_code="HIS002", dose="1", status="active",
+    )
+    seeded_db.add(med)
+    await seeded_db.commit()
+
+    response = await client.patch(
+        "/patients/pat_001/medications/med_his_supplement",
+        json={"indication": "manual supplement", "prescribingHospital": "外院"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["indication"] == "manual supplement"
+    assert response.json()["data"]["prescribingHospital"] == "外院"
+
+
+@pytest.mark.asyncio
+async def test_manual_medication_remains_fully_editable(client, seeded_medication):
+    response = await client.patch(
+        f"/patients/pat_001/medications/{seeded_medication.id}",
+        json={"dose": "3", "route": "PO"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["dose"] == "3"
+    assert response.json()["data"]["route"] == "PO"
+
+
+@pytest.mark.asyncio
 async def test_patch_medication_administration_persists_in_database(
     client,
     seeded_medication,

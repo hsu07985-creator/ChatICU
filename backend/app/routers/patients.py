@@ -796,7 +796,8 @@ async def get_cultures(
         raw = await db.execute(
             text(
                 "SELECT id, sheet_number, specimen, specimen_code, collected_at, "
-                "reported_at, department, isolates, susceptibility, q_score, result "
+                "reported_at, department, isolates, susceptibility, q_score, result, "
+                "source_campus, source_details "
                 "FROM culture_results WHERE patient_id = :pid "
                 "ORDER BY collected_at DESC"
             ),
@@ -826,6 +827,8 @@ async def get_cultures(
                 "susceptibility": r[8] or [],
                 "qScore": r[9],
                 "result": r[10],
+                "sourceCampus": r[11],
+                "sourceDetails": r[12],
             }
             for r in rows
         ]
@@ -842,6 +845,8 @@ async def get_cultures(
                 "susceptibility": r.susceptibility or [],
                 "qScore": getattr(r, "q_score", None),
                 "result": getattr(r, "result", None),
+                "sourceCampus": getattr(r, "source_campus", None),
+                "sourceDetails": getattr(r, "source_details", None),
             }
             for r in orm_rows
         ]

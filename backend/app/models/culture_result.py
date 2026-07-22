@@ -29,6 +29,8 @@ class CultureResult(Base):
     susceptibility: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True, default=list)
     q_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     result: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    source_campus: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    source_details: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

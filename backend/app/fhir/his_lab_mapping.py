@@ -561,6 +561,33 @@ HIS_LAB_MAP: Dict[str, Tuple[str, str, str]] = {
     "13A09":  ("gram_stain", "YeastLike",    "Yeast Like"),
     "13A10":  ("gram_stain", "Other",        "Other"),
     "3SAM4":  ("gram_stain", "_SampleType",  "SampleType"),
+
+    # --- Direct mappings present in the 2026-07-21 patient snapshot ---
+    "10511":  ("tdm", "Digoxin", "Digoxin"),
+    "12022":  ("tumor_marker", "BetaHCG", "β-HCG"),
+    "12080":  ("tumor_marker", "SCC", "SCC"),
+    "12081":  ("tumor_marker", "PSA", "PSA"),
+    "1208R":  ("tumor_marker", "FreePSARatio", "Free PSA/T-PSA RATIO"),
+    "12107":  ("serology", "ChlamydiaIgG", "砂眼披衣菌IgG抗體"),
+    "12182":  ("molecular", "MTBCPCR", "結核桿菌群分生篩檢(MTBC-PCR):"),
+    "1219":   ("serology", "LegionellaUAg", "退伍軍人症尿抗原試驗"),
+    "12198":  ("tumor_marker", "FreePSA", "Free PSA"),
+    "12211":  ("tumor_marker", "PIVKAII", "PIVKA-II"),
+    "218OT":  ("molecular", "MTBCPCROther", "結核桿菌群分生篩檢-其他(MTBC-P"),
+    "8075":   ("biochemistry", "Osmolality", "Osmolality"),
+    "9005B":  ("biochemistry", "Glucose", "快速血糖"),
+    "9023":   ("biochemistry", "Cl", "Cl"),
+    "9029":   ("biochemistry", "TBil", "Bilirubin Total"),
+    "9030":   ("biochemistry", "DBil", "Bilirubin Direct"),
+    "9033":   ("biochemistry", "LDH", "LDH"),
+    "904TU":  ("urinalysis", "Protein24h", "Protein Urine 24HR"),
+    "90CRE":  ("urinalysis", "Creatinine24h", "Creatinin Urine 24HR"),
+    "9134A":  ("stool", "OccultBlood", "Stool Occult Blood(EIA)"),
+    "BIOUR":  ("urinalysis", "Volume24h", "urine volume(24hr)"),
+    "CL":     ("susceptibility", "Colistin", "Colistin"),
+    "HYALI":  ("urinalysis", "HyalineCast", "Hyaline Cast"),
+    "SPERM":  ("urinalysis", "Spermatozoa", "Spermatozoa"),
+    "XPERT":  ("molecular", "XpertMTBRIF", "結核菌快速分子檢測(Xpert MTB/R"),
 }
 
 # =========================================================================== #

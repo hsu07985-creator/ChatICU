@@ -31,6 +31,9 @@ class MedicationUpdate(BaseModel):
     concentration: Optional[str] = None
     concentrationUnit: Optional[str] = None
     notes: Optional[str] = None
+    indication: Optional[str] = None
+    warnings: Optional[List[str]] = None
+    prescribingHospital: Optional[str] = None
 
 
 class MedicationAdministrationUpdate(BaseModel):
@@ -107,6 +110,7 @@ class MedicationResponse(_CamelModel):
     name: _Optional[str] = None
     generic_name: _Optional[str] = None
     order_code: _Optional[str] = None
+    nhi_code: _Optional[str] = None
     category: _Optional[str] = None
     san_category: _Optional[str] = None
     dose: _Optional[str] = None
@@ -134,6 +138,7 @@ class MedicationResponse(_CamelModel):
     is_antibiotic: bool = False
     kidney_relevant: _Optional[bool] = None
     coding_source: _Optional[str] = None
+    source_details: _Optional[dict] = None
 
     @_field_validator("warnings", mode="before")
     @classmethod

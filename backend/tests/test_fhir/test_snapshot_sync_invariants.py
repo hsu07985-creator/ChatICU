@@ -25,6 +25,7 @@ from app.fhir.snapshot_sync import (
     insert_records,
     reconcile_medications,
     replace_patient_records,
+    upsert_patient_records,
     upsert_records,
 )
 from app.models.lab_data import LabData
@@ -68,6 +69,57 @@ def _med_record(med_id: str, patient_id: str, name: str, status: str = "active")
         "source_type": "inpatient",
         "is_external": False,
     }
+
+
+@pytest.mark.asyncio
+async def test_reconcile_medications_preserves_manual_supplements(db_session) -> None:
+    await _seed_patient(db_session)
+    db_session.add(Medication(
+        id="med_manual", patient_id="pat_inv", name="Old", status="active",
+        indication="manual indication", warnings=["manual warning"],
+        concentration="5", concentration_unit="mg/mL",
+        prescribing_hospital="manual hospital",
+    ))
+    await db_session.commit()
+
+    incoming = {
+        **_med_record("med_manual", "pat_inv", "Updated from HIS"),
+        "indication": None, "warnings": [], "concentration": None,
+        "concentration_unit": None, "prescribing_hospital": None,
+    }
+    await reconcile_medications(db_session, "pat_inv", [incoming])
+    await db_session.commit()
+
+    med = (
+        await db_session.execute(select(Medication).where(Medication.id == "med_manual"))
+    ).scalar_one()
+    assert med.name == "Updated from HIS"
+    assert med.indication == "manual indication"
+    assert med.warnings == ["manual warning"]
+    assert med.concentration == "5"
+    assert med.concentration_unit == "mg/mL"
+    assert med.prescribing_hospital == "manual hospital"
+
+
+@pytest.mark.asyncio
+async def test_partial_medication_source_never_deletes_stale_rows(db_session) -> None:
+    await _seed_patient(db_session)
+    db_session.add(Medication(
+        id="med_existing", patient_id="pat_inv", name="Existing", status="active",
+    ))
+    await db_session.commit()
+
+    summary = await reconcile_medications(
+        db_session, "pat_inv", [], delete_stale=False,
+    )
+    await db_session.commit()
+
+    assert summary["partial_source"] is True
+    assert summary["deleted"] == 0
+    remaining = (
+        await db_session.execute(select(Medication.id).where(Medication.id == "med_existing"))
+    ).scalar_one()
+    assert remaining == "med_existing"
 
 
 # ────────────────────────────────────────────────────────────────────────
@@ -392,6 +444,50 @@ async def test_replace_patient_records_with_empty_incoming_removes_all(
         )
     ).all()
     assert remaining == []
+
+
+@pytest.mark.asyncio
+async def test_replace_lab_records_preserves_user_corrections(db_session) -> None:
+    await _seed_patient(db_session)
+    timestamp = datetime(2026, 4, 20, 8, 0, tzinfo=timezone.utc)
+    corrections = {"biochemistry.Na": {"value": "139", "reason": "verified"}}
+    db_session.add(LabData(
+        id="lab_corrected", patient_id="pat_inv", timestamp=timestamp,
+        biochemistry={"Na": {"value": "140"}}, corrections=corrections,
+    ))
+    await db_session.commit()
+
+    await replace_patient_records(db_session, "lab_data", "pat_inv", [{
+        "id": "lab_corrected", "patient_id": "pat_inv", "timestamp": timestamp,
+        "biochemistry": {"Na": {"value": "141"}},
+    }])
+    await db_session.commit()
+
+    row = (
+        await db_session.execute(select(LabData).where(LabData.id == "lab_corrected"))
+    ).scalar_one()
+    assert row.biochemistry["Na"]["value"] == "141"
+    assert row.corrections == corrections
+
+
+@pytest.mark.asyncio
+async def test_partial_lab_upsert_keeps_absent_rows(db_session) -> None:
+    await _seed_patient(db_session)
+    db_session.add(LabData(
+        id="lab_existing", patient_id="pat_inv",
+        timestamp=datetime(2026, 4, 20, 8, 0, tzinfo=timezone.utc),
+        biochemistry={"Na": {"value": "140"}},
+    ))
+    await db_session.commit()
+
+    delta = await upsert_patient_records(db_session, "lab_data", "pat_inv", [])
+    await db_session.commit()
+
+    assert delta["partial_source"] is True
+    assert delta["removed"] == 0
+    assert (
+        await db_session.execute(select(LabData.id).where(LabData.id == "lab_existing"))
+    ).scalar_one() == "lab_existing"
 
 
 # ────────────────────────────────────────────────────────────────────────

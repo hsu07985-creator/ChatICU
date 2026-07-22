@@ -62,6 +62,7 @@ class Medication(Base):
     is_antibiotic: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
     kidney_relevant: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
     coding_source: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # see app.models.coding_source.VALID_CODING_SOURCES
+    source_details: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

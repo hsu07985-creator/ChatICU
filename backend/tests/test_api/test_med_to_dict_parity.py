@@ -32,7 +32,8 @@ def _full_med() -> Medication:
 
 GOLDEN = {
     "id": "med_001", "patientId": "pat_001", "name": "Vancomycin",
-    "genericName": "vancomycin", "orderCode": "VAN01", "category": "抗生素",
+    "genericName": "vancomycin", "orderCode": "VAN01", "nhiCode": None,
+    "category": "抗生素",
     "sanCategory": "S",             # normalize:strip+upper
     "dose": "1000", "unit": "mg", "frequency": "q12h", "route": "IV",
     "prn": False, "indication": "MRSA pneumonia",
@@ -45,7 +46,7 @@ GOLDEN = {
     "prescribingDepartment": None, "prescribingDoctorName": None,
     "daysSupply": 7, "isExternal": False,  # None → False
     "atcCode": "J01XA01", "isAntibiotic": True,
-    "kidneyRelevant": True, "codingSource": "rxnorm",
+    "kidneyRelevant": True, "codingSource": "rxnorm", "sourceDetails": None,
 }
 
 

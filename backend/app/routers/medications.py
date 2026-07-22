@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.fhir.his.resources import _DDI_ALIAS_MAP, _DDI_EXCLUSION_SET
 from app.dependencies import get_accessible_patient
 from app.utils.request import get_client_ip
 from app.middleware.auth import get_current_user, require_roles
@@ -177,8 +178,10 @@ async def compute_medications_payload(
             med_names: list = []
             med_atcs: set = set()
             for m in active_meds:
-                raw = (m.generic_name or m.name or "").strip()
-                for part in raw.split(" / "):
+                code = (m.order_code or "").strip()
+                raw = "" if code in _DDI_EXCLUSION_SET else (m.generic_name or m.name or "").strip()
+                names = _DDI_ALIAS_MAP.get(code) or raw.split(" / ")
+                for part in names:
                     part = part.strip()
                     if part and part.lower() not in seen_names:
                         seen_names.add(part.lower())
@@ -383,10 +386,23 @@ async def update_medication(
     med = await _get_medication_or_404(db, pid, medication_id)
 
     update_data = body.model_dump(exclude_unset=True)
+    manual_supplement_fields = {
+        "indication", "warnings", "concentration",
+        "concentrationUnit", "prescribingHospital",
+    }
+    if med.order_code:
+        blocked = sorted(set(update_data) - manual_supplement_fields)
+        if blocked:
+            raise HTTPException(
+                status_code=409,
+                detail=f"HIS 自動欄位不可手動修改: {', '.join(blocked)}",
+            )
+
     field_map = {
         "endDate": "end_date",
         "sanCategory": "san_category",
         "concentrationUnit": "concentration_unit",
+        "prescribingHospital": "prescribing_hospital",
     }
     # Snapshot before-state on mapped column names for audit diff
     mapped_keys = [field_map.get(k, k) for k in update_data.keys()]

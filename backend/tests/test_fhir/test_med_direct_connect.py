@@ -45,11 +45,15 @@ def test_san_none_when_neither_matches() -> None:
 
 # ---- converter medication direct-connect ---------------------------------
 
-def _snapshot(root: Path, pat_no: str, med_rows: list) -> str:
+def _snapshot(root: Path, pat_no: str, med_rows: list, seq_rows: list | None = None) -> str:
     merged = {
         "getPatient": {"Succ": True, "Data": [{"PAT_NO": pat_no, "PAT_NAME": "測試", "SEX": "M", "BIRTHDAY": "0400101"}]},
         "getAllMedicine": {"Succ": True, "Data": med_rows},
     }
+    if seq_rows is not None:
+        merged["getMedicine_AllPatientSeq"] = {
+            "Responses": [{"Succ": True, "Data": seq_rows}],
+        }
     snap = root / pat_no / "20260722_000000"
     snap.mkdir(parents=True)
     (root / pat_no / "latest.txt").write_text("20260722_000000")
@@ -63,6 +67,33 @@ def _convert(med_rows: list) -> list:
         return HISConverter(snap, pat_no="99999999").convert_medications()
 
 
+def test_primary_seq_is_merged_with_all_campuses() -> None:
+    shared = {
+        "PAT_SEQ": "M001", "ODR_SEQ": "1", "ODR_CODE": "MAIN1",
+        "ODR_NAME": "Main drug", "DRUG_NAME": "Main generic",
+        "ATC_CODE": "A01AA01", "HDEPT_NAME": "ICU",
+    }
+    extra = {
+        "PAT_SEQ": "Q001", "ODR_SEQ": "2", "ODR_CODE": "EXTRA1",
+        "ODR_NAME": "Extra drug", "DRUG_NAME": "Extra generic",
+        "ATC_CODE": "A01AA02", "_source_factory": "Factory_Q",
+    }
+    seq_only = {
+        "PAT_SEQ": "M001", "ODR_SEQ": "3", "ODR_CODE": "SEQ1",
+        "ODR_NAME": "Seq drug", "DRUG_NAME": "Seq generic",
+        "ATC_CODE": "A01AA03",
+    }
+    with tempfile.TemporaryDirectory() as tmp:
+        snap = _snapshot(Path(tmp), "99999999", [shared, extra], [shared, seq_only])
+        meds = HISConverter(snap, pat_no="99999999").convert_medications()
+
+    assert {m["order_code"] for m in meds} == {"MAIN1", "EXTRA1", "SEQ1"}
+    by_code = {m["order_code"]: m for m in meds}
+    assert by_code["MAIN1"]["prescribing_department"] == "ICU"
+    assert by_code["MAIN1"]["source_campus"] == "MAIN"
+    assert by_code["EXTRA1"]["source_campus"] == "Factory_Q"
+
+
 def test_generic_name_from_his_drug_name() -> None:
     # ODR_CODE not in formulary/alias/exclusion → terminal else uses DRUG_NAME
     (med,) = _convert([{"ODR_CODE": "ZZTEST01", "ODR_NAME": "Seroquel 25mg tab",
@@ -72,6 +103,17 @@ def test_generic_name_from_his_drug_name() -> None:
     assert med["generic_name"] == "Quetiapine"       # not brand "Seroquel"
     assert med["name"] == "Seroquel 25mg tab"        # display keeps trade+strength
     assert med["nhi_code"] == "AC12345100"
+
+
+def test_his_generic_and_atc_are_not_overwritten_by_ddi_or_formulary() -> None:
+    (med,) = _convert([{
+        "ODR_CODE": "IAMIN9", "ODR_NAME": "Amikacin inj",
+        "DRUG_NAME": "Amikacin", "ATC_CODE": "J01GB06",
+        "ODR_SEQ": "9",
+    }])
+    assert med["generic_name"] == "Amikacin"
+    assert med["atc_code"] == "J01GB06"
+    assert med["coding_source"] == "his_atc"
 
 
 def test_generic_name_combo_splits_on_comma() -> None:
