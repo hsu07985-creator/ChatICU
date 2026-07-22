@@ -128,6 +128,8 @@ python3 scripts/sync_his_snapshots_serial.py                     # 增量（依 
 
 2026-07-22 Pain/SAN 顯示規則：`GET /patients/{id}/scores/latest` 回傳 `painOwnership`。只要該病人有任一筆 HIS Pain 即為 `auto`，前端只讀並保留 0 分；完全沒有 HIS Pain 才是 `orphan`，可用 0–10 選擇器人工補錄。藥物 `sanCategory` 只能由每筆原始 HIS `ATC_CODE` 產生，禁止藥名關鍵字與 formulary fallback；A/S/N 彩色標籤顯示於 active summary、一般／停用、住院／門診／自備、重複用藥及明細視窗。RASS 仍維持手動。
 
+2026-07-23 前端決策：病人「用藥」 tab 不顯示 PAD 藥物劑量計算；PAD 只保留於 `/pharmacy/dosage`。微生物頁需同時容忍新與舊 cultures API：所有可選陣列與舊版預設值集中在 `src/lib/api/microbiology.ts` 正規化，UI 不可直接假設新欄位必定存在。
+
 ### 為何禁用舊版 `sync_his_snapshots.py`（2026-04-27 發現）
 舊版用 `asyncio.create_task` + `Semaphore` + `as_completed` + `engine.dispose()` 與 Supabase pooler (port 6543, transaction mode) 互動會 **silent fail**：
 - ✅ console 報告 `synced=14, errors=0`

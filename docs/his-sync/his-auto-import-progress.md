@@ -9,6 +9,8 @@
 
 **2026-07-22 欄位串接已完成：HIS 病人的自動欄位由 API 邊界禁止人工覆寫；生命徵象以逐欄最新值合併 HIS TPR 與五個人工指標；藥物、檢驗、培養與真正的 AI／手術報告均已直接連到目前 `patient/` 快照。藥物可見標籤已封口為 ATC/FREQ 等原始欄位驅動，不再使用藥名、備註或前端醫令碼關鍵字。同步 state 加入 mapping schema version，converter 改版時即使快照 hash 不變也會重跑。**
 
+> **2026-07-23 微生物前後端滾動部署規則**：新工作清單會使用 `recordType` / `status` / `stainResults` / `alerts`，但 production 後端仍可能回傳舊 culture contract。`src/lib/api/microbiology.ts` 是唯一相容邊界，必須將 `cultures`、`isolates`、`susceptibility`、`stainResults`、`alerts` 正規化為陣列，並為舊資料補上中性的 `recordType='culture'` / `status='reported'`；不得把 guard 分散到 UI。
+
 > **2026-07-21 更正**：先前記「Vercel 未切版（bundle 仍 C1j_oTLU）」是**誤判**——`index-*.js` 是 entry chunk，Vite 依內容 hash，而 `patient-edit-dialog.tsx` + 所有 locale JSON 都 static-import 進 entry chunk，內容變了但**檔名 hash 恰好沒變**。實測 `curl chat-icu.vercel.app` 的 `index-C1j_oTLU.js` **已含 `hisSyncNote` ×3 + 中英 banner 全文**，且 Vercel deployment overview 顯示 `66c6a48` = Production·Current、`chat-icu.vercel.app` 已指向它。**前端已生效，無需再 Promote。** 教訓：驗證「切版沒」別只比 index hash，直接 grep 服務中 bundle 的新字串。
 
 ---
@@ -25,8 +27,11 @@
 | `c7e01516d` | 成功空院區 marker 完整性判定；讓 lab/culture 完整 reconcile 清除舊分組 ID | `snapshot_sync.py`、serial sync version `2026-07-22.3` + 測試 |
 | 本次藥物標籤封口 | category/SAN/抗感染改由 raw ATC；STAT/PRN 由 FREQ；移除自備藥與前端名稱推論 | converter、medications API、前端 medication helpers；serial sync `2026-07-22.4` |
 | `d21e25564` | current `getIpd`、結構化過敏 ownership、出院日期、HIS Pain 不可異動；migration 087 | converter、snapshot sync、patients/scores API、前端 ownership；serial sync `2026-07-22.8` |
+| `ac2487dd0` | 微生物 API 增加染色、警示、類型與狀態；前端重塑為 worklist | converter、cultures router/tests、`patient-microbiology-card.tsx`、i18n |
+| `d18753bff` | 微生物 API adapter 正規化新舊 contract，避免舊後端缺少陣列欄位時 `.length` 崩潰 | `src/lib/api/microbiology.ts` |
+| `c7da5837a` | 依產品決策從病人「用藥」頁移除 PAD 劑量計算，獨立劑量計算頁保留 | `patient-medications-tab.tsx` |
 
-以上變更都在 `main`，已 `git push personal main`（Railway）+ `git push railway main`（Vercel）。
+`d21e25564` 以前的串接封口已同步至 Railway 與 Vercel。2026-07-23 的微生物/PAD 前端已推至 `railway/main`；`ac2487dd0` 的 cultures 後端擴充尚未推至 `personal/main`，因此 production 前端以 `d18753bff` adapter 兼容現行舊後端 contract。
 
 **接了哪些欄位**（來源見 [gap-closure §2](./manual-to-auto-gap-closure-2026-07-21.md)）：床號(getICUbed)、身高/體重/BMI(sbNutrition)、插管/氣切+日期(sbTube)、食物過敏(sbDisease)、生命徵象 HR/BP/RR/體溫(getTPR)。
 **歸類**：patient 欄走 `PRESERVE_EXISTING`+`_is_meaningful`（HIS 有值就覆蓋、沒值保留手動，零資料遺失）；vital_signs 用 `upsert_records`（只 upsert HIS-id 列，手動列含 SpO2 永不被碰）。**沒動 frozenset**。
@@ -37,8 +42,8 @@
 
 | 元件 | 狀態 | 備註 |
 |---|---|---|
-| **Railway 後端** | ✅ 已部署（commit `d21e25564`，GitHub deploy status = success） | `alembic_version=087`；health `database=ok`。 |
-| **Vercel 前端** | ✅ **已上線**（commit `d21e25564`，Vercel status = success） | production bundle `index-BYK4922I.js`；未洩漏 Railway 直連 URL。 |
+| **Railway 後端** | ✅ 已部署（commit `d21e25564`，GitHub deploy status = success） | `alembic_version=087`；health `database=ok`；`ac2487dd0` cultures 擴充尚未上線。 |
+| **Vercel 前端** | ✅ **已上線**（commit `c7da5837a`，Vercel status = Ready） | 微生物新舊 contract 相容；病人用藥頁已移除 PAD 計算器。 |
 
 ---
 
