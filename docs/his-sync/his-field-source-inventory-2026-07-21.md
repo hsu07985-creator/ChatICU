@@ -1,6 +1,6 @@
 # HIS 自動匯入 vs 手動輸入 — 全欄位來源盤點
 
-> 版本：2026-07-21；現況修訂：2026-07-22（commit `1574779b1`） ｜ 域：his-sync ｜ 對象：後端/前端工程師 + 臨床使用者
+> 版本：2026-07-21；現況修訂：2026-07-22（commit `c7e01516d`） ｜ 域：his-sync ｜ 對象：後端/前端工程師 + 臨床使用者
 > 配對閱讀：[`docs/his-sync/資料更新_0424.md`](../his-sync/資料更新_0424.md)、[`backend/CLAUDE.md`](../../backend/CLAUDE.md)（Data Coverage Summary）
 
 ---
@@ -21,6 +21,7 @@
 - **Raw source**：藥物與培養新增 JSONB `source_details`；藥物另保存 `source_campus`，培養新增 `source_campus`。schema migration = 085。
 - **實測**：10 位病患，medications 2,120、lab items 6,224、culture/AST items 1,812、MIC 98，逐筆 source counter 與數值差異皆為 0；空白 lab orphan = 0。
 - **同步版本**：serial state 保存 `schema_version`；converter/mapping 版本不同時，即使來源 hash 相同仍分類為 changed 並重新匯入。目前版本 `2026-07-22.3`。
+- **正式驗收**：10 位 active 病患、所有 converter 自動欄位逐筆對 DB mismatch=0；medications 2,120、lab_data 829 組／6,224 items、culture_results 204 組／1,812 source items、reports 43、vitals 4,484、pain scores 4。
 
 ---
 

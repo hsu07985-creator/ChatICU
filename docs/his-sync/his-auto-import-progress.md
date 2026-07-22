@@ -20,9 +20,11 @@
 | `e812aaa9d` | 後端：新格式 loader（ALL_MERGED fallback）+ converter 接 bed/身高體重/氣道/過敏 + `convert_vital_signs`(getTPR→vital_signs) | `backend/app/fhir/his/snapshot_io.py`、`converter.py`、`snapshot_sync.py` + 測試 |
 | `66c6a4841` | 前端：編輯對話框加「HIS 每小時覆蓋」提示 banner + 修 `.gitignore` `/patient/` 錨定 | `src/components/patient/dialogs/patient-edit-dialog.tsx`、`src/i18n/locales/{zh-TW,en-US}/patients.json`、`.gitignore` |
 | `1574779b1` | 後端：藥物/檢驗/培養完整來源保留、部分來源防誤刪、人工補充保留、HIS 自動欄位禁止手動改、migration 085 | `converter.py`、`snapshot_sync.py`、models/routers/schemas + 測試 |
-| 2026-07-22 欄位封口 | patient PATCH ownership、sparse vital merge + per-field timestamp、手動 vital 欄位限制、sync schema version、排除把影像醫囑誤當 final report | patients/vital routers、vital schema、converter、serial sync + API/FHIR 測試 |
+| `2109f5526` | patient PATCH ownership、sparse vital merge + per-field timestamp、手動 vital 欄位限制、sync schema version、排除把影像醫囑誤當 final report | patients/vital routers、vital schema、converter、serial sync + API/FHIR 測試 |
+| `eed377a7b` | migration 086 修復 production 遺失的 `patients.intubation_date` 實體欄位 | `backend/alembic/versions/086_repair_patient_intubation_date.py` |
+| `c7e01516d` | 成功空院區 marker 完整性判定；讓 lab/culture 完整 reconcile 清除舊分組 ID | `snapshot_sync.py`、serial sync version `2026-07-22.3` + 測試 |
 
-兩個 commit 都在 `main`，已 `git push personal main`（Railway）+ `git push railway main`（Vercel）。
+以上變更都在 `main`，已 `git push personal main`（Railway）+ `git push railway main`（Vercel）。
 
 **接了哪些欄位**（來源見 [gap-closure §2](./manual-to-auto-gap-closure-2026-07-21.md)）：床號(getICUbed)、身高/體重/BMI(sbNutrition)、插管/氣切+日期(sbTube)、食物過敏(sbDisease)、生命徵象 HR/BP/RR/體溫(getTPR)。
 **歸類**：patient 欄走 `PRESERVE_EXISTING`+`_is_meaningful`（HIS 有值就覆蓋、沒值保留手動，零資料遺失）；vital_signs 用 `upsert_records`（只 upsert HIS-id 列，手動列含 SpO2 永不被碰）。**沒動 frozenset**。
@@ -33,8 +35,8 @@
 
 | 元件 | 狀態 | 備註 |
 |---|---|---|
-| **Railway 後端** | ✅ 已部署（commit `1574779b1`，GitHub deploy status = success） | 啟動命令已執行 `alembic upgrade head`；schema head = 085 |
-| **Vercel 前端** | ✅ **已上線**（deployment `dpl_Hc5J1ephB3JZ9G5u2VCd5YFL36yF` = Production Ready） | `chat-icu.vercel.app` 已指向本次 main 部署；本次沒有改 UI。 |
+| **Railway 後端** | ✅ 已部署（commit `c7e01516d`，GitHub deploy status = success） | `alembic_version=086`；production 已確認 `patients.intubation_date` 存在。 |
+| **Vercel 前端** | ✅ **已上線**（commit `c7e01516d`，Vercel status = success） | `chat-icu.vercel.app` 已指向本次 main 部署；本次沒有改 UI。 |
 
 ---
 
@@ -59,6 +61,9 @@
 - **Playwright 本機 UI 走測**：登入 → 病人列表顯示 MICU11/MICU17、氣切/插管；編輯對話框 banner 有出現、床號/身高/氣切日期自動帶入。**床號更新測試**：手動改 `A-99-TEST` 存得進 DB（更新功能正常）→ 重跑 sync → 變回 `MICU17`（**確認「手動床號撐不過下次同步」= 預期行為**）。
 - **2026-07-22 真實快照逐筆驗收**：10 位病患；藥物 **2,120/2,120**、檢驗 **6,224/6,224**、培養/藥敏 **1,812/1,812** 全數對上原始 `patient/` 欄位，數值差異 0；MIC **98/98**；空白 lab orphan 0。
 - **分組基準**：同一批快照應落庫為 lab_data **829** 組、culture_results **204** 組；成功空院區 marker 不再使整批誤判 partial，因此舊版分組 ID 可由完整 replace 正常清除。
+- **Production 最終比對（2026-07-22）**：10 位 active 病患；medications **2,120**（`source_details` **2,120**）、lab_data **829** 組／項目 **6,224**（含 source **6,224**）、culture_results **204** 組／source items **1,812**、diagnostic_reports **43**（ECG AI **40**＋procedure **3**）、vital_signs **4,484**、clinical_scores **4**。以 converter 的 id 與每個自動欄位逐筆比正式 DB，**auto field mismatch = 0**。
+- **熱同步與冪等**：`--force` 結果 synced **10/10**、errors **0**，完整 reconcile 清除舊分組 ID；緊接著非 force 結果 unchanged **10**、synced **0**、errors **0**，DB `sync_status.details.last_run` 已保存相同結果。
+- **本次回歸/CI**：本機 API+FHIR **571 passed / 15 skipped**；GitHub backend-test、backend-lint、migration-check、security、static guards、frontend build、critical E2E、DAST、Docker build 全部 success。
 - **報告語意修正**：`getAllOrder` 是醫囑，不再轉成 final diagnostic report；目前快照只匯入真正的 ECG AI **40** 筆與手術報告 **3** 筆。ID 改由來源 sheet／手術代碼與日期決定，不再依陣列順序。
 - **生命徵象**：HIS `vit_*` 只供 HR/BP/MAP/RR/體溫，人工 `vs_*` 只供 SpO₂/EtCO₂/CVP/ICP/CPP；latest、bootstrap 與人工 POST 回應均逐欄合併，趨勢/歷史維持原始列。
 - **2026-07-22 回歸/部署驗收**：本機 backend **909 passed / 40 skipped**；GitHub CI 的 backend-test、lint、migration-check、security、frontend build、critical E2E、DAST、Docker build 全數 success；Railway + Vercel production success。
