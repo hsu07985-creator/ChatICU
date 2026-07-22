@@ -96,11 +96,12 @@ def test_primary_seq_is_merged_with_all_campuses() -> None:
     assert {m["order_code"] for m in meds} == {"MAIN1", "EXTRA1", "SEQ1"}
     by_code = {m["order_code"]: m for m in meds}
     assert by_code["MAIN1"]["prescribing_department"] == "ICU"
-    assert by_code["MAIN1"]["source_campus"] == "MAIN"
+    assert by_code["MAIN1"]["source_campus"] == "陽明院區"
     assert by_code["MAIN1"]["source_details"]["HDEPT_NAME"] == "ICU"
     assert by_code["MAIN1"]["source_details"]["DRUG_NAME"] == "Main generic"
     assert by_code["SEQ1"]["source_details"]["ODR_CODE"] == "SEQ1"
-    assert by_code["EXTRA1"]["source_campus"] == "Factory_Q"
+    assert by_code["EXTRA1"]["source_campus"] == "忠孝院區"
+    assert by_code["EXTRA1"]["source_details"]["_source_factory"] == "Factory_Q"
 
 
 def test_generic_name_from_his_drug_name() -> None:

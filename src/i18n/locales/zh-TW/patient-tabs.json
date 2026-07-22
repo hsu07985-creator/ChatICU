@@ -3,10 +3,10 @@
     "legend": "資料來源",
     "auto": "自動",
     "manual": "手動",
-    "orphan": "孤兒・暫時手動",
+    "orphan": "手動",
     "autoDescription": "由 HIS／病患快照自動帶入，前端不可手動修改",
     "manualDescription": "目前沒有自動來源，依正式流程由使用者輸入",
-    "orphanDescription": "目前沒有自動來源或完整流程，暫時開放人工補登"
+    "orphanDescription": "目前沒有自動來源或完整流程，開放人工補登"
   },
   "summary": {
     "infoCard": {

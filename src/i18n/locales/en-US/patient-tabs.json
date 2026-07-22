@@ -3,10 +3,10 @@
     "legend": "Data source",
     "auto": "Auto",
     "manual": "Manual",
-    "orphan": "Orphan · temporary manual",
+    "orphan": "Manual",
     "autoDescription": "Automatically populated from HIS/patient snapshots and not editable here",
     "manualDescription": "No automatic source; entered through the supported manual workflow",
-    "orphanDescription": "No automatic source or complete workflow yet; temporary manual entry is enabled"
+    "orphanDescription": "No automatic source or complete workflow yet; manual entry is enabled"
   },
   "summary": {
     "infoCard": {

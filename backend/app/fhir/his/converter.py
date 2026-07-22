@@ -42,6 +42,15 @@ from app.fhir.his.roc_time import (
 # The number keeps its 2-digit zero-padded form; non-ICU codes are returned as-is.
 _ICU_BED_RE = re.compile(r"^[A-Za-z]*ICU0*(\d+)$", re.IGNORECASE)
 
+_CAMPUS_NAMES = {
+    "MAIN": "陽明院區",
+    "Factory_M": "陽明院區",
+    "Factory_G": "中興院區",
+    "Factory_Q": "忠孝院區",
+    "Factory_H": "和平院區",
+    "Factory_F": "仁愛院區",
+}
+
 
 def _format_bed_number(code: str) -> str:
     m = _ICU_BED_RE.match(code)
@@ -499,7 +508,9 @@ class HISConverter:
                 "concentration_unit": None,
                 "notes": m.get("NOTES"),
                 "source_type": source_type,
-                "source_campus": m.get("_source_factory"),
+                "source_campus": _CAMPUS_NAMES.get(
+                    m.get("_source_factory"), m.get("_source_factory")
+                ),
                 "prescribing_hospital": None,
                 "prescribing_department": m.get("HDEPT_NAME"),
                 "prescribing_doctor_name": m.get("USER_NAME"),
