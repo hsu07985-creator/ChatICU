@@ -43,6 +43,7 @@
 - [x] ~~**Vercel 前端 promote**~~：**已確認生效（2026-07-21）**。`66c6a48` = Production·Current，apex `index-C1j_oTLU.js` 已含 `hisSyncNote` 中英 banner。（驗證改用 `curl chat-icu.vercel.app/assets/index-*.js | grep hisSyncNote`，別比 index hash——見 §0。）
 - [x] **正式庫強制熱匯目前快照**：本次部署後使用 serial `--force` 在線逐病人 transaction 匯入；不用 migration/backfill、不停機。同步 state 現在保存 `schema_version`，以後 mapping 更新不會再被相同 snapshot hash 跳過。
 - [x] **正式 schema 漂移修復**：首次熱匯發現 prod 雖標記 migration 085，但 migration 056 應建立的 `patients.intubation_date` 實體欄位缺失；10 位病人 transaction 全數 rollback、沒有半套資料。migration 086 以 `ADD COLUMN IF NOT EXISTS` 修復後再完整重跑。
+- [x] **多院區空結果完整性判定**：HIS 成功回應中的病歷號回聲與「查無資料」不是錯誤。同步 schema `2026-07-22.3` 將這兩種列視為完整空院區；未知 message、缺檔或非字典列仍走 non-destructive upsert，避免來源異常時誤刪。
 - [x] ~~**部署 + 啟用「出院自動下架」**~~ ✅ **完成（2026-07-22）**，見 [`census-left-unit-detection-design-2026-07-21.md`](./census-left-unit-detection-design-2026-07-21.md)。**真相來源=`patient/` 目錄**（不在目錄的 HIS 病人=出院），全量 sync 尾端自動 `archived=true`。後端(migration 082)+前端已部署驗證；prod 全量 sync 已跑（台北 00:16），5 位（鄭義輝/周麗華/舒以信/陳弘暉/黃桂華）已 archive 離板、邱建陽保留(→MICU17)、board active=10。初版 getICUbed 旗標做法已廢除（會搞反）。
 - [x] **床號與其他快照自動欄位 ownership**：HIS 決定性病人禁止透過 patient PATCH 修改；只有 `critical_status`、`campus`、`is_isolated`、`symptoms` 保持人工入口。非 HIS 建立的病人仍可完整編輯。
 - [ ] **（延後）`patients.unit`**：仍硬編碼 `'ICU'`，未改讀 BED_CODE 前綴——因為改值會動**資料層存取控制**（unit-scoped 使用者可見範圍），需先評估。
@@ -57,6 +58,7 @@
 - 真 PG sync：拋棄式容器實跑 `sync_snapshot_into_session`，`tracheostomy_date`（raw-SQL 欄）與 `vital_signs`（50669055=1401 列）寫入正確、`spo2` 保持 NULL。
 - **Playwright 本機 UI 走測**：登入 → 病人列表顯示 MICU11/MICU17、氣切/插管；編輯對話框 banner 有出現、床號/身高/氣切日期自動帶入。**床號更新測試**：手動改 `A-99-TEST` 存得進 DB（更新功能正常）→ 重跑 sync → 變回 `MICU17`（**確認「手動床號撐不過下次同步」= 預期行為**）。
 - **2026-07-22 真實快照逐筆驗收**：10 位病患；藥物 **2,120/2,120**、檢驗 **6,224/6,224**、培養/藥敏 **1,812/1,812** 全數對上原始 `patient/` 欄位，數值差異 0；MIC **98/98**；空白 lab orphan 0。
+- **分組基準**：同一批快照應落庫為 lab_data **829** 組、culture_results **204** 組；成功空院區 marker 不再使整批誤判 partial，因此舊版分組 ID 可由完整 replace 正常清除。
 - **報告語意修正**：`getAllOrder` 是醫囑，不再轉成 final diagnostic report；目前快照只匯入真正的 ECG AI **40** 筆與手術報告 **3** 筆。ID 改由來源 sheet／手術代碼與日期決定，不再依陣列順序。
 - **生命徵象**：HIS `vit_*` 只供 HR/BP/MAP/RR/體溫，人工 `vs_*` 只供 SpO₂/EtCO₂/CVP/ICP/CPP；latest、bootstrap 與人工 POST 回應均逐欄合併，趨勢/歷史維持原始列。
 - **2026-07-22 回歸/部署驗收**：本機 backend **909 passed / 40 skipped**；GitHub CI 的 backend-test、lint、migration-check、security、frontend build、critical E2E、DAST、Docker build 全數 success；Railway + Vercel production success。

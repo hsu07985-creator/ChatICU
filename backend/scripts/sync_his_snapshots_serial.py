@@ -30,7 +30,7 @@ from app.fhir.snapshot_sync import (
 
 PATIENT_BASE = Path(__file__).resolve().parent.parent.parent / "patient"
 STATE_FILE = Path(__file__).resolve().parent.parent / ".state" / "his_snapshot_sync_state.json"
-SYNC_SCHEMA_VERSION = "2026-07-22.2"
+SYNC_SCHEMA_VERSION = "2026-07-22.3"
 
 
 def get_database_url() -> str:

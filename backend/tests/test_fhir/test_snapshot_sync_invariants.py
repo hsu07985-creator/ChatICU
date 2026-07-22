@@ -22,6 +22,7 @@ from sqlalchemy import select
 
 from app.fhir.snapshot_sync import (
     SchemaInconsistencyError,
+    _source_rows_are_complete,
     insert_records,
     reconcile_medications,
     replace_patient_records,
@@ -69,6 +70,27 @@ def _med_record(med_id: str, patient_id: str, name: str, status: str = "active")
         "source_type": "inpatient",
         "is_external": False,
     }
+
+
+def test_source_rows_treat_successful_empty_campus_markers_as_complete() -> None:
+    rows = [
+        {"LAB_CODE": "09005", "RESULT": "140"},
+        {"message": "50153753"},
+        {"message": "查無資料2026/7/21 下午 08:47:02"},
+    ]
+
+    assert _source_rows_are_complete(rows, "LAB_CODE") is True
+
+
+def test_source_rows_allow_all_campuses_to_be_successfully_empty() -> None:
+    rows = [{"message": "50153753"}, {"message": "查無資料"}]
+
+    assert _source_rows_are_complete(rows, "LAB_CODE") is True
+
+
+@pytest.mark.parametrize("rows", [[], [{"message": "HIS timeout"}], [None]])
+def test_source_rows_keep_missing_or_unknown_errors_partial(rows) -> None:
+    assert _source_rows_are_complete(rows, "LAB_CODE") is False
 
 
 @pytest.mark.asyncio

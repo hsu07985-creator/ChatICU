@@ -20,7 +20,7 @@
 - **Culture results**：以 `(source_campus, sheet_number)` 分組；保存 MIC、檢體類型、最早採檢/最晚報告時間與完整 `source_details`。只有 culture/AST 的 sheet 不再產生空白 `lab_data` orphan。
 - **Raw source**：藥物與培養新增 JSONB `source_details`；藥物另保存 `source_campus`，培養新增 `source_campus`。schema migration = 085。
 - **實測**：10 位病患，medications 2,120、lab items 6,224、culture/AST items 1,812、MIC 98，逐筆 source counter 與數值差異皆為 0；空白 lab orphan = 0。
-- **同步版本**：serial state 保存 `schema_version`；converter/mapping 版本不同時，即使來源 hash 相同仍分類為 changed 並重新匯入。
+- **同步版本**：serial state 保存 `schema_version`；converter/mapping 版本不同時，即使來源 hash 相同仍分類為 changed 並重新匯入。目前版本 `2026-07-22.3`。
 
 ---
 
@@ -43,7 +43,7 @@
 
 ### 2.2 Lab / culture / diagnostic：完整來源 replace，部分來源 upsert
 
-完整來源走 `replace_patient_records`；部分來源走 `upsert_patient_records`，只更新收到的 id。Lab 完整 replace 前會保留同 id 的人工 `corrections`。來源健康判定目前採「資料存在且每個 raw row 都有必要 key」；實際快照中的 81 個 message row 因缺 `LAB_CODE` 會觸發非破壞路徑。
+完整來源走 `replace_patient_records`；部分來源走 `upsert_patient_records`，只更新收到的 id。Lab 完整 replace 前會保留同 id 的人工 `corrections`。來源健康判定允許 HIS 成功空院區產生的「純數字識別碼回聲」及「查無資料」marker；未知 message、空來源或非字典列仍視為 partial。這避免把成功空結果誤當錯誤，同時保留真正來源異常時的防誤刪行為。
 
 ### 2.3 medications：reconcile（非 REPLACE）
 

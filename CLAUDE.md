@@ -122,6 +122,8 @@ python3 scripts/sync_his_snapshots_serial.py -p 50480738        # 單一 MRN
 python3 scripts/sync_his_snapshots_serial.py                     # 增量（依 hash 跳過 unchanged）
 ```
 
+同步 state 另含 mapping `schema_version`；版本更新會強制重跑相同 hash。多院區來源的純數字病歷號回聲與「查無資料」代表成功空結果，可進行完整 reconcile；未知 message／缺檔仍視為 partial，只 upsert、不刪 stale rows。
+
 ### 為何禁用舊版 `sync_his_snapshots.py`（2026-04-27 發現）
 舊版用 `asyncio.create_task` + `Semaphore` + `as_completed` + `engine.dispose()` 與 Supabase pooler (port 6543, transaction mode) 互動會 **silent fail**：
 - ✅ console 報告 `synced=14, errors=0`

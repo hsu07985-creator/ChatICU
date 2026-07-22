@@ -28,6 +28,28 @@ _TIMESTAMP_FIELDS = frozenset({"created_at", "updated_at"})
 CHUNK_SIZE = 500  # well under PostgreSQL's 32767 bind-parameter ceiling
 
 
+def _source_rows_are_complete(rows: list[Any], required_key: str) -> bool:
+    """Return whether a flattened HIS source is safe for stale-row deletion.
+
+    Successful multi-campus responses can contain identifier echoes and
+    ``查無資料`` markers alongside real rows.  Those are complete, intentional
+    empty-campus responses rather than transport errors.  Any other row that
+    lacks the source's required key remains fail-safe partial.
+    """
+    if not rows:
+        return False
+    for row in rows:
+        if not isinstance(row, dict):
+            return False
+        if row.get(required_key):
+            continue
+        message = str(row.get("message") or "").strip()
+        if message.isdecimal() or message.startswith("查無資料"):
+            continue
+        return False
+    return True
+
+
 def _effective_keys(record: dict[str, Any]) -> frozenset[str]:
     """Return the record's keys with timestamp fields stripped.
 
@@ -660,14 +682,12 @@ async def sync_snapshot_into_session(session: Any, snapshot: SnapshotInfo) -> di
     merged_patient["last_update"] = datetime.now(timezone.utc)
     await upsert_patient(session, merged_patient)
 
-    # HIS sometimes returns an error/message row inside an otherwise valid
-    # response.  Such snapshots are partial: update what arrived but never
-    # interpret absence as deletion.
-    lab_source_complete = bool(lab_source_rows) and all(
-        row.get("LAB_CODE") for row in lab_source_rows
-    )
-    medication_source_complete = bool(medication_source_rows) and all(
-        row.get("ODR_CODE") for row in medication_source_rows
+    # Successful empty-campus responses contain MRN echoes and ``查無資料``
+    # markers. Unknown message/error rows still make the source partial so
+    # absence is never interpreted as deletion during a failed fetch.
+    lab_source_complete = _source_rows_are_complete(lab_source_rows, "LAB_CODE")
+    medication_source_complete = _source_rows_are_complete(
+        medication_source_rows, "ODR_CODE",
     )
     source_complete = {
         "lab_data": lab_source_complete,
