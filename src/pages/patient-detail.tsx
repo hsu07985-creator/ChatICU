@@ -45,27 +45,11 @@ import { respondToAdvice } from '../lib/api/pharmacy';
 import { ArrowLeft, MessageSquare, MessagesSquare, Pill, TestTube, FileText } from 'lucide-react';
 import chatBotAvatar from 'figma:asset/f438047691c382addfed5c99dfc97977dea5c831.png';
 import { PatientDetailHeader } from '../components/patient/patient-detail-header';
-import { EMPTY_MEDICATION_GROUPS, type ChatMessage, type ChatSession, type PatientWithFrontendFields } from './patient-detail-types';
+import { DEFAULT_LAB_DATA, EMPTY_MEDICATION_GROUPS, type ChatMessage, type ChatSession, type PatientWithFrontendFields } from './patient-detail-types';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n/config';
 
-// 預設空的 labData 結構（用於 API 載入前）
-const defaultLabData: LabData = {
-  id: '',
-  patientId: '',
-  timestamp: '',
-  biochemistry: {},
-  hematology: {},
-  coagulation: {},
-  bloodGas: {},
-  inflammatory: {}
-};
-
 // 檢驗項目中文名稱對照已遷移到 patient-detail.json:labFields；改用 t('patient-detail:labFields.<key>')。
-
-// 擴展 Patient 類型以包含前端需要的額外欄位
-
-
 
 export function PatientDetailPage() {
   const { id } = useParams();
@@ -107,7 +91,7 @@ export function PatientDetailPage() {
   const [patientError, setPatientError] = useState<string | null>(null);
 
   // 檢驗數據狀態
-  const [labData, setLabData] = useState<LabData>(defaultLabData);
+  const [labData, setLabData] = useState<LabData>(DEFAULT_LAB_DATA);
   const [labDataLoading, setLabDataLoading] = useState(false);
 
   // 用藥數據狀態
@@ -187,7 +171,7 @@ export function PatientDetailPage() {
     setSelectedSession(null);
     setChatMessages([]);
     setSessionTitle('');
-    setLabData(defaultLabData);
+    setLabData(DEFAULT_LAB_DATA);
     setMedicationGroups(EMPTY_MEDICATION_GROUPS);
     setVitalSigns(null);
     setVentilator(null);
@@ -219,9 +203,9 @@ export function PatientDetailPage() {
     setLabDataLoading(true);
     try {
       const latestLab = await labDataApi.getLatestLabData(id);
-      setLabData(latestLab ?? defaultLabData);
+      setLabData(latestLab ?? DEFAULT_LAB_DATA);
     } catch {
-      setLabData(defaultLabData);
+      setLabData(DEFAULT_LAB_DATA);
     } finally {
       setLabDataLoading(false);
       setLabDataLoaded(true);

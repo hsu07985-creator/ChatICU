@@ -1,5 +1,5 @@
 // patient-detail 頁的前端型別與常數(D1 page-split,2026-07-20)。
-import type { Patient } from '../lib/api';
+import type { LabData, Patient } from '../lib/api';
 import type { AdviceRef, Citation as AiCitation, DataFreshness } from '../lib/api/ai';
 import type { MedicationGroups } from '../lib/patient-detail-format';
 
@@ -57,4 +57,15 @@ export const EMPTY_MEDICATION_GROUPS: MedicationGroups = {
   nmb: [],
   other: [],
   outpatient: [],
+};
+
+export const DEFAULT_LAB_DATA: LabData = {
+  id: '',
+  patientId: '',
+  timestamp: '',
+  biochemistry: {},
+  hematology: {},
+  coagulation: {},
+  bloodGas: {},
+  inflammatory: {},
 };
