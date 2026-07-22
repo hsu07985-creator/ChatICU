@@ -43,12 +43,12 @@ from app.fhir.his.roc_time import (
 _ICU_BED_RE = re.compile(r"^[A-Za-z]*ICU0*(\d+)$", re.IGNORECASE)
 
 _CAMPUS_NAMES = {
-    "MAIN": "陽明院區",
-    "Factory_M": "陽明院區",
-    "Factory_G": "中興院區",
-    "Factory_Q": "忠孝院區",
-    "Factory_H": "和平院區",
-    "Factory_F": "仁愛院區",
+    "MAIN": "陽明",
+    "Factory_M": "陽明",
+    "Factory_G": "中興",
+    "Factory_Q": "忠孝",
+    "Factory_H": "和平",
+    "Factory_F": "仁愛",
 }
 
 
