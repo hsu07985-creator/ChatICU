@@ -2,7 +2,6 @@ import { lazy, Suspense, useState, useMemo } from 'react';
 import type { Medication, Patient } from '../../lib/api';
 import type { UserRole } from '../../lib/auth-context';
 import { isAntibiotic } from '../../lib/antibiotic-codes';
-import { canAccessPharmacy } from '../../lib/permissions';
 import {
   formatDoseValue,
   isOutpatientExpired,
@@ -19,7 +18,6 @@ import {
   formatScoreTimestamp,
 } from '../../lib/medications/medication-formatters';
 import { detectDuplicates } from '../../lib/medications/duplicate-overlap';
-import { PadDosageCalculator } from '../pharmacy/pad-dosage-calculator';
 import { ScoreSelector } from './medications/score-selector';
 import { DataOwnershipBadge, DataOwnershipLegend } from './data-ownership-badge';
 import { SanCategoryBadge, SanMedCard } from './medications/san-med-card';
@@ -66,8 +64,6 @@ interface PatientMedicationsTabProps {
 
 export function PatientMedicationsTab({
   patientId,
-  patient,
-  userRole,
   medicationsLoading,
   nmbIndication,
   painMedications,
@@ -97,8 +93,6 @@ export function PatientMedicationsTab({
   const [rassPending, setRassPending] = useState<number | null>(null);
   const [selfSuppliedFilter, setSelfSuppliedFilter] = useState(false);
   const [detailMedication, setDetailMedication] = useState<Medication | null>(null);
-  const showPadDosageCalculator = canAccessPharmacy(userRole) && !!patient;
-
   const isDiscontinued = (med: Medication) =>
     med.status === 'discontinued' || med.status === 'completed' || med.status === 'on-hold';
 
@@ -185,13 +179,6 @@ export function PatientMedicationsTab({
       ) : (
         <>
           <DataOwnershipLegend />
-          {showPadDosageCalculator && (
-            <PadDosageCalculator
-              mode="patient"
-              patient={patient}
-              allowManualAnthropometrics={false}
-            />
-          )}
 
           {/* S/A/N 藥物 */}
           <div className="grid gap-3 md:grid-cols-3">
