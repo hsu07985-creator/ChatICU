@@ -56,5 +56,18 @@ export async function getCultureSusceptibility(patientId: string): Promise<Cultu
   const response = await apiClient.get<ApiResponse<CultureSusceptibilityData>>(
     `/patients/${patientId}/cultures`
   );
-  return ensureData(response.data, 'API contract');
+  const data = ensureData(response.data, 'API contract');
+  return {
+    ...data,
+    cultures: (data.cultures ?? []).map((panel) => ({
+      ...panel,
+      specimen: panel.specimen ?? '',
+      isolates: panel.isolates ?? [],
+      susceptibility: panel.susceptibility ?? [],
+      recordType: panel.recordType ?? 'culture',
+      status: panel.status ?? 'reported',
+      stainResults: panel.stainResults ?? [],
+      alerts: panel.alerts ?? [],
+    })),
+  };
 }
