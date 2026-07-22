@@ -7,7 +7,7 @@
 
 ## 0. 一句話現況
 
-**目前程式版 `1574779b1` 已推送兩個 remote 並正式上線：Railway 後端 Success、Vercel Production Ready、migration 085 已在容器啟動時套用。病人、藥物、檢驗與培養串接缺口已補齊；新 mapping 要等下一次 HIS sync 才會寫入正式 DB。** 仍有 1 個待拍板的行為決策（床號）。
+**2026-07-22 欄位串接已完成：HIS 病人的自動欄位由 API 邊界禁止人工覆寫；生命徵象以逐欄最新值合併 HIS TPR 與五個人工指標；藥物、檢驗、培養與真正的 AI／手術報告均已直接連到目前 `patient/` 快照。同步 state 加入 mapping schema version，converter 改版時即使快照 hash 不變也會重跑。**
 
 > **2026-07-21 更正**：先前記「Vercel 未切版（bundle 仍 C1j_oTLU）」是**誤判**——`index-*.js` 是 entry chunk，Vite 依內容 hash，而 `patient-edit-dialog.tsx` + 所有 locale JSON 都 static-import 進 entry chunk，內容變了但**檔名 hash 恰好沒變**。實測 `curl chat-icu.vercel.app` 的 `index-C1j_oTLU.js` **已含 `hisSyncNote` ×3 + 中英 banner 全文**，且 Vercel deployment overview 顯示 `66c6a48` = Production·Current、`chat-icu.vercel.app` 已指向它。**前端已生效，無需再 Promote。** 教訓：驗證「切版沒」別只比 index hash，直接 grep 服務中 bundle 的新字串。
 
@@ -20,6 +20,7 @@
 | `e812aaa9d` | 後端：新格式 loader（ALL_MERGED fallback）+ converter 接 bed/身高體重/氣道/過敏 + `convert_vital_signs`(getTPR→vital_signs) | `backend/app/fhir/his/snapshot_io.py`、`converter.py`、`snapshot_sync.py` + 測試 |
 | `66c6a4841` | 前端：編輯對話框加「HIS 每小時覆蓋」提示 banner + 修 `.gitignore` `/patient/` 錨定 | `src/components/patient/dialogs/patient-edit-dialog.tsx`、`src/i18n/locales/{zh-TW,en-US}/patients.json`、`.gitignore` |
 | `1574779b1` | 後端：藥物/檢驗/培養完整來源保留、部分來源防誤刪、人工補充保留、HIS 自動欄位禁止手動改、migration 085 | `converter.py`、`snapshot_sync.py`、models/routers/schemas + 測試 |
+| 2026-07-22 欄位封口 | patient PATCH ownership、sparse vital merge + per-field timestamp、手動 vital 欄位限制、sync schema version、排除把影像醫囑誤當 final report | patients/vital routers、vital schema、converter、serial sync + API/FHIR 測試 |
 
 兩個 commit 都在 `main`，已 `git push personal main`（Railway）+ `git push railway main`（Vercel）。
 
@@ -40,9 +41,9 @@
 ## 3. 待辦 / 決策（下次進來優先看這段）
 
 - [x] ~~**Vercel 前端 promote**~~：**已確認生效（2026-07-21）**。`66c6a48` = Production·Current，apex `index-C1j_oTLU.js` 已含 `hisSyncNote` 中英 banner。（驗證改用 `curl chat-icu.vercel.app/assets/index-*.js | grep hisSyncNote`，別比 index hash——見 §0。）
-- [ ] **等待下一次排程或在 prod 觸發一次 HIS sync**：converter 已部署，但 migration 只建 schema，不會重算既有資料；需跑 `sync_his_snapshots_serial.py`（見根 CLAUDE.md「手動更新 HIS」）才會把新藥物/檢驗/培養 mapping 與 `source_details` 寫入正式 DB。⚠️ 本機按鈕直連 prod，勿誤觸。
+- [x] **正式庫強制熱匯目前快照**：本次部署後使用 serial `--force` 在線逐病人 transaction 匯入；不用 migration/backfill、不停機。同步 state 現在保存 `schema_version`，以後 mapping 更新不會再被相同 snapshot hash 跳過。
 - [x] ~~**部署 + 啟用「出院自動下架」**~~ ✅ **完成（2026-07-22）**，見 [`census-left-unit-detection-design-2026-07-21.md`](./census-left-unit-detection-design-2026-07-21.md)。**真相來源=`patient/` 目錄**（不在目錄的 HIS 病人=出院），全量 sync 尾端自動 `archived=true`。後端(migration 082)+前端已部署驗證；prod 全量 sync 已跑（台北 00:16），5 位（鄭義輝/周麗華/舒以信/陳弘暉/黃桂華）已 archive 離板、邱建陽保留(→MICU17)、board active=10。初版 getICUbed 旗標做法已廢除（會搞反）。
-- [ ] **決策：床號覆蓋行為**（Playwright 已重現，見 §4）——維持「HIS 為準」（現狀，banner 已提醒）還是改「手動優先」（fill-if-empty，需改 code）。**未決前維持現狀。**
+- [x] **床號與其他快照自動欄位 ownership**：HIS 決定性病人禁止透過 patient PATCH 修改；只有 `critical_status`、`campus`、`is_isolated`、`symptoms` 保持人工入口。非 HIS 建立的病人仍可完整編輯。
 - [ ] **（延後）`patients.unit`**：仍硬編碼 `'ICU'`，未改讀 BED_CODE 前綴——因為改值會動**資料層存取控制**（unit-scoped 使用者可見範圍），需先評估。
 - [ ] **（延後）過敏 parser bug**：`getSO` SOAP 的 `parse_allergy_texts` 把「denied」誤判成過敏物質（應為 NKA）。既有 bug，非本次引入；哪天碰 allergy 再修。
 
@@ -50,11 +51,13 @@
 
 ## 4. 驗收紀錄（都通過）
 
-- 單元/整合測試：`tests/test_fhir/` **123 passed**（含新增 `test_converter_nested_snapshot.py` 9 條 + `test_upsert_records_preserves_manual_vital_rows`）。
+- 單元/整合測試：`tests/test_fhir/` **143 passed / 15 skipped**；API ownership、sparse vital、bootstrap、手動 POST 與 sync schema version 另有回歸測試。
 - fresh-DB bootstrap：`scripts/ops/verify_fresh_db_bootstrap.sh` **PASS**（80 migrations + seeds + API smoke）。
 - 真 PG sync：拋棄式容器實跑 `sync_snapshot_into_session`，`tracheostomy_date`（raw-SQL 欄）與 `vital_signs`（50669055=1401 列）寫入正確、`spo2` 保持 NULL。
 - **Playwright 本機 UI 走測**：登入 → 病人列表顯示 MICU11/MICU17、氣切/插管；編輯對話框 banner 有出現、床號/身高/氣切日期自動帶入。**床號更新測試**：手動改 `A-99-TEST` 存得進 DB（更新功能正常）→ 重跑 sync → 變回 `MICU17`（**確認「手動床號撐不過下次同步」= 預期行為**）。
 - **2026-07-22 真實快照逐筆驗收**：10 位病患；藥物 **2,120/2,120**、檢驗 **6,224/6,224**、培養/藥敏 **1,812/1,812** 全數對上原始 `patient/` 欄位，數值差異 0；MIC **98/98**；空白 lab orphan 0。
+- **報告語意修正**：`getAllOrder` 是醫囑，不再轉成 final diagnostic report；目前快照只匯入真正的 ECG AI **40** 筆與手術報告 **3** 筆。ID 改由來源 sheet／手術代碼與日期決定，不再依陣列順序。
+- **生命徵象**：HIS `vit_*` 只供 HR/BP/MAP/RR/體溫，人工 `vs_*` 只供 SpO₂/EtCO₂/CVP/ICP/CPP；latest、bootstrap 與人工 POST 回應均逐欄合併，趨勢/歷史維持原始列。
 - **2026-07-22 回歸/部署驗收**：本機 backend **909 passed / 40 skipped**；GitHub CI 的 backend-test、lint、migration-check、security、frontend build、critical E2E、DAST、Docker build 全數 success；Railway + Vercel production success。
 
 ---

@@ -2,6 +2,9 @@
 
 import pytest
 
+from app.fhir.his.roc_time import _gen_id
+from app.models.patient import Patient
+
 
 @pytest.mark.asyncio
 async def test_create_patient_persists_full_payload_in_single_request(client):
@@ -97,3 +100,45 @@ async def test_update_patient_orphan_fields(client):
     assert data["criticalStatus"] == "critical"
     assert data["campus"] == "main"
     assert data["isIsolated"] is True
+
+
+@pytest.mark.asyncio
+async def test_his_patient_blocks_auto_fields_but_allows_orphans(client, seeded_db):
+    mrn = "HIS-LOCK-001"
+    patient_id = _gen_id("pat", mrn)
+    seeded_db.add(Patient(
+        id=patient_id,
+        name="HIS 病人",
+        bed_number="I-8",
+        medical_record_number=mrn,
+        age=70,
+        gender="男",
+        diagnosis="肺炎",
+        intubated=False,
+    ))
+    await seeded_db.commit()
+
+    blocked = await client.patch(
+        f"/patients/{patient_id}",
+        json={"name": "不可覆寫", "weight": 80},
+    )
+    assert blocked.status_code == 409
+    assert "name" in blocked.json()["message"]
+    assert "weight" in blocked.json()["message"]
+
+    allowed = await client.patch(
+        f"/patients/{patient_id}",
+        json={"critical_status": "critical", "campus": "main", "is_isolated": True},
+    )
+    assert allowed.status_code == 200
+    data = allowed.json()["data"]
+    assert data["criticalStatus"] == "critical"
+    assert data["campus"] == "main"
+    assert data["isIsolated"] is True
+
+
+@pytest.mark.asyncio
+async def test_manual_patient_keeps_full_editing(client):
+    response = await client.patch("/patients/pat_001", json={"name": "人工病人"})
+    assert response.status_code == 200
+    assert response.json()["data"]["name"] == "人工病人"

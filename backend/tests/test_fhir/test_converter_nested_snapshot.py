@@ -190,6 +190,34 @@ def test_vital_signs_absent_when_no_gettpr() -> None:
     assert result["summary"]["vital_signs_count"] == 0
 
 
+def test_diagnostic_reports_exclude_orders_and_use_stable_source_ids() -> None:
+    import tempfile
+
+    merged = _base_merged("30546132")
+    merged["getAllOrder"] = _rest([{
+        "MAJOR_CLASS": "22", "ODR_SEQ": "1", "PAT_SEQ": "M1",
+        "ODR_NAME": "胸部 X 光醫囑", "NOTES": "", "ISEXECUTE": "N",
+    }])
+    merged["getAIResult"] = _rest([{
+        "SHEET_NO": "ECG001", "SHEET_ITEM_SEQ": 1,
+        "REPORT_DATE": "1150721", "REPORT_TIME": "1900",
+        "REPORT_CONTENT": '{"diagnosis": "Sinus rhythm"}',
+    }])
+    merged["getSurgery"] = _rest([{
+        "OP_ODR_CODE1": "64170", "IN_OR_DATE": "1150720",
+        "ODR_NAME": "手術", "CONTENT_TEXT": "術式內容", "DR_NAME": "王醫師",
+    }])
+    with tempfile.TemporaryDirectory() as tmp:
+        snap = _write_nested_snapshot(Path(tmp), "30546132", merged)
+        converter = HISConverter(snap, pat_no="30546132")
+        reports = converter.convert_all()["diagnostic_reports"]
+
+    assert len(reports) == 2
+    assert {report["report_type"] for report in reports} == {"procedure", "ecg_ai"}
+    assert all(report["body_text"] for report in reports)
+    assert len({report["id"] for report in reports}) == 2
+
+
 def test_pain_scores_from_sbpain() -> None:
     import tempfile
 

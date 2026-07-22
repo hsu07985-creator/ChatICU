@@ -47,14 +47,19 @@ async def bootstrap_seed(seeded_db):
                 status="active",
             ),
             VitalSign(
-                id="vs_boot_001",
+                id="vit_boot_001",
                 patient_id="pat_001",
                 timestamp=now,
                 heart_rate=88,
                 systolic_bp=120,
                 diastolic_bp=80,
-                spo2=97,
                 temperature=37.0,
+            ),
+            VitalSign(
+                id="vs_boot_manual_001",
+                patient_id="pat_001",
+                timestamp=now,
+                spo2=97,
             ),
             VentilatorSetting(
                 id="vent_boot_001",

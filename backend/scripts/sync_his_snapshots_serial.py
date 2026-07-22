@@ -30,6 +30,7 @@ from app.fhir.snapshot_sync import (
 
 PATIENT_BASE = Path(__file__).resolve().parent.parent.parent / "patient"
 STATE_FILE = Path(__file__).resolve().parent.parent / ".state" / "his_snapshot_sync_state.json"
+SYNC_SCHEMA_VERSION = "2026-07-22.2"
 
 
 def get_database_url() -> str:
@@ -73,6 +74,8 @@ def classify(prev: dict | None, snapshot_id: str, normalized_hash: str, force: b
         return "forced"
     if prev is None:
         return "new"
+    if prev.get("schema_version") != SYNC_SCHEMA_VERSION:
+        return "changed"
     if prev.get("normalized_hash") == normalized_hash:
         return "unchanged" if prev.get("snapshot_id") == snapshot_id else "timestamp-only"
     return "changed"
@@ -141,6 +144,7 @@ async def main(patient_filter: str | None, force: bool, state_file: Path = STATE
         print()
 
         state[snap.mrn] = {
+            "schema_version": SYNC_SCHEMA_VERSION,
             "snapshot_id": snap.snapshot_id,
             "snapshot_dir": str(snap.snapshot_dir),
             "normalized_hash": snap.normalized_hash,

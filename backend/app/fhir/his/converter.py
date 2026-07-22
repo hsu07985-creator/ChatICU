@@ -867,41 +867,12 @@ class HISConverter:
         return results
 
     # ------------------------------------------------------------------ #
-    # Diagnostic Reports (from getAllOrder imaging/procedure orders)
+    # Diagnostic Reports
     # ------------------------------------------------------------------ #
 
     def convert_diagnostic_reports(self) -> List[Dict[str, Any]]:
-        """getAllOrder.json → diagnostic_reports dicts (imaging/procedures only)."""
-        rows = self._load_all("getAllOrder.json")
-        patient = self.convert_patient()
-        if not patient or not rows:
-            return []
-        pat_id = patient["id"]
-
-        # Filter imaging/procedure orders
-        # MAJOR_CLASS patterns: 20=lab, 22/23=imaging, 25/26=therapy
-        imaging_classes = {"22", "23"}
-        reports = []
-        for order in rows:
-            mc = str(order.get("MAJOR_CLASS", "")).strip()
-            if mc not in imaging_classes:
-                continue
-
-            report_id = _gen_id("diag", self.pat_no, str(order.get("ODR_SEQ", "")),
-                                order.get("PAT_SEQ", ""))
-            reports.append({
-                "id": report_id,
-                "patient_id": pat_id,
-                "report_type": "imaging",
-                "exam_name": order.get("ODR_NAME", ""),
-                "exam_date": _roc_to_datetime(order.get("START_DATE"), order.get("START_TIME")),
-                "body_text": order.get("NOTES", "") or "",
-                "impression": None,
-                "reporter_name": order.get("USER_NAME"),
-                "status": "final",
-            })
-
-        return reports
+        """No-op: getAllOrder contains orders, not completed diagnostic reports."""
+        return []
 
     # ------------------------------------------------------------------ #
     # Surgery Reports
@@ -916,8 +887,12 @@ class HISConverter:
         pat_id = patient["id"]
 
         reports = []
-        for i, rec in enumerate(rows):
-            report_id = _gen_id("diag", self.pat_no, "surg", str(i))
+        for rec in rows:
+            report_id = _gen_id(
+                "diag", self.pat_no, "surg",
+                rec.get("_source_factory", "MAIN"),
+                rec.get("OP_ODR_CODE1", ""), rec.get("IN_OR_DATE", ""),
+            )
             reports.append({
                 "id": report_id,
                 "patient_id": pat_id,
@@ -944,8 +919,12 @@ class HISConverter:
         pat_id = patient["id"]
 
         reports = []
-        for i, rec in enumerate(rows):
-            report_id = _gen_id("diag", self.pat_no, "ecgai", str(i))
+        for rec in rows:
+            report_id = _gen_id(
+                "diag", self.pat_no, "ecgai",
+                rec.get("_source_factory", "MAIN"),
+                rec.get("SHEET_NO", ""), rec.get("SHEET_ITEM_SEQ", ""),
+            )
 
             # Parse REPORT_CONTENT JSON string
             content_raw = rec.get("REPORT_CONTENT", "{}")

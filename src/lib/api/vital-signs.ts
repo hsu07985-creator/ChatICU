@@ -19,6 +19,12 @@ export interface VitalSigns {
   icp?: number | null;
   cpp?: number | null;
   bodyWeight?: number | null;
+  fieldTimestamps?: Partial<Record<
+    'heartRate' | 'systolicBP' | 'diastolicBP' | 'meanBP' |
+    'respiratoryRate' | 'spo2' | 'temperature' | 'etco2' |
+    'cvp' | 'icp' | 'cpp' | 'bodyWeight',
+    string
+  >>;
 }
 
 export interface VitalSignsTrendsResponse {
@@ -79,18 +85,11 @@ export async function getVitalSignsHistory(
 
 // 手動輸入生命徵象（admin 專用）
 export interface VitalSignsInput {
-  heart_rate?: number | null;
-  systolic_bp?: number | null;
-  diastolic_bp?: number | null;
-  mean_bp?: number | null;
-  respiratory_rate?: number | null;
   spo2?: number | null;
-  temperature?: number | null;
   etco2?: number | null;
   cvp?: number | null;
   icp?: number | null;
   cpp?: number | null;
-  body_weight?: number | null;
 }
 
 export async function createVitalSigns(patientId: string, data: VitalSignsInput): Promise<VitalSigns> {

@@ -34,6 +34,7 @@ interface PatientLabsTabProps {
   labData: LabData;
   vitalSignsLoading: boolean;
   vitalSignsTimestamp?: string | null;
+  vitalSignTimestamps?: VitalSigns['fieldTimestamps'];
   respiratoryRate?: number | null;
   temperature?: number | null;
   systolicBP?: number | null;
@@ -96,6 +97,7 @@ export function PatientLabsTab({
   labData,
   vitalSignsLoading,
   vitalSignsTimestamp,
+  vitalSignTimestamps,
   respiratoryRate,
   temperature,
   systolicBP,
@@ -249,20 +251,20 @@ export function PatientLabsTab({
   }
 
   const vitalItems: VitalItem[] = useMemo(() => [
-    { label: 'Temp', value: temperature, unit: '°C', isAbnormal: isFiniteNumber(temperature) && (temperature > 37.5 || temperature < 36), abnormalDirection: vitalDirection(temperature, 36, 37.5), clickName: 'Temperature', source: 'vital' as TrendSource, timestamp: vitalSignsTimestamp || undefined, ownership: 'auto' },
-    { label: 'HR', value: heartRate, unit: 'bpm', isAbnormal: isFiniteNumber(heartRate) && (heartRate > 100 || heartRate < 60), abnormalDirection: vitalDirection(heartRate, 60, 100), clickName: 'HeartRate', source: 'vital', timestamp: vitalSignsTimestamp || undefined, ownership: 'auto' },
-    { label: 'RR', value: respiratoryRate, unit: 'rpm', isAbnormal: isFiniteNumber(respiratoryRate) && (respiratoryRate > 25 || respiratoryRate < 12), abnormalDirection: vitalDirection(respiratoryRate, 12, 25), clickName: 'RespiratoryRate', source: 'vital', timestamp: vitalSignsTimestamp || undefined, ownership: 'auto' },
-    { label: 'SBP', value: systolicBP, unit: 'mmHg', isAbnormal: isFiniteNumber(systolicBP) && (systolicBP > 140 || systolicBP < 90), abnormalDirection: vitalDirection(systolicBP, 90, 140), clickName: 'BloodPressureSystolic', source: 'vital', timestamp: vitalSignsTimestamp || undefined, ownership: 'auto' },
-    { label: 'DBP', value: diastolicBP, unit: 'mmHg', isAbnormal: isFiniteNumber(diastolicBP) && (diastolicBP > 90 || diastolicBP < 60), abnormalDirection: vitalDirection(diastolicBP, 60, 90), clickName: 'BloodPressureDiastolic', source: 'vital', timestamp: vitalSignsTimestamp || undefined, ownership: 'auto' },
-    { label: 'MAP', value: map, unit: 'mmHg', isAbnormal: isFiniteNumber(map) && (map > 110 || map < 65), abnormalDirection: vitalDirection(map, 65, 110), clickName: 'MAP', source: 'vital', timestamp: vitalSignsTimestamp || undefined, ownership: 'auto' },
-    { label: 'SpO₂', value: spo2, unit: '%', isAbnormal: isFiniteNumber(spo2) && spo2 < 94, abnormalDirection: vitalDirection(spo2, 94, Infinity), clickName: 'SpO2', source: 'vital', timestamp: vitalSignsTimestamp || undefined, ownership: 'manual' },
-    { label: 'EtCO₂', value: etco2, unit: 'mmHg', isAbnormal: false, abnormalDirection: 'normal', clickName: 'EtCO2', source: 'vital', timestamp: vitalSignsTimestamp || undefined, ownership: 'manual' },
-    { label: 'CVP', value: cvp, unit: 'mmHg', isAbnormal: isFiniteNumber(cvp) && (cvp > 12 || cvp < 2), abnormalDirection: vitalDirection(cvp, 2, 12), clickName: 'CVP', source: 'vital', timestamp: vitalSignsTimestamp || undefined, ownership: 'manual' },
-    { label: 'ICP', value: icp, unit: 'mmHg', isAbnormal: isFiniteNumber(icp) && icp > 20, abnormalDirection: vitalDirection(icp, -Infinity, 20), clickName: 'ICP', source: 'vital', timestamp: vitalSignsTimestamp || undefined, ownership: 'manual' },
-    { label: 'CPP', value: cpp, unit: 'mmHg', isAbnormal: false, abnormalDirection: 'normal', clickName: 'CPP', source: 'vital', timestamp: vitalSignsTimestamp || undefined, ownership: 'manual' },
-    { label: 'BW', value: bodyWeight, unit: 'kg', isAbnormal: false, abnormalDirection: 'normal' as const, clickName: 'BodyWeight', source: 'vital' as TrendSource, timestamp: vitalSignsTimestamp || undefined, ownership: 'auto' },
+    { label: 'Temp', value: temperature, unit: '°C', isAbnormal: isFiniteNumber(temperature) && (temperature > 37.5 || temperature < 36), abnormalDirection: vitalDirection(temperature, 36, 37.5), clickName: 'Temperature', source: 'vital' as TrendSource, timestamp: vitalSignTimestamps?.temperature || vitalSignsTimestamp || undefined, ownership: 'auto' },
+    { label: 'HR', value: heartRate, unit: 'bpm', isAbnormal: isFiniteNumber(heartRate) && (heartRate > 100 || heartRate < 60), abnormalDirection: vitalDirection(heartRate, 60, 100), clickName: 'HeartRate', source: 'vital', timestamp: vitalSignTimestamps?.heartRate || vitalSignsTimestamp || undefined, ownership: 'auto' },
+    { label: 'RR', value: respiratoryRate, unit: 'rpm', isAbnormal: isFiniteNumber(respiratoryRate) && (respiratoryRate > 25 || respiratoryRate < 12), abnormalDirection: vitalDirection(respiratoryRate, 12, 25), clickName: 'RespiratoryRate', source: 'vital', timestamp: vitalSignTimestamps?.respiratoryRate || vitalSignsTimestamp || undefined, ownership: 'auto' },
+    { label: 'SBP', value: systolicBP, unit: 'mmHg', isAbnormal: isFiniteNumber(systolicBP) && (systolicBP > 140 || systolicBP < 90), abnormalDirection: vitalDirection(systolicBP, 90, 140), clickName: 'BloodPressureSystolic', source: 'vital', timestamp: vitalSignTimestamps?.systolicBP || vitalSignsTimestamp || undefined, ownership: 'auto' },
+    { label: 'DBP', value: diastolicBP, unit: 'mmHg', isAbnormal: isFiniteNumber(diastolicBP) && (diastolicBP > 90 || diastolicBP < 60), abnormalDirection: vitalDirection(diastolicBP, 60, 90), clickName: 'BloodPressureDiastolic', source: 'vital', timestamp: vitalSignTimestamps?.diastolicBP || vitalSignsTimestamp || undefined, ownership: 'auto' },
+    { label: 'MAP', value: map, unit: 'mmHg', isAbnormal: isFiniteNumber(map) && (map > 110 || map < 65), abnormalDirection: vitalDirection(map, 65, 110), clickName: 'MAP', source: 'vital', timestamp: vitalSignTimestamps?.meanBP || vitalSignsTimestamp || undefined, ownership: 'auto' },
+    { label: 'SpO₂', value: spo2, unit: '%', isAbnormal: isFiniteNumber(spo2) && spo2 < 94, abnormalDirection: vitalDirection(spo2, 94, Infinity), clickName: 'SpO2', source: 'vital', timestamp: vitalSignTimestamps?.spo2 || vitalSignsTimestamp || undefined, ownership: 'manual' },
+    { label: 'EtCO₂', value: etco2, unit: 'mmHg', isAbnormal: false, abnormalDirection: 'normal', clickName: 'EtCO2', source: 'vital', timestamp: vitalSignTimestamps?.etco2 || vitalSignsTimestamp || undefined, ownership: 'manual' },
+    { label: 'CVP', value: cvp, unit: 'mmHg', isAbnormal: isFiniteNumber(cvp) && (cvp > 12 || cvp < 2), abnormalDirection: vitalDirection(cvp, 2, 12), clickName: 'CVP', source: 'vital', timestamp: vitalSignTimestamps?.cvp || vitalSignsTimestamp || undefined, ownership: 'manual' },
+    { label: 'ICP', value: icp, unit: 'mmHg', isAbnormal: isFiniteNumber(icp) && icp > 20, abnormalDirection: vitalDirection(icp, -Infinity, 20), clickName: 'ICP', source: 'vital', timestamp: vitalSignTimestamps?.icp || vitalSignsTimestamp || undefined, ownership: 'manual' },
+    { label: 'CPP', value: cpp, unit: 'mmHg', isAbnormal: false, abnormalDirection: 'normal', clickName: 'CPP', source: 'vital', timestamp: vitalSignTimestamps?.cpp || vitalSignsTimestamp || undefined, ownership: 'manual' },
+    { label: 'BW', value: bodyWeight, unit: 'kg', isAbnormal: false, abnormalDirection: 'normal' as const, clickName: 'BodyWeight', source: 'vital' as TrendSource, timestamp: vitalSignTimestamps?.bodyWeight || vitalSignsTimestamp || undefined, ownership: 'auto' },
     { label: 'BH', value: bodyHeight, unit: 'cm', isAbnormal: false, abnormalDirection: 'normal' as const, clickName: 'BodyHeight', source: 'vital' as TrendSource, timestamp: undefined, ownership: 'auto' },
-  ], [temperature, heartRate, respiratoryRate, systolicBP, diastolicBP, map, spo2, etco2, cvp, icp, cpp, bodyWeight, bodyHeight, vitalSignsTimestamp]);
+  ], [temperature, heartRate, respiratoryRate, systolicBP, diastolicBP, map, spo2, etco2, cvp, icp, cpp, bodyWeight, bodyHeight, vitalSignsTimestamp, vitalSignTimestamps]);
 
   const ventItems: VitalItem[] = useMemo(() => [
     { label: 'Mode', value: typeof ventMode === 'string' ? ventMode : null, unit: '', isAbnormal: false, abnormalDirection: 'normal', clickName: 'Mode', source: 'ventilator', timestamp: ventTimestamp || undefined, ownership: 'manual' },

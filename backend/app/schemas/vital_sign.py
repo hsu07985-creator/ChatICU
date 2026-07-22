@@ -1,5 +1,7 @@
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional, Sequence
+
+from pydantic import Field
 
 from app.schemas.base import CamelModel
 
@@ -37,6 +39,7 @@ class VitalSignResponse(CamelModel):
     cpp: Optional[float] = None
     body_weight: Optional[float] = None
     reference_ranges: dict = REFERENCE_RANGES
+    field_timestamps: dict[str, datetime] = Field(default_factory=dict)
 
     @classmethod
     def from_model(cls, vs) -> "VitalSignResponse":
@@ -58,4 +61,59 @@ class VitalSignResponse(CamelModel):
             icp=vs.icp,
             cpp=vs.cpp,
             body_weight=vs.body_weight,
+        )
+
+    @classmethod
+    def from_models(cls, signs: Sequence[Any]) -> "VitalSignResponse":
+        """Compose the newest non-null value for each metric from newest-first rows."""
+        latest = signs[0]
+        fields = (
+            ("heart_rate", "heartRate", "his"),
+            ("systolic_bp", "systolicBP", "his"),
+            ("diastolic_bp", "diastolicBP", "his"),
+            ("mean_bp", "meanBP", "his"),
+            ("respiratory_rate", "respiratoryRate", "his"),
+            ("spo2", "spo2", "manual"),
+            ("temperature", "temperature", "his"),
+            ("etco2", "etco2", "manual"),
+            ("cvp", "cvp", "manual"),
+            ("icp", "icp", "manual"),
+            ("cpp", "cpp", "manual"),
+            ("body_weight", "bodyWeight", "his"),
+        )
+        values: dict[str, Any] = {}
+        timestamps: dict[str, datetime] = {}
+        for sign in signs:
+            source = "his" if sign.id.startswith("vit_") else "manual"
+            for model_field, payload_field, owner in fields:
+                if source != owner:
+                    continue
+                if model_field in values:
+                    continue
+                value = getattr(sign, model_field)
+                if value is not None:
+                    values[model_field] = value
+                    timestamps[payload_field] = sign.timestamp
+            if len(values) == len(fields):
+                break
+
+        return cls(
+            id=latest.id,
+            patient_id=latest.patient_id,
+            timestamp=latest.timestamp,
+            heart_rate=values.get("heart_rate"),
+            blood_pressure=BloodPressure(
+                systolic=values.get("systolic_bp"),
+                diastolic=values.get("diastolic_bp"),
+                mean=values.get("mean_bp"),
+            ),
+            respiratory_rate=values.get("respiratory_rate"),
+            spo2=values.get("spo2"),
+            temperature=values.get("temperature"),
+            etco2=values.get("etco2"),
+            cvp=values.get("cvp"),
+            icp=values.get("icp"),
+            cpp=values.get("cpp"),
+            body_weight=values.get("body_weight"),
+            field_timestamps=timestamps,
         )

@@ -1227,6 +1227,7 @@ export function PatientDetailPage() {
               labData={labData}
               vitalSignsLoading={vitalSignsLoading}
               vitalSignsTimestamp={vitalSigns?.timestamp}
+              vitalSignTimestamps={vitalSigns?.fieldTimestamps}
               respiratoryRate={respiratoryRate}
               temperature={temperature}
               systolicBP={systolicBP}

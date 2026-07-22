@@ -4,11 +4,9 @@ from datetime import date, datetime, timedelta, timezone
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-
-logger = logging.getLogger(__name__)
 
 from app.database import get_db
 from app.dependencies import get_accessible_patient
@@ -20,9 +18,12 @@ from app.models.culture_result import CultureResult
 from app.models.message import PatientMessage
 from app.models.user import User
 from app.schemas.patient import PatientArchiveUpdate, PatientCreate, PatientUpdate
+from app.fhir.his.roc_time import _gen_id
 from app.utils.jsonb_compat import array_contains_user_receipt, to_utc_aware
-from app.utils.patient_access import normalize_patient_id, verify_patient_access
+from app.utils.patient_access import normalize_patient_id
 from app.utils.response import escape_like, success_response
+
+logger = logging.getLogger(__name__)
 
 
 def _pb_unread_predicate(user: User, dialect_name: str):
@@ -66,6 +67,10 @@ async def _count_pb_unread_for_user(
     return int(res.scalar() or 0)
 
 router = APIRouter(prefix="/patients", tags=["patients"])
+
+_HIS_MANUAL_PATIENT_FIELDS = frozenset(
+    {"critical_status", "campus", "is_isolated", "symptoms"}
+)
 
 
 _MISSING = object()
@@ -446,11 +451,9 @@ async def get_patient_bootstrap(
     # import normalize_patient_id from this module.
     from app.routers.lab_data import compute_latest_lab_payload
     from app.routers.medications import compute_medications_payload
-    from app.routers.vital_signs import vital_to_dict
+    from app.routers.vital_signs import compute_latest_vital_payload
     from app.routers.ventilator import vent_to_dict
-    from app.models.lab_data import LabData
     from app.models.medication import Medication  # noqa: F401 — keeps mapper warmed
-    from app.models.vital_sign import VitalSign
     from app.models.ventilator import VentilatorSetting
 
     pid = patient.id
@@ -474,14 +477,7 @@ async def get_patient_bootstrap(
     )
 
     # 4. Latest vital signs
-    vs_result = await db.execute(
-        select(VitalSign)
-        .where(VitalSign.patient_id == pid)
-        .order_by(VitalSign.timestamp.desc())
-        .limit(1)
-    )
-    vs = vs_result.scalar_one_or_none()
-    latest_vitals = vital_to_dict(vs) if vs else None
+    latest_vitals = await compute_latest_vital_payload(db, pid)
 
     # 5. Latest ventilator
     vent_result = await db.execute(
@@ -521,6 +517,18 @@ async def update_patient(
 
     update_data = body.model_dump(exclude_unset=True)
     logger.info("update_patient %s fields=%s", pid, list(update_data.keys()))
+
+    is_his_managed = bool(
+        patient.medical_record_number
+        and patient.id == _gen_id("pat", patient.medical_record_number)
+    )
+    if is_his_managed:
+        blocked = sorted(set(update_data) - _HIS_MANUAL_PATIENT_FIELDS)
+        if blocked:
+            raise HTTPException(
+                status_code=409,
+                detail=f"HIS 自動欄位不可手動修改: {', '.join(blocked)}",
+            )
 
     field_mapping = {
         "bed_number": "bed_number",

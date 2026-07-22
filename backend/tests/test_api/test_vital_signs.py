@@ -13,7 +13,7 @@ async def seeded_vitals(seeded_db):
     db = seeded_db
     now = datetime.now(timezone.utc)
     vs1 = VitalSign(
-        id="vs_test_001",
+        id="vit_test_001",
         patient_id="pat_001",
         timestamp=now,
         heart_rate=80,
@@ -21,13 +21,10 @@ async def seeded_vitals(seeded_db):
         diastolic_bp=80,
         mean_bp=93.0,
         respiratory_rate=16,
-        spo2=98,
         temperature=36.8,
-        etco2=38.0,
-        cvp=8.0,
     )
     vs2 = VitalSign(
-        id="vs_test_002",
+        id="vit_test_002",
         patient_id="pat_001",
         timestamp=now - timedelta(hours=6),
         heart_rate=85,
@@ -35,11 +32,10 @@ async def seeded_vitals(seeded_db):
         diastolic_bp=85,
         mean_bp=100.0,
         respiratory_rate=18,
-        spo2=96,
         temperature=37.2,
     )
     vs3 = VitalSign(
-        id="vs_test_003",
+        id="vit_test_003",
         patient_id="pat_001",
         timestamp=now - timedelta(hours=30),
         heart_rate=75,
@@ -47,10 +43,17 @@ async def seeded_vitals(seeded_db):
         diastolic_bp=70,
         mean_bp=83.0,
         respiratory_rate=14,
-        spo2=99,
         temperature=36.5,
     )
-    db.add_all([vs1, vs2, vs3])
+    manual = VitalSign(
+        id="vs_test_manual",
+        patient_id="pat_001",
+        timestamp=now - timedelta(minutes=1),
+        spo2=98,
+        etco2=38.0,
+        cvp=8.0,
+    )
+    db.add_all([vs1, vs2, vs3, manual])
     await db.commit()
     return db
 
@@ -90,6 +93,49 @@ async def test_latest_vital_signs_includes_reference_ranges(client, seeded_vital
     assert "spo2" in rr
 
 
+async def test_latest_vital_signs_composes_sparse_rows(client, seeded_vitals):
+    """Manual metrics must not blank newer HIS metrics, and vice versa."""
+    db = seeded_vitals
+    manual_at = datetime.now(timezone.utc) + timedelta(minutes=1)
+    db.add(VitalSign(
+        id="vs_manual_sparse",
+        patient_id="pat_001",
+        timestamp=manual_at,
+        spo2=91,
+    ))
+    await db.commit()
+
+    data = (await client.get("/patients/pat_001/vital-signs/latest")).json()["data"]
+    assert data["spo2"] == 91
+    assert data["heartRate"] == 80
+    assert data["temperature"] == 36.8
+    assert data["fieldTimestamps"]["spo2"] != data["fieldTimestamps"]["heartRate"]
+
+    bootstrap = (await client.get("/patients/pat_001/bootstrap")).json()["data"]
+    assert bootstrap["latestVitals"] == data
+
+
+async def test_create_manual_vital_returns_composed_latest(client, seeded_vitals):
+    resp = await client.post(
+        "/patients/pat_001/vital-signs",
+        json={"spo2": 92, "cvp": 7},
+    )
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["spo2"] == 92
+    assert data["cvp"] == 7
+    assert data["heartRate"] == 80
+    assert data["temperature"] == 36.8
+
+
+async def test_create_manual_vital_rejects_his_fields(client, seeded_db):
+    resp = await client.post(
+        "/patients/pat_001/vital-signs",
+        json={"heart_rate": 120, "temperature": 39, "body_weight": 80},
+    )
+    assert resp.status_code == 422
+
+
 async def test_latest_vital_signs_not_found(client, seeded_db):
     """Returns null data when no vital signs exist."""
     resp = await client.get("/patients/pat_001/vital-signs/latest")
@@ -115,7 +161,7 @@ async def test_vital_signs_trends_custom_hours(client, seeded_vitals):
     resp = await client.get("/patients/pat_001/vital-signs/trends?hours=48")
     assert resp.status_code == 200
     trends = resp.json()["data"]["trends"]
-    assert len(trends) == 3
+    assert len(trends) == 4
 
 
 async def test_vital_signs_history_pagination(client, seeded_vitals):
@@ -124,7 +170,7 @@ async def test_vital_signs_history_pagination(client, seeded_vitals):
     assert resp.status_code == 200
     data = resp.json()["data"]
     assert len(data["history"]) == 2
-    assert data["pagination"]["total"] == 3
+    assert data["pagination"]["total"] == 4
     assert data["pagination"]["totalPages"] == 2
 
 
@@ -133,7 +179,7 @@ async def test_vital_signs_history_page2(client, seeded_vitals):
     resp = await client.get("/patients/pat_001/vital-signs/history?page=2&limit=2")
     assert resp.status_code == 200
     data = resp.json()["data"]
-    assert len(data["history"]) == 1
+    assert len(data["history"]) == 2
 
 
 async def test_vital_signs_patient_not_found(client, seeded_db):

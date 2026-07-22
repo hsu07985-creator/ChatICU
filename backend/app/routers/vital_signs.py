@@ -3,7 +3,7 @@ from datetime import date, datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,23 +16,18 @@ from app.models.vital_sign import VitalSign
 from app.models.user import User
 from app.models.patient import Patient
 from app.schemas.vital_sign import VitalSignResponse
-from app.utils.patient_access import normalize_patient_id, verify_patient_access
+from app.utils.patient_access import normalize_patient_id
 from app.utils.response import success_response
 
 
 class VitalSignInput(BaseModel):
-    heart_rate: Optional[int] = None
-    systolic_bp: Optional[int] = None
-    diastolic_bp: Optional[int] = None
-    mean_bp: Optional[float] = None
-    respiratory_rate: Optional[int] = None
+    model_config = ConfigDict(extra="forbid")
+
     spo2: Optional[int] = None
-    temperature: Optional[float] = None
     etco2: Optional[float] = None
     cvp: Optional[float] = None
     icp: Optional[float] = None
     cpp: Optional[float] = None
-    body_weight: Optional[float] = None
 
 router = APIRouter(prefix="/patients/{patient_id}/vital-signs", tags=["vital-signs"])
 
@@ -40,6 +35,20 @@ router = APIRouter(prefix="/patients/{patient_id}/vital-signs", tags=["vital-sig
 def vital_to_dict(vs: VitalSign) -> dict:
     """B2 pattern: schema is the single source of the field mapping."""
     return VitalSignResponse.from_model(vs).dump_camel()
+
+
+async def compute_latest_vital_payload(db: AsyncSession, patient_id: str) -> dict | None:
+    result = await db.execute(
+        select(VitalSign)
+        .where(VitalSign.patient_id == patient_id)
+        .order_by(
+            VitalSign.timestamp.desc(), VitalSign.created_at.desc(), VitalSign.id.desc()
+        )
+    )
+    signs = result.scalars().all()
+    if not signs:
+        return None
+    return VitalSignResponse.from_models(signs).dump_camel()
 
 
 @router.get("/latest")
@@ -51,18 +60,11 @@ async def get_latest_vital_signs(
 ):
     pid = patient.id
 
-    result = await db.execute(
-        select(VitalSign)
-        .where(VitalSign.patient_id == pid)
-        .order_by(VitalSign.timestamp.desc())
-        .limit(1)
-    )
-    vs = result.scalar_one_or_none()
-
-    if not vs:
+    payload = await compute_latest_vital_payload(db, pid)
+    if payload is None:
         return success_response(data=None, message="No vital signs found")
 
-    return success_response(data=vital_to_dict(vs))
+    return success_response(data=payload)
 
 
 @router.get("/trends")
@@ -149,18 +151,11 @@ async def create_vital_signs(
         id=f"vs_{uuid.uuid4().hex[:12]}",
         patient_id=pid,
         timestamp=datetime.now(timezone.utc),
-        heart_rate=body.heart_rate,
-        systolic_bp=body.systolic_bp,
-        diastolic_bp=body.diastolic_bp,
-        mean_bp=body.mean_bp,
-        respiratory_rate=body.respiratory_rate,
         spo2=body.spo2,
-        temperature=body.temperature,
         etco2=body.etco2,
         cvp=body.cvp,
         icp=body.icp,
         cpp=body.cpp,
-        body_weight=body.body_weight,
     )
     db.add(vs)
 
@@ -172,4 +167,7 @@ async def create_vital_signs(
     )
     await db.flush()
 
-    return success_response(data=vital_to_dict(vs), message="生命徵象已新增")
+    return success_response(
+        data=await compute_latest_vital_payload(db, pid),
+        message="生命徵象已新增",
+    )

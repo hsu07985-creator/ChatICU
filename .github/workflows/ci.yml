@@ -69,6 +69,14 @@ jobs:
           SEED_DEFAULT_PASSWORD: "CITestPassword123!"
         run: python -m pytest tests/test_api -q
 
+      - name: Run HIS converter and sync tests
+        env:
+          DATABASE_URL: "sqlite+aiosqlite:///./test.db"
+          REDIS_URL: "redis://localhost:6379/0"
+          JWT_SECRET: "ci-test-secret-do-not-use-in-production"
+          SEED_DEFAULT_PASSWORD: "CITestPassword123!"
+        run: python -m pytest tests/test_fhir -q
+
       - name: Vercel route-parity gate (C4)
         working-directory: .
         env:

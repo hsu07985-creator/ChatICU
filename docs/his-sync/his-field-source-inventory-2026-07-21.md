@@ -11,6 +11,8 @@
 
 一句話界線：**HIS 有明確來源的欄位自動寫入且不能手動改；HIS 沒有的欄位保留人工補充；來源錯誤/缺頁時只更新已收到資料，不刪既有資料。** `vital_signs` 與 `clinical_scores` 現在也由 HIS 以決定性 id upsert，但手動 uuid 列不會被碰。
 
+> **2026-07-22 最終封口**：HIS 決定性病人的 patient PATCH 只接受 `critical_status`、`campus`、`is_isolated`、`symptoms`；其他快照欄位回 `409`。生命徵象人工 POST 只接受 SpO₂、EtCO₂、CVP、ICP、CPP，其他欄位回 `422`。latest/bootstrap 採逐欄最新非空值並附 `fieldTimestamps`。`getAllOrder` 已確認是醫囑而非報告，不再寫入 `diagnostic_reports`；本快照的真正報告是 ECG AI 40 筆與手術 3 筆。
+
 ### 2026-07-22 現況覆寫（與下方歷史逐欄表衝突時，以本段與程式碼為準）
 
 - **Medications**：HIS-id（`order_code` 非空）的 dose/unit/frequency/route/status/endDate/sanCategory/notes 等自動欄位 PATCH 會回 409；只有 `indication`、`warnings`、`concentration`、`concentration_unit`、`prescribing_hospital` 可人工補充且同步後保留。手動藥（`order_code IS NULL`）維持完整編輯。來源不完整時 `delete_stale=False`，不刪缺席藥物。
@@ -18,6 +20,7 @@
 - **Culture results**：以 `(source_campus, sheet_number)` 分組；保存 MIC、檢體類型、最早採檢/最晚報告時間與完整 `source_details`。只有 culture/AST 的 sheet 不再產生空白 `lab_data` orphan。
 - **Raw source**：藥物與培養新增 JSONB `source_details`；藥物另保存 `source_campus`，培養新增 `source_campus`。schema migration = 085。
 - **實測**：10 位病患，medications 2,120、lab items 6,224、culture/AST items 1,812、MIC 98，逐筆 source counter 與數值差異皆為 0；空白 lab orphan = 0。
+- **同步版本**：serial state 保存 `schema_version`；converter/mapping 版本不同時，即使來源 hash 相同仍分類為 changed 並重新匯入。
 
 ---
 
