@@ -1,495 +1,277 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
-import { Wind, Droplets, FlaskConical, FileText, ChevronDown, ChevronRight } from 'lucide-react';
-import { getCultureSusceptibility } from '../../lib/api/microbiology';
-import type { CulturePanel, CultureSusceptibilityData, SusceptibilityResult } from '../../lib/api/microbiology';
-import { LoadingSpinner } from '../ui/state-display';
-import type { LucideIcon } from 'lucide-react';
+import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  FlaskConical,
+  Microscope,
+  RotateCcw,
+  ShieldAlert,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-/* ── helpers ─────────────────────────────────────────────── */
-
-function isNormalFlora(panel: CulturePanel): boolean {
-  if (panel.result && /normal\s*(oral\s*)?flora/i.test(panel.result)) return true;
-  // Only flora when EVERY isolate is normal flora — a real pathogen alongside
-  // normal flora must not suppress the pathogen (would falsely read as negative).
-  return panel.isolates.length > 0 && panel.isolates.every((i) => /normal\s*(oral\s*)?flora/i.test(i.organism));
-}
-
-function isPositiveCulture(panel: CulturePanel): boolean {
-  if (isNormalFlora(panel)) return false;
-  return panel.isolates.some(
-    (i) =>
-      i.organism !== 'Negative' &&
-      !i.organism.startsWith('No growth') &&
-      !i.organism.startsWith('No salmonella') &&
-      !/normal\s*(oral\s*)?flora/i.test(i.organism),
-  );
-}
-
-function shortDate(dateStr: string | null) {
-  if (!dateStr) return '—';
-  const parts = dateStr.slice(5, 10).split('-');
-  return `${parts[0]}/${parts[1]}`;
-}
-
-function sortSusceptibility(items: SusceptibilityResult[]): SusceptibilityResult[] {
-  const order: Record<string, number> = { S: 0, I: 1, R: 2 };
-  return [...items].sort((a, b) => (order[a.result] ?? 3) - (order[b.result] ?? 3));
-}
-
-/** Q score badge: subtle grayscale — secondary info, shouldn't compete with S/I/R */
-function qScoreBg(_q: number): string {
-  return 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700';
-}
-
-/** Group panels by Q score (descending). Returns [label, panels][] — single group with '' key if no Q scores */
-function groupByQScore(panels: CulturePanel[]): [string, CulturePanel[]][] {
-  const hasQ = panels.some((p) => p.qScore != null);
-  if (!hasQ) return [['', panels]];
-  const byQ = new Map<string, CulturePanel[]>();
-  for (const p of panels) {
-    const key = p.qScore != null ? `Q${p.qScore}` : '';
-    if (!byQ.has(key)) byQ.set(key, []);
-    byQ.get(key)!.push(p);
-  }
-  return [...byQ.entries()].sort((a, b) => {
-    const aNum = a[0] ? parseInt(a[0].slice(1)) : -1;
-    const bNum = b[0] ? parseInt(b[0].slice(1)) : -1;
-    return bNum - aNum;
-  });
-}
-
-/* ── Merged culture type ─────────────────────────────────── */
-
-interface MergedCulture {
-  organisms: string[];
-  dates: string[];
-  panels: CulturePanel[];
-  resistantCount: number;
-  intermediateCount: number;
-  sensitiveCount: number;
-  bestSusceptibility: SusceptibilityResult[];
-  coloniesMap: Record<string, string>;
-  qScore?: number | null;
-}
-
-function mergeConsecutiveCultures(panels: CulturePanel[]): MergedCulture[] {
-  const result: MergedCulture[] = [];
-
-  for (const panel of panels) {
-    const organisms = panel.isolates
-      .map((i) => i.organism)
-      .filter((o) => o !== 'Negative' && !o.startsWith('No growth') && !o.startsWith('No salmonella') && !/normal\s*(oral\s*)?flora/i.test(o))
-      .sort();
-    const key = organisms.join('|');
-    const rCount = panel.susceptibility.filter((s) => s.result === 'R').length;
-    const iCount = panel.susceptibility.filter((s) => s.result === 'I').length;
-    const sCount = panel.susceptibility.filter((s) => s.result === 'S').length;
-
-    const coloniesMap: Record<string, string> = {};
-    for (const iso of panel.isolates) {
-      if (iso.colonies) coloniesMap[iso.organism] = iso.colonies;
-    }
-
-    const last = result[result.length - 1];
-    const lastKey = last?.organisms.sort().join('|');
-    const sameSusceptibilityPattern = last && last.bestSusceptibility.length === panel.susceptibility.length &&
-      last.bestSusceptibility.every((s, i) => {
-        const sorted = sortSusceptibility(panel.susceptibility);
-        return sorted[i] && s.antibiotic === sorted[i].antibiotic && s.result === sorted[i].result;
-      });
-
-    if (last && lastKey === key && sameSusceptibilityPattern) {
-      last.dates.push(panel.collectedAt ?? panel.reportedAt ?? '');
-      last.panels.push(panel);
-    } else {
-      result.push({
-        organisms,
-        dates: [panel.collectedAt ?? panel.reportedAt ?? ''],
-        panels: [panel],
-        resistantCount: rCount,
-        intermediateCount: iCount,
-        sensitiveCount: sCount,
-        bestSusceptibility: sortSusceptibility(panel.susceptibility),
-        coloniesMap,
-        qScore: panel.qScore,
-      });
-    }
-  }
-
-  return result;
-}
-
-/* ── Collapsible Culture Card ────────────────────────────── */
-
-function CultureCard({ merged, defaultOpen, forceOpen }: { merged: MergedCulture; defaultOpen?: boolean; forceOpen?: boolean | null }) {
-  const { t } = useTranslation('microbiology');
-  const [open, setOpen] = useState(defaultOpen ?? false);
-
-  // Respond to global expand/collapse toggle
-  useEffect(() => {
-    if (forceOpen !== null && forceOpen !== undefined) setOpen(forceOpen);
-  }, [forceOpen]);
-  const hasR = merged.resistantCount > 0;
-  const hasI = merged.intermediateCount > 0;
-
-  const rItems = merged.bestSusceptibility.filter((s) => s.result === 'R');
-  const iItems = merged.bestSusceptibility.filter((s) => s.result === 'I');
-  const sItems = merged.bestSusceptibility.filter((s) => s.result === 'S');
-
-  const borderAccent = hasR
-    ? 'border-l-2 border-l-rose-300 dark:border-l-rose-800'
-    : hasI
-      ? 'border-l-2 border-l-amber-300 dark:border-l-amber-800'
-      : '';
-  const cardStyle = `border border-slate-200 dark:border-slate-700 ${borderAccent} bg-white dark:bg-slate-900`;
-
-  const headerStyle = 'hover:bg-slate-50 dark:hover:bg-slate-800/60';
-
-  const bodyBorder = 'border-slate-100 dark:border-slate-800';
-
-  const coloniesStr = merged.organisms
-    .map((o) => merged.coloniesMap[o])
-    .filter(Boolean)
-    .map((c) => { const lc = c.toLowerCase(); return lc === 'heavy' ? 'Heavy' : lc === 'moderate' ? 'Mod' : c; })
-    .join(', ');
-
-  return (
-    <div className={`rounded-lg ${cardStyle} overflow-hidden`}>
-      {/* ── Card Header (always visible, clickable) ── */}
-      <button
-        type="button"
-        className={`w-full text-left px-3 py-2 flex items-center gap-2 transition-colors ${headerStyle}`}
-        onClick={() => setOpen((v) => !v)}
-      >
-        {open
-          ? <ChevronDown className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 shrink-0" />
-          : <ChevronRight className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 shrink-0" />}
-
-        {/* Organism name */}
-        <span className="flex-1 min-w-0 text-sm font-semibold text-slate-800 dark:text-slate-100 italic truncate">
-          {merged.organisms.join(', ')}
-        </span>
-
-        {/* S / I / R count badges */}
-        <span className="flex items-center gap-1 shrink-0">
-          {merged.sensitiveCount > 0 && (
-            <span className="inline-flex items-center rounded-md border px-1.5 py-0.5 text-xs font-medium bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800">
-              S {merged.sensitiveCount}
-            </span>
-          )}
-          {hasI && (
-            <span className="inline-flex items-center rounded-md border px-1.5 py-0.5 text-xs font-medium bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800">
-              I {merged.intermediateCount}
-            </span>
-          )}
-          {hasR && (
-            <span className="inline-flex items-center rounded-md border px-1.5 py-0.5 text-xs font-medium bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800">
-              R {merged.resistantCount}
-            </span>
-          )}
-          {merged.qScore != null && (
-            <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-xs font-medium ${qScoreBg(merged.qScore)}`}>
-              Q{merged.qScore}
-            </span>
-          )}
-        </span>
-
-        {/* Date */}
-        <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums shrink-0 border-l border-slate-200 dark:border-slate-700 pl-2">
-          {merged.dates.map((d) => shortDate(d)).join(', ')}
-        </span>
-      </button>
-
-      {/* ── Card Body (expanded) ── */}
-      {open && (
-        <div className={`border-t ${bodyBorder} px-3 py-2.5 space-y-2 text-sm`}>
-          {/* Meta line: colonies */}
-          {coloniesStr && (
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              {t('coloniesLabel', { value: coloniesStr })}
-            </div>
-          )}
-
-          {/* S chips */}
-          {sItems.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {sItems.map((s) => (
-                <span key={s.antibiotic} className="inline-flex items-center rounded-md border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-950/40 px-1.5 py-0.5 text-xs font-medium text-teal-700 dark:text-teal-300">
-                  {s.antibiotic}
-                </span>
-              ))}
-            </div>
-          )}
-          {/* I chips */}
-          {iItems.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {iItems.map((s) => (
-                <span key={s.antibiotic} className="inline-flex items-center rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
-                  {s.antibiotic}
-                </span>
-              ))}
-            </div>
-          )}
-          {/* R chips */}
-          {rItems.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {rItems.map((s) => (
-                <span key={s.antibiotic} className="inline-flex items-center rounded-md border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.5 text-xs font-medium text-rose-700 dark:text-rose-300">
-                  {s.antibiotic}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ── Chronological timeline item ─────────────────────────── */
-
-type ChronoItem =
-  | { kind: 'card'; merged: MergedCulture }
-  | { kind: 'flora'; panel: CulturePanel }
-  | { kind: 'negative'; panel: CulturePanel };
-
-/** Build a single chronological list from all panels in a category. */
-function buildChronologicalList(
-  group: CategoryGroup,
-  onlyPositive: boolean,
-  onlyResistant: boolean,
-): ChronoItem[] {
-  const showAll = !onlyPositive && !onlyResistant;
-  const filteredPositive = onlyResistant
-    ? group.positive.filter((p) => p.susceptibility.some((s) => s.result === 'R' || s.result === 'I'))
-    : group.positive;
-
-  // Tag every panel with its type
-  const tagged: { panel: CulturePanel; ptype: 'positive' | 'flora' | 'negative' }[] = [];
-  for (const p of filteredPositive) tagged.push({ panel: p, ptype: 'positive' });
-  if (showAll) {
-    for (const p of group.normalFlora) tagged.push({ panel: p, ptype: 'flora' });
-    for (const p of group.negative) tagged.push({ panel: p, ptype: 'negative' });
-  }
-
-  // Sort by collectedAt descending (newest first)
-  tagged.sort((a, b) => {
-    const dateA = a.panel.collectedAt ?? a.panel.reportedAt ?? '';
-    const dateB = b.panel.collectedAt ?? b.panel.reportedAt ?? '';
-    return dateB.localeCompare(dateA);
-  });
-
-  // Walk in order: merge consecutive positives with same organisms+susceptibility
-  const items: ChronoItem[] = [];
-  let pendingPositive: CulturePanel[] = [];
-
-  const flushPositive = () => {
-    if (pendingPositive.length === 0) return;
-    for (const m of mergeConsecutiveCultures(pendingPositive)) {
-      items.push({ kind: 'card', merged: m });
-    }
-    pendingPositive = [];
-  };
-
-  for (const { panel, ptype } of tagged) {
-    if (ptype === 'positive') {
-      pendingPositive.push(panel);
-    } else {
-      flushPositive();
-      items.push({ kind: ptype, panel });
-    }
-  }
-  flushPositive();
-
-  return items;
-}
-
-/* ── Collapsible Specimen Category Section ────────────────── */
-
-function CategorySection({
-  label, Icon, group, onlyPositive, onlyResistant, forceOpen,
-}: {
-  label: string;
-  Icon: LucideIcon;
-  group: CategoryGroup;
-  onlyPositive: boolean;
-  onlyResistant: boolean;
-  forceOpen?: boolean | null;
-}) {
-  const { t } = useTranslation('microbiology');
-  const showAll = !onlyPositive && !onlyResistant;
-  const filteredPositive = onlyResistant
-    ? group.positive.filter((p) => p.susceptibility.some((s) => s.result === 'R' || s.result === 'I'))
-    : group.positive;
-  const hasPositive = filteredPositive.length > 0;
-  const posCount = filteredPositive.length;
-  const negCount = showAll ? group.negative.length : 0;
-  const floraCount = showAll ? group.normalFlora.length : 0;
-  const total = posCount + negCount + floraCount;
-
-  const chronoItems = useMemo(
-    () => buildChronologicalList(group, onlyPositive, onlyResistant),
-    [group, onlyPositive, onlyResistant],
-  );
-
-  const [open, setOpen] = useState(true);
-
-  return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
-      {/* ── Section Header (clickable) ── */}
-      <button
-        type="button"
-        className={`w-full text-left px-4 py-3 flex items-center gap-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 ${
-          open ? 'border-b border-slate-200 dark:border-slate-700' : ''
-        }`}
-        onClick={() => setOpen((v) => !v)}
-      >
-        {open
-          ? <ChevronDown className="h-4 w-4 text-slate-400 dark:text-slate-500 shrink-0" />
-          : <ChevronRight className="h-4 w-4 text-slate-400 dark:text-slate-500 shrink-0" />}
-        <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
-        <h4 className="text-base font-semibold text-slate-800 dark:text-slate-100">{label}</h4>
-
-        {/* Summary count: 陽性 as pill, others as inline muted text */}
-        <span className="flex items-center gap-2 ml-auto text-xs">
-          {posCount > 0 && (
-            <span className="inline-flex items-center rounded-full px-2 py-0.5 font-medium bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-              {t('summary.positive', { count: posCount })}
-            </span>
-          )}
-          {(negCount > 0 || floraCount > 0) && (
-            <span className="text-slate-500 dark:text-slate-400">
-              {[
-                negCount > 0 ? t('summary.negative', { count: negCount }) : null,
-                floraCount > 0 ? t('summary.normalFlora', { count: floraCount }) : null,
-              ].filter(Boolean).join(' · ')}
-            </span>
-          )}
-          {total === 0 && <span className="text-slate-300 dark:text-slate-600">0</span>}
-        </span>
-      </button>
-
-      {/* ── Section Body (chronological) ── */}
-      {open && (
-        <div className="px-3 py-2.5 space-y-2">
-          {total === 0 ? (
-            <p className="text-sm text-slate-400 dark:text-slate-500 py-2 text-center">
-              {(onlyPositive || onlyResistant) ? t('empty.filtered') : t('empty.none')}
-            </p>
-          ) : (
-            <>
-              {chronoItems.map((item, idx) => {
-                if (item.kind === 'card') {
-                  return <CultureCard key={idx} merged={item.merged} defaultOpen={item.merged.resistantCount > 0} forceOpen={forceOpen} />;
-                }
-                if (item.kind === 'flora') {
-                  const p = item.panel;
-                  return (
-                    <div key={idx} className="text-sm text-slate-600 dark:text-slate-300 py-1.5 px-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
-                      <span className="font-medium italic">{t('labels.normalFlora')}</span>
-                      {p.qScore != null && (
-                        <span className={`inline-flex items-center rounded border px-1 text-xs font-medium leading-tight ${qScoreBg(p.qScore)}`}>
-                          Q{p.qScore}
-                        </span>
-                      )}
-                      <span className="ml-auto text-xs text-slate-400 dark:text-slate-500 tabular-nums">{shortDate(p.collectedAt ?? p.reportedAt)}</span>
-                    </div>
-                  );
-                }
-                // negative
-                const p = item.panel;
-                return (
-                  <div key={idx} className="text-sm text-slate-600 dark:text-slate-300 py-1.5 px-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
-                    <span className="font-medium">{t('labels.negative')}</span>
-                    {p.qScore != null && (
-                      <span className={`inline-flex items-center rounded border px-1 text-xs font-medium leading-tight ${qScoreBg(p.qScore)}`}>
-                        Q{p.qScore}
-                      </span>
-                    )}
-                    <span className="ml-auto text-xs text-slate-400 dark:text-slate-500 tabular-nums">{shortDate(p.collectedAt ?? p.reportedAt)}</span>
-                  </div>
-                );
-              })}
-              {group.category === 'other' && total > 0 && (
-                <div className="flex flex-wrap gap-1.5 px-1">
-                  {[...new Set([
-                    ...filteredPositive,
-                    ...(showAll ? group.normalFlora : []),
-                    ...(showAll ? group.negative : []),
-                  ].map((p) => p.specimen))].map((s) => (
-                    <span key={s} className="text-xs text-slate-400 dark:text-slate-500">{s}</span>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ── 4-Category Specimen Grouping ───────────────────────── */
+import {
+  getCultureSusceptibility,
+  type CulturePanel,
+  type CultureRecordType,
+  type CultureStatus,
+  type CultureSusceptibilityData,
+  type SusceptibilityResult,
+} from '../../lib/api/microbiology';
+import { Badge } from '../ui/badge';
+import { LoadingSpinner } from '../ui/state-display';
 
 type SpecimenCategory = 'sputum' | 'urine' | 'blood' | 'other';
+type RecordFilter = 'all' | CultureRecordType;
+type SpecimenFilter = 'all' | SpecimenCategory;
 
-// Icons stay static; labels resolved at render via t('categories.<key>').
-const CATEGORY_ICONS: Record<SpecimenCategory, LucideIcon> = {
-  sputum: Wind,
-  urine: FlaskConical,
-  blood: Droplets,
-  other: FileText,
+const STATUS_STYLES: Record<CultureStatus, string> = {
+  positive: 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300',
+  negative: 'border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300',
+  normal_flora: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300',
+  indeterminate: 'border-border bg-muted text-muted-foreground',
+  reported: 'border-brand/25 bg-brand/5 text-brand dark:border-brand/40 dark:bg-brand/10',
 };
 
-const CATEGORY_ORDER: SpecimenCategory[] = ['sputum', 'urine', 'blood', 'other'];
+const RESULT_STYLES: Record<SusceptibilityResult['result'], string> = {
+  R: 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300',
+  I: 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-300',
+  S: 'border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300',
+};
 
 function classifySpecimen(specimen: string): SpecimenCategory {
-  const s = specimen.toLowerCase();
-  if (s.includes('sputum') || s.includes('痰')) return 'sputum';
-  if (s.includes('urine') || s.includes('尿')) return 'urine';
-  if (s.includes('blood') || s.includes('血')) return 'blood';
+  const value = specimen.toLowerCase();
+  if (value.includes('sputum') || value.includes('痰')) return 'sputum';
+  if (value.includes('urine') || value.includes('尿')) return 'urine';
+  if (value.includes('blood') || value.includes('血')) return 'blood';
   return 'other';
 }
 
-interface CategoryGroup {
-  category: SpecimenCategory;
-  positive: CulturePanel[];
-  normalFlora: CulturePanel[];
-  negative: CulturePanel[];
+function sortSusceptibility(items: SusceptibilityResult[]): SusceptibilityResult[] {
+  const order = { R: 0, I: 1, S: 2 };
+  return [...items].sort((a, b) => order[a.result] - order[b.result]
+    || a.antibiotic.localeCompare(b.antibiotic));
 }
 
-function groupByCategory(panels: CulturePanel[]): CategoryGroup[] {
-  const map: Record<SpecimenCategory, CategoryGroup> = {
-    sputum: { category: 'sputum', positive: [], normalFlora: [], negative: [] },
-    urine:  { category: 'urine',  positive: [], normalFlora: [], negative: [] },
-    blood:  { category: 'blood',  positive: [], normalFlora: [], negative: [] },
-    other:  { category: 'other',  positive: [], normalFlora: [], negative: [] },
-  };
-  for (const p of panels) {
-    const cat = classifySpecimen(p.specimen || 'Unknown');
-    if (isNormalFlora(p)) {
-      map[cat].normalFlora.push(p);
-    } else if (isPositiveCulture(p)) {
-      map[cat].positive.push(p);
-    } else {
-      map[cat].negative.push(p);
-    }
-  }
-  return CATEGORY_ORDER.map((c) => map[c]);
+function formatDateTime(value: string | null | undefined, locale: string): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(locale, {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
 }
 
-/* ── Main Component ──────────────────────────────────────── */
+function SummaryChip({ label, value, icon, tone }: {
+  label: string;
+  value: number;
+  icon: ReactNode;
+  tone: string;
+}) {
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2 rounded-xl border border-border bg-gradient-to-br from-white to-slate-50 px-2.5 py-1.5 text-sm dark:from-slate-900 dark:to-slate-800">
+      <span className={tone}>{icon}</span>
+      <strong className="tabular-nums text-foreground">{value}</strong>
+      <span className="truncate text-xs text-muted-foreground">{label}</span>
+    </span>
+  );
+}
+
+function ResultCounts({ panel }: { panel: CulturePanel }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {(['R', 'I', 'S'] as const).map((result) => {
+        const count = panel.susceptibility.filter((item) => item.result === result).length;
+        return count > 0 ? (
+          <Badge key={result} variant="outline" className={`h-5 px-1.5 font-semibold ${RESULT_STYLES[result]}`}>
+            {result} {count}
+          </Badge>
+        ) : null;
+      })}
+    </div>
+  );
+}
+
+function WorklistRow({ panel, locale }: { panel: CulturePanel; locale: string }) {
+  const { t } = useTranslation('microbiology');
+  const detailsId = useId();
+  const [open, setOpen] = useState(false);
+  const susceptibility = useMemo(
+    () => sortSusceptibility(panel.susceptibility),
+    [panel.susceptibility],
+  );
+  const timestamp = panel.collectedAt ?? panel.reportedAt;
+  const isStain = panel.recordType === 'gram_stain';
+  const hasResistance = panel.susceptibility.some((item) => item.result === 'R');
+  const isAlert = panel.alerts.length > 0 || hasResistance;
+  const summary = isStain
+    ? panel.stainResults.map((item) => `${item.label} ${item.value}`).join(' · ')
+      || panel.result || t('labels.awaitingResult')
+    : panel.isolates.map((item) => item.organism).join(', ')
+      || panel.result || t('labels.awaitingResult');
+  const hasDetails = panel.alerts.length > 0
+    || panel.isolates.length > 0
+    || susceptibility.length > 0
+    || panel.stainResults.length > 0;
+
+  return (
+    <article
+      className={`border-l-4 bg-card ${
+        isAlert
+          ? 'border-l-red-400'
+          : isStain
+            ? 'border-l-brand'
+            : 'border-l-transparent'
+      }`}
+      data-testid="microbiology-worklist-entry"
+    >
+      <button
+        type="button"
+        disabled={!hasDetails}
+        className="grid w-full gap-2 px-3 py-3 text-left outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-default md:grid-cols-[8.5rem_minmax(9rem,1fr)_minmax(13rem,1.5fr)_minmax(8rem,.8fr)_auto] md:items-center"
+        aria-expanded={hasDetails ? open : undefined}
+        aria-controls={hasDetails ? detailsId : undefined}
+        onClick={() => hasDetails && setOpen((value) => !value)}
+      >
+        <span className="flex items-center gap-1.5 text-sm font-semibold tabular-nums text-foreground">
+          {hasDetails
+            ? open
+              ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+              : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            : <span className="w-4" />}
+          {formatDateTime(timestamp, locale)}
+        </span>
+
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-semibold text-foreground">
+            {panel.specimen || t('labels.unknownSpecimen')}
+          </span>
+          <span className="mt-1 flex flex-wrap gap-1">
+            <Badge variant="outline" className={`h-5 px-1.5 ${
+              isStain
+                ? 'border-brand/25 bg-brand/5 text-brand dark:border-brand/40 dark:bg-brand/10'
+                : 'border-brand/20 bg-brand/5 text-brand dark:border-brand/40 dark:bg-brand/10'
+            }`}>
+              {isStain ? <Microscope className="h-3 w-3" /> : <FlaskConical className="h-3 w-3" />}
+              {t(`recordTypes.${panel.recordType}`)}
+            </Badge>
+            <Badge variant="outline" className={`h-5 px-1.5 ${STATUS_STYLES[panel.status]}`}>
+              {t(`statuses.${panel.status}`)}
+            </Badge>
+            {panel.qScore != null && (
+              <Badge variant="outline" className="h-5 border-border bg-muted px-1.5 text-muted-foreground">
+                Q{panel.qScore}
+              </Badge>
+            )}
+          </span>
+        </span>
+
+        <span className={`min-w-0 truncate text-sm ${isStain ? 'text-brand' : 'text-foreground'}`}>
+          {summary}
+        </span>
+
+        <span className="min-w-0 text-xs text-muted-foreground">
+          {[panel.campusName, panel.department].filter(Boolean).join(' · ') || '—'}
+        </span>
+
+        <span className="flex items-center justify-between gap-2 md:justify-end">
+          <ResultCounts panel={panel} />
+          {isAlert && <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" aria-label={t('labels.alert')} />}
+        </span>
+      </button>
+
+      {open && hasDetails && (
+        <div id={detailsId} className="space-y-4 border-t border-border bg-muted/30 px-4 py-4">
+          {panel.alerts.map((alert) => (
+            <div key={alert} className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span><strong>{t('labels.alert')}:</strong> {alert}</span>
+            </div>
+          ))}
+
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            {panel.department && <span>{t('labels.department')}: {panel.department}</span>}
+            {panel.campusName && <span>{t('labels.campus')}: {panel.campusName}</span>}
+            {panel.reportedAt && panel.reportedAt !== timestamp && (
+              <span>{t('labels.reportedAt')}: {formatDateTime(panel.reportedAt, locale)}</span>
+            )}
+          </div>
+
+          {panel.isolates.length > 0 && (
+            <div>
+              <h5 className="mb-2 text-xs font-semibold text-muted-foreground">{t('labels.organisms')}</h5>
+              <div className="flex flex-wrap gap-2">
+                {panel.isolates.map((isolate) => (
+                  <span key={`${isolate.code}-${isolate.organism}`} className="rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-foreground">
+                    <span className="font-semibold">{isolate.organism}</span>
+                    {isolate.colonies && <span className="ml-2 text-xs text-muted-foreground">{t('labels.colonies')}: {isolate.colonies}</span>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {panel.stainResults.length > 0 && (
+            <div>
+              <h5 className="mb-2 text-xs font-semibold text-brand">{t('labels.stainResults')}</h5>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {panel.stainResults.map((item) => (
+                  <div key={`${item.code}-${item.label}`} className="flex items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-sm">
+                    <span className="text-muted-foreground">{item.label}</span>
+                    <strong className="text-foreground">{item.value}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {susceptibility.length > 0 && (
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/60 text-left text-xs text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2 font-semibold">{t('labels.antibiotic')}</th>
+                    <th className="px-3 py-2 text-center font-semibold">{t('labels.interpretation')}</th>
+                    <th className="px-3 py-2 text-right font-semibold">{t('labels.mic')}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {susceptibility.map((item) => (
+                    <tr key={`${item.code}-${item.antibiotic}`}>
+                      <td className="px-3 py-2 font-medium text-foreground">{item.antibiotic}</td>
+                      <td className="px-3 py-2 text-center">
+                        <Badge variant="outline" className={`h-5 min-w-7 px-1.5 font-semibold ${RESULT_STYLES[item.result]}`}>
+                          {item.result}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2 text-right text-xs text-muted-foreground">{item.mic || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
 
 interface PatientMicrobiologyCardProps {
   patientId: string;
 }
 
 export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardProps) {
-  const { t } = useTranslation('microbiology');
+  const { t, i18n } = useTranslation('microbiology');
   const [data, setData] = useState<CultureSusceptibilityData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [recordFilter, setRecordFilter] = useState<RecordFilter>('all');
+  const [specimenFilter, setSpecimenFilter] = useState<SpecimenFilter>('all');
+  const [onlyResistant, setOnlyResistant] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -499,93 +281,141 @@ export function PatientMicrobiologyCard({ patientId }: PatientMicrobiologyCardPr
       .then((result) => {
         if (!cancelled) setData(result);
       })
-      .catch((err) => {
-        if (!cancelled) setError(err?.message || 'Failed to load');
+      .catch((cause) => {
+        if (!cancelled) setError(cause?.message || t('error'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [patientId]);
+  }, [patientId, t]);
 
-  const cultures = data?.cultures ?? [];
-  const categoryGroups = useMemo(() => groupByCategory(cultures), [cultures]);
-  const [onlyPositive, setOnlyPositive] = useState(false);
-  const [onlyResistant, setOnlyResistant] = useState(false);
+  const cultures = useMemo(() => data?.cultures ?? [], [data]);
+  const summary = useMemo(() => ({
+    total: cultures.length,
+    positive: cultures.filter((panel) => panel.status === 'positive').length,
+    resistant: cultures.filter((panel) => panel.susceptibility.some((item) => item.result === 'R')).length,
+    stains: cultures.filter((panel) => panel.recordType === 'gram_stain').length,
+    alerts: cultures.reduce((count, panel) => count + panel.alerts.length, 0),
+  }), [cultures]);
 
-  /* global expand / collapse all culture cards */
-  const [expandAll, setExpandAll] = useState<boolean | null>(null);
-  const toggleExpandAll = useCallback(() => {
-    setExpandAll((prev) => (prev === true ? false : true));
-  }, []);
+  const filtered = useMemo(() => cultures
+    .filter((panel) => recordFilter === 'all' || panel.recordType === recordFilter)
+    .filter((panel) => specimenFilter === 'all' || classifySpecimen(panel.specimen) === specimenFilter)
+    .filter((panel) => !onlyResistant || panel.susceptibility.some((item) => item.result === 'R'))
+    .sort((a, b) => (b.collectedAt ?? b.reportedAt ?? '').localeCompare(a.collectedAt ?? a.reportedAt ?? '')),
+  [cultures, onlyResistant, recordFilter, specimenFilter]);
+
+  const hasFilters = recordFilter !== 'all' || specimenFilter !== 'all' || onlyResistant;
+  const resetFilters = () => {
+    setRecordFilter('all');
+    setSpecimenFilter('all');
+    setOnlyResistant(false);
+  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8">
+      <div className="flex items-center justify-center py-10">
         <LoadingSpinner size="md" text={t('loading')} />
       </div>
     );
   }
 
   if (error) {
-    return <p className="text-sm text-red-600 dark:text-red-400 py-4">{error}</p>;
+    return <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</p>;
   }
 
   return (
-    <div className="space-y-3">
-      {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-2 px-1">
-        <button
-          type="button"
-          className={`rounded-md border px-2.5 py-1 text-sm font-medium transition-colors ${
-            onlyPositive
-              ? 'border-brand bg-brand text-white'
-              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-brand/40 dark:hover:border-brand/50'
-          }`}
-          aria-pressed={onlyPositive}
-          onClick={() => setOnlyPositive((prev) => !prev)}
+    <section className="space-y-3" aria-label={t('title')}>
+      <div className="flex flex-wrap gap-2 pr-12" data-testid="microbiology-summary">
+        <SummaryChip label={t('summary.total')} value={summary.total} tone="text-muted-foreground" icon={<FlaskConical className="h-3.5 w-3.5" />} />
+        <SummaryChip label={t('summary.positive')} value={summary.positive} tone="text-red-600 dark:text-red-400" icon={<AlertTriangle className="h-3.5 w-3.5" />} />
+        <SummaryChip label={t('summary.resistant')} value={summary.resistant} tone="text-orange-600 dark:text-orange-400" icon={<ShieldAlert className="h-3.5 w-3.5" />} />
+        <SummaryChip label={t('summary.stains')} value={summary.stains} tone="text-brand" icon={<Microscope className="h-3.5 w-3.5" />} />
+        <SummaryChip label={t('summary.alerts')} value={summary.alerts} tone="text-destructive" icon={<AlertTriangle className="h-3.5 w-3.5" />} />
+      </div>
+
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 rounded-xl border border-border bg-slate-50 p-2 sm:flex sm:flex-wrap sm:items-center dark:bg-slate-800">
+        <div className="col-span-3 inline-flex h-9 rounded-lg border border-border bg-background p-0.5 sm:col-auto dark:bg-slate-900" aria-label={t('filters.recordType')}>
+          {(['all', 'culture', 'gram_stain'] as const).map((type) => (
+            <button
+              key={type}
+              type="button"
+              aria-pressed={recordFilter === type}
+              onClick={() => setRecordFilter(type)}
+              className={`flex-1 rounded-md px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30 sm:flex-none ${
+                recordFilter === type
+                  ? 'bg-brand text-white shadow-sm'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              {type === 'all' ? t('filters.allRecords') : t(`recordTypes.${type}`)}
+            </button>
+          ))}
+        </div>
+
+        <label className="sr-only" htmlFor="microbiology-specimen-filter">{t('filters.specimen')}</label>
+        <select
+          id="microbiology-specimen-filter"
+          value={specimenFilter}
+          onChange={(event) => setSpecimenFilter(event.target.value as SpecimenFilter)}
+          className="h-9 min-w-0 rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none transition-shadow focus:border-ring focus:ring-3 focus:ring-ring/50 sm:min-w-40 dark:bg-input/30"
         >
-          {t('filters.onlyPositive')}
-        </button>
+          <option value="all">{t('filters.allSpecimens')}</option>
+          {(['sputum', 'urine', 'blood', 'other'] as const).map((category) => (
+            <option key={category} value={category}>{t(`categories.${category}`)}</option>
+          ))}
+        </select>
+
         <button
           type="button"
-          className={`rounded-md border px-2.5 py-1 text-sm font-medium transition-colors ${
+          aria-pressed={onlyResistant}
+          onClick={() => setOnlyResistant((value) => !value)}
+          className={`h-9 rounded-md border px-3 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 ${
             onlyResistant
               ? 'border-brand bg-brand text-white'
-              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-brand/40 dark:hover:border-brand/50'
+              : 'border-input bg-background text-foreground hover:bg-accent dark:bg-input/30 dark:hover:bg-input/50'
           }`}
-          aria-pressed={onlyResistant}
-          onClick={() => setOnlyResistant((prev) => !prev)}
         >
           {t('filters.onlyResistant')}
         </button>
+
         <button
           type="button"
-          className="rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2.5 py-1 text-sm font-medium text-slate-700 dark:text-slate-300 hover:border-brand/40 dark:hover:border-brand/50 transition-colors ml-auto"
-          onClick={toggleExpandAll}
+          disabled={!hasFilters}
+          onClick={resetFilters}
+          aria-label={t('filters.reset')}
+          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {expandAll ? t('filters.collapseAll') : t('filters.expandAll')}
+          <RotateCcw className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">{t('filters.reset')}</span>
         </button>
       </div>
 
-      {/* 2x2 Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-        {categoryGroups.map((group) => {
-          const Icon = CATEGORY_ICONS[group.category];
-          const label = t(`categories.${group.category}`);
-          return (
-            <CategorySection
-              key={group.category}
-              label={label}
-              Icon={Icon}
-              group={group}
-              onlyPositive={onlyPositive}
-              onlyResistant={onlyResistant}
-              forceOpen={expandAll}
-            />
-          );
-        })}
-      </div>
-    </div>
+      {filtered.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-muted/20 py-10 text-center text-sm text-muted-foreground">
+          {hasFilters ? t('empty.filtered') : t('empty.none')}
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-border bg-card" data-testid="microbiology-worklist">
+          <div className="hidden grid-cols-[8.5rem_minmax(9rem,1fr)_minmax(13rem,1.5fr)_minmax(8rem,.8fr)_auto] gap-2 border-b border-border bg-muted/40 px-3 py-2 text-xs font-semibold text-muted-foreground md:grid">
+            <span>{t('labels.date')}</span>
+            <span>{t('labels.specimenResult')}</span>
+            <span>{t('labels.result')}</span>
+            <span>{t('labels.location')}</span>
+            <span className="text-right">{t('labels.susceptibility')}</span>
+          </div>
+          <div className="divide-y divide-border">
+            {filtered.map((panel) => (
+              <WorklistRow
+                key={`${panel.sourceCampus || 'main'}-${panel.sheetNumber}-${panel.recordType}`}
+                panel={panel}
+                locale={i18n.resolvedLanguage || i18n.language}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

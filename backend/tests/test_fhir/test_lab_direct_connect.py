@@ -4,7 +4,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from app.fhir.his.converter import HISConverter
+from app.fhir.his.converter import HISConverter, _culture_status
 from app.fhir.his_lab_mapping import HIS_LAB_MAP
 
 
@@ -77,6 +77,7 @@ def test_culture_keeps_mic_metadata_campus_and_full_source() -> None:
         {**base, "REPORT_TIME": "123000", "LAB_CODE": "CIP", "RESULT": "S"},
         {**base, "REPORT_TIME": "124000", "LAB_CODE": "CIP2", "RESULT": "0.25"},
         {**base, "REPORT_TIME": "125000", "LAB_CODE": "3COM2", "RESULT": "危急 MDR"},
+        {**base, "REPORT_TIME": "125500", "LAB_CODE": "13A03", "RESULT": "1+"},
     ]
     merged = {
         "getPatient": {"Data": [{
@@ -88,6 +89,16 @@ def test_culture_keeps_mic_metadata_campus_and_full_source() -> None:
             **base, "REPORT_TIME": "130000", "LAB_CODE": "3RESU",
             "RESULT": "No growth",
         }]},
+        "ExtraFactories_Factory_H_getLabResult": {"Data": [
+            {**base, "SHEET_NO": "STAIN-1", "REPORT_TIME": "131000",
+             "LAB_CODE": "3SAM4", "RESULT": "Sputum"},
+            {**base, "SHEET_NO": "STAIN-1", "REPORT_TIME": "132000",
+             "LAB_CODE": "13006", "RESULT": "No AFB seen"},
+            {**base, "SHEET_NO": "META-1", "REPORT_TIME": "133000",
+             "LAB_CODE": "3SAM1", "RESULT": "Urine"},
+            {**base, "SHEET_NO": "META-1", "REPORT_TIME": "134000",
+             "LAB_CODE": "XEOD", "RESULT": "Completed request"},
+        ]},
     }
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -99,7 +110,7 @@ def test_culture_keeps_mic_metadata_campus_and_full_source() -> None:
         cultures = converter.convert_culture_results()
         labs = converter.convert_lab_data()
 
-    assert len(cultures) == 2  # same sheet number remains distinct by campus
+    assert len(cultures) == 3  # same sheet remains distinct; metadata-only is omitted
     main = next(row for row in cultures if row["source_campus"] == "MAIN")
     assert main["specimen"] == "Blood"
     assert main["isolates"] == [{
@@ -108,7 +119,31 @@ def test_culture_keeps_mic_metadata_campus_and_full_source() -> None:
     assert main["susceptibility"] == [{
         "antibiotic": "Ciprofloxacin", "code": "CIP", "result": "S", "mic": "0.25",
     }]
-    assert main["reported_at"].minute == 50  # latest raw report was 12:50 (04:50 UTC)
+    assert main["reported_at"].minute == 55  # latest raw report was 12:55 (04:55 UTC)
     assert main["source_details"]["alerts"] == ["危急 MDR"]
     assert len(main["source_details"]["items"]) == len(main_rows)
-    assert labs == []  # culture/AST-only sheets never become empty lab_data rows
+    assert main["source_details"]["record_type"] == "culture"
+    assert main["source_details"]["status"] == "positive"
+    assert main["source_details"]["stain_results"] == [{
+        "code": "13A03", "label": "G(-) bacillus", "value": "1+",
+    }]
+
+    negative = next(row for row in cultures if row["source_campus"] == "Factory_Q")
+    assert negative["source_details"]["status"] == "negative"
+    stain = next(row for row in cultures if row["source_campus"] == "Factory_H")
+    assert stain["source_details"]["record_type"] == "gram_stain"
+    assert stain["source_details"]["status"] == "reported"
+    assert stain["source_details"]["stain_results"][0]["value"] == "No AFB seen"
+    assert labs
+    assert all(
+        key.startswith("GRAM_")
+        for row in labs
+        for key in (row["other"] or {})
+    )  # the existing Lab Data stain view remains intact
+
+
+def test_culture_status_covers_all_report_states() -> None:
+    assert _culture_status([{"organism": "E. coli"}], None) == "positive"
+    assert _culture_status([], "No growth to date") == "negative"
+    assert _culture_status([], "Normal oral flora") == "normal_flora"
+    assert _culture_status([], "Pending final report") == "indeterminate"

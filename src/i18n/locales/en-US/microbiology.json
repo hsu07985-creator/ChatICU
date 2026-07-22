@@ -1,4 +1,5 @@
 {
+  "title": "Microbiology worklist",
   "categories": {
     "sputum": "Sputum",
     "urine": "Urine",
@@ -6,24 +7,54 @@
     "other": "Other"
   },
   "summary": {
-    "positive": "Positive {{count}}",
-    "negative": "Negative {{count}}",
-    "normalFlora": "Normal flora {{count}}"
+    "total": "Valid reports",
+    "positive": "Positive cultures",
+    "resistant": "Resistant cultures",
+    "stains": "Stain reports",
+    "alerts": "Critical alerts"
   },
   "filters": {
-    "onlyPositive": "Positive only",
+    "recordType": "Report type",
+    "allRecords": "All reports",
+    "specimen": "Specimen",
+    "allSpecimens": "All specimens",
     "onlyResistant": "Resistant only",
-    "expandAll": "Expand all",
-    "collapseAll": "Collapse all"
+    "reset": "Reset filters"
+  },
+  "recordTypes": {
+    "culture": "Culture",
+    "gram_stain": "Stain"
+  },
+  "statuses": {
+    "positive": "Positive",
+    "negative": "Negative",
+    "normal_flora": "Normal flora",
+    "indeterminate": "Indeterminate",
+    "reported": "Reported"
+  },
+  "labels": {
+    "date": "Date and time",
+    "specimenResult": "Specimen / type",
+    "result": "Result summary",
+    "location": "Campus / department",
+    "susceptibility": "Susceptibility",
+    "department": "Department",
+    "campus": "Campus",
+    "reportedAt": "Reported",
+    "unknownSpecimen": "Unspecified specimen",
+    "awaitingResult": "No definitive culture result",
+    "alert": "Critical alert",
+    "organisms": "Isolates",
+    "colonies": "Colonies",
+    "stainResults": "Stain results",
+    "antibiotic": "Antibiotic",
+    "interpretation": "Interpretation",
+    "mic": "MIC"
   },
   "empty": {
-    "filtered": "No results under current filters",
-    "none": "No culture data"
+    "filtered": "No results match the current filters",
+    "none": "No microbiology data"
   },
-  "loading": "Loading...",
-  "coloniesLabel": "Colonies: {{value}}",
-  "labels": {
-    "normalFlora": "Normal flora",
-    "negative": "Negative"
-  }
+  "loading": "Loading microbiology data…",
+  "error": "Failed to load microbiology data"
 }

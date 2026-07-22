@@ -18,6 +18,7 @@ from app.models.culture_result import CultureResult
 from app.models.message import PatientMessage
 from app.models.user import User
 from app.schemas.patient import PatientArchiveUpdate, PatientCreate, PatientUpdate
+from app.fhir.his.converter import _CAMPUS_NAMES, _culture_status, _extract_stain_results
 from app.fhir.his.roc_time import _gen_id
 from app.utils.jsonb_compat import array_contains_user_receipt, to_utc_aware
 from app.utils.patient_access import normalize_patient_id
@@ -77,6 +78,60 @@ _HIS_MANUAL_PATIENT_FIELDS = frozenset(
 
 
 _MISSING = object()
+
+_CULTURE_STATUSES = {"positive", "negative", "normal_flora", "indeterminate"}
+
+
+def _culture_to_api(row: CultureResult) -> Optional[dict]:
+    details = row.source_details if isinstance(row.source_details, dict) else {}
+    items = details.get("items") if isinstance(details.get("items"), list) else []
+    stains = details.get("stain_results")
+    if not isinstance(stains, list):
+        stains = _extract_stain_results(items)
+
+    isolates = row.isolates or []
+    susceptibility = row.susceptibility or []
+    has_culture_result = bool(
+        isolates
+        or susceptibility
+        or row.result
+        or details.get("aerobic_result")
+        or details.get("anaerobic_result")
+    )
+    if not has_culture_result and not stains:
+        return None
+
+    record_type = details.get("record_type")
+    if record_type not in {"culture", "gram_stain"}:
+        record_type = "culture" if has_culture_result else "gram_stain"
+    status = details.get("status")
+    if record_type == "gram_stain":
+        status = "reported"
+    elif status not in _CULTURE_STATUSES:
+        status = _culture_status(isolates, row.result)
+
+    alerts = details.get("alerts")
+    if not isinstance(alerts, list):
+        alerts = []
+
+    return {
+        "sheetNumber": row.sheet_number,
+        "specimen": row.specimen,
+        "specimenCode": row.specimen_code,
+        "collectedAt": row.collected_at.isoformat() if row.collected_at else None,
+        "reportedAt": row.reported_at.isoformat() if row.reported_at else None,
+        "department": row.department,
+        "isolates": isolates,
+        "susceptibility": susceptibility,
+        "qScore": row.q_score,
+        "result": row.result,
+        "sourceCampus": row.source_campus,
+        "campusName": _CAMPUS_NAMES.get(row.source_campus, row.source_campus),
+        "recordType": record_type,
+        "status": status,
+        "stainResults": stains,
+        "alerts": [str(alert) for alert in alerts if str(alert).strip()],
+    }
 
 
 def _coerce_date(value):
@@ -658,67 +713,16 @@ async def get_cultures(
 ):
     del user
     pid = patient_id.strip()
-
-    # Single query — fetch all columns including q_score/result (safe fallback if missing)
-    from sqlalchemy import text
-    try:
-        raw = await db.execute(
-            text(
-                "SELECT id, sheet_number, specimen, specimen_code, collected_at, "
-                "reported_at, department, isolates, susceptibility, q_score, result, "
-                "source_campus, source_details "
-                "FROM culture_results WHERE patient_id = :pid "
-                "ORDER BY collected_at DESC"
-            ),
-            {"pid": pid},
-        )
-        rows = raw.fetchall()
-    except Exception:
-        # q_score/result columns may not exist — fall back to ORM without them
-        result = await db.execute(
-            select(CultureResult)
-            .where(CultureResult.patient_id == pid)
-            .order_by(CultureResult.collected_at.desc())
-        )
-        orm_rows = result.scalars().all()
-        rows = None
-
-    if rows is not None:
-        cultures = [
-            {
-                "sheetNumber": r[1],
-                "specimen": r[2],
-                "specimenCode": r[3],
-                "collectedAt": r[4].isoformat() if r[4] else None,
-                "reportedAt": r[5].isoformat() if r[5] else None,
-                "department": r[6],
-                "isolates": r[7] or [],
-                "susceptibility": r[8] or [],
-                "qScore": r[9],
-                "result": r[10],
-                "sourceCampus": r[11],
-                "sourceDetails": r[12],
-            }
-            for r in rows
-        ]
-    else:
-        cultures = [
-            {
-                "sheetNumber": r.sheet_number,
-                "specimen": r.specimen,
-                "specimenCode": r.specimen_code,
-                "collectedAt": r.collected_at.isoformat() if r.collected_at else None,
-                "reportedAt": r.reported_at.isoformat() if r.reported_at else None,
-                "department": r.department,
-                "isolates": r.isolates or [],
-                "susceptibility": r.susceptibility or [],
-                "qScore": getattr(r, "q_score", None),
-                "result": getattr(r, "result", None),
-                "sourceCampus": getattr(r, "source_campus", None),
-                "sourceDetails": getattr(r, "source_details", None),
-            }
-            for r in orm_rows
-        ]
+    result = await db.execute(
+        select(CultureResult)
+        .where(CultureResult.patient_id == pid)
+        .order_by(CultureResult.collected_at.desc())
+    )
+    cultures = [
+        item
+        for row in result.scalars().all()
+        if (item := _culture_to_api(row)) is not None
+    ]
     return success_response(data={
         "patientId": pid,
         "cultureCount": len(cultures),

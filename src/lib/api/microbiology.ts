@@ -10,7 +10,22 @@ export interface SusceptibilityResult {
   antibiotic: string;
   code: string;
   result: 'S' | 'I' | 'R';
+  mic?: string | null;
 }
+
+export interface StainResult {
+  code: string;
+  label: string;
+  value: string;
+}
+
+export type CultureRecordType = 'culture' | 'gram_stain';
+export type CultureStatus =
+  | 'positive'
+  | 'negative'
+  | 'normal_flora'
+  | 'indeterminate'
+  | 'reported';
 
 export interface CulturePanel {
   sheetNumber: string;
@@ -23,6 +38,12 @@ export interface CulturePanel {
   susceptibility: SusceptibilityResult[];
   qScore?: number | null;
   result?: string | null;
+  sourceCampus?: string | null;
+  campusName?: string | null;
+  recordType: CultureRecordType;
+  status: CultureStatus;
+  stainResults: StainResult[];
+  alerts: string[];
 }
 
 export interface CultureSusceptibilityData {

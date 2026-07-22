@@ -51,6 +51,40 @@ _CAMPUS_NAMES = {
     "Factory_F": "仁愛",
 }
 
+_NORMAL_FLORA_RE = re.compile(r"normal\s*(?:oral\s*)?flora", re.IGNORECASE)
+_NEGATIVE_CULTURE_RE = re.compile(
+    r"^(?:negative|no\s+(?:growth|anaerobes?|clostridium|salmonella|pathogenic))",
+    re.IGNORECASE,
+)
+
+
+def _extract_stain_results(items: List[dict]) -> List[Dict[str, str]]:
+    """Return only explicitly mapped stain values from the HIS result rows."""
+    stains = []
+    for item in items:
+        lab_code = str(item.get("LAB_CODE") or "")
+        mapping = HIS_LAB_MAP.get(lab_code)
+        value = str(item.get("RESULT") or "").strip()
+        if not mapping or mapping[0] != "gram_stain" or mapping[1] == "_SampleType" or not value:
+            continue
+        stains.append({"code": lab_code, "label": mapping[2], "value": value})
+    return stains
+
+
+def _culture_status(isolates: List[dict], result_text: Optional[str]) -> str:
+    """Classify a culture from structured isolates and its reported result text."""
+    organisms = [str(row.get("organism") or "").strip() for row in isolates]
+    organisms = [organism for organism in organisms if organism]
+    if organisms and all(_NORMAL_FLORA_RE.search(organism) for organism in organisms):
+        return "normal_flora"
+    if any(not _NORMAL_FLORA_RE.search(organism) for organism in organisms):
+        return "positive"
+    if result_text and _NORMAL_FLORA_RE.search(result_text):
+        return "normal_flora"
+    if result_text and _NEGATIVE_CULTURE_RE.search(result_text.strip()):
+        return "negative"
+    return "indeterminate"
+
 
 def _format_bed_number(code: str) -> str:
     m = _ICU_BED_RE.match(code)
@@ -713,6 +747,7 @@ class HISConverter:
             aerobic_result = None
             anaerobic_result = None
             sample_type = None
+            stain_results = _extract_stain_results(items)
 
             for item in items:
                 mapping = HIS_LAB_MAP.get(item.get("LAB_CODE", ""))
@@ -789,6 +824,18 @@ class HISConverter:
                 if aerobic_result == "Negative" and anaerobic_result == "Negative":
                     result_text = "No growth to date"
 
+            has_culture_result = bool(
+                isolates or susceptibility or result_text or aerobic_result or anaerobic_result
+            )
+            if not has_culture_result and not stain_results:
+                continue
+            record_type = "culture" if has_culture_result else "gram_stain"
+            status = (
+                _culture_status(isolates, result_text)
+                if record_type == "culture"
+                else "reported"
+            )
+
             collected_times = [
                 dt for item in items
                 if (dt := _roc_to_datetime(item.get("SIGN_DATE"), item.get("SIGN_TIME")))
@@ -814,6 +861,9 @@ class HISConverter:
                 "source_campus": source_campus,
                 "source_details": {
                     "items": [dict(item) for item in items],
+                    "record_type": record_type,
+                    "status": status,
+                    "stain_results": stain_results,
                     "alerts": alerts,
                     "aerobic_result": aerobic_result,
                     "anaerobic_result": anaerobic_result,

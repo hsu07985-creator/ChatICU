@@ -1,29 +1,60 @@
 {
+  "title": "微生物檢驗工作清單",
   "categories": {
-    "sputum": "痰 Sputum",
-    "urine": "尿 Urine",
-    "blood": "血液 Blood",
-    "other": "其他 Other"
+    "sputum": "痰液",
+    "urine": "尿液",
+    "blood": "血液",
+    "other": "其他"
   },
   "summary": {
-    "positive": "陽性 {{count}}",
-    "negative": "陰性 {{count}}",
-    "normalFlora": "正常菌 {{count}}"
+    "total": "有效報告",
+    "positive": "陽性培養",
+    "resistant": "抗藥性培養",
+    "stains": "染色報告",
+    "alerts": "重要警示"
   },
   "filters": {
-    "onlyPositive": "只看陽性",
-    "onlyResistant": "只看抗藥",
-    "expandAll": "全部展開",
-    "collapseAll": "全部收合"
+    "recordType": "報告類型",
+    "allRecords": "全部報告",
+    "specimen": "檢體分類",
+    "allSpecimens": "全部檢體",
+    "onlyResistant": "僅看抗藥性",
+    "reset": "重設篩選"
+  },
+  "recordTypes": {
+    "culture": "培養",
+    "gram_stain": "染色"
+  },
+  "statuses": {
+    "positive": "陽性",
+    "negative": "陰性",
+    "normal_flora": "正常菌叢",
+    "indeterminate": "未定",
+    "reported": "已報告"
+  },
+  "labels": {
+    "date": "日期時間",
+    "specimenResult": "檢體／類型",
+    "result": "結果摘要",
+    "location": "院區／科別",
+    "susceptibility": "藥敏",
+    "department": "科別",
+    "campus": "院區",
+    "reportedAt": "報告時間",
+    "unknownSpecimen": "未標示檢體",
+    "awaitingResult": "尚無明確培養結果",
+    "alert": "重要警示",
+    "organisms": "分離菌株",
+    "colonies": "菌落量",
+    "stainResults": "染色結果",
+    "antibiotic": "抗生素",
+    "interpretation": "判讀",
+    "mic": "MIC"
   },
   "empty": {
-    "filtered": "篩選條件下無結果",
-    "none": "無培養資料"
+    "filtered": "目前篩選條件下沒有結果",
+    "none": "沒有微生物檢驗資料"
   },
-  "loading": "Loading...",
-  "coloniesLabel": "Colonies: {{value}}",
-  "labels": {
-    "normalFlora": "Normal flora",
-    "negative": "Negative"
-  }
+  "loading": "載入微生物資料中…",
+  "error": "微生物資料載入失敗"
 }
