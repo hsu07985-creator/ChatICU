@@ -42,6 +42,18 @@ from app.fhir.his.roc_time import (
 )
 
 
+# HIS ICU bed code (MICU01 / GICU07 / any *ICU + digits) → display label "I-01".
+# The number keeps its 2-digit zero-padded form; non-ICU codes are returned as-is.
+_ICU_BED_RE = re.compile(r"^[A-Za-z]*ICU0*(\d+)$", re.IGNORECASE)
+
+
+def _format_bed_number(code: str) -> str:
+    m = _ICU_BED_RE.match(code)
+    if m:
+        return f"I-{int(m.group(1)):02d}"
+    return code
+
+
 def _to_float(value: Any) -> Optional[float]:
     """Parse HIS numeric strings ('163', '53.7') to float; None when unparseable."""
     if value is None or value == "":
@@ -320,12 +332,17 @@ class HISConverter:
         return earliest, earliest
 
     def _extract_bed_number(self) -> Optional[str]:
-        """This patient's bed from getICUbed (the roster lists the whole unit)."""
+        """This patient's bed from getICUbed (the roster lists the whole unit).
+
+        HIS ships ICU beds as ``MICU01`` (M = Medical ICU); the board shows them
+        as ``I-01``. Non-ICU codes (e.g. a ward transfer ``RCW29-1``) are kept
+        verbatim.
+        """
         for row in self._load("getICUbed.json"):
             if str(row.get("PAT_NO")) == str(self.pat_no):
                 code = (row.get("BED_CODE") or "").strip()
                 if code:
-                    return code
+                    return _format_bed_number(code)
         return None
 
     def _extract_anthropometrics(

@@ -72,7 +72,17 @@ def test_bed_number_filters_by_pat_no() -> None:
         snap = _write_nested_snapshot(Path(tmp), "30546132", _base_merged("30546132"))
         patient = HISConverter(snap, pat_no="30546132").convert_patient()
 
-    assert patient["bed_number"] == "MICU11"  # not the 99999999 roster row
+    assert patient["bed_number"] == "I-11"  # MICU11 → I-11; not the 99999999 roster row (I-01)
+
+
+def test_format_bed_number() -> None:
+    from app.fhir.his.converter import _format_bed_number as f
+    assert f("MICU01") == "I-01"
+    assert f("MICU17") == "I-17"
+    assert f("MICU5") == "I-05"      # single digit zero-padded
+    assert f("GICU07") == "I-07"     # any *ICU prefix
+    assert f("RCW29-1") == "RCW29-1"  # non-ICU code kept verbatim
+    assert f("") == ""
 
 
 def test_anthropometrics_and_airway() -> None:
