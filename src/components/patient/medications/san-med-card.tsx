@@ -2,7 +2,11 @@
 // Extracted from patient-medications-tab.tsx (behavior-preserving).
 import { useTranslation } from 'react-i18next';
 import type { Medication } from '../../../lib/api';
-import { formatDoseValue, formatMedDate } from '../../../lib/medications/medication-formatters';
+import {
+  formatDoseValue,
+  formatMedDate,
+  formatMedDateOnly,
+} from '../../../lib/medications/medication-formatters';
 import { Badge } from '../../ui/badge';
 
 const SAN_BADGES = {
@@ -44,6 +48,7 @@ export function SanMedCard({
     medication.route,
   ].filter(Boolean).join(' · ');
   const orderedAt = formatMedDate(medication.orderedAt);
+  const startedOn = orderedAt ? '' : formatMedDateOnly(medication.startDate);
 
   return (
     <div className="rounded-md border dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 space-y-1.5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => onDetail(medication)}>
@@ -54,10 +59,11 @@ export function SanMedCard({
         </p>
         <SanCategoryBadge category={medication.sanCategory} />
       </div>
-      {(regimen || orderedAt) && (
+      {(regimen || orderedAt || startedOn) && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {regimen && <span>{regimen}</span>}
           {orderedAt && <span>{t('tab.sanMedCard.orderedAt', { date: orderedAt })}</span>}
+          {startedOn && <span>{t('tab.sanMedCard.startedOn', { date: startedOn })}</span>}
         </div>
       )}
       {noteText && (

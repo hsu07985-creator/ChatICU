@@ -2,9 +2,10 @@
 // Extracted from patient-medications-tab.tsx (behavior-preserving).
 import { useTranslation } from 'react-i18next';
 import type { Medication } from '../../../lib/api';
-import i18n from '../../../i18n/config';
 import {
   formatDoseValue,
+  formatMedDate,
+  formatMedDateOnly,
   getOutpatientStatus,
   getMedicationEndDate,
   formatCalendarDate,
@@ -140,7 +141,9 @@ export function MedicationDetailModal({
               </div>
               {med.daysSupply != null && (
                 <div className="flex gap-2">
-                  <span className="text-muted-foreground shrink-0">{t('tab.detailModal.daysSupplyLabel')}</span>
+                  <span className="text-muted-foreground shrink-0">
+                    {t(med.chronicPrescriptionMonths ? 'tab.detailModal.chronicDaysSupplyLabel' : 'tab.detailModal.daysSupplyLabel')}
+                  </span>
                   <span className="font-medium">{t('tab.detailModal.daysValue', { count: med.daysSupply })}</span>
                 </div>
               )}
@@ -155,12 +158,24 @@ export function MedicationDetailModal({
                 </div>
               )}
               <div className="flex gap-2">
-                <span className="text-muted-foreground shrink-0">{t('tab.detailModal.startDateLabel')}</span>
-                <span className="font-medium">{med.startDate ? new Date(med.startDate).toLocaleDateString(i18n.language) : '—'}</span>
+                <span className="text-muted-foreground shrink-0">{t('tab.detailModal.orderedAtLabel')}</span>
+                <span className="font-medium">{formatMedDate(med.orderedAt) || '—'}</span>
               </div>
               <div className="flex gap-2">
-                <span className="text-muted-foreground shrink-0">{t('tab.detailModal.endDateLabel')}</span>
-                <span className="font-medium">{formatCalendarDate(displayEndDate)}</span>
+                <span className="text-muted-foreground shrink-0">{t('tab.detailModal.startDateLabel')}</span>
+                <span className="font-medium">{formatMedDateOnly(med.startDate) || '—'}</span>
+              </div>
+              {med.endedAt && (
+                <div className="flex gap-2">
+                  <span className="text-muted-foreground shrink-0">{t('tab.detailModal.endedAtLabel')}</span>
+                  <span className="font-medium">{formatMedDate(med.endedAt)}</span>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <span className="text-muted-foreground shrink-0">
+                  {t(med.chronicPrescriptionMonths ? 'tab.detailModal.chronicEndDateLabel' : 'tab.detailModal.endDateLabel')}
+                </span>
+                <span className="font-medium">{formatCalendarDate(displayEndDate) || '—'}</span>
               </div>
             </div>
           </div>

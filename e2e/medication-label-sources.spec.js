@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const { isAntibiotic } = require('../src/lib/antibiotic-codes.ts');
-const { isPrnOrStat } = require('../src/lib/medications/medication-formatters.ts');
+const { getMedicationEndDate, isPrnOrStat } = require('../src/lib/medications/medication-formatters.ts');
 const { detectDuplicates, medCompareKey } = require('../src/lib/medications/duplicate-overlap.ts');
 
 test.describe('Medication labels use structured API fields', () => {
@@ -39,5 +39,13 @@ test.describe('Medication labels use structured API fields', () => {
       [{ atcCode: null, orderCode: 'EXACT', name: 'First', genericName: 'First' }],
       [{ atcCode: 'SHORT', orderCode: 'EXACT', name: 'Second', genericName: 'Second' }],
     )).toHaveLength(1);
+  });
+
+  test('chronic prescription coverage includes every fill', () => {
+    expect(getMedicationEndDate({
+      startDate: '2026-05-05',
+      daysSupply: 28,
+      chronicPrescriptionMonths: 3,
+    }).toISOString()).toBe('2026-07-27T00:00:00.000Z');
   });
 });

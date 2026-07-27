@@ -2,6 +2,7 @@
   "types": {
     "imaging": "Imaging",
     "procedure": "Procedure",
+    "ecg_ai": "ECG AI",
     "other": "Other"
   },
   "preliminary": "Preliminary",

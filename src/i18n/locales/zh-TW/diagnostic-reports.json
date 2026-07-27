@@ -2,6 +2,7 @@
   "types": {
     "imaging": "影像",
     "procedure": "檢查",
+    "ecg_ai": "心電圖 AI",
     "other": "其他"
   },
   "preliminary": "初步報告",

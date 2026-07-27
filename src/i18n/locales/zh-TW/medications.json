@@ -112,7 +112,10 @@
       "countSuffix": "{{count}} 筆",
       "issuedPrefix": "開立 {{date}}",
       "untilSuffix": "用完 {{date}}",
-      "daysSupplyCompact": "({{days}}天)"
+      "chronicUntilSuffix": "慢箋涵蓋至 {{date}}",
+      "daysSupplyCompact": "({{days}}天)",
+      "chronicDaysSupplyCompact": "({{days}}天／次)",
+      "chronicPrescription": "慢性處方 {{months}} 個月"
     },
     "scoreSelector": {
       "saving": "記錄中...",
@@ -122,7 +125,10 @@
     "sanMedCard": {
       "edit": "編輯",
       "orderNote": "醫令備註",
-      "orderedAt": "開立 {{date}}"
+      "orderedAt": "開立 {{date}}",
+      "startedOn": "開始 {{date}}",
+      "endedAt": "停用 {{date}}",
+      "endedOn": "截止 {{date}}"
     },
     "detailModal": {
       "outpatientLabel": "門診用藥",
@@ -144,11 +150,15 @@
       "frequencyLabel": "頻率",
       "doseLabel": "劑量",
       "daysSupplyLabel": "給藥天數",
+      "chronicDaysSupplyLabel": "每次給藥天數",
       "daysValue": "{{count}} 天",
       "routeLabel": "給藥途徑",
       "concentrationLabel": "濃度",
+      "orderedAtLabel": "開立時間",
       "startDateLabel": "開始日期",
+      "endedAtLabel": "停用時間",
       "endDateLabel": "截止日期",
+      "chronicEndDateLabel": "慢箋涵蓋至",
       "indicationLabel": "適應症：",
       "close": "關閉"
     },

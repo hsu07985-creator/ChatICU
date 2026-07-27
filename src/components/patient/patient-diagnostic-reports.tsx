@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 const TYPE_COLORS: Record<string, string> = {
   imaging: 'bg-sky-100 text-sky-700',
   procedure: 'bg-violet-100 text-violet-700',
+  ecg_ai: 'bg-emerald-100 text-emerald-700',
   other: 'bg-slate-100 text-slate-600',
 };
 
@@ -22,10 +23,16 @@ function ReportCard({ report }: { report: DiagnosticReport }) {
   const typeLabel = t(`types.${report.reportType}`, { defaultValue: t('types.other') });
 
   const examDate = report.examDate
-    ? new Date(report.examDate).toLocaleDateString(i18n.language, {
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', hour12: false,
-      })
+    ? new Date(report.examDate).toLocaleDateString(
+        i18n.language,
+        report.reportType === 'procedure'
+          ? { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Taipei' }
+          : {
+              year: 'numeric', month: '2-digit', day: '2-digit',
+              hour: '2-digit', minute: '2-digit', hour12: false,
+              timeZone: 'Asia/Taipei',
+            },
+      )
     : '';
 
   return (

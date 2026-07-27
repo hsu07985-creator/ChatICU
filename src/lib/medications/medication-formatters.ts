@@ -10,11 +10,13 @@ import { formatDoseValue } from '../patient-detail-format';
 
 export { formatDoseValue };
 
+const TAIPEI_TIME_ZONE = 'Asia/Taipei';
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 /** 判定門診藥物是否已過期（endDate 已過） */
 export function isOutpatientExpired(med: Medication): boolean {
-  if (!med.endDate) return false;
-  const end = new Date(med.endDate);
-  if (isNaN(end.getTime())) return false;
+  const end = getMedicationEndDate(med);
+  if (!end) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return end < today;
@@ -35,27 +37,54 @@ export function formatMedDate(dateStr?: string | null): string {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return '';
-  return d.toLocaleDateString(i18n.language, { month: '2-digit', day: '2-digit' })
-    + ' ' + d.toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit', hour12: false });
+  return d.toLocaleDateString(i18n.language, {
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: TAIPEI_TIME_ZONE,
+  }) + ' ' + d.toLocaleTimeString(i18n.language, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: TAIPEI_TIME_ZONE,
+  });
+}
+
+export function formatMedDateOnly(dateStr?: string | null): string {
+  if (!dateStr) return '';
+  const dateOnly = DATE_ONLY_PATTERN.test(dateStr);
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(i18n.language, {
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: dateOnly ? 'UTC' : TAIPEI_TIME_ZONE,
+  });
 }
 
 export function formatMedDateFromDate(date?: Date | null): string {
   if (!date || isNaN(date.getTime())) return '';
-  return date.toLocaleDateString(i18n.language, { month: '2-digit', day: '2-digit' })
-    + ' ' + date.toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit', hour12: false });
+  return date.toLocaleDateString(i18n.language, {
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'UTC',
+  });
 }
 
 export function parseMedicationTime(dateStr?: string | null): number {
-  if (!dateStr) return Number.NEGATIVE_INFINITY;
+  if (!dateStr) return 0;
   const time = new Date(dateStr).getTime();
-  return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time;
+  return Number.isNaN(time) ? 0 : time;
 }
 
 export function formatOutpatientGroupDate(dateStr?: string | null, fallback: string = '未標示日期'): string {
   if (!dateStr) return fallback;
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return fallback;
-  return `${d.getMonth() + 1}/${d.getDate()}`;
+  return d.toLocaleDateString(i18n.language, {
+    month: 'numeric',
+    day: 'numeric',
+    timeZone: DATE_ONLY_PATTERN.test(dateStr) ? 'UTC' : TAIPEI_TIME_ZONE,
+  });
 }
 
 export function getMedicationEndDate(medication: Medication): Date | null {
@@ -68,14 +97,15 @@ export function getMedicationEndDate(medication: Medication): Date | null {
   }
   const start = new Date(medication.startDate);
   if (isNaN(start.getTime())) return null;
+  const periods = medication.chronicPrescriptionMonths ?? 1;
   const calculatedEnd = new Date(start);
-  calculatedEnd.setDate(calculatedEnd.getDate() + medication.daysSupply - 1);
+  calculatedEnd.setUTCDate(calculatedEnd.getUTCDate() + medication.daysSupply * periods - 1);
   return calculatedEnd;
 }
 
 export function formatCalendarDate(date?: Date | null): string {
   if (!date || isNaN(date.getTime())) return '';
-  return date.toLocaleDateString(i18n.language);
+  return date.toLocaleDateString(i18n.language, { timeZone: 'UTC' });
 }
 
 export function formatMedicationConcentration(medication: Medication): string | null {
@@ -128,5 +158,6 @@ export function formatScoreTimestamp(ts: string): string {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
+    timeZone: TAIPEI_TIME_ZONE,
   });
 }

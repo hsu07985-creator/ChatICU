@@ -112,7 +112,10 @@
       "countSuffix": "{{count}} item(s)",
       "issuedPrefix": "Issued {{date}}",
       "untilSuffix": "until {{date}}",
-      "daysSupplyCompact": "({{days}}d)"
+      "chronicUntilSuffix": "chronic prescription through {{date}}",
+      "daysSupplyCompact": "({{days}}d)",
+      "chronicDaysSupplyCompact": "({{days}}d/fill)",
+      "chronicPrescription": "Chronic Rx · {{months}} months"
     },
     "scoreSelector": {
       "saving": "Saving...",
@@ -122,7 +125,10 @@
     "sanMedCard": {
       "edit": "Edit",
       "orderNote": "Order note",
-      "orderedAt": "Ordered {{date}}"
+      "orderedAt": "Ordered {{date}}",
+      "startedOn": "Started {{date}}",
+      "endedAt": "Stopped {{date}}",
+      "endedOn": "Ends {{date}}"
     },
     "detailModal": {
       "outpatientLabel": "Outpatient",
@@ -144,11 +150,15 @@
       "frequencyLabel": "Frequency",
       "doseLabel": "Dose",
       "daysSupplyLabel": "Days supply",
+      "chronicDaysSupplyLabel": "Days per fill",
       "daysValue": "{{count}} d",
       "routeLabel": "Route",
       "concentrationLabel": "Concentration",
+      "orderedAtLabel": "Ordered at",
       "startDateLabel": "Start date",
+      "endedAtLabel": "Stopped at",
       "endDateLabel": "End date",
+      "chronicEndDateLabel": "Chronic prescription through",
       "indicationLabel": "Indication: ",
       "close": "Close"
     },

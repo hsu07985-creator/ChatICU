@@ -7,6 +7,7 @@ import {
   isOutpatientExpired,
   isPrnOrStat,
   formatMedDate,
+  formatMedDateOnly,
   formatMedDateFromDate,
   parseMedicationTime,
   formatOutpatientGroupDate,
@@ -116,7 +117,7 @@ export function PatientMedicationsTab({
   const discontinuedCount = allDiscontinuedMeds.length;
   const totalCount = allOtherMeds.length;
 
-  // Outpatient medications — grouped by start date + department + days supply, sorted by nearest date first
+  // Outpatient medications — grouped by order date + department, newest first.
   const allOutpatientMeds = outpatientMedications || [];
   const activeOutpatientMeds = allOutpatientMeds.filter((m) => !isOutpatientExpired(m) && m.status !== 'discontinued');
   const outpatientCount = allOutpatientMeds.length;
@@ -126,24 +127,25 @@ export function PatientMedicationsTab({
   const outpatientGroups = useMemo(() => {
     const groups = new Map<string, { label: string; sortTime: number; meds: Medication[] }>();
     const medsSortedWithinGroup = [...visibleOutpatientMeds].sort((a, b) => {
-      const timeDiff = parseMedicationTime(b.startDate) - parseMedicationTime(a.startDate);
+      const timeDiff = parseMedicationTime(b.orderedAt || b.startDate) - parseMedicationTime(a.orderedAt || a.startDate);
       if (timeDiff !== 0) return timeDiff;
       return (a.name || '').localeCompare(b.name || '', 'zh-Hant');
     });
 
     for (const med of medsSortedWithinGroup) {
       const dept = med.prescribingDepartment || t('tab.outpatientGroup.noDept');
-      const groupDate = formatOutpatientGroupDate(med.startDate, t('tab.outpatientGroup.noDate'));
+      const orderDate = med.orderedAt || med.startDate;
+      const groupDate = formatOutpatientGroupDate(orderDate, t('tab.outpatientGroup.noDate'));
       const key = `${groupDate}__${dept}`;
       const existing = groups.get(key);
       if (existing) {
         existing.meds.push(med);
-        existing.sortTime = Math.max(existing.sortTime, parseMedicationTime(med.startDate));
+        existing.sortTime = Math.max(existing.sortTime, parseMedicationTime(orderDate));
         continue;
       }
       groups.set(key, {
         label: `${groupDate}${dept}`,
-        sortTime: parseMedicationTime(med.startDate),
+        sortTime: parseMedicationTime(orderDate),
         meds: [med],
       });
     }
@@ -158,11 +160,10 @@ export function PatientMedicationsTab({
     : medView === 'discontinued' ? allDiscontinuedMeds
     : allOtherMeds;
 
-  // Sort by prescription start date ascending (earliest first)
+  // Sort by order timestamp ascending; manual rows fall back to start date.
   const sortOtherMeds = (meds: Medication[]) => [...meds].sort((a, b) => {
-    const dateA = a.startDate || '';
-    const dateB = b.startDate || '';
-    return dateA.localeCompare(dateB);
+    return parseMedicationTime(a.orderedAt || a.startDate)
+      - parseMedicationTime(b.orderedAt || b.startDate);
   });
 
   const displayedMeds = sortOtherMeds(baseMeds);
@@ -410,7 +411,7 @@ export function PatientMedicationsTab({
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
                               {[m.dose && m.unit ? `${formatDoseValue(m.dose)} ${m.unit}` : null, m.frequency, m.route].filter(Boolean).join(' / ')}
-                              {m.startDate && ` (${formatMedDate(m.startDate)})`}
+                              {(m.orderedAt || m.startDate) && ` (${formatMedDate(m.orderedAt) || formatMedDateOnly(m.startDate)})`}
                             </p>
                           </div>
                         ))}
@@ -459,6 +460,10 @@ export function PatientMedicationsTab({
                     const prn = isPrnOrStat(medication);
                     const isStat = medication.frequency?.toUpperCase() === 'STAT';
                     const discontinued = isDiscontinued(medication);
+                    const orderedAt = formatMedDate(medication.orderedAt);
+                    const startedOn = orderedAt ? '' : formatMedDateOnly(medication.startDate);
+                    const endedAt = formatMedDate(medication.endedAt);
+                    const endedOn = endedAt ? '' : formatMedDateOnly(medication.endDate);
                     return (
                       <div
                         key={medication.id}
@@ -508,12 +513,10 @@ export function PatientMedicationsTab({
                         </div>
                         <div className={`mt-1 flex items-center gap-2 text-sm ${discontinued ? 'text-gray-400 dark:text-gray-500' : 'text-muted-foreground'}`}>
                           <span>{formatMedicationRegimen(medication)}</span>
-                          {medication.startDate && (
-                            <span className="text-xs">{formatMedDate(medication.startDate)}</span>
-                          )}
-                          {discontinued && medication.endDate && (
-                            <span className="text-xs">→ {formatMedDate(medication.endDate)}</span>
-                          )}
+                          {orderedAt && <span className="text-xs">{t('tab.sanMedCard.orderedAt', { date: orderedAt })}</span>}
+                          {startedOn && <span className="text-xs">{t('tab.sanMedCard.startedOn', { date: startedOn })}</span>}
+                          {discontinued && endedAt && <span className="text-xs">{t('tab.sanMedCard.endedAt', { date: endedAt })}</span>}
+                          {discontinued && endedOn && <span className="text-xs">{t('tab.sanMedCard.endedOn', { date: endedOn })}</span>}
                         </div>
                         {!discontinued && formatMedicationConcentration(medication) && (
                           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t('tab.main.concentrationLabel', { value: formatMedicationConcentration(medication) })}</p>
@@ -573,6 +576,8 @@ export function PatientMedicationsTab({
                       {group.meds.map((medication) => (
                         (() => {
                           const displayEndDate = getMedicationEndDate(medication);
+                          const issuedAt = formatMedDate(medication.orderedAt)
+                            || formatMedDateOnly(medication.startDate);
                           return (
                             <div
                               key={medication.id}
@@ -586,6 +591,11 @@ export function PatientMedicationsTab({
                                 {medication.sourceCampus && (
                                   <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400">
                                     {medication.sourceCampus}
+                                  </Badge>
+                                )}
+                                {medication.chronicPrescriptionMonths != null && (
+                                  <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 bg-teal-100 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400">
+                                    {t('tab.outpatientGroup.chronicPrescription', { months: medication.chronicPrescriptionMonths })}
                                   </Badge>
                                 )}
                                 <SanCategoryBadge category={medication.sanCategory} />
@@ -602,13 +612,27 @@ export function PatientMedicationsTab({
                               <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
                                 <span>{formatMedicationRegimen(medication)}</span>
                                 {medication.daysSupply != null && (
-                                  <span className="text-xs">{t('tab.outpatientGroup.daysSupplyCompact', { days: medication.daysSupply })}</span>
+                                  <span className="text-xs">
+                                    {t(
+                                      medication.chronicPrescriptionMonths
+                                        ? 'tab.outpatientGroup.chronicDaysSupplyCompact'
+                                        : 'tab.outpatientGroup.daysSupplyCompact',
+                                      { days: medication.daysSupply },
+                                    )}
+                                  </span>
                                 )}
                               </div>
-                              {medication.startDate && (
+                              {issuedAt && (
                                 <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-                                  {t('tab.outpatientGroup.issuedPrefix', { date: formatMedDate(medication.startDate) })}
-                                  {displayEndDate && <span> → {t('tab.outpatientGroup.untilSuffix', { date: formatMedDateFromDate(displayEndDate) })}</span>}
+                                  {t('tab.outpatientGroup.issuedPrefix', { date: issuedAt })}
+                                  {displayEndDate && (
+                                    <span> → {t(
+                                      medication.chronicPrescriptionMonths
+                                        ? 'tab.outpatientGroup.chronicUntilSuffix'
+                                        : 'tab.outpatientGroup.untilSuffix',
+                                      { date: formatMedDateFromDate(displayEndDate) },
+                                    )}</span>
+                                  )}
                                 </div>
                               )}
                             </div>

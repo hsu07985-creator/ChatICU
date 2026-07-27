@@ -17,7 +17,8 @@ export interface Medication {
   concentrationUnit?: string;
   frequency: string;
   orderedAt?: string | null;
-  startDate: string;
+  endedAt?: string | null;
+  startDate?: string | null;
   endDate?: string | null;
   status: 'active' | 'discontinued' | 'completed' | 'on-hold';
   prescribedBy: {
@@ -38,6 +39,7 @@ export interface Medication {
   prescribingDepartment?: string | null;
   prescribingDoctorName?: string | null;
   daysSupply?: number | null;
+  chronicPrescriptionMonths?: number | null;
   isExternal?: boolean;
   // Standardized codes (PR-1 / PR-2). HIS medications use the source ATC_CODE;
   // frontend can use it for exact structured matching (e.g. PAD drug ID).

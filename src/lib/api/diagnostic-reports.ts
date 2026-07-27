@@ -3,7 +3,7 @@ import apiClient, { ensureData, type ApiResponse } from '../api-client';
 export interface DiagnosticReport {
   id: string;
   patientId: string;
-  reportType: 'imaging' | 'procedure' | 'other';
+  reportType: 'imaging' | 'procedure' | 'ecg_ai' | 'other';
   examName: string;
   examDate: string;
   bodyText: string;
