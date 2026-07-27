@@ -2,6 +2,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { normalizeAiMarkdown } from '../../lib/normalize-ai-markdown';
 
 /**
  * Renders AI safety warnings from the guardrail system.
@@ -92,7 +93,7 @@ export function AiMarkdown({ content, className = '' }: { content: string; class
           },
         }}
       >
-        {content}
+        {normalizeAiMarkdown(content)}
       </ReactMarkdown>
     </div>
   );
