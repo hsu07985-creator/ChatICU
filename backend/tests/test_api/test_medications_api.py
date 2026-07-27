@@ -27,6 +27,7 @@ async def seeded_medication(seeded_db):
         status="active",
         prescribed_by={"id": "usr_test", "name": "Test Doctor"},
         warnings=["respiratory depression"],
+        source_details={"CREATE_DATE": "1150217", "CREATE_TIME": "1615"},
     )
     seeded_db.add(med)
     seeded_db.add_all(
@@ -194,6 +195,7 @@ async def test_compact_medications_keep_display_fields_without_duplicate_payload
     assert compact["interactions"] == []
     assert compact["medications"][0]["id"] == full["medications"][0]["id"]
     assert compact["medications"][0]["sanCategory"] == "A"
+    assert compact["medications"][0]["orderedAt"] == "2026-02-17T08:15:00Z"
     assert "sourceDetails" not in compact["medications"][0]
 
 

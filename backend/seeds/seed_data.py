@@ -168,6 +168,8 @@ async def seed_medications(session: AsyncSession):
             status=m.get("status", "active"),
             prescribed_by=m.get("prescribedBy"),
             warnings=m.get("warnings"),
+            notes=m.get("notes"),
+            source_details=m.get("sourceDetails"),
         )
         session.add(med)
     await session.flush()

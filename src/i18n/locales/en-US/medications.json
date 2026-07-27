@@ -121,7 +121,8 @@
     },
     "sanMedCard": {
       "edit": "Edit",
-      "orderNote": "Order note"
+      "orderNote": "Order note",
+      "orderedAt": "Ordered {{date}}"
     },
     "detailModal": {
       "outpatientLabel": "Outpatient",

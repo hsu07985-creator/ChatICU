@@ -121,7 +121,8 @@
     },
     "sanMedCard": {
       "edit": "編輯",
-      "orderNote": "醫令備註"
+      "orderNote": "醫令備註",
+      "orderedAt": "開立 {{date}}"
     },
     "detailModal": {
       "outpatientLabel": "門診用藥",

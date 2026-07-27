@@ -95,11 +95,13 @@ class OutpatientImportRequest(BaseModel):
     medications: List[OutpatientMedicationItem]
 
 
-from datetime import date as _date
+from datetime import date as _date, datetime as _datetime
 from typing import Optional as _Optional
 
+from pydantic import computed_field as _computed_field
 from pydantic import field_validator as _field_validator
 
+from app.fhir.his.roc_time import _roc_to_datetime
 from app.schemas.base import CamelModel as _CamelModel
 
 
@@ -139,6 +141,12 @@ class MedicationResponse(_CamelModel):
     kidney_relevant: _Optional[bool] = None
     coding_source: _Optional[str] = None
     source_details: _Optional[dict] = None
+
+    @_computed_field(alias="orderedAt")
+    @property
+    def ordered_at(self) -> _Optional[_datetime]:
+        details = self.source_details or {}
+        return _roc_to_datetime(details.get("CREATE_DATE"), details.get("CREATE_TIME"))
 
     @_field_validator("warnings", mode="before")
     @classmethod

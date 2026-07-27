@@ -16,6 +16,7 @@ export interface Medication {
   concentration?: string;
   concentrationUnit?: string;
   frequency: string;
+  orderedAt?: string | null;
   startDate: string;
   endDate?: string | null;
   status: 'active' | 'discontinued' | 'completed' | 'on-hold';

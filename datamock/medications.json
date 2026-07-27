@@ -23,7 +23,12 @@
       "warnings": [
         "併用 Dormicum，需注意呼吸抑制",
         "eGFR 58，延長監測間隔"
-      ]
+      ],
+      "notes": "Morphine 2mg IV Q4H PRN for pain\nif Pain Score > 4, may repeat x1",
+      "sourceDetails": {
+        "CREATE_DATE": "1141017",
+        "CREATE_TIME": "0815"
+      }
     },
     {
       "id": "med_002",
@@ -47,7 +52,12 @@
       },
       "warnings": [
         "併用 Morphine，需注意呼吸抑制"
-      ]
+      ],
+      "notes": "for Dormicum pump, initial bolus 1cc\nrun 0.4cc/hr-3cc/hr, titrate every hour\nkeep RASS -2~-3",
+      "sourceDetails": {
+        "CREATE_DATE": "1141017",
+        "CREATE_TIME": "0830"
+      }
     },
     {
       "id": "med_003",
