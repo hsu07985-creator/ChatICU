@@ -41,12 +41,14 @@ GOLDEN = {
     "prescribedBy": {"id": "usr_002", "name": "李穎灝"},
     "warnings": ["腎功能監測"], "notes": "trough 目標 15-20",
     "concentration": "5", "concentrationUnit": "mg/ml",
+    "orderedAt": None, "endedAt": None,
     "sourceType": "inpatient",      # None → 預設
     "sourceCampus": "仁愛", "prescribingHospital": None,
     "prescribingDepartment": None, "prescribingDoctorName": None,
     "daysSupply": 7, "isExternal": False,  # None → False
     "atcCode": "J01XA01", "isAntibiotic": True,
     "kidneyRelevant": True, "codingSource": "rxnorm", "sourceDetails": None,
+    "chronicPrescriptionMonths": None,
 }
 
 
@@ -64,3 +66,30 @@ def test_med_to_dict_none_warnings_becomes_empty_list():
     med = _full_med()
     med.warnings = None
     assert med_to_dict(med)["warnings"] == []
+
+
+def test_med_to_dict_maps_his_long_type_to_chronic_months():
+    med = _full_med()
+    med.source_details = {"LONG_TYPE": 3.0}
+    assert med_to_dict(med)["chronicPrescriptionMonths"] == 3
+
+    med.source_details = {"LONG_TYPE": 0}
+    assert med_to_dict(med)["chronicPrescriptionMonths"] is None
+
+
+def test_med_to_dict_uses_his_order_and_end_times_without_inventing_midnight():
+    med = _full_med()
+    med.source_details = {
+        "CREATE_DATE": "1150326",
+        "CREATE_TIME": "1147",
+        "END_DATE": "1150327",
+        "END_TIME": "0915",
+    }
+    payload = med_to_dict(med)
+    assert payload["orderedAt"] == "2026-03-26T03:47:00Z"
+    assert payload["endedAt"] == "2026-03-27T01:15:00Z"
+
+    med.source_details = {"CREATE_DATE": "1150326", "END_DATE": "1150327"}
+    payload = med_to_dict(med)
+    assert payload["orderedAt"] is None
+    assert payload["endedAt"] is None

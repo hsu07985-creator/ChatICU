@@ -146,7 +146,30 @@ class MedicationResponse(_CamelModel):
     @property
     def ordered_at(self) -> _Optional[_datetime]:
         details = self.source_details or {}
-        return _roc_to_datetime(details.get("CREATE_DATE"), details.get("CREATE_TIME"))
+        order_date = details.get("CREATE_DATE")
+        order_time = details.get("CREATE_TIME")
+        if not order_date or not order_time:
+            return None
+        return _roc_to_datetime(order_date, order_time)
+
+    @_computed_field(alias="endedAt")
+    @property
+    def ended_at(self) -> _Optional[_datetime]:
+        details = self.source_details or {}
+        end_date = details.get("END_DATE")
+        end_time = details.get("END_TIME")
+        if not end_date or not end_time:
+            return None
+        return _roc_to_datetime(end_date, end_time)
+
+    @_computed_field(alias="chronicPrescriptionMonths")
+    @property
+    def chronic_prescription_months(self) -> _Optional[int]:
+        try:
+            months = int(float((self.source_details or {}).get("LONG_TYPE") or 0))
+        except (TypeError, ValueError):
+            return None
+        return months if months in {2, 3} else None
 
     @_field_validator("warnings", mode="before")
     @classmethod

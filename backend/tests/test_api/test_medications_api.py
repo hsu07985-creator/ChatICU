@@ -27,7 +27,12 @@ async def seeded_medication(seeded_db):
         status="active",
         prescribed_by={"id": "usr_test", "name": "Test Doctor"},
         warnings=["respiratory depression"],
-        source_details={"CREATE_DATE": "1150217", "CREATE_TIME": "1615"},
+        source_details={
+            "CREATE_DATE": "1150217",
+            "CREATE_TIME": "1615",
+            "END_DATE": "1150218",
+            "END_TIME": "0910",
+        },
     )
     seeded_db.add(med)
     seeded_db.add_all(
@@ -86,6 +91,8 @@ async def test_get_medication_detail_contract(client, seeded_medication):
     assert data["patientId"] == "pat_001"
     assert data["name"] == "Morphine"
     assert isinstance(data["warnings"], list)
+    assert data["orderedAt"] == "2026-02-17T08:15:00Z"
+    assert data["endedAt"] == "2026-02-18T01:10:00Z"
 
 
 @pytest.mark.asyncio
@@ -196,6 +203,7 @@ async def test_compact_medications_keep_display_fields_without_duplicate_payload
     assert compact["medications"][0]["id"] == full["medications"][0]["id"]
     assert compact["medications"][0]["sanCategory"] == "A"
     assert compact["medications"][0]["orderedAt"] == "2026-02-17T08:15:00Z"
+    assert compact["medications"][0]["endedAt"] == "2026-02-18T01:10:00Z"
     assert "sourceDetails" not in compact["medications"][0]
 
 
