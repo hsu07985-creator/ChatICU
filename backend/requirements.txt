@@ -14,7 +14,7 @@ passlib[bcrypt]==1.7.4
 bcrypt==4.2.1
 
 # Configuration
-pydantic-settings==2.7.1
+pydantic-settings==2.11.0
 
 # Rate Limiting
 slowapi==0.1.9
